@@ -7,10 +7,14 @@ class FFIError(Exception):
 
 class FFI(object):
     
-    def __init__(self, backend):
+    def __init__(self, backend=None):
+        if backend is None:
+            import backend_ctypes
+            backend = backend_ctypes.CTypesBackend()
         self._backend = backend
         self._functions = {}
         self._primitive_types = {}
+        self.C = FFILibrary(self, self._backend.load_library())
 
     def cdef(self, csource):
         parser = pycparser.CParser()
@@ -19,15 +23,24 @@ class FFI(object):
         v.visit(ast)
 
     def load(self, name):
+        assert isinstance(name, str)
         return FFILibrary(self, self._backend.load_library(name))
 
     def _get_type(self, typenode):
-        # assume a primitive type
-        ident = ' '.join(typenode.type.names)
-        if ident not in self._primitive_types:
-            btype = self._backend.new_primitive_type(ident)
-            self._primitive_types[ident] = btype
-        return self._primitive_types[ident]
+        if isinstance(typenode, pycparser.c_ast.ArrayDecl):
+            # array type
+            assert isinstance(typenode.dim, pycparser.c_ast.Constant), (
+                "non-constant array length")
+            length = int(typenode.dim.value)
+            bitem = self._get_type(typenode.type)
+            return self._backend.new_array_type(bitem, length)
+        else:
+            # assume a primitive type
+            ident = ' '.join(typenode.type.names)
+            if ident not in self._primitive_types:
+                btype = self._backend.new_primitive_type(ident)
+                self._primitive_types[ident] = btype
+            return self._primitive_types[ident]
 
 
 class FFILibrary(object):

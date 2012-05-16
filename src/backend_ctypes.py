@@ -1,4 +1,4 @@
-import ctypes
+import ctypes, ctypes.util
 
 
 class CTypesBackend(object):
@@ -7,8 +7,11 @@ class CTypesBackend(object):
         'double': ctypes.c_double,
     }
 
-    def load_library(self, name):
-        cdll = ctypes.CDLL('lib%s.so' % name)
+    def load_library(self, name=Ellipsis):
+        if name is Ellipsis:
+            name = 'c'    # on Posix only
+        path = ctypes.util.find_library(name)
+        cdll = ctypes.CDLL(path)
         return CTypesLibrary(cdll)
 
     def new_primitive_type(self, name):

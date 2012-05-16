@@ -3,12 +3,15 @@ from ffi import FFI
 
 class FakeBackend(object):
     
-    def load_library(self, name):
-        assert name == "foobar"
+    def load_library(self, name=Ellipsis):
+        assert name in [Ellipsis, "foobar"]
         return FakeLibrary()
 
     def new_primitive_type(self, name):
         return '<%s>' % name
+
+    def new_array_type(self, itemtype, length):
+        return '<array[%d] of %s>' % (length, itemtype)
 
 class FakeLibrary(object):
     
@@ -31,3 +34,11 @@ def test_simple():
     assert func.name == 'sin'
     assert func.args == ['<double>']
     assert func.result == '<double>'
+
+def test_pipe():
+    ffi = FFI(backend=FakeBackend())
+    ffi.cdef("int pipe(int pipefd[2]);")
+    func = ffi.C.pipe
+    assert func.name == 'pipe'
+    assert func.args == ['<array[2] of <int>>']
+    assert func.result == '<int>'
