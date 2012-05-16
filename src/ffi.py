@@ -26,6 +26,18 @@ class FFI(object):
         assert isinstance(name, str)
         return FFILibrary(self, self._backend.load_library(name))
 
+    def typeof(self, cdecl):
+        typenode = self._parse_type(cdecl)
+        return self._get_type(typenode)
+
+    def _parse_type(self, cdecl):
+        parser = pycparser.CParser()
+        csource = 'void __dummy(%s);' % cdecl
+        ast = parser.parse(csource)
+        # XXX: insert some sanity check
+        typenode = ast.ext[0].type.args.params[0].type
+        return typenode
+
     def _get_type(self, typenode):
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):
             # array type
