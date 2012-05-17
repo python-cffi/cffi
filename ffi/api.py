@@ -9,7 +9,7 @@ class FFI(object):
     
     def __init__(self, backend=None):
         if backend is None:
-            import backend_ctypes
+            from . import backend_ctypes
             backend = backend_ctypes.CTypesBackend()
         self._backend = backend
         self._functions = {}
