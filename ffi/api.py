@@ -13,7 +13,7 @@ class FFI(object):
             backend = backend_ctypes.CTypesBackend()
         self._backend = backend
         self._functions = {}
-        self._primitive_types = {}
+        self._cached_btypes = {}
         self.C = FFILibrary(self, self._backend.load_library())
 
     def cdef(self, csource):
@@ -45,14 +45,19 @@ class FFI(object):
                 "non-constant array length")
             length = int(typenode.dim.value)
             bitem = self._get_type(typenode.type)
-            return self._backend.new_array_type(bitem, length)
+            return self._get_cached_btype('new_array_type', bitem, length)
         else:
             # assume a primitive type
             ident = ' '.join(typenode.type.names)
-            if ident not in self._primitive_types:
-                btype = self._backend.new_primitive_type(ident)
-                self._primitive_types[ident] = btype
-            return self._primitive_types[ident]
+            return self._get_cached_btype('new_primitive_type', ident)
+
+    def _get_cached_btype(self, methname, *args):
+        try:
+            btype = self._cached_btypes[methname, args]
+        except KeyError:
+            btype = getattr(self._backend, methname)(*args)
+            self._cached_btypes[methname, args] = btype
+        return btype
 
 
 class FFILibrary(object):
