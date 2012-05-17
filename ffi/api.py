@@ -14,6 +14,7 @@ class FFI(object):
         self._backend = backend
         self._functions = {}
         self._cached_btypes = {}
+        self._cached_parsed_types = {}
         self.C = FFILibrary(self, self._backend.load_library())
 
     def cdef(self, csource):
@@ -30,17 +31,21 @@ class FFI(object):
         typenode = self._parse_type(cdecl)
         return self._get_btype(typenode)
 
-    def new(self, cdecl):
+    def new(self, cdecl, *args):
         btype = self.typeof(cdecl)
-        return btype()
+        return btype(*args)
 
     def _parse_type(self, cdecl):
-        parser = pycparser.CParser()
-        csource = 'void __dummy(%s);' % cdecl
-        ast = parser.parse(csource)
-        # XXX: insert some sanity check
-        typenode = ast.ext[0].type.args.params[0].type
-        return typenode
+        try:
+            return self._cached_parsed_types[cdecl]
+        except KeyError:
+            parser = pycparser.CParser()
+            csource = 'void __dummy(%s);' % cdecl
+            ast = parser.parse(csource)
+            # XXX: insert some sanity check
+            typenode = ast.ext[0].type.args.params[0].type
+            self._cached_parsed_types[cdecl] = typenode
+            return typenode
 
     def _get_btype(self, typenode):
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):
