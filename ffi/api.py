@@ -31,9 +31,9 @@ class FFI(object):
         typenode = self._parse_type(cdecl)
         return self._get_btype(typenode)
 
-    def new(self, cdecl, *args):
+    def new(self, cdecl, init=None):
         btype = self.typeof(cdecl)
-        return btype(*args)
+        return btype(init)
 
     def _parse_type(self, cdecl):
         try:
@@ -50,9 +50,12 @@ class FFI(object):
     def _get_btype(self, typenode):
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):
             # array type
-            assert isinstance(typenode.dim, pycparser.c_ast.Constant), (
-                "non-constant array length")
-            length = int(typenode.dim.value)
+            if typenode.dim is None:
+                length = None
+            else:
+                assert isinstance(typenode.dim, pycparser.c_ast.Constant), (
+                    "non-constant array length")
+                length = int(typenode.dim.value)
             bitem = self._get_btype(typenode.type)
             return self._get_cached_btype('new_array_type', bitem, length)
         else:

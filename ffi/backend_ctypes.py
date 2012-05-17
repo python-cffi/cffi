@@ -51,22 +51,31 @@ class CTypesBackend(object):
         return CTypesInt
 
     def new_array_type(self, bitem, length):
-        ctype = bitem._ctype * length
+        # XXX array of integers only
         #
         class CTypesArray(object):
-            def __init__(self, *args):
-                if len(args) > length:
-                    raise TypeError("too many arguments: expected up to %d, "
-                                    "got %d" % (length, len(args)))
-                self._blob = ctype()
-                for i, value in enumerate(args):
-                    self[i] = value
+
+            def __init__(self, init):
+                if length is not None:
+                    len1 = length
+                else:
+                    if isinstance(init, (int, long)):
+                        len1 = init
+                        init = None
+                    else:
+                        len1 = len(init)
+                self._blob = (bitem._ctype * len1)()
+                if init is not None:
+                    for i, value in enumerate(init):
+                        self[i] = value
+
             def __getitem__(self, index):
-                if not (0 <= index < length):
+                if not (0 <= index < len(self._blob)):
                     raise IndexError
                 return self._blob[index]
+
             def __setitem__(self, index, value):
-                if not (0 <= index < length):
+                if not (0 <= index < len(self._blob)):
                     raise IndexError
                 self._blob[index] = value
         #
