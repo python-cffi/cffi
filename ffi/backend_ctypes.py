@@ -5,11 +5,11 @@ from ffi.backend_base import BackendBase
 class CTypesData(object):
 
     @staticmethod
-    def _import(value):
+    def _to_ctypes(value):
         raise TypeError
 
     @staticmethod
-    def _export(ctypes_value):
+    def _from_ctypes(ctypes_value):
         raise TypeError
 
     @classmethod
@@ -32,6 +32,7 @@ class CTypesData(object):
 class CTypesBackend(BackendBase):
 
     PRIMITIVE_TYPES = {
+        'char': ctypes.c_char,
         'short': ctypes.c_short,
         'int': ctypes.c_int,
         'long': ctypes.c_long,
@@ -57,9 +58,12 @@ class CTypesBackend(BackendBase):
         return CTypesLibrary(cdll)
 
     def new_primitive_type(self, name):
-        # XXX integer types only
         ctype = self.PRIMITIVE_TYPES[name]
-        is_signed = (ctype(-1).value == -1)
+        if name == 'char':
+            pass
+        else:
+            # integer types
+            is_signed = (ctype(-1).value == -1)
         #
         class CTypesInt(CTypesData):
             _ctype = ctype
@@ -67,26 +71,40 @@ class CTypesBackend(BackendBase):
 
             def __init__(self, value):
                 if value is None:
-                    value = 0
+                    if name == 'char':
+                        value = '\x00'
+                    else:
+                        value = 0
                 elif ctype(value).value != value:
                     raise OverflowError("%r out of range: %d" %
                                         (name, value))
                 self._value = value
 
             def __int__(self):
+                if name == 'char':
+                    return ord(self._value)
                 return self._value
 
-            def __nonzero__(self):   return self._value
-            def __lt__(self, other): return self._value <  other
-            def __le__(self, other): return self._value <= other
+            __nonzero__ = __int__
+
             def __eq__(self, other): return self._value == other
             def __ne__(self, other): return self._value != other
-            def __gt__(self, other): return self._value >  other
-            def __ge__(self, other): return self._value >= other
             def __hash__(self):      return hash(self._value)
+            def __lt__(self, other): raise TypeError("unorderable type")
+            def __le__(self, other): raise TypeError("unorderable type")
+            def __gt__(self, other): raise TypeError("unorderable type")
+            def __ge__(self, other): raise TypeError("unorderable type")
 
             @staticmethod
-            def _import(x):
+            def _to_ctypes(x):
+                if name == 'char':
+                    if isinstance(x, str) and len(x) == 1:
+                        return x
+                    if isinstance(x, CTypesInt):    # <CData <char>>
+                        return x._value
+                    raise TypeError("character expected, got %s" %
+                                    type(x).__name__)
+                #
                 if not isinstance(x, (int, long)):
                     if isinstance(x, CTypesData):
                         x = int(x)
@@ -99,7 +117,7 @@ class CTypesBackend(BackendBase):
                     else:
                         raise OverflowError("%s: integer out of bounds" % name)
                 return x
-            _export = staticmethod(_identity)
+            _from_ctypes = staticmethod(_identity)
         #
         CTypesInt._fix_class()
         return CTypesInt
@@ -133,18 +151,18 @@ class CTypesBackend(BackendBase):
                             self._address == other._address)
 
             def __getitem__(self, index):
-                return BItem._export(self._as_ctype_ptr[index])
+                return BItem._from_ctypes(self._as_ctype_ptr[index])
 
             def __setitem__(self, index, value):
-                self._as_ctype_ptr[index] = BItem._import(value)
+                self._as_ctype_ptr[index] = BItem._to_ctypes(value)
 
             @staticmethod
-            def _import(value):
+            def _to_ctypes(value):
                 return ctypes.cast(value._convert_to_address_of(BItem),
                                    CTypesPtr._ctype)
 
             @staticmethod
-            def _export(ctypes_ptr):
+            def _from_ctypes(ctypes_ptr):
                 self = CTypesPtr.__new__(CTypesPtr)
                 self._address = ctypes.addressof(ctypes_ptr.contents)
                 self._as_ctype_ptr = ctypes_ptr
@@ -179,15 +197,18 @@ class CTypesBackend(BackendBase):
                     for i, value in enumerate(init):
                         self[i] = value
 
+            def __len__(self):
+                return len(self._blob)
+
             def __getitem__(self, index):
                 if not (0 <= index < len(self._blob)):
                     raise IndexError
-                return BItem._export(self._blob[index])
+                return BItem._from_ctypes(self._blob[index])
 
             def __setitem__(self, index, value):
                 if not (0 <= index < len(self._blob)):
                     raise IndexError
-                self._blob[index] = BItem._import(value)
+                self._blob[index] = BItem._to_ctypes(value)
 
             def _convert_to_address_of(self, BClass):
                 if BItem is BClass:
@@ -196,7 +217,7 @@ class CTypesBackend(BackendBase):
                     return CTypesData._convert_to_address_of(self, BClass)
 
             @staticmethod
-            def _export(ctypes_array):
+            def _from_ctypes(ctypes_array):
                 self = CTypesArray.__new__(CTypesArray)
                 self._blob = ctypes_array
                 return self

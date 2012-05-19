@@ -47,14 +47,12 @@ class BackendTests:
         assert not bool(ffi.new("short", 0))
         assert n != ffi.new("short", 123)
         assert hash(n) == hash(-123)
-        assert n < -122
-        assert n <= -123
-        assert n > -124
-        assert n >= -123
-        assert not (n < -123)
-        assert not (n <= -124)
-        assert not (n > -123)
-        assert not (n >= -122)
+        assert int(n) == -123 and type(int(n)) is int
+        py.test.raises(TypeError, "n < -122")
+        py.test.raises(TypeError, "n <= -123")
+        py.test.raises(TypeError, "n > -124")
+        py.test.raises(TypeError, "n >= -123")
+        py.test.raises(TypeError, "n >= n")
 
     def test_new_array_no_arg(self):
         ffi = FFI(backend=self.Backend())
@@ -167,3 +165,18 @@ class BackendTests:
         a = p[3]
         assert repr(a) == "<cdata 'int *'>"
         assert a[0] == 99
+
+    def test_char(self):
+        ffi = FFI(backend=self.Backend())
+        assert int(ffi.new("char", "\xff")) == 0xFF
+        assert int(ffi.new("char")) == 0
+        assert bool(ffi.new("char", "\x80"))
+        assert not bool(ffi.new("char"))
+        py.test.raises(TypeError, ffi.new, "char", 32)
+        p = ffi.new("char[]", ['a', 'b', '\x9c'])
+        assert len(p) == 3
+        assert p[0] == 'a'
+        assert p[1] == 'b'
+        assert p[2] == '\x9c'
+        p[0] = '\xff'
+        assert p[0] == '\xff'
