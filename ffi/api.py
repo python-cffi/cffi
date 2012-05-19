@@ -60,7 +60,10 @@ class FFI(object):
             return self._get_cached_btype('new_array_type', bitem, length)
         else:
             # assume a primitive type
-            ident = ' '.join(typenode.type.names)
+            names = typenode.type.names
+            if len(names) > 1 and names[-1] == 'int':
+                names = names[:-1]
+            ident = ' '.join(names)
             return self._get_cached_btype('new_primitive_type', ident)
 
     def _get_cached_btype(self, methname, *args):

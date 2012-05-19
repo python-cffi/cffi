@@ -11,6 +11,8 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         for (c_type, size) in [('char', 1),
                                ('short', 2),
+                               ('short int', 2),
+                               ('', 4),
                                ('int', 4),
                                ('long', SIZE_OF_LONG),
                                ('long int', SIZE_OF_LONG),
@@ -21,7 +23,7 @@ class BackendTests:
                 c_decl = {None: '',
                           False: 'signed ',
                           True: 'unsigned '}[unsigned] + c_type
-                if c_decl == 'char':
+                if c_decl == 'char' or c_decl == '':
                     continue
                 if unsigned:
                     min = 0
@@ -70,6 +72,8 @@ class BackendTests:
         assert p[1] == 0     # follow C convention rather than LuaJIT's
         assert p[2] == 0
         assert p[3] == 0
+        p = ffi.new("int[4]", [ffi.new("int", -5)])
+        assert p[0] == -5
 
     def test_new_array_varsize(self):
         ffi = FFI(backend=self.Backend())
@@ -83,3 +87,13 @@ class BackendTests:
         assert p[0] == -6
         assert p[1] == -7
         py.test.raises(IndexError, "p[2]")
+
+    def test_new_array_of_array(self):
+        py.test.skip("in-progress")
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int[3][4]")
+        p[0][0] = 10
+        p[2][3] = 33
+        assert p[0][0] == 10
+        assert p[2][3] == 33
+        py.test.raises(IndexError, "p[1][-1]")
