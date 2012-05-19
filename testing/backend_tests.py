@@ -38,6 +38,24 @@ class BackendTests:
                 py.test.raises(OverflowError, ffi.new, c_decl, min - 1)
                 py.test.raises(OverflowError, ffi.new, c_decl, max + 1)
 
+    def test_int_equality(self):
+        ffi = FFI(backend=self.Backend())
+        n = ffi.new("short", -123)
+        assert bool(n)
+        assert n == -123
+        assert n == ffi.new("int", -123)
+        assert not bool(ffi.new("short", 0))
+        assert n != ffi.new("short", 123)
+        assert hash(n) == hash(-123)
+        assert n < -122
+        assert n <= -123
+        assert n > -124
+        assert n >= -123
+        assert not (n < -123)
+        assert not (n <= -124)
+        assert not (n > -123)
+        assert not (n >= -122)
+
     def test_new_array_no_arg(self):
         ffi = FFI(backend=self.Backend())
         p = ffi.new("int[10]")
@@ -104,6 +122,19 @@ class BackendTests:
         assert p[3] == 106
         # keepalive: a
 
+    def test_pointer_direct(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int*")
+        assert bool(p) is False
+        assert p == ffi.new("int*")
+        a = ffi.new("int[]", [123, 456])
+        p = ffi.new("int*", a)
+        assert bool(p) is True
+        assert p == ffi.new("int*", a)
+        assert p != ffi.new("int*")
+        assert p[0] == 123
+        assert p[1] == 456
+
     def test_repr(self):
         ffi = FFI(backend=self.Backend())
         p = ffi.new("unsigned short int")
@@ -120,7 +151,6 @@ class BackendTests:
         assert repr(type(p)) == "<class 'ffi.CData<int *[2][3]>'>"
 
     def test_new_array_of_array(self):
-        py.test.skip("in-progress")
         ffi = FFI(backend=self.Backend())
         p = ffi.new("int[3][4]")
         p[0][0] = 10

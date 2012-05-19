@@ -32,8 +32,8 @@ class FFI(object):
         return self._get_btype(typenode)
 
     def new(self, cdecl, init=None):
-        btype = self.typeof(cdecl)
-        return btype(init)
+        BType = self.typeof(cdecl)
+        return BType(init)
 
     def _parse_type(self, cdecl):
         try:
@@ -56,9 +56,9 @@ class FFI(object):
                 assert isinstance(typenode.dim, pycparser.c_ast.Constant), (
                     "non-constant array length")
                 length = int(typenode.dim.value)
-            bitem = self._get_btype(typenode.type)
+            BItem = self._get_btype(typenode.type)
             return self._backend.get_cached_btype('new_array_type',
-                                                  bitem, length)
+                                                  BItem, length)
         #
         elif isinstance(typenode, pycparser.c_ast.TypeDecl):
             # assume a primitive type
@@ -69,8 +69,8 @@ class FFI(object):
             return self._backend.get_cached_btype('new_primitive_type', ident)
         #
         elif isinstance(typenode, pycparser.c_ast.PtrDecl):
-            bitem = self._get_btype(typenode.type)
-            return self._backend.get_cached_btype("new_pointer_type", bitem)
+            BItem = self._get_btype(typenode.type)
+            return self._backend.get_cached_btype("new_pointer_type", BItem)
         #
         else:
             raise FFIError("bad or unsupported type declaration")

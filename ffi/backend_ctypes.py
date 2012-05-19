@@ -6,15 +6,15 @@ class CTypesData(object):
 
     @staticmethod
     def _import(value):
-        x
+        raise NotImplementedError
 
     @staticmethod
     def _export(ctypes_value):
         raise NotImplementedError
 
     @classmethod
-    def _get_c_name(cls):
-        return cls._reftypename.replace(' &', '')
+    def _get_c_name(cls, replace_with=''):
+        return cls._reftypename.replace(' &', replace_with)
 
     @classmethod
     def _fix_class(cls):
@@ -24,9 +24,9 @@ class CTypesData(object):
     def __repr__(self):
         return '<cdata %r>' % (self._get_c_name(),)
 
-    def _convert_to_address_of(self, Class):
+    def _convert_to_address_of(self, BClass):
         raise TypeError("cannot convert %r to %r" % (
-            self._get_c_name(), Class._reftypename.replace('&', '*')))
+            self._get_c_name(), BClass._get_c_name(' *')))
 
 
 class CTypesBackend(BackendBase):
@@ -76,6 +76,15 @@ class CTypesBackend(BackendBase):
             def __int__(self):
                 return self._value
 
+            def __nonzero__(self):   return self._value
+            def __lt__(self, other): return self._value <  other
+            def __le__(self, other): return self._value <= other
+            def __eq__(self, other): return self._value == other
+            def __ne__(self, other): return self._value != other
+            def __gt__(self, other): return self._value >  other
+            def __ge__(self, other): return self._value >= other
+            def __hash__(self):      return hash(self._value)
+
             @staticmethod
             def _import(x):
                 if not isinstance(x, (int, long)):
@@ -95,53 +104,70 @@ class CTypesBackend(BackendBase):
         CTypesInt._fix_class()
         return CTypesInt
 
-    def new_pointer_type(self, bitem):
+    def new_pointer_type(self, BItem):
         #
         class CTypesPtr(CTypesData):
-            _ctype = ctypes.POINTER(bitem._ctype)
-            _reftypename = bitem._reftypename.replace('&', '* &')
+            _ctype = ctypes.POINTER(BItem._ctype)
+            _reftypename = BItem._get_c_name(' * &')
 
             def __init__(self, init):
                 if init is None:
                     address = 0      # null pointer
                 elif isinstance(init, CTypesData):
-                    address = init._convert_to_address_of(bitem)
+                    address = init._convert_to_address_of(BItem)
                 else:
                     raise TypeError("%r expected, got %r" % (
                         CTypesPtr._get_c_name(), type(init).__name__))
-                self._address = ctypes.cast(address, self._ctype)
+                self._address = address
+                self._as_ctype_ptr = ctypes.cast(address, CTypesPtr._ctype)
+
+            @classmethod
+            def _from_ctype_ptr(cls, ptr):
+                self._address = ctypes.addressof(ptr.contents)
+                self._as_ctype_ptr = ptr
+
+            def __nonzero__(self):
+                return self._address
+
+            def __eq__(self, other):
+                return (isinstance(other, CTypesPtr) and
+                        self._address == other._address)
+
+            def __ne__(self, other):
+                return not (isinstance(other, CTypesPtr) and
+                            self._address == other._address)
 
             def __getitem__(self, index):
-                return bitem._export(self._address[index])
+                return BItem._export(self._as_ctype_ptr[index])
 
             def __setitem__(self, index, value):
-                self._address[index] = bitem._import(value)
+                self._as_ctype_ptr[index] = BItem._import(value)
         #
         CTypesPtr._fix_class()
         return CTypesPtr
 
-    def new_array_type(self, bitem, length):
+    def new_array_type(self, BItem, length):
         if length is None:
             brackets = ' &[]'
         else:
             brackets = ' &[%d]' % length
-        reftypename = bitem._reftypename.replace(' &', brackets)
         #
         class CTypesArray(CTypesData):
             if length is not None:
-                _ctype = bitem._ctype * length
-            _reftypename = reftypename
+                _ctype = BItem._ctype * length
+            _reftypename = BItem._get_c_name(brackets)
 
             def __init__(self, init):
                 if length is not None:
                     len1 = length
+                    self._blob = self._ctype()
                 else:
                     if isinstance(init, (int, long)):
                         len1 = init
                         init = None
                     else:
                         len1 = len(init)
-                self._blob = (bitem._ctype * len1)()
+                    self._blob = (BItem._ctype * len1)()
                 if init is not None:
                     for i, value in enumerate(init):
                         self[i] = value
@@ -149,17 +175,24 @@ class CTypesBackend(BackendBase):
             def __getitem__(self, index):
                 if not (0 <= index < len(self._blob)):
                     raise IndexError
-                return bitem._export(self._blob[index])
+                return BItem._export(self._blob[index])
 
             def __setitem__(self, index, value):
                 if not (0 <= index < len(self._blob)):
                     raise IndexError
-                self._blob[index] = bitem._import(value)
+                self._blob[index] = BItem._import(value)
 
-            def _convert_to_address_of(self, bexpecteditem):
-                if bitem is bexpecteditem:
+            def _convert_to_address_of(self, BClass):
+                if BItem is BClass:
                     return ctypes.addressof(self._blob)
-                return CTypesData._convert_to_address_of(self, bexpecteditem)
+                else:
+                    return CTypesData._convert_to_address_of(self, BClass)
+
+            @staticmethod
+            def _export(ctypes_array):
+                self = CTypesArray.__new__(CTypesArray)
+                self._blob = ctypes_array
+                return self
         #
         CTypesArray._fix_class()
         return CTypesArray

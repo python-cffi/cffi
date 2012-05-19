@@ -7,8 +7,8 @@ class BackendBase(object):
 
     def get_cached_btype(self, methname, *args):
         try:
-            btype = self._cached_btypes[methname, args]
+            BType = self._cached_btypes[methname, args]
         except KeyError:
-            btype = getattr(self, methname)(*args)
-            self._cached_btypes[methname, args] = btype
-        return btype
+            BType = getattr(self, methname)(*args)
+            self._cached_btypes[methname, args] = BType
+        return BType
