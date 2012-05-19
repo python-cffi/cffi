@@ -96,12 +96,15 @@ class FFI(object):
 
     def _get_struct_or_union_type(self, kind, type):
         key = '%s %s' % (kind, type.name)
-        assert key in self._declarations, "XXX opaque structs or unions"
-        fields = self._declarations[key].decls
-        fnames = [decl.name for decl in fields]
-        btypes = [self._get_btype(decl.type) for decl in fields]
+        if key in self._declarations:
+            fields = self._declarations[key].decls
+            fnames = tuple([decl.name for decl in fields])
+            btypes = tuple([self._get_btype(decl.type) for decl in fields])
+        else:   # opaque struct or union
+            fnames = None
+            btypes = None
         return self._backend.get_cached_btype(
-            'new_%s_type' % kind, type.name, tuple(fnames), tuple(btypes))
+            'new_%s_type' % kind, type.name, fnames, btypes)
 
 
 class FFILibrary(object):
@@ -131,7 +134,7 @@ class CVisitor(pycparser.c_ast.NodeVisitor):
         self.ffi = ffi
 
     def visit_FuncDecl(self, node):
-        self.ffi._declare('function ' + node.name, node)
+        self.ffi._declare('function ' + node.type.declname, node)
 
     def visit_Struct(self, node):
         if node.decls is not None:

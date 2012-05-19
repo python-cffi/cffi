@@ -256,8 +256,9 @@ class CTypesBackend(BackendBase):
     def new_struct_type(self, name, fnames, BFieldTypes):
         #
         class struct(ctypes.Structure):
-            _fields_ = [(fname, BField._ctype)
-                        for (fname, BField) in zip(fnames, BFieldTypes)]
+            if fnames is not None:
+                _fields_ = [(fname, BField._ctype)
+                            for (fname, BField) in zip(fnames, BFieldTypes)]
         struct.__name__ = 'struct_%s' % name
         #
         class CTypesStruct(CTypesData):
@@ -265,6 +266,9 @@ class CTypesBackend(BackendBase):
             _reftypename = 'struct %s &' % name
 
             def __init__(self, init):
+                if fnames is None:
+                    raise TypeError("cannot instantiate opaque type %s" % (
+                        CTypesStruct,))
                 self._blob = struct()
                 if init is not None:
                     init = tuple(init)
@@ -274,15 +278,16 @@ class CTypesBackend(BackendBase):
                     for value, fname, BField in zip(init, fnames, BFieldTypes):
                         setattr(self._blob, fname, BField._to_ctypes(value))
         #
-        for fname, BField in zip(fnames, BFieldTypes):
-            if hasattr(CTypesStruct, fname):
-                raise ValueError("the field name %r conflicts in "
-                                 "the ctypes backend" % fname)
-            def getter(self, fname=fname, BField=BField):
-                return BField._from_ctypes(getattr(self._blob, fname))
-            def setter(self, value, fname=fname, BField=BField):
-                setattr(self._blob, fname, BField._to_ctypes(value))
-            setattr(CTypesStruct, fname, property(getter, setter))
+        if fnames is not None:
+            for fname, BField in zip(fnames, BFieldTypes):
+                if hasattr(CTypesStruct, fname):
+                    raise ValueError("the field name %r conflicts in "
+                                     "the ctypes backend" % fname)
+                def getter(self, fname=fname, BField=BField):
+                    return BField._from_ctypes(getattr(self._blob, fname))
+                def setter(self, value, fname=fname, BField=BField):
+                    setattr(self._blob, fname, BField._to_ctypes(value))
+                setattr(CTypesStruct, fname, property(getter, setter))
         #
         CTypesStruct._fix_class()
         return CTypesStruct
@@ -290,8 +295,9 @@ class CTypesBackend(BackendBase):
     def new_union_type(self, name, fnames, BFieldTypes):
         #
         class union(ctypes.Union):
-            _fields_ = [(fname, BField._ctype)
-                        for (fname, BField) in zip(fnames, BFieldTypes)]
+            if fnames is not None:
+                _fields_ = [(fname, BField._ctype)
+                            for (fname, BField) in zip(fnames, BFieldTypes)]
         union.__name__ = 'union_%s' % name
         #
         class CTypesUnion(CTypesData):
@@ -299,21 +305,25 @@ class CTypesBackend(BackendBase):
             _reftypename = 'union %s &' % name
 
             def __init__(self, init):
+                if fnames is None:
+                    raise TypeError("cannot instantiate opaque type %s" % (
+                        CTypesUnion,))
                 self._blob = union()
                 if init is not None:
                     fname = fnames[0]
                     BField = BFieldTypes[0]
                     setattr(self._blob, fname, BField._to_ctypes(init))
         #
-        for fname, BField in zip(fnames, BFieldTypes):
-            if hasattr(CTypesUnion, fname):
-                raise ValueError("the field name %r conflicts in "
-                                 "the ctypes backend" % fname)
-            def getter(self, fname=fname, BField=BField):
-                return BField._from_ctypes(getattr(self._blob, fname))
-            def setter(self, value, fname=fname, BField=BField):
-                setattr(self._blob, fname, BField._to_ctypes(value))
-            setattr(CTypesUnion, fname, property(getter, setter))
+        if fnames is not None:
+            for fname, BField in zip(fnames, BFieldTypes):
+                if hasattr(CTypesUnion, fname):
+                    raise ValueError("the field name %r conflicts in "
+                                     "the ctypes backend" % fname)
+                def getter(self, fname=fname, BField=BField):
+                    return BField._from_ctypes(getattr(self._blob, fname))
+                def setter(self, value, fname=fname, BField=BField):
+                    setattr(self._blob, fname, BField._to_ctypes(value))
+                setattr(CTypesUnion, fname, property(getter, setter))
         #
         CTypesUnion._fix_class()
         return CTypesUnion

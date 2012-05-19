@@ -235,6 +235,11 @@ class BackendTests:
         #
         py.test.raises(ValueError, ffi.new, "struct foo", [1, 2, 3, 4])
 
+    def test_struct_opaque(self):
+        ffi = FFI(backend=self.Backend())
+        py.test.raises(TypeError, ffi.new, "struct baz")
+        ffi.new("struct baz *")   # this works
+
     def test_union_simple(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("union foo { int a; short b, c; };")
@@ -248,3 +253,8 @@ class BackendTests:
         u = ffi.new("union foo", -2)
         assert u.a == -2
         py.test.raises((AttributeError, TypeError), "del u.a")
+
+    def test_union_opaque(self):
+        ffi = FFI(backend=self.Backend())
+        py.test.raises(TypeError, ffi.new, "union baz")
+        ffi.new("union baz *")   # this works
