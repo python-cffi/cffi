@@ -122,9 +122,9 @@ class CTypesBackend(BackendBase):
 
     def new_array_type(self, bitem, length):
         if length is None:
-            brackets = '[] &'
+            brackets = ' &[]'
         else:
-            brackets = '[%d] &' % length
+            brackets = ' &[%d]' % length
         reftypename = bitem._reftypename.replace(' &', brackets)
         #
         class CTypesArray(CTypesData):

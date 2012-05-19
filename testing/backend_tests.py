@@ -115,6 +115,9 @@ class BackendTests:
         p = ffi.new("int [2]")
         assert repr(p) == "<cdata 'int[2]'>"
         assert repr(type(p)) == "<class 'ffi.CData<int[2]>'>"
+        p = ffi.new("int*[2][3]")
+        assert repr(p) == "<cdata 'int *[2][3]'>"
+        assert repr(type(p)) == "<class 'ffi.CData<int *[2][3]>'>"
 
     def test_new_array_of_array(self):
         py.test.skip("in-progress")
