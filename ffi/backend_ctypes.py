@@ -16,11 +16,16 @@ class CTypesData(object):
     def _get_c_name(cls):
         return cls._reftypename.replace(' &', '')
 
+    @classmethod
+    def _fix_class(cls):
+        cls.__name__ = 'CData<%s>' % (cls._get_c_name(),)
+        cls.__module__ = 'ffi'
+
     def __repr__(self):
         return '<cdata %r>' % (self._get_c_name(),)
 
-    def _cast_to_address_of(self, Class):
-        raise TypeError("cannot cast %r to %r" % (
+    def _convert_to_address_of(self, Class):
+        raise TypeError("cannot convert %r to %r" % (
             self._get_c_name(), Class._reftypename.replace('&', '*')))
 
 
@@ -60,8 +65,10 @@ class CTypesBackend(BackendBase):
             _ctype = ctype
             _reftypename = '%s &' % name
 
-            def __init__(self, value=0):
-                if ctype(value).value != value:
+            def __init__(self, value):
+                if value is None:
+                    value = 0
+                elif ctype(value).value != value:
                     raise OverflowError("%r out of range: %d" %
                                         (name, value))
                 self._value = value
@@ -85,6 +92,7 @@ class CTypesBackend(BackendBase):
                 return x
             _export = staticmethod(_identity)
         #
+        CTypesInt._fix_class()
         return CTypesInt
 
     def new_pointer_type(self, bitem):
@@ -97,7 +105,7 @@ class CTypesBackend(BackendBase):
                 if init is None:
                     address = 0      # null pointer
                 elif isinstance(init, CTypesData):
-                    address = init._cast_to_address_of(bitem)
+                    address = init._convert_to_address_of(bitem)
                 else:
                     raise TypeError("%r expected, got %r" % (
                         CTypesPtr._get_c_name(), type(init).__name__))
@@ -109,6 +117,7 @@ class CTypesBackend(BackendBase):
             def __setitem__(self, index, value):
                 self._address[index] = bitem._import(value)
         #
+        CTypesPtr._fix_class()
         return CTypesPtr
 
     def new_array_type(self, bitem, length):
@@ -147,12 +156,12 @@ class CTypesBackend(BackendBase):
                     raise IndexError
                 self._blob[index] = bitem._import(value)
 
-            def _cast_to_address_of(self, bexpecteditem):
+            def _convert_to_address_of(self, bexpecteditem):
                 if bitem is bexpecteditem:
                     return ctypes.addressof(self._blob)
-                else:
-                    return CTypesData._cast_to_address_of(self, bexpecteditem)
+                return CTypesData._convert_to_address_of(self, bexpecteditem)
         #
+        CTypesArray._fix_class()
         return CTypesArray
 
 

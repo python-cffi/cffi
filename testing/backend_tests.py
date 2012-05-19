@@ -92,7 +92,7 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         a = ffi.new("short int[10]")
         e = py.test.raises(TypeError, ffi.new, "long int *", a)
-        assert str(e.value) == "cannot cast 'short[10]' to 'long *'"
+        assert str(e.value) == "cannot convert 'short[10]' to 'long *'"
 
     def test_new_pointer_to_array(self):
         ffi = FFI(backend=self.Backend())
@@ -103,6 +103,18 @@ class BackendTests:
         assert p[2] == 104
         assert p[3] == 106
         # keepalive: a
+
+    def test_repr(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("unsigned short int")
+        assert repr(p) == "<cdata 'unsigned short'>"
+        assert repr(type(p)) == "<class 'ffi.CData<unsigned short>'>"
+        p = ffi.new("int*")
+        assert repr(p) == "<cdata 'int *'>"
+        assert repr(type(p)) == "<class 'ffi.CData<int *>'>"
+        p = ffi.new("int [2]")
+        assert repr(p) == "<cdata 'int[2]'>"
+        assert repr(type(p)) == "<class 'ffi.CData<int[2]>'>"
 
     def test_new_array_of_array(self):
         py.test.skip("in-progress")
