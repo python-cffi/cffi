@@ -38,15 +38,12 @@ class CTypesBackend(BackendBase):
         'long': ctypes.c_long,
         'long long': ctypes.c_longlong,
         'signed char': ctypes.c_byte,
-        'signed short': ctypes.c_short,
-        'signed': ctypes.c_int,
-        'signed long': ctypes.c_long,
-        'signed long long': ctypes.c_longlong,
         'unsigned char': ctypes.c_ubyte,
         'unsigned short': ctypes.c_ushort,
-        'unsigned': ctypes.c_uint,
+        'unsigned int': ctypes.c_uint,
         'unsigned long': ctypes.c_ulong,
         'unsigned long long': ctypes.c_ulonglong,
+        'float': ctypes.c_float,
         'double': ctypes.c_double,
     }
 
@@ -60,32 +57,44 @@ class CTypesBackend(BackendBase):
     def new_primitive_type(self, name):
         ctype = self.PRIMITIVE_TYPES[name]
         if name == 'char':
-            pass
+            kind = 'char'
+            default_value = '\x00'
+        elif name in ('float', 'double'):
+            kind = 'float'
+            default_value = 0.0
         else:
-            # integer types
+            kind = 'int'
+            default_value = 0
             is_signed = (ctype(-1).value == -1)
         #
-        class CTypesInt(CTypesData):
+        class CTypesPrimitive(CTypesData):
             _ctype = ctype
             _reftypename = '%s &' % name
 
             def __init__(self, value):
                 if value is None:
-                    if name == 'char':
-                        value = '\x00'
-                    else:
-                        value = 0
-                elif ctype(value).value != value:
-                    raise OverflowError("%r out of range: %d" %
-                                        (name, value))
+                    value = default_value
+                else:
+                    value = CTypesPrimitive._to_ctypes(value)
                 self._value = value
 
-            def __int__(self):
-                if name == 'char':
-                    return ord(self._value)
-                return self._value
+            if kind == 'int':
+                def __int__(self):
+                    return self._value
 
-            __nonzero__ = __int__
+            if kind == 'char':
+                def __int__(self):
+                    return ord(self._value)
+                __nonzero__ = __int__
+            else:
+                def __nonzero__(self):
+                    return bool(self._value)
+
+            if kind == 'float':
+                def __int__(self):
+                    return int(self._value)
+                def __float__(self):
+                    return self._value
 
             def __eq__(self, other): return self._value == other
             def __ne__(self, other): return self._value != other
@@ -95,32 +104,45 @@ class CTypesBackend(BackendBase):
             def __gt__(self, other): raise TypeError("unorderable type")
             def __ge__(self, other): raise TypeError("unorderable type")
 
-            @staticmethod
-            def _to_ctypes(x):
-                if name == 'char':
+            if kind == 'int':
+                @staticmethod
+                def _to_ctypes(x):
+                    if not isinstance(x, (int, long)):
+                        if isinstance(x, CTypesData):
+                            x = int(x)
+                        else:
+                            raise TypeError("integer expected, got %s" %
+                                            type(x).__name__)
+                    if ctype(x).value != x:
+                        if not is_signed and x < 0:
+                            raise OverflowError("%s: negative integer" % name)
+                        else:
+                            raise OverflowError("%s: integer out of bounds"
+                                                % name)
+                    return x
+
+            if kind == 'char':
+                @staticmethod
+                def _to_ctypes(x):
                     if isinstance(x, str) and len(x) == 1:
                         return x
-                    if isinstance(x, CTypesInt):    # <CData <char>>
+                    if isinstance(x, CTypesPrimitive):    # <CData <char>>
                         return x._value
                     raise TypeError("character expected, got %s" %
                                     type(x).__name__)
-                #
-                if not isinstance(x, (int, long)):
-                    if isinstance(x, CTypesData):
-                        x = int(x)
-                    else:
-                        raise TypeError("integer expected, got %s" %
+
+            if kind == 'float':
+                @staticmethod
+                def _to_ctypes(x):
+                    if not isinstance(x, (int, long, float, CTypesData)):
+                        raise TypeError("float expected, got %s" %
                                         type(x).__name__)
-                if ctype(x).value != x:
-                    if not is_signed and x < 0:
-                        raise OverflowError("%s: negative integer" % name)
-                    else:
-                        raise OverflowError("%s: integer out of bounds" % name)
-                return x
+                    return ctype(x).value
+
             _from_ctypes = staticmethod(_identity)
         #
-        CTypesInt._fix_class()
-        return CTypesInt
+        CTypesPrimitive._fix_class()
+        return CTypesPrimitive
 
     def new_pointer_type(self, BItem):
         #

@@ -60,20 +60,31 @@ class FFI(object):
             return self._backend.get_cached_btype('new_array_type',
                                                   BItem, length)
         #
-        elif isinstance(typenode, pycparser.c_ast.TypeDecl):
-            # assume a primitive type
-            names = typenode.type.names
-            if len(names) > 1 and names[-1] == 'int':
-                names = names[:-1]
-            ident = ' '.join(names)
-            return self._backend.get_cached_btype('new_primitive_type', ident)
-        #
-        elif isinstance(typenode, pycparser.c_ast.PtrDecl):
+        if isinstance(typenode, pycparser.c_ast.PtrDecl):
             BItem = self._get_btype(typenode.type)
             return self._backend.get_cached_btype("new_pointer_type", BItem)
         #
-        else:
-            raise FFIError("bad or unsupported type declaration")
+        if isinstance(typenode, pycparser.c_ast.TypeDecl):
+            type = typenode.type
+            if isinstance(type, pycparser.c_ast.IdentifierType):
+                # assume a primitive type.  get it from .names, but reduce
+                # synonyms to a single chosen combination
+                names = list(type.names)
+                if names == ['signed'] or names == ['unsigned']:
+                    names.append('int')
+                if names[0] == 'signed' and names != ['signed', 'char']:
+                    names.pop(0)
+                if (len(names) > 1 and names[-1] == 'int'
+                        and names != ['unsigned', 'int']):
+                    names.pop()
+                ident = ' '.join(names)
+                return self._backend.get_cached_btype(
+                    'new_primitive_type', ident)
+            #
+            if isinstance(type, pycparser.c_ast.Struct):
+                xxx
+        #
+        raise FFIError("bad or unsupported type declaration")
 
 
 class FFILibrary(object):
@@ -107,3 +118,6 @@ class CVisitor(pycparser.c_ast.NodeVisitor):
         if name in self.ffi._functions:
             raise FFIError("multiple declaration of function %r" % (name,))
         self.ffi._functions[name] = node
+
+    def visit_Struct(self, node):
+        xxx

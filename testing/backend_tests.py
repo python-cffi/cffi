@@ -195,3 +195,35 @@ class BackendTests:
         assert p[0] is None
         assert ffi.new("int*") == None
         assert ffi.new("int*") is not None
+
+    def test_float(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("float[]", [-2, -2.5])
+        assert p[0] == -2.0
+        assert p[1] == -2.5
+        p[1] += 17.75
+        assert p[1] == 15.25
+        #
+        f = ffi.new("float", 15.75)
+        assert int(f) == 15 and type(int(f)) is int
+        assert float(f) == 15.75 and type(float(f)) is float
+        assert bool(f) is True
+        assert bool(ffi.new("float", 0.0)) is False
+        assert f == 15.75
+        assert f != 16.2
+        #
+        f = ffi.new("float", 1.1)
+        assert f != 1.1      # because of rounding effect
+        assert abs(float(f) - 1.1) < 1E-7
+        f = ffi.new("float", 1E200)
+        assert float(f) == 1E200 * 1E200     # infinite, not enough precision
+
+    def test_struct_simple(self):
+        py.test.skip("in-progress")
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo { int a; short b, c; };")
+        s = ffi.new("struct foo")
+        assert s.a == s.b == s.c == 0
+        s.b = -23
+        assert s.b == -23
+        py.test.raises(OverflowError, "s.b = 32768")

@@ -17,6 +17,6 @@ class FakePrimitiveType(object):
 
 def test_typeof():
     ffi = FFI(backend=FakeBackend())
-    clong = ffi.typeof("long")
+    clong = ffi.typeof("signed long int")
     assert isinstance(clong, FakePrimitiveType)
     assert clong.cdecl == 'long'
