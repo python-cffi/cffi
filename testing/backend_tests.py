@@ -182,3 +182,15 @@ class BackendTests:
         assert p[0] == '\xff'
         p = ffi.new("char[]", "abcd")
         assert len(p) == 4
+
+    def test_none_as_null(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int*[1]")
+        assert p[0] is None
+        #
+        n = ffi.new("int[1]", [99])
+        p = ffi.new("int*[1]", [n])
+        assert p[0][0] == 99
+        p[0] = None
+        assert ffi.new("int*") == None
+        assert ffi.new("int*") is not None

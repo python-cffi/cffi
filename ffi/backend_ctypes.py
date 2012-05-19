@@ -143,12 +143,12 @@ class CTypesBackend(BackendBase):
                 return self._address
 
             def __eq__(self, other):
-                return (isinstance(other, CTypesPtr) and
-                        self._address == other._address)
+                return ((isinstance(other, CTypesPtr) and
+                         self._address == other._address)
+                        or (self._address == 0 and other is None))
 
             def __ne__(self, other):
-                return not (isinstance(other, CTypesPtr) and
-                            self._address == other._address)
+                return not self.__eq__(other)
 
             def __getitem__(self, index):
                 return BItem._from_ctypes(self._as_ctype_ptr[index])
@@ -158,11 +158,16 @@ class CTypesBackend(BackendBase):
 
             @staticmethod
             def _to_ctypes(value):
-                return ctypes.cast(value._convert_to_address_of(BItem),
-                                   CTypesPtr._ctype)
+                if value is None:
+                    address = 0
+                else:
+                    address = value._convert_to_address_of(BItem)
+                return ctypes.cast(address, CTypesPtr._ctype)
 
             @staticmethod
             def _from_ctypes(ctypes_ptr):
+                if not ctypes_ptr:
+                    return None
                 self = CTypesPtr.__new__(CTypesPtr)
                 self._address = ctypes.addressof(ctypes_ptr.contents)
                 self._as_ctype_ptr = ctypes_ptr
