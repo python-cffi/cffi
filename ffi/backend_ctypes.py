@@ -1,4 +1,5 @@
 import ctypes, ctypes.util
+from ffi.backend_base import BackendBase
 
 
 class CTypesData(object):
@@ -11,8 +12,19 @@ class CTypesData(object):
     def _export(ctypes_value):
         raise NotImplementedError
 
+    @classmethod
+    def _get_c_name(cls):
+        return cls._reftypename.replace(' &', '')
 
-class CTypesBackend(object):
+    def __repr__(self):
+        return '<cdata %r>' % (self._get_c_name(),)
+
+    def _cast_to_address_of(self, Class):
+        raise TypeError("cannot cast %r to %r" % (
+            self._get_c_name(), Class._reftypename.replace('&', '*')))
+
+
+class CTypesBackend(BackendBase):
 
     PRIMITIVE_TYPES = {
         'short': ctypes.c_short,
@@ -46,6 +58,7 @@ class CTypesBackend(object):
         #
         class CTypesInt(CTypesData):
             _ctype = ctype
+            _reftypename = '%s &' % name
 
             def __init__(self, value=0):
                 if ctype(value).value != value:
@@ -74,11 +87,41 @@ class CTypesBackend(object):
         #
         return CTypesInt
 
+    def new_pointer_type(self, bitem):
+        #
+        class CTypesPtr(CTypesData):
+            _ctype = ctypes.POINTER(bitem._ctype)
+            _reftypename = bitem._reftypename.replace('&', '* &')
+
+            def __init__(self, init):
+                if init is None:
+                    address = 0      # null pointer
+                elif isinstance(init, CTypesData):
+                    address = init._cast_to_address_of(bitem)
+                else:
+                    raise TypeError("%r expected, got %r" % (
+                        CTypesPtr._get_c_name(), type(init).__name__))
+                self._address = ctypes.cast(address, self._ctype)
+
+            def __getitem__(self, index):
+                return bitem._export(self._address[index])
+
+            def __setitem__(self, index, value):
+                self._address[index] = bitem._import(value)
+        #
+        return CTypesPtr
+
     def new_array_type(self, bitem, length):
+        if length is None:
+            brackets = '[] &'
+        else:
+            brackets = '[%d] &' % length
+        reftypename = bitem._reftypename.replace(' &', brackets)
         #
         class CTypesArray(CTypesData):
             if length is not None:
                 _ctype = bitem._ctype * length
+            _reftypename = reftypename
 
             def __init__(self, init):
                 if length is not None:
@@ -104,9 +147,11 @@ class CTypesBackend(object):
                     raise IndexError
                 self._blob[index] = bitem._import(value)
 
-            @staticmethod
-            def _export(xx):
-                xxx
+            def _cast_to_address_of(self, bexpecteditem):
+                if bitem is bexpecteditem:
+                    return ctypes.addressof(self._blob)
+                else:
+                    return CTypesData._cast_to_address_of(self, bexpecteditem)
         #
         return CTypesArray
 

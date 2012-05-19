@@ -1,7 +1,7 @@
 from ffi import FFI
+from ffi.backend_base import BackendBase
 
-
-class FakeBackend(object):
+class FakeBackend(BackendBase):
     
     def load_library(self, name=Ellipsis):
         assert name in [Ellipsis, "foobar"]

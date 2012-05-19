@@ -57,22 +57,23 @@ class FFI(object):
                     "non-constant array length")
                 length = int(typenode.dim.value)
             bitem = self._get_btype(typenode.type)
-            return self._get_cached_btype('new_array_type', bitem, length)
-        else:
+            return self._backend.get_cached_btype('new_array_type',
+                                                  bitem, length)
+        #
+        elif isinstance(typenode, pycparser.c_ast.TypeDecl):
             # assume a primitive type
             names = typenode.type.names
             if len(names) > 1 and names[-1] == 'int':
                 names = names[:-1]
             ident = ' '.join(names)
-            return self._get_cached_btype('new_primitive_type', ident)
-
-    def _get_cached_btype(self, methname, *args):
-        try:
-            btype = self._cached_btypes[methname, args]
-        except KeyError:
-            btype = getattr(self._backend, methname)(*args)
-            self._cached_btypes[methname, args] = btype
-        return btype
+            return self._backend.get_cached_btype('new_primitive_type', ident)
+        #
+        elif isinstance(typenode, pycparser.c_ast.PtrDecl):
+            bitem = self._get_btype(typenode.type)
+            return self._backend.get_cached_btype("new_pointer_type", bitem)
+        #
+        else:
+            raise FFIError("bad or unsupported type declaration")
 
 
 class FFILibrary(object):
