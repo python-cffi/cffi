@@ -192,5 +192,6 @@ class BackendTests:
         p = ffi.new("int*[1]", [n])
         assert p[0][0] == 99
         p[0] = None
+        assert p[0] is None
         assert ffi.new("int*") == None
         assert ffi.new("int*") is not None
