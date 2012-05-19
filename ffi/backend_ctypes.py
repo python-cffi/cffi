@@ -116,10 +116,10 @@ class CTypesLibrary(object):
     def __init__(self, cdll):
         self.cdll = cdll
 
-    def load_function(self, name, args, result):
+    def load_function(self, name, bargs, bresult):
         func = getattr(self.cdll, name)
-        func.argtypes = args
-        func.restype = result
+        func.argtypes = [barg._ctype for barg in bargs]
+        func.restype = bresult._ctype
         return func
 
 
