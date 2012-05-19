@@ -234,3 +234,17 @@ class BackendTests:
         py.test.raises((AttributeError, TypeError), "del s.a")
         #
         py.test.raises(ValueError, ffi.new, "struct foo", [1, 2, 3, 4])
+
+    def test_union_simple(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("union foo { int a; short b, c; };")
+        u = ffi.new("union foo")
+        assert u.a == u.b == u.c == 0
+        u.b = -23
+        assert u.b == -23
+        assert u.a != 0
+        py.test.raises(OverflowError, "u.b = 32768")
+        #
+        u = ffi.new("union foo", -2)
+        assert u.a == -2
+        py.test.raises((AttributeError, TypeError), "del u.a")

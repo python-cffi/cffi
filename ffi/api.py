@@ -14,6 +14,7 @@ class FFI(object):
         self._backend = backend
         self._functions = {}
         self._structs = {}
+        self._unions = {}
         self._cached_btypes = {}
         self._cached_parsed_types = {}
         self.C = FFILibrary(self, self._backend.load_library())
@@ -89,6 +90,14 @@ class FFI(object):
                 btypes = [self._get_btype(decl.type) for decl in fields]
                 return self._backend.get_cached_btype(
                     'new_struct_type', type.name, tuple(fnames), tuple(btypes))
+            #
+            if isinstance(type, pycparser.c_ast.Union):
+                assert type.name in self._unions, "XXX opaque unions"
+                fields = self._unions[type.name].decls
+                fnames = [decl.name for decl in fields]
+                btypes = [self._get_btype(decl.type) for decl in fields]
+                return self._backend.get_cached_btype(
+                    'new_union_type', type.name, tuple(fnames), tuple(btypes))
         #
         raise FFIError("bad or unsupported type declaration")
 
@@ -130,3 +139,10 @@ class CVisitor(pycparser.c_ast.NodeVisitor):
             if name in self.ffi._structs:
                 raise FFIError("multiple declarations of struct %s" % (name,))
             self.ffi._structs[name] = node
+
+    def visit_Union(self, node):
+        if node.decls is not None:
+            name = node.name
+            if name in self.ffi._unions:
+                raise FFIError("multiple declarations of union %s" % (name,))
+            self.ffi._unions[name] = node

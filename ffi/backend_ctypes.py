@@ -287,6 +287,37 @@ class CTypesBackend(BackendBase):
         CTypesStruct._fix_class()
         return CTypesStruct
 
+    def new_union_type(self, name, fnames, BFieldTypes):
+        #
+        class union(ctypes.Union):
+            _fields_ = [(fname, BField._ctype)
+                        for (fname, BField) in zip(fnames, BFieldTypes)]
+        union.__name__ = 'union_%s' % name
+        #
+        class CTypesUnion(CTypesData):
+            _ctype = union
+            _reftypename = 'union %s &' % name
+
+            def __init__(self, init):
+                self._blob = union()
+                if init is not None:
+                    fname = fnames[0]
+                    BField = BFieldTypes[0]
+                    setattr(self._blob, fname, BField._to_ctypes(init))
+        #
+        for fname, BField in zip(fnames, BFieldTypes):
+            if hasattr(CTypesUnion, fname):
+                raise ValueError("the field name %r conflicts in "
+                                 "the ctypes backend" % fname)
+            def getter(self, fname=fname, BField=BField):
+                return BField._from_ctypes(getattr(self._blob, fname))
+            def setter(self, value, fname=fname, BField=BField):
+                setattr(self._blob, fname, BField._to_ctypes(value))
+            setattr(CTypesUnion, fname, property(getter, setter))
+        #
+        CTypesUnion._fix_class()
+        return CTypesUnion
+
 
 class CTypesLibrary(object):
 
