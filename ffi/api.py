@@ -37,8 +37,11 @@ class FFI(object):
         return self._get_btype(typenode)
 
     def sizeof(self, cdecl):
-        BType = self.typeof(cdecl)
-        return BType._get_size()
+        if isinstance(cdecl, (str, unicode)):
+            BType = self.typeof(cdecl)
+            return BType._get_size()
+        else:
+            return cdecl._get_size_of_instance()
 
     def new(self, cdecl, init=None):
         BType = self.typeof(cdecl)

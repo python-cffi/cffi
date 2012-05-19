@@ -259,7 +259,7 @@ class BackendTests:
         py.test.raises(TypeError, ffi.new, "union baz")
         ffi.new("union baz *")   # this works
 
-    def test_sizeof(self):
+    def test_sizeof_type(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             struct foo { int a; short b, c, d; };
@@ -275,3 +275,11 @@ class BackendTests:
             ]:
             size = ffi.sizeof(c_type)
             assert size == expected_size
+
+    def test_sizeof_cdata(self):
+        ffi = FFI(backend=self.Backend())
+        assert ffi.sizeof(ffi.new("short")) == 2
+        #
+        a = ffi.new("int[]", [10, 11, 12, 13, 14])
+        assert len(a) == 5
+        assert ffi.sizeof(a) == 20

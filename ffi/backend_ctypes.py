@@ -32,6 +32,9 @@ class CTypesData(object):
     def _get_size(cls):
         return ctypes.sizeof(cls._ctype)
 
+    def _get_size_of_instance(self):
+        return ctypes.sizeof(self._ctype)
+
 
 class CTypesBackend(BackendBase):
 
@@ -214,17 +217,15 @@ class CTypesBackend(BackendBase):
             _reftypename = BItem._get_c_name(brackets)
 
             def __init__(self, init):
-                if length is not None:
-                    len1 = length
-                    self._blob = self._ctype()
-                else:
+                if length is None:
                     if isinstance(init, (int, long)):
                         len1 = init
                         init = None
                     else:
                         init = tuple(init)
                         len1 = len(init)
-                    self._blob = (BItem._ctype * len1)()
+                    self._ctype = BItem._ctype * len1
+                self._blob = self._ctype()
                 if init is not None:
                     for i, value in enumerate(init):
                         self[i] = value
