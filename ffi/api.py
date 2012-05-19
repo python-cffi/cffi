@@ -12,12 +12,15 @@ class FFI(object):
             from . import backend_ctypes
             backend = backend_ctypes.CTypesBackend()
         self._backend = backend
-        self._functions = {}
-        self._structs = {}
-        self._unions = {}
+        self._declarations = {}
         self._cached_btypes = {}
         self._cached_parsed_types = {}
         self.C = FFILibrary(self, self._backend.load_library())
+
+    def _declare(self, name, node):
+        if name in self._declarations:
+            raise FFIError("multiple declarations of %s" % (name,))
+        self._declarations[name] = node
 
     def cdef(self, csource):
         parser = pycparser.CParser()
@@ -84,22 +87,21 @@ class FFI(object):
                     'new_primitive_type', ident)
             #
             if isinstance(type, pycparser.c_ast.Struct):
-                assert type.name in self._structs, "XXX opaque structs"
-                fields = self._structs[type.name].decls
-                fnames = [decl.name for decl in fields]
-                btypes = [self._get_btype(decl.type) for decl in fields]
-                return self._backend.get_cached_btype(
-                    'new_struct_type', type.name, tuple(fnames), tuple(btypes))
+                return self._get_struct_or_union_type('struct', type)
             #
             if isinstance(type, pycparser.c_ast.Union):
-                assert type.name in self._unions, "XXX opaque unions"
-                fields = self._unions[type.name].decls
-                fnames = [decl.name for decl in fields]
-                btypes = [self._get_btype(decl.type) for decl in fields]
-                return self._backend.get_cached_btype(
-                    'new_union_type', type.name, tuple(fnames), tuple(btypes))
+                return self._get_struct_or_union_type('union', type)
         #
         raise FFIError("bad or unsupported type declaration")
+
+    def _get_struct_or_union_type(self, kind, type):
+        key = '%s %s' % (kind, type.name)
+        assert key in self._declarations, "XXX opaque structs or unions"
+        fields = self._declarations[key].decls
+        fnames = [decl.name for decl in fields]
+        btypes = [self._get_btype(decl.type) for decl in fields]
+        return self._backend.get_cached_btype(
+            'new_%s_type' % kind, type.name, tuple(fnames), tuple(btypes))
 
 
 class FFILibrary(object):
@@ -110,8 +112,9 @@ class FFILibrary(object):
         self._backendlib = backendlib
 
     def __getattr__(self, name):
-        if name in self._ffi._functions:
-            node = self._ffi._functions[name]
+        key = 'function ' + name
+        if key in self._ffi._declarations:
+            node = self._ffi._declarations[key]
             name = node.type.declname
             args = [self._ffi._get_btype(argdeclnode.type)
                     for argdeclnode in node.args.params]
@@ -128,21 +131,12 @@ class CVisitor(pycparser.c_ast.NodeVisitor):
         self.ffi = ffi
 
     def visit_FuncDecl(self, node):
-        name = node.type.declname
-        if name in self.ffi._functions:
-            raise FFIError("multiple declarations of function %s" % (name,))
-        self.ffi._functions[name] = node
+        self.ffi._declare('function ' + node.name, node)
 
     def visit_Struct(self, node):
         if node.decls is not None:
-            name = node.name
-            if name in self.ffi._structs:
-                raise FFIError("multiple declarations of struct %s" % (name,))
-            self.ffi._structs[name] = node
+            self.ffi._declare('struct ' + node.name, node)
 
     def visit_Union(self, node):
         if node.decls is not None:
-            name = node.name
-            if name in self.ffi._unions:
-                raise FFIError("multiple declarations of union %s" % (name,))
-            self.ffi._unions[name] = node
+            self.ffi._declare('union ' + node.name, node)
