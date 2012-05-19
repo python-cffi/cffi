@@ -36,6 +36,10 @@ class FFI(object):
         typenode = self._parse_type(cdecl)
         return self._get_btype(typenode)
 
+    def sizeof(self, cdecl):
+        BType = self.typeof(cdecl)
+        return BType._get_size()
+
     def new(self, cdecl, init=None):
         BType = self.typeof(cdecl)
         return BType(init)

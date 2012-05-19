@@ -258,3 +258,20 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         py.test.raises(TypeError, ffi.new, "union baz")
         ffi.new("union baz *")   # this works
+
+    def test_sizeof(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            struct foo { int a; short b, c, d; };
+            union foo { int a; short b, c, d; };
+        """)
+        for c_type, expected_size in [
+            ('char', 1),
+            ('unsigned int', 4),
+            ('char *', SIZE_OF_LONG),
+            ('int[5]', 20),
+            ('struct foo', 12),
+            ('union foo', 4),
+            ]:
+            size = ffi.sizeof(c_type)
+            assert size == expected_size

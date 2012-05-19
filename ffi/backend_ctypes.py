@@ -28,6 +28,10 @@ class CTypesData(object):
         raise TypeError("cannot convert %r to %r" % (
             self._get_c_name(), BClass._get_c_name(' *')))
 
+    @classmethod
+    def _get_size(cls):
+        return ctypes.sizeof(cls._ctype)
+
 
 class CTypesBackend(BackendBase):
 
