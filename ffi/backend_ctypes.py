@@ -218,6 +218,7 @@ class CTypesBackend(BackendBase):
                         len1 = init
                         init = None
                     else:
+                        init = tuple(init)
                         len1 = len(init)
                     self._blob = (BItem._ctype * len1)()
                 if init is not None:
@@ -266,7 +267,12 @@ class CTypesBackend(BackendBase):
             def __init__(self, init):
                 self._blob = struct()
                 if init is not None:
-                    xxx
+                    init = tuple(init)
+                    if len(init) > len(fnames):
+                        raise ValueError("too many values for "
+                                         "struct %s initializer" % name)
+                    for value, fname, BField in zip(init, fnames, BFieldTypes):
+                        setattr(self._blob, fname, BField._to_ctypes(value))
         #
         for fname, BField in zip(fnames, BFieldTypes):
             def getter(self, fname=fname, BField=BField):
