@@ -13,6 +13,7 @@ class FFI(object):
             backend = backend_ctypes.CTypesBackend()
         self._backend = backend
         self._functions = {}
+        self._structs = {}
         self._cached_btypes = {}
         self._cached_parsed_types = {}
         self.C = FFILibrary(self, self._backend.load_library())
@@ -82,7 +83,12 @@ class FFI(object):
                     'new_primitive_type', ident)
             #
             if isinstance(type, pycparser.c_ast.Struct):
-                xxx
+                assert type.name in self._structs, "XXX opaque structs"
+                fields = self._structs[type.name].decls
+                fnames = [decl.name for decl in fields]
+                btypes = [self._get_btype(decl.type) for decl in fields]
+                return self._backend.get_cached_btype(
+                    'new_struct_type', type.name, tuple(fnames), tuple(btypes))
         #
         raise FFIError("bad or unsupported type declaration")
 
@@ -113,11 +119,14 @@ class CVisitor(pycparser.c_ast.NodeVisitor):
         self.ffi = ffi
 
     def visit_FuncDecl(self, node):
-        # assume for now primitive args and result types
         name = node.type.declname
         if name in self.ffi._functions:
-            raise FFIError("multiple declaration of function %r" % (name,))
+            raise FFIError("multiple declarations of function %s" % (name,))
         self.ffi._functions[name] = node
 
     def visit_Struct(self, node):
-        xxx
+        if node.decls is not None:
+            name = node.name
+            if name in self.ffi._structs:
+                raise FFIError("multiple declarations of struct %s" % (name,))
+            self.ffi._structs[name] = node

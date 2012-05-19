@@ -252,6 +252,32 @@ class CTypesBackend(BackendBase):
         CTypesArray._fix_class()
         return CTypesArray
 
+    def new_struct_type(self, name, fnames, BFieldTypes):
+        #
+        class struct(ctypes.Structure):
+            _fields_ = [(fname, BField._ctype)
+                        for (fname, BField) in zip(fnames, BFieldTypes)]
+        struct.__name__ = 'struct_%s' % name
+        #
+        class CTypesStruct(CTypesData):
+            _ctype = struct
+            _reftypename = 'struct %s &' % name
+
+            def __init__(self, init):
+                self._blob = struct()
+                if init is not None:
+                    xxx
+        #
+        for fname, BField in zip(fnames, BFieldTypes):
+            def getter(self, fname=fname, BField=BField):
+                return BField._from_ctypes(getattr(self._blob, fname))
+            def setter(self, value, fname=fname, BField=BField):
+                setattr(self._blob, fname, BField._to_ctypes(value))
+            setattr(CTypesStruct, fname, property(getter, setter))
+        #
+        CTypesStruct._fix_class()
+        return CTypesStruct
+
 
 class CTypesLibrary(object):
 

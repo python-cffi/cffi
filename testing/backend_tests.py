@@ -219,7 +219,6 @@ class BackendTests:
         assert float(f) == 1E200 * 1E200     # infinite, not enough precision
 
     def test_struct_simple(self):
-        py.test.skip("in-progress")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { int a; short b, c; };")
         s = ffi.new("struct foo")
