@@ -275,6 +275,9 @@ class CTypesBackend(BackendBase):
                         setattr(self._blob, fname, BField._to_ctypes(value))
         #
         for fname, BField in zip(fnames, BFieldTypes):
+            if hasattr(CTypesStruct, fname):
+                raise ValueError("the field name %r conflicts in "
+                                 "the ctypes backend" % fname)
             def getter(self, fname=fname, BField=BField):
                 return BField._from_ctypes(getattr(self._blob, fname))
             def setter(self, value, fname=fname, BField=BField):

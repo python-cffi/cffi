@@ -231,5 +231,6 @@ class BackendTests:
         assert s.a == -2
         assert s.b == -3
         assert s.c == 0
+        py.test.raises((AttributeError, TypeError), "del s.a")
         #
         py.test.raises(ValueError, ffi.new, "struct foo", [1, 2, 3, 4])
