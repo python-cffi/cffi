@@ -158,3 +158,12 @@ class BackendTests:
         assert p[0][0] == 10
         assert p[2][3] == 33
         py.test.raises(IndexError, "p[1][-1]")
+
+    def test_new_array_of_pointer(self):
+        ffi = FFI(backend=self.Backend())
+        n = ffi.new("int[1]", [99])
+        p = ffi.new("int*[4]")
+        p[3] = n
+        a = p[3]
+        assert repr(a) == "<cdata 'int *'>"
+        assert a[0] == 99

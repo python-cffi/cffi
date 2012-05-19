@@ -6,11 +6,11 @@ class CTypesData(object):
 
     @staticmethod
     def _import(value):
-        raise NotImplementedError
+        raise TypeError
 
     @staticmethod
     def _export(ctypes_value):
-        raise NotImplementedError
+        raise TypeError
 
     @classmethod
     def _get_c_name(cls, replace_with=''):
@@ -121,11 +121,6 @@ class CTypesBackend(BackendBase):
                 self._address = address
                 self._as_ctype_ptr = ctypes.cast(address, CTypesPtr._ctype)
 
-            @classmethod
-            def _from_ctype_ptr(cls, ptr):
-                self._address = ctypes.addressof(ptr.contents)
-                self._as_ctype_ptr = ptr
-
             def __nonzero__(self):
                 return self._address
 
@@ -142,6 +137,18 @@ class CTypesBackend(BackendBase):
 
             def __setitem__(self, index, value):
                 self._as_ctype_ptr[index] = BItem._import(value)
+
+            @staticmethod
+            def _import(value):
+                return ctypes.cast(value._convert_to_address_of(BItem),
+                                   CTypesPtr._ctype)
+
+            @staticmethod
+            def _export(ctypes_ptr):
+                self = CTypesPtr.__new__(CTypesPtr)
+                self._address = ctypes.addressof(ctypes_ptr.contents)
+                self._as_ctype_ptr = ctypes_ptr
+                return self
         #
         CTypesPtr._fix_class()
         return CTypesPtr
