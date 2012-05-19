@@ -180,3 +180,5 @@ class BackendTests:
         assert p[2] == '\x9c'
         p[0] = '\xff'
         assert p[0] == '\xff'
+        p = ffi.new("char[]", "abcd")
+        assert len(p) == 4
