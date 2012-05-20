@@ -314,7 +314,12 @@ class CTypesBackend(BackendBase):
 
             if kind == 'char':
                 def __str__(self):
-                    return ''.join(self._blob)
+                    s = ''.join(self._blob)
+                    try:
+                        s = s[:s.index('\x00')]
+                    except ValueError:
+                        pass
+                    return s
 
             def _convert_to_address_of(self, BClass):
                 if BItem is BClass or BClass is CTypesVoid:
