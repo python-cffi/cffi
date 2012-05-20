@@ -318,3 +318,13 @@ class BackendTests:
         a = ffi.new("int[]", [10, 11, 12])
         p = ffi.new("void *", a)
         py.test.raises(TypeError, "p[0]")
+
+    def test_functionptr_simple(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int(*)(int)")
+        assert not p
+        p = ffi.new("int(*)(int)", lambda n: n + 1)
+        res = p(41)
+        assert res == 42 and type(res) is int
+        res = p(ffi.new("int", -41))
+        assert res == -40 and type(res) is int

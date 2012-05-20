@@ -53,6 +53,7 @@ def test_puts():
        int puts(const char *);
        int fflush(void *);
     """)
+    ffi.C.puts   # fetch before capturing, for easier debugging
     with FdWriteCapture() as fd:
         ffi.C.puts("hello")
         ffi.C.puts("  world")
@@ -99,6 +100,14 @@ def test_must_specify_type_of_vararg():
     """)
     e = py.test.raises(TypeError, ffi.C.printf, "hello %d\n", 42)
     assert str(e.value) == 'argument 2 needs to be a cdata'
+
+def test_function_has_a_c_type():
+    ffi = FFI()
+    ffi.cdef("""
+        int puts(const char *);
+    """)
+    fptr = ffi.C.puts
+    assert type(fptr) == ffi.typeof("int(*)(const char*)")
 
 def test_function_pointer():
     py.test.skip("in-progress")

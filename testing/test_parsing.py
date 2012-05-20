@@ -7,6 +7,9 @@ class FakeBackend(BackendBase):
         assert name in [Ellipsis, "foobar"]
         return FakeLibrary()
 
+    def new_function_type(self, args, result, has_varargs):
+        return '<func (%s), %s, %s>' % (', '.join(args), result, has_varargs)
+
     def new_primitive_type(self, name):
         return '<%s>' % name
 
@@ -15,16 +18,14 @@ class FakeBackend(BackendBase):
 
 class FakeLibrary(object):
     
-    def load_function(self, name, args, result, varargs):
-        return FakeFunction(name, args, result, varargs)
+    def load_function(self, BType, name):
+        return FakeFunction(BType, name)
 
 class FakeFunction(object):
 
-    def __init__(self, name, args, result, varargs):
+    def __init__(self, BType, name):
+        self.BType = BType
         self.name = name
-        self.args = args
-        self.result = result
-        self.varargs = varargs
 
 
 def test_simple():
@@ -33,24 +34,18 @@ def test_simple():
     m = ffi.load("foobar")
     func = m.sin    # should be a callable on real backends
     assert func.name == 'sin'
-    assert func.args == ['<double>']
-    assert func.result == '<double>'
-    assert func.varargs is False
+    assert func.BType == '<func (<double>), <double>, False>'
 
 def test_pipe():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("int pipe(int pipefd[2]);")
     func = ffi.C.pipe
     assert func.name == 'pipe'
-    assert func.args == ['<pointer to <int>>']
-    assert func.result == '<int>'
-    assert func.varargs is False
+    assert func.BType == '<func (<pointer to <int>>), <int>, False>'
 
 def test_vararg():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("short foo(int, ...);")
     func = ffi.C.foo
     assert func.name == 'foo'
-    assert func.args == ['<int>']
-    assert func.result == '<short>'
-    assert func.varargs is True
+    assert func.BType == '<func (<int>), <short>, True>'

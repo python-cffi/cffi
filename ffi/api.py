@@ -89,6 +89,8 @@ class FFI(object):
 
     def _get_btype_pointer(self, type):
         BItem = self._get_btype(type)
+        if isinstance(type, pycparser.c_ast.FuncDecl):
+            return BItem      # "pointer-to-function" ~== "function"
         if ('const' in type.quals and
             BItem is self._backend.get_cached_btype("new_primitive_type",
                                                     "char")):
@@ -112,6 +114,7 @@ class FFI(object):
                                                   BItem, length)
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
+            # pointer type
             return self._get_btype_pointer(typenode.type)
         #
         if isinstance(typenode, pycparser.c_ast.TypeDecl):
@@ -134,10 +137,26 @@ class FFI(object):
                     'new_primitive_type', ident)
             #
             if isinstance(type, pycparser.c_ast.Struct):
+                # 'struct foobar'
                 return self._get_struct_or_union_type('struct', type)
             #
             if isinstance(type, pycparser.c_ast.Union):
+                # 'union foobar'
                 return self._get_struct_or_union_type('union', type)
+        #
+        if isinstance(typenode, pycparser.c_ast.FuncDecl):
+            # a function type
+            params = list(typenode.args.params)
+            ellipsis = (len(params) > 0 and
+                        isinstance(params[-1], pycparser.c_ast.EllipsisParam))
+            if ellipsis:
+                params.pop()
+            args = [self._get_btype(argdeclnode.type,
+                                    convert_array_to_pointer=True)
+                    for argdeclnode in params]
+            result = self._get_btype(typenode.type)
+            return self._backend.get_cached_btype(
+                'new_function_type', tuple(args), result, ellipsis)
         #
         raise FFIError("bad or unsupported type declaration")
 
@@ -167,18 +186,9 @@ def _make_ffi_library(ffi, backendlib, libname=None):
             key = 'function ' + name
             if key in ffi._declarations:
                 node = ffi._declarations[key]
-                name = node.type.declname
-                params = list(node.args.params)
-                ellipsis = (len(params) > 0 and isinstance(params[-1],
-                                              pycparser.c_ast.EllipsisParam))
-                if ellipsis:
-                    params.pop()
-                args = [ffi._get_btype(argdeclnode.type,
-                                       convert_array_to_pointer=True)
-                        for argdeclnode in params]
-                result = ffi._get_btype(node.type)
-                value = backendlib.load_function(name, args, result,
-                                                 varargs=ellipsis)
+                assert name == node.type.declname
+                BType = ffi._get_btype(node)
+                value = backendlib.load_function(BType, name)
                 function_cache[name] = value
                 return value
             #

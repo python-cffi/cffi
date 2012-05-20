@@ -398,42 +398,98 @@ class CTypesBackend(BackendBase):
                                          'union', ctypes.Union,
                                          initializer)
 
+    def new_function_type(self, BArgs, BResult, has_varargs):
+        nameargs = [BArg._get_c_name() for BArg in BArgs]
+        if has_varargs:
+            nameargs.append('...')
+        nameargs = ', '.join(nameargs)
+        ctypes_stuff = [BArg._ctype for BArg in BArgs]
+        #self.void_type = self.backend.get_cached_btype('new_void_type')
+        ctypes_stuff.insert(0, BResult._ctype)
+        #
+        class CTypesFunction(CTypesData):
+            _ctype = ctypes.CFUNCTYPE(*ctypes_stuff)
+            _reftypename = '%s(* &)(%s)' % (BResult._get_c_name(), nameargs)
+            _name = None
+
+            def __init__(self, init):
+                if init is None:
+                    self._ctypes_func = CTypesFunction._ctype(0)
+                elif isinstance(init, CTypesFunction):
+                    self._ctypes_func = init._ctypes_func
+                elif callable(init):
+                    # create a callback to the Python callable init()
+                    self._ctypes_func = CTypesFunction._ctype(init)
+                else:
+                    raise TypeError("argument must be a callable object")
+                self._address = ctypes.cast(self._ctypes_func,
+                                            ctypes.c_void_p).value or 0
+
+            def __nonzero__(self):
+                return self._address
+
+            def __eq__(self, other):
+                return ((isinstance(other, CTypesFunction) and
+                         self._address == other._address)
+                        or (self._address == 0 and other is None))
+
+            def __ne__(self, other):
+                return not self.__eq__(other)
+
+            def __repr__(self):
+                name = self._name
+                if name:
+                    i = self._reftypename.index('(* &)')
+                    if self._reftypename[i-1] not in ' )*':
+                        name = ' ' + name
+                    name = self._reftypename.replace('(* &)', name)
+                else:
+                    name = self._get_c_name()
+                return '<cfunc %r>' % (name,)
+
+            @staticmethod
+            def _from_ctypes(c_func):
+                if not c_func:
+                    return None
+                self = CTypesFunction.__new__(CTypesFunction)
+                self._address = ctypes.addressof(c_func)
+                self._ctypes_func = ctypes.cast(c_func, CTypesFunction._ctype)
+                return self
+
+            def __call__(self, *args):
+                if has_varargs:
+                    assert len(args) >= len(BArgs)
+                    extraargs = args[len(BArgs):]
+                    args = args[:len(BArgs)]
+                else:
+                    assert len(args) == len(BArgs)
+                ctypes_args = []
+                for arg, BArg in zip(args, BArgs):
+                    ctypes_args.append(BArg._arg_to_ctypes(arg))
+                if has_varargs:
+                    for i, arg in enumerate(extraargs):
+                        if not isinstance(arg, CTypesData):
+                            raise TypeError("argument %d needs to be a cdata" %
+                                            (1 + len(BArgs) + i,))
+                        ctypes_args.append(arg._arg_to_ctypes(arg))
+                result = self._ctypes_func(*ctypes_args)
+                return BResult._from_ctypes(result)
+        #
+        CTypesFunction._fix_class()
+        return CTypesFunction
+
 
 class CTypesLibrary(object):
 
     def __init__(self, backend, cdll):
         self.backend = backend
         self.cdll = cdll
-        self.void_type = self.backend.get_cached_btype('new_void_type')
 
-    def load_function(self, name, BArgs, BResult, varargs=False):
+    def load_function(self, BType, name):
         c_func = getattr(self.cdll, name)
-        if BResult is self.void_type:
-            c_func.restype = None
-        else:
-            c_func.restype = BResult._ctype
-        #
-        def call(*args):
-            if varargs:
-                assert len(args) >= len(BArgs)
-                extraargs = args[len(BArgs):]
-                args = args[:len(BArgs)]
-            else:
-                assert len(args) == len(BArgs)
-            ctypes_args = []
-            for arg, BArg in zip(args, BArgs):
-                ctypes_args.append(BArg._arg_to_ctypes(arg))
-            if varargs:
-                for i, arg in enumerate(extraargs):
-                    if not isinstance(arg, CTypesData):
-                        raise TypeError("argument %d needs to be a cdata" %
-                                        (1 + len(BArgs) + i,))
-                    ctypes_args.append(arg._arg_to_ctypes(arg))
-            result = c_func(*ctypes_args)
-            return BResult._from_ctypes(result)
-        #
-        call.func_name = name
-        return call
+        funcobj = BType._from_ctypes(c_func)
+        funcobj._name = name
+        return funcobj
 
 
 def _identity(x):
