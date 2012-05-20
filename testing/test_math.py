@@ -58,3 +58,22 @@ def test_puts():
         ffi.C.fflush(None)
     res = fd.getvalue()
     assert res == 'hello\n  world\n'
+
+def test_vararg():
+    ffi = FFI()
+    ffi.cdef("""
+       int printf(const char *format, ...);
+       int fflush(void *);
+    """)
+    with FdWriteCapture() as fd:
+        ffi.C.printf("hello\n")
+        ffi.C.printf("hello, %s!\n", ffi.new("const char *", "world"))
+        ffi.C.printf("hello int %d long %ld long long %lld\n",
+                     ffi.new("int", 42),
+                     ffi.new("long", 84),
+                     ffi.new("long long", 168))
+        ffi.C.fflush(None)
+    res = fd.getvalue()
+    assert res == ("hello\n"
+                   "hello, world!\n"
+                   "hello int 42 long 84 long long 168\n")

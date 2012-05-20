@@ -132,10 +132,16 @@ class FFILibrary(object):
         if key in self._ffi._declarations:
             node = self._ffi._declarations[key]
             name = node.type.declname
+            params = list(node.args.params)
+            ellipsis = (len(params) > 0 and
+                        isinstance(params[-1], pycparser.c_ast.EllipsisParam))
+            if ellipsis:
+                params.pop()
             args = [self._ffi._get_btype(argdeclnode.type)
-                    for argdeclnode in node.args.params]
+                    for argdeclnode in params]
             result = self._ffi._get_btype(node.type)
-            value = self._backendlib.load_function(name, args, result)
+            value = self._backendlib.load_function(name, args, result,
+                                                   varargs=ellipsis)
             setattr(self, name, value)
             return value
         raise AttributeError(name)

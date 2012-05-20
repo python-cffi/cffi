@@ -8,6 +8,13 @@ class CTypesData(object):
     def _to_ctypes(value):
         raise TypeError
 
+    @classmethod
+    def _arg_to_ctypes(cls, value):
+        res = cls._to_ctypes(value)
+        if not isinstance(res, cls._ctype):
+            res = cls._ctype(res)
+        return res
+
     @staticmethod
     def _from_ctypes(ctypes_value):
         raise TypeError
@@ -66,6 +73,9 @@ class CTypesBackend(BackendBase):
             _reftypename = 'void &'
             def __init__(self, value=None):
                 raise TypeError("%s cannot be instantiated" % (CTypesVoid,))
+            @staticmethod
+            def _from_ctypes(novalue):
+                return None
         CTypesVoid._fix_class()
         return CTypesVoid
 
@@ -232,6 +242,14 @@ class CTypesBackend(BackendBase):
                     address = value._convert_to_address_of(BItem)
                 return ctypes.cast(address, CTypesPtr._ctype)
 
+            if kind == 'constcharp':
+                @classmethod
+                def _arg_to_ctypes(cls, value):
+                    if isinstance(value, str):
+                        return ctypes.c_char_p(value)
+                    else:
+                        return super(CTypesPtr, cls)._arg_to_ctypes(value)
+
             @staticmethod
             def _from_ctypes(ctypes_ptr):
                 if not ctypes_ptr:
@@ -240,7 +258,14 @@ class CTypesBackend(BackendBase):
                 self._address = ctypes.addressof(ctypes_ptr.contents)
                 self._as_ctype_ptr = ctypes_ptr
                 return self
+
+            def _convert_to_address_of(self, BClass):
+                if BItem is BClass or BClass is CTypesVoid:
+                    return self._address
+                else:
+                    return CTypesData._convert_to_address_of(self, BClass)
         #
+        CTypesVoid = self.get_cached_btype('new_void_type')
         CTypesPtr._fix_class()
         return CTypesPtr
 
@@ -370,14 +395,34 @@ class CTypesLibrary(object):
         self.cdll = cdll
         self.void_type = self.backend.get_cached_btype('new_void_type')
 
-    def load_function(self, name, bargs, bresult):
-        func = getattr(self.cdll, name)
-        func.argtypes = [barg._ctype for barg in bargs]
-        if bresult is self.void_type:
-            func.restype = None
+    def load_function(self, name, BArgs, BResult, varargs=False):
+        c_func = getattr(self.cdll, name)
+        if BResult is self.void_type:
+            c_func.restype = None
         else:
-            func.restype = bresult._ctype
-        return func
+            c_func.restype = BResult._ctype
+        #
+        def call(*args):
+            if varargs:
+                assert len(args) >= len(BArgs)
+                extraargs = args[len(BArgs):]
+                args = args[:len(BArgs)]
+            else:
+                assert len(args) == len(BArgs)
+            ctypes_args = []
+            for arg, BArg in zip(args, BArgs):
+                ctypes_args.append(BArg._arg_to_ctypes(arg))
+            if varargs:
+                for i, arg in enumerate(extraargs):
+                    if not isinstance(arg, CTypesData):
+                        raise TypeError("argument %d needs to be a cdata" %
+                                        (1 + len(BArgs) + i,))
+                    ctypes_args.append(arg._arg_to_ctypes(arg))
+            result = c_func(*ctypes_args)
+            return BResult._from_ctypes(result)
+        #
+        call.func_name = name
+        return call
 
 
 def _identity(x):
