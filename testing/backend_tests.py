@@ -283,3 +283,13 @@ class BackendTests:
         a = ffi.new("int[]", [10, 11, 12, 13, 14])
         assert len(a) == 5
         assert ffi.sizeof(a) == 20
+
+    def test_string_from_char_array(self):
+        ffi = FFI(backend=self.Backend())
+        assert str(ffi.new("char", "x")) == "x"
+        p = ffi.new("char[]", "hello.")
+        p[5] = '!'
+        assert str(p) == "hello!"
+        a = ffi.new("char[]", "hello\x00world")
+        p = ffi.new("char *", a)
+        assert str(p) == 'hello'

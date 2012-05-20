@@ -92,6 +92,8 @@ class CTypesBackend(BackendBase):
             if kind == 'char':
                 def __int__(self):
                     return ord(self._value)
+                def __str__(self):
+                    return self._value
                 __nonzero__ = __int__
             else:
                 def __nonzero__(self):
@@ -152,6 +154,10 @@ class CTypesBackend(BackendBase):
         return CTypesPrimitive
 
     def new_pointer_type(self, BItem):
+        if BItem is self.get_cached_btype('new_primitive_type', 'char'):
+            kind = 'char'
+        else:
+            kind = 'generic'
         #
         class CTypesPtr(CTypesData):
             _ctype = ctypes.POINTER(BItem._ctype)
@@ -185,6 +191,13 @@ class CTypesBackend(BackendBase):
             def __setitem__(self, index, value):
                 self._as_ctype_ptr[index] = BItem._to_ctypes(value)
 
+            if kind == 'char':
+                def __str__(self):
+                    n = 0
+                    while self._as_ctype_ptr[n] != '\x00':
+                        n += 1
+                    return ''.join([self._as_ctype_ptr[i] for i in range(n)])
+
             @staticmethod
             def _to_ctypes(value):
                 if value is None:
@@ -210,6 +223,10 @@ class CTypesBackend(BackendBase):
             brackets = ' &[]'
         else:
             brackets = ' &[%d]' % length
+        if BItem is self.get_cached_btype('new_primitive_type', 'char'):
+            kind = 'char'
+        else:
+            kind = 'generic'
         #
         class CTypesArray(CTypesData):
             if length is not None:
@@ -242,6 +259,10 @@ class CTypesBackend(BackendBase):
                 if not (0 <= index < len(self._blob)):
                     raise IndexError
                 self._blob[index] = BItem._to_ctypes(value)
+
+            if kind == 'char':
+                def __str__(self):
+                    return ''.join(self._blob)
 
             def _convert_to_address_of(self, BClass):
                 if BItem is BClass:
