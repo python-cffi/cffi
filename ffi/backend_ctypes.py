@@ -290,8 +290,9 @@ class CTypesBackend(BackendBase):
                         len1 = init
                         init = None
                     else:
+                        extra_null = (kind == 'char' and isinstance(init, str))
                         init = tuple(init)
-                        len1 = len(init)
+                        len1 = len(init) + extra_null
                     self._ctype = BItem._ctype * len1
                 self._blob = self._ctype()
                 if init is not None:

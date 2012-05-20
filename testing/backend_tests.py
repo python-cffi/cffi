@@ -181,7 +181,8 @@ class BackendTests:
         p[0] = '\xff'
         assert p[0] == '\xff'
         p = ffi.new("char[]", "abcd")
-        assert len(p) == 4
+        assert len(p) == 5
+        assert p[4] == '\x00'    # like in C, with:  char[] p = "abcd";
 
     def test_none_as_null(self):
         ffi = FFI(backend=self.Backend())
