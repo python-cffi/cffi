@@ -1,3 +1,4 @@
+import py
 from ffi import FFI
 import math, os, cStringIO
 
@@ -77,3 +78,11 @@ def test_vararg():
     assert res == ("hello\n"
                    "hello, world!\n"
                    "hello int 42 long 84 long long 168\n")
+
+def test_must_specify_type_of_vararg():
+    ffi = FFI()
+    ffi.cdef("""
+       int printf(const char *format, ...);
+    """)
+    e = py.test.raises(TypeError, ffi.C.printf, "hello %d\n", 42)
+    assert str(e.value) == 'argument 2 needs to be a cdata'
