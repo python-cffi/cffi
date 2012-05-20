@@ -291,6 +291,10 @@ class BackendTests:
         p = ffi.new("char[]", "hello.")
         p[5] = '!'
         assert str(p) == "hello!"
+        p[6] = '?'
+        assert str(p) == "hello!?"
+        p[3] = '\x00'
+        assert str(p) == "hel"
         a = ffi.new("char[]", "hello\x00world")
         p = ffi.new("char *", a)
         assert str(p) == 'hello'
