@@ -1,11 +1,12 @@
+import py
 from ffi import FFI
 from ffi.backend_base import BackendBase
 
 class FakeBackend(BackendBase):
 
     def load_library(self):
-        return None
-    
+        return "fake library"
+
     def new_primitive_type(self, name):
         return FakePrimitiveType(name)
 
@@ -20,3 +21,9 @@ def test_typeof():
     clong = ffi.typeof("signed long int")
     assert isinstance(clong, FakePrimitiveType)
     assert clong.cdecl == 'long'
+
+def test_global_struct_instance():
+    py.test.skip("in-progress")
+    ffi = FFI(backend=FakeBackend())
+    ffi.cdef("struct foo { int a; } globaz;")
+    ffi.C.globaz

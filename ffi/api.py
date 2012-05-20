@@ -6,12 +6,10 @@ class FFIError(Exception):
 
 class CDefError(Exception):
     def __str__(self):
-        line = ''
-        if len(self.args) >= 2:
-            try:
-                line = 'line %d: ' % (self.args[1].coord.line,)
-            except (AttributeError, TypeError):
-                pass
+        try:
+            line = 'line %d: ' % (self.args[1].coord.line,)
+        except (AttributeError, TypeError, IndexError):
+            line = ''
         return '%s%s' % (line, self.args[0])
 
 
@@ -25,7 +23,7 @@ class FFI(object):
         self._declarations = {}
         self._cached_btypes = {}
         self._cached_parsed_types = {}
-        self.C = FFILibrary(self, self._backend.load_library())
+        self.C = _make_ffi_library(self, self._backend.load_library())
 
     def _declare(self, name, node):
         if name in self._declarations:
@@ -37,25 +35,30 @@ class FFI(object):
         ast = parser.parse(csource)
 
         for decl in ast.ext:
-            if isinstance(decl, pycparser.c_ast.Decl):
-                node = decl.type
-            else:
-                node = None
-            #
-            if isinstance(node, pycparser.c_ast.FuncDecl):
-                self._declare('function ' + node.type.declname, node)
-            elif isinstance(node, pycparser.c_ast.Struct):
-                if node.decls is not None:
-                    self._declare('struct ' + node.name, node)
-            elif isinstance(node, pycparser.c_ast.Union):
-                if node.decls is not None:
-                    self._declare('union ' + node.name, node)
-            else:
+            if not isinstance(decl, pycparser.c_ast.Decl):
                 raise CDefError("unrecognized construct", decl)
+            #
+            node = decl.type
+            if isinstance(node, pycparser.c_ast.FuncDecl):
+                assert decl.name == node.type.declname
+                self._declare('function ' + decl.name, node)
+            else:
+                if isinstance(node, pycparser.c_ast.Struct):
+                    if node.decls is not None:
+                        self._declare('struct ' + node.name, node)
+                elif isinstance(node, pycparser.c_ast.Union):
+                    if node.decls is not None:
+                        self._declare('union ' + node.name, node)
+                elif not decl.name:
+                    raise CDefError("construct does not declare any variable",
+                                    decl)
+                #
+                if decl.name:
+                    self._declare('variable ' + decl.name, node)
 
     def load(self, name):
         assert isinstance(name, str)
-        return FFILibrary(self, self._backend.load_library(name))
+        return _make_ffi_library(self, self._backend.load_library(name), name)
 
     def typeof(self, cdecl):
         typenode = self._parse_type(cdecl)
@@ -150,29 +153,52 @@ class FFI(object):
             'new_%s_type' % kind, type.name, fnames, btypes)
 
 
-class FFILibrary(object):
+def _make_ffi_library(ffi, backendlib, libname=None):
+    function_cache = {}
+    #
+    class FFILibrary(object):
+        def __getattribute__(self, name):
+            try:
+                return function_cache[name]
+            except KeyError:
+                pass
+            #
+            key = 'function ' + name
+            if key in ffi._declarations:
+                node = ffi._declarations[key]
+                name = node.type.declname
+                params = list(node.args.params)
+                ellipsis = (len(params) > 0 and isinstance(params[-1],
+                                              pycparser.c_ast.EllipsisParam))
+                if ellipsis:
+                    params.pop()
+                args = [ffi._get_btype(argdeclnode.type,
+                                       convert_array_to_pointer=True)
+                        for argdeclnode in params]
+                result = ffi._get_btype(node.type)
+                value = backendlib.load_function(name, args, result,
+                                                 varargs=ellipsis)
+                function_cache[name] = value
+                return value
+            #
+            key = 'variable ' + name
+            if key in ffi._declarations:
+                node = ffi._declarations[key]
+                BType = ffi._get_btype(node)
+                return backendlib.read_variable(BType, name)
+            #
+            raise AttributeError(name)
 
-    def __init__(self, ffi, backendlib):
-        # XXX hide these attributes better
-        self._ffi = ffi
-        self._backendlib = backendlib
-
-    def __getattr__(self, name):
-        key = 'function ' + name
-        if key in self._ffi._declarations:
-            node = self._ffi._declarations[key]
-            name = node.type.declname
-            params = list(node.args.params)
-            ellipsis = (len(params) > 0 and
-                        isinstance(params[-1], pycparser.c_ast.EllipsisParam))
-            if ellipsis:
-                params.pop()
-            args = [self._ffi._get_btype(argdeclnode.type,
-                                         convert_array_to_pointer=True)
-                    for argdeclnode in params]
-            result = self._ffi._get_btype(node.type)
-            value = self._backendlib.load_function(name, args, result,
-                                                   varargs=ellipsis)
-            setattr(self, name, value)
-            return value
-        raise AttributeError(name)
+        def __setattr__(self, name, value):
+            key = 'variable ' + name
+            if key in ffi._declarations:
+                node = ffi._declarations[key]
+                BType = ffi._get_btype(node)
+                backendlib.write_variable(BType, name, value)
+                return
+            #
+            raise AttributeError(name)
+    #
+    if libname is not None:
+        FFILibrary.__name__ = 'FFILibrary_%s' % libname
+    return FFILibrary()

@@ -60,6 +60,19 @@ def test_puts():
     res = fd.getvalue()
     assert res == 'hello\n  world\n'
 
+def test_fputs():
+    py.test.skip("in-progress")
+    ffi = FFI()
+    ffi.cdef("""
+        int fputs(const char *, void *);
+        void *stdout, *stderr;
+    """)
+    with FdWriteCapture(2) as fd:
+        ffi.C.fputs("hello from stderr", ffi.C.stderr)
+        ffi.C.fflush(ffi.C.stderr)
+    res = fd.getvalue()
+    assert res == 'hello from stderr\n'
+
 def test_vararg():
     ffi = FFI()
     ffi.cdef("""
