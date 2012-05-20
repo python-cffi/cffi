@@ -10,8 +10,8 @@ class FakeBackend(BackendBase):
     def new_primitive_type(self, name):
         return '<%s>' % name
 
-    def new_array_type(self, itemtype, length):
-        return '<array[%d] of %s>' % (length, itemtype)
+    def new_pointer_type(self, itemtype, is_const_charp):
+        return '<pointer to %s>' % (itemtype,)
 
 class FakeLibrary(object):
     
@@ -42,7 +42,7 @@ def test_pipe():
     ffi.cdef("int pipe(int pipefd[2]);")
     func = ffi.C.pipe
     assert func.name == 'pipe'
-    assert func.args == ['<array[2] of <int>>']
+    assert func.args == ['<pointer to <int>>']
     assert func.result == '<int>'
     assert func.varargs is False
 
