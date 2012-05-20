@@ -35,26 +35,33 @@ class FFI(object):
         ast = parser.parse(csource)
 
         for decl in ast.ext:
-            if not isinstance(decl, pycparser.c_ast.Decl):
-                raise CDefError("unrecognized construct", decl)
-            #
-            node = decl.type
-            if isinstance(node, pycparser.c_ast.FuncDecl):
-                assert decl.name == node.type.declname
-                self._declare('function ' + decl.name, node)
+            if isinstance(decl, pycparser.c_ast.Decl):
+                self._parse_decl(decl)
+            elif isinstance(decl, pycparser.c_ast.Typedef):
+                if not decl.name:
+                    raise CDefError("typedef does not declare any name", decl)
+                self._declare('typedef ' + decl.name, decl.type)
             else:
-                if isinstance(node, pycparser.c_ast.Struct):
-                    if node.decls is not None:
-                        self._declare('struct ' + node.name, node)
-                elif isinstance(node, pycparser.c_ast.Union):
-                    if node.decls is not None:
-                        self._declare('union ' + node.name, node)
-                elif not decl.name:
-                    raise CDefError("construct does not declare any variable",
-                                    decl)
-                #
-                if decl.name:
-                    self._declare('variable ' + decl.name, node)
+                raise CDefError("unrecognized construct", decl)
+
+    def _parse_decl(self, decl):
+        node = decl.type
+        if isinstance(node, pycparser.c_ast.FuncDecl):
+            assert decl.name == node.type.declname
+            self._declare('function ' + decl.name, node)
+        else:
+            if isinstance(node, pycparser.c_ast.Struct):
+                if node.decls is not None:
+                    self._declare('struct ' + node.name, node)
+            elif isinstance(node, pycparser.c_ast.Union):
+                if node.decls is not None:
+                    self._declare('union ' + node.name, node)
+            elif not decl.name:
+                raise CDefError("construct does not declare any variable",
+                                decl)
+            #
+            if decl.name:
+                self._declare('variable ' + decl.name, node)
 
     def load(self, name):
         assert isinstance(name, str)
@@ -80,10 +87,19 @@ class FFI(object):
             return self._cached_parsed_types[cdecl]
         except KeyError:
             parser = pycparser.CParser()
-            csource = 'void __dummy(%s);' % cdecl
-            ast = parser.parse(csource)
+            # XXX: for more efficiency we would need to poke into the
+            # internals of CParser...  the following registers the
+            # typedefs, because their presence or absence influences the
+            # parsing itself (but what they are typedef'ed to plays no role)
+            csourcelines = []
+            for name in self._declarations:
+                if name.startswith('typedef '):
+                    csourcelines.append('typedef int %s;' % (name[8:],))
+            #
+            csourcelines.append('void __dummy(%s);' % cdecl)
+            ast = parser.parse('\n'.join(csourcelines))
             # XXX: insert some sanity check
-            typenode = ast.ext[0].type.args.params[0].type
+            typenode = ast.ext[-1].type.args.params[0].type
             self._cached_parsed_types[cdecl] = typenode
             return typenode
 
@@ -99,6 +115,13 @@ class FFI(object):
             return self._backend.get_cached_btype("new_pointer_type", BItem)
 
     def _get_btype(self, typenode, convert_array_to_pointer=False):
+        # first, dereference typedefs, if necessary several times
+        while (isinstance(typenode, pycparser.c_ast.TypeDecl) and
+               isinstance(typenode.type, pycparser.c_ast.IdentifierType) and
+               len(typenode.type.names) == 1 and
+               ('typedef ' + typenode.type.names[0]) in self._declarations):
+            typenode = self._declarations['typedef ' + typenode.type.names[0]]
+        #
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):
             # array type
             if convert_array_to_pointer:
@@ -151,6 +174,11 @@ class FFI(object):
                         isinstance(params[-1], pycparser.c_ast.EllipsisParam))
             if ellipsis:
                 params.pop()
+            if (len(params) == 1 and
+                isinstance(params[0].type, pycparser.c_ast.TypeDecl) and
+                isinstance(params[0].type.type, pycparser.c_ast.IdentifierType)
+                    and list(params[0].type.type.names) == ['void']):
+                del params[0]
             args = [self._get_btype(argdeclnode.type,
                                     convert_array_to_pointer=True)
                     for argdeclnode in params]
@@ -161,11 +189,15 @@ class FFI(object):
         raise FFIError("bad or unsupported type declaration")
 
     def _get_struct_or_union_type(self, kind, type):
-        key = '%s %s' % (kind, type.name)
-        if key in self._declarations:
-            fields = self._declarations[key].decls
-            fnames = tuple([decl.name for decl in fields])
-            btypes = tuple([self._get_btype(decl.type) for decl in fields])
+        name = type.name
+        decls = type.decls
+        if decls is None and name is not None:
+            key = '%s %s' % (kind, name)
+            if key in self._declarations:
+                decls = self._declarations[key].decls
+        if decls is not None:
+            fnames = tuple([decl.name for decl in decls])
+            btypes = tuple([self._get_btype(decl.type) for decl in decls])
         else:   # opaque struct or union
             fnames = None
             btypes = None
