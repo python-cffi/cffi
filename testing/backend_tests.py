@@ -300,5 +300,16 @@ class BackendTests:
         assert p[3] == '4'
         assert p[8] == '\x00'
         py.test.raises(IndexError, "p[9]")
+        py.test.raises(IndexError, "p[-1]")
         py.test.raises(TypeError, "p[3] = '?'")
         py.test.raises(TypeError, ffi.new, "char *", "some string")
+        py.test.raises(ValueError, ffi.new, "const char *", "a\x00b")
+
+    def test_voidp(self):
+        ffi = FFI(backend=self.Backend())
+        py.test.raises(TypeError, ffi.new, "void")
+        p = ffi.new("void *")
+        assert not p
+        a = ffi.new("int[]", [10, 11, 12])
+        p = ffi.new("void *", a)
+        py.test.raises(TypeError, "p[0]")

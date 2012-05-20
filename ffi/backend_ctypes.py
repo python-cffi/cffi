@@ -59,7 +59,15 @@ class CTypesBackend(BackendBase):
             name = 'c'    # on Posix only
         path = ctypes.util.find_library(name)
         cdll = ctypes.CDLL(path)
-        return CTypesLibrary(cdll)
+        return CTypesLibrary(self, cdll)
+
+    def new_void_type(self):
+        class CTypesVoid(CTypesData):
+            _reftypename = 'void &'
+            def __init__(self, value=None):
+                raise TypeError("%s cannot be instantiated" % (CTypesVoid,))
+        CTypesVoid._fix_class()
+        return CTypesVoid
 
     def new_primitive_type(self, name):
         ctype = self.PRIMITIVE_TYPES[name]
@@ -162,7 +170,10 @@ class CTypesBackend(BackendBase):
             kind = 'generic'
         #
         class CTypesPtr(CTypesData):
-            _ctype = ctypes.POINTER(BItem._ctype)
+            if hasattr(BItem, '_ctype'):
+                _ctype = ctypes.POINTER(BItem._ctype)
+            else:
+                _ctype = ctypes.c_void_p
             _reftypename = BItem._get_c_name(' * &')
 
             def __init__(self, init):
@@ -280,7 +291,7 @@ class CTypesBackend(BackendBase):
                     return ''.join(self._blob)
 
             def _convert_to_address_of(self, BClass):
-                if BItem is BClass:
+                if BItem is BClass or BClass is CTypesVoid:
                     return ctypes.addressof(self._blob)
                 else:
                     return CTypesData._convert_to_address_of(self, BClass)
@@ -291,6 +302,7 @@ class CTypesBackend(BackendBase):
                 self._blob = ctypes_array
                 return self
         #
+        CTypesVoid = self.get_cached_btype('new_void_type')
         CTypesArray._fix_class()
         return CTypesArray
 
@@ -353,13 +365,18 @@ class CTypesBackend(BackendBase):
 
 class CTypesLibrary(object):
 
-    def __init__(self, cdll):
+    def __init__(self, backend, cdll):
+        self.backend = backend
         self.cdll = cdll
+        self.void_type = self.backend.get_cached_btype('new_void_type')
 
     def load_function(self, name, bargs, bresult):
         func = getattr(self.cdll, name)
         func.argtypes = [barg._ctype for barg in bargs]
-        func.restype = bresult._ctype
+        if bresult is self.void_type:
+            func.restype = None
+        else:
+            func.restype = bresult._ctype
         return func
 
 

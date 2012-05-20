@@ -74,7 +74,7 @@ class FFI(object):
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
             BItem = self._get_btype(typenode.type)
-            is_const_charp = (list(typenode.type.quals) == ['const'] and
+            is_const_charp = ('const' in typenode.type.quals and
                               BItem is self._backend.get_cached_btype(
                                   "new_primitive_type", "char"))
             return self._backend.get_cached_btype("new_pointer_type", BItem,
@@ -94,6 +94,8 @@ class FFI(object):
                         and names != ['unsigned', 'int']):
                     names.pop()
                 ident = ' '.join(names)
+                if ident == 'void':
+                    return self._backend.get_cached_btype("new_void_type")
                 return self._backend.get_cached_btype(
                     'new_primitive_type', ident)
             #
