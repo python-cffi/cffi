@@ -50,7 +50,7 @@ def test_sinf():
 def test_puts():
     ffi = FFI()
     ffi.cdef("""
-       void puts(const char *);
+       int puts(const char *);
        int fflush(void *);
     """)
     with FdWriteCapture() as fd:
@@ -86,3 +86,27 @@ def test_must_specify_type_of_vararg():
     """)
     e = py.test.raises(TypeError, ffi.C.printf, "hello %d\n", 42)
     assert str(e.value) == 'argument 2 needs to be a cdata'
+
+def test_function_pointer():
+    py.test.skip("in-progress")
+    ffi = FFI()
+    ffi.cdef("""
+        int puts(const char *);
+        int fflush(void *);
+    """)
+    f = ffi.new("int(*)(const char *txt)", ffi.C.puts)
+    assert f == ffi.new("int(*)(const char *)", ffi.C.puts)
+    with FdWriteCapture() as fd:
+        f("hello")
+        ffi.C.fflush(None)
+    res = fd.getvalue()
+    assert res == 'hello\n'
+
+def test_passing_array():
+    ffi = FFI()
+    ffi.cdef("""
+        int strlen(char[]);
+    """)
+    p = ffi.new("char[]", "hello")
+    res = ffi.C.strlen(p)
+    assert res == 5

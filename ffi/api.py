@@ -59,9 +59,19 @@ class FFI(object):
             self._cached_parsed_types[cdecl] = typenode
             return typenode
 
-    def _get_btype(self, typenode):
+    def _get_btype_pointer(self, type):
+        BItem = self._get_btype(type)
+        is_const_charp = ('const' in type.quals and
+                          BItem is self._backend.get_cached_btype(
+                              "new_primitive_type", "char"))
+        return self._backend.get_cached_btype("new_pointer_type", BItem,
+                                              is_const_charp)
+
+    def _get_btype(self, typenode, convert_array_to_pointer=False):
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):
             # array type
+            if convert_array_to_pointer:
+                return self._get_btype_pointer(typenode.type)
             if typenode.dim is None:
                 length = None
             else:
@@ -73,12 +83,7 @@ class FFI(object):
                                                   BItem, length)
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
-            BItem = self._get_btype(typenode.type)
-            is_const_charp = ('const' in typenode.type.quals and
-                              BItem is self._backend.get_cached_btype(
-                                  "new_primitive_type", "char"))
-            return self._backend.get_cached_btype("new_pointer_type", BItem,
-                                                  is_const_charp)
+            return self._get_btype_pointer(typenode.type)
         #
         if isinstance(typenode, pycparser.c_ast.TypeDecl):
             type = typenode.type
@@ -137,7 +142,8 @@ class FFILibrary(object):
                         isinstance(params[-1], pycparser.c_ast.EllipsisParam))
             if ellipsis:
                 params.pop()
-            args = [self._ffi._get_btype(argdeclnode.type)
+            args = [self._ffi._get_btype(argdeclnode.type,
+                                         convert_array_to_pointer=True)
                     for argdeclnode in params]
             result = self._ffi._get_btype(node.type)
             value = self._backendlib.load_function(name, args, result,
