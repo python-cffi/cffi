@@ -89,11 +89,12 @@ class FFI(object):
 
     def _get_btype_pointer(self, type):
         BItem = self._get_btype(type)
-        is_const_charp = ('const' in type.quals and
-                          BItem is self._backend.get_cached_btype(
-                              "new_primitive_type", "char"))
-        return self._backend.get_cached_btype("new_pointer_type", BItem,
-                                              is_const_charp)
+        if ('const' in type.quals and
+            BItem is self._backend.get_cached_btype("new_primitive_type",
+                                                    "char")):
+            return self._backend.get_cached_btype("new_constcharp_type")
+        else:
+            return self._backend.get_cached_btype("new_pointer_type", BItem)
 
     def _get_btype(self, typenode, convert_array_to_pointer=False):
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):

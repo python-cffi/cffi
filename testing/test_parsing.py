@@ -10,7 +10,7 @@ class FakeBackend(BackendBase):
     def new_primitive_type(self, name):
         return '<%s>' % name
 
-    def new_pointer_type(self, itemtype, is_const_charp):
+    def new_pointer_type(self, itemtype):
         return '<pointer to %s>' % (itemtype,)
 
 class FakeLibrary(object):

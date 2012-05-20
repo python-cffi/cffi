@@ -171,13 +171,18 @@ class CTypesBackend(BackendBase):
         CTypesPrimitive._fix_class()
         return CTypesPrimitive
 
-    def new_pointer_type(self, BItem, is_const_charp):
-        if is_const_charp:
-            kind = 'constcharp'
-        elif BItem is self.get_cached_btype('new_primitive_type', 'char'):
+    def new_pointer_type(self, BItem):
+        if BItem is self.get_cached_btype('new_primitive_type', 'char'):
             kind = 'charp'
         else:
             kind = 'generic'
+        return self._new_pointer_type(BItem, kind)
+
+    def new_constcharp_type(self):
+        BChar = self.get_cached_btype('new_primitive_type', 'char')
+        return self._new_pointer_type(BChar, kind='constcharp')
+
+    def _new_pointer_type(self, BItem, kind):
         #
         class CTypesPtr(CTypesData):
             if hasattr(BItem, '_ctype'):
