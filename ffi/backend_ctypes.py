@@ -153,9 +153,11 @@ class CTypesBackend(BackendBase):
         CTypesPrimitive._fix_class()
         return CTypesPrimitive
 
-    def new_pointer_type(self, BItem):
-        if BItem is self.get_cached_btype('new_primitive_type', 'char'):
-            kind = 'char'
+    def new_pointer_type(self, BItem, is_const_charp):
+        if is_const_charp:
+            kind = 'constcharp'
+        elif BItem is self.get_cached_btype('new_primitive_type', 'char'):
+            kind = 'charp'
         else:
             kind = 'generic'
         #
@@ -168,6 +170,12 @@ class CTypesBackend(BackendBase):
                     address = 0      # null pointer
                 elif isinstance(init, CTypesData):
                     address = init._convert_to_address_of(BItem)
+                elif kind == 'constcharp' and isinstance(init, str):
+                    if '\x00' in init:
+                        raise ValueError("string contains \\x00 characters")
+                    self._keepalive_string = init
+                    address = ctypes.cast(ctypes.c_char_p(init),
+                                          ctypes.c_void_p).value
                 else:
                     raise TypeError("%r expected, got %r" % (
                         CTypesPtr._get_c_name(), type(init).__name__))
@@ -185,13 +193,20 @@ class CTypesBackend(BackendBase):
             def __ne__(self, other):
                 return not self.__eq__(other)
 
-            def __getitem__(self, index):
-                return BItem._from_ctypes(self._as_ctype_ptr[index])
+            if kind != 'constcharp':
+                def __getitem__(self, index):
+                    return BItem._from_ctypes(self._as_ctype_ptr[index])
 
-            def __setitem__(self, index, value):
-                self._as_ctype_ptr[index] = BItem._to_ctypes(value)
+                def __setitem__(self, index, value):
+                    self._as_ctype_ptr[index] = BItem._to_ctypes(value)
+            else:
+                def __getitem__(self, index):
+                    # note that we allow access to the terminating NUL byte
+                    if not (0 <= index <= len(self._keepalive_string)):
+                        raise IndexError
+                    return self._as_ctype_ptr[index]
 
-            if kind == 'char':
+            if kind == 'charp' or kind == 'constcharp':
                 def __str__(self):
                     n = 0
                     while self._as_ctype_ptr[n] != '\x00':

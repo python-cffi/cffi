@@ -293,3 +293,12 @@ class BackendTests:
         a = ffi.new("char[]", "hello\x00world")
         p = ffi.new("char *", a)
         assert str(p) == 'hello'
+
+    def test_string_to_const_char_p(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("const char *", "12345678")
+        assert p[3] == '4'
+        assert p[8] == '\x00'
+        py.test.raises(IndexError, "p[9]")
+        py.test.raises(TypeError, "p[3] = '?'")
+        py.test.raises(TypeError, ffi.new, "char *", "some string")
