@@ -4,6 +4,16 @@ import pycparser    # http://code.google.com/p/pycparser/
 class FFIError(Exception):
     pass
 
+class CDefError(Exception):
+    def __str__(self):
+        line = ''
+        if len(self.args) >= 2:
+            try:
+                line = 'line %d: ' % (self.args[1].coord.line,)
+            except (AttributeError, TypeError):
+                pass
+        return '%s%s' % (line, self.args[0])
+
 
 class FFI(object):
     
@@ -25,8 +35,23 @@ class FFI(object):
     def cdef(self, csource):
         parser = pycparser.CParser()
         ast = parser.parse(csource)
-        v = CVisitor(self)
-        v.visit(ast)
+
+        for decl in ast.ext:
+            if isinstance(decl, pycparser.c_ast.Decl):
+                node = decl.type
+            else:
+                node = None
+            #
+            if isinstance(node, pycparser.c_ast.FuncDecl):
+                self._declare('function ' + node.type.declname, node)
+            elif isinstance(node, pycparser.c_ast.Struct):
+                if node.decls is not None:
+                    self._declare('struct ' + node.name, node)
+            elif isinstance(node, pycparser.c_ast.Union):
+                if node.decls is not None:
+                    self._declare('union ' + node.name, node)
+            else:
+                raise CDefError("unrecognized construct", decl)
 
     def load(self, name):
         assert isinstance(name, str)
@@ -151,20 +176,3 @@ class FFILibrary(object):
             setattr(self, name, value)
             return value
         raise AttributeError(name)
-
-
-class CVisitor(pycparser.c_ast.NodeVisitor):
-
-    def __init__(self, ffi):
-        self.ffi = ffi
-
-    def visit_FuncDecl(self, node):
-        self.ffi._declare('function ' + node.type.declname, node)
-
-    def visit_Struct(self, node):
-        if node.decls is not None:
-            self.ffi._declare('struct ' + node.name, node)
-
-    def visit_Union(self, node):
-        if node.decls is not None:
-            self.ffi._declare('union ' + node.name, node)
