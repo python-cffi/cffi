@@ -15,15 +15,16 @@ class FakeBackend(BackendBase):
 
 class FakeLibrary(object):
     
-    def load_function(self, name, args, result):
-        return FakeFunction(name, args, result)
+    def load_function(self, name, args, result, varargs):
+        return FakeFunction(name, args, result, varargs)
 
 class FakeFunction(object):
 
-    def __init__(self, name, args, result):
+    def __init__(self, name, args, result, varargs):
         self.name = name
         self.args = args
         self.result = result
+        self.varargs = varargs
 
 
 def test_simple():
@@ -34,6 +35,7 @@ def test_simple():
     assert func.name == 'sin'
     assert func.args == ['<double>']
     assert func.result == '<double>'
+    assert func.varargs is False
 
 def test_pipe():
     ffi = FFI(backend=FakeBackend())
@@ -42,3 +44,13 @@ def test_pipe():
     assert func.name == 'pipe'
     assert func.args == ['<array[2] of <int>>']
     assert func.result == '<int>'
+    assert func.varargs is False
+
+def test_vararg():
+    ffi = FFI(backend=FakeBackend())
+    ffi.cdef("short foo(int, ...);")
+    func = ffi.C.foo
+    assert func.name == 'foo'
+    assert func.args == ['<int>']
+    assert func.result == '<short>'
+    assert func.varargs is True
