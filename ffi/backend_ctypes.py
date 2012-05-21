@@ -28,8 +28,16 @@ class CTypesData(object):
         cls.__name__ = 'CData<%s>' % (cls._get_c_name(),)
         cls.__module__ = 'ffi'
 
-    def __repr__(self):
-        return '<cdata %r>' % (self._get_c_name(),)
+    def _get_own_repr(self):
+        return None
+
+    def __repr__(self, c_name=None):
+        own = self._get_own_repr()
+        if own is None:
+            own = ''
+        else:
+            own = ' owning %s' % (own,)
+        return '<cdata %r%s>' % (c_name or self._get_c_name(), own)
 
     def _convert_to_address_of(self, BClass):
         raise TypeError("cannot convert %r to %r" % (
@@ -189,7 +197,11 @@ class CTypesBackend(BackendBase):
                 _ctype = ctypes.POINTER(BItem._ctype)
             else:
                 _ctype = ctypes.c_void_p
-            _reftypename = BItem._get_c_name(' * &')
+            if kind != 'constcharp':
+                _reftypename = BItem._get_c_name(' * &')
+            else:
+                _reftypename = 'const char * &'
+                _keepalive_string = None
 
             def __init__(self, init):
                 if init is None:
@@ -228,7 +240,10 @@ class CTypesBackend(BackendBase):
             else:
                 def __getitem__(self, index):
                     # note that we allow access to the terminating NUL byte
-                    if not (0 <= index <= len(self._keepalive_string)):
+                    if index < 0:
+                        raise IndexError
+                    if (self._keepalive_string is not None and
+                            index > len(self._keepalive_string)):
                         raise IndexError
                     return self._as_ctype_ptr[index]
 
@@ -254,6 +269,11 @@ class CTypesBackend(BackendBase):
                         return ctypes.c_char_p(value)
                     else:
                         return super(CTypesPtr, cls)._arg_to_ctypes(value)
+                def _get_own_repr(self):
+                    if self._keepalive_string is not None:
+                        return 'a %d-bytes string' % (
+                            len(self._keepalive_string) + 1,)
+                    return None
 
             @staticmethod
             def _from_ctypes(ctypes_ptr):
@@ -288,6 +308,7 @@ class CTypesBackend(BackendBase):
             if length is not None:
                 _ctype = BItem._ctype * length
             _reftypename = BItem._get_c_name(brackets)
+            _own = False
 
             def __init__(self, init):
                 if length is None:
@@ -300,6 +321,7 @@ class CTypesBackend(BackendBase):
                         len1 = len(init) + extra_null
                     self._ctype = BItem._ctype * len1
                 self._blob = self._ctype()
+                self._own = True
                 if init is not None:
                     for i, value in enumerate(init):
                         self[i] = value
@@ -325,6 +347,11 @@ class CTypesBackend(BackendBase):
                     except ValueError:
                         pass
                     return s
+
+            def _get_own_repr(self):
+                if self._own:
+                    return 'a %d-bytes array' % (ctypes.sizeof(self._blob),)
+                return None
 
             def _convert_to_address_of(self, BClass):
                 if BItem is BClass or BClass is CTypesVoid:
@@ -354,14 +381,21 @@ class CTypesBackend(BackendBase):
         class CTypesStructOrUnion(CTypesData):
             _ctype = struct_or_union
             _reftypename = '%s %s &' % (kind, name)
+            _own = False
 
             def __init__(self, init):
                 if fnames is None:
                     raise TypeError("cannot instantiate opaque type %s" % (
                         CTypesStructOrUnion,))
                 self._blob = struct_or_union()
+                self._own = True
                 if init is not None:
                     initializer(self, init)
+
+            def _get_own_repr(self):
+                if self._own:
+                    return '%d bytes' % (ctypes.sizeof(self._blob),)
+                return None
         #
         if fnames is not None:
             for fname, BField in zip(fnames, BFieldTypes):
@@ -411,6 +445,7 @@ class CTypesBackend(BackendBase):
             _ctype = ctypes.CFUNCTYPE(*ctypes_stuff)
             _reftypename = '%s(* &)(%s)' % (BResult._get_c_name(), nameargs)
             _name = None
+            _own_callback = None
 
             def __init__(self, init):
                 if init is None:
@@ -420,6 +455,7 @@ class CTypesBackend(BackendBase):
                 elif callable(init):
                     # create a callback to the Python callable init()
                     self._ctypes_func = CTypesFunction._ctype(init)
+                    self._own_callback = init
                 else:
                     raise TypeError("argument must be a callable object")
                 self._address = ctypes.cast(self._ctypes_func,
@@ -437,15 +473,16 @@ class CTypesBackend(BackendBase):
                 return not self.__eq__(other)
 
             def __repr__(self):
-                name = self._name
-                if name:
+                c_name = self._name
+                if c_name:
                     i = self._reftypename.index('(* &)')
                     if self._reftypename[i-1] not in ' )*':
-                        name = ' ' + name
-                    name = self._reftypename.replace('(* &)', name)
-                else:
-                    name = self._get_c_name()
-                return '<cfunc %r>' % (name,)
+                        c_name = ' ' + c_name
+                    c_name = self._reftypename.replace('(* &)', c_name)
+                return CTypesData.__repr__(self, c_name)
+
+            def _get_own_repr(self):
+                return self._own_callback
 
             @staticmethod
             def _from_ctypes(c_func):

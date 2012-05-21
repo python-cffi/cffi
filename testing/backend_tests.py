@@ -142,10 +142,11 @@ class BackendTests:
         assert repr(p) == "<cdata 'int *'>"
         assert repr(type(p)) == "<class 'ffi.CData<int *>'>"
         p = ffi.new("int [2]")
-        assert repr(p) == "<cdata 'int[2]'>"
+        assert repr(p) == "<cdata 'int[2]' owning a 8-bytes array>"
         assert repr(type(p)) == "<class 'ffi.CData<int[2]>'>"
         p = ffi.new("int*[2][3]")
-        assert repr(p) == "<cdata 'int *[2][3]'>"
+        assert repr(p) == "<cdata 'int *[2][3]' owning a %d-bytes array>" % (
+            6 * SIZE_OF_LONG,)
         assert repr(type(p)) == "<class 'ffi.CData<int *[2][3]>'>"
 
     def test_new_array_of_array(self):
@@ -233,6 +234,7 @@ class BackendTests:
         assert s.b == -3
         assert s.c == 0
         py.test.raises((AttributeError, TypeError), "del s.a")
+        assert repr(s) == "<cdata 'struct foo' owning 8 bytes>"
         #
         py.test.raises(ValueError, ffi.new, "struct foo", [1, 2, 3, 4])
 
@@ -254,6 +256,7 @@ class BackendTests:
         u = ffi.new("union foo", -2)
         assert u.a == -2
         py.test.raises((AttributeError, TypeError), "del u.a")
+        assert repr(u) == "<cdata 'union foo' owning 4 bytes>"
 
     def test_union_opaque(self):
         ffi = FFI(backend=self.Backend())
@@ -309,6 +312,7 @@ class BackendTests:
         py.test.raises(TypeError, "p[3] = '?'")
         py.test.raises(TypeError, ffi.new, "char *", "some string")
         py.test.raises(ValueError, ffi.new, "const char *", "a\x00b")
+        assert repr(p) == "<cdata 'const char *' owning a 9-bytes string>"
 
     def test_voidp(self):
         ffi = FFI(backend=self.Backend())
@@ -323,8 +327,13 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         p = ffi.new("int(*)(int)")
         assert not p
-        p = ffi.new("int(*)(int)", lambda n: n + 1)
+        assert repr(p) == "<cdata 'int(*)(int)'>"
+        def cb(n):
+            return n + 1
+        p = ffi.new("int(*)(int)", cb)
         res = p(41)
         assert res == 42 and type(res) is int
         res = p(ffi.new("int", -41))
         assert res == -40 and type(res) is int
+        assert repr(p).startswith(
+            "<cdata 'int(*)(int)' owning <function cb at 0x")

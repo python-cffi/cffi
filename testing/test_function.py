@@ -108,6 +108,7 @@ def test_function_has_a_c_type():
     """)
     fptr = ffi.C.puts
     assert type(fptr) == ffi.typeof("int(*)(const char*)")
+    assert repr(fptr) == "<cdata 'int puts(const char *)'>"
 
 def test_function_pointer():
     py.test.skip("in-progress")
