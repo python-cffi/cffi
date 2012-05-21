@@ -21,9 +21,3 @@ def test_typeof():
     clong = ffi.typeof("signed long int")
     assert isinstance(clong, FakePrimitiveType)
     assert clong.cdecl == 'long'
-
-def test_global_struct_instance():
-    py.test.skip("in-progress")
-    ffi = FFI(backend=FakeBackend())
-    ffi.cdef("struct foo { int a; } globaz;")
-    ffi.C.globaz

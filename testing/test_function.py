@@ -131,3 +131,20 @@ def test_passing_array():
     p = ffi.new("char[]", "hello")
     res = ffi.C.strlen(p)
     assert res == 5
+
+def test_write_variable():
+    ffi = FFI()
+    ffi.cdef("""
+        int puts(const char *);
+        void *stdout, *stderr;
+    """)
+    pout = ffi.C.stdout
+    perr = ffi.C.stderr
+    assert repr(pout) == "<cdata 'void *'>"
+    assert repr(perr) == "<cdata 'void *'>"
+    with FdWriteCapture(2) as fd:     # capturing stderr
+        ffi.C.stdout = perr
+        ffi.C.puts("hello!")   # goes to stdout, which is equal to stderr here
+        ffi.C.stdout = pout
+    res = fd.getvalue()
+    assert res == "hello!\n"
