@@ -109,7 +109,6 @@ def test_function_has_a_c_type():
     assert repr(fptr) == "<cdata 'int puts(const char *)'>"
 
 def test_function_pointer():
-    py.test.skip("in-progress")
     ffi = FFI()
     ffi.cdef("""
         int puts(const char *);
@@ -117,6 +116,7 @@ def test_function_pointer():
     """)
     f = ffi.new("int(*)(const char *txt)", ffi.C.puts)
     assert f == ffi.new("int(*)(const char *)", ffi.C.puts)
+    assert repr(f) == "<cdata 'int(*)(const char *)'>"
     with FdWriteCapture() as fd:
         f("hello")
         ffi.C.fflush(None)
