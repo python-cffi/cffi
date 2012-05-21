@@ -144,7 +144,9 @@ def test_write_variable():
     assert repr(perr) == "<cdata 'void *'>"
     with FdWriteCapture(2) as fd:     # capturing stderr
         ffi.C.stdout = perr
-        ffi.C.puts("hello!")   # goes to stdout, which is equal to stderr here
-        ffi.C.stdout = pout
+        try:
+            ffi.C.puts("hello!") # goes to stdout, which is equal to stderr now
+        finally:
+            ffi.C.stdout = pout
     res = fd.getvalue()
     assert res == "hello!\n"
