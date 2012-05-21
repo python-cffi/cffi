@@ -280,7 +280,10 @@ class CTypesBackend(BackendBase):
                 if not ctypes_ptr:
                     return None
                 self = CTypesPtr.__new__(CTypesPtr)
-                self._address = ctypes.addressof(ctypes_ptr.contents)
+                if self._ctype is ctypes.c_void_p:
+                    self._address = ctypes_ptr.value or 0
+                else:
+                    self._address = ctypes.addressof(ctypes_ptr.contents)
                 self._as_ctype_ptr = ctypes_ptr
                 return self
 
@@ -527,6 +530,13 @@ class CTypesLibrary(object):
         funcobj = BType._from_ctypes(c_func)
         funcobj._name = name
         return funcobj
+
+    def read_variable(self, BType, name):
+        ctypes_obj = BType._ctype.in_dll(self.cdll, name)
+        return BType._from_ctypes(ctypes_obj)
+
+    def write_variable(self, BType, name, value):
+        XXX   # test me first
 
 
 def _identity(x):

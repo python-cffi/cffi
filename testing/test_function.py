@@ -50,8 +50,8 @@ def test_sinf():
 def test_puts():
     ffi = FFI()
     ffi.cdef("""
-       int puts(const char *);
-       int fflush(void *);
+        int puts(const char *);
+        int fflush(void *);
     """)
     ffi.C.puts   # fetch before capturing, for easier debugging
     with FdWriteCapture() as fd:
@@ -62,15 +62,13 @@ def test_puts():
     assert res == 'hello\n  world\n'
 
 def test_fputs():
-    py.test.skip("in-progress")
     ffi = FFI()
     ffi.cdef("""
         int fputs(const char *, void *);
         void *stdout, *stderr;
     """)
     with FdWriteCapture(2) as fd:
-        ffi.C.fputs("hello from stderr", ffi.C.stderr)
-        ffi.C.fflush(ffi.C.stderr)
+        ffi.C.fputs("hello from stderr\n", ffi.C.stderr)
     res = fd.getvalue()
     assert res == 'hello from stderr\n'
 
