@@ -336,4 +336,6 @@ class BackendTests:
         res = p(ffi.new("int", -41))
         assert res == -40 and type(res) is int
         assert repr(p).startswith(
-            "<cdata 'int(*)(int)' owning <function cb at 0x")
+            "<cdata 'int(*)(int)' owning a callback to <function cb at 0x")
+        q = ffi.new("int(*)(int)", p)
+        assert repr(q) == "<cdata 'int(*)(int)'>"

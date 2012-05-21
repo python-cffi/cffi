@@ -485,7 +485,9 @@ class CTypesBackend(BackendBase):
                 return CTypesData.__repr__(self, c_name)
 
             def _get_own_repr(self):
-                return self._own_callback
+                if self._own_callback is not None:
+                    return 'a callback to %r' % (self._own_callback,)
+                return None
 
             @staticmethod
             def _from_ctypes(c_func):
