@@ -1,3 +1,4 @@
+import new
 import pycparser    # http://code.google.com/p/pycparser/
 
 
@@ -21,8 +22,7 @@ class FFI(object):
             backend = backend_ctypes.CTypesBackend()
         self._backend = backend
         self._declarations = {}
-        self._cached_btypes = {}
-        self._cached_parsed_types = {}
+        self._parsed_types = new.module('parsed_types').__dict__
         self.C = _make_ffi_library(self, self._backend.load_library())
         #
         lines = []
@@ -36,8 +36,7 @@ class FFI(object):
         self._declarations[name] = node
 
     def cdef(self, csource):
-        parser = pycparser.CParser()
-        ast = parser.parse(csource)
+        ast = _get_parser().parse(csource)
 
         for decl in ast.ext:
             if isinstance(decl, pycparser.c_ast.Decl):
@@ -76,8 +75,13 @@ class FFI(object):
         return _make_ffi_library(self, self._backend.load_library(name), name)
 
     def typeof(self, cdecl):
-        typenode = self._parse_type(cdecl)
-        return self._get_btype(typenode)
+        try:
+            return self._parsed_types[cdecl]
+        except KeyError:
+            typenode = self._parse_type(cdecl)
+            btype = self._get_btype(typenode)
+            self._parsed_types[cdecl] = btype
+            return btype
 
     def sizeof(self, cdecl):
         if isinstance(cdecl, (str, unicode)):
@@ -106,25 +110,20 @@ class FFI(object):
         return self._backend.string(pointer, length)
 
     def _parse_type(self, cdecl):
-        try:
-            return self._cached_parsed_types[cdecl]
-        except KeyError:
-            parser = pycparser.CParser()
-            # XXX: for more efficiency we would need to poke into the
-            # internals of CParser...  the following registers the
-            # typedefs, because their presence or absence influences the
-            # parsing itself (but what they are typedef'ed to plays no role)
-            csourcelines = []
-            for name in sorted(self._declarations):
-                if name.startswith('typedef '):
-                    csourcelines.append('typedef int %s;' % (name[8:],))
-            #
-            csourcelines.append('void __dummy(%s);' % cdecl)
-            ast = parser.parse('\n'.join(csourcelines))
-            # XXX: insert some sanity check
-            typenode = ast.ext[-1].type.args.params[0].type
-            self._cached_parsed_types[cdecl] = typenode
-            return typenode
+        # XXX: for more efficiency we would need to poke into the
+        # internals of CParser...  the following registers the
+        # typedefs, because their presence or absence influences the
+        # parsing itself (but what they are typedef'ed to plays no role)
+        csourcelines = []
+        for name in sorted(self._declarations):
+            if name.startswith('typedef '):
+                csourcelines.append('typedef int %s;' % (name[8:],))
+        #
+        csourcelines.append('void __dummy(%s);' % cdecl)
+        ast = _get_parser().parse('\n'.join(csourcelines))
+        # XXX: insert some sanity check
+        typenode = ast.ext[-1].type.args.params[0].type
+        return typenode
 
     def _get_btype_pointer(self, type):
         BItem = self._get_btype(type)
@@ -322,3 +321,12 @@ def _make_ffi_library(ffi, backendlib, libname=None):
     if libname is not None:
         FFILibrary.__name__ = 'FFILibrary_%s' % libname
     return FFILibrary()
+
+
+_parser_cache = None
+
+def _get_parser():
+    global _parser_cache
+    if _parser_cache is None:
+        _parser_cache = pycparser.CParser()
+    return _parser_cache
