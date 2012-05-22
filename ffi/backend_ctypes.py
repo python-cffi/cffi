@@ -272,7 +272,7 @@ class CTypesBackend(BackendBase):
                 return self._address
 
             def __nonzero__(self):
-                return self._address
+                return bool(self._address)
 
             def __eq__(self, other):
                 return (type(self) is type(other) and
@@ -532,7 +532,7 @@ class CTypesBackend(BackendBase):
                 return self
 
             def __nonzero__(self):
-                return self._address
+                return bool(self._address)
 
             def __eq__(self, other):
                 return (type(self) is type(other) and
