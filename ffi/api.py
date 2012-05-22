@@ -24,6 +24,11 @@ class FFI(object):
         self._cached_btypes = {}
         self._cached_parsed_types = {}
         self.C = _make_ffi_library(self, self._backend.load_library())
+        #
+        lines = []
+        for name, equiv in self._backend.nonstandard_integer_types().items():
+            lines.append('typedef %s %s;' % (equiv, name))
+        self.cdef('\n'.join(lines))
 
     def _declare(self, name, node):
         if name in self._declarations:
@@ -99,7 +104,7 @@ class FFI(object):
             # typedefs, because their presence or absence influences the
             # parsing itself (but what they are typedef'ed to plays no role)
             csourcelines = []
-            for name in self._declarations:
+            for name in sorted(self._declarations):
                 if name.startswith('typedef '):
                     csourcelines.append('typedef int %s;' % (name[8:],))
             #

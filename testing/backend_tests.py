@@ -1,8 +1,10 @@
 import py
-import sys
+import sys, ctypes
 from ffi import FFI
 
-SIZE_OF_LONG = 4 if sys.maxint == 2147483647 else 8
+SIZE_OF_LONG  = ctypes.sizeof(ctypes.c_long)
+SIZE_OF_PTR   = ctypes.sizeof(ctypes.c_void_p)
+SIZE_OF_WCHAR = ctypes.sizeof(ctypes.c_wchar)
 
 
 class BackendTests:
@@ -25,26 +27,41 @@ class BackendTests:
                           True: 'unsigned '}[unsigned] + c_type
                 if c_decl == 'char' or c_decl == '':
                     continue
-                if unsigned:
-                    min = 0
-                    max = (1 << (8*size)) - 1
-                else:
-                    min = -(1 << (8*size-1))
-                    max = (1 << (8*size-1)) - 1
-                p = ffi.new(c_decl, min)
-                assert p != min       # no __eq__(int)
-                assert bool(p) is bool(min)
-                assert int(p) == min
-                p = ffi.new(c_decl, max)
-                assert int(p) == max
-                q = ffi.cast(c_decl, min - 1)
-                assert type(q) is type(p) and int(q) == max
-                assert q == p         # __eq__(same-type)
-                assert hash(q) == hash(p)
-                if 'long long' not in c_decl:
-                    assert q != ffi.new("long long", min)  # __eq__(other-type)
-                py.test.raises(OverflowError, ffi.new, c_decl, min - 1)
-                py.test.raises(OverflowError, ffi.new, c_decl, max + 1)
+                self._test_int_type(ffi, c_decl, size, unsigned)
+
+    def test_fixedsize_int(self):
+        ffi = FFI(backend=self.Backend())
+        for size in [1, 2, 4, 8]:
+            self._test_int_type(ffi, 'int%d_t' % (8*size), size, False)
+            self._test_int_type(ffi, 'uint%d_t' % (8*size), size, True)
+        self._test_int_type(ffi, 'intptr_t', SIZE_OF_PTR, False)
+        self._test_int_type(ffi, 'uintptr_t', SIZE_OF_PTR, True)
+        self._test_int_type(ffi, 'ptrdiff_t', SIZE_OF_PTR, False)
+        self._test_int_type(ffi, 'size_t', SIZE_OF_PTR, True)
+        self._test_int_type(ffi, 'ssize_t', SIZE_OF_PTR, False)
+        self._test_int_type(ffi, 'wchar_t', SIZE_OF_WCHAR, True)
+
+    def _test_int_type(self, ffi, c_decl, size, unsigned):
+        if unsigned:
+            min = 0
+            max = (1 << (8*size)) - 1
+        else:
+            min = -(1 << (8*size-1))
+            max = (1 << (8*size-1)) - 1
+        p = ffi.new(c_decl, min)
+        assert p != min       # no __eq__(int)
+        assert bool(p) is bool(min)
+        assert int(p) == min
+        p = ffi.new(c_decl, max)
+        assert int(p) == max
+        q = ffi.cast(c_decl, min - 1)
+        assert type(q) is type(p) and int(q) == max
+        assert q == p         # __eq__(same-type)
+        assert hash(q) == hash(p)
+        if 'long long' not in c_decl:
+            assert q != ffi.new("long long", min)  # __eq__(other-type)
+        py.test.raises(OverflowError, ffi.new, c_decl, min - 1)
+        py.test.raises(OverflowError, ffi.new, c_decl, max + 1)
 
     def test_new_array_no_arg(self):
         ffi = FFI(backend=self.Backend())
@@ -385,9 +402,9 @@ class BackendTests:
     def test_cast_pointer_and_int(self):
         ffi = FFI(backend=self.Backend())
         a = ffi.new("short int[]", [0x1234, 0x5678])
-        l1 = ffi.cast("long", a)
+        l1 = ffi.cast("intptr_t", a)
         p = ffi.new("short*", a)
-        l2 = ffi.cast("long", p)
+        l2 = ffi.cast("intptr_t", p)
         assert l1 == l2
         q = ffi.cast("short*", l1)
         assert q == ffi.cast("short*", int(l1))
