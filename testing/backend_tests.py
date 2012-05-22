@@ -447,3 +447,10 @@ class BackendTests:
         s = ffi.new("struct bar")
         s.e = "D"
         assert s.e == "D"
+
+    def test_offsetof(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo { int a, b, c; };")
+        assert ffi.offsetof("struct foo", "a") == 0
+        assert ffi.offsetof("struct foo", "b") == 4
+        assert ffi.offsetof("struct foo", "c") == 8

@@ -86,6 +86,10 @@ class FFI(object):
         else:
             return cdecl._get_size_of_instance()
 
+    def offsetof(self, cdecl, fieldname):
+        BType = self.typeof(cdecl)
+        return BType._offsetof(fieldname)
+
     def new(self, cdecl, init=None):
         BType = self.typeof(cdecl)
         return BType(init)

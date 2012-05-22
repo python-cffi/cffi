@@ -1,4 +1,3 @@
-ffi.offsetof()
 bit fields
 Windows: GetLastError()
 ffi.string()

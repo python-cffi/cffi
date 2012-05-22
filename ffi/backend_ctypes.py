@@ -469,6 +469,10 @@ class CTypesBackend(BackendBase):
                 if self._own:
                     return '%d bytes' % (ctypes.sizeof(self._blob),)
                 return None
+
+            @staticmethod
+            def _offsetof(fieldname):
+                return getattr(struct_or_union, fieldname).offset
         #
         if fnames is not None:
             for fname, BField in zip(fnames, BFieldTypes):
