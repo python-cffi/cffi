@@ -489,3 +489,17 @@ class BackendTests:
         py.test.raises(OverflowError, "s.c = 4")
         s.c = -4
         assert s.c == -4
+
+    def test_pointer_arithmetic(self):
+        ffi = FFI(backend=self.Backend())
+        s = ffi.new("int[]", range(100, 110))
+        p = ffi.cast("int *", s)
+        assert p[2] == 102
+        assert p+1 == p+1
+        assert p+1 != p+0
+        assert p == p+0 == p-0
+        assert (p+1)[0] == 101
+        assert (p+19)[-10] == 109
+        assert (p+5) - (p+1) == 4
+        assert p == s+0
+        assert p+1 == s+1

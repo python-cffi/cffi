@@ -1,7 +1,6 @@
 Windows: GetLastError()
 ffi.string()
 Windows: __stdcall support, ideally automatically detected
-pointer arithmetic and difference
 reading "static const" variables from cdefs?
 ffi.gc()?
 

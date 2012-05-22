@@ -80,6 +80,10 @@ class CTypesGenericPtr(CTypesData):
         else:
             raise TypeError("bad type for cast to %r: %r" %
                             (cls, type(source).__name__))
+        return cls._new_pointer_at(address)
+
+    @classmethod
+    def _new_pointer_at(cls, address):
         self = cls.__new__(cls)
         self._address = address
         self._as_ctype_ptr = ctypes.cast(address, cls._ctype)
@@ -113,16 +117,31 @@ class CTypesGenericPtr(CTypesData):
     def _from_ctypes(cls, ctypes_ptr):
         if not ctypes_ptr:
             return None
-        self = cls.__new__(cls)
-        self._address = ctypes.cast(ctypes_ptr, ctypes.c_void_p).value or 0
-        self._as_ctype_ptr = ctypes.cast(ctypes_ptr, cls._ctype)
-        return self
+        address = ctypes.cast(ctypes_ptr, ctypes.c_void_p).value or 0
+        return cls._new_pointer_at(address)
 
     def _convert_to_address(self, BClass):
         if BClass in (self.__class__, None) or BClass._automatic_casts:
             return self._address
         else:
             return CTypesData._convert_to_address(self, BClass)
+
+    def __add__(self, other):
+        if isinstance(other, (int, long)):
+            return self._new_pointer_at(self._address +
+                                        other * ctypes.sizeof(self._ctype))
+        else:
+            return NotImplemented
+
+    def __sub__(self, other):
+        if isinstance(other, (int, long)):
+            return self._new_pointer_at(self._address -
+                                        other * ctypes.sizeof(self._ctype))
+        elif type(self) is type(other):
+            return (self._address -
+                    other._address) // ctypes.sizeof(self._ctype)
+        else:
+            return NotImplemented
 
 
 class CTypesBackend(BackendBase):
@@ -447,6 +466,14 @@ class CTypesBackend(BackendBase):
                 self = CTypesArray.__new__(CTypesArray)
                 self._blob = ctypes_array
                 return self
+
+            def __add__(self, other):
+                if isinstance(other, (int, long)):
+                    return CTypesPtr._new_pointer_at(
+                        ctypes.addressof(self._blob) +
+                        other * ctypes.sizeof(BItem._ctype))
+                else:
+                    return NotImplemented
         #
         CTypesPtr = self.get_cached_btype('new_pointer_type', BItem)
         CTypesArray._fix_class()
