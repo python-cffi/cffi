@@ -115,7 +115,7 @@ class CTypesBackend(BackendBase):
                 if value is None:
                     value = default_value
                 else:
-                    value = CTypesPrimitive._to_ctypes(value)
+                    value = self._to_ctypes(value)
                 self._value = value
 
             @staticmethod
@@ -317,8 +317,8 @@ class CTypesBackend(BackendBase):
                         return super(CTypesPtr, cls)._arg_to_ctypes(value)
                 def _get_own_repr(self):
                     if self._keepalive_string is not None:
-                        return 'a %d-bytes string' % (
-                            len(self._keepalive_string) + 1,)
+                        return 'a %d-char string' % (
+                            len(self._keepalive_string),)
                     return None
 
             @staticmethod
@@ -596,14 +596,19 @@ class CTypesBackend(BackendBase):
         class CTypesEnum(CTypesInt):
             _reftypename = 'enum %s &' % name
 
-            def __init__(self, init):
-                if isinstance(init, str):
+            @staticmethod
+            def _to_ctypes(x):
+                if isinstance(x, str):
                     try:
-                        init = mapping[init]
+                        x = mapping[x]
                     except KeyError:
                         raise ValueError("%r is not an enumerator for %r" % (
-                            init, CTypesEnum))
-                CTypesInt.__init__(self, init)
+                            x, CTypesEnum))
+                return CTypesInt._to_ctypes(x)
+
+            @staticmethod
+            def _from_ctypes(value):
+                return enumerators[value]
         #
         CTypesEnum._fix_class()
         return CTypesEnum

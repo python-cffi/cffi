@@ -323,7 +323,7 @@ class BackendTests:
         py.test.raises(TypeError, "p[3] = '?'")
         py.test.raises(TypeError, ffi.new, "char *", "some string")
         py.test.raises(ValueError, ffi.new, "const char *", "a\x00b")
-        assert repr(p) == "<cdata 'const char *' owning a 9-bytes string>"
+        assert repr(p) == "<cdata 'const char *' owning a 8-char string>"
 
     def test_voidp(self):
         ffi = FFI(backend=self.Backend())
@@ -423,3 +423,10 @@ class BackendTests:
         assert ffi.new("enum foo", "A") != ffi.new("enum bar", "A")
         assert ffi.new("enum bar", "A") != ffi.new("int", 0)
         assert repr(ffi.new("enum bar", "C")) == "<cdata 'enum bar'>"
+
+    def test_enum_in_struct(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("enum foo { A, B, C, D }; struct bar { enum foo e; };")
+        s = ffi.new("struct bar")
+        s.e = "D"
+        assert s.e == "D"
