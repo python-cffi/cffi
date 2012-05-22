@@ -17,7 +17,7 @@ class FakeBackend(BackendBase):
     def new_pointer_type(self, itemtype):
         return '<pointer to %s>' % (itemtype,)
 
-    def new_struct_type(self, name, fnames, btypes):
+    def new_struct_type(self, name, fnames, btypes, bitfields):
         return '<struct %s: %s>' % (
             name,
             ', '.join([y + x for x, y in zip(fnames, btypes)]))

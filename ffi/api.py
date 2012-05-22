@@ -220,11 +220,19 @@ class FFI(object):
         if decls is not None:
             fnames = tuple([decl.name for decl in decls])
             btypes = tuple([self._get_btype(decl.type) for decl in decls])
+            bitfields = tuple(map(self._get_bitfield_size, decls))
         else:   # opaque struct or union
             fnames = None
             btypes = None
+            bitfields = None
         return self._backend.get_cached_btype(
-            'new_%s_type' % kind, name, fnames, btypes)
+            'new_%s_type' % kind, name, fnames, btypes, bitfields)
+
+    def _get_bitfield_size(self, decl):
+        if decl.bitsize is None:
+            return None
+        else:
+            return self._parse_constant(decl.bitsize)
 
     def _get_enum_type(self, type):
         name = type.name

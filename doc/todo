@@ -1,4 +1,3 @@
-bit fields
 Windows: GetLastError()
 ffi.string()
 Windows: __stdcall support, ideally automatically detected

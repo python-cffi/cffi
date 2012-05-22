@@ -461,3 +461,20 @@ class BackendTests:
         assert ffi.alignof("int") == 4
         assert ffi.alignof("double") in (4, 8)
         assert ffi.alignof("struct foo") == 2
+
+    def test_bitfield(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo { int a:10, b:20, c:3; };")
+        assert ffi.sizeof("struct foo") == 8
+        s = ffi.new("struct foo")
+        s.a = 511
+        py.test.raises(OverflowError, "s.a = 512")
+        assert s.a == 511
+        s.a = -512
+        py.test.raises(OverflowError, "s.a = -513")
+        assert s.a == -512
+        s.c = 3
+        assert s.c == 3
+        py.test.raises(OverflowError, "s.c = 4")
+        s.c = -4
+        assert s.c == -4

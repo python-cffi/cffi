@@ -446,13 +446,21 @@ class CTypesBackend(BackendBase):
         CTypesArray._fix_class()
         return CTypesArray
 
-    def _new_struct_or_union(self, name, fnames, BFieldTypes,
+    def _regroup_fields(self, fnames, BFieldTypes, bitfields):
+        fields = []
+        for (fname, BField, bitsize) in zip(fnames, BFieldTypes, bitfields):
+            if bitsize is None:
+                fields.append((fname, BField._ctype))
+            else:
+                fields.append((fname, BField._ctype, bitsize))
+        return fields
+
+    def _new_struct_or_union(self, name, fnames, BFieldTypes, bitfields,
                              kind, base_ctypes_class, initializer):
         #
         class struct_or_union(base_ctypes_class):
             if fnames is not None:
-                _fields_ = [(fname, BField._ctype)
-                            for (fname, BField) in zip(fnames, BFieldTypes)]
+                _fields_ = self._regroup_fields(fnames, BFieldTypes, bitfields)
         struct_or_union.__name__ = '%s_%s' % (kind, name)
         #
         class CTypesStructOrUnion(CTypesData):
@@ -479,20 +487,30 @@ class CTypesBackend(BackendBase):
                 return getattr(struct_or_union, fieldname).offset
         #
         if fnames is not None:
-            for fname, BField in zip(fnames, BFieldTypes):
+            for fname, BField, bitsize in zip(fnames, BFieldTypes, bitfields):
                 if hasattr(CTypesStructOrUnion, fname):
                     raise ValueError("the field name %r conflicts in "
                                      "the ctypes backend" % fname)
                 def getter(self, fname=fname, BField=BField):
                     return BField._from_ctypes(getattr(self._blob, fname))
-                def setter(self, value, fname=fname, BField=BField):
-                    setattr(self._blob, fname, BField._to_ctypes(value))
+                if bitsize is None:
+                    def setter(self, value, fname=fname, BField=BField):
+                        setattr(self._blob, fname, BField._to_ctypes(value))
+                else:
+                    def setter(self, value, fname=fname, BField=BField):
+                        # xxx obscure workaround
+                        value = BField._to_ctypes(value)
+                        oldvalue = getattr(self._blob, fname)
+                        setattr(self._blob, fname, value)
+                        if value != getattr(self._blob, fname):
+                            setattr(self._blob, fname, oldvalue)
+                            raise OverflowError("value too large for bitfield")
                 setattr(CTypesStructOrUnion, fname, property(getter, setter))
         #
         CTypesStructOrUnion._fix_class()
         return CTypesStructOrUnion
 
-    def new_struct_type(self, name, fnames, BFieldTypes):
+    def new_struct_type(self, name, fnames, BFieldTypes, bitfields):
         def initializer(self, init):
             init = tuple(init)
             if len(init) > len(fnames):
@@ -500,16 +518,16 @@ class CTypesBackend(BackendBase):
                                  "struct %s initializer" % name)
             for value, fname, BField in zip(init, fnames, BFieldTypes):
                 setattr(self._blob, fname, BField._to_ctypes(value))
-        return self._new_struct_or_union(name, fnames, BFieldTypes,
+        return self._new_struct_or_union(name, fnames, BFieldTypes, bitfields,
                                          'struct', ctypes.Structure,
                                          initializer)
 
-    def new_union_type(self, name, fnames, BFieldTypes):
+    def new_union_type(self, name, fnames, BFieldTypes, bitfields):
         def initializer(self, init):
             fname = fnames[0]
             BField = BFieldTypes[0]
             setattr(self._blob, fname, BField._to_ctypes(init))
-        return self._new_struct_or_union(name, fnames, BFieldTypes,
+        return self._new_struct_or_union(name, fnames, BFieldTypes, bitfields,
                                          'union', ctypes.Union,
                                          initializer)
 
