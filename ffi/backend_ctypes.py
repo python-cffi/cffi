@@ -39,9 +39,13 @@ class CTypesData(object):
             own = ' owning %s' % (own,)
         return '<cdata %r%s>' % (c_name or self._get_c_name(), own)
 
-    def _convert_to_address_of(self, BClass):
-        raise TypeError("cannot convert %r to %r" % (
-            self._get_c_name(), BClass._get_c_name(' *')))
+    def _convert_to_address(self, BClass):
+        if BClass is None:
+            raise TypeError("cannot convert %r to an address" % (
+                self._get_c_name(),))
+        else:
+            raise TypeError("cannot convert %r to %r" % (
+                self._get_c_name(), BClass._get_c_name()))
 
     @classmethod
     def _get_size(cls):
@@ -55,11 +59,70 @@ class CTypesData(object):
         raise TypeError("cannot cast to %r" % (cls._get_c_name(),))
 
     def _cast_to_integer(self):
-        return self._convert_to_address_of(None)
+        return self._convert_to_address(None)
 
     @classmethod
     def _alignment(cls):
         return ctypes.alignment(cls._ctype)
+
+
+class CTypesGenericPtr(CTypesData):
+    _automatic_casts = False
+
+    @classmethod
+    def _cast_from(cls, source):
+        if source is None:
+            address = 0
+        elif isinstance(source, CTypesData):
+            address = source._cast_to_integer()
+        elif isinstance(source, (int, long)):
+            address = source
+        else:
+            raise TypeError("bad type for cast to %r: %r" %
+                            (cls, type(source).__name__))
+        self = cls.__new__(cls)
+        self._address = address
+        self._as_ctype_ptr = ctypes.cast(address, cls._ctype)
+        return self
+
+    def _cast_to_integer(self):
+        return self._address
+
+    def __nonzero__(self):
+        return bool(self._address)
+
+    def __eq__(self, other):
+        return (type(self) is type(other) and
+                self._address == other._address)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self._address)
+
+    @classmethod
+    def _to_ctypes(cls, value):
+        if value is None:
+            address = 0
+        else:
+            address = value._convert_to_address(cls)
+        return ctypes.cast(address, cls._ctype)
+
+    @classmethod
+    def _from_ctypes(cls, ctypes_ptr):
+        if not ctypes_ptr:
+            return None
+        self = cls.__new__(cls)
+        self._address = ctypes.cast(ctypes_ptr, ctypes.c_void_p).value or 0
+        self._as_ctype_ptr = ctypes.cast(ctypes_ptr, cls._ctype)
+        return self
+
+    def _convert_to_address(self, BClass):
+        if BClass in (self.__class__, None) or BClass._automatic_casts:
+            return self._address
+        else:
+            return CTypesData._convert_to_address(self, BClass)
 
 
 class CTypesBackend(BackendBase):
@@ -245,7 +308,7 @@ class CTypesBackend(BackendBase):
 
     def _new_pointer_type(self, BItem, kind):
         #
-        class CTypesPtr(CTypesData):
+        class CTypesPtr(CTypesGenericPtr):
             if hasattr(BItem, '_ctype'):
                 _ctype = ctypes.POINTER(BItem._ctype)
             else:
@@ -260,7 +323,7 @@ class CTypesBackend(BackendBase):
                 if init is None:
                     address = 0      # null pointer
                 elif isinstance(init, CTypesData):
-                    address = init._convert_to_address_of(BItem)
+                    address = init._convert_to_address(CTypesPtr)
                 elif kind == 'constcharp' and isinstance(init, str):
                     if '\x00' in init:
                         raise ValueError("string contains \\x00 characters")
@@ -272,38 +335,6 @@ class CTypesBackend(BackendBase):
                         CTypesPtr._get_c_name(), type(init).__name__))
                 self._address = address
                 self._as_ctype_ptr = ctypes.cast(address, CTypesPtr._ctype)
-
-            @staticmethod
-            def _cast_from(source):
-                if source is None:
-                    address = 0
-                elif isinstance(source, CTypesData):
-                    address = source._cast_to_integer()
-                elif isinstance(source, (int, long)):
-                    address = source
-                else:
-                    raise TypeError("bad type for cast to %r: %r" %
-                                    (CTypesPtr, type(source).__name__))
-                self = CTypesPtr.__new__(CTypesPtr)
-                self._address = address
-                self._as_ctype_ptr = ctypes.cast(address, CTypesPtr._ctype)
-                return self
-
-            def _cast_to_integer(self):
-                return self._address
-
-            def __nonzero__(self):
-                return bool(self._address)
-
-            def __eq__(self, other):
-                return (type(self) is type(other) and
-                        self._address == other._address)
-
-            def __ne__(self, other):
-                return not self.__eq__(other)
-
-            def __hash__(self):
-                return hash((CTypesPtr, self._address))
 
             if kind != 'constcharp':
                 def __getitem__(self, index):
@@ -328,14 +359,6 @@ class CTypesBackend(BackendBase):
                         n += 1
                     return ''.join([self._as_ctype_ptr[i] for i in range(n)])
 
-            @staticmethod
-            def _to_ctypes(value):
-                if value is None:
-                    address = 0
-                else:
-                    address = value._convert_to_address_of(BItem)
-                return ctypes.cast(address, CTypesPtr._ctype)
-
             if kind == 'constcharp':
                 @classmethod
                 def _arg_to_ctypes(cls, value):
@@ -348,26 +371,9 @@ class CTypesBackend(BackendBase):
                         return 'a %d-char string' % (
                             len(self._keepalive_string),)
                     return None
-
-            @staticmethod
-            def _from_ctypes(ctypes_ptr):
-                if not ctypes_ptr:
-                    return None
-                self = CTypesPtr.__new__(CTypesPtr)
-                if self._ctype is ctypes.c_void_p:
-                    self._address = ctypes_ptr.value
-                else:
-                    self._address = ctypes.addressof(ctypes_ptr.contents)
-                self._as_ctype_ptr = ctypes_ptr
-                return self
-
-            def _convert_to_address_of(self, BClass):
-                if BClass in (BItem, CTypesVoid, None):
-                    return self._address
-                else:
-                    return CTypesData._convert_to_address_of(self, BClass)
         #
-        CTypesVoid = self.get_cached_btype('new_void_type')
+        if BItem is self.get_cached_btype('new_void_type'):
+            CTypesPtr._automatic_casts = True
         CTypesPtr._fix_class()
         return CTypesPtr
 
@@ -430,11 +436,11 @@ class CTypesBackend(BackendBase):
                     return 'a %d-bytes array' % (ctypes.sizeof(self._blob),)
                 return None
 
-            def _convert_to_address_of(self, BClass):
-                if BClass in (BItem, CTypesVoid, None):
+            def _convert_to_address(self, BClass):
+                if BClass in (CTypesPtr, None) or BClass._automatic_casts:
                     return ctypes.addressof(self._blob)
                 else:
-                    return CTypesData._convert_to_address_of(self, BClass)
+                    return CTypesData._convert_to_address(self, BClass)
 
             @staticmethod
             def _from_ctypes(ctypes_array):
@@ -442,7 +448,7 @@ class CTypesBackend(BackendBase):
                 self._blob = ctypes_array
                 return self
         #
-        CTypesVoid = self.get_cached_btype('new_void_type')
+        CTypesPtr = self.get_cached_btype('new_pointer_type', BItem)
         CTypesArray._fix_class()
         return CTypesArray
 
@@ -536,56 +542,28 @@ class CTypesBackend(BackendBase):
         if has_varargs:
             nameargs.append('...')
         nameargs = ', '.join(nameargs)
-        ctypes_stuff = [BArg._ctype for BArg in BArgs]
-        #self.void_type = self.backend.get_cached_btype('new_void_type')
-        ctypes_stuff.insert(0, BResult._ctype)
         #
-        class CTypesFunction(CTypesData):
-            _ctype = ctypes.CFUNCTYPE(*ctypes_stuff, use_errno=True)
+        class CTypesFunction(CTypesGenericPtr):
+            _ctype = ctypes.CFUNCTYPE(BResult._ctype,
+                                      *[BArg._ctype for BArg in BArgs],
+                                      use_errno=True)
             _reftypename = '%s(* &)(%s)' % (BResult._get_c_name(), nameargs)
             _name = None
             _own_callback = None
 
             def __init__(self, init):
                 if init is None:
-                    self._ctypes_func = CTypesFunction._ctype(0)
+                    self._as_ctype_ptr = CTypesFunction._ctype(0)
                 elif isinstance(init, CTypesFunction):
-                    self._ctypes_func = init._ctypes_func
+                    self._as_ctype_ptr = init._as_ctype_ptr
                 elif callable(init):
                     # create a callback to the Python callable init()
-                    self._ctypes_func = CTypesFunction._ctype(init)
+                    self._as_ctype_ptr = CTypesFunction._ctype(init)
                     self._own_callback = init
                 else:
                     raise TypeError("argument must be a callable object")
-                self._address = ctypes.cast(self._ctypes_func,
+                self._address = ctypes.cast(self._as_ctype_ptr,
                                             ctypes.c_void_p).value or 0
-
-            @staticmethod
-            def _cast_from(source):
-                if source is None:
-                    address = 0
-                elif isinstance(source, CTypesData):
-                    address = source._cast_to_integer()
-                else:
-                    raise TypeError("bad type for cast to %r: %r" %
-                                    (CTypesPrimitive, type(source).__name__))
-                self = CTypesFunction.__new__(CTypesFunction)
-                self._address = address
-                self._ctypes_func = ctypes.cast(address, CTypesFunction._ctype)
-                return self
-
-            def __nonzero__(self):
-                return bool(self._address)
-
-            def __eq__(self, other):
-                return (type(self) is type(other) and
-                        self._address == other._address)
-
-            def __ne__(self, other):
-                return not self.__eq__(other)
-
-            def __hash__(self):
-                return hash((CTypesFunction, self._address))
 
             def __repr__(self):
                 c_name = self._name
@@ -600,21 +578,6 @@ class CTypesBackend(BackendBase):
                 if self._own_callback is not None:
                     return 'a callback to %r' % (self._own_callback,)
                 return None
-
-            @staticmethod
-            def _from_ctypes(c_func):
-                if not c_func:
-                    return None
-                self = CTypesFunction.__new__(CTypesFunction)
-                self._address = ctypes.addressof(c_func)
-                self._ctypes_func = ctypes.cast(c_func, CTypesFunction._ctype)
-                return self
-
-            def _convert_to_address_of(self, BClass):
-                if BClass in (CTypesVoid, None):
-                    return self._address
-                else:
-                    return CTypesData._convert_to_address_of(self, BClass)
 
             def __call__(self, *args):
                 if has_varargs:
@@ -632,7 +595,7 @@ class CTypesBackend(BackendBase):
                             raise TypeError("argument %d needs to be a cdata" %
                                             (1 + len(BArgs) + i,))
                         ctypes_args.append(arg._arg_to_ctypes(arg))
-                result = self._ctypes_func(*ctypes_args)
+                result = self._as_ctype_ptr(*ctypes_args)
                 return BResult._from_ctypes(result)
         #
         CTypesVoid = self.get_cached_btype('new_void_type')

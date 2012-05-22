@@ -350,6 +350,17 @@ class BackendTests:
         a = ffi.new("int[]", [10, 11, 12])
         p = ffi.new("void *", a)
         py.test.raises(TypeError, "p[0]")
+        py.test.raises(TypeError, ffi.new, "short *", a)
+        #
+        ffi.cdef("struct foo { void *p; int *q; short *r; };")
+        s = ffi.new("struct foo")
+        s.p = a    # works
+        s.q = a    # works
+        py.test.raises(TypeError, "s.r = a")    # fails
+        b = ffi.new("int *", a)
+        s.p = b    # works
+        s.q = b    # works
+        py.test.raises(TypeError, "s.r = b")    # fails
 
     def test_functionptr_simple(self):
         ffi = FFI(backend=self.Backend())
