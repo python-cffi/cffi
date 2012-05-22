@@ -78,14 +78,13 @@ class CTypesBackend(BackendBase):
 
     def load_library(self, name=Ellipsis):
         if name is Ellipsis:
-            path = None       # the C library
+            name = 'c'    # on Posix only
+        if '/' in name:
+            path = name
         else:
-            if '/' in name:
-                path = name
-            else:
-                path = ctypes.util.find_library(name)
-                if path is None:
-                    raise OSError("library not found: %r" % (name,))
+            path = ctypes.util.find_library(name)
+            if path is None:
+                raise OSError("library not found: %r" % (name,))
         cdll = ctypes.CDLL(path)
         return CTypesLibrary(self, cdll)
 
