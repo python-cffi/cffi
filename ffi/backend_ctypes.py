@@ -57,6 +57,10 @@ class CTypesData(object):
     def _cast_to_integer(self):
         return self._convert_to_address_of(None)
 
+    @classmethod
+    def _alignment(cls):
+        return ctypes.alignment(cls._ctype)
+
 
 class CTypesBackend(BackendBase):
 

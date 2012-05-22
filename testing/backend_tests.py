@@ -454,3 +454,10 @@ class BackendTests:
         assert ffi.offsetof("struct foo", "a") == 0
         assert ffi.offsetof("struct foo", "b") == 4
         assert ffi.offsetof("struct foo", "c") == 8
+
+    def test_alignof(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo { char a; short b; char c; };")
+        assert ffi.alignof("int") == 4
+        assert ffi.alignof("double") in (4, 8)
+        assert ffi.alignof("struct foo") == 2
