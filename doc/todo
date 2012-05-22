@@ -5,6 +5,7 @@ ffi.string()
 Windows: __stdcall support, ideally automatically detected
 pointer arithmetic and difference
 reading "static const" variables from cdefs?
+ffi.gc()?
 
 predefined types:
     Vararg handling: va_list, __builtin_va_list, __gnuc_va_list.
