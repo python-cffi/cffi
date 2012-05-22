@@ -503,3 +503,13 @@ class BackendTests:
         assert (p+5) - (p+1) == 4
         assert p == s+0
         assert p+1 == s+1
+
+    def test_ffi_string(self):
+        ffi = FFI(backend=self.Backend())
+        a = ffi.new("int[]", range(100, 110))
+        s = ffi.string(ffi.cast("void *", a), 8)
+        assert type(s) is str
+        if sys.byteorder == 'little':
+            assert s == '\x64\x00\x00\x00\x65\x00\x00\x00'
+        else:
+            assert s == '\x00\x00\x00\x64\x00\x00\x00\x65'

@@ -102,6 +102,9 @@ class FFI(object):
         BType = self.typeof(cdecl)
         return BType._cast_from(source)
 
+    def string(self, pointer, length):
+        return self._backend.string(pointer, length)
+
     def _parse_type(self, cdecl):
         try:
             return self._cached_parsed_types[cdecl]

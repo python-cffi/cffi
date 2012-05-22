@@ -1,5 +1,4 @@
 Windows: GetLastError()
-ffi.string()
 Windows: __stdcall support, ideally automatically detected
 reading "static const" variables from cdefs?
 ffi.gc()?

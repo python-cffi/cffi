@@ -659,6 +659,13 @@ class CTypesBackend(BackendBase):
     def set_errno(self, value):
         ctypes.set_errno(value)
 
+    def string(self, bptr, length):
+        if not (isinstance(bptr, CTypesGenericPtr) and bptr._automatic_casts):
+            raise TypeError("'void *' argument expected, got %r" %
+                            (type(bptr).__name__,))
+        p = ctypes.cast(bptr._as_ctype_ptr, ctypes.POINTER(ctypes.c_char))
+        return ''.join([p[i] for i in range(length)])
+
 
 class CTypesLibrary(object):
 
