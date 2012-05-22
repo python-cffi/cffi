@@ -155,7 +155,7 @@ class CTypesBackend(BackendBase):
             _cast_to_integer = __int__
 
             def __eq__(self, other):
-                return (isinstance(other, CTypesPrimitive) and
+                return (type(self) is type(other) and
                         self._value == other._value)
 
             def __ne__(self, other):
@@ -268,7 +268,7 @@ class CTypesBackend(BackendBase):
                 return self._address
 
             def __eq__(self, other):
-                return (isinstance(other, CTypesPtr) and
+                return (type(self) is type(other) and
                         self._address == other._address)
 
             def __ne__(self, other):
@@ -528,7 +528,7 @@ class CTypesBackend(BackendBase):
                 return self._address
 
             def __eq__(self, other):
-                return (isinstance(other, CTypesFunction) and
+                return (type(self) is type(other) and
                         self._address == other._address)
 
             def __ne__(self, other):
@@ -594,6 +594,8 @@ class CTypesBackend(BackendBase):
         CTypesInt = self.get_cached_btype('new_primitive_type', 'int')
         #
         class CTypesEnum(CTypesInt):
+            _reftypename = 'enum %s &' % name
+
             def __init__(self, init):
                 if isinstance(init, str):
                     try:

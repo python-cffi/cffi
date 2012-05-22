@@ -420,4 +420,6 @@ class BackendTests:
         assert ffi.new("enum bar", "B") == ffi.new("enum bar", "B")
         assert ffi.new("enum bar", "B") != ffi.new("enum bar", "C")
         assert ffi.new("enum bar", "A") == ffi.new("enum bar", "D")
-        assert ffi.new("enum foo", "A") == ffi.new("enum bar", "A")
+        assert ffi.new("enum foo", "A") != ffi.new("enum bar", "A")
+        assert ffi.new("enum bar", "A") != ffi.new("int", 0)
+        assert repr(ffi.new("enum bar", "C")) == "<cdata 'enum bar'>"
