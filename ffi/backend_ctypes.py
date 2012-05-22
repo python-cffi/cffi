@@ -50,6 +50,13 @@ class CTypesData(object):
     def _get_size_of_instance(self):
         return ctypes.sizeof(self._ctype)
 
+    @classmethod
+    def _cast_from(cls, source):
+        raise TypeError("cannot cast to %r" % (cls._get_c_name(),))
+
+    def _cast_to_integer(self):
+        return self._convert_to_address_of(None)
+
 
 class CTypesBackend(BackendBase):
 
@@ -111,6 +118,20 @@ class CTypesBackend(BackendBase):
                     value = CTypesPrimitive._to_ctypes(value)
                 self._value = value
 
+            @staticmethod
+            def _cast_from(source):
+                if isinstance(source, (int, long)):
+                    pass
+                elif isinstance(source, CTypesData):
+                    source = source._cast_to_integer()
+                elif isinstance(source, str):
+                    source = ord(source)
+                else:
+                    raise TypeError("bad type for cast to %r: %r" %
+                                    (CTypesPrimitive, type(source).__name__))
+                source = ctype(source).value     # cast within range
+                return CTypesPrimitive(source)
+
             if kind == 'int':
                 def __int__(self):
                     return self._value
@@ -131,13 +152,17 @@ class CTypesBackend(BackendBase):
                 def __float__(self):
                     return self._value
 
-            def __eq__(self, other): return self._value == other
-            def __ne__(self, other): return self._value != other
-            def __hash__(self):      return hash(self._value)
-            def __lt__(self, other): raise TypeError("unorderable type")
-            def __le__(self, other): raise TypeError("unorderable type")
-            def __gt__(self, other): raise TypeError("unorderable type")
-            def __ge__(self, other): raise TypeError("unorderable type")
+            _cast_to_integer = __int__
+
+            def __eq__(self, other):
+                return (isinstance(other, CTypesPrimitive) and
+                        self._value == other._value)
+
+            def __ne__(self, other):
+                return not self.__eq__(other)
+
+            def __hash__(self):
+                return hash((CTypesPrimitive, self._value))
 
             if kind == 'int':
                 @staticmethod
@@ -220,16 +245,37 @@ class CTypesBackend(BackendBase):
                 self._address = address
                 self._as_ctype_ptr = ctypes.cast(address, CTypesPtr._ctype)
 
+            @staticmethod
+            def _cast_from(source):
+                if source is None:
+                    address = 0
+                elif isinstance(source, CTypesData):
+                    address = source._cast_to_integer()
+                elif isinstance(source, (int, long)):
+                    address = source
+                else:
+                    raise TypeError("bad type for cast to %r: %r" %
+                                    (CTypesPtr, type(source).__name__))
+                self = CTypesPtr.__new__(CTypesPtr)
+                self._address = address
+                self._as_ctype_ptr = ctypes.cast(address, CTypesPtr._ctype)
+                return self
+
+            def _cast_to_integer(self):
+                return self._address
+
             def __nonzero__(self):
                 return self._address
 
             def __eq__(self, other):
-                return ((isinstance(other, CTypesPtr) and
-                         self._address == other._address)
-                        or (self._address == 0 and other is None))
+                return (isinstance(other, CTypesPtr) and
+                        self._address == other._address)
 
             def __ne__(self, other):
                 return not self.__eq__(other)
+
+            def __hash__(self):
+                return hash((CTypesPtr, self._address))
 
             if kind != 'constcharp':
                 def __getitem__(self, index):
@@ -281,14 +327,14 @@ class CTypesBackend(BackendBase):
                     return None
                 self = CTypesPtr.__new__(CTypesPtr)
                 if self._ctype is ctypes.c_void_p:
-                    self._address = ctypes_ptr.value or 0
+                    self._address = ctypes_ptr.value
                 else:
                     self._address = ctypes.addressof(ctypes_ptr.contents)
                 self._as_ctype_ptr = ctypes_ptr
                 return self
 
             def _convert_to_address_of(self, BClass):
-                if BItem is BClass or BClass is CTypesVoid:
+                if BClass in (BItem, CTypesVoid, None):
                     return self._address
                 else:
                     return CTypesData._convert_to_address_of(self, BClass)
@@ -357,7 +403,7 @@ class CTypesBackend(BackendBase):
                 return None
 
             def _convert_to_address_of(self, BClass):
-                if BItem is BClass or BClass is CTypesVoid:
+                if BClass in (BItem, CTypesVoid, None):
                     return ctypes.addressof(self._blob)
                 else:
                     return CTypesData._convert_to_address_of(self, BClass)
@@ -464,16 +510,32 @@ class CTypesBackend(BackendBase):
                 self._address = ctypes.cast(self._ctypes_func,
                                             ctypes.c_void_p).value or 0
 
+            @staticmethod
+            def _cast_from(source):
+                if source is None:
+                    address = 0
+                elif isinstance(source, CTypesData):
+                    address = source._cast_to_integer()
+                else:
+                    raise TypeError("bad type for cast to %r: %r" %
+                                    (CTypesPrimitive, type(source).__name__))
+                self = CTypesFunction.__new__(CTypesFunction)
+                self._address = address
+                self._ctypes_func = ctypes.cast(address, CTypesFunction._ctype)
+                return self
+
             def __nonzero__(self):
                 return self._address
 
             def __eq__(self, other):
-                return ((isinstance(other, CTypesFunction) and
-                         self._address == other._address)
-                        or (self._address == 0 and other is None))
+                return (isinstance(other, CTypesFunction) and
+                        self._address == other._address)
 
             def __ne__(self, other):
                 return not self.__eq__(other)
+
+            def __hash__(self):
+                return hash((CTypesFunction, self._address))
 
             def __repr__(self):
                 c_name = self._name
@@ -498,6 +560,12 @@ class CTypesBackend(BackendBase):
                 self._ctypes_func = ctypes.cast(c_func, CTypesFunction._ctype)
                 return self
 
+            def _convert_to_address_of(self, BClass):
+                if BClass in (CTypesVoid, None):
+                    return self._address
+                else:
+                    return CTypesData._convert_to_address_of(self, BClass)
+
             def __call__(self, *args):
                 if has_varargs:
                     assert len(args) >= len(BArgs)
@@ -517,6 +585,7 @@ class CTypesBackend(BackendBase):
                 result = self._ctypes_func(*ctypes_args)
                 return BResult._from_ctypes(result)
         #
+        CTypesVoid = self.get_cached_btype('new_void_type')
         CTypesFunction._fix_class()
         return CTypesFunction
 

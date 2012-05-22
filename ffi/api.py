@@ -82,6 +82,10 @@ class FFI(object):
         BType = self.typeof(cdecl)
         return BType(init)
 
+    def cast(self, cdecl, source):
+        BType = self.typeof(cdecl)
+        return BType._cast_from(source)
+
     def _parse_type(self, cdecl):
         try:
             return self._cached_parsed_types[cdecl]

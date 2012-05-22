@@ -32,27 +32,19 @@ class BackendTests:
                     min = -(1 << (8*size-1))
                     max = (1 << (8*size-1)) - 1
                 p = ffi.new(c_decl, min)
+                assert p != min       # no __eq__(int)
+                assert bool(p) is bool(min)
                 assert int(p) == min
                 p = ffi.new(c_decl, max)
                 assert int(p) == max
+                q = ffi.cast(c_decl, min - 1)
+                assert type(q) is type(p) and int(q) == max
+                assert q == p         # __eq__(same-type)
+                assert hash(q) == hash(p)
+                if 'long long' not in c_decl:
+                    assert q != ffi.new("long long", min)  # __eq__(other-type)
                 py.test.raises(OverflowError, ffi.new, c_decl, min - 1)
                 py.test.raises(OverflowError, ffi.new, c_decl, max + 1)
-
-    def test_int_equality(self):
-        ffi = FFI(backend=self.Backend())
-        n = ffi.new("short", -123)
-        assert bool(n)
-        assert n == -123
-        assert n == ffi.new("int", -123)
-        assert not bool(ffi.new("short", 0))
-        assert n != ffi.new("short", 123)
-        assert hash(n) == hash(-123)
-        assert int(n) == -123 and type(int(n)) is int
-        py.test.raises(TypeError, "n < -122")
-        py.test.raises(TypeError, "n <= -123")
-        py.test.raises(TypeError, "n > -124")
-        py.test.raises(TypeError, "n >= -123")
-        py.test.raises(TypeError, "n >= n")
 
     def test_new_array_no_arg(self):
         ffi = FFI(backend=self.Backend())
@@ -200,8 +192,9 @@ class BackendTests:
         assert p[0][0] == 99
         p[0] = None
         assert p[0] is None
-        assert ffi.new("int*") == None
+        assert ffi.new("int*") != None       # no __eq__(None)
         assert ffi.new("int*") is not None
+        assert not bool(ffi.new("int*"))     # __nonzero__
 
     def test_float(self):
         ffi = FFI(backend=self.Backend())
@@ -216,8 +209,9 @@ class BackendTests:
         assert float(f) == 15.75 and type(float(f)) is float
         assert bool(f) is True
         assert bool(ffi.new("float", 0.0)) is False
-        assert f == 15.75
-        assert f != 16.2
+        assert f != 15.75     # no __eq__(float)
+        assert f == ffi.new("float", 15.75)
+        assert f != ffi.new("float", 16.2)
         #
         f = ffi.new("float", 1.1)
         assert f != 1.1      # because of rounding effect
@@ -356,3 +350,57 @@ class BackendTests:
             "<cdata 'int(*)(int)' owning a callback to <function cb at 0x")
         q = ffi.new("int(*)(int)", p)
         assert repr(q) == "<cdata 'int(*)(int)'>"
+
+    def test_char_cast(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.cast("int", '\x01')
+        assert type(p) is ffi.typeof("int")
+        assert int(p) == 1
+        p = ffi.cast("int", ffi.new("char", "a"))
+        assert int(p) == ord("a")
+        p = ffi.cast("int", ffi.new("char", "\x80"))
+        assert int(p) == 0x80     # "char" is considered unsigned in this case
+
+    def test_cast_array_to_charp(self):
+        ffi = FFI(backend=self.Backend())
+        a = ffi.new("short int[]", [0x1234, 0x5678])
+        p = ffi.cast("char*", a)
+        data = ''.join([p[i] for i in range(4)])
+        if sys.byteorder == 'little':
+            assert data == '\x34\x12\x78\x56'
+        else:
+            assert data == '\x12\x34\x56\x78'
+
+    def test_cast_between_pointers(self):
+        ffi = FFI(backend=self.Backend())
+        a = ffi.new("short int[]", [0x1234, 0x5678])
+        p = ffi.new("short*", a)
+        q = ffi.cast("char*", p)
+        data = ''.join([q[i] for i in range(4)])
+        if sys.byteorder == 'little':
+            assert data == '\x34\x12\x78\x56'
+        else:
+            assert data == '\x12\x34\x56\x78'
+
+    def test_cast_pointer_and_int(self):
+        ffi = FFI(backend=self.Backend())
+        a = ffi.new("short int[]", [0x1234, 0x5678])
+        l1 = ffi.cast("long", a)
+        p = ffi.new("short*", a)
+        l2 = ffi.cast("long", p)
+        assert l1 == l2
+        q = ffi.cast("short*", l1)
+        assert q == ffi.cast("short*", int(l1))
+        assert q[0] == 0x1234
+
+    def test_cast_functionptr_and_int(self):
+        ffi = FFI(backend=self.Backend())
+        def cb(n):
+            return n + 1
+        a = ffi.new("int(*)(int)", cb)
+        p = ffi.cast("void *", a)
+        assert p
+        b = ffi.cast("int(*)(int)", p)
+        assert b(41) == 42
+        assert a == b
+        assert hash(a) == hash(b)
