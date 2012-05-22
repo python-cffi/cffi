@@ -126,23 +126,6 @@ class CTypesGenericPtr(CTypesData):
         else:
             return CTypesData._convert_to_address(self, BClass)
 
-    def __add__(self, other):
-        if isinstance(other, (int, long)):
-            return self._new_pointer_at(self._address +
-                                        other * ctypes.sizeof(self._ctype))
-        else:
-            return NotImplemented
-
-    def __sub__(self, other):
-        if isinstance(other, (int, long)):
-            return self._new_pointer_at(self._address -
-                                        other * ctypes.sizeof(self._ctype))
-        elif type(self) is type(other):
-            return (self._address -
-                    other._address) // ctypes.sizeof(self._ctype)
-        else:
-            return NotImplemented
-
 
 class CTypesBackend(BackendBase):
 
@@ -330,6 +313,7 @@ class CTypesBackend(BackendBase):
         class CTypesPtr(CTypesGenericPtr):
             if hasattr(BItem, '_ctype'):
                 _ctype = ctypes.POINTER(BItem._ctype)
+                _bitem_size = ctypes.sizeof(BItem._ctype)
             else:
                 _ctype = ctypes.c_void_p
             if kind != 'constcharp':
@@ -354,6 +338,22 @@ class CTypesBackend(BackendBase):
                         CTypesPtr._get_c_name(), type(init).__name__))
                 self._address = address
                 self._as_ctype_ptr = ctypes.cast(address, CTypesPtr._ctype)
+
+            def __add__(self, other):
+                if isinstance(other, (int, long)):
+                    return self._new_pointer_at(self._address +
+                                                other * self._bitem_size)
+                else:
+                    return NotImplemented
+
+            def __sub__(self, other):
+                if isinstance(other, (int, long)):
+                    return self._new_pointer_at(self._address -
+                                                other * self._bitem_size)
+                elif type(self) is type(other):
+                    return (self._address - other._address) // self._bitem_size
+                else:
+                    return NotImplemented
 
             if kind != 'constcharp':
                 def __getitem__(self, index):

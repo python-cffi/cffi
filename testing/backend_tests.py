@@ -492,8 +492,8 @@ class BackendTests:
 
     def test_pointer_arithmetic(self):
         ffi = FFI(backend=self.Backend())
-        s = ffi.new("int[]", range(100, 110))
-        p = ffi.cast("int *", s)
+        s = ffi.new("short[]", range(100, 110))
+        p = ffi.cast("short *", s)
         assert p[2] == 102
         assert p+1 == p+1
         assert p+1 != p+0
