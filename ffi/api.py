@@ -252,9 +252,13 @@ class FFI(object):
 
 def _make_ffi_library(ffi, backendlib, libname=None):
     function_cache = {}
+    backend = ffi._backend
     #
     class FFILibrary(object):
         def __getattribute__(self, name):
+            if libname is None and name == 'errno':
+                return backend.get_errno()
+            #
             try:
                 return function_cache[name]
             except KeyError:
@@ -278,6 +282,10 @@ def _make_ffi_library(ffi, backendlib, libname=None):
             raise AttributeError(name)
 
         def __setattr__(self, name, value):
+            if libname is None and name == 'errno':
+                backend.set_errno(value)
+                return
+            #
             key = 'variable ' + name
             if key in ffi._declarations:
                 node = ffi._declarations[key]

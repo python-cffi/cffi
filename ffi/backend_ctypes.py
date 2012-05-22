@@ -78,8 +78,14 @@ class CTypesBackend(BackendBase):
 
     def load_library(self, name=Ellipsis):
         if name is Ellipsis:
-            name = 'c'    # on Posix only
-        path = ctypes.util.find_library(name)
+            path = None       # the C library
+        else:
+            if '/' in name:
+                path = name
+            else:
+                path = ctypes.util.find_library(name)
+                if path is None:
+                    raise OSError("library not found: %r" % (name,))
         cdll = ctypes.CDLL(path)
         return CTypesLibrary(self, cdll)
 
@@ -199,7 +205,9 @@ class CTypesBackend(BackendBase):
                                         type(x).__name__)
                     return ctype(x).value
 
-            _from_ctypes = staticmethod(_identity)
+            @staticmethod
+            def _from_ctypes(value):
+                return value
         #
         CTypesPrimitive._fix_class()
         return CTypesPrimitive
@@ -491,7 +499,7 @@ class CTypesBackend(BackendBase):
         ctypes_stuff.insert(0, BResult._ctype)
         #
         class CTypesFunction(CTypesData):
-            _ctype = ctypes.CFUNCTYPE(*ctypes_stuff)
+            _ctype = ctypes.CFUNCTYPE(*ctypes_stuff, use_errno=True)
             _reftypename = '%s(* &)(%s)' % (BResult._get_c_name(), nameargs)
             _name = None
             _own_callback = None
@@ -613,6 +621,12 @@ class CTypesBackend(BackendBase):
         CTypesEnum._fix_class()
         return CTypesEnum
 
+    def get_errno(self):
+        return ctypes.get_errno()
+
+    def set_errno(self, value):
+        ctypes.set_errno(value)
+
 
 class CTypesLibrary(object):
 
@@ -636,7 +650,3 @@ class CTypesLibrary(object):
         ctypes.memmove(ctypes.addressof(ctypes_obj),
                        ctypes.addressof(new_ctypes_obj),
                        ctypes.sizeof(BType._ctype))
-
-
-def _identity(x):
-    return x
