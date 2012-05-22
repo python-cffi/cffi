@@ -56,6 +56,9 @@ class FFI(object):
             elif isinstance(node, pycparser.c_ast.Union):
                 if node.decls is not None:
                     self._declare('union ' + node.name, node)
+            elif isinstance(node, pycparser.c_ast.Enum):
+                if node.values is not None:
+                    self._declare('enum ' + node.name, node)
             elif not decl.name:
                 raise CDefError("construct does not declare any variable",
                                 decl)
@@ -133,9 +136,7 @@ class FFI(object):
             if typenode.dim is None:
                 length = None
             else:
-                assert isinstance(typenode.dim, pycparser.c_ast.Constant), (
-                    "non-constant array length")
-                length = int(typenode.dim.value)
+                length = self._parse_constant(typenode.dim)
             BItem = self._get_btype(typenode.type)
             return self._backend.get_cached_btype('new_array_type',
                                                   BItem, length)
@@ -170,6 +171,10 @@ class FFI(object):
             if isinstance(type, pycparser.c_ast.Union):
                 # 'union foobar'
                 return self._get_struct_or_union_type('union', type)
+            #
+            if isinstance(type, pycparser.c_ast.Enum):
+                # 'enum foobar'
+                return self._get_enum_type(type)
         #
         if isinstance(typenode, pycparser.c_ast.FuncDecl):
             # a function type
@@ -206,7 +211,43 @@ class FFI(object):
             fnames = None
             btypes = None
         return self._backend.get_cached_btype(
-            'new_%s_type' % kind, type.name, fnames, btypes)
+            'new_%s_type' % kind, name, fnames, btypes)
+
+    def _get_enum_type(self, type):
+        name = type.name
+        decls = type.values
+        if decls is None and name is not None:
+            key = 'enum %s' % (name,)
+            if key in self._declarations:
+                decls = self._declarations[key].values
+        if decls is not None:
+            enumerators = tuple([enum.name for enum in decls.enumerators])
+            enumvalues = []
+            nextenumvalue = 0
+            for enum in decls.enumerators:
+                if enum.value is not None:
+                    nextenumvalue = self._parse_constant(enum.value)
+                enumvalues.append(nextenumvalue)
+                nextenumvalue += 1
+            enumvalues = tuple(enumvalues)
+        else:   # opaque enum
+            enumerators = None
+            enumvalues = None
+        return self._backend.get_cached_btype(
+            'new_enum_type', name, enumerators, enumvalues)
+
+    def _parse_constant(self, exprnode):
+        # for now, limited to expressions that are an immediate number
+        # or negative number
+        if isinstance(exprnode, pycparser.c_ast.Constant):
+            return int(exprnode.value)
+        #
+        if (isinstance(exprnode, pycparser.c_ast.UnaryOp) and
+                exprnode.op == '-'):
+            return -self._parse_constant(exprnode.expr)
+        #
+        raise FFIError("unsupported non-constant or "
+                       "not immediately constant expression")
 
 
 def _make_ffi_library(ffi, backendlib, libname=None):

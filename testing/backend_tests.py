@@ -404,3 +404,20 @@ class BackendTests:
         assert b(41) == 42
         assert a == b
         assert hash(a) == hash(b)
+
+    def test_enum(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("enum foo { A, B, C, D };")
+        assert int(ffi.new("enum foo", "A")) == 0
+        assert int(ffi.new("enum foo", "B")) == 1
+        assert int(ffi.new("enum foo", "C")) == 2
+        assert int(ffi.new("enum foo", "D")) == 3
+        ffi.cdef("enum bar { A, B=-2, C, D };")
+        assert int(ffi.new("enum bar", "A")) == 0
+        assert int(ffi.new("enum bar", "B")) == -2
+        assert int(ffi.new("enum bar", "C")) == -1
+        assert int(ffi.new("enum bar", "D")) == 0
+        assert ffi.new("enum bar", "B") == ffi.new("enum bar", "B")
+        assert ffi.new("enum bar", "B") != ffi.new("enum bar", "C")
+        assert ffi.new("enum bar", "A") == ffi.new("enum bar", "D")
+        assert ffi.new("enum foo", "A") == ffi.new("enum bar", "A")

@@ -589,6 +589,23 @@ class CTypesBackend(BackendBase):
         CTypesFunction._fix_class()
         return CTypesFunction
 
+    def new_enum_type(self, name, enumerators, enumvalues):
+        mapping = dict(zip(enumerators, enumvalues))
+        CTypesInt = self.get_cached_btype('new_primitive_type', 'int')
+        #
+        class CTypesEnum(CTypesInt):
+            def __init__(self, init):
+                if isinstance(init, str):
+                    try:
+                        init = mapping[init]
+                    except KeyError:
+                        raise ValueError("%r is not an enumerator for %r" % (
+                            init, CTypesEnum))
+                CTypesInt.__init__(self, init)
+        #
+        CTypesEnum._fix_class()
+        return CTypesEnum
+
 
 class CTypesLibrary(object):
 
