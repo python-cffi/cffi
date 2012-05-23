@@ -311,6 +311,7 @@ class CTypesBackend(BackendBase):
     def _new_pointer_type(self, BItem, kind):
         #
         class CTypesPtr(CTypesGenericPtr):
+            _BItem = BItem
             if hasattr(BItem, '_ctype'):
                 _ctype = ctypes.POINTER(BItem._ctype)
                 _bitem_size = ctypes.sizeof(BItem._ctype)
@@ -515,6 +516,18 @@ class CTypesBackend(BackendBase):
                 if self._own:
                     return '%d bytes' % (ctypes.sizeof(self._blob),)
                 return None
+
+            def _convert_to_address(self, BClass):
+                if getattr(BClass, '_BItem', None) is CTypesStructOrUnion:
+                    return ctypes.addressof(self._blob)
+                else:
+                    return CTypesData._convert_to_address(self, BClass)
+
+            @staticmethod
+            def _from_ctypes(ctypes_struct_or_union):
+                self = CTypesStructOrUnion.__new__(CTypesStructOrUnion)
+                self._blob = ctypes_struct_or_union
+                return self
 
             @staticmethod
             def _offsetof(fieldname):

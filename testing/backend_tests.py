@@ -259,6 +259,15 @@ class BackendTests:
         py.test.raises(TypeError, ffi.new, "struct baz")
         ffi.new("struct baz *")   # this works
 
+    def test_pointer_to_struct(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo { int a; short b, c; };")
+        s = ffi.new("struct foo")
+        s.a = -42
+        p = ffi.new("struct foo *", s)
+        assert p[0].a == -42
+        #assert p.a == -42 -- in-progress
+
     def test_constructor_struct_of_array(self):
         py.test.skip("not supported with the ctypes backend")
         ffi = FFI(backend=self.Backend())
