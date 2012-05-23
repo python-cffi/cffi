@@ -266,7 +266,9 @@ class BackendTests:
         s.a = -42
         p = ffi.new("struct foo *", s)
         assert p[0].a == -42
-        #assert p.a == -42 -- in-progress
+        assert p.a == -42
+        p.a = -43
+        assert s.a == -43
 
     def test_constructor_struct_of_array(self):
         py.test.skip("not supported with the ctypes backend")

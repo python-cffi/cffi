@@ -127,6 +127,26 @@ class CTypesGenericPtr(CTypesData):
             return CTypesData._convert_to_address(self, BClass)
 
 
+class CTypesBaseStructOrUnion(CTypesData):
+
+    def _get_own_repr(self):
+        if self._own:
+            return '%d bytes' % (ctypes.sizeof(self._blob),)
+        return None
+
+    def _convert_to_address(self, BClass):
+        if getattr(BClass, '_BItem', None) is self.__class__:
+            return ctypes.addressof(self._blob)
+        else:
+            return CTypesData._convert_to_address(self, BClass)
+
+    @classmethod
+    def _from_ctypes(cls, ctypes_struct_or_union):
+        self = cls.__new__(cls)
+        self._blob = ctypes_struct_or_union
+        return self
+
+
 class CTypesBackend(BackendBase):
 
     PRIMITIVE_TYPES = {
@@ -395,6 +415,18 @@ class CTypesBackend(BackendBase):
         if (BItem is self.get_cached_btype('new_void_type') or
             BItem is self.get_cached_btype('new_primitive_type', 'char')):
             CTypesPtr._automatic_casts = True
+        elif (issubclass(BItem, CTypesBaseStructOrUnion) and
+              hasattr(BItem, '_fieldnames')):
+            for fname in BItem._fieldnames:
+                if hasattr(CTypesPtr, fname):
+                    raise ValueError("the field name %r conflicts in "
+                                     "the ctypes backend" % fname)
+                def getter(self, fname=fname):
+                    return getattr(self[0], fname)
+                def setter(self, value, fname=fname):
+                    setattr(self[0], fname, value)
+                setattr(CTypesPtr, fname, property(getter, setter))
+        #
         CTypesPtr._fix_class()
         return CTypesPtr
 
@@ -498,7 +530,7 @@ class CTypesBackend(BackendBase):
                 _fields_ = self._regroup_fields(fnames, BFieldTypes, bitfields)
         struct_or_union.__name__ = '%s_%s' % (kind, name)
         #
-        class CTypesStructOrUnion(CTypesData):
+        class CTypesStructOrUnion(CTypesBaseStructOrUnion):
             _ctype = struct_or_union
             _reftypename = '%s %s &' % (kind, name)
             _own = False
@@ -512,28 +544,12 @@ class CTypesBackend(BackendBase):
                 if init is not None:
                     initializer(self, init)
 
-            def _get_own_repr(self):
-                if self._own:
-                    return '%d bytes' % (ctypes.sizeof(self._blob),)
-                return None
-
-            def _convert_to_address(self, BClass):
-                if getattr(BClass, '_BItem', None) is CTypesStructOrUnion:
-                    return ctypes.addressof(self._blob)
-                else:
-                    return CTypesData._convert_to_address(self, BClass)
-
-            @staticmethod
-            def _from_ctypes(ctypes_struct_or_union):
-                self = CTypesStructOrUnion.__new__(CTypesStructOrUnion)
-                self._blob = ctypes_struct_or_union
-                return self
-
             @staticmethod
             def _offsetof(fieldname):
                 return getattr(struct_or_union, fieldname).offset
         #
         if fnames is not None:
+            CTypesStructOrUnion._fieldnames = fnames
             for fname, BField, bitsize in zip(fnames, BFieldTypes, bitfields):
                 if hasattr(CTypesStructOrUnion, fname):
                     raise ValueError("the field name %r conflicts in "
