@@ -61,6 +61,20 @@ def test_puts():
     res = fd.getvalue()
     assert res == 'hello\n  world\n'
 
+def test_puts_wihtout_const():
+    ffi = FFI()
+    ffi.cdef("""
+        int puts(char *);
+        int fflush(void *);
+    """)
+    ffi.C.puts   # fetch before capturing, for easier debugging
+    with FdWriteCapture() as fd:
+        ffi.C.puts("hello")
+        ffi.C.puts("  world")
+        ffi.C.fflush(None)
+    res = fd.getvalue()
+    assert res == 'hello\n  world\n'
+
 def test_fputs():
     ffi = FFI()
     ffi.cdef("""

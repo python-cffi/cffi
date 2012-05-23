@@ -398,14 +398,14 @@ class CTypesBackend(BackendBase):
                     while self._as_ctype_ptr[n] != '\x00':
                         n += 1
                     return ''.join([self._as_ctype_ptr[i] for i in range(n)])
-
-            if kind == 'constcharp':
                 @classmethod
                 def _arg_to_ctypes(cls, value):
                     if isinstance(value, str):
                         return ctypes.c_char_p(value)
                     else:
                         return super(CTypesPtr, cls)._arg_to_ctypes(value)
+
+            if kind == 'constcharp':
                 def _get_own_repr(self):
                     if self._keepalive_string is not None:
                         return 'a %d-char string' % (
