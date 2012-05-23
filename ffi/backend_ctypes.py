@@ -398,19 +398,25 @@ class CTypesBackend(BackendBase):
                     while self._as_ctype_ptr[n] != '\x00':
                         n += 1
                     return ''.join([self._as_ctype_ptr[i] for i in range(n)])
-
-            if kind == 'constcharp':
                 @classmethod
                 def _arg_to_ctypes(cls, value):
                     if isinstance(value, str):
                         return ctypes.c_char_p(value)
                     else:
                         return super(CTypesPtr, cls)._arg_to_ctypes(value)
+
+            if kind == 'constcharp':
                 def _get_own_repr(self):
                     if self._keepalive_string is not None:
                         return 'a %d-char string' % (
                             len(self._keepalive_string),)
                     return None
+                @staticmethod
+                def _from_ctypes(value):
+                    if value:
+                        return ctypes.cast(value, ctypes.c_char_p).value
+                    else:
+                        return None
         #
         if (BItem is self.get_cached_btype('new_void_type') or
             BItem is self.get_cached_btype('new_primitive_type', 'char')):
@@ -500,6 +506,10 @@ class CTypesBackend(BackendBase):
                 self = CTypesArray.__new__(CTypesArray)
                 self._blob = ctypes_array
                 return self
+
+            @staticmethod
+            def _arg_to_ctypes(value):
+                return CTypesPtr._arg_to_ctypes(value)
 
             def __add__(self, other):
                 if isinstance(other, (int, long)):

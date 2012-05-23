@@ -15,8 +15,23 @@ class CDefError(Exception):
 
 
 class FFI(object):
-    
+    r'''
+    The main top-level class that you instantiate once, or once per module.
+
+    Example usage:
+
+        ffi = FFI()
+        ffi.cdef("""
+            int printf(const char *, ...);
+        """)
+        who = ffi.new("const char *", "world")
+        ffi.C.printf("hello, %s!\n", who)
+    '''
+
     def __init__(self, backend=None):
+        """Create an FFI instance.  The 'backend' argument is used to
+        select a non-default backend, mostly for tests.
+        """
         if backend is None:
             from . import backend_ctypes
             backend = backend_ctypes.CTypesBackend()
@@ -36,6 +51,11 @@ class FFI(object):
         self._declarations[name] = node
 
     def cdef(self, csource):
+        """Parse the given C source.  This registers all declared functions,
+        types, and global variables.  The functions and global variables can
+        then be accessed via 'ffi.C' or 'ffi.load()'.  The types can be used
+        in 'ffi.new()' and other functions.
+        """
         ast = _get_parser().parse(csource)
 
         for decl in ast.ext:
@@ -70,10 +90,21 @@ class FFI(object):
                 self._declare('variable ' + decl.name, node)
 
     def load(self, name):
+        """Load and return a dynamic library identified by 'name'.
+        The standard C library is preloaded into 'ffi.C'.
+        Note that functions and types declared by 'ffi.cdef()' are not
+        linked to a particular library, just like C headers; in the
+        library we only look for the actual (untyped) symbols.
+        """
         assert isinstance(name, str)
         return _make_ffi_library(self, self._backend.load_library(name), name)
 
     def typeof(self, cdecl):
+        """Parse the C type given as a string and return the
+        corresponding Python type: <class 'ffi.ffi.CData<...>'>.
+        The class can be then instantiated, but normally you would
+        use directly 'ffi.new(cdecl [, init])'.
+        """
         try:
             return self._parsed_types[cdecl]
         except KeyError:
@@ -83,6 +114,9 @@ class FFI(object):
             return btype
 
     def sizeof(self, cdecl):
+        """Return the size in bytes of the argument.  It can be a
+        string naming a C type, or a 'cdata' instance.
+        """
         if isinstance(cdecl, (str, unicode)):
             BType = self.typeof(cdecl)
             return BType._get_size()
@@ -90,22 +124,51 @@ class FFI(object):
             return cdecl._get_size_of_instance()
 
     def alignof(self, cdecl):
+        """Return the natural alignment size in bytes of the C type
+        given as a string.
+        """
         BType = self.typeof(cdecl)
         return BType._alignment()
 
     def offsetof(self, cdecl, fieldname):
+        """Return the offset of the named field inside the given
+        structure, which must be given as a C type name.
+        """
         BType = self.typeof(cdecl)
         return BType._offsetof(fieldname)
 
     def new(self, cdecl, init=None):
+        """Create an instance of the named C type, and return a
+        <cdata '...'> object.  This generally follows the rules of
+        declaring a global variable in C: by default it is zero-
+        initialized, but an explicit initializer can be given which,
+        like C code, can be used to fill in all or part of the
+        variable.
+
+        The returned <cdata> object has ownership of the value of
+        type 'cdecl' that it contains.  This means that the raw data
+        can be used as long as this object is kept alive, but must
+        not be used longer.  For example, 'ffi.new("struct foo")'
+        returns <cdata 'struct foo' owning N bytes>.  These N bytes
+        are freed when the object disappears.  Be careful when
+        taking pointers to the object and storing them elsewhere.
+        """
         BType = self.typeof(cdecl)
         return BType(init)
 
     def cast(self, cdecl, source):
+        """Similar to a C cast: returns an instance of the named C
+        type initialized with the given 'source'.  The source is
+        casted between integers or pointers of any type.
+        """
         BType = self.typeof(cdecl)
         return BType._cast_from(source)
 
     def string(self, pointer, length):
+        """Return a Python string containing the data at the given
+        raw pointer with the given size.  The pointer must be a
+        <cdata 'void *'> or <cdata 'char *'>.
+        """
         return self._backend.string(pointer, length)
 
     def _parse_type(self, cdecl):
