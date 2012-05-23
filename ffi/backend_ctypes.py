@@ -501,6 +501,10 @@ class CTypesBackend(BackendBase):
                 self._blob = ctypes_array
                 return self
 
+            @staticmethod
+            def _arg_to_ctypes(value):
+                return CTypesPtr._arg_to_ctypes(value)
+
             def __add__(self, other):
                 if isinstance(other, (int, long)):
                     return CTypesPtr._new_pointer_at(

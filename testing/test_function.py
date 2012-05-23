@@ -95,6 +95,8 @@ def test_vararg():
     with FdWriteCapture() as fd:
         ffi.C.printf("hello\n")
         ffi.C.printf("hello, %s!\n", ffi.new("const char *", "world"))
+        ffi.C.printf(ffi.new("char[]", "hello, %s!\n"),
+                     ffi.new("char[]", "world2"))
         ffi.C.printf("hello int %d long %ld long long %lld\n",
                      ffi.new("int", 42),
                      ffi.new("long", 84),
@@ -103,6 +105,7 @@ def test_vararg():
     res = fd.getvalue()
     assert res == ("hello\n"
                    "hello, world!\n"
+                   "hello, world2!\n"
                    "hello int 42 long 84 long long 168\n")
 
 def test_must_specify_type_of_vararg():
