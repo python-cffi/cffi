@@ -51,7 +51,6 @@ class FFI(object):
     def _parse_decl(self, decl):
         node = decl.type
         if isinstance(node, pycparser.c_ast.FuncDecl):
-            assert decl.name == node.type.declname
             self._declare('function ' + decl.name, node)
         else:
             if isinstance(node, pycparser.c_ast.Struct):
@@ -290,7 +289,6 @@ def _make_ffi_library(ffi, backendlib, libname=None):
             key = 'function ' + name
             if key in ffi._declarations:
                 node = ffi._declarations[key]
-                assert name == node.type.declname
                 BType = ffi._get_btype(node)
                 value = backendlib.load_function(BType, name)
                 function_cache[name] = value

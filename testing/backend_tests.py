@@ -342,6 +342,15 @@ class BackendTests:
         py.test.raises(ValueError, ffi.new, "const char *", "a\x00b")
         assert repr(p) == "<cdata 'const char *' owning a 8-char string>"
 
+    def test_chararray_to_const_char_p(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("char[]", "hello")
+        q = ffi.new("const char *", p)
+        assert str(q) == "hello"
+        p2 = ffi.new("char *", p)
+        q2 = ffi.new("const char *", p2)
+        assert str(q2) == "hello"
+
     def test_voidp(self):
         ffi = FFI(backend=self.Backend())
         py.test.raises(TypeError, ffi.new, "void")

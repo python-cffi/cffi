@@ -391,7 +391,8 @@ class CTypesBackend(BackendBase):
                             len(self._keepalive_string),)
                     return None
         #
-        if BItem is self.get_cached_btype('new_void_type'):
+        if (BItem is self.get_cached_btype('new_void_type') or
+            BItem is self.get_cached_btype('new_primitive_type', 'char')):
             CTypesPtr._automatic_casts = True
         CTypesPtr._fix_class()
         return CTypesPtr

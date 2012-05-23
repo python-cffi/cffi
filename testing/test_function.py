@@ -150,3 +150,12 @@ def test_write_variable():
             ffi.C.stdout = pout
     res = fd.getvalue()
     assert res == "hello!\n"
+
+def test_strchr():
+    ffi = FFI()
+    ffi.cdef("""
+        char *strchr(const char *s, int c);
+    """)
+    p = ffi.new("char[]", "hello world!")
+    q = ffi.C.strchr(p, ord('w'))
+    assert str(q) == "world!"
