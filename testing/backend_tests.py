@@ -362,6 +362,16 @@ class BackendTests:
         q2 = ffi.new("const char *", p2)
         assert str(q2) == "hello"
 
+    def test_fetch_const_char_p_field(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo { const char *name; };")
+        t = ffi.new("const char *", "testing")
+        s = ffi.new("struct foo", [t])
+        assert type(s.name) is str
+        assert s.name == "testing"
+        s.name = None
+        assert s.name is None
+
     def test_voidp(self):
         ffi = FFI(backend=self.Backend())
         py.test.raises(TypeError, ffi.new, "void")

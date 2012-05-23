@@ -411,6 +411,12 @@ class CTypesBackend(BackendBase):
                         return 'a %d-char string' % (
                             len(self._keepalive_string),)
                     return None
+                @staticmethod
+                def _from_ctypes(value):
+                    if value:
+                        return ctypes.cast(value, ctypes.c_char_p).value
+                    else:
+                        return None
         #
         if (BItem is self.get_cached_btype('new_void_type') or
             BItem is self.get_cached_btype('new_primitive_type', 'char')):
