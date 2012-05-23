@@ -8,6 +8,10 @@ setup(
     setup_requires=[
         'hgdistver',
     ],
+    install_requires=[
+        'platformer',
+        'pycparser',
+    ]
 )
 
 

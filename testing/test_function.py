@@ -1,6 +1,6 @@
 import py
 from ffi import FFI
-import math, os, cStringIO
+import math, os
 
 
 class FdWriteCapture(object):

@@ -271,6 +271,11 @@ class FFI(object):
         raise FFIError("unsupported non-constant or "
                        "not immediately constant expression")
 
+    def verify(self, preamble='', **kwargs):
+        """ Verify that the current ffi signatures compile on this machine
+        """
+        from ffi.verifier import Verifier
+        return Verifier().verify(self, preamble, **kwargs)
 
 def _make_ffi_library(ffi, backendlib, libname=None):
     function_cache = {}

@@ -655,7 +655,6 @@ class CTypesBackend(BackendBase):
                 result = self._as_ctype_ptr(*ctypes_args)
                 return BResult._from_ctypes(result)
         #
-        CTypesVoid = self.get_cached_btype('new_void_type')
         CTypesFunction._fix_class()
         return CTypesFunction
 
