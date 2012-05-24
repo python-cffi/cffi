@@ -11,4 +11,5 @@ def test_simple_verify():
     ffi.cdef("double sin(double x);")
     warns = ffi.verify()
     # warning about lack of inclusion of math.h
+    #assert warns is not None --- XXX fix me
     assert ffi.verify('#include <math.h>') is None
