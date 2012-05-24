@@ -8,6 +8,7 @@ class Verifier(object):
     def verify(self, ffi, preamble, **kwargs):
         tst_file = udir.join('test.c')
         i = 0
+        # XXX we want to put typedefs here
         while tst_file.check():
             tst_file = udir.join('test%d.c' % i)
             i += 1

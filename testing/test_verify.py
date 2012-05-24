@@ -9,6 +9,6 @@ def test_simple_verify():
     py.test.raises(CompilationError, ffi.verify)
     ffi = FFI()
     ffi.cdef("double sin(double x);")
-    py.test.raises(CompilationError, ffi.verify)
     # omission of math.h
+    py.test.raises(CompilationError, ffi.verify)
     assert ffi.verify('#include <math.h>') is None
