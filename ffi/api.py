@@ -137,24 +137,38 @@ class FFI(object):
         BType = self.typeof(cdecl)
         return BType._offsetof(fieldname)
 
-    def new(self, cdecl, init=None):
-        """Create an instance of the named C type, and return a
-        <cdata '...'> object.  This generally follows the rules of
-        declaring a global variable in C: by default it is zero-
-        initialized, but an explicit initializer can be given which,
-        like C code, can be used to fill in all or part of the
-        variable.
+    def malloc(self, cdecl, init=None):
+        """Allocate an instance 'x' of the named C type, and return a
+        <calloc 'cdecl'> object representing '&x'.  Such an object
+        behaves like a pointer to the allocated memory.  When the
+        <calloc> object goes out of scope, the memory is freed.
 
-        The returned <cdata> object has ownership of the value of
-        type 'cdecl' that it contains.  This means that the raw data
+        The memory is initialized following the rules of declaring a
+        global variable in C: by default it is zero-initialized, but
+        an explicit initializer can be given which can be used to
+        fill all or part of the memory.
+
+        The returned <calloc> object has ownership of the value of
+        type 'cdecl' that it points to.  This means that the raw data
         can be used as long as this object is kept alive, but must
-        not be used longer.  For example, 'ffi.new("struct foo")'
-        returns <cdata 'struct foo' owning N bytes>.  These N bytes
-        are freed when the object disappears.  Be careful when
-        taking pointers to the object and storing them elsewhere.
+        not be used for a longer time.  Be careful about that when
+        copying the pointer to the memory somewhere else, e.g. into
+        another structure.
         """
+        # XXX a quick hack to make it work with the ctypes backend,
+        # not the real implementation
         BType = self.typeof(cdecl)
-        return BType(init)
+        if getattr(BType, '_is_array', False):
+            return BType(init)
+        BPtr = self._backend.get_cached_btype('new_pointer_type', BType)
+        BArray = self._backend.get_cached_btype('new_array_type', BType, 1)
+        if init is None:
+            x = BArray(None)
+        else:
+            x = BArray([init])
+        y = BPtr(x)
+        y._keepalive_x = x
+        return y
 
     def cast(self, cdecl, source):
         """Similar to a C cast: returns an instance of the named C

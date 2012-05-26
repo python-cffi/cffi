@@ -451,6 +451,7 @@ class CTypesBackend(BackendBase):
                 _ctype = BItem._ctype * length
             _reftypename = BItem._get_c_name(brackets)
             _own = False
+            _is_array = True
 
             def __init__(self, init):
                 if length is None:
