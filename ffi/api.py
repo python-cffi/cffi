@@ -24,8 +24,7 @@ class FFI(object):
         ffi.cdef("""
             int printf(const char *, ...);
         """)
-        who = ffi.new("const char *", "world")
-        ffi.C.printf("hello, %s!\n", who)
+        ffi.C.printf("hello, %s!\n", "world")
     '''
 
     def __init__(self, backend=None):
@@ -54,7 +53,7 @@ class FFI(object):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
         then be accessed via 'ffi.C' or 'ffi.load()'.  The types can be used
-        in 'ffi.new()' and other functions.
+        in 'ffi.malloc()' and other functions.
         """
         ast = _get_parser().parse(csource)
 
@@ -101,9 +100,7 @@ class FFI(object):
 
     def typeof(self, cdecl):
         """Parse the C type given as a string and return the
-        corresponding Python type: <class 'ffi.ffi.CData<...>'>.
-        The class can be then instantiated, but normally you would
-        use directly 'ffi.new(cdecl [, init])'.
+        corresponding Python type: <class 'ffi.CData<...>'>.
         """
         try:
             return self._parsed_types[cdecl]

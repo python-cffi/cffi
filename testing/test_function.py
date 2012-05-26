@@ -176,3 +176,9 @@ def test_strchr():
     p = ffi.malloc("char[]", "hello world!")
     q = ffi.C.strchr(p, ord('w'))
     assert str(q) == "world!"
+
+def test_function_with_struct_argument():
+    xxx
+
+def test_function_with_struct_return():
+    xxx
