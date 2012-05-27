@@ -178,20 +178,21 @@ class CTypesBackend(object):
     }
 
     def nonstandard_integer_types(self):
+        UNSIGNED = 0x1000
         result = {}
         for name in ['long long', 'long', 'int', 'short', 'char']:
             size = ctypes.sizeof(self.PRIMITIVE_TYPES[name])
-            result['int%d_t' % (8*size)] = 'signed %s' % name
-            result['uint%d_t' % (8*size)] = 'unsigned %s' % name
+            result['int%d_t' % (8*size)] = size
+            result['uint%d_t' % (8*size)] = size | UNSIGNED
             if size == ctypes.sizeof(ctypes.c_void_p):
-                result['intptr_t'] = 'signed %s' % name
-                result['uintptr_t'] = 'unsigned %s' % name
+                result['intptr_t'] = size
+                result['uintptr_t'] = size | UNSIGNED
                 result['ptrdiff_t'] = result['intptr_t']
             if size == ctypes.sizeof(ctypes.c_size_t):
-                result['size_t'] = 'unsigned %s' % name
-                result['ssize_t'] = 'signed %s' % name
+                result['size_t'] = size | UNSIGNED
+                result['ssize_t'] = size
             if size == ctypes.sizeof(ctypes.c_wchar):
-                result['wchar_t'] = 'unsigned %s' % name
+                result['wchar_t'] = size | UNSIGNED
         return result
 
     def load_library(self, path):

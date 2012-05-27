@@ -6,6 +6,9 @@ class FakeBackend(object):
     def nonstandard_integer_types(self):
         return {}
 
+    def sizeof_type(self, name):
+        return 1
+
     def load_library(self, path):
         return "fake library"
 
