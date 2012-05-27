@@ -53,7 +53,7 @@ class FFI(object):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
         then be accessed via 'ffi.C' or 'ffi.load()'.  The types can be used
-        in 'ffi.malloc()' and other functions.
+        in 'ffi.new()' and other functions.
         """
         ast = _get_parser().parse(csource)
 
@@ -134,18 +134,18 @@ class FFI(object):
         BType = self.typeof(cdecl)
         return BType._offsetof(fieldname)
 
-    def malloc(self, cdecl, init=None):
+    def new(self, cdecl, init=None):
         """Allocate an instance 'x' of the named C type, and return a
-        <calloc 'cdecl'> object representing '&x'.  Such an object
+        <cdata 'cdecl *'> object representing '&x'.  Such an object
         behaves like a pointer to the allocated memory.  When the
-        <calloc> object goes out of scope, the memory is freed.
+        <cdata> object goes out of scope, the memory is freed.
 
         The memory is initialized following the rules of declaring a
         global variable in C: by default it is zero-initialized, but
         an explicit initializer can be given which can be used to
         fill all or part of the memory.
 
-        The returned <calloc> object has ownership of the value of
+        The returned <cdata> object has ownership of the value of
         type 'cdecl' that it points to.  This means that the raw data
         can be used as long as this object is kept alive, but must
         not be used for a longer time.  Be careful about that when

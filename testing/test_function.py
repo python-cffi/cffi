@@ -95,8 +95,8 @@ def test_vararg():
     with FdWriteCapture() as fd:
         ffi.C.printf("hello\n")
         ffi.C.printf("hello, %s!\n", "world")
-        ffi.C.printf(ffi.malloc("char[]", "hello, %s!\n"),
-                     ffi.malloc("char[]", "world2"))
+        ffi.C.printf(ffi.new("char[]", "hello, %s!\n"),
+                     ffi.new("char[]", "world2"))
         ffi.C.printf("hello int %d long %ld long long %lld\n",
                      ffi.cast("int", 42),
                      ffi.cast("long", 84),
@@ -131,21 +131,30 @@ def test_function_pointer():
         int puts(const char *);
         int fflush(void *);
     """)
-    fptr = ffi.malloc("int()(const char *txt)", ffi.C.puts)
-    assert fptr != ffi.malloc("int()(const char *)", ffi.C.puts)
-    assert repr(fptr) == "<malloc('int()(char *)')>"
+    fptr = ffi.callback("int(*)(const char *txt)", ffi.C.puts)
+    assert fptr != ffi.callback("int(*)(const char *)", ffi.C.puts)
+    assert repr(fptr) == "<cdata 'int(*)(char *)' calling %r>" % (ffi.C.puts,)
     with FdWriteCapture() as fd:
         fptr("hello")
         ffi.C.fflush(None)
     res = fd.getvalue()
     assert res == 'hello\n'
+    #
+    fptr = ffi.cast("int(*)(const char *txt)", ffi.C.puts)
+    assert fptr == ffi.C.puts
+    assert repr(fptr) == "<cdata 'int(*)(char *)'>"
+    with FdWriteCapture() as fd:
+        fptr("world")
+        ffi.C.fflush(None)
+    res = fd.getvalue()
+    assert res == 'world\n'
 
 def test_passing_array():
     ffi = FFI()
     ffi.cdef("""
         int strlen(char[]);
     """)
-    p = ffi.malloc("char[]", "hello")
+    p = ffi.new("char[]", "hello")
     res = ffi.C.strlen(p)
     assert res == 5
 
@@ -173,7 +182,7 @@ def test_strchr():
     ffi.cdef("""
         char *strchr(const char *s, int c);
     """)
-    p = ffi.malloc("char[]", "hello world!")
+    p = ffi.new("char[]", "hello world!")
     q = ffi.C.strchr(p, ord('w'))
     assert str(q) == "world!"
 
