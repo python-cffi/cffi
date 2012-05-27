@@ -221,9 +221,9 @@ class BackendTests:
         py.test.raises(IndexError, "p[1][-1]")
 
     def test_constructor_array_of_array(self):
-        py.test.skip("not supported with the ctypes backend")
-        p = ffi.new("int[2][3]", [[10, 11], [12, 13], [14, 15]])
-        assert p[1][2] == 15
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int[3][2]", [[10, 11], [12, 13], [14, 15]])
+        assert p[2][1] == 15
 
     def test_new_array_of_pointer_1(self):
         ffi = FFI(backend=self.Backend())
@@ -356,7 +356,6 @@ class BackendTests:
         assert p[0][0].a == -46
 
     def test_constructor_struct_of_array(self):
-        py.test.skip("not supported with the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { int a[2]; char b[3]; };")
         s = ffi.new("struct foo", [[10, 11], ['a', 'b', 'c']])

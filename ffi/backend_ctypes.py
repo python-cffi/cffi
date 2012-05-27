@@ -133,6 +133,10 @@ class CTypesGenericPtr(CTypesData):
         address = ctypes.cast(ctypes_ptr, ctypes.c_void_p).value or 0
         return cls._new_pointer_at(address)
 
+    @classmethod
+    def _initialize(cls, ctypes_ptr, value):
+        ctypes_ptr.contents = cls._to_ctypes(value).contents
+
     def _convert_to_address(self, BClass):
         if BClass in (self.__class__, None) or BClass._automatic_casts:
             return self._address
@@ -344,7 +348,11 @@ class CTypesBackend(BackendBase):
 
             @staticmethod
             def _from_ctypes(value):
-                return value
+                return getattr(value, 'value', value)
+
+            @staticmethod
+            def _initialize(blob, init):
+                blob.value = CTypesPrimitive._to_ctypes(init)
         #
         CTypesPrimitive._fix_class()
         return CTypesPrimitive
@@ -462,8 +470,19 @@ class CTypesBackend(BackendBase):
                 self._blob = self._ctype()
                 self._own = True
                 if init is not None:
-                    for i, value in enumerate(init):
-                        self[i] = value
+                    self._initialize(self._blob, init)
+
+            @staticmethod
+            def _initialize(blob, init):
+                init = tuple(init)
+                if len(init) > len(blob):
+                    raise IndexError("too many initializers")
+                addr = ctypes.cast(blob, ctypes.c_void_p).value
+                PTR = ctypes.POINTER(BItem._ctype)
+                itemsize = ctypes.sizeof(BItem._ctype)
+                for i, value in enumerate(init):
+                    p = ctypes.cast(addr + i * itemsize, PTR)
+                    BItem._initialize(p.contents, value)
 
             def __len__(self):
                 return len(self._blob)
@@ -530,7 +549,7 @@ class CTypesBackend(BackendBase):
         return fields
 
     def _new_struct_or_union(self, name, fnames, BFieldTypes, bitfields,
-                             kind, base_ctypes_class, initializer):
+                             kind, base_ctypes_class):
         #
         class struct_or_union(base_ctypes_class):
             if fnames is not None:
@@ -549,9 +568,7 @@ class CTypesBackend(BackendBase):
                         CTypesStructOrUnion,))
                 result = struct_or_union()
                 if init is not None:
-                    self = CTypesStructOrUnion.__new__(CTypesStructOrUnion)
-                    self._blob = result
-                    initializer(self, init)
+                    CTypesStructOrUnion._initialize(result, init)
                 return result
 
             @staticmethod
@@ -564,12 +581,18 @@ class CTypesBackend(BackendBase):
                 if hasattr(CTypesStructOrUnion, fname):
                     raise ValueError("the field name %r conflicts in "
                                      "the ctypes backend" % fname)
-                def getter(self, fname=fname, BField=BField):
-                    return BField._from_ctypes(getattr(self._blob, fname))
                 if bitsize is None:
+                    def getter(self, fname=fname, BField=BField,
+                               offset=CTypesStructOrUnion._offsetof(fname),
+                               PTR=ctypes.POINTER(BField._ctype)):
+                        addr = ctypes.addressof(self._blob)
+                        p = ctypes.cast(addr + offset, PTR)
+                        return BField._from_ctypes(p.contents)
                     def setter(self, value, fname=fname, BField=BField):
                         setattr(self._blob, fname, BField._to_ctypes(value))
                 else:
+                    def getter(self, fname=fname, BField=BField):
+                        return BField._from_ctypes(getattr(self._blob, fname))
                     def setter(self, value, fname=fname, BField=BField):
                         # xxx obscure workaround
                         value = BField._to_ctypes(value)
@@ -584,25 +607,38 @@ class CTypesBackend(BackendBase):
         return CTypesStructOrUnion
 
     def new_struct_type(self, name, fnames, BFieldTypes, bitfields):
-        def initializer(self, init):
+        #
+        def initializer(blob, init):
             init = tuple(init)
             if len(init) > len(fnames):
                 raise ValueError("too many values for "
                                  "struct %s initializer" % name)
-            for value, fname, BField in zip(init, fnames, BFieldTypes):
-                setattr(self._blob, fname, BField._to_ctypes(value))
-        return self._new_struct_or_union(name, fnames, BFieldTypes, bitfields,
-                                         'struct', ctypes.Structure,
-                                         initializer)
+            addr = ctypes.addressof(blob)
+            for value, fname, BField, bitsize in zip(init, fnames,
+                                                     BFieldTypes, bitfields):
+                assert bitsize is None, \
+                       "not implemented: initializer with bit fields"
+                offset = cls._offsetof(fname)
+                PTR = ctypes.POINTER(BField._ctype)
+                p = ctypes.cast(addr + offset, PTR)
+                BField._initialize(p.contents, value)
+        #
+        cls = self._new_struct_or_union(name, fnames, BFieldTypes, bitfields,
+                                        'struct', ctypes.Structure)
+        cls._initialize = staticmethod(initializer)
+        return cls
 
     def new_union_type(self, name, fnames, BFieldTypes, bitfields):
-        def initializer(self, init):
+        def initializer(blob, init):
+            addr = ctypes.addressof(blob)
             fname = fnames[0]
             BField = BFieldTypes[0]
-            setattr(self._blob, fname, BField._to_ctypes(init))
-        return self._new_struct_or_union(name, fnames, BFieldTypes, bitfields,
-                                         'union', ctypes.Union,
-                                         initializer)
+            PTR = ctypes.POINTER(BField._ctype)
+            BField._initialize(ctypes.cast(addr, PTR).contents, init)
+        cls = self._new_struct_or_union(name, fnames, BFieldTypes, bitfields,
+                                        'union', ctypes.Union)
+        cls._initialize = staticmethod(initializer)
+        return cls
 
     def new_function_type(self, BArgs, BResult, has_varargs):
         nameargs = [BArg._get_c_name() for BArg in BArgs]
@@ -697,6 +733,7 @@ class CTypesBackend(BackendBase):
 
             @staticmethod
             def _from_ctypes(value):
+                value = CTypesInt._from_ctypes(value)
                 return enumerators[value]
         #
         CTypesEnum._fix_class()
