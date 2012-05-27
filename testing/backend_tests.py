@@ -476,9 +476,10 @@ class BackendTests:
         assert res == -40 and type(res) is int
         assert repr(p).startswith(
             "<cdata 'int(*)(int)' calling <function cb at 0x")
-        assert ffi.typeof(p) is ffi.typeof("int(*)(int)")
+        assert type(p) is ffi.typeof("int(*)(int)")
         q = ffi.new("int(*)(int)", p)
-        assert repr(q) == "<cdata 'int(**)(int)'>"
+        assert repr(q) == "<cdata 'int(* *)(int)' owning %d bytes>" % (
+            SIZE_OF_PTR)
         py.test.raises(TypeError, "q(43)")
         res = q[0](43)
         assert res == 44
@@ -553,7 +554,7 @@ class BackendTests:
         a = ffi.cast("float", "A")
         assert float(a) == ord("A")
         a = ffi.cast("int", 12.9)
-        assert float(a) == 12
+        assert int(a) == 12
         a = ffi.cast("char", 66.9 + 256)
         assert str(a) == "B"
         #
@@ -564,7 +565,7 @@ class BackendTests:
         a = ffi.cast("float", ffi.cast("char", "A"))
         assert float(a) == ord("A")
         a = ffi.cast("int", ffi.cast("double", 12.9))
-        assert float(a) == 12
+        assert int(a) == 12
         a = ffi.cast("char", ffi.cast("double", 66.9 + 256))
         assert str(a) == "B"
 

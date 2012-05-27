@@ -14,8 +14,12 @@ class CTypesData(object):
 
     @classmethod
     def _arg_to_ctypes(cls, value):
+        try:
+            ctype = cls._ctype
+        except AttributeError:
+            raise TypeError("cannot create an instance of %r" % (cls,))
         res = cls._to_ctypes(value)
-        if not isinstance(res, cls._ctype):
+        if not isinstance(res, ctype):
             res = cls._ctype(res)
         return res
 
@@ -70,8 +74,12 @@ class CTypesData(object):
         return ctypes.alignment(cls._ctype)
 
 
+class CTypesGenericPrimitive(CTypesData):
+    __slots__ = []
+
+
 class CTypesGenericPtr(CTypesData):
-    __slots__ = ['_address', '_as_ctype_ptr', '_own']
+    __slots__ = ['_address', '_as_ctype_ptr']
     _automatic_casts = False
 
     @classmethod
@@ -202,6 +210,9 @@ class CTypesBackend(BackendBase):
             @staticmethod
             def _from_ctypes(novalue):
                 return None
+            @staticmethod
+            def _to_ctypes(novalue):
+                return None
         CTypesVoid._fix_class()
         return CTypesVoid
 
@@ -216,8 +227,8 @@ class CTypesBackend(BackendBase):
             is_signed = (ctype(-1).value == -1)
         #
         def _cast_source_to_int(source):
-            if isinstance(source, (int, long)):
-                pass
+            if isinstance(source, (int, long, float)):
+                source = int(source)
             elif isinstance(source, CTypesData):
                 source = source._cast_to_integer()
             elif isinstance(source, str):
@@ -227,7 +238,7 @@ class CTypesBackend(BackendBase):
                                 (CTypesPrimitive, type(source).__name__))
             return source
         #
-        class CTypesPrimitive(CTypesData):
+        class CTypesPrimitive(CTypesGenericPrimitive):
             __slots__ = ['_value']
             _ctype = ctype
             _reftypename = '%s &' % name
@@ -236,20 +247,20 @@ class CTypesBackend(BackendBase):
                 self._value = value
 
             if kind == 'int':
-                @staticmethod
-                def _cast_from(source):
+                @classmethod
+                def _cast_from(cls, source):
                     source = _cast_source_to_int(source)
                     source = ctype(source).value     # cast within range
-                    return CTypesPrimitive(source)
+                    return cls(source)
                 def __int__(self):
                     return self._value
 
             if kind == 'char':
-                @staticmethod
-                def _cast_from(source):
+                @classmethod
+                def _cast_from(cls, source):
                     source = _cast_source_to_int(source)
                     source = chr(source & 0xFF)
-                    return CTypesPrimitive(source)
+                    return cls(source)
                 def __int__(self):
                     return ord(self._value)
                 def __str__(self):
@@ -260,10 +271,25 @@ class CTypesBackend(BackendBase):
                     return bool(self._value)
 
             if kind == 'float':
+                @classmethod
+                def _cast_from(cls, source):
+                    if isinstance(source, float):
+                        pass
+                    elif isinstance(source, CTypesGenericPrimitive):
+                        if hasattr(source, '__float__'):
+                            source = float(source)
+                        else:
+                            source = int(source)
+                    else:
+                        source = _cast_source_to_int(source)
+                    source = ctype(source).value     # fix precision
+                    return cls(source)
                 def __int__(self):
                     return int(self._value)
                 def __float__(self):
                     return self._value
+
+            _cast_to_integer = __int__
 
             def __eq__(self, other):
                 return (type(self) is type(other) and
@@ -330,7 +356,7 @@ class CTypesBackend(BackendBase):
             kind = 'generic'
         #
         class CTypesPtr(CTypesGenericPtr):
-            __slots__ = []
+            __slots__ = ['_own']
             _BItem = BItem
             if hasattr(BItem, '_ctype'):
                 _ctype = ctypes.POINTER(BItem._ctype)
@@ -585,30 +611,28 @@ class CTypesBackend(BackendBase):
         nameargs = ', '.join(nameargs)
         #
         class CTypesFunction(CTypesGenericPtr):
-            __slots__ = []
+            __slots__ = ['_own_callback', '_name']
             _ctype = ctypes.CFUNCTYPE(BResult._ctype,
                                       *[BArg._ctype for BArg in BArgs],
                                       use_errno=True)
             _reftypename = '%s(* &)(%s)' % (BResult._get_c_name(), nameargs)
-            _name = None
-            _own_callback = None
 
             def __init__(self, init):
-                if init is None:
-                    self._as_ctype_ptr = CTypesFunction._ctype(0)
-                elif isinstance(init, CTypesFunction):
-                    self._as_ctype_ptr = init._as_ctype_ptr
-                elif callable(init):
-                    # create a callback to the Python callable init()
-                    self._as_ctype_ptr = CTypesFunction._ctype(init)
-                    self._own_callback = init
-                else:
-                    raise TypeError("argument must be a callable object")
+                # create a callback to the Python callable init()
+                assert not has_varargs, "varargs not supported for callbacks"
+                def callback(*args):
+                    args2 = []
+                    for arg, BArg in zip(args, BArgs):
+                        args2.append(BArg._from_ctypes(arg))
+                    res2 = init(*args2)
+                    return BResult._to_ctypes(res2)
+                self._as_ctype_ptr = CTypesFunction._ctype(callback)
                 self._address = ctypes.cast(self._as_ctype_ptr,
-                                            ctypes.c_void_p).value or 0
+                                            ctypes.c_void_p).value
+                self._own_callback = init
 
             def __repr__(self):
-                c_name = self._name
+                c_name = getattr(self, '_name', None)
                 if c_name:
                     i = self._reftypename.index('(* &)')
                     if self._reftypename[i-1] not in ' )*':
@@ -617,9 +641,9 @@ class CTypesBackend(BackendBase):
                 return CTypesData.__repr__(self, c_name)
 
             def _get_own_repr(self):
-                if self._own_callback is not None:
-                    return 'a callback to %r' % (self._own_callback,)
-                return None
+                if getattr(self, '_own_callback', None) is not None:
+                    return ' calling %r' % (self._own_callback,)
+                return ''
 
             def __call__(self, *args):
                 if has_varargs:
@@ -650,6 +674,16 @@ class CTypesBackend(BackendBase):
         class CTypesEnum(CTypesInt):
             __slots__ = []
             _reftypename = 'enum %s &' % name
+
+            @classmethod
+            def _cast_from(cls, source):
+                if isinstance(source, str):
+                    try:
+                        source = mapping[source]
+                    except KeyError:
+                        raise ValueError("%r is not an enumerator for %r" % (
+                            source, CTypesEnum))
+                return super(CTypesEnum, cls)._cast_from(source)
 
             @staticmethod
             def _to_ctypes(x):

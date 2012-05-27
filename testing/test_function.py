@@ -123,7 +123,7 @@ def test_function_has_a_c_type():
     """)
     fptr = ffi.C.puts
     assert type(fptr) == ffi.typeof("int(*)(const char*)")
-    assert repr(fptr) == "<cdata 'int puts(const char *)'>"
+    assert repr(fptr) == "<cdata 'int puts(char *)'>"
 
 def test_function_pointer():
     ffi = FFI()
@@ -131,14 +131,14 @@ def test_function_pointer():
         int puts(const char *);
         int fflush(void *);
     """)
-    fptr = ffi.callback("int(*)(const char *txt)", ffi.C.puts)
-    assert fptr != ffi.callback("int(*)(const char *)", ffi.C.puts)
-    assert repr(fptr) == "<cdata 'int(*)(char *)' calling %r>" % (ffi.C.puts,)
-    with FdWriteCapture() as fd:
-        fptr("hello")
-        ffi.C.fflush(None)
-    res = fd.getvalue()
-    assert res == 'hello\n'
+    def cb(charp):
+        assert repr(charp) == "<cdata 'char *'>"
+        return 42
+    fptr = ffi.callback("int(*)(const char *txt)", cb)
+    assert fptr != ffi.callback("int(*)(const char *)", cb)
+    assert repr(fptr) == "<cdata 'int(*)(char *)' calling %r>" % (cb,)
+    res = fptr("hello")
+    assert res == 42
     #
     fptr = ffi.cast("int(*)(const char *txt)", ffi.C.puts)
     assert fptr == ffi.C.puts
@@ -187,7 +187,7 @@ def test_strchr():
     assert str(q) == "world!"
 
 def test_function_with_struct_argument():
-    xxx
+    py.test.skip("in-progress")
 
 def test_function_with_struct_return():
-    xxx
+    py.test.skip("in-progress")
