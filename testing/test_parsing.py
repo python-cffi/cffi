@@ -5,8 +5,8 @@ class FakeBackend(object):
     def nonstandard_integer_types(self):
         return {}
 
-    def load_library(self, name=Ellipsis):
-        assert name in [Ellipsis, "foobar"]
+    def load_library(self, name):
+        assert "libc" in name or "libm" in name
         return FakeLibrary()
 
     def new_function_type(self, ffi, args, result, has_varargs):
@@ -39,7 +39,7 @@ class FakeFunction(object):
 def test_simple():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("double sin(double x);")
-    m = ffi.load("foobar")
+    m = ffi.load("m")
     func = m.sin    # should be a callable on real backends
     assert func.name == 'sin'
     assert func.BType == '<func (<double>), <double>, False>'

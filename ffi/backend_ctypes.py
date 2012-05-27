@@ -194,15 +194,7 @@ class CTypesBackend(object):
                 result['wchar_t'] = 'unsigned %s' % name
         return result
 
-    def load_library(self, name=None):
-        if name is None:
-            name = 'c'    # on Posix only
-        if '/' in name:
-            path = name
-        else:
-            path = ctypes.util.find_library(name)
-            if path is None:
-                raise OSError("library not found: %r" % (name,))
+    def load_library(self, path):
         cdll = ctypes.CDLL(path)
         return CTypesLibrary(self, cdll)
 
@@ -754,6 +746,25 @@ class CTypesBackend(object):
                             (type(bptr).__name__,))
         p = ctypes.cast(bptr._as_ctype_ptr, ctypes.POINTER(ctypes.c_char))
         return ''.join([p[i] for i in range(length)])
+
+    def sizeof_type(self, BType):
+        assert issubclass(BType, CTypesData)
+        return BType._get_size()
+
+    def sizeof_instance(self, cdata):
+        assert isinstance(cdata, CTypesData)
+        return cdata._get_size_of_instance()
+
+    def alignof(self, BType):
+        assert issubclass(BType, CTypesData)
+        return BType._alignment()
+
+    def offsetof(self, BType, fieldname):
+        assert issubclass(BType, CTypesData)
+        return BType._offsetof(fieldname)
+
+    def cast(self, BType, source):
+        return BType._cast_from(source)
 
 
 class CTypesLibrary(object):

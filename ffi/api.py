@@ -39,7 +39,7 @@ class FFI(object):
         self._cached_btypes = {}
         self._parsed_types = new.module('parsed_types').__dict__
         self._new_types = new.module('new_types').__dict__
-        self.C = _make_ffi_library(self, self._backend.load_library())
+        self.C = _make_ffi_library(self, None)
         #
         lines = []
         for name, equiv in self._backend.nonstandard_integer_types().items():
@@ -98,7 +98,7 @@ class FFI(object):
         library we only look for the actual (untyped) symbols.
         """
         assert isinstance(name, str)
-        return _make_ffi_library(self, self._backend.load_library(name), name)
+        return _make_ffi_library(self, name)
 
     def typeof(self, cdecl):
         """Parse the C type given as a string and return the
@@ -118,23 +118,23 @@ class FFI(object):
         """
         if isinstance(cdecl, (str, unicode)):
             BType = self.typeof(cdecl)
-            return BType._get_size()
+            return self._backend.sizeof_type(BType)
         else:
-            return cdecl._get_size_of_instance()
+            return self._backend.sizeof_instance(cdecl)
 
     def alignof(self, cdecl):
         """Return the natural alignment size in bytes of the C type
         given as a string.
         """
         BType = self.typeof(cdecl)
-        return BType._alignment()
+        return self._backend.alignof(BType)
 
     def offsetof(self, cdecl, fieldname):
         """Return the offset of the named field inside the given
         structure, which must be given as a C type name.
         """
         BType = self.typeof(cdecl)
-        return BType._offsetof(fieldname)
+        return self._backend.offsetof(BType, fieldname)
 
     def new(self, cdecl, init=None):
         """Allocate an instance 'x' of the named C type, and return a
@@ -169,7 +169,7 @@ class FFI(object):
         casted between integers or pointers of any type.
         """
         BType = self.typeof(cdecl)
-        return BType._cast_from(source)
+        return self._backend.cast(BType, source)
 
     def string(self, pointer, length):
         """Return a Python string containing the data at the given
@@ -358,9 +358,21 @@ class FFI(object):
         from ffi.verifier import Verifier
         return Verifier().verify(self, preamble, **kwargs)
 
-def _make_ffi_library(ffi, backendlib, libname=None):
-    function_cache = {}
+def _make_ffi_library(ffi, libname):
+    name = libname
+    if name is None:
+        name = 'c'    # on Posix only
+    if '/' in name:
+        path = name
+    else:
+        import ctypes.util
+        path = ctypes.util.find_library(name)
+        if path is None:
+            raise OSError("library not found: %r" % (name,))
+    #
     backend = ffi._backend
+    backendlib = backend.load_library(path)
+    function_cache = {}
     #
     class FFILibrary(object):
         def __getattribute__(self, name):
