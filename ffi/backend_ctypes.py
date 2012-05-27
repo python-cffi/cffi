@@ -389,6 +389,8 @@ class CTypesBackend(object):
                     return NotImplemented
 
             def __getitem__(self, index):
+                if getattr(self, '_own', False) and index != 0:
+                    raise IndexError
                 return BItem._from_ctypes(self._as_ctype_ptr[index])
 
             def __setitem__(self, index, value):

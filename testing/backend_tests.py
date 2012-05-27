@@ -326,6 +326,16 @@ class BackendTests:
         assert s.b == 123
         assert s.c == 456
 
+    def test_struct_pointer(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo { int a; short b, c; };")
+        s = ffi.new("struct foo")
+        assert s[0].a == s[0].b == s[0].c == 0
+        s[0].b = -23
+        assert s[0].b == s.b == -23
+        py.test.raises(OverflowError, "s[0].b = -32769")
+        py.test.raises(IndexError, "s[1]")
+
     def test_struct_opaque(self):
         ffi = FFI(backend=self.Backend())
         py.test.raises(TypeError, ffi.new, "struct baz")
