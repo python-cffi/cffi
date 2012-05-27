@@ -125,12 +125,12 @@ class BackendTests:
         assert p[0] == -6
         assert p[1] == -7
         py.test.raises(IndexError, "p[2]")
-        assert repr(p) == "<cdata 'int[]' owning %d bytes)>" % (2*SIZE_OF_INT)
+        assert repr(p) == "<cdata 'int[]' owning %d bytes>" % (2*SIZE_OF_INT)
         #
         p = ffi.new("int[]", 0)
         py.test.raises(IndexError, "p[0]")
         py.test.raises(ValueError, ffi.new, "int[]", -1)
-        assert repr(p) == "<cdata 'int[]' owning 0 bytes)>"
+        assert repr(p) == "<cdata 'int[]' owning 0 bytes>"
 
     def test_cannot_cast(self):
         ffi = FFI(backend=self.Backend())
@@ -142,7 +142,7 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         a = ffi.new("int[4]", [100, 102, 104, 106])
         p = ffi.new("int *", a)
-        assert p[0] == a
+        assert p[0] == ffi.cast("int *", a)
         assert p[0][2] == 104
         p = ffi.cast("int *", a)
         assert p[0] == 100
@@ -250,7 +250,7 @@ class BackendTests:
         assert int(ffi.cast("char", 300)) == 300 - 256
         assert bool(ffi.new("char"))
         py.test.raises(TypeError, ffi.new, "char", 32)
-        py.test.raises(ValueError, ffi.new, "char", "foo")
+        py.test.raises(TypeError, ffi.new, "char", "foo")
         #
         p = ffi.new("char[]", ['a', 'b', '\x9c'])
         assert len(p) == 3
@@ -342,10 +342,10 @@ class BackendTests:
         p = ffi.new("struct foo *", s)
         assert p[0].a == -42
         assert p[0][0].a == -42
-        p.a = -43
+        p[0].a = -43
         assert s.a == -43
         assert s[0].a == -43
-        p[0].a = -44
+        p[0][0].a = -44
         assert s.a == -44
         assert s[0].a == -44
         s.a = -45
@@ -380,7 +380,7 @@ class BackendTests:
         u = ffi.new("union foo", -2)
         assert u.a == -2
         py.test.raises((AttributeError, TypeError), "del u.a")
-        assert repr(u) == "<cdata 'union foo' owning %d bytes>" % SIZE_OF_INT
+        assert repr(u) == "<cdata 'union foo *' owning %d bytes>" % SIZE_OF_INT
 
     def test_union_opaque(self):
         ffi = FFI(backend=self.Backend())
@@ -544,24 +544,48 @@ class BackendTests:
         assert a == b
         assert hash(a) == hash(b)
 
+    def test_cast_float(self):
+        ffi = FFI(backend=self.Backend())
+        a = ffi.cast("float", 12)
+        assert float(a) == 12.0
+        a = ffi.cast("float", 12.5)
+        assert float(a) == 12.5
+        a = ffi.cast("float", "A")
+        assert float(a) == ord("A")
+        a = ffi.cast("int", 12.9)
+        assert float(a) == 12
+        a = ffi.cast("char", 66.9 + 256)
+        assert str(a) == "B"
+        #
+        a = ffi.cast("float", ffi.cast("int", 12))
+        assert float(a) == 12.0
+        a = ffi.cast("float", ffi.cast("double", 12.5))
+        assert float(a) == 12.5
+        a = ffi.cast("float", ffi.cast("char", "A"))
+        assert float(a) == ord("A")
+        a = ffi.cast("int", ffi.cast("double", 12.9))
+        assert float(a) == 12
+        a = ffi.cast("char", ffi.cast("double", 66.9 + 256))
+        assert str(a) == "B"
+
     def test_enum(self):
         ffi = FFI(backend=self.Backend())
-        ffi.cdef("enum foo { A, B, C, D };")
+        ffi.cdef("enum foo { A, B, CC, D };")
         assert int(ffi.cast("enum foo", "A")) == 0
         assert int(ffi.cast("enum foo", "B")) == 1
-        assert int(ffi.cast("enum foo", "C")) == 2
+        assert int(ffi.cast("enum foo", "CC")) == 2
         assert int(ffi.cast("enum foo", "D")) == 3
-        ffi.cdef("enum bar { A, B=-2, C, D };")
+        ffi.cdef("enum bar { A, B=-2, CC, D };")
         assert int(ffi.cast("enum bar", "A")) == 0
         assert int(ffi.cast("enum bar", "B")) == -2
-        assert int(ffi.cast("enum bar", "C")) == -1
+        assert int(ffi.cast("enum bar", "CC")) == -1
         assert int(ffi.cast("enum bar", "D")) == 0
         assert ffi.cast("enum bar", "B") == ffi.cast("enum bar", "B")
-        assert ffi.cast("enum bar", "B") != ffi.cast("enum bar", "C")
+        assert ffi.cast("enum bar", "B") != ffi.cast("enum bar", "CC")
         assert ffi.cast("enum bar", "A") == ffi.cast("enum bar", "D")
         assert ffi.cast("enum foo", "A") != ffi.cast("enum bar", "A")
         assert ffi.cast("enum bar", "A") != ffi.cast("int", 0)
-        assert repr(ffi.cast("enum bar", "C")) == "<cdata 'enum bar'>"
+        assert repr(ffi.cast("enum bar", "CC")) == "<cdata 'enum bar'>"
 
     def test_enum_in_struct(self):
         ffi = FFI(backend=self.Backend())

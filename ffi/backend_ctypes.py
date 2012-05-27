@@ -3,6 +3,10 @@ from ffi.backend_base import BackendBase
 
 
 class CTypesData(object):
+    __slots__ = []
+
+    def __init__(self, *args):
+        raise TypeError("cannot instantiate %r" % (self.__class__,))
 
     @staticmethod
     def _to_ctypes(value):
@@ -14,6 +18,10 @@ class CTypesData(object):
         if not isinstance(res, cls._ctype):
             res = cls._ctype(res)
         return res
+
+    @classmethod
+    def _create_ctype_obj(cls, init):
+        return cls._arg_to_ctypes(init)
 
     @staticmethod
     def _from_ctypes(ctypes_value):
@@ -29,14 +37,10 @@ class CTypesData(object):
         cls.__module__ = 'ffi'
 
     def _get_own_repr(self):
-        return None
+        return ''
 
     def __repr__(self, c_name=None):
         own = self._get_own_repr()
-        if own is None:
-            own = ''
-        else:
-            own = ' owning %s' % (own,)
         return '<cdata %r%s>' % (c_name or self._get_c_name(), own)
 
     def _convert_to_address(self, BClass):
@@ -67,6 +71,7 @@ class CTypesData(object):
 
 
 class CTypesGenericPtr(CTypesData):
+    __slots__ = ['_address', '_as_ctype_ptr', '_own']
     _automatic_casts = False
 
     @classmethod
@@ -128,11 +133,7 @@ class CTypesGenericPtr(CTypesData):
 
 
 class CTypesBaseStructOrUnion(CTypesData):
-
-    def _get_own_repr(self):
-        if self._own:
-            return '%d bytes' % (ctypes.sizeof(self._blob),)
-        return None
+    __slots__ = ['_blob']
 
     def _convert_to_address(self, BClass):
         if getattr(BClass, '_BItem', None) is self.__class__:
@@ -182,8 +183,8 @@ class CTypesBackend(BackendBase):
                 result['wchar_t'] = 'unsigned %s' % name
         return result
 
-    def load_library(self, name=Ellipsis):
-        if name is Ellipsis:
+    def load_library(self, name=None):
+        if name is None:
             name = 'c'    # on Posix only
         if '/' in name:
             path = name
@@ -196,9 +197,8 @@ class CTypesBackend(BackendBase):
 
     def new_void_type(self):
         class CTypesVoid(CTypesData):
+            __slots__ = []
             _reftypename = 'void &'
-            def __init__(self, value=None):
-                raise TypeError("%s cannot be instantiated" % (CTypesVoid,))
             @staticmethod
             def _from_ctypes(novalue):
                 return None
@@ -209,45 +209,47 @@ class CTypesBackend(BackendBase):
         ctype = self.PRIMITIVE_TYPES[name]
         if name == 'char':
             kind = 'char'
-            default_value = '\x00'
         elif name in ('float', 'double'):
             kind = 'float'
-            default_value = 0.0
         else:
             kind = 'int'
-            default_value = 0
             is_signed = (ctype(-1).value == -1)
         #
+        def _cast_source_to_int(source):
+            if isinstance(source, (int, long)):
+                pass
+            elif isinstance(source, CTypesData):
+                source = source._cast_to_integer()
+            elif isinstance(source, str):
+                source = ord(source)
+            else:
+                raise TypeError("bad type for cast to %r: %r" %
+                                (CTypesPrimitive, type(source).__name__))
+            return source
+        #
         class CTypesPrimitive(CTypesData):
+            __slots__ = ['_value']
             _ctype = ctype
             _reftypename = '%s &' % name
 
             def __init__(self, value):
-                if value is None:
-                    value = default_value
-                else:
-                    value = self._to_ctypes(value)
                 self._value = value
 
-            @staticmethod
-            def _cast_from(source):
-                if isinstance(source, (int, long)):
-                    pass
-                elif isinstance(source, CTypesData):
-                    source = source._cast_to_integer()
-                elif isinstance(source, str):
-                    source = ord(source)
-                else:
-                    raise TypeError("bad type for cast to %r: %r" %
-                                    (CTypesPrimitive, type(source).__name__))
-                source = ctype(source).value     # cast within range
-                return CTypesPrimitive(source)
-
             if kind == 'int':
+                @staticmethod
+                def _cast_from(source):
+                    source = _cast_source_to_int(source)
+                    source = ctype(source).value     # cast within range
+                    return CTypesPrimitive(source)
                 def __int__(self):
                     return self._value
 
             if kind == 'char':
+                @staticmethod
+                def _cast_from(source):
+                    source = _cast_source_to_int(source)
+                    source = chr(source & 0xFF)
+                    return CTypesPrimitive(source)
                 def __int__(self):
                     return ord(self._value)
                 def __str__(self):
@@ -263,8 +265,6 @@ class CTypesBackend(BackendBase):
                 def __float__(self):
                     return self._value
 
-            _cast_to_integer = __int__
-
             def __eq__(self, other):
                 return (type(self) is type(other) and
                         self._value == other._value)
@@ -278,6 +278,8 @@ class CTypesBackend(BackendBase):
             if kind == 'int':
                 @staticmethod
                 def _to_ctypes(x):
+                    if x is None:
+                        return 0
                     if not isinstance(x, (int, long)):
                         if isinstance(x, CTypesData):
                             x = int(x)
@@ -295,6 +297,8 @@ class CTypesBackend(BackendBase):
             if kind == 'char':
                 @staticmethod
                 def _to_ctypes(x):
+                    if x is None:
+                        return '\x00'
                     if isinstance(x, str) and len(x) == 1:
                         return x
                     if isinstance(x, CTypesPrimitive):    # <CData <char>>
@@ -305,6 +309,8 @@ class CTypesBackend(BackendBase):
             if kind == 'float':
                 @staticmethod
                 def _to_ctypes(x):
+                    if x is None:
+                        return 0.0
                     if not isinstance(x, (int, long, float, CTypesData)):
                         raise TypeError("float expected, got %s" %
                                         type(x).__name__)
@@ -322,43 +328,23 @@ class CTypesBackend(BackendBase):
             kind = 'charp'
         else:
             kind = 'generic'
-        return self._new_pointer_type(BItem, kind)
-
-    def new_constcharp_type(self):
-        BChar = self.get_cached_btype('new_primitive_type', 'char')
-        return self._new_pointer_type(BChar, kind='constcharp')
-
-    def _new_pointer_type(self, BItem, kind):
         #
         class CTypesPtr(CTypesGenericPtr):
+            __slots__ = []
             _BItem = BItem
             if hasattr(BItem, '_ctype'):
                 _ctype = ctypes.POINTER(BItem._ctype)
                 _bitem_size = ctypes.sizeof(BItem._ctype)
             else:
                 _ctype = ctypes.c_void_p
-            if kind != 'constcharp':
-                _reftypename = BItem._get_c_name(' * &')
-            else:
-                _reftypename = 'const char * &'
-                _keepalive_string = None
+            _reftypename = BItem._get_c_name(' * &')
 
             def __init__(self, init):
-                if init is None:
-                    address = 0      # null pointer
-                elif isinstance(init, CTypesData):
-                    address = init._convert_to_address(CTypesPtr)
-                elif kind == 'constcharp' and isinstance(init, str):
-                    if '\x00' in init:
-                        raise ValueError("string contains \\x00 characters")
-                    self._keepalive_string = init
-                    address = ctypes.cast(ctypes.c_char_p(init),
-                                          ctypes.c_void_p).value
-                else:
-                    raise TypeError("%r expected, got %r" % (
-                        CTypesPtr._get_c_name(), type(init).__name__))
-                self._address = address
-                self._as_ctype_ptr = ctypes.cast(address, CTypesPtr._ctype)
+                ctypeobj = BItem._create_ctype_obj(init)
+                self._as_ctype_ptr = ctypes.pointer(ctypeobj)
+                self._address = ctypes.cast(self._as_ctype_ptr,
+                                            ctypes.c_void_p).value
+                self._own = True
 
             def __add__(self, other):
                 if isinstance(other, (int, long)):
@@ -376,23 +362,13 @@ class CTypesBackend(BackendBase):
                 else:
                     return NotImplemented
 
-            if kind != 'constcharp':
-                def __getitem__(self, index):
-                    return BItem._from_ctypes(self._as_ctype_ptr[index])
+            def __getitem__(self, index):
+                return BItem._from_ctypes(self._as_ctype_ptr[index])
 
-                def __setitem__(self, index, value):
-                    self._as_ctype_ptr[index] = BItem._to_ctypes(value)
-            else:
-                def __getitem__(self, index):
-                    # note that we allow access to the terminating NUL byte
-                    if index < 0:
-                        raise IndexError
-                    if (self._keepalive_string is not None and
-                            index > len(self._keepalive_string)):
-                        raise IndexError
-                    return self._as_ctype_ptr[index]
+            def __setitem__(self, index, value):
+                self._as_ctype_ptr[index] = BItem._to_ctypes(value)
 
-            if kind == 'charp' or kind == 'constcharp':
+            if kind == 'charp':
                 def __str__(self):
                     n = 0
                     while self._as_ctype_ptr[n] != '\x00':
@@ -405,18 +381,11 @@ class CTypesBackend(BackendBase):
                     else:
                         return super(CTypesPtr, cls)._arg_to_ctypes(value)
 
-            if kind == 'constcharp':
-                def _get_own_repr(self):
-                    if self._keepalive_string is not None:
-                        return 'a %d-char string' % (
-                            len(self._keepalive_string),)
-                    return None
-                @staticmethod
-                def _from_ctypes(value):
-                    if value:
-                        return ctypes.cast(value, ctypes.c_char_p).value
-                    else:
-                        return None
+            def _get_own_repr(self):
+                if getattr(self, '_own', False):
+                    return ' owning %d bytes' % (
+                        ctypes.sizeof(self._as_ctype_ptr.contents),)
+                return ''
         #
         if (BItem is self.get_cached_btype('new_void_type') or
             BItem is self.get_cached_btype('new_primitive_type', 'char')):
@@ -447,11 +416,12 @@ class CTypesBackend(BackendBase):
             kind = 'generic'
         #
         class CTypesArray(CTypesData):
+            __slots__ = ['_blob', '_own']
             if length is not None:
                 _ctype = BItem._ctype * length
+            else:
+                __slots__.append('_ctype')
             _reftypename = BItem._get_c_name(brackets)
-            _own = False
-            _is_array = True
 
             def __init__(self, init):
                 if length is None:
@@ -492,9 +462,9 @@ class CTypesBackend(BackendBase):
                     return s
 
             def _get_own_repr(self):
-                if self._own:
-                    return 'a %d-bytes array' % (ctypes.sizeof(self._blob),)
-                return None
+                if getattr(self, '_own', False):
+                    return ' owning %d bytes' % (ctypes.sizeof(self._blob),)
+                return ''
 
             def _convert_to_address(self, BClass):
                 if BClass in (CTypesPtr, None) or BClass._automatic_casts:
@@ -542,18 +512,21 @@ class CTypesBackend(BackendBase):
         struct_or_union.__name__ = '%s_%s' % (kind, name)
         #
         class CTypesStructOrUnion(CTypesBaseStructOrUnion):
+            __slots__ = ['_blob']
             _ctype = struct_or_union
             _reftypename = '%s %s &' % (kind, name)
-            _own = False
 
-            def __init__(self, init):
+            @staticmethod
+            def _create_ctype_obj(init):
                 if fnames is None:
                     raise TypeError("cannot instantiate opaque type %s" % (
                         CTypesStructOrUnion,))
-                self._blob = struct_or_union()
-                self._own = True
+                result = struct_or_union()
                 if init is not None:
+                    self = CTypesStructOrUnion.__new__(CTypesStructOrUnion)
+                    self._blob = result
                     initializer(self, init)
+                return result
 
             @staticmethod
             def _offsetof(fieldname):
@@ -612,6 +585,7 @@ class CTypesBackend(BackendBase):
         nameargs = ', '.join(nameargs)
         #
         class CTypesFunction(CTypesGenericPtr):
+            __slots__ = []
             _ctype = ctypes.CFUNCTYPE(BResult._ctype,
                                       *[BArg._ctype for BArg in BArgs],
                                       use_errno=True)
@@ -674,6 +648,7 @@ class CTypesBackend(BackendBase):
         CTypesInt = self.get_cached_btype('new_primitive_type', 'int')
         #
         class CTypesEnum(CTypesInt):
+            __slots__ = []
             _reftypename = 'enum %s &' % name
 
             @staticmethod

@@ -24,7 +24,7 @@ class FFI(object):
         ffi.cdef("""
             int printf(const char *, ...);
         """)
-        ffi.C.printf("hello, %s!\n", "world")
+        ffi.C.printf("hello, %s!\n", ffi.new("char[]", "world"))
     '''
 
     def __init__(self, backend=None):
@@ -37,6 +37,7 @@ class FFI(object):
         self._backend = backend
         self._declarations = {}
         self._parsed_types = new.module('parsed_types').__dict__
+        self._new_types = new.module('new_types').__dict__
         self.C = _make_ffi_library(self, self._backend.load_library())
         #
         lines = []
@@ -152,20 +153,14 @@ class FFI(object):
         copying the pointer to the memory somewhere else, e.g. into
         another structure.
         """
-        # XXX a quick hack to make it work with the ctypes backend,
-        # not the real implementation
-        BType = self.typeof(cdecl)
-        if getattr(BType, '_is_array', False):
-            return BType(init)
-        BPtr = self._backend.get_cached_btype('new_pointer_type', BType)
-        BArray = self._backend.get_cached_btype('new_array_type', BType, 1)
-        if init is None:
-            x = BArray(None)
-        else:
-            x = BArray([init])
-        y = BPtr(x)
-        y._keepalive_x = x
-        return y
+        try:
+            BType = self._new_types[cdecl]
+        except KeyError:
+            typenode = self._parse_type(cdecl)
+            BType = self._get_btype(typenode, force_pointer=True)
+            self._new_types[cdecl] = BType
+        #
+        return BType(init)
 
     def cast(self, cdecl, source):
         """Similar to a C cast: returns an instance of the named C
@@ -181,6 +176,12 @@ class FFI(object):
         <cdata 'void *'> or <cdata 'char *'>.
         """
         return self._backend.string(pointer, length)
+
+    def callback(self, cdecl, python_callable):
+        if not callable(python_callable):
+            raise TypeError("the 'python_callable' argument is not callable")
+        BFunc = self.typeof(cdecl)
+        return BFunc(python_callable)
 
     def _parse_type(self, cdecl):
         # XXX: for more efficiency we would need to poke into the
@@ -202,14 +203,10 @@ class FFI(object):
         BItem = self._get_btype(type)
         if isinstance(type, pycparser.c_ast.FuncDecl):
             return BItem      # "pointer-to-function" ~== "function"
-        if ('const' in type.quals and
-            BItem is self._backend.get_cached_btype("new_primitive_type",
-                                                    "char")):
-            return self._backend.get_cached_btype("new_constcharp_type")
-        else:
-            return self._backend.get_cached_btype("new_pointer_type", BItem)
+        return self._backend.get_cached_btype("new_pointer_type", BItem)
 
-    def _get_btype(self, typenode, convert_array_to_pointer=False):
+    def _get_btype(self, typenode, convert_array_to_pointer=False,
+                   force_pointer=False):
         # first, dereference typedefs, if necessary several times
         while (isinstance(typenode, pycparser.c_ast.TypeDecl) and
                isinstance(typenode.type, pycparser.c_ast.IdentifierType) and
@@ -228,6 +225,9 @@ class FFI(object):
             BItem = self._get_btype(typenode.type)
             return self._backend.get_cached_btype('new_array_type',
                                                   BItem, length)
+        #
+        if force_pointer:
+            return self._get_btype_pointer(typenode)
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
             # pointer type

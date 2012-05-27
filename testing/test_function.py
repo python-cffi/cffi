@@ -94,7 +94,7 @@ def test_vararg():
     """)
     with FdWriteCapture() as fd:
         ffi.C.printf("hello\n")
-        ffi.C.printf("hello, %s!\n", "world")
+        ffi.C.printf("hello, %s!\n", ffi.new("char[]", "world"))
         ffi.C.printf(ffi.new("char[]", "hello, %s!\n"),
                      ffi.new("char[]", "world2"))
         ffi.C.printf("hello int %d long %ld long long %lld\n",
