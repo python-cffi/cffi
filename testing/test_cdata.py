@@ -1,13 +1,15 @@
 import py
 from ffi import FFI
-from ffi.backend_base import BackendBase
 
-class FakeBackend(BackendBase):
+class FakeBackend(object):
+
+    def nonstandard_integer_types(self):
+        return {}
 
     def load_library(self):
         return "fake library"
 
-    def new_primitive_type(self, name):
+    def new_primitive_type(self, ffi, name):
         return FakePrimitiveType(name)
 
 class FakePrimitiveType(object):

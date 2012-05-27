@@ -1,5 +1,4 @@
 import ctypes, ctypes.util
-from ffi.backend_base import BackendBase
 
 
 class CTypesData(object):
@@ -160,7 +159,7 @@ class CTypesBaseStructOrUnion(CTypesData):
         return self
 
 
-class CTypesBackend(BackendBase):
+class CTypesBackend(object):
 
     PRIMITIVE_TYPES = {
         'char': ctypes.c_char,
@@ -207,7 +206,7 @@ class CTypesBackend(BackendBase):
         cdll = ctypes.CDLL(path)
         return CTypesLibrary(self, cdll)
 
-    def new_void_type(self):
+    def new_void_type(self, ffi):
         class CTypesVoid(CTypesData):
             __slots__ = []
             _reftypename = 'void &'
@@ -220,7 +219,7 @@ class CTypesBackend(BackendBase):
         CTypesVoid._fix_class()
         return CTypesVoid
 
-    def new_primitive_type(self, name):
+    def new_primitive_type(self, ffi, name):
         ctype = self.PRIMITIVE_TYPES[name]
         if name == 'char':
             kind = 'char'
@@ -357,8 +356,8 @@ class CTypesBackend(BackendBase):
         CTypesPrimitive._fix_class()
         return CTypesPrimitive
 
-    def new_pointer_type(self, BItem):
-        if BItem is self.get_cached_btype('new_primitive_type', 'char'):
+    def new_pointer_type(self, ffi, BItem):
+        if BItem is ffi._get_cached_btype('new_primitive_type', 'char'):
             kind = 'charp'
         else:
             kind = 'generic'
@@ -421,8 +420,8 @@ class CTypesBackend(BackendBase):
                         ctypes.sizeof(self._as_ctype_ptr.contents),)
                 return ''
         #
-        if (BItem is self.get_cached_btype('new_void_type') or
-            BItem is self.get_cached_btype('new_primitive_type', 'char')):
+        if (BItem is ffi._get_cached_btype('new_void_type') or
+            BItem is ffi._get_cached_btype('new_primitive_type', 'char')):
             CTypesPtr._automatic_casts = True
         elif (issubclass(BItem, CTypesBaseStructOrUnion) and
               hasattr(BItem, '_fieldnames')):
@@ -439,12 +438,12 @@ class CTypesBackend(BackendBase):
         CTypesPtr._fix_class()
         return CTypesPtr
 
-    def new_array_type(self, BItem, length):
+    def new_array_type(self, ffi, BItem, length):
         if length is None:
             brackets = ' &[]'
         else:
             brackets = ' &[%d]' % length
-        if BItem is self.get_cached_btype('new_primitive_type', 'char'):
+        if BItem is ffi._get_cached_btype('new_primitive_type', 'char'):
             kind = 'char'
         else:
             kind = 'generic'
@@ -535,7 +534,7 @@ class CTypesBackend(BackendBase):
                 else:
                     return NotImplemented
         #
-        CTypesPtr = self.get_cached_btype('new_pointer_type', BItem)
+        CTypesPtr = ffi._get_cached_btype('new_pointer_type', BItem)
         CTypesArray._fix_class()
         return CTypesArray
 
@@ -606,7 +605,7 @@ class CTypesBackend(BackendBase):
         CTypesStructOrUnion._fix_class()
         return CTypesStructOrUnion
 
-    def new_struct_type(self, name, fnames, BFieldTypes, bitfields):
+    def new_struct_type(self, ffi, name, fnames, BFieldTypes, bitfields):
         if fnames is not None:
             name2fieldtype = dict(zip(fnames, zip(BFieldTypes, bitfields)))
         #
@@ -632,7 +631,7 @@ class CTypesBackend(BackendBase):
         cls._initialize = staticmethod(initializer)
         return cls
 
-    def new_union_type(self, name, fnames, BFieldTypes, bitfields):
+    def new_union_type(self, ffi, name, fnames, BFieldTypes, bitfields):
         def initializer(blob, init):
             addr = ctypes.addressof(blob)
             fname = fnames[0]
@@ -644,7 +643,7 @@ class CTypesBackend(BackendBase):
         cls._initialize = staticmethod(initializer)
         return cls
 
-    def new_function_type(self, BArgs, BResult, has_varargs):
+    def new_function_type(self, ffi, BArgs, BResult, has_varargs):
         nameargs = [BArg._get_c_name() for BArg in BArgs]
         if has_varargs:
             nameargs.append('...')
@@ -707,9 +706,9 @@ class CTypesBackend(BackendBase):
         CTypesFunction._fix_class()
         return CTypesFunction
 
-    def new_enum_type(self, name, enumerators, enumvalues):
+    def new_enum_type(self, ffi, name, enumerators, enumvalues):
         mapping = dict(zip(enumerators, enumvalues))
-        CTypesInt = self.get_cached_btype('new_primitive_type', 'int')
+        CTypesInt = ffi._get_cached_btype('new_primitive_type', 'int')
         #
         class CTypesEnum(CTypesInt):
             __slots__ = []

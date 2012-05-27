@@ -36,6 +36,7 @@ class FFI(object):
             backend = backend_ctypes.CTypesBackend()
         self._backend = backend
         self._declarations = {}
+        self._cached_btypes = {}
         self._parsed_types = new.module('parsed_types').__dict__
         self._new_types = new.module('new_types').__dict__
         self.C = _make_ffi_library(self, self._backend.load_library())
@@ -199,11 +200,19 @@ class FFI(object):
         typenode = ast.ext[-1].type.args.params[0].type
         return typenode
 
+    def _get_cached_btype(self, methname, *args):
+        try:
+            BType = self._cached_btypes[methname, args]
+        except KeyError:
+            BType = getattr(self._backend, methname)(self, *args)
+            self._cached_btypes[methname, args] = BType
+        return BType
+
     def _get_btype_pointer(self, type):
         BItem = self._get_btype(type)
         if isinstance(type, pycparser.c_ast.FuncDecl):
             return BItem      # "pointer-to-function" ~== "function"
-        return self._backend.get_cached_btype("new_pointer_type", BItem)
+        return self._get_cached_btype("new_pointer_type", BItem)
 
     def _get_btype(self, typenode, convert_array_to_pointer=False,
                    force_pointer=False):
@@ -223,8 +232,7 @@ class FFI(object):
             else:
                 length = self._parse_constant(typenode.dim)
             BItem = self._get_btype(typenode.type)
-            return self._backend.get_cached_btype('new_array_type',
-                                                  BItem, length)
+            return self._get_cached_btype('new_array_type', BItem, length)
         #
         if force_pointer:
             return self._get_btype_pointer(typenode)
@@ -248,9 +256,8 @@ class FFI(object):
                     names.pop()
                 ident = ' '.join(names)
                 if ident == 'void':
-                    return self._backend.get_cached_btype("new_void_type")
-                return self._backend.get_cached_btype(
-                    'new_primitive_type', ident)
+                    return self._get_cached_btype("new_void_type")
+                return self._get_cached_btype('new_primitive_type', ident)
             #
             if isinstance(type, pycparser.c_ast.Struct):
                 # 'struct foobar'
@@ -280,8 +287,8 @@ class FFI(object):
                                     convert_array_to_pointer=True)
                     for argdeclnode in params]
             result = self._get_btype(typenode.type)
-            return self._backend.get_cached_btype(
-                'new_function_type', tuple(args), result, ellipsis)
+            return self._get_cached_btype('new_function_type',
+                                          tuple(args), result, ellipsis)
         #
         raise FFIError("bad or unsupported type declaration")
 
@@ -300,8 +307,8 @@ class FFI(object):
             fnames = None
             btypes = None
             bitfields = None
-        return self._backend.get_cached_btype(
-            'new_%s_type' % kind, name, fnames, btypes, bitfields)
+        return self._get_cached_btype('new_%s_type' % kind, name,
+                                      fnames, btypes, bitfields)
 
     def _get_bitfield_size(self, decl):
         if decl.bitsize is None:
@@ -329,8 +336,8 @@ class FFI(object):
         else:   # opaque enum
             enumerators = None
             enumvalues = None
-        return self._backend.get_cached_btype(
-            'new_enum_type', name, enumerators, enumvalues)
+        return self._get_cached_btype('new_enum_type', name,
+                                      enumerators, enumvalues)
 
     def _parse_constant(self, exprnode):
         # for now, limited to expressions that are an immediate number

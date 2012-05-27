@@ -1,23 +1,25 @@
 from ffi import FFI
-from ffi.backend_base import BackendBase
 
-class FakeBackend(BackendBase):
-    
+class FakeBackend(object):
+
+    def nonstandard_integer_types(self):
+        return {}
+
     def load_library(self, name=Ellipsis):
         assert name in [Ellipsis, "foobar"]
         return FakeLibrary()
 
-    def new_function_type(self, args, result, has_varargs):
+    def new_function_type(self, ffi, args, result, has_varargs):
         return '<func (%s), %s, %s>' % (', '.join(args), result, has_varargs)
 
-    def new_primitive_type(self, name):
+    def new_primitive_type(self, ffi, name):
         assert name == name.lower()
         return '<%s>' % name
 
-    def new_pointer_type(self, itemtype):
+    def new_pointer_type(self, ffi, itemtype):
         return '<pointer to %s>' % (itemtype,)
 
-    def new_struct_type(self, name, fnames, btypes, bitfields):
+    def new_struct_type(self, ffi, name, fnames, btypes, bitfields):
         return '<struct %s: %s>' % (
             name,
             ', '.join([y + x for x, y in zip(fnames, btypes)]))
