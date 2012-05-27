@@ -319,7 +319,6 @@ class BackendTests:
         py.test.raises(ValueError, ffi.new, "struct foo", [1, 2, 3, 4])
 
     def test_constructor_struct_from_dict(self):
-        py.test.skip("in-progress?")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { int a; short b, c; };")
         s = ffi.new("struct foo", {'b': 123, 'c': 456})

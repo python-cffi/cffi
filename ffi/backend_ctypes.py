@@ -607,15 +607,19 @@ class CTypesBackend(BackendBase):
         return CTypesStructOrUnion
 
     def new_struct_type(self, name, fnames, BFieldTypes, bitfields):
+        if fnames is not None:
+            name2fieldtype = dict(zip(fnames, zip(BFieldTypes, bitfields)))
         #
         def initializer(blob, init):
-            init = tuple(init)
-            if len(init) > len(fnames):
-                raise ValueError("too many values for "
-                                 "struct %s initializer" % name)
+            if not isinstance(init, dict):
+                init = tuple(init)
+                if len(init) > len(fnames):
+                    raise ValueError("too many values for "
+                                     "struct %s initializer" % name)
+                init = dict(zip(fnames, init))
             addr = ctypes.addressof(blob)
-            for value, fname, BField, bitsize in zip(init, fnames,
-                                                     BFieldTypes, bitfields):
+            for fname, value in init.items():
+                BField, bitsize = name2fieldtype[fname]
                 assert bitsize is None, \
                        "not implemented: initializer with bit fields"
                 offset = cls._offsetof(fname)
