@@ -271,6 +271,9 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         double value = read_raw_float_data(data, ct->ct_size);
         return PyFloat_FromDouble(value);
     }
+    else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
+        return PyString_FromStringAndSize(data, 1);
+    }
     else {
         fprintf(stderr, "convert_to_object: '%s'\n", ct->ct_name);
         Py_FatalError("convert_to_object");
@@ -318,6 +321,21 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             goto overflow;
         return 0;
     }
+    if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
+        double value = PyFloat_AsDouble(init);
+        write_raw_float_data(data, value, ct->ct_size);
+        return 0;
+    }
+    if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
+        if (PyString_Check(init) && PyString_GET_SIZE(init) == 1) {
+            data[0] = PyString_AS_STRING(init)[0];
+            return 0;
+        }
+        PyErr_Format(PyExc_TypeError,
+                     "expected a string of length 1, but "
+                     "%.200s found", init->ob_type->tp_name);
+        return -1;
+    }
     fprintf(stderr, "convert_from_object: '%s'\n", ct->ct_name);
     Py_FatalError("convert_from_object");
     return -1;
@@ -357,6 +375,15 @@ static PyObject *cdata_repr(CDataObject *cd)
     return PyString_FromFormat("<cdata '%s'>", cd->c_type->ct_name);
 }
 
+static PyObject *cdata_str(CDataObject *cd)
+{
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
+        return PyString_FromStringAndSize(cd->c_data, 1);
+    }
+    else
+        return cdata_repr(cd);
+}
+
 static PyObject *cdataowning_repr(CDataObject *cd)
 {
     Py_ssize_t size;
@@ -389,6 +416,9 @@ static PyObject *cdata_int(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
         return convert_to_object(cd->c_data, cd->c_type);
+    }
+    else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
+        return PyInt_FromLong(cd->c_data[0]);
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
         PyObject *o = convert_to_object(cd->c_data, cd->c_type);
@@ -591,7 +621,7 @@ static PyTypeObject CData_Type = {
     &CData_as_mapping,                          /* tp_as_mapping */
     (hashfunc)cdata_hash,                       /* tp_hash */
     0,                                          /* tp_call */
-    0,                                          /* tp_str */
+    (reprfunc)cdata_str,                        /* tp_str */
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
@@ -679,6 +709,16 @@ static PyObject *b_new(PyObject *self, PyObject *args)
     return (PyObject *)cd;
 }
 
+static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
+{
+    int size = offsetof(CDataObject_with_alignment, alignment) + ct->ct_size;
+    CDataObject *cd = (CDataObject *)PyObject_Malloc(size);
+    if (PyObject_Init((PyObject *)cd, &CData_Type) == NULL)
+        return NULL;
+    cd->c_data = ((char*)cd) + offsetof(CDataObject_with_alignment, alignment);
+    return cd;
+}
+
 static PyObject *b_cast(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
@@ -705,7 +745,6 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
     else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
         /* cast to an integer type */
         unsigned PY_LONG_LONG value;
-        int size;
 
         if (PyInt_Check(ob))
             value = (unsigned PY_LONG_LONG)PyInt_AS_LONG(ob);
@@ -714,28 +753,35 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         else
             goto cannot_cast;
 
-        size = offsetof(CDataObject_with_alignment, alignment) + ct->ct_size;
-        cd = (CDataObject *)PyObject_Malloc(size);
-        if (PyObject_Init((PyObject *)cd, &CData_Type) == NULL)
-            return NULL;
+        cd = _new_casted_primitive(ct);
+        if (cd != NULL)
+            write_raw_integer_data(cd->c_data, value, ct->ct_size);
+    }
+    else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
+        /* cast to char */
+        long value;
+        if (PyString_Check(ob)) {
+            if (PyString_Size(ob) != 1)
+                goto cannot_cast;
+            value = PyString_AS_STRING(ob)[0];
+        }
+        else if (PyInt_Check(ob) || PyLong_Check(ob)) {
+            value = PyInt_AsLong(ob);
+        }
+        else
+            goto cannot_cast;
 
-        cd->c_data = ((char *)cd) +
-            offsetof(CDataObject_with_alignment, alignment);
-        write_raw_integer_data(cd->c_data, value, ct->ct_size);
+        cd = _new_casted_primitive(ct);
+        if (cd != NULL)
+            cd->c_data[0] = value;
     }
     else if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
         /* cast to a float */
         double value = PyFloat_AsDouble(ob);
-        int size;
 
-        size = offsetof(CDataObject_with_alignment, alignment) + ct->ct_size;
-        cd = (CDataObject *)PyObject_Malloc(size);
-        if (PyObject_Init((PyObject *)cd, &CData_Type) == NULL)
-            return NULL;
-
-        cd->c_data = ((char *)cd) +
-            offsetof(CDataObject_with_alignment, alignment);
-        write_raw_float_data(cd->c_data, value, ct->ct_size);
+        cd = _new_casted_primitive(ct);
+        if (cd != NULL)
+            write_raw_float_data(cd->c_data, value, ct->ct_size);
     }
     else
         goto cannot_cast;

@@ -110,6 +110,16 @@ def test_float_types():
                 hash(_ffi_backend.cast(p, 0.0)))
         assert repr(float(_ffi_backend.cast(p, -0.0))) == '-0.0'
 
+def test_character_type():
+    p = _ffi_backend.new_primitive_type(None, "char")
+    assert not bool(_ffi_backend.cast(p, '\x00'))
+    assert _ffi_backend.cast(p, '\x00') == _ffi_backend.cast(p, -17*256)
+    assert int(_ffi_backend.cast(p, 'A')) == 65
+    assert long(_ffi_backend.cast(p, 'A')) == 65L
+    assert type(int(_ffi_backend.cast(p, 'A'))) is int
+    assert type(long(_ffi_backend.cast(p, 'A'))) is long
+    assert str(_ffi_backend.cast(p, 'A')) == 'A'
+
 def test_pointer_type():
     p = _ffi_backend.new_primitive_type(None, "int")
     assert repr(p) == "<ctype 'int'>"
@@ -147,3 +157,25 @@ def test_reading_pointer_to_int():
     assert p[0] == 5000
     py.test.raises(IndexError, "p[1]")
     py.test.raises(IndexError, "p[-1]")
+
+def test_reading_pointer_to_float():
+    BFloat = _ffi_backend.new_primitive_type(None, "float")
+    py.test.raises(TypeError, _ffi_backend.new, BFloat, None)
+    BPtr = _ffi_backend.new_pointer_type(None, BFloat)
+    p = _ffi_backend.new(BPtr, None)
+    assert p[0] == 0.0 and type(p[0]) is float
+    p = _ffi_backend.new(BPtr, 1.25)
+    assert p[0] == 1.25 and type(p[0]) is float
+    p = _ffi_backend.new(BPtr, 1.1)
+    assert p[0] != 1.1 and abs(p[0] - 1.1) < 1E-5   # rounding errors
+
+def test_reading_pointer_to_char():
+    BChar = _ffi_backend.new_primitive_type(None, "char")
+    py.test.raises(TypeError, _ffi_backend.new, BChar, None)
+    BPtr = _ffi_backend.new_pointer_type(None, BChar)
+    p = _ffi_backend.new(BPtr, None)
+    assert p[0] == '\x00'
+    p = _ffi_backend.new(BPtr, 'A')
+    assert p[0] == 'A'
+    py.test.raises(TypeError, _ffi_backend.new, BPtr, 65)
+    py.test.raises(TypeError, _ffi_backend.new, BPtr, "foo")
