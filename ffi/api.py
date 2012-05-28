@@ -1,6 +1,6 @@
 import new
 import pycparser    # http://code.google.com/p/pycparser/
-
+from ffi import ffiplatform
 
 class FFIError(Exception):
     pass
@@ -55,6 +55,8 @@ class FFI(object):
         self.cdef('\n'.join(lines))
 
     def _declare(self, name, node):
+        if name == 'typedef __dotdotdot__':
+            return
         if name in self._declarations:
             raise FFIError("multiple declarations of %s" % (name,))
         self._declarations[name] = node
@@ -65,6 +67,8 @@ class FFI(object):
         then be accessed via 'ffi.C' or 'ffi.load()'.  The types can be used
         in 'ffi.new()' and other functions.
         """
+        csource = ("typedef int __dotdotdot__;\n" +
+                   csource.replace('...', '__dotdotdot__'))
         ast = _get_parser().parse(csource)
 
         for decl in ast.ext:
@@ -303,18 +307,30 @@ class FFI(object):
     def _get_struct_or_union_type(self, kind, type):
         name = type.name
         decls = type.decls
+        partial = False
         if decls is None and name is not None:
             key = '%s %s' % (kind, name)
             if key in self._declarations:
                 decls = self._declarations[key].decls
         if decls is not None:
-            fnames = tuple([decl.name for decl in decls])
-            btypes = tuple([self._get_btype(decl.type) for decl in decls])
+            fnames = []
+            btypes = []
+            for decl in decls:
+                if getattr(decl.type, 'names', None) == '__dotdotdot__':
+                    partial = True
+                else:
+                    btypes.append(self._get_btype(decl.type))
+                    fnames.append(decl.name)
+            fnames = tuple(fnames)
+            btypes = tuple(btypes)
             bitfields = tuple(map(self._get_bitfield_size, decls))
         else:   # opaque struct or union
             fnames = None
             btypes = None
             bitfields = None
+        if partial:
+            raise ffiplatform.VerificationMissing("Struct %s only partially"
+                                                  " specified" % name)
         return self._get_cached_btype('new_%s_type' % kind, name,
                                       fnames, btypes, bitfields)
 
