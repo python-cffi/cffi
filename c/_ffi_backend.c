@@ -13,10 +13,11 @@
 #define CT_ARRAY             32
 #define CT_STRUCT            64
 
-#define CT_PRIMITIVE    (CT_PRIMITIVE_SIGNED |          \
-                         CT_PRIMITIVE_UNSIGNED |        \
-                         CT_PRIMITIVE_CHAR |            \
-                         CT_PRIMITIVE_FLOAT)
+#define CT_PRIMITIVE_FITS_LONG    128
+#define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
+                           CT_PRIMITIVE_UNSIGNED |      \
+                           CT_PRIMITIVE_CHAR |          \
+                           CT_PRIMITIVE_FLOAT)
 
 typedef struct _ctypedescr {
     PyObject_VAR_HEAD
@@ -40,6 +41,32 @@ typedef struct {
 static PyTypeObject CTypeDescr_Type;
 static PyTypeObject CData_Type;
 
+#define CTypeDescr_Check(ob)  (Py_TYPE(ob) == &CTypeDescr_Type)
+#define CData_Check(ob)       (Py_TYPE(ob) == &CData_Type)
+
+
+typedef union {
+    unsigned char m_char;
+    unsigned short m_short;
+    unsigned int m_int;
+    unsigned long m_long;
+    unsigned long long m_longlong;
+    float m_float;
+    double m_double;
+} union_alignment;
+
+typedef struct {
+    CDataObject head;
+    union_alignment alignment;
+} CDataObject_with_alignment;
+
+typedef struct {
+    CDataObject head;
+    Py_ssize_t length;
+    union_alignment alignment;
+} CDataObject_with_length;
+
+/************************************************************/
 
 static CTypeDescrObject *
 ctypedescr_new(const char *name)
@@ -61,7 +88,7 @@ ctypedescr_new(const char *name)
 static PyObject *
 ctypedescr_repr(CTypeDescrObject *ct)
 {
-    return PyString_FromFormat("<ctypedescr '%s'>", ct->ct_name);
+    return PyString_FromFormat("<ctype '%s'>", ct->ct_name);
 }
 
 static void
@@ -114,6 +141,182 @@ static PyTypeObject CTypeDescr_Type = {
     (traverseproc)ctypedescr_traverse,          /* tp_traverse */
     (inquiry)ctypedescr_clear,                  /* tp_clear */
 };
+
+/************************************************************/
+
+static PY_LONG_LONG
+read_raw_signed_data(char *target, int size)
+{
+    if (size == sizeof(signed char))
+        return *((signed char*)target);
+    else if (size == sizeof(short))
+        return *((short*)target);
+    else if (size == sizeof(int))
+        return *((int*)target);
+    else if (size == sizeof(long))
+        return *((long*)target);
+    else if (size == sizeof(PY_LONG_LONG))
+        return *((PY_LONG_LONG*)target);
+    else
+        Py_FatalError("read_raw_signed_data: bad integer size");
+}
+
+static unsigned PY_LONG_LONG
+read_raw_unsigned_data(char *target, int size)
+{
+    if (size == sizeof(unsigned char))
+        return *((unsigned char*)target);
+    else if (size == sizeof(unsigned short))
+        return *((unsigned short*)target);
+    else if (size == sizeof(unsigned int))
+        return *((unsigned int*)target);
+    else if (size == sizeof(unsigned long))
+        return *((unsigned long*)target);
+    else if (size == sizeof(unsigned PY_LONG_LONG))
+        return *((unsigned PY_LONG_LONG*)target);
+    else
+        Py_FatalError("read_raw_unsigned_data: bad integer size");
+}
+
+static void
+write_raw_integer_data(char *target, unsigned PY_LONG_LONG source, int size)
+{
+    if (size == sizeof(unsigned char))
+        *((unsigned char*)target) = source;
+    else if (size == sizeof(unsigned short))
+        *((unsigned short*)target) = source;
+    else if (size == sizeof(unsigned int))
+        *((unsigned int*)target) = source;
+    else if (size == sizeof(unsigned long))
+        *((unsigned long*)target) = source;
+    else if (size == sizeof(unsigned PY_LONG_LONG))
+        *((unsigned PY_LONG_LONG*)target) = source;
+    else
+        Py_FatalError("write_raw_integer_data: bad integer size");
+}
+
+static PyObject *cdata_repr(CDataObject *cd)
+{
+    return PyString_FromFormat("<cdata '%s'>", cd->c_type->ct_name);
+}
+
+static PyObject *cdata_int(CDataObject *cd)
+{
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
+
+        if (cd->c_type->ct_flags & CT_PRIMITIVE_SIGNED) {
+            PY_LONG_LONG value =
+                read_raw_signed_data(cd->c_data, cd->c_type->ct_size);
+
+            if (cd->c_type->ct_flags & CT_PRIMITIVE_FITS_LONG)
+                return PyInt_FromLong((long)value);
+            else
+                return PyLong_FromLongLong(value);
+        }
+        else {
+            unsigned PY_LONG_LONG value =
+                read_raw_unsigned_data(cd->c_data, cd->c_type->ct_size);
+
+            if (cd->c_type->ct_flags & CT_PRIMITIVE_FITS_LONG)
+                return PyInt_FromLong((long)value);
+            else
+                return PyLong_FromUnsignedLongLong(value);
+        }
+    }
+    PyErr_Format(PyExc_TypeError, "int() not supported on cdata '%s'",
+                 cd->c_type->ct_name);
+    return NULL;
+}
+
+static PyNumberMethods CData_as_number = {
+    0,                          /*nb_add*/
+    0,                          /*nb_subtract*/
+    0,                          /*nb_multiply*/
+    0,                          /*nb_divide*/
+    0,                          /*nb_remainder*/
+    0,                          /*nb_divmod*/
+    0,                          /*nb_power*/
+    0,                          /*nb_negative*/
+    0,                          /*nb_positive*/
+    0,                          /*nb_absolute*/
+    0,                          /*nb_nonzero*/
+    0,                          /*nb_invert*/
+    0,                          /*nb_lshift*/
+    0,                          /*nb_rshift*/
+    0,                          /*nb_and*/
+    0,                          /*nb_xor*/
+    0,                          /*nb_or*/
+    0,                          /*nb_coerce*/
+    (unaryfunc)cdata_int,       /*nb_int*/
+    0,                          /*nb_long*/
+    0,                          /*nb_float*/
+    0,                          /*nb_oct*/
+    0,                          /*nb_hex*/
+};
+
+static PyTypeObject CData_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_ffi_backend.CData",
+    sizeof(CDataObject),
+    0,
+    (destructor)PyObject_Del,                   /* tp_dealloc */
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+    (reprfunc)cdata_repr,                       /* tp_repr */
+    &CData_as_number,                           /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    PyObject_GenericGetAttr,                    /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+};
+
+static PyObject *b_cast(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    CDataObject *cd;
+    PyObject *ob;
+    if (!PyArg_ParseTuple(args, "O!O:cast", &CTypeDescr_Type, &ct, &ob))
+        return NULL;
+
+    if (ct->ct_flags & CT_PRIMITIVE_ANY) {
+        /* cast to a primitive */
+        unsigned PY_LONG_LONG value;
+        int size;
+
+        if (PyInt_Check(ob))
+            value = (unsigned PY_LONG_LONG)PyInt_AS_LONG(ob);
+        else if (PyLong_Check(ob))
+            value = PyLong_AsUnsignedLongLongMask(ob);
+        else
+            goto cannot_cast;
+
+        size = offsetof(CDataObject_with_alignment, alignment) + ct->ct_size;
+        cd = (CDataObject *)PyObject_Malloc(size);
+        if (PyObject_Init((PyObject *)cd, &CData_Type) == NULL)
+            return NULL;
+
+        Py_INCREF(ct);
+        cd->c_type = ct;
+        cd->c_data = ((char *)cd) +
+            offsetof(CDataObject_with_alignment, alignment);
+        write_raw_integer_data(cd->c_data, value, ct->ct_size);
+        return (PyObject *)cd;
+    }
+    else
+        goto cannot_cast;
+
+ cannot_cast:
+    PyErr_Format(PyExc_TypeError, "cannot cast '%s' object to ctype '%s'",
+                 Py_TYPE(ob)->tp_name, ct->ct_name);
+    return NULL;
+}
 
 /************************************************************/
 
@@ -171,7 +374,7 @@ static PyTypeObject dl_type = {
     dl_methods,                         /* tp_methods */
 };
 
-static PyObject *load_library(PyObject *self, PyObject *args)
+static PyObject *b_load_library(PyObject *self, PyObject *args)
 {
     char *filename;
     void *handle;
@@ -200,7 +403,7 @@ static PyObject *load_library(PyObject *self, PyObject *args)
 
 /************************************************************/
 
-static PyObject *nonstandard_integer_types(PyObject *self, PyObject *noarg)
+static PyObject *b_nonstandard_integer_types(PyObject *self, PyObject *noarg)
 {
     static const int UNSIGNED = 0x1000;
     static const struct descr_s { const char *name; int size; } types[] = {
@@ -245,7 +448,7 @@ static PyObject *nonstandard_integer_types(PyObject *self, PyObject *noarg)
     return NULL;
 }
 
-static PyObject *new_primitive_type(PyObject *self, PyObject *args)
+static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 {
     PyObject *ffi;
     CTypeDescrObject *td;
@@ -289,20 +492,54 @@ static PyObject *new_primitive_type(PyObject *self, PyObject *args)
     td->ct_fields = NULL;
     td->ct_size = ptypes->size;
     td->ct_flags = ptypes->flags;
+    if (td->ct_flags & CT_PRIMITIVE_SIGNED) {
+        if (td->ct_size <= sizeof(long))
+            td->ct_flags |= CT_PRIMITIVE_FITS_LONG;
+    }
+    else if (td->ct_flags & (CT_PRIMITIVE_UNSIGNED | CT_PRIMITIVE_CHAR)) {
+        if (td->ct_size < sizeof(long))
+            td->ct_flags |= CT_PRIMITIVE_FITS_LONG;
+    }
     td->ct_name_position = strlen(td->ct_name);
     return (PyObject *)td;
 }
 
+static PyObject *b_sizeof_type(PyObject *self, PyObject *arg)
+{
+    if (!CTypeDescr_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "expected a 'ctype' object");
+        return NULL;
+    }
+    if (((CTypeDescrObject *)arg)->ct_size < 0) {
+        PyErr_Format(PyExc_ValueError, "ctype '%s' is of unknown size",
+                     ((CTypeDescrObject *)arg)->ct_name);
+        return NULL;
+    }
+    return PyInt_FromLong(((CTypeDescrObject *)arg)->ct_size);
+}
+
 static PyMethodDef FFIBackendMethods[] = {
-    {"nonstandard_integer_types", nonstandard_integer_types, METH_NOARGS},
-    {"load_library", load_library, METH_VARARGS},
-    {"new_primitive_type", new_primitive_type, METH_VARARGS},
+    {"nonstandard_integer_types", b_nonstandard_integer_types, METH_NOARGS},
+    {"load_library", b_load_library, METH_VARARGS},
+    {"new_primitive_type", b_new_primitive_type, METH_VARARGS},
+    {"cast", b_cast, METH_VARARGS},
+    {"sizeof_type", b_sizeof_type, METH_O},
     {NULL,     NULL}	/* Sentinel */
 };
 
 void init_ffi_backend(void)
 {
-    PyObject* m;
+    PyObject *m, *v;
+
+    v = PySys_GetObject("version");
+    if (v == NULL || !PyString_Check(v) ||
+            strncmp(PyString_AS_STRING(v), PY_VERSION, 3) != 0) {
+        PyErr_Format(PyExc_ImportError,
+                     "this module was compiled for Python %c%c%c",
+                     PY_VERSION[0], PY_VERSION[1], PY_VERSION[2]);
+        return;
+    }
+
     m = Py_InitModule("_ffi_backend", FFIBackendMethods);
     if (PyType_Ready(&dl_type) < 0)
         return;

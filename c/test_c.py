@@ -16,4 +16,37 @@ def test_nonstandard_integer_types():
 def test_new_primitive_type():
     py.test.raises(KeyError, _ffi_backend.new_primitive_type, None, "foo")
     p = _ffi_backend.new_primitive_type(None, "signed char")
-    assert repr(p) == "<ctypedescr 'signed char'>"
+    assert repr(p) == "<ctype 'signed char'>"
+
+def test_cast_to_signed_char():
+    p = _ffi_backend.new_primitive_type(None, "signed char")
+    x = _ffi_backend.cast(p, -65 + 17*256)
+    assert repr(x) == "<cdata 'signed char'>"
+    assert int(x) == -65
+    x = _ffi_backend.cast(p, -66 + (1<<199)*256)
+    assert repr(x) == "<cdata 'signed char'>"
+    assert int(x) == -66
+
+def test_sizeof_type():
+    py.test.raises(TypeError, _ffi_backend.sizeof_type, 42.5)
+    p = _ffi_backend.new_primitive_type(None, "short")
+    assert _ffi_backend.sizeof_type(p) == 2
+
+def test_integer_types():
+    for name in ['signed char', 'short', 'int', 'long', 'long long']:
+        p = _ffi_backend.new_primitive_type(None, name)
+        size = _ffi_backend.sizeof_type(p)
+        min = -(1 << (8*size-1))
+        max = (1 << (8*size-1)) - 1
+        assert int(_ffi_backend.cast(p, min)) == min
+        assert int(_ffi_backend.cast(p, max)) == max
+        assert int(_ffi_backend.cast(p, min - 1)) == max
+        assert int(_ffi_backend.cast(p, max + 1)) == min
+    for name in ['char', 'short', 'int', 'long', 'long long']:
+        p = _ffi_backend.new_primitive_type(None, 'unsigned ' + name)
+        size = _ffi_backend.sizeof_type(p)
+        max = (1 << (8*size)) - 1
+        assert int(_ffi_backend.cast(p, 0)) == 0
+        assert int(_ffi_backend.cast(p, max)) == max
+        assert int(_ffi_backend.cast(p, -1)) == max
+        assert int(_ffi_backend.cast(p, max + 1)) == 0
