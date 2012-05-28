@@ -31,8 +31,6 @@ class Verifier(object):
         out = platform.execute(exe_name)
         assert out.returncode == 0
         outlines = out.out.splitlines()
-        import pdb
-        pdb.set_trace()
 
     def _declare_function(self, f, decl):
         funcname = decl.type.declname
