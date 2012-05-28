@@ -224,12 +224,69 @@ write_raw_integer_data(char *target, unsigned PY_LONG_LONG source, int size)
         Py_FatalError("write_raw_integer_data: bad integer size");
 }
 
+static PyObject *
+convert_to_object(char *data, CTypeDescrObject *ct)
+{
+    if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
+        PY_LONG_LONG value =
+            read_raw_signed_data(data, ct->ct_size);
+
+        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
+            return PyInt_FromLong((long)value);
+        else
+            return PyLong_FromLongLong(value);
+    }
+    else if (ct->ct_flags & CT_PRIMITIVE_UNSIGNED) {
+        unsigned PY_LONG_LONG value =
+            read_raw_unsigned_data(data, ct->ct_size);
+
+        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
+            return PyInt_FromLong((long)value);
+        else
+            return PyLong_FromUnsignedLongLong(value);
+    }
+    else {
+        fprintf(stderr, "convert_to_object: '%s'\n", ct->ct_name);
+        Py_FatalError("convert_to_object");
+        return NULL;
+    }
+}
+
+static int
+initialize(char *data, CTypeDescrObject *ct, PyObject *init)
+{
+    if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
+        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG) {
+            long value = PyInt_AsLong(init);
+            if (value == -1 && PyErr_Occurred())
+                return -1;
+            write_raw_integer_data(data, value, ct->ct_size);
+            return 0;
+        }
+    }
+    fprintf(stderr, "initialize: '%s'\n", ct->ct_name);
+    Py_FatalError("initialize");
+    return -1;
+}
+
 static Py_ssize_t cdata_size(CDataObject *cd)
 {
     if (cd->c_type->ct_size >= 0)
         return cd->c_type->ct_size;
     else
         return ((CDataObject_with_length *)cd)->length;
+}
+
+static void cdata_dealloc(CDataObject *cd)
+{
+    Py_DECREF(cd->c_type);
+    PyObject_Del(cd);
+}
+
+static int cdata_traverse(CDataObject *cd, visitproc visit, void *arg)
+{
+    Py_VISIT(cd->c_type);
+    return 0;
 }
 
 static PyObject *cdata_repr(CDataObject *cd)
@@ -251,25 +308,8 @@ static PyObject *cdataowning_repr(CDataObject *cd)
 static PyObject *cdata_int(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
-
-        if (cd->c_type->ct_flags & CT_PRIMITIVE_SIGNED) {
-            PY_LONG_LONG value =
-                read_raw_signed_data(cd->c_data, cd->c_type->ct_size);
-
-            if (cd->c_type->ct_flags & CT_PRIMITIVE_FITS_LONG)
-                return PyInt_FromLong((long)value);
-            else
-                return PyLong_FromLongLong(value);
-        }
-        else {
-            unsigned PY_LONG_LONG value =
-                read_raw_unsigned_data(cd->c_data, cd->c_type->ct_size);
-
-            if (cd->c_type->ct_flags & CT_PRIMITIVE_FITS_LONG)
-                return PyInt_FromLong((long)value);
-            else
-                return PyLong_FromUnsignedLongLong(value);
-        }
+        /* ... */
+        return convert_to_object(cd->c_data, cd->c_type);
     }
     PyErr_Format(PyExc_TypeError, "int() not supported on cdata '%s'",
                  cd->c_type->ct_name);
@@ -334,6 +374,42 @@ static long cdata_hash(CDataObject *cd)
     }
 }
 
+static Py_ssize_t
+cdata_length(CDataObject *cd)
+{
+    PyErr_Format(PyExc_TypeError, "cdata of type '%s' has no len()",
+                 cd->c_type->ct_name);
+    return -1;
+}
+
+static PyObject *
+cdata_item(CDataObject *cd, Py_ssize_t i)
+{
+    if (cd->c_type->ct_flags & CT_POINTER) {
+        if (i != 0) {
+            PyErr_Format(PyExc_IndexError,
+                         "cdata '%s' can only be indexed by 0",
+                         cd->c_type->ct_name);
+            return NULL;
+        }
+        return convert_to_object(cd->c_data, cd->c_type->ct_itemdescr);
+    }
+    else {
+        PyErr_Format(PyExc_TypeError, "cdata of type '%s' cannot be indexed",
+                     cd->c_type->ct_name);
+        return NULL;
+    }
+}
+
+static int
+cdata_ass_item(CDataObject *cd, Py_ssize_t i, PyObject *v)
+{
+    PyErr_Format(PyExc_TypeError,
+                 "cdata of type '%s' does not support index assignment",
+                 cd->c_type->ct_name);
+    return -1;
+}
+
 static PyNumberMethods CData_as_number = {
     0,                          /*nb_add*/
     0,                          /*nb_subtract*/
@@ -360,19 +436,30 @@ static PyNumberMethods CData_as_number = {
     0,                          /*nb_hex*/
 };
 
+static PySequenceMethods CData_as_sequence = {
+    (lenfunc)cdata_length,                      /* sq_length */
+    0,                                          /* sq_concat */
+    0,                                          /* sq_repeat */
+    (ssizeargfunc)cdata_item,                   /* sq_item */
+    0,                                          /* sq_slice */
+    (ssizeobjargproc)cdata_ass_item,            /* sq_ass_item */
+    0,                                          /* sq_ass_slice */
+    0,                                          /* sq_contains */
+};
+
 static PyTypeObject CData_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "_ffi_backend.CData",
     sizeof(CDataObject),
     0,
-    (destructor)PyObject_Del,                   /* tp_dealloc */
+    (destructor)cdata_dealloc,                  /* tp_dealloc */
     0,                                          /* tp_print */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
     0,                                          /* tp_compare */
     (reprfunc)cdata_repr,                       /* tp_repr */
     &CData_as_number,                           /* tp_as_number */
-    0,                                          /* tp_as_sequence */
+    &CData_as_sequence,                         /* tp_as_sequence */
     0,                                          /* tp_as_mapping */
     (hashfunc)cdata_hash,                       /* tp_hash */
     0,                                          /* tp_call */
@@ -382,7 +469,7 @@ static PyTypeObject CData_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,                         /* tp_flags */
     0,                                          /* tp_doc */
-    0,                                          /* tp_traverse */
+    (traverseproc)cdata_traverse,               /* tp_traverse */
     0,                                          /* tp_clear */
     cdata_richcompare,                          /* tp_richcompare */
 };
@@ -425,9 +512,9 @@ static PyObject *b_new(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct, *ctitem;
     CDataObject *cd;
-    PyObject *ob;
+    PyObject *init;
     Py_ssize_t size;
-    if (!PyArg_ParseTuple(args, "O!O:new", &CTypeDescr_Type, &ct, &ob))
+    if (!PyArg_ParseTuple(args, "O!O:new", &CTypeDescr_Type, &ct, &init))
         return NULL;
 
     ctitem = ct->ct_itemdescr;
@@ -453,6 +540,14 @@ static PyObject *b_new(PyObject *self, PyObject *args)
         offsetof(CDataObject_with_alignment, alignment);
 
     memset(cd->c_data, 0, ctitem->ct_size);
+    if (init != Py_None) {
+        if (initialize(cd->c_data,
+                       (ct->ct_flags & CT_POINTER) ? ctitem : ct,
+                       init) < 0) {
+            Py_DECREF(cd);
+            return NULL;
+        }
+    }
     return (PyObject *)cd;
 }
 

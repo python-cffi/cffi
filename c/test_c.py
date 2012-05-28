@@ -82,6 +82,7 @@ def test_pointer_type():
 
 def test_pointer_to_int():
     BInt = _ffi_backend.new_primitive_type(None, "int")
+    py.test.raises(TypeError, _ffi_backend.new, BInt, None)
     BPtr = _ffi_backend.new_pointer_type(None, BInt)
     p = _ffi_backend.new(BPtr, None)
     assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
@@ -96,3 +97,11 @@ def test_pointer_to_pointer():
     BPtrPtr = _ffi_backend.new_pointer_type(None, BPtr)
     p = _ffi_backend.new(BPtrPtr, None)
     assert repr(p) == "<cdata 'int * *' owning %d bytes>" % size_of_ptr()
+
+def test_reading_pointer_to_int():
+    BInt = _ffi_backend.new_primitive_type(None, "int")
+    BPtr = _ffi_backend.new_pointer_type(None, BInt)
+    p = _ffi_backend.new(BPtr, None)
+    assert p[0] == 0
+    p = _ffi_backend.new(BPtr, 5000)
+    assert p[0] == 5000
