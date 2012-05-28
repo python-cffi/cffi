@@ -179,3 +179,11 @@ def test_reading_pointer_to_char():
     assert p[0] == 'A'
     py.test.raises(TypeError, _ffi_backend.new, BPtr, 65)
     py.test.raises(TypeError, _ffi_backend.new, BPtr, "foo")
+
+def test_hash_differences():
+    BChar = _ffi_backend.new_primitive_type(None, "char")
+    BInt = _ffi_backend.new_primitive_type(None, "int")
+    BFloat = _ffi_backend.new_primitive_type(None, "float")
+    assert (hash(_ffi_backend.cast(BChar, 'A')) !=
+            hash(_ffi_backend.cast(BInt, 65)))
+    assert hash(_ffi_backend.cast(BFloat, 65)) != hash(65.0)

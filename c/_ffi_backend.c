@@ -332,7 +332,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             return 0;
         }
         PyErr_Format(PyExc_TypeError,
-                     "expected a string of length 1, but "
+                     "expected string of length 1, but "
                      "%.200s found", init->ob_type->tp_name);
         return -1;
     }
@@ -494,7 +494,7 @@ static long cdata_hash(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
         double value = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
-        return _Py_HashDouble(value);
+        return _Py_HashDouble(value) ^ 0xF00BA/*R*/;
     }
     if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
         long result;
