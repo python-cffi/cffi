@@ -255,17 +255,54 @@ convert_to_object(char *data, CTypeDescrObject *ct)
 static int
 initialize(char *data, CTypeDescrObject *ct, PyObject *init)
 {
+    PyObject *s;
+
     if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
-        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG) {
-            long value = PyInt_AsLong(init);
-            if (value == -1 && PyErr_Occurred())
-                return -1;
-            write_raw_integer_data(data, value, ct->ct_size);
-            return 0;
+        PY_LONG_LONG value;
+        if (PyInt_Check(init))
+            value = PyInt_AsLong(init);
+        else
+            value = PyLong_AsLongLong(init);
+
+        if (value == -1 && PyErr_Occurred())
+            return -1;
+        write_raw_integer_data(data, value, ct->ct_size);
+        if (value != read_raw_signed_data(data, ct->ct_size))
+            goto overflow;
+        return 0;
+    }
+    if (ct->ct_flags & CT_PRIMITIVE_UNSIGNED) {
+        unsigned PY_LONG_LONG value;
+        if (PyInt_Check(init)) {
+            long value1 = PyInt_AsLong(init);
+            if (value1 < 0) {
+                if (PyErr_Occurred())
+                    return -1;
+                goto overflow;
+            }
+            value = value1;
         }
+        else {
+            value = PyLong_AsUnsignedLongLong(init);
+            if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
+                return -1;
+        }
+        write_raw_integer_data(data, value, ct->ct_size);
+        if (value != read_raw_unsigned_data(data, ct->ct_size))
+            goto overflow;
+        return 0;
     }
     fprintf(stderr, "initialize: '%s'\n", ct->ct_name);
     Py_FatalError("initialize");
+    return -1;
+
+ overflow:
+    s = PyObject_Str(init);
+    if (s == NULL)
+        return -1;
+    PyErr_Format(PyExc_OverflowError, "initializer %s does not fit '%s'",
+                 PyString_AS_STRING(s), ct->ct_name);
+    Py_DECREF(s);
     return -1;
 }
 
@@ -303,6 +340,17 @@ static PyObject *cdataowning_repr(CDataObject *cd)
         size = cdata_size(cd);
     return PyString_FromFormat("<cdata '%s' owning %ld bytes>",
                                cd->c_type->ct_name, size);
+}
+
+static int cdata_nonzero(CDataObject *cd)
+{
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
+        /* ... */
+        unsigned PY_LONG_LONG value;
+        value = read_raw_unsigned_data(cd->c_data, cd->c_type->ct_size);
+        return value != 0;
+    }
+    return cd->c_data != NULL;
 }
 
 static PyObject *cdata_int(CDataObject *cd)
@@ -433,7 +481,7 @@ static PyNumberMethods CData_as_number = {
     0,                          /*nb_negative*/
     0,                          /*nb_positive*/
     0,                          /*nb_absolute*/
-    0,                          /*nb_nonzero*/
+    (inquiry)cdata_nonzero,     /*nb_nonzero*/
     0,                          /*nb_invert*/
     0,                          /*nb_lshift*/
     0,                          /*nb_rshift*/
