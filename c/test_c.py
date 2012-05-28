@@ -31,6 +31,10 @@ def test_cast_to_signed_char():
     assert (x == _ffi_backend.cast(p, 66)) is False
     assert (x != _ffi_backend.cast(p, -66)) is False
     assert (x != _ffi_backend.cast(p, 66)) is True
+    q = _ffi_backend.new_primitive_type(None, "short")
+    assert (x == _ffi_backend.cast(q, -66)) is False
+    assert (x != _ffi_backend.cast(q, -66)) is True
+    assert hash(x) == hash(_ffi_backend.cast(p, -66))
 
 def test_sizeof_type():
     py.test.raises(TypeError, _ffi_backend.sizeof_type, 42.5)

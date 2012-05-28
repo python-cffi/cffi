@@ -268,6 +268,28 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
     return Py_NotImplemented;
 }
 
+static long cdata_hash(CDataObject *cd)
+{
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
+        long result;
+        unsigned PY_LONG_LONG value;
+        value = read_raw_unsigned_data(cd->c_data, cd->c_type->ct_size);
+
+        result = (long) value;
+#if SIZE_OF_LONG_LONG > SIZE_OF_LONG
+        value >>= (8 * SIZE_OF_LONG);
+        result ^= value * 1000003;
+#endif
+        result = _Py_HashPointer(cd->c_type) + result * 1000003;
+        if (result == -1)
+            result = -2;
+        return result;
+    }
+    else {
+        return _Py_HashPointer(cd);
+    }
+}
+
 static PyNumberMethods CData_as_number = {
     0,                          /*nb_add*/
     0,                          /*nb_subtract*/
@@ -308,7 +330,7 @@ static PyTypeObject CData_Type = {
     &CData_as_number,                           /* tp_as_number */
     0,                                          /* tp_as_sequence */
     0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
+    (hashfunc)cdata_hash,                       /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
     PyObject_GenericGetAttr,                    /* tp_getattro */
