@@ -61,6 +61,7 @@ def test_integer_types():
         assert int(_ffi_backend.cast(p, max)) == max
         assert int(_ffi_backend.cast(p, min - 1)) == max
         assert int(_ffi_backend.cast(p, max + 1)) == min
+        assert long(_ffi_backend.cast(p, min - 1)) == max
     for name in ['char', 'short', 'int', 'long', 'long long']:
         p = _ffi_backend.new_primitive_type(None, 'unsigned ' + name)
         size = _ffi_backend.sizeof_type(p)
@@ -69,6 +70,45 @@ def test_integer_types():
         assert int(_ffi_backend.cast(p, max)) == max
         assert int(_ffi_backend.cast(p, -1)) == max
         assert int(_ffi_backend.cast(p, max + 1)) == 0
+        assert long(_ffi_backend.cast(p, -1)) == max
+
+def test_no_float_on_int_types():
+    p = _ffi_backend.new_primitive_type(None, 'long')
+    py.test.raises(TypeError, float, _ffi_backend.cast(p, 42))
+
+def test_float_types():
+    INF = 1E200 * 1E200
+    for name in ["float", "double"]:
+        p = _ffi_backend.new_primitive_type(None, name)
+        assert not bool(_ffi_backend.cast(p, 0))
+        assert not bool(_ffi_backend.cast(p, 0L))
+        assert not bool(_ffi_backend.cast(p, 0.0))
+        assert not bool(_ffi_backend.cast(p, -0.0))
+        assert bool(_ffi_backend.cast(p, INF))
+        assert bool(_ffi_backend.cast(p, -INF))
+        assert int(_ffi_backend.cast(p, -150)) == -150
+        assert int(_ffi_backend.cast(p, 61.91)) == 61
+        assert long(_ffi_backend.cast(p, 61.91)) == 61L
+        assert type(int(_ffi_backend.cast(p, 61.91))) is int
+        assert type(int(_ffi_backend.cast(p, 1E22))) is long
+        assert type(long(_ffi_backend.cast(p, 61.91))) is long
+        assert type(long(_ffi_backend.cast(p, 1E22))) is long
+        py.test.raises(OverflowError, int, _ffi_backend.cast(p, INF))
+        py.test.raises(OverflowError, int, _ffi_backend.cast(p, -INF))
+        assert float(_ffi_backend.cast(p, 1.25)) == 1.25
+        assert float(_ffi_backend.cast(p, INF)) == INF
+        assert float(_ffi_backend.cast(p, -INF)) == -INF
+        if name == "float":
+            assert float(_ffi_backend.cast(p, 1.1)) != 1.1     # rounding error
+            assert float(_ffi_backend.cast(p, 1E200)) == INF   # limited range
+
+        assert _ffi_backend.cast(p, -1.1) == _ffi_backend.cast(p, -1.1)
+        assert _ffi_backend.cast(p, -1.1) != _ffi_backend.cast(p, 1.1)
+        assert _ffi_backend.cast(p, -0.0) == _ffi_backend.cast(p, 0.0)
+        assert _ffi_backend.cast(p, -INF) != _ffi_backend.cast(p, INF)
+        assert (hash(_ffi_backend.cast(p, -0.0)) ==
+                hash(_ffi_backend.cast(p, 0.0)))
+        assert repr(float(_ffi_backend.cast(p, -0.0))) == '-0.0'
 
 def test_pointer_type():
     p = _ffi_backend.new_primitive_type(None, "int")

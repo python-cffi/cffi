@@ -224,12 +224,35 @@ write_raw_integer_data(char *target, unsigned PY_LONG_LONG source, int size)
         Py_FatalError("write_raw_integer_data: bad integer size");
 }
 
+static double
+read_raw_float_data(char *target, int size)
+{
+    if (size == sizeof(float))
+        return *((float*)target);
+    else if (size == sizeof(double))
+        return *((double*)target);
+    else {
+        Py_FatalError("read_raw_float_data: bad float size");
+        return 0;
+    }
+}
+
+static void
+write_raw_float_data(char *target, double source, int size)
+{
+    if (size == sizeof(float))
+        *((float*)target) = source;
+    else if (size == sizeof(double))
+        *((double*)target) = source;
+    else
+        Py_FatalError("write_raw_float_data: bad float size");
+}
+
 static PyObject *
 convert_to_object(char *data, CTypeDescrObject *ct)
 {
     if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
-        PY_LONG_LONG value =
-            read_raw_signed_data(data, ct->ct_size);
+        PY_LONG_LONG value = read_raw_signed_data(data, ct->ct_size);
 
         if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
             return PyInt_FromLong((long)value);
@@ -237,13 +260,16 @@ convert_to_object(char *data, CTypeDescrObject *ct)
             return PyLong_FromLongLong(value);
     }
     else if (ct->ct_flags & CT_PRIMITIVE_UNSIGNED) {
-        unsigned PY_LONG_LONG value =
-            read_raw_unsigned_data(data, ct->ct_size);
+        unsigned PY_LONG_LONG value =read_raw_unsigned_data(data, ct->ct_size);
 
         if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
             return PyInt_FromLong((long)value);
         else
             return PyLong_FromUnsignedLongLong(value);
+    }
+    else if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
+        double value = read_raw_float_data(data, ct->ct_size);
+        return PyFloat_FromDouble(value);
     }
     else {
         fprintf(stderr, "convert_to_object: '%s'\n", ct->ct_name);
@@ -345,21 +371,53 @@ static PyObject *cdataowning_repr(CDataObject *cd)
 static int cdata_nonzero(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
-        /* ... */
-        unsigned PY_LONG_LONG value;
-        value = read_raw_unsigned_data(cd->c_data, cd->c_type->ct_size);
-        return value != 0;
+        if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
+            double value;
+            value = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
+            return value != 0.0;
+        }
+        else {
+            unsigned PY_LONG_LONG value;
+            value = read_raw_unsigned_data(cd->c_data, cd->c_type->ct_size);
+            return value != 0;
+        }
     }
     return cd->c_data != NULL;
 }
 
 static PyObject *cdata_int(CDataObject *cd)
 {
-    if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
-        /* ... */
+    if (cd->c_type->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
         return convert_to_object(cd->c_data, cd->c_type);
     }
+    else if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
+        PyObject *o = convert_to_object(cd->c_data, cd->c_type);
+        PyObject *r = o ? PyNumber_Int(o) : NULL;
+        Py_XDECREF(o);
+        return r;
+    }
     PyErr_Format(PyExc_TypeError, "int() not supported on cdata '%s'",
+                 cd->c_type->ct_name);
+    return NULL;
+}
+
+static PyObject *cdata_long(CDataObject *cd)
+{
+    PyObject *res = cdata_int(cd);
+    if (res != NULL && PyInt_CheckExact(res)) {
+        PyObject *o = PyLong_FromLong(PyInt_AS_LONG(res));
+        Py_DECREF(res);
+        res = o;
+    }
+    return res;
+}
+
+static PyObject *cdata_float(CDataObject *cd)
+{
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
+        return convert_to_object(cd->c_data, cd->c_type);
+    }
+    PyErr_Format(PyExc_TypeError, "float() not supported on cdata '%s'",
                  cd->c_type->ct_name);
     return NULL;
 }
@@ -385,7 +443,9 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
         equal = 1;
     }
     else if (obv->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
-        Py_FatalError("XXX");
+        double dv = read_raw_float_data(obv->c_data, obv->c_type->ct_size);
+        double dw = read_raw_float_data(obw->c_data, obw->c_type->ct_size);
+        equal = (dv == dw);
     }
     else if (obv->c_type->ct_flags & CT_PRIMITIVE_ANY) {
         equal = (memcmp(obv->c_data, obw->c_data, obv->c_type->ct_size) == 0);
@@ -402,6 +462,10 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
 
 static long cdata_hash(CDataObject *cd)
 {
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
+        double value = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
+        return _Py_HashDouble(value);
+    }
     if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
         long result;
         unsigned PY_LONG_LONG value;
@@ -499,8 +563,8 @@ static PyNumberMethods CData_as_number = {
     0,                          /*nb_or*/
     0,                          /*nb_coerce*/
     (unaryfunc)cdata_int,       /*nb_int*/
-    0,                          /*nb_long*/
-    0,                          /*nb_float*/
+    (unaryfunc)cdata_long,      /*nb_long*/
+    (unaryfunc)cdata_float,     /*nb_float*/
     0,                          /*nb_oct*/
     0,                          /*nb_hex*/
 };
@@ -638,8 +702,8 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
 
         cd->c_data = cdsrc->c_data;
     }
-    else if (ct->ct_flags & CT_PRIMITIVE_ANY) {
-        /* cast to a primitive */
+    else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
+        /* cast to an integer type */
         unsigned PY_LONG_LONG value;
         int size;
 
@@ -658,6 +722,20 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         cd->c_data = ((char *)cd) +
             offsetof(CDataObject_with_alignment, alignment);
         write_raw_integer_data(cd->c_data, value, ct->ct_size);
+    }
+    else if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
+        /* cast to a float */
+        double value = PyFloat_AsDouble(ob);
+        int size;
+
+        size = offsetof(CDataObject_with_alignment, alignment) + ct->ct_size;
+        cd = (CDataObject *)PyObject_Malloc(size);
+        if (PyObject_Init((PyObject *)cd, &CData_Type) == NULL)
+            return NULL;
+
+        cd->c_data = ((char *)cd) +
+            offsetof(CDataObject_with_alignment, alignment);
+        write_raw_float_data(cd->c_data, value, ct->ct_size);
     }
     else
         goto cannot_cast;
