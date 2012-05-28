@@ -105,3 +105,5 @@ def test_reading_pointer_to_int():
     assert p[0] == 0
     p = _ffi_backend.new(BPtr, 5000)
     assert p[0] == 5000
+    py.test.raises(IndexError, "p[1]")
+    py.test.raises(IndexError, "p[-1]")

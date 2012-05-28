@@ -383,8 +383,14 @@ cdata_length(CDataObject *cd)
 }
 
 static PyObject *
-cdata_item(CDataObject *cd, Py_ssize_t i)
+cdata_subscript(CDataObject *cd, PyObject *key)
 {
+    /* use 'mp_subscript' instead of 'sq_item' because we don't want
+       negative indexes to be corrected automatically */
+    Py_ssize_t i = PyNumber_AsSsize_t(key, PyExc_IndexError);
+    if (i == -1 && PyErr_Occurred())
+        return NULL;
+
     if (cd->c_type->ct_flags & CT_POINTER) {
         if (i != 0) {
             PyErr_Format(PyExc_IndexError,
@@ -402,8 +408,14 @@ cdata_item(CDataObject *cd, Py_ssize_t i)
 }
 
 static int
-cdata_ass_item(CDataObject *cd, Py_ssize_t i, PyObject *v)
+cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
 {
+    /* use 'mp_ass_subscript' instead of 'sq_ass_item' because we don't want
+       negative indexes to be corrected automatically */
+    Py_ssize_t i = PyNumber_AsSsize_t(key, PyExc_IndexError);
+    if (i == -1 && PyErr_Occurred())
+        return -1;
+
     PyErr_Format(PyExc_TypeError,
                  "cdata of type '%s' does not support index assignment",
                  cd->c_type->ct_name);
@@ -436,15 +448,10 @@ static PyNumberMethods CData_as_number = {
     0,                          /*nb_hex*/
 };
 
-static PySequenceMethods CData_as_sequence = {
-    (lenfunc)cdata_length,                      /* sq_length */
-    0,                                          /* sq_concat */
-    0,                                          /* sq_repeat */
-    (ssizeargfunc)cdata_item,                   /* sq_item */
-    0,                                          /* sq_slice */
-    (ssizeobjargproc)cdata_ass_item,            /* sq_ass_item */
-    0,                                          /* sq_ass_slice */
-    0,                                          /* sq_contains */
+static PyMappingMethods CData_as_mapping = {
+    (lenfunc)cdata_length, /*mp_length*/
+    (binaryfunc)cdata_subscript, /*mp_subscript*/
+    (objobjargproc)cdata_ass_sub, /*mp_ass_subscript*/
 };
 
 static PyTypeObject CData_Type = {
@@ -459,8 +466,8 @@ static PyTypeObject CData_Type = {
     0,                                          /* tp_compare */
     (reprfunc)cdata_repr,                       /* tp_repr */
     &CData_as_number,                           /* tp_as_number */
-    &CData_as_sequence,                         /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_as_sequence */
+    &CData_as_mapping,                          /* tp_as_mapping */
     (hashfunc)cdata_hash,                       /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
