@@ -40,10 +40,11 @@ typedef struct {
 
 static PyTypeObject CTypeDescr_Type;
 static PyTypeObject CData_Type;
+static PyTypeObject CDataOwning_Type;
 
 #define CTypeDescr_Check(ob)  (Py_TYPE(ob) == &CTypeDescr_Type)
-#define CData_Check(ob)       (Py_TYPE(ob) == &CData_Type)
-
+#define CData_Check(ob)       (Py_TYPE(ob) == &CData_Type ||            \
+                               Py_TYPE(ob) == &CDataOwning_Type)
 
 typedef union {
     unsigned char m_char;
@@ -223,9 +224,28 @@ write_raw_integer_data(char *target, unsigned PY_LONG_LONG source, int size)
         Py_FatalError("write_raw_integer_data: bad integer size");
 }
 
+static Py_ssize_t cdata_size(CDataObject *cd)
+{
+    if (cd->c_type->ct_size >= 0)
+        return cd->c_type->ct_size;
+    else
+        return ((CDataObject_with_length *)cd)->length;
+}
+
 static PyObject *cdata_repr(CDataObject *cd)
 {
     return PyString_FromFormat("<cdata '%s'>", cd->c_type->ct_name);
+}
+
+static PyObject *cdataowning_repr(CDataObject *cd)
+{
+    Py_ssize_t size;
+    if (cd->c_type->ct_flags & CT_POINTER)
+        size = cd->c_type->ct_itemdescr->ct_size;
+    else
+        size = cdata_size(cd);
+    return PyString_FromFormat("<cdata '%s' owning %ld bytes>",
+                               cd->c_type->ct_name, size);
 }
 
 static PyObject *cdata_int(CDataObject *cd)
@@ -367,15 +387,99 @@ static PyTypeObject CData_Type = {
     cdata_richcompare,                          /* tp_richcompare */
 };
 
+static PyTypeObject CDataOwning_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_ffi_backend.CDataOwning",
+    sizeof(CDataObject),
+    0,
+    0,                                          /* tp_dealloc */
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+    (reprfunc)cdataowning_repr,                 /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    0,                                          /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    0,                                          /* tp_doc */
+    0,                                          /* tp_traverse */
+    0,                                          /* tp_clear */
+    0,                                          /* tp_richcompare */
+    0,                                          /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    0,                                          /* tp_methods */
+    0,                                          /* tp_members */
+    0,                                          /* tp_getset */
+    &CData_Type,                                /* tp_base */
+};
+
+static PyObject *b_new(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct, *ctitem;
+    CDataObject *cd;
+    PyObject *ob;
+    Py_ssize_t size;
+    if (!PyArg_ParseTuple(args, "O!O:new", &CTypeDescr_Type, &ct, &ob))
+        return NULL;
+
+    ctitem = ct->ct_itemdescr;
+    if (ctitem == NULL) {
+        PyErr_SetString(PyExc_TypeError, "expected a pointer or array ctype");
+        return NULL;
+    }
+    if (ctitem->ct_size < 0) {
+        PyErr_Format(PyExc_TypeError,
+                     "cannot instantiate ctype '%s' of unknown size",
+                     ctitem->ct_name);
+        return NULL;
+    }
+
+    size = offsetof(CDataObject_with_alignment, alignment) + ctitem->ct_size;
+    cd = (CDataObject *)PyObject_Malloc(size);
+    if (PyObject_Init((PyObject *)cd, &CDataOwning_Type) == NULL)
+        return NULL;
+
+    Py_INCREF(ct);
+    cd->c_type = ct;
+    cd->c_data = ((char *)cd) +
+        offsetof(CDataObject_with_alignment, alignment);
+
+    memset(cd->c_data, 0, ctitem->ct_size);
+    return (PyObject *)cd;
+}
+
 static PyObject *b_cast(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
-    CDataObject *cd;
+    CDataObject *cd, *cdsrc;
     PyObject *ob;
     if (!PyArg_ParseTuple(args, "O!O:cast", &CTypeDescr_Type, &ct, &ob))
         return NULL;
 
-    if (ct->ct_flags & CT_PRIMITIVE_ANY) {
+    if (ct->ct_flags & CT_POINTER) {
+        /* cast to a pointer */
+        if (!CData_Check(ob))
+            goto cannot_cast;
+
+        cdsrc = (CDataObject *)ob;
+        if (!(cdsrc->c_type->ct_flags & CT_POINTER))
+            goto cannot_cast;
+
+        cd = PyObject_New(CDataObject, &CData_Type);
+        if (cd == NULL)
+            return NULL;
+
+        cd->c_data = cdsrc->c_data;
+    }
+    else if (ct->ct_flags & CT_PRIMITIVE_ANY) {
         /* cast to a primitive */
         unsigned PY_LONG_LONG value;
         int size;
@@ -392,19 +496,24 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         if (PyObject_Init((PyObject *)cd, &CData_Type) == NULL)
             return NULL;
 
-        Py_INCREF(ct);
-        cd->c_type = ct;
         cd->c_data = ((char *)cd) +
             offsetof(CDataObject_with_alignment, alignment);
         write_raw_integer_data(cd->c_data, value, ct->ct_size);
-        return (PyObject *)cd;
     }
     else
         goto cannot_cast;
 
+    Py_INCREF(ct);
+    cd->c_type = ct;
+    return (PyObject *)cd;
+
  cannot_cast:
-    PyErr_Format(PyExc_TypeError, "cannot cast '%s' object to ctype '%s'",
-                 Py_TYPE(ob)->tp_name, ct->ct_name);
+    if (CData_Check(ob))
+        PyErr_Format(PyExc_TypeError, "cannot cast ctype '%s' to ctype '%s'",
+                     ((CDataObject *)ob)->c_type->ct_name, ct->ct_name);
+    else
+        PyErr_Format(PyExc_TypeError, "cannot cast '%s' object to ctype '%s'",
+                     Py_TYPE(ob)->tp_name, ct->ct_name);
     return NULL;
 }
 
@@ -564,7 +673,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     const struct descr_s *ptypes;
     int name_size;
 
-    if (!PyArg_ParseTuple(args, "Os", &ffi, &name))
+    if (!PyArg_ParseTuple(args, "Os:new_primitive_type", &ffi, &name))
         return NULL;
 
     for (ptypes=types; ; ptypes++) {
@@ -603,7 +712,8 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
     PyObject *ffi;
     CTypeDescrObject *td, *ctitem;
 
-    if (!PyArg_ParseTuple(args, "OO!", &ffi, &CTypeDescr_Type, &ctitem))
+    if (!PyArg_ParseTuple(args, "OO!:new_pointer_type",
+                          &ffi, &CTypeDescr_Type, &ctitem))
         return NULL;
 
     td = ctypedescr_new_on_top(ctitem, " *", 2);
@@ -634,6 +744,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"load_library", b_load_library, METH_VARARGS},
     {"new_primitive_type", b_new_primitive_type, METH_VARARGS},
     {"new_pointer_type", b_new_pointer_type, METH_VARARGS},
+    {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"sizeof_type", b_sizeof_type, METH_O},
     {NULL,     NULL}	/* Sentinel */
@@ -658,5 +769,7 @@ void init_ffi_backend(void)
     if (PyType_Ready(&CTypeDescr_Type) < 0)
         return;
     if (PyType_Ready(&CData_Type) < 0)
+        return;
+    if (PyType_Ready(&CDataOwning_Type) < 0)
         return;
 }

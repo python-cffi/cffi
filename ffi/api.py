@@ -173,7 +173,7 @@ class FFI(object):
             BType = self._get_btype(typenode, force_pointer=True)
             self._new_types[cdecl] = BType
         #
-        return BType(init)
+        return self._backend.new(BType, init)
 
     def cast(self, cdecl, source):
         """Similar to a C cast: returns an instance of the named C

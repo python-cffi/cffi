@@ -766,6 +766,9 @@ class CTypesBackend(object):
         assert issubclass(BType, CTypesData)
         return BType._offsetof(fieldname)
 
+    def new(self, BType, source):
+        return BType(source)
+
     def cast(self, BType, source):
         return BType._cast_from(source)
 

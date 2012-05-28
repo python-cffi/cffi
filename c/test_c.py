@@ -2,6 +2,16 @@ import py
 import _ffi_backend
 
 
+def size_of_int():
+    BInt = _ffi_backend.new_primitive_type(None, "int")
+    return _ffi_backend.sizeof_type(BInt)
+
+def size_of_ptr():
+    BInt = _ffi_backend.new_primitive_type(None, "int")
+    BPtr = _ffi_backend.new_pointer_type(None, BInt)
+    return _ffi_backend.sizeof_type(BPtr)
+
+
 def test_load_library():
     x = _ffi_backend.load_library("libc.so.6")     # Linux only
     assert repr(x).startswith("<_ffi_backend.Library object at 0x")
@@ -60,7 +70,7 @@ def test_integer_types():
         assert int(_ffi_backend.cast(p, -1)) == max
         assert int(_ffi_backend.cast(p, max + 1)) == 0
 
-def test_pointer():
+def test_pointer_type():
     p = _ffi_backend.new_primitive_type(None, "int")
     assert repr(p) == "<ctype 'int'>"
     p = _ffi_backend.new_pointer_type(None, p)
@@ -69,3 +79,20 @@ def test_pointer():
     assert repr(p) == "<ctype 'int * *'>"
     p = _ffi_backend.new_pointer_type(None, p)
     assert repr(p) == "<ctype 'int * * *'>"
+
+def test_pointer_to_int():
+    BInt = _ffi_backend.new_primitive_type(None, "int")
+    BPtr = _ffi_backend.new_pointer_type(None, BInt)
+    p = _ffi_backend.new(BPtr, None)
+    assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
+    p = _ffi_backend.new(BPtr, 5000)
+    assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
+    q = _ffi_backend.cast(BPtr, p)
+    assert repr(q) == "<cdata 'int *'>"
+
+def test_pointer_to_pointer():
+    BInt = _ffi_backend.new_primitive_type(None, "int")
+    BPtr = _ffi_backend.new_pointer_type(None, BInt)
+    BPtrPtr = _ffi_backend.new_pointer_type(None, BPtr)
+    p = _ffi_backend.new(BPtrPtr, None)
+    assert repr(p) == "<cdata 'int * *' owning %d bytes>" % size_of_ptr()
