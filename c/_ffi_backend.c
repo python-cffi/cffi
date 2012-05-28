@@ -253,7 +253,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
 }
 
 static int
-initialize(char *data, CTypeDescrObject *ct, PyObject *init)
+convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
     PyObject *s;
 
@@ -292,15 +292,15 @@ initialize(char *data, CTypeDescrObject *ct, PyObject *init)
             goto overflow;
         return 0;
     }
-    fprintf(stderr, "initialize: '%s'\n", ct->ct_name);
-    Py_FatalError("initialize");
+    fprintf(stderr, "convert_from_object: '%s'\n", ct->ct_name);
+    Py_FatalError("convert_from_object");
     return -1;
 
  overflow:
     s = PyObject_Str(init);
     if (s == NULL)
         return -1;
-    PyErr_Format(PyExc_OverflowError, "initializer %s does not fit '%s'",
+    PyErr_Format(PyExc_OverflowError, "integer %s does not fit '%s'",
                  PyString_AS_STRING(s), ct->ct_name);
     Py_DECREF(s);
     return -1;
@@ -448,11 +448,10 @@ cdata_subscript(CDataObject *cd, PyObject *key)
         }
         return convert_to_object(cd->c_data, cd->c_type->ct_itemdescr);
     }
-    else {
-        PyErr_Format(PyExc_TypeError, "cdata of type '%s' cannot be indexed",
-                     cd->c_type->ct_name);
-        return NULL;
-    }
+
+    PyErr_Format(PyExc_TypeError, "cdata of type '%s' cannot be indexed",
+                 cd->c_type->ct_name);
+    return NULL;
 }
 
 static int
@@ -463,6 +462,16 @@ cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
     Py_ssize_t i = PyNumber_AsSsize_t(key, PyExc_IndexError);
     if (i == -1 && PyErr_Occurred())
         return -1;
+
+    if (cd->c_type->ct_flags & CT_POINTER) {
+        if (i != 0) {
+            PyErr_Format(PyExc_IndexError,
+                         "cdata '%s' can only be indexed by 0",
+                         cd->c_type->ct_name);
+            return -1;
+        }
+        return convert_from_object(cd->c_data, cd->c_type->ct_itemdescr, v);
+    }
 
     PyErr_Format(PyExc_TypeError,
                  "cdata of type '%s' does not support index assignment",
@@ -596,9 +605,9 @@ static PyObject *b_new(PyObject *self, PyObject *args)
 
     memset(cd->c_data, 0, ctitem->ct_size);
     if (init != Py_None) {
-        if (initialize(cd->c_data,
-                       (ct->ct_flags & CT_POINTER) ? ctitem : ct,
-                       init) < 0) {
+        if (convert_from_object(cd->c_data,
+                                (ct->ct_flags & CT_POINTER) ? ctitem : ct,
+                                init) < 0) {
             Py_DECREF(cd);
             return NULL;
         }
