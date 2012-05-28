@@ -157,8 +157,10 @@ read_raw_signed_data(char *target, int size)
         return *((long*)target);
     else if (size == sizeof(PY_LONG_LONG))
         return *((PY_LONG_LONG*)target);
-    else
+    else {
         Py_FatalError("read_raw_signed_data: bad integer size");
+        return 0;
+    }
 }
 
 static unsigned PY_LONG_LONG
@@ -174,8 +176,10 @@ read_raw_unsigned_data(char *target, int size)
         return *((unsigned long*)target);
     else if (size == sizeof(unsigned PY_LONG_LONG))
         return *((unsigned PY_LONG_LONG*)target);
-    else
+    else {
         Py_FatalError("read_raw_unsigned_data: bad integer size");
+        return 0;
+    }
 }
 
 static void
@@ -228,6 +232,42 @@ static PyObject *cdata_int(CDataObject *cd)
     return NULL;
 }
 
+static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
+{
+    CDataObject *obv, *obw;
+    int equal;
+
+    if (op != Py_EQ && op != Py_NE)
+        goto Unimplemented;
+
+    assert(CData_Check(v));
+    if (!CData_Check(w))
+        goto Unimplemented;
+
+    obv = (CDataObject *)v;
+    obw = (CDataObject *)w;
+    if (obv->c_type != obw->c_type) {
+        equal = 0;
+    }
+    else if (obv == obw) {
+        equal = 1;
+    }
+    else if (obv->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
+        Py_FatalError("XXX");
+    }
+    else if (obv->c_type->ct_flags & CT_PRIMITIVE_ANY) {
+        equal = (memcmp(obv->c_data, obw->c_data, obv->c_type->ct_size) == 0);
+    }
+    else
+        equal = 0;
+
+    return (equal ^ (op == Py_NE)) ? Py_True : Py_False;
+
+ Unimplemented:
+    Py_INCREF(Py_NotImplemented);
+    return Py_NotImplemented;
+}
+
 static PyNumberMethods CData_as_number = {
     0,                          /*nb_add*/
     0,                          /*nb_subtract*/
@@ -275,6 +315,10 @@ static PyTypeObject CData_Type = {
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    0,                                          /* tp_doc */
+    0,                                          /* tp_traverse */
+    0,                                          /* tp_clear */
+    cdata_richcompare,                          /* tp_richcompare */
 };
 
 static PyObject *b_cast(PyObject *self, PyObject *args)
@@ -405,7 +449,7 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
 
 static PyObject *b_nonstandard_integer_types(PyObject *self, PyObject *noarg)
 {
-    static const int UNSIGNED = 0x1000;
+#define UNSIGNED   0x1000
     static const struct descr_s { const char *name; int size; } types[] = {
         { "int8_t",        1 },
         { "uint8_t",       1 | UNSIGNED },
@@ -424,6 +468,7 @@ static PyObject *b_nonstandard_integer_types(PyObject *self, PyObject *noarg)
         { "wchar_t",       sizeof(wchar_t) | UNSIGNED },
         { NULL }
     };
+#undef UNSIGNED
     const struct descr_s *ptypes;
     PyObject *d;
 
@@ -544,5 +589,7 @@ void init_ffi_backend(void)
     if (PyType_Ready(&dl_type) < 0)
         return;
     if (PyType_Ready(&CTypeDescr_Type) < 0)
+        return;
+    if (PyType_Ready(&CData_Type) < 0)
         return;
 }

@@ -22,10 +22,15 @@ def test_cast_to_signed_char():
     p = _ffi_backend.new_primitive_type(None, "signed char")
     x = _ffi_backend.cast(p, -65 + 17*256)
     assert repr(x) == "<cdata 'signed char'>"
+    assert repr(type(x)) == "<type '_ffi_backend.CData'>"
     assert int(x) == -65
     x = _ffi_backend.cast(p, -66 + (1<<199)*256)
     assert repr(x) == "<cdata 'signed char'>"
     assert int(x) == -66
+    assert (x == _ffi_backend.cast(p, -66)) is True
+    assert (x == _ffi_backend.cast(p, 66)) is False
+    assert (x != _ffi_backend.cast(p, -66)) is False
+    assert (x != _ffi_backend.cast(p, 66)) is True
 
 def test_sizeof_type():
     py.test.raises(TypeError, _ffi_backend.sizeof_type, 42.5)
