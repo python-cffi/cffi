@@ -59,3 +59,13 @@ def test_integer_types():
         assert int(_ffi_backend.cast(p, max)) == max
         assert int(_ffi_backend.cast(p, -1)) == max
         assert int(_ffi_backend.cast(p, max + 1)) == 0
+
+def test_pointer():
+    p = _ffi_backend.new_primitive_type(None, "int")
+    assert repr(p) == "<ctype 'int'>"
+    p = _ffi_backend.new_pointer_type(None, p)
+    assert repr(p) == "<ctype 'int *'>"
+    p = _ffi_backend.new_pointer_type(None, p)
+    assert repr(p) == "<ctype 'int * *'>"
+    p = _ffi_backend.new_pointer_type(None, p)
+    assert repr(p) == "<ctype 'int * * *'>"

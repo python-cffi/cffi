@@ -69,19 +69,43 @@ typedef struct {
 /************************************************************/
 
 static CTypeDescrObject *
-ctypedescr_new(const char *name)
+ctypedescr_new(int name_size)
 {
-    int name_size = strlen(name) + 1;
     CTypeDescrObject *ct = PyObject_GC_NewVar(CTypeDescrObject,
                                               &CTypeDescr_Type,
                                               name_size);
     if (ct == NULL)
         return NULL;
 
-    memcpy(ct->ct_name, name, sizeof(char) * name_size);
     ct->ct_itemdescr = NULL;
     ct->ct_fields = NULL;
     PyObject_GC_Track(ct);
+    return ct;
+}
+
+static CTypeDescrObject *
+ctypedescr_new_on_top(CTypeDescrObject *ct_base, const char *extra_text,
+                      int extra_position)
+{
+    int base_name_len = strlen(ct_base->ct_name);
+    int extra_name_len = strlen(extra_text);
+    CTypeDescrObject *ct = ctypedescr_new(base_name_len + extra_name_len + 1);
+    char *p;
+    if (ct == NULL)
+        return NULL;
+
+    Py_INCREF(ct_base);
+    ct->ct_itemdescr = ct_base;
+    ct->ct_name_position = ct_base->ct_name_position + extra_position;
+
+    p = ct->ct_name;
+    memcpy(p, ct_base->ct_name, ct_base->ct_name_position);
+    p += ct_base->ct_name_position;
+    memcpy(p, extra_text, extra_name_len);
+    p += extra_name_len;
+    memcpy(p, ct_base->ct_name + ct_base->ct_name_position,
+           base_name_len - ct_base->ct_name_position + 1);
+
     return ct;
 }
 
@@ -538,6 +562,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
         { NULL }
     };
     const struct descr_s *ptypes;
+    int name_size;
 
     if (!PyArg_ParseTuple(args, "Os", &ffi, &name))
         return NULL;
@@ -551,10 +576,12 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
             break;
     }
 
-    td = ctypedescr_new(ptypes->name);
+    name_size = strlen(ptypes->name) + 1;
+    td = ctypedescr_new(name_size);
     if (td == NULL)
         return NULL;
 
+    memcpy(td->ct_name, name, name_size);
     td->ct_itemdescr = NULL;
     td->ct_fields = NULL;
     td->ct_size = ptypes->size;
@@ -568,6 +595,23 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
             td->ct_flags |= CT_PRIMITIVE_FITS_LONG;
     }
     td->ct_name_position = strlen(td->ct_name);
+    return (PyObject *)td;
+}
+
+static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
+{
+    PyObject *ffi;
+    CTypeDescrObject *td, *ctitem;
+
+    if (!PyArg_ParseTuple(args, "OO!", &ffi, &CTypeDescr_Type, &ctitem))
+        return NULL;
+
+    td = ctypedescr_new_on_top(ctitem, " *", 2);
+    if (td == NULL)
+        return NULL;
+
+    td->ct_size = sizeof(void *);
+    td->ct_flags = CT_POINTER;
     return (PyObject *)td;
 }
 
@@ -589,6 +633,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"nonstandard_integer_types", b_nonstandard_integer_types, METH_NOARGS},
     {"load_library", b_load_library, METH_VARARGS},
     {"new_primitive_type", b_new_primitive_type, METH_VARARGS},
+    {"new_pointer_type", b_new_pointer_type, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"sizeof_type", b_sizeof_type, METH_O},
     {NULL,     NULL}	/* Sentinel */
