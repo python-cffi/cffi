@@ -338,7 +338,7 @@ static PyObject *cdataowning_repr(CDataObject *cd)
         size = cd->c_type->ct_itemdescr->ct_size;
     else
         size = cdata_size(cd);
-    return PyString_FromFormat("<cdata '%s' owning %ld bytes>",
+    return PyString_FromFormat("<cdata '%s' owning %zd bytes>",
                                cd->c_type->ct_name, size);
 }
 
