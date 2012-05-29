@@ -200,3 +200,21 @@ def test_array_type():
                    _ffi_backend.new_array_type, None, p, sys.maxint+1)
     py.test.raises(OverflowError,
                    _ffi_backend.new_array_type, None, p, sys.maxint // 3)
+
+def test_array_instance():
+    LENGTH = 14242
+    p = _ffi_backend.new_primitive_type(None, "int")
+    p1 = _ffi_backend.new_array_type(None, p, LENGTH)
+    a = _ffi_backend.new(p1, None)
+    assert repr(a) == "<cdata 'int[%d]' owning %d bytes>" % (
+        LENGTH, LENGTH * size_of_int())
+    for i in range(LENGTH):
+        assert a[i] == 0
+    py.test.raises(IndexError, "a[LENGTH]")
+    py.test.raises(IndexError, "a[-1]")
+    for i in range(LENGTH):
+        a[i] = i * i + 1
+    for i in range(LENGTH):
+        assert a[i] == i * i + 1
+    e = py.test.raises(IndexError, "a[LENGTH+100] = 500")
+    assert ('(expected %d < %d)' % (LENGTH+100, LENGTH)) in str(e.value)

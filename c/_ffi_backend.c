@@ -26,6 +26,7 @@ typedef struct _ctypedescr {
     PyObject *ct_fields;               /* dict of the fields */
 
     Py_ssize_t ct_size;     /* size of instances, or -1 if unknown */
+    Py_ssize_t ct_length;   /* length of arrays, or -1 if unknown */
     int ct_flags;           /* CT_xxx flags */
 
     int ct_name_position;   /* index in ct_name of where to put a var name */
@@ -350,12 +351,13 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     return -1;
 }
 
-static Py_ssize_t cdata_size(CDataObject *cd)
+static Py_ssize_t
+get_array_length(CDataObject *cd)
 {
-    if (cd->c_type->ct_size >= 0)
-        return cd->c_type->ct_size;
-    else
+    if (cd->c_type->ct_length < 0)
         return ((CDataObject_with_length *)cd)->length;
+    else
+        return cd->c_type->ct_length;
 }
 
 static void cdata_dealloc(CDataObject *cd)
@@ -389,8 +391,11 @@ static PyObject *cdataowning_repr(CDataObject *cd)
     Py_ssize_t size;
     if (cd->c_type->ct_flags & CT_POINTER)
         size = cd->c_type->ct_itemdescr->ct_size;
+    else if (cd->c_type->ct_flags & CT_ARRAY)
+        size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
     else
-        size = cdata_size(cd);
+        size = cd->c_type->ct_size;
+
     return PyString_FromFormat("<cdata '%s' owning %zd bytes>",
                                cd->c_type->ct_name, size);
 }
@@ -481,6 +486,7 @@ cdata_length(CDataObject *cd)
 static PyObject *
 cdata_subscript(CDataObject *cd, PyObject *key)
 {
+    CTypeDescrObject *ctitem = cd->c_type->ct_itemdescr;
     /* use 'mp_subscript' instead of 'sq_item' because we don't want
        negative indexes to be corrected automatically */
     Py_ssize_t i = PyNumber_AsSsize_t(key, PyExc_IndexError);
@@ -494,7 +500,22 @@ cdata_subscript(CDataObject *cd, PyObject *key)
                          cd->c_type->ct_name);
             return NULL;
         }
-        return convert_to_object(cd->c_data, cd->c_type->ct_itemdescr);
+        return convert_to_object(cd->c_data, ctitem);
+    }
+    if (cd->c_type->ct_flags & CT_ARRAY) {
+        if (i < 0) {
+            PyErr_SetString(PyExc_IndexError,
+                            "negative index not supported");
+            return NULL;
+        }
+        if (i >= get_array_length(cd)) {
+            PyErr_Format(PyExc_IndexError,
+                         "index too large for cdata '%s' (expected %zd < %zd)",
+                         cd->c_type->ct_name,
+                         i, get_array_length(cd));
+            return NULL;
+        }
+        return convert_to_object(cd->c_data + i * ctitem->ct_size, ctitem);
     }
 
     PyErr_Format(PyExc_TypeError, "cdata of type '%s' cannot be indexed",
@@ -505,6 +526,7 @@ cdata_subscript(CDataObject *cd, PyObject *key)
 static int
 cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
 {
+    CTypeDescrObject *ctitem = cd->c_type->ct_itemdescr;
     /* use 'mp_ass_subscript' instead of 'sq_ass_item' because we don't want
        negative indexes to be corrected automatically */
     Py_ssize_t i = PyNumber_AsSsize_t(key, PyExc_IndexError);
@@ -518,7 +540,23 @@ cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
                          cd->c_type->ct_name);
             return -1;
         }
-        return convert_from_object(cd->c_data, cd->c_type->ct_itemdescr, v);
+        return convert_from_object(cd->c_data, ctitem, v);
+    }
+    if (cd->c_type->ct_flags & CT_ARRAY) {
+        if (i < 0) {
+            PyErr_SetString(PyExc_IndexError,
+                            "negative index not supported");
+            return -1;
+        }
+        if (i >= get_array_length(cd)) {
+            PyErr_Format(PyExc_IndexError,
+                         "index too large for cdata '%s' (expected %zd < %zd)",
+                         cd->c_type->ct_name,
+                         i, get_array_length(cd));
+            return -1;
+        }
+        return convert_from_object(cd->c_data + i * ctitem->ct_size,
+                                   ctitem, v);
     }
 
     PyErr_Format(PyExc_TypeError,
@@ -625,37 +663,48 @@ static PyObject *b_new(PyObject *self, PyObject *args)
     CTypeDescrObject *ct, *ctitem;
     CDataObject *cd;
     PyObject *init;
-    Py_ssize_t size;
+    Py_ssize_t dataoffset, datasize, explicitlength;
     if (!PyArg_ParseTuple(args, "O!O:new", &CTypeDescr_Type, &ct, &init))
         return NULL;
 
-    ctitem = ct->ct_itemdescr;
-    if (ctitem == NULL) {
+    explicitlength = -1;
+    if (ct->ct_flags & CT_POINTER) {
+        dataoffset = offsetof(CDataObject_with_alignment, alignment);
+        ctitem = ct->ct_itemdescr;
+        datasize = ctitem->ct_size;
+        if (datasize < 0) {
+            PyErr_Format(PyExc_TypeError,
+                         "cannot instantiate ctype '%s' of unknown size",
+                         ctitem->ct_name);
+            return NULL;
+        }
+    }
+    else if (ct->ct_flags & CT_ARRAY) {
+        dataoffset = offsetof(CDataObject_with_alignment, alignment);
+        datasize = ct->ct_size;
+        if (datasize < 0) {
+            Py_FatalError("XXX");
+        }
+    }
+    else {
         PyErr_SetString(PyExc_TypeError, "expected a pointer or array ctype");
         return NULL;
     }
-    if (ctitem->ct_size < 0) {
-        PyErr_Format(PyExc_TypeError,
-                     "cannot instantiate ctype '%s' of unknown size",
-                     ctitem->ct_name);
-        return NULL;
-    }
 
-    size = offsetof(CDataObject_with_alignment, alignment) + ctitem->ct_size;
-    cd = (CDataObject *)PyObject_Malloc(size);
+    cd = (CDataObject *)PyObject_Malloc(dataoffset + datasize);
     if (PyObject_Init((PyObject *)cd, &CDataOwning_Type) == NULL)
         return NULL;
 
     Py_INCREF(ct);
     cd->c_type = ct;
-    cd->c_data = ((char *)cd) +
-        offsetof(CDataObject_with_alignment, alignment);
+    cd->c_data = ((char *)cd) + dataoffset;
+    if (explicitlength >= 0)
+        ((CDataObject_with_length*)cd)->length = explicitlength;
 
-    memset(cd->c_data, 0, ctitem->ct_size);
+    memset(cd->c_data, 0, datasize);
     if (init != Py_None) {
         if (convert_from_object(cd->c_data,
-                                (ct->ct_flags & CT_POINTER) ? ctitem : ct,
-                                init) < 0) {
+              (ct->ct_flags & CT_POINTER) ? ct->ct_itemdescr : ct, init) < 0) {
             Py_DECREF(cd);
             return NULL;
         }
@@ -665,11 +714,11 @@ static PyObject *b_new(PyObject *self, PyObject *args)
 
 static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
 {
-    int size = offsetof(CDataObject_with_alignment, alignment) + ct->ct_size;
-    CDataObject *cd = (CDataObject *)PyObject_Malloc(size);
+    int dataoffset = offsetof(CDataObject_with_alignment, alignment);
+    CDataObject *cd = (CDataObject *)PyObject_Malloc(dataoffset + ct->ct_size);
     if (PyObject_Init((PyObject *)cd, &CData_Type) == NULL)
         return NULL;
-    cd->c_data = ((char*)cd) + offsetof(CDataObject_with_alignment, alignment);
+    cd->c_data = ((char*)cd) + dataoffset;
     return cd;
 }
 
@@ -981,6 +1030,7 @@ static PyObject *b_new_array_type(PyObject *self, PyObject *args)
 
     if (lengthobj == Py_None) {
         sprintf(extra_text, "[]");
+        length = -1;
         arraysize = -1;
     }
     else {
@@ -1003,6 +1053,7 @@ static PyObject *b_new_array_type(PyObject *self, PyObject *args)
         return NULL;
 
     td->ct_size = arraysize;
+    td->ct_length = length;
     td->ct_flags = CT_ARRAY;
     return (PyObject *)td;
 }
