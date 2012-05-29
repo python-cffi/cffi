@@ -288,7 +288,31 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     PyObject *s;
 
     if (ct->ct_flags & CT_ARRAY) {
-        /* ... */
+        PyObject **items;
+        Py_ssize_t i, n;
+        CTypeDescrObject *ctitem = ct->ct_itemdescr;
+
+        if (!(PyList_Check(init) || PyTuple_Check(init))) {
+            PyErr_Format(PyExc_TypeError,
+                         "initializer for '%s' must be a list or tuple, "
+                         "not %.200s",
+                         ct->ct_name, Py_TYPE(init)->tp_name);
+            return -1;
+        }
+        n = PySequence_Fast_GET_SIZE(init);
+        if (ct->ct_length >= 0 && n > ct->ct_length) {
+            PyErr_Format(PyExc_IndexError,
+                         "too many initializers for '%s' (got %zd)",
+                         ct->ct_name, n);
+            return -1;
+        }
+
+        items = PySequence_Fast_ITEMS(init);
+        for (i=0; i<n; i++) {
+            if (convert_from_object(data, ctitem, items[i]) < 0)
+                return -1;
+            data += ctitem->ct_size;
+        }
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
@@ -826,7 +850,8 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         PyErr_Format(PyExc_TypeError, "cannot cast ctype '%s' to ctype '%s'",
                      ((CDataObject *)ob)->c_type->ct_name, ct->ct_name);
     else
-        PyErr_Format(PyExc_TypeError, "cannot cast '%s' object to ctype '%s'",
+        PyErr_Format(PyExc_TypeError,
+                     "cannot cast %.200s object to ctype '%s'",
                      Py_TYPE(ob)->tp_name, ct->ct_name);
     return NULL;
 }

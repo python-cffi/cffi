@@ -243,3 +243,16 @@ def test_array_of_unknown_length_instance_with_initializer():
     assert len(a) == 42
     a = _ffi_backend.new(p1, tuple(range(142)))
     assert len(a) == 142
+
+def test_array_initializer():
+    p = _ffi_backend.new_primitive_type(None, "int")
+    p1 = _ffi_backend.new_array_type(None, p, None)
+    a = _ffi_backend.new(p1, range(100, 142))
+    for i in range(42):
+        assert a[i] == 100 + i
+    #
+    p2 = _ffi_backend.new_array_type(None, p, 43)
+    a = _ffi_backend.new(p2, tuple(range(100, 142)))
+    for i in range(42):
+        assert a[i] == 100 + i
+    assert a[42] == 0      # extra uninitialized item
