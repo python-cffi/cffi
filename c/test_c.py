@@ -208,6 +208,7 @@ def test_array_instance():
     a = _ffi_backend.new(p1, None)
     assert repr(a) == "<cdata 'int[%d]' owning %d bytes>" % (
         LENGTH, LENGTH * size_of_int())
+    assert len(a) == LENGTH
     for i in range(LENGTH):
         assert a[i] == 0
     py.test.raises(IndexError, "a[LENGTH]")
@@ -225,6 +226,7 @@ def test_array_of_unknown_length_instance():
     py.test.raises(TypeError, _ffi_backend.new, p1, None)
     py.test.raises(ValueError, _ffi_backend.new, p1, -42)
     a = _ffi_backend.new(p1, 42)
+    assert len(a) == 42
     for i in range(42):
         a[i] -= i
     for i in range(42):
@@ -233,3 +235,11 @@ def test_array_of_unknown_length_instance():
     py.test.raises(IndexError, "a[-1]")
     py.test.raises(IndexError, "a[42] = 123")
     py.test.raises(IndexError, "a[-1] = 456")
+
+def test_array_of_unknown_length_instance_with_initializer():
+    p = _ffi_backend.new_primitive_type(None, "int")
+    p1 = _ffi_backend.new_array_type(None, p, None)
+    a = _ffi_backend.new(p1, range(42))
+    assert len(a) == 42
+    a = _ffi_backend.new(p1, tuple(range(142)))
+    assert len(a) == 142

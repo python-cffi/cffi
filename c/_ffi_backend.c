@@ -287,6 +287,10 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
     PyObject *s;
 
+    if (ct->ct_flags & CT_ARRAY) {
+        /* ... */
+        return 0;
+    }
     if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
         PY_LONG_LONG value;
         if (PyInt_Check(init))
@@ -478,6 +482,9 @@ static long cdata_hash(CDataObject *cd)
 static Py_ssize_t
 cdata_length(CDataObject *cd)
 {
+    if (cd->c_type->ct_flags & CT_ARRAY) {
+        return get_array_length(cd);
+    }
     PyErr_Format(PyExc_TypeError, "cdata of type '%s' has no len()",
                  cd->c_type->ct_name);
     return -1;
@@ -683,13 +690,19 @@ static PyObject *b_new(PyObject *self, PyObject *args)
         dataoffset = offsetof(CDataObject_with_alignment, alignment);
         datasize = ct->ct_size;
         if (datasize < 0) {
-            explicitlength = PyNumber_AsSsize_t(init, PyExc_OverflowError);
-            if (explicitlength < 0) {
-                if (!PyErr_Occurred())
-                    PyErr_SetString(PyExc_ValueError, "negative array length");
-                return NULL;
+            if (PyList_Check(init) || PyTuple_Check(init)) {
+                explicitlength = PySequence_Fast_GET_SIZE(init);
             }
-            init = Py_None;
+            else {
+                explicitlength = PyNumber_AsSsize_t(init, PyExc_OverflowError);
+                if (explicitlength < 0) {
+                    if (!PyErr_Occurred())
+                        PyErr_SetString(PyExc_ValueError,
+                                        "negative array length");
+                    return NULL;
+                }
+                init = Py_None;
+            }
             ctitem = ct->ct_itemdescr;
             dataoffset = offsetof(CDataObject_with_length, alignment);
             datasize = explicitlength * ctitem->ct_size;
