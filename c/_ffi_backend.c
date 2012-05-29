@@ -588,7 +588,7 @@ static PyTypeObject CData_Type = {
 
 static PyTypeObject CDataOwning_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_ffi_backend.CDataOwning",
+    "_ffi_backend.CDataOwn",
     sizeof(CDataObject),
     0,
     0,                                          /* tp_dealloc */
