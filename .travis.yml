@@ -6,3 +6,6 @@ python:
 install:
     - pip install .
 script: py.test
+notifications:
+    irc: "irc.freenode.org#pypy"
+
