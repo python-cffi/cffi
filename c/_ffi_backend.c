@@ -464,28 +464,7 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
 
 static long cdata_hash(CDataObject *cd)
 {
-    if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
-        double value = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
-        return _Py_HashDouble(value) ^ 0xF00BA/*R*/;
-    }
-    if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
-        long result;
-        unsigned PY_LONG_LONG value;
-        value = read_raw_unsigned_data(cd->c_data, cd->c_type->ct_size);
-
-        result = (long) value;
-#if SIZE_OF_LONG_LONG > SIZE_OF_LONG
-        value >>= (8 * SIZE_OF_LONG);
-        result ^= value * 1000003;
-#endif
-        result = _Py_HashPointer(cd->c_type) + result * 1000003;
-        if (result == -1)
-            result = -2;
-        return result;
-    }
-    else {
-        return _Py_HashPointer(cd);
-    }
+    return _Py_HashPointer(cd->c_type) ^ _Py_HashPointer(cd->c_data);
 }
 
 static Py_ssize_t
