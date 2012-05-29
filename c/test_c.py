@@ -218,3 +218,18 @@ def test_array_instance():
         assert a[i] == i * i + 1
     e = py.test.raises(IndexError, "a[LENGTH+100] = 500")
     assert ('(expected %d < %d)' % (LENGTH+100, LENGTH)) in str(e.value)
+
+def test_array_of_unknown_length_instance():
+    p = _ffi_backend.new_primitive_type(None, "int")
+    p1 = _ffi_backend.new_array_type(None, p, None)
+    py.test.raises(TypeError, _ffi_backend.new, p1, None)
+    py.test.raises(ValueError, _ffi_backend.new, p1, -42)
+    a = _ffi_backend.new(p1, 42)
+    for i in range(42):
+        a[i] -= i
+    for i in range(42):
+        assert a[i] == -i
+    py.test.raises(IndexError, "a[42]")
+    py.test.raises(IndexError, "a[-1]")
+    py.test.raises(IndexError, "a[42] = 123")
+    py.test.raises(IndexError, "a[-1] = 456")

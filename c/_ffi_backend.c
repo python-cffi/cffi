@@ -683,7 +683,22 @@ static PyObject *b_new(PyObject *self, PyObject *args)
         dataoffset = offsetof(CDataObject_with_alignment, alignment);
         datasize = ct->ct_size;
         if (datasize < 0) {
-            Py_FatalError("XXX");
+            explicitlength = PyNumber_AsSsize_t(init, PyExc_OverflowError);
+            if (explicitlength < 0) {
+                if (!PyErr_Occurred())
+                    PyErr_SetString(PyExc_ValueError, "negative array length");
+                return NULL;
+            }
+            init = Py_None;
+            ctitem = ct->ct_itemdescr;
+            dataoffset = offsetof(CDataObject_with_length, alignment);
+            datasize = explicitlength * ctitem->ct_size;
+            if (explicitlength > 0 &&
+                    (datasize / explicitlength) != ctitem->ct_size) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "array size would overflow a Py_ssize_t");
+                return NULL;
+            }
         }
     }
     else {
