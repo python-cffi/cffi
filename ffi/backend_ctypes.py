@@ -115,7 +115,7 @@ class CTypesGenericPtr(CTypesData):
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash(self._address)
+        return hash(type(self)) ^ hash(self._address)
 
     @classmethod
     def _to_ctypes(cls, value):
@@ -261,10 +261,6 @@ class CTypesBackend(object):
                     return ord(self._value)
                 def __str__(self):
                     return self._value
-                __nonzero__ = __int__
-            else:
-                def __nonzero__(self):
-                    return bool(self._value)
 
             if kind == 'float':
                 @classmethod
@@ -286,16 +282,6 @@ class CTypesBackend(object):
                     return self._value
 
             _cast_to_integer = __int__
-
-            def __eq__(self, other):
-                return (type(self) is type(other) and
-                        self._value == other._value)
-
-            def __ne__(self, other):
-                return not self.__eq__(other)
-
-            def __hash__(self):
-                return hash((CTypesPrimitive, self._value))
 
             if kind == 'int':
                 @staticmethod

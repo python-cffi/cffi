@@ -52,16 +52,14 @@ class BackendTests:
             max = (1 << (8*size-1)) - 1
         p = ffi.cast(c_decl, min)
         assert p != min       # no __eq__(int)
-        assert bool(p) is bool(min)
+        assert bool(p) is True
         assert int(p) == min
         p = ffi.cast(c_decl, max)
         assert int(p) == max
         q = ffi.cast(c_decl, min - 1)
         assert type(q) is type(p) and int(q) == max
-        assert q == p         # __eq__(same-type)
-        assert hash(q) == hash(p)
-        if 'long long' not in c_decl:
-            assert q != ffi.cast("long long", min)  # __eq__(other-type)
+        assert q != p
+        assert hash(q) != hash(p)   # unlikely
         py.test.raises(OverflowError, ffi.new, c_decl, min - 1)
         py.test.raises(OverflowError, ffi.new, c_decl, max + 1)
 
@@ -535,7 +533,6 @@ class BackendTests:
         l1 = ffi.cast("intptr_t", a)
         p = ffi.cast("short*", a)
         l2 = ffi.cast("intptr_t", p)
-        assert l1 == l2
         assert int(l1) == int(l2) != 0
         q = ffi.cast("short*", l1)
         assert q == ffi.cast("short*", int(l1))
@@ -589,9 +586,7 @@ class BackendTests:
         assert int(ffi.cast("enum bar", "B")) == -2
         assert int(ffi.cast("enum bar", "CC")) == -1
         assert int(ffi.cast("enum bar", "D")) == 0
-        assert ffi.cast("enum bar", "B") == ffi.cast("enum bar", "B")
-        assert ffi.cast("enum bar", "B") != ffi.cast("enum bar", "CC")
-        assert ffi.cast("enum bar", "A") == ffi.cast("enum bar", "D")
+        assert ffi.cast("enum bar", "B") != ffi.cast("enum bar", "B")
         assert ffi.cast("enum foo", "A") != ffi.cast("enum bar", "A")
         assert ffi.cast("enum bar", "A") != ffi.cast("int", 0)
         assert repr(ffi.cast("enum bar", "CC")) == "<cdata 'enum bar'>"
