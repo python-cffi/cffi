@@ -962,6 +962,51 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
     return (PyObject *)td;
 }
 
+static PyObject *b_new_array_type(PyObject *self, PyObject *args)
+{
+    PyObject *ffi, *lengthobj;
+    CTypeDescrObject *td, *ctitem;
+    char extra_text[32];
+    Py_ssize_t length, arraysize;
+
+    if (!PyArg_ParseTuple(args, "OO!O:new_array_type",
+                          &ffi, &CTypeDescr_Type, &ctitem, &lengthobj))
+        return NULL;
+
+    if (ctitem->ct_size < 0) {
+        PyErr_Format(PyExc_ValueError, "array item of unknown size: '%s'",
+                     ctitem->ct_name);
+        return NULL;
+    }
+
+    if (lengthobj == Py_None) {
+        sprintf(extra_text, "[]");
+        arraysize = -1;
+    }
+    else {
+        length = PyNumber_AsSsize_t(lengthobj, PyExc_OverflowError);
+        if (length < 0) {
+            if (!PyErr_Occurred())
+                PyErr_SetString(PyExc_ValueError, "negative array length");
+            return NULL;
+        }
+        sprintf(extra_text, "[%zd]", length);
+        arraysize = length * ctitem->ct_size;
+        if (length > 0 && (arraysize / length) != ctitem->ct_size) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "array size would overflow a Py_ssize_t");
+            return NULL;
+        }
+    }
+    td = ctypedescr_new_on_top(ctitem, extra_text, 0);
+    if (td == NULL)
+        return NULL;
+
+    td->ct_size = arraysize;
+    td->ct_flags = CT_ARRAY;
+    return (PyObject *)td;
+}
+
 static PyObject *b_sizeof_type(PyObject *self, PyObject *arg)
 {
     if (!CTypeDescr_Check(arg)) {
@@ -981,6 +1026,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"load_library", b_load_library, METH_VARARGS},
     {"new_primitive_type", b_new_primitive_type, METH_VARARGS},
     {"new_pointer_type", b_new_pointer_type, METH_VARARGS},
+    {"new_array_type", b_new_array_type, METH_VARARGS},
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"sizeof_type", b_sizeof_type, METH_O},

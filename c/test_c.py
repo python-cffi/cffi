@@ -1,4 +1,4 @@
-import py
+import py, sys
 import _ffi_backend
 
 
@@ -178,3 +178,25 @@ def test_hash_differences():
     assert (hash(_ffi_backend.cast(BChar, 'A')) !=
             hash(_ffi_backend.cast(BInt, 65)))
     assert hash(_ffi_backend.cast(BFloat, 65)) != hash(65.0)
+
+def test_array_type():
+    p = _ffi_backend.new_primitive_type(None, "int")
+    assert repr(p) == "<ctype 'int'>"
+    #
+    py.test.raises(TypeError, _ffi_backend.new_array_type, None, p, "foo")
+    py.test.raises(ValueError, _ffi_backend.new_array_type, None, p, -42)
+    #
+    p1 = _ffi_backend.new_array_type(None, p, None)
+    assert repr(p1) == "<ctype 'int[]'>"
+    py.test.raises(ValueError, _ffi_backend.new_array_type, None, p1, 42)
+    #
+    p1 = _ffi_backend.new_array_type(None, p, 42)
+    p2 = _ffi_backend.new_array_type(None, p1, 25)
+    assert repr(p2) == "<ctype 'int[25][42]'>"
+    p2 = _ffi_backend.new_array_type(None, p1, None)
+    assert repr(p2) == "<ctype 'int[][42]'>"
+    #
+    py.test.raises(OverflowError,
+                   _ffi_backend.new_array_type, None, p, sys.maxint+1)
+    py.test.raises(OverflowError,
+                   _ffi_backend.new_array_type, None, p, sys.maxint // 3)
