@@ -297,9 +297,31 @@ write_raw_float_data(char *target, double source, int size)
 }
 
 static PyObject *
+new_pointer_cdata(char *data, CTypeDescrObject *ct)
+{
+    CDataObject *cd = PyObject_New(CDataObject, &CData_Type);
+    if (cd == NULL)
+        return NULL;
+    Py_INCREF(ct);
+    cd->c_data = data;
+    cd->c_type = ct;
+    return (PyObject *)cd;
+}
+
+static PyObject *
 convert_to_object(char *data, CTypeDescrObject *ct)
 {
-    if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
+    if (ct->ct_flags & CT_POINTER) {
+        char *ptrdata = *(char **)data;
+        if (ptrdata != NULL) {
+            return new_pointer_cdata(ptrdata, ct);
+        }
+        else {
+            Py_INCREF(Py_None);
+            return Py_None;
+        }
+    }
+    else if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
         PY_LONG_LONG value = read_raw_signed_data(data, ct->ct_size);
 
         if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
@@ -360,6 +382,23 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         }
         return 0;
     }
+    if (ct->ct_flags & CT_POINTER) {
+        char *ptrdata;
+
+        if (init != Py_None) {
+            if (!CData_Check(init) ||
+                    ((CDataObject *)init)->c_type != ct) {
+                expected = "compatible pointer";
+                goto cannot_convert;
+            }
+            ptrdata = ((CDataObject *)init)->c_data;
+        }
+        else {
+            ptrdata = NULL;
+        }
+        *(char **)data = ptrdata;
+        return 0;
+    }
     if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
         PY_LONG_LONG value = PyLong_AsLongLong(init);
         if (value == -1 && PyErr_Occurred())
@@ -410,10 +449,17 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     return -1;
 
  cannot_convert:
-    PyErr_Format(PyExc_TypeError,
-                 "initializer for ctype '%s' must be a %s, "
-                 "not %.200s",
-                 ct->ct_name, expected, Py_TYPE(init)->tp_name);
+    if (CData_Check(init))
+        PyErr_Format(PyExc_TypeError,
+                     "initializer for ctype '%s' must be a %s, "
+                     "not cdata '%s'",
+                     ct->ct_name, expected,
+                     ((CDataObject *)init)->c_type->ct_name);
+    else
+        PyErr_Format(PyExc_TypeError,
+                     "initializer for ctype '%s' must be a %s, "
+                     "not %.200s",
+                     ct->ct_name, expected, Py_TYPE(init)->tp_name);
     return -1;
 }
 
@@ -808,6 +854,8 @@ static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
     CDataObject *cd = (CDataObject *)PyObject_Malloc(dataoffset + ct->ct_size);
     if (PyObject_Init((PyObject *)cd, &CData_Type) == NULL)
         return NULL;
+    Py_INCREF(ct);
+    cd->c_type = ct;
     cd->c_data = ((char*)cd) + dataoffset;
     return cd;
 }
@@ -829,11 +877,7 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         if (!(cdsrc->c_type->ct_flags & CT_POINTER))
             goto cannot_cast;
 
-        cd = PyObject_New(CDataObject, &CData_Type);
-        if (cd == NULL)
-            return NULL;
-
-        cd->c_data = cdsrc->c_data;
+        return new_pointer_cdata(cdsrc->c_data, ct);
     }
     else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
         /* cast to an integer type */
@@ -846,6 +890,7 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         cd = _new_casted_primitive(ct);
         if (cd != NULL)
             write_raw_integer_data(cd->c_data, value, ct->ct_size);
+        return (PyObject *)cd;
     }
     else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
         /* cast to char */
@@ -861,6 +906,7 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         cd = _new_casted_primitive(ct);
         if (cd != NULL)
             cd->c_data[0] = value;
+        return (PyObject *)cd;
     }
     else if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
         /* cast to a float */
@@ -869,13 +915,10 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         cd = _new_casted_primitive(ct);
         if (cd != NULL)
             write_raw_float_data(cd->c_data, value, ct->ct_size);
+        return (PyObject *)cd;
     }
     else
         goto cannot_cast;
-
-    Py_INCREF(ct);
-    cd->c_type = ct;
-    return (PyObject *)cd;
 
  cannot_cast:
     if (CData_Check(ob))
