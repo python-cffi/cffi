@@ -14,7 +14,7 @@
 #define CT_STRUCT            64
 #define CT_OPAQUE           128
 
-#define CT_CAST_ANY_POINTER       256
+#define CT_CAST_ANYTHING          256    /* 'char' and 'void' only */
 #define CT_PRIMITIVE_FITS_LONG    512
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
@@ -430,7 +430,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                 goto cannot_convert;
             ctinit = ((CDataObject *)init)->c_type;
             if (ctinit->ct_itemdescr != ct->ct_itemdescr &&
-                    !(ct->ct_itemdescr->ct_flags & CT_CAST_ANY_POINTER))
+                    !(ct->ct_itemdescr->ct_flags & CT_CAST_ANYTHING))
                 goto cannot_convert;
             ptrdata = ((CDataObject *)init)->c_data;
         }
@@ -1225,7 +1225,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     const char *name;
     static const struct descr_s { const char *name; int size, flags; }
     types[] = {
-        { "char", sizeof(char), CT_PRIMITIVE_CHAR|CT_CAST_ANY_POINTER },
+        { "char", sizeof(char), CT_PRIMITIVE_CHAR|CT_CAST_ANYTHING },
         { "short", sizeof(short), CT_PRIMITIVE_SIGNED },
         { "int", sizeof(int), CT_PRIMITIVE_SIGNED },
         { "long", sizeof(long), CT_PRIMITIVE_SIGNED },
@@ -1355,7 +1355,7 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *args)
 
     memcpy(td->ct_name, "void", name_size);
     td->ct_size = -1;
-    td->ct_flags = CT_OPAQUE | CT_CAST_ANY_POINTER;
+    td->ct_flags = CT_OPAQUE | CT_CAST_ANYTHING;
     td->ct_name_position = strlen("void");
     return (PyObject *)td;
 }
@@ -1406,6 +1406,25 @@ static PyObject *b_typeof_instance(PyObject *self, PyObject *arg)
     return res;
 }
 
+static PyObject *b_string(PyObject *self, PyObject *args)
+{
+    CDataObject *cd;
+    CTypeDescrObject *ct;
+    Py_ssize_t length;
+    if (!PyArg_ParseTuple(args, "O!n:string",
+                          &CData_Type, &cd, &length))
+        return NULL;
+    ct = cd->c_type;
+    if (!(ct->ct_flags & CT_POINTER) ||
+            !(ct->ct_itemdescr->ct_flags & CT_CAST_ANYTHING)) {
+        PyErr_Format(PyExc_TypeError,
+                     "expected a cdata 'char *' or 'void *', got '%s'",
+                     ct->ct_name);
+        return NULL;
+    }
+    return PyString_FromStringAndSize(cd->c_data, length);
+}
+
 static PyMethodDef FFIBackendMethods[] = {
     {"nonstandard_integer_types", b_nonstandard_integer_types, METH_NOARGS},
     {"load_library", b_load_library, METH_VARARGS},
@@ -1418,6 +1437,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"sizeof_type", b_sizeof_type, METH_O},
     {"sizeof_instance", b_sizeof_instance, METH_O},
     {"typeof_instance", b_typeof_instance, METH_O},
+    {"string", b_string, METH_VARARGS},
     {NULL,     NULL}	/* Sentinel */
 };
 
