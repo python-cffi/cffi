@@ -263,17 +263,22 @@ def test_cast_primitive_from_cdata():
     assert int(n) == -42
     #
     p = _ffi_backend.new_primitive_type(None, "unsigned int")
-    p1 = _ffi_backend.new_pointer_type(None, p)
     n = _ffi_backend.cast(p, _ffi_backend.cast(p, 42))
     assert int(n) == 42
     #
+    p = _ffi_backend.new_primitive_type(None, "long long")
+    n = _ffi_backend.cast(p, _ffi_backend.cast(p, -(1<<60)))
+    assert int(n) == -(1<<60)
+    #
+    p = _ffi_backend.new_primitive_type(None, "unsigned long long")
+    n = _ffi_backend.cast(p, _ffi_backend.cast(p, 1<<63))
+    assert int(n) == 1<<63
+    #
     p = _ffi_backend.new_primitive_type(None, "float")
-    p1 = _ffi_backend.new_pointer_type(None, p)
     n = _ffi_backend.cast(p, _ffi_backend.cast(p, 42.5))
     assert float(n) == 42.5
     #
     p = _ffi_backend.new_primitive_type(None, "char")
-    p1 = _ffi_backend.new_pointer_type(None, p)
     n = _ffi_backend.cast(p, _ffi_backend.cast(p, "A"))
     assert str(n) == "A"
 

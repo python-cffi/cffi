@@ -46,6 +46,7 @@ static PyTypeObject CDataOwning_Type;
 #define CTypeDescr_Check(ob)  (Py_TYPE(ob) == &CTypeDescr_Type)
 #define CData_Check(ob)       (Py_TYPE(ob) == &CData_Type ||            \
                                Py_TYPE(ob) == &CDataOwning_Type)
+#define CDataOwn_Check(ob)    (Py_TYPE(ob) == &CDataOwning_Type)
 
 typedef union {
     unsigned char m_char;
@@ -171,22 +172,27 @@ static PyTypeObject CTypeDescr_Type = {
 /************************************************************/
 
 static unsigned PY_LONG_LONG
-_my_PyLong_AsUnsignedLongLong(PyObject *ob)
+_my_PyLong_AsUnsignedLongLong(PyObject *ob, int overflow)
 {
     /* (possibly) convert and cast a Python object to an unsigned long long.
        Like PyLong_AsLongLong(), this version accepts a Python int too,
-       does convertions from other types of objects, and complains with
-       OverflowError. */
+       does convertions from other types of objects.  If 'overflow',
+       complains with OverflowError; if '!overflow', mask the result. */
     if (PyInt_Check(ob)) {
         long value1 = PyInt_AS_LONG(ob);
-        if (value1 < 0)
+        if (overflow && value1 < 0)
             goto negative;
-        return (unsigned PY_LONG_LONG)value1;
+        return (unsigned PY_LONG_LONG)(PY_LONG_LONG)value1;
     }
     else if (PyLong_Check(ob)) {
-        if (_PyLong_Sign(ob) < 0)
-            goto negative;
-        return PyLong_AsUnsignedLongLong(ob);
+        if (overflow) {
+            if (_PyLong_Sign(ob) < 0)
+                goto negative;
+            return PyLong_AsUnsignedLongLong(ob);
+        }
+        else {
+            return PyLong_AsUnsignedLongLongMask(ob);
+        }
     }
     else {
         PyObject *io;
@@ -206,7 +212,7 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob)
             PyErr_SetString(PyExc_TypeError, "integer conversion failed");
             return -1;
         }
-        res = _my_PyLong_AsUnsignedLongLong(io);
+        res = _my_PyLong_AsUnsignedLongLong(io, overflow);
         Py_DECREF(io);
         return res;
     }
@@ -384,13 +390,15 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     }
     if (ct->ct_flags & CT_POINTER) {
         char *ptrdata;
+        CTypeDescrObject *ctinit;
 
         if (init != Py_None) {
-            if (!CData_Check(init) ||
-                    ((CDataObject *)init)->c_type != ct) {
-                expected = "compatible pointer";
+            expected = "compatible pointer";
+            if (!CData_Check(init))
                 goto cannot_convert;
-            }
+            ctinit = ((CDataObject *)init)->c_type;
+            if (ctinit->ct_itemdescr != ct->ct_itemdescr)
+                goto cannot_convert;
             ptrdata = ((CDataObject *)init)->c_data;
         }
         else {
@@ -409,7 +417,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_UNSIGNED) {
-        unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(init);
+        unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(init, 1);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
             return -1;
         write_raw_integer_data(data, value, ct->ct_size);
@@ -609,15 +617,14 @@ cdata_subscript(CDataObject *cd, PyObject *key)
         return NULL;
 
     if (cd->c_type->ct_flags & CT_POINTER) {
-        if (i != 0) {
+        if (CDataOwn_Check(cd) && i != 0) {
             PyErr_Format(PyExc_IndexError,
                          "cdata '%s' can only be indexed by 0",
                          cd->c_type->ct_name);
             return NULL;
         }
-        return convert_to_object(cd->c_data, ctitem);
     }
-    if (cd->c_type->ct_flags & CT_ARRAY) {
+    else if (cd->c_type->ct_flags & CT_ARRAY) {
         if (i < 0) {
             PyErr_SetString(PyExc_IndexError,
                             "negative index not supported");
@@ -630,12 +637,13 @@ cdata_subscript(CDataObject *cd, PyObject *key)
                          i, get_array_length(cd));
             return NULL;
         }
-        return convert_to_object(cd->c_data + i * ctitem->ct_size, ctitem);
     }
-
-    PyErr_Format(PyExc_TypeError, "cdata of type '%s' cannot be indexed",
-                 cd->c_type->ct_name);
-    return NULL;
+    else {
+        PyErr_Format(PyExc_TypeError, "cdata of type '%s' cannot be indexed",
+                     cd->c_type->ct_name);
+        return NULL;
+    }
+    return convert_to_object(cd->c_data + i * ctitem->ct_size, ctitem);
 }
 
 static int
@@ -649,15 +657,14 @@ cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
         return -1;
 
     if (cd->c_type->ct_flags & CT_POINTER) {
-        if (i != 0) {
+        if (CDataOwn_Check(cd) && i != 0) {
             PyErr_Format(PyExc_IndexError,
                          "cdata '%s' can only be indexed by 0",
                          cd->c_type->ct_name);
             return -1;
         }
-        return convert_from_object(cd->c_data, ctitem, v);
     }
-    if (cd->c_type->ct_flags & CT_ARRAY) {
+    else if (cd->c_type->ct_flags & CT_ARRAY) {
         if (i < 0) {
             PyErr_SetString(PyExc_IndexError,
                             "negative index not supported");
@@ -670,14 +677,14 @@ cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
                          i, get_array_length(cd));
             return -1;
         }
-        return convert_from_object(cd->c_data + i * ctitem->ct_size,
-                                   ctitem, v);
     }
-
-    PyErr_Format(PyExc_TypeError,
-                 "cdata of type '%s' does not support index assignment",
-                 cd->c_type->ct_name);
-    return -1;
+    else {
+        PyErr_Format(PyExc_TypeError,
+                     "cdata of type '%s' does not support index assignment",
+                     cd->c_type->ct_name);
+        return -1;
+    }
+    return convert_from_object(cd->c_data + i * ctitem->ct_size, ctitem, v);
 }
 
 static PyNumberMethods CData_as_number = {
@@ -863,29 +870,26 @@ static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
 static PyObject *b_cast(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
-    CDataObject *cd, *cdsrc;
+    CDataObject *cd;
     PyObject *ob;
     if (!PyArg_ParseTuple(args, "O!O:cast", &CTypeDescr_Type, &ct, &ob))
         return NULL;
 
     if (ct->ct_flags & CT_POINTER) {
         /* cast to a pointer */
-        if (!CData_Check(ob))
-            goto cannot_cast;
-
-        cdsrc = (CDataObject *)ob;
-        if (!(cdsrc->c_type->ct_flags & CT_POINTER))
-            goto cannot_cast;
-
-        return new_pointer_cdata(cdsrc->c_data, ct);
+        if (CData_Check(ob)) {
+            CDataObject *cdsrc = (CDataObject *)ob;
+            if (cdsrc->c_type->ct_flags & (CT_POINTER|CT_ARRAY)) {
+                return new_pointer_cdata(cdsrc->c_data, ct);
+            }
+        }
+        goto cannot_cast;
     }
     else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
         /* cast to an integer type */
-        unsigned PY_LONG_LONG value;
-        if (PyLong_Check(ob))
-            value = PyLong_AsUnsignedLongLongMask(ob);
-        else
-            value = PyInt_AsLong(ob);
+        unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(ob, 0);
+        if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
+            return NULL;
 
         cd = _new_casted_primitive(ct);
         if (cd != NULL)
@@ -900,8 +904,11 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
                 goto cannot_cast;
             value = PyString_AS_STRING(ob)[0];
         }
-        else
+        else {
             value = PyInt_AsLong(ob);
+            if (value == -1 && PyErr_Occurred())
+                return NULL;
+        }
 
         cd = _new_casted_primitive(ct);
         if (cd != NULL)

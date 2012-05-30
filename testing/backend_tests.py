@@ -149,7 +149,8 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         a = ffi.new("short int[10]")
         e = py.test.raises(TypeError, ffi.new, "long int *", a)
-        assert str(e.value) == "cannot convert 'short[10]' to 'long *'"
+        msg = str(e.value)
+        assert "'short[10]'" in msg and "'long *'" in msg
 
     def test_new_pointer_to_array(self):
         ffi = FFI(backend=self.Backend())
