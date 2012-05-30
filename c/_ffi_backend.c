@@ -12,8 +12,10 @@
 #define CT_POINTER           16
 #define CT_ARRAY             32
 #define CT_STRUCT            64
+#define CT_OPAQUE           128
 
-#define CT_PRIMITIVE_FITS_LONG    128
+#define CT_CAST_ANY_POINTER       256
+#define CT_PRIMITIVE_FITS_LONG    512
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -332,6 +334,11 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         else if (ct->ct_flags & CT_ARRAY) {
             return new_pointer_cdata(data, ct);
         }
+        else if (ct->ct_flags & CT_OPAQUE) {
+            PyErr_Format(PyExc_TypeError, "cannot return a cdata '%s'",
+                         ct->ct_name);
+            return NULL;
+        }
     }
     else if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
         PY_LONG_LONG value = read_raw_signed_data(data, ct->ct_size);
@@ -421,7 +428,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             if (!CData_Check(init))
                 goto cannot_convert;
             ctinit = ((CDataObject *)init)->c_type;
-            if (ctinit->ct_itemdescr != ct->ct_itemdescr)
+            if (ctinit->ct_itemdescr != ct->ct_itemdescr &&
+                    !(ct->ct_itemdescr->ct_flags & CT_CAST_ANY_POINTER))
                 goto cannot_convert;
             ptrdata = ((CDataObject *)init)->c_data;
         }
@@ -1098,7 +1106,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     const char *name;
     static const struct descr_s { const char *name; int size, flags; }
     types[] = {
-        { "char", sizeof(char), CT_PRIMITIVE_CHAR },
+        { "char", sizeof(char), CT_PRIMITIVE_CHAR|CT_CAST_ANY_POINTER },
         { "short", sizeof(short), CT_PRIMITIVE_SIGNED },
         { "int", sizeof(int), CT_PRIMITIVE_SIGNED },
         { "long", sizeof(long), CT_PRIMITIVE_SIGNED },
@@ -1215,6 +1223,22 @@ static PyObject *b_new_array_type(PyObject *self, PyObject *args)
     return (PyObject *)td;
 }
 
+static PyObject *b_new_void_type(PyObject *self, PyObject *arg)
+{
+    int name_size = strlen("void") + 1;
+    CTypeDescrObject *td = ctypedescr_new(name_size);
+    if (td == NULL)
+        return NULL;
+
+    memcpy(td->ct_name, "void", name_size);
+    td->ct_itemdescr = NULL;
+    td->ct_fields = NULL;
+    td->ct_size = -1;
+    td->ct_flags = CT_OPAQUE | CT_CAST_ANY_POINTER;
+    td->ct_name_position = strlen("void");
+    return (PyObject *)td;
+}
+
 static PyObject *b_sizeof_type(PyObject *self, PyObject *arg)
 {
     if (!CTypeDescr_Check(arg)) {
@@ -1267,6 +1291,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new_primitive_type", b_new_primitive_type, METH_VARARGS},
     {"new_pointer_type", b_new_pointer_type, METH_VARARGS},
     {"new_array_type", b_new_array_type, METH_VARARGS},
+    {"new_void_type", b_new_void_type, METH_O},
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"sizeof_type", b_sizeof_type, METH_O},
