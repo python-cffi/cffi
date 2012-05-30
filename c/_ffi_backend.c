@@ -25,7 +25,8 @@ typedef struct _ctypedescr {
     PyObject_VAR_HEAD
 
     struct _ctypedescr *ct_itemdescr;  /* ptrs and arrays: the item type */
-    PyObject *ct_fields;               /* dict of the fields */
+    PyObject *ct_stuff;                /* structs: dict of the fields
+                                          arrays: ctypedescr of the ptr type */
 
     Py_ssize_t ct_size;     /* size of instances, or -1 if unknown */
     Py_ssize_t ct_length;   /* length of arrays, or -1 if unknown */
@@ -83,7 +84,7 @@ ctypedescr_new(int name_size)
         return NULL;
 
     ct->ct_itemdescr = NULL;
-    ct->ct_fields = NULL;
+    ct->ct_stuff = NULL;
     PyObject_GC_Track(ct);
     return ct;
 }
@@ -125,7 +126,7 @@ ctypedescr_dealloc(CTypeDescrObject *ct)
 {
     PyObject_GC_UnTrack(ct);
     Py_XDECREF(ct->ct_itemdescr);
-    Py_XDECREF(ct->ct_fields);
+    Py_XDECREF(ct->ct_stuff);
     Py_TYPE(ct)->tp_free((PyObject *)ct);
 }
 
@@ -133,7 +134,7 @@ static int
 ctypedescr_traverse(CTypeDescrObject *ct, visitproc visit, void *arg)
 {
     Py_VISIT(ct->ct_itemdescr);
-    Py_VISIT(ct->ct_fields);
+    Py_VISIT(ct->ct_stuff);
     return 0;
 }
 
@@ -141,7 +142,7 @@ static int
 ctypedescr_clear(CTypeDescrObject *ct)
 {
     Py_CLEAR(ct->ct_itemdescr);
-    Py_CLEAR(ct->ct_fields);
+    Py_CLEAR(ct->ct_stuff);
     return 0;
 }
 
@@ -730,9 +731,81 @@ cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
     return convert_from_object(cd->c_data + i * ctitem->ct_size, ctitem, v);
 }
 
+static PyObject *
+_cdata_add_or_sub(PyObject *v, PyObject *w, int sign)
+{
+    Py_ssize_t i;
+    CDataObject *cd;
+    CTypeDescrObject *ctptr;
+
+    if (!CData_Check(v))
+        goto not_implemented;
+
+    i = PyNumber_AsSsize_t(w, PyExc_OverflowError);
+    if (i == -1 && PyErr_Occurred())
+        return NULL;
+    i *= sign;
+
+    cd = (CDataObject *)v;
+    if (cd->c_type->ct_flags & CT_POINTER)
+        ctptr = cd->c_type;
+    else if (cd->c_type->ct_flags & CT_ARRAY) {
+        ctptr = (CTypeDescrObject *)cd->c_type->ct_stuff;
+    }
+    else {
+        PyErr_Format(PyExc_TypeError, "cannot add a cdata '%s' and a number",
+                     cd->c_type->ct_name);
+        return NULL;
+    }
+    if (ctptr->ct_itemdescr->ct_size < 0) {
+        PyErr_Format(PyExc_TypeError,
+                     "ctype '%s' points to items of unknown size",
+                     cd->c_type->ct_name);
+        return NULL;
+    }
+    return new_pointer_cdata(cd->c_data + i * ctptr->ct_itemdescr->ct_size,
+                             ctptr);
+
+ not_implemented:
+    Py_INCREF(Py_NotImplemented);               \
+    return Py_NotImplemented;                   \
+}
+
+static PyObject *
+cdata_add(PyObject *v, PyObject *w)
+{
+    return _cdata_add_or_sub(v, w, +1);
+}
+
+static PyObject *
+cdata_sub(PyObject *v, PyObject *w)
+{
+    if (CData_Check(v) && CData_Check(w)) {
+        CDataObject *cdv = (CDataObject *)v;
+        CDataObject *cdw = (CDataObject *)w;
+        CTypeDescrObject *ct = cdw->c_type;
+        Py_ssize_t diff;
+
+        if (ct->ct_flags & CT_ARRAY)     /* ptr_to_T - array_of_T: ok */
+            ct = (CTypeDescrObject *)ct->ct_stuff;
+
+        if (ct != cdv->c_type || !(ct->ct_flags & CT_POINTER) ||
+                (ct->ct_itemdescr->ct_size <= 0)) {
+            PyErr_Format(PyExc_TypeError,
+                         "cannot subtract cdata '%s' and cdata '%s'",
+                         ct->ct_name, cdw->c_type->ct_name);
+            return NULL;
+        }
+        diff = (cdv->c_data - cdw->c_data) / ct->ct_itemdescr->ct_size;
+        return PyInt_FromSsize_t(diff);
+    }
+
+    return _cdata_add_or_sub(v, w, -1);
+}
+
 static PyNumberMethods CData_as_number = {
-    0,                          /*nb_add*/
-    0,                          /*nb_subtract*/
+    (binaryfunc)cdata_add,      /*nb_add*/
+    (binaryfunc)cdata_sub,      /*nb_subtract*/
     0,                          /*nb_multiply*/
     0,                          /*nb_divide*/
     0,                          /*nb_remainder*/
@@ -782,7 +855,7 @@ static PyTypeObject CData_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
     0,                                          /* tp_doc */
     (traverseproc)cdata_traverse,               /* tp_traverse */
     0,                                          /* tp_clear */
@@ -809,7 +882,7 @@ static PyTypeObject CDataOwning_Type = {
     0,                                          /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
     0,                                          /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
@@ -1148,7 +1221,6 @@ static PyObject *b_nonstandard_integer_types(PyObject *self, PyObject *noarg)
 
 static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 {
-    PyObject *ffi;
     CTypeDescrObject *td;
     const char *name;
     static const struct descr_s { const char *name; int size, flags; }
@@ -1171,7 +1243,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     const struct descr_s *ptypes;
     int name_size;
 
-    if (!PyArg_ParseTuple(args, "Os:new_primitive_type", &ffi, &name))
+    if (!PyArg_ParseTuple(args, "s:new_primitive_type", &name))
         return NULL;
 
     for (ptypes=types; ; ptypes++) {
@@ -1189,8 +1261,6 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
         return NULL;
 
     memcpy(td->ct_name, name, name_size);
-    td->ct_itemdescr = NULL;
-    td->ct_fields = NULL;
     td->ct_size = ptypes->size;
     td->ct_flags = ptypes->flags;
     if (td->ct_flags & CT_PRIMITIVE_SIGNED) {
@@ -1207,11 +1277,10 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 
 static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
 {
-    PyObject *ffi;
     CTypeDescrObject *td, *ctitem;
 
-    if (!PyArg_ParseTuple(args, "OO!:new_pointer_type",
-                          &ffi, &CTypeDescr_Type, &ctitem))
+    if (!PyArg_ParseTuple(args, "O!:new_pointer_type",
+                          &CTypeDescr_Type, &ctitem))
         return NULL;
 
     td = ctypedescr_new_on_top(ctitem, " *", 2);
@@ -1225,15 +1294,20 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
 
 static PyObject *b_new_array_type(PyObject *self, PyObject *args)
 {
-    PyObject *ffi, *lengthobj;
-    CTypeDescrObject *td, *ctitem;
+    PyObject *lengthobj;
+    CTypeDescrObject *td, *ctitem, *ctptr;
     char extra_text[32];
     Py_ssize_t length, arraysize;
 
-    if (!PyArg_ParseTuple(args, "OO!O:new_array_type",
-                          &ffi, &CTypeDescr_Type, &ctitem, &lengthobj))
+    if (!PyArg_ParseTuple(args, "O!O:new_array_type",
+                          &CTypeDescr_Type, &ctptr, &lengthobj))
         return NULL;
 
+    if (!(ctptr->ct_flags & CT_POINTER)) {
+        PyErr_SetString(PyExc_TypeError, "first arg must be a pointer ctype");
+        return NULL;
+    }
+    ctitem = ctptr->ct_itemdescr;
     if (ctitem->ct_size < 0) {
         PyErr_Format(PyExc_ValueError, "array item of unknown size: '%s'",
                      ctitem->ct_name);
@@ -1264,13 +1338,15 @@ static PyObject *b_new_array_type(PyObject *self, PyObject *args)
     if (td == NULL)
         return NULL;
 
+    Py_INCREF(ctptr);
+    td->ct_stuff = (PyObject *)ctptr;
     td->ct_size = arraysize;
     td->ct_length = length;
     td->ct_flags = CT_ARRAY;
     return (PyObject *)td;
 }
 
-static PyObject *b_new_void_type(PyObject *self, PyObject *arg)
+static PyObject *b_new_void_type(PyObject *self, PyObject *args)
 {
     int name_size = strlen("void") + 1;
     CTypeDescrObject *td = ctypedescr_new(name_size);
@@ -1278,8 +1354,6 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *arg)
         return NULL;
 
     memcpy(td->ct_name, "void", name_size);
-    td->ct_itemdescr = NULL;
-    td->ct_fields = NULL;
     td->ct_size = -1;
     td->ct_flags = CT_OPAQUE | CT_CAST_ANY_POINTER;
     td->ct_name_position = strlen("void");
@@ -1338,7 +1412,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new_primitive_type", b_new_primitive_type, METH_VARARGS},
     {"new_pointer_type", b_new_pointer_type, METH_VARARGS},
     {"new_array_type", b_new_array_type, METH_VARARGS},
-    {"new_void_type", b_new_void_type, METH_O},
+    {"new_void_type", b_new_void_type, METH_NOARGS},
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"sizeof_type", b_sizeof_type, METH_O},

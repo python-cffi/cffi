@@ -39,6 +39,8 @@ class FFI(object):
         self._cached_btypes = {}
         self._parsed_types = new.module('parsed_types').__dict__
         self._new_types = new.module('new_types').__dict__
+        if hasattr(backend, 'set_ffi'):
+            backend.set_ffi(self)
         self.C = _make_ffi_library(self, None)
         #
         lines = []
@@ -220,7 +222,7 @@ class FFI(object):
         try:
             BType = self._cached_btypes[methname, args]
         except KeyError:
-            BType = getattr(self._backend, methname)(self, *args)
+            BType = getattr(self._backend, methname)(*args)
             self._cached_btypes[methname, args] = BType
         return BType
 
@@ -248,7 +250,8 @@ class FFI(object):
             else:
                 length = self._parse_constant(typenode.dim)
             BItem = self._get_btype(typenode.type)
-            return self._get_cached_btype('new_array_type', BItem, length)
+            BPtr = self._get_cached_btype('new_pointer_type', BItem)
+            return self._get_cached_btype('new_array_type', BPtr, length)
         #
         if force_pointer:
             return self._get_btype_pointer(typenode)

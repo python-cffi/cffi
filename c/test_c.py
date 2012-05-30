@@ -1,211 +1,211 @@
 import py, sys
-import _ffi_backend
+from _ffi_backend import *
 
 
 def size_of_int():
-    BInt = _ffi_backend.new_primitive_type(None, "int")
-    return _ffi_backend.sizeof_type(BInt)
+    BInt = new_primitive_type("int")
+    return sizeof_type(BInt)
 
 def size_of_ptr():
-    BInt = _ffi_backend.new_primitive_type(None, "int")
-    BPtr = _ffi_backend.new_pointer_type(None, BInt)
-    return _ffi_backend.sizeof_type(BPtr)
+    BInt = new_primitive_type("int")
+    BPtr = new_pointer_type(BInt)
+    return sizeof_type(BPtr)
 
 
 def test_load_library():
-    x = _ffi_backend.load_library("libc.so.6")     # Linux only
+    x = load_library("libc.so.6")     # Linux only
     assert repr(x).startswith("<_ffi_backend.Library object at 0x")
 
 def test_nonstandard_integer_types():
-    d = _ffi_backend.nonstandard_integer_types()
+    d = nonstandard_integer_types()
     assert type(d) is dict
     assert 'char' not in d
     assert d['size_t'] in (0x1004, 0x1008)
     assert d['size_t'] == d['ssize_t'] + 0x1000
 
 def test_new_primitive_type():
-    py.test.raises(KeyError, _ffi_backend.new_primitive_type, None, "foo")
-    p = _ffi_backend.new_primitive_type(None, "signed char")
+    py.test.raises(KeyError, new_primitive_type, "foo")
+    p = new_primitive_type("signed char")
     assert repr(p) == "<ctype 'signed char'>"
 
 def test_cast_to_signed_char():
-    p = _ffi_backend.new_primitive_type(None, "signed char")
-    x = _ffi_backend.cast(p, -65 + 17*256)
+    p = new_primitive_type("signed char")
+    x = cast(p, -65 + 17*256)
     assert repr(x) == "<cdata 'signed char'>"
     assert repr(type(x)) == "<type '_ffi_backend.CData'>"
     assert int(x) == -65
-    x = _ffi_backend.cast(p, -66 + (1<<199)*256)
+    x = cast(p, -66 + (1<<199)*256)
     assert repr(x) == "<cdata 'signed char'>"
     assert int(x) == -66
-    assert (x == _ffi_backend.cast(p, -66)) is False
-    assert (x != _ffi_backend.cast(p, -66)) is True
-    q = _ffi_backend.new_primitive_type(None, "short")
-    assert (x == _ffi_backend.cast(q, -66)) is False
-    assert (x != _ffi_backend.cast(q, -66)) is True
+    assert (x == cast(p, -66)) is False
+    assert (x != cast(p, -66)) is True
+    q = new_primitive_type("short")
+    assert (x == cast(q, -66)) is False
+    assert (x != cast(q, -66)) is True
 
 def test_sizeof_type():
-    py.test.raises(TypeError, _ffi_backend.sizeof_type, 42.5)
-    p = _ffi_backend.new_primitive_type(None, "short")
-    assert _ffi_backend.sizeof_type(p) == 2
+    py.test.raises(TypeError, sizeof_type, 42.5)
+    p = new_primitive_type("short")
+    assert sizeof_type(p) == 2
 
 def test_integer_types():
     for name in ['signed char', 'short', 'int', 'long', 'long long']:
-        p = _ffi_backend.new_primitive_type(None, name)
-        size = _ffi_backend.sizeof_type(p)
+        p = new_primitive_type(name)
+        size = sizeof_type(p)
         min = -(1 << (8*size-1))
         max = (1 << (8*size-1)) - 1
-        assert int(_ffi_backend.cast(p, min)) == min
-        assert int(_ffi_backend.cast(p, max)) == max
-        assert int(_ffi_backend.cast(p, min - 1)) == max
-        assert int(_ffi_backend.cast(p, max + 1)) == min
-        assert long(_ffi_backend.cast(p, min - 1)) == max
+        assert int(cast(p, min)) == min
+        assert int(cast(p, max)) == max
+        assert int(cast(p, min - 1)) == max
+        assert int(cast(p, max + 1)) == min
+        assert long(cast(p, min - 1)) == max
     for name in ['char', 'short', 'int', 'long', 'long long']:
-        p = _ffi_backend.new_primitive_type(None, 'unsigned ' + name)
-        size = _ffi_backend.sizeof_type(p)
+        p = new_primitive_type('unsigned ' + name)
+        size = sizeof_type(p)
         max = (1 << (8*size)) - 1
-        assert int(_ffi_backend.cast(p, 0)) == 0
-        assert int(_ffi_backend.cast(p, max)) == max
-        assert int(_ffi_backend.cast(p, -1)) == max
-        assert int(_ffi_backend.cast(p, max + 1)) == 0
-        assert long(_ffi_backend.cast(p, -1)) == max
+        assert int(cast(p, 0)) == 0
+        assert int(cast(p, max)) == max
+        assert int(cast(p, -1)) == max
+        assert int(cast(p, max + 1)) == 0
+        assert long(cast(p, -1)) == max
 
 def test_no_float_on_int_types():
-    p = _ffi_backend.new_primitive_type(None, 'long')
-    py.test.raises(TypeError, float, _ffi_backend.cast(p, 42))
+    p = new_primitive_type('long')
+    py.test.raises(TypeError, float, cast(p, 42))
 
 def test_float_types():
     INF = 1E200 * 1E200
     for name in ["float", "double"]:
-        p = _ffi_backend.new_primitive_type(None, name)
-        assert bool(_ffi_backend.cast(p, 0))
-        assert bool(_ffi_backend.cast(p, INF))
-        assert bool(_ffi_backend.cast(p, -INF))
-        assert int(_ffi_backend.cast(p, -150)) == -150
-        assert int(_ffi_backend.cast(p, 61.91)) == 61
-        assert long(_ffi_backend.cast(p, 61.91)) == 61L
-        assert type(int(_ffi_backend.cast(p, 61.91))) is int
-        assert type(int(_ffi_backend.cast(p, 1E22))) is long
-        assert type(long(_ffi_backend.cast(p, 61.91))) is long
-        assert type(long(_ffi_backend.cast(p, 1E22))) is long
-        py.test.raises(OverflowError, int, _ffi_backend.cast(p, INF))
-        py.test.raises(OverflowError, int, _ffi_backend.cast(p, -INF))
-        assert float(_ffi_backend.cast(p, 1.25)) == 1.25
-        assert float(_ffi_backend.cast(p, INF)) == INF
-        assert float(_ffi_backend.cast(p, -INF)) == -INF
+        p = new_primitive_type(name)
+        assert bool(cast(p, 0))
+        assert bool(cast(p, INF))
+        assert bool(cast(p, -INF))
+        assert int(cast(p, -150)) == -150
+        assert int(cast(p, 61.91)) == 61
+        assert long(cast(p, 61.91)) == 61L
+        assert type(int(cast(p, 61.91))) is int
+        assert type(int(cast(p, 1E22))) is long
+        assert type(long(cast(p, 61.91))) is long
+        assert type(long(cast(p, 1E22))) is long
+        py.test.raises(OverflowError, int, cast(p, INF))
+        py.test.raises(OverflowError, int, cast(p, -INF))
+        assert float(cast(p, 1.25)) == 1.25
+        assert float(cast(p, INF)) == INF
+        assert float(cast(p, -INF)) == -INF
         if name == "float":
-            assert float(_ffi_backend.cast(p, 1.1)) != 1.1     # rounding error
-            assert float(_ffi_backend.cast(p, 1E200)) == INF   # limited range
+            assert float(cast(p, 1.1)) != 1.1     # rounding error
+            assert float(cast(p, 1E200)) == INF   # limited range
 
-        assert _ffi_backend.cast(p, -1.1) != _ffi_backend.cast(p, -1.1)
-        assert repr(float(_ffi_backend.cast(p, -0.0))) == '-0.0'
+        assert cast(p, -1.1) != cast(p, -1.1)
+        assert repr(float(cast(p, -0.0))) == '-0.0'
 
 def test_character_type():
-    p = _ffi_backend.new_primitive_type(None, "char")
-    assert bool(_ffi_backend.cast(p, '\x00'))
-    assert _ffi_backend.cast(p, '\x00') != _ffi_backend.cast(p, -17*256)
-    assert int(_ffi_backend.cast(p, 'A')) == 65
-    assert long(_ffi_backend.cast(p, 'A')) == 65L
-    assert type(int(_ffi_backend.cast(p, 'A'))) is int
-    assert type(long(_ffi_backend.cast(p, 'A'))) is long
-    assert str(_ffi_backend.cast(p, 'A')) == 'A'
+    p = new_primitive_type("char")
+    assert bool(cast(p, '\x00'))
+    assert cast(p, '\x00') != cast(p, -17*256)
+    assert int(cast(p, 'A')) == 65
+    assert long(cast(p, 'A')) == 65L
+    assert type(int(cast(p, 'A'))) is int
+    assert type(long(cast(p, 'A'))) is long
+    assert str(cast(p, 'A')) == 'A'
 
 def test_pointer_type():
-    p = _ffi_backend.new_primitive_type(None, "int")
+    p = new_primitive_type("int")
     assert repr(p) == "<ctype 'int'>"
-    p = _ffi_backend.new_pointer_type(None, p)
+    p = new_pointer_type(p)
     assert repr(p) == "<ctype 'int *'>"
-    p = _ffi_backend.new_pointer_type(None, p)
+    p = new_pointer_type(p)
     assert repr(p) == "<ctype 'int * *'>"
-    p = _ffi_backend.new_pointer_type(None, p)
+    p = new_pointer_type(p)
     assert repr(p) == "<ctype 'int * * *'>"
 
 def test_pointer_to_int():
-    BInt = _ffi_backend.new_primitive_type(None, "int")
-    py.test.raises(TypeError, _ffi_backend.new, BInt, None)
-    BPtr = _ffi_backend.new_pointer_type(None, BInt)
-    p = _ffi_backend.new(BPtr, None)
+    BInt = new_primitive_type("int")
+    py.test.raises(TypeError, new, BInt, None)
+    BPtr = new_pointer_type(BInt)
+    p = new(BPtr, None)
     assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
-    p = _ffi_backend.new(BPtr, 5000)
+    p = new(BPtr, 5000)
     assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
-    q = _ffi_backend.cast(BPtr, p)
+    q = cast(BPtr, p)
     assert repr(q) == "<cdata 'int *'>"
     assert p == q
     assert hash(p) == hash(q)
 
 def test_pointer_to_pointer():
-    BInt = _ffi_backend.new_primitive_type(None, "int")
-    BPtr = _ffi_backend.new_pointer_type(None, BInt)
-    BPtrPtr = _ffi_backend.new_pointer_type(None, BPtr)
-    p = _ffi_backend.new(BPtrPtr, None)
+    BInt = new_primitive_type("int")
+    BPtr = new_pointer_type(BInt)
+    BPtrPtr = new_pointer_type(BPtr)
+    p = new(BPtrPtr, None)
     assert repr(p) == "<cdata 'int * *' owning %d bytes>" % size_of_ptr()
 
 def test_reading_pointer_to_int():
-    BInt = _ffi_backend.new_primitive_type(None, "int")
-    BPtr = _ffi_backend.new_pointer_type(None, BInt)
-    p = _ffi_backend.new(BPtr, None)
+    BInt = new_primitive_type("int")
+    BPtr = new_pointer_type(BInt)
+    p = new(BPtr, None)
     assert p[0] == 0
-    p = _ffi_backend.new(BPtr, 5000)
+    p = new(BPtr, 5000)
     assert p[0] == 5000
     py.test.raises(IndexError, "p[1]")
     py.test.raises(IndexError, "p[-1]")
 
 def test_reading_pointer_to_float():
-    BFloat = _ffi_backend.new_primitive_type(None, "float")
-    py.test.raises(TypeError, _ffi_backend.new, BFloat, None)
-    BPtr = _ffi_backend.new_pointer_type(None, BFloat)
-    p = _ffi_backend.new(BPtr, None)
+    BFloat = new_primitive_type("float")
+    py.test.raises(TypeError, new, BFloat, None)
+    BPtr = new_pointer_type(BFloat)
+    p = new(BPtr, None)
     assert p[0] == 0.0 and type(p[0]) is float
-    p = _ffi_backend.new(BPtr, 1.25)
+    p = new(BPtr, 1.25)
     assert p[0] == 1.25 and type(p[0]) is float
-    p = _ffi_backend.new(BPtr, 1.1)
+    p = new(BPtr, 1.1)
     assert p[0] != 1.1 and abs(p[0] - 1.1) < 1E-5   # rounding errors
 
 def test_reading_pointer_to_char():
-    BChar = _ffi_backend.new_primitive_type(None, "char")
-    py.test.raises(TypeError, _ffi_backend.new, BChar, None)
-    BPtr = _ffi_backend.new_pointer_type(None, BChar)
-    p = _ffi_backend.new(BPtr, None)
+    BChar = new_primitive_type("char")
+    py.test.raises(TypeError, new, BChar, None)
+    BPtr = new_pointer_type(BChar)
+    p = new(BPtr, None)
     assert p[0] == '\x00'
-    p = _ffi_backend.new(BPtr, 'A')
+    p = new(BPtr, 'A')
     assert p[0] == 'A'
-    py.test.raises(TypeError, _ffi_backend.new, BPtr, 65)
-    py.test.raises(TypeError, _ffi_backend.new, BPtr, "foo")
+    py.test.raises(TypeError, new, BPtr, 65)
+    py.test.raises(TypeError, new, BPtr, "foo")
 
 def test_hash_differences():
-    BChar = _ffi_backend.new_primitive_type(None, "char")
-    BInt = _ffi_backend.new_primitive_type(None, "int")
-    BFloat = _ffi_backend.new_primitive_type(None, "float")
-    assert (hash(_ffi_backend.cast(BChar, 'A')) !=
-            hash(_ffi_backend.cast(BInt, 65)))
-    assert hash(_ffi_backend.cast(BFloat, 65)) != hash(65.0)
+    BChar = new_primitive_type("char")
+    BInt = new_primitive_type("int")
+    BFloat = new_primitive_type("float")
+    assert (hash(cast(BChar, 'A')) !=
+            hash(cast(BInt, 65)))
+    assert hash(cast(BFloat, 65)) != hash(65.0)
 
 def test_array_type():
-    p = _ffi_backend.new_primitive_type(None, "int")
+    p = new_primitive_type("int")
     assert repr(p) == "<ctype 'int'>"
     #
-    py.test.raises(TypeError, _ffi_backend.new_array_type, None, p, "foo")
-    py.test.raises(ValueError, _ffi_backend.new_array_type, None, p, -42)
+    py.test.raises(TypeError, new_array_type, new_pointer_type(p), "foo")
+    py.test.raises(ValueError, new_array_type, new_pointer_type(p), -42)
     #
-    p1 = _ffi_backend.new_array_type(None, p, None)
+    p1 = new_array_type(new_pointer_type(p), None)
     assert repr(p1) == "<ctype 'int[]'>"
-    py.test.raises(ValueError, _ffi_backend.new_array_type, None, p1, 42)
+    py.test.raises(ValueError, new_array_type, new_pointer_type(p1), 42)
     #
-    p1 = _ffi_backend.new_array_type(None, p, 42)
-    p2 = _ffi_backend.new_array_type(None, p1, 25)
+    p1 = new_array_type(new_pointer_type(p), 42)
+    p2 = new_array_type(new_pointer_type(p1), 25)
     assert repr(p2) == "<ctype 'int[25][42]'>"
-    p2 = _ffi_backend.new_array_type(None, p1, None)
+    p2 = new_array_type(new_pointer_type(p1), None)
     assert repr(p2) == "<ctype 'int[][42]'>"
     #
     py.test.raises(OverflowError,
-                   _ffi_backend.new_array_type, None, p, sys.maxint+1)
+                   new_array_type, new_pointer_type(p), sys.maxint+1)
     py.test.raises(OverflowError,
-                   _ffi_backend.new_array_type, None, p, sys.maxint // 3)
+                   new_array_type, new_pointer_type(p), sys.maxint // 3)
 
 def test_array_instance():
     LENGTH = 14242
-    p = _ffi_backend.new_primitive_type(None, "int")
-    p1 = _ffi_backend.new_array_type(None, p, LENGTH)
-    a = _ffi_backend.new(p1, None)
+    p = new_primitive_type("int")
+    p1 = new_array_type(new_pointer_type(p), LENGTH)
+    a = new(p1, None)
     assert repr(a) == "<cdata 'int[%d]' owning %d bytes>" % (
         LENGTH, LENGTH * size_of_int())
     assert len(a) == LENGTH
@@ -221,11 +221,11 @@ def test_array_instance():
     assert ('(expected %d < %d)' % (LENGTH+100, LENGTH)) in str(e.value)
 
 def test_array_of_unknown_length_instance():
-    p = _ffi_backend.new_primitive_type(None, "int")
-    p1 = _ffi_backend.new_array_type(None, p, None)
-    py.test.raises(TypeError, _ffi_backend.new, p1, None)
-    py.test.raises(ValueError, _ffi_backend.new, p1, -42)
-    a = _ffi_backend.new(p1, 42)
+    p = new_primitive_type("int")
+    p1 = new_array_type(new_pointer_type(p), None)
+    py.test.raises(TypeError, new, p1, None)
+    py.test.raises(ValueError, new, p1, -42)
+    a = new(p1, 42)
     assert len(a) == 42
     for i in range(42):
         a[i] -= i
@@ -237,68 +237,68 @@ def test_array_of_unknown_length_instance():
     py.test.raises(IndexError, "a[-1] = 456")
 
 def test_array_of_unknown_length_instance_with_initializer():
-    p = _ffi_backend.new_primitive_type(None, "int")
-    p1 = _ffi_backend.new_array_type(None, p, None)
-    a = _ffi_backend.new(p1, range(42))
+    p = new_primitive_type("int")
+    p1 = new_array_type(new_pointer_type(p), None)
+    a = new(p1, range(42))
     assert len(a) == 42
-    a = _ffi_backend.new(p1, tuple(range(142)))
+    a = new(p1, tuple(range(142)))
     assert len(a) == 142
 
 def test_array_initializer():
-    p = _ffi_backend.new_primitive_type(None, "int")
-    p1 = _ffi_backend.new_array_type(None, p, None)
-    a = _ffi_backend.new(p1, range(100, 142))
+    p = new_primitive_type("int")
+    p1 = new_array_type(new_pointer_type(p), None)
+    a = new(p1, range(100, 142))
     for i in range(42):
         assert a[i] == 100 + i
     #
-    p2 = _ffi_backend.new_array_type(None, p, 43)
-    a = _ffi_backend.new(p2, tuple(range(100, 142)))
+    p2 = new_array_type(new_pointer_type(p), 43)
+    a = new(p2, tuple(range(100, 142)))
     for i in range(42):
         assert a[i] == 100 + i
     assert a[42] == 0      # extra uninitialized item
 
 def test_cast_primitive_from_cdata():
-    p = _ffi_backend.new_primitive_type(None, "int")
-    n = _ffi_backend.cast(p, _ffi_backend.cast(p, -42))
+    p = new_primitive_type("int")
+    n = cast(p, cast(p, -42))
     assert int(n) == -42
     #
-    p = _ffi_backend.new_primitive_type(None, "unsigned int")
-    n = _ffi_backend.cast(p, _ffi_backend.cast(p, 42))
+    p = new_primitive_type("unsigned int")
+    n = cast(p, cast(p, 42))
     assert int(n) == 42
     #
-    p = _ffi_backend.new_primitive_type(None, "long long")
-    n = _ffi_backend.cast(p, _ffi_backend.cast(p, -(1<<60)))
+    p = new_primitive_type("long long")
+    n = cast(p, cast(p, -(1<<60)))
     assert int(n) == -(1<<60)
     #
-    p = _ffi_backend.new_primitive_type(None, "unsigned long long")
-    n = _ffi_backend.cast(p, _ffi_backend.cast(p, 1<<63))
+    p = new_primitive_type("unsigned long long")
+    n = cast(p, cast(p, 1<<63))
     assert int(n) == 1<<63
     #
-    p = _ffi_backend.new_primitive_type(None, "float")
-    n = _ffi_backend.cast(p, _ffi_backend.cast(p, 42.5))
+    p = new_primitive_type("float")
+    n = cast(p, cast(p, 42.5))
     assert float(n) == 42.5
     #
-    p = _ffi_backend.new_primitive_type(None, "char")
-    n = _ffi_backend.cast(p, _ffi_backend.cast(p, "A"))
+    p = new_primitive_type("char")
+    n = cast(p, cast(p, "A"))
     assert str(n) == "A"
 
 def test_new_primitive_from_cdata():
-    p = _ffi_backend.new_primitive_type(None, "int")
-    p1 = _ffi_backend.new_pointer_type(None, p)
-    n = _ffi_backend.new(p1, _ffi_backend.cast(p, -42))
+    p = new_primitive_type("int")
+    p1 = new_pointer_type(p)
+    n = new(p1, cast(p, -42))
     assert n[0] == -42
     #
-    p = _ffi_backend.new_primitive_type(None, "unsigned int")
-    p1 = _ffi_backend.new_pointer_type(None, p)
-    n = _ffi_backend.new(p1, _ffi_backend.cast(p, 42))
+    p = new_primitive_type("unsigned int")
+    p1 = new_pointer_type(p)
+    n = new(p1, cast(p, 42))
     assert n[0] == 42
     #
-    p = _ffi_backend.new_primitive_type(None, "float")
-    p1 = _ffi_backend.new_pointer_type(None, p)
-    n = _ffi_backend.new(p1, _ffi_backend.cast(p, 42.5))
+    p = new_primitive_type("float")
+    p1 = new_pointer_type(p)
+    n = new(p1, cast(p, 42.5))
     assert n[0] == 42.5
     #
-    p = _ffi_backend.new_primitive_type(None, "char")
-    p1 = _ffi_backend.new_pointer_type(None, p)
-    n = _ffi_backend.new(p1, _ffi_backend.cast(p, "A"))
+    p = new_primitive_type("char")
+    p1 = new_pointer_type(p)
+    n = new(p1, cast(p, "A"))
     assert n[0] == "A"
