@@ -936,7 +936,7 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
             value = (Py_intptr_t)((CDataObject *)ob)->c_data;
         }
         else if (PyString_Check(ob)) {
-            if (PyString_Size(ob) != 1)
+            if (PyString_GET_SIZE(ob) != 1)
                 goto cannot_cast;
             value = (unsigned char)PyString_AS_STRING(ob)[0];
         }
@@ -952,7 +952,36 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
     }
     else if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
         /* cast to a float */
-        double value = PyFloat_AsDouble(ob);
+        double value;
+        PyObject *io;
+
+        if (CData_Check(ob)) {
+            CDataObject *cdsrc = (CDataObject *)ob;
+
+            if (!(cdsrc->c_type->ct_flags & CT_PRIMITIVE_ANY))
+                goto cannot_cast;
+            io = convert_to_object(cdsrc->c_data, cdsrc->c_type);
+            if (io == NULL)
+                return NULL;
+        }
+        else {
+            io = ob;
+            Py_INCREF(io);
+        }
+
+        if (PyString_Check(io)) {
+            if (PyString_GET_SIZE(io) != 1) {
+                Py_DECREF(io);
+                goto cannot_cast;
+            }
+            value = (unsigned char)PyString_AS_STRING(io)[0];
+        }
+        else {
+            value = PyFloat_AsDouble(io);
+        }
+        Py_DECREF(io);
+        if (value == -1.0 && PyErr_Occurred())
+            return NULL;
 
         cd = _new_casted_primitive(ct);
         if (cd != NULL)
