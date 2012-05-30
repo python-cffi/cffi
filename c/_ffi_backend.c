@@ -924,13 +924,18 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
             return NULL;
-        return new_pointer_cdata((char *)(Py_ssize_t)value, ct);
+        return new_pointer_cdata((char *)(Py_intptr_t)value, ct);
     }
     else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED
                              |CT_PRIMITIVE_CHAR)) {
         /* cast to an integer type or a char */
         unsigned PY_LONG_LONG value;
-        if (PyString_Check(ob)) {
+
+        if (CData_Check(ob) &&
+               ((CDataObject *)ob)->c_type->ct_flags & (CT_POINTER|CT_ARRAY)) {
+            value = (Py_intptr_t)((CDataObject *)ob)->c_data;
+        }
+        else if (PyString_Check(ob)) {
             if (PyString_Size(ob) != 1)
                 goto cannot_cast;
             value = (unsigned char)PyString_AS_STRING(ob)[0];
