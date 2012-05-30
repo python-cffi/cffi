@@ -534,6 +534,17 @@ static PyObject *cdata_str(CDataObject *cd)
     if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
         return PyString_FromStringAndSize(cd->c_data, 1);
     }
+    else if (cd->c_type->ct_itemdescr != NULL &&
+             cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) {
+        Py_ssize_t length;
+
+        if (cd->c_type->ct_flags & CT_ARRAY)
+            length = strnlen(cd->c_data, get_array_length(cd));
+        else
+            length = strlen(cd->c_data);
+
+        return PyString_FromStringAndSize(cd->c_data, length);
+    }
     else
         return cdata_repr(cd);
 }
@@ -832,6 +843,8 @@ static PyObject *b_new(PyObject *self, PyObject *args)
                          ctitem->ct_name);
             return NULL;
         }
+        if (ctitem->ct_flags & CT_PRIMITIVE_CHAR)
+            datasize += sizeof(char);  /* forcefully add a null character */
     }
     else if (ct->ct_flags & CT_ARRAY) {
         dataoffset = offsetof(CDataObject_with_alignment, alignment);

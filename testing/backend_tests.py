@@ -445,6 +445,11 @@ class BackendTests:
         assert len(a) == 5
         assert ffi.sizeof(a) == 5 * SIZE_OF_INT
 
+    def test_str_from_char_pointer(self):
+        ffi = FFI(backend=self.Backend())
+        assert str(ffi.new("char", "x")) == "x"
+        assert str(ffi.new("char", "\x00")) == ""
+
     def test_string_from_char_array(self):
         ffi = FFI(backend=self.Backend())
         assert str(ffi.cast("char", "x")) == "x"
