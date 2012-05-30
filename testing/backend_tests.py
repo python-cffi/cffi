@@ -277,6 +277,14 @@ class BackendTests:
         p = ffi.new("char[]", "abcd")
         assert len(p) == 5
         assert p[4] == '\x00'    # like in C, with:  char[] p = "abcd";
+        #
+        p = ffi.new("char[4]", "ab")
+        assert len(p) == 4
+        assert [p[i] for i in range(4)] == ['a', 'b', '\x00', '\x00']
+        p = ffi.new("char[2]", "ab")
+        assert len(p) == 2
+        assert [p[i] for i in range(2)] == ['a', 'b']
+        py.test.raises(IndexError, ffi.new, "char[2]", "abc")
 
     def test_none_as_null(self):
         ffi = FFI(backend=self.Backend())
