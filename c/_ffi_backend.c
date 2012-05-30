@@ -29,7 +29,8 @@ typedef struct _ctypedescr {
                                           arrays: ctypedescr of the ptr type */
 
     Py_ssize_t ct_size;     /* size of instances, or -1 if unknown */
-    Py_ssize_t ct_length;   /* length of arrays, or -1 if unknown */
+    Py_ssize_t ct_length;   /* length of arrays, or -1 if unknown;
+                               or alignment of primitive types */
     int ct_flags;           /* CT_xxx flags */
 
     int ct_name_position;   /* index in ct_name of where to put a var name */
@@ -1221,23 +1222,39 @@ static PyObject *b_nonstandard_integer_types(PyObject *self, PyObject *noarg)
 
 static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 {
+#define ENUM_PRIMITIVE_TYPES                                    \
+       EPTYPE(c, char, CT_PRIMITIVE_CHAR | CT_CAST_ANYTHING)    \
+       EPTYPE(s, short, CT_PRIMITIVE_SIGNED )                   \
+       EPTYPE(i, int, CT_PRIMITIVE_SIGNED )                     \
+       EPTYPE(l, long, CT_PRIMITIVE_SIGNED )                    \
+       EPTYPE(ll, long long, CT_PRIMITIVE_SIGNED )              \
+       EPTYPE(sc, signed char, CT_PRIMITIVE_SIGNED )            \
+       EPTYPE(uc, unsigned char, CT_PRIMITIVE_UNSIGNED )        \
+       EPTYPE(us, unsigned short, CT_PRIMITIVE_UNSIGNED )       \
+       EPTYPE(ui, unsigned int, CT_PRIMITIVE_UNSIGNED )         \
+       EPTYPE(ul, unsigned long, CT_PRIMITIVE_UNSIGNED )        \
+       EPTYPE(ull, unsigned long long, CT_PRIMITIVE_UNSIGNED )  \
+       EPTYPE(f, float, CT_PRIMITIVE_FLOAT )                    \
+       EPTYPE(d, double, CT_PRIMITIVE_FLOAT )
+
+#define EPTYPE(code, typename, flags)                   \
+    struct aligncheck_##code { char x; typename y; };
+    ENUM_PRIMITIVE_TYPES
+#undef EPTYPE
+
     CTypeDescrObject *td;
     const char *name;
-    static const struct descr_s { const char *name; int size, flags; }
+    static const struct descr_s { const char *name; int size, align, flags; }
     types[] = {
-        { "char", sizeof(char), CT_PRIMITIVE_CHAR|CT_CAST_ANYTHING },
-        { "short", sizeof(short), CT_PRIMITIVE_SIGNED },
-        { "int", sizeof(int), CT_PRIMITIVE_SIGNED },
-        { "long", sizeof(long), CT_PRIMITIVE_SIGNED },
-        { "long long", sizeof(long long), CT_PRIMITIVE_SIGNED },
-        { "signed char", sizeof(signed char), CT_PRIMITIVE_SIGNED },
-        { "unsigned char", sizeof(unsigned char), CT_PRIMITIVE_UNSIGNED },
-        { "unsigned short", sizeof(unsigned short), CT_PRIMITIVE_UNSIGNED },
-        { "unsigned int", sizeof(unsigned int), CT_PRIMITIVE_UNSIGNED },
-        { "unsigned long", sizeof(unsigned long), CT_PRIMITIVE_UNSIGNED },
-        { "unsigned long long", sizeof(unsigned long long), CT_PRIMITIVE_UNSIGNED },
-        { "float", sizeof(float), CT_PRIMITIVE_FLOAT },
-        { "double", sizeof(double), CT_PRIMITIVE_FLOAT },
+#define EPTYPE(code, typename, flags)                   \
+        { #typename,                                    \
+          sizeof(typename),                             \
+          offsetof(struct aligncheck_##code, y),        \
+          flags                                         \
+        },
+    ENUM_PRIMITIVE_TYPES
+#undef EPTYPE
+#undef ENUM_PRIMITIVE_TYPES
         { NULL }
     };
     const struct descr_s *ptypes;
@@ -1262,6 +1279,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 
     memcpy(td->ct_name, name, name_size);
     td->ct_size = ptypes->size;
+    td->ct_length = ptypes->align;
     td->ct_flags = ptypes->flags;
     if (td->ct_flags & CT_PRIMITIVE_SIGNED) {
         if (td->ct_size <= sizeof(long))
@@ -1360,6 +1378,38 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *args)
     return (PyObject *)td;
 }
 
+static PyObject *b_alignof(PyObject *self, PyObject *arg)
+{
+    CTypeDescrObject *ct;
+    int align;
+
+    if (!CTypeDescr_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "expected a 'ctype' object");
+        return NULL;
+    }
+
+    ct = (CTypeDescrObject *)arg;
+
+ retry:
+    if (ct->ct_flags & CT_PRIMITIVE_ANY) {
+        align = ct->ct_length;
+    }
+    else if (ct->ct_flags & CT_POINTER) {
+        struct aligncheck_ptr { char x; char *y; };
+        align = offsetof(struct aligncheck_ptr, y);
+    }
+    else if (ct->ct_flags & CT_ARRAY) {
+        ct = ct->ct_itemdescr;
+        goto retry;
+    }
+    else {
+        PyErr_Format(PyExc_ValueError, "ctype '%s' is of unknown alignment",
+                     ct->ct_name);
+        return NULL;
+    }
+    return PyInt_FromLong(align);
+}
+
 static PyObject *b_sizeof_type(PyObject *self, PyObject *arg)
 {
     if (!CTypeDescr_Check(arg)) {
@@ -1371,7 +1421,7 @@ static PyObject *b_sizeof_type(PyObject *self, PyObject *arg)
                      ((CTypeDescrObject *)arg)->ct_name);
         return NULL;
     }
-    return PyInt_FromLong(((CTypeDescrObject *)arg)->ct_size);
+    return PyInt_FromSsize_t(((CTypeDescrObject *)arg)->ct_size);
 }
 
 static PyObject *b_sizeof_instance(PyObject *self, PyObject *arg)
@@ -1434,6 +1484,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new_void_type", b_new_void_type, METH_NOARGS},
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
+    {"alignof", b_alignof, METH_O},
     {"sizeof_type", b_sizeof_type, METH_O},
     {"sizeof_instance", b_sizeof_instance, METH_O},
     {"typeof_instance", b_typeof_instance, METH_O},

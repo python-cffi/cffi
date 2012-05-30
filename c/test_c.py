@@ -302,3 +302,11 @@ def test_new_primitive_from_cdata():
     p1 = new_pointer_type(p)
     n = new(p1, cast(p, "A"))
     assert n[0] == "A"
+
+def test_alignof():
+    BInt = new_primitive_type("int")
+    assert alignof(BInt) == sizeof_type(BInt)
+    BPtr = new_pointer_type(BInt)
+    assert alignof(BPtr) == sizeof_type(BPtr)
+    BArray = new_array_type(BPtr, None)
+    assert alignof(BArray) == alignof(BInt)
