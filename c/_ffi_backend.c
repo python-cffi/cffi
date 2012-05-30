@@ -170,6 +170,50 @@ static PyTypeObject CTypeDescr_Type = {
 
 /************************************************************/
 
+static unsigned PY_LONG_LONG
+_my_PyLong_AsUnsignedLongLong(PyObject *ob)
+{
+    /* (possibly) convert and cast a Python object to an unsigned long long.
+       Like PyLong_AsLongLong(), this version accepts a Python int too,
+       does convertions from other types of objects, and complains with
+       OverflowError. */
+    if (PyInt_Check(ob)) {
+        long value1 = PyInt_AS_LONG(ob);
+        if (value1 < 0) {
+            /* TypeError? yes, like PyLong_AsUnsignedLongLong() would */
+            PyErr_SetString(PyExc_TypeError,
+                            "can't convert negative long to unsigned");
+            return -1;
+        }
+        return (unsigned PY_LONG_LONG)value1;
+    }
+    else if (PyLong_Check(ob)) {
+        return PyLong_AsUnsignedLongLong(ob);
+    }
+    else {
+        PyObject *io;
+        unsigned PY_LONG_LONG res;
+        PyNumberMethods *nb = ob->ob_type->tp_as_number;
+
+        if (nb == NULL || nb->nb_int == NULL) {
+            PyErr_SetString(PyExc_TypeError, "an integer is required");
+            return (unsigned PY_LONG_LONG)-1;
+        }
+        io = (*nb->nb_int) (ob);
+        if (io == NULL)
+            return (unsigned PY_LONG_LONG)-1;
+
+        if (!PyInt_Check(io) && !PyLong_Check(io)) {
+            Py_DECREF(io);
+            PyErr_SetString(PyExc_TypeError, "integer conversion failed");
+            return -1;
+        }
+        res = _my_PyLong_AsUnsignedLongLong(io);
+        Py_DECREF(io);
+        return res;
+    }
+}
+
 static PY_LONG_LONG
 read_raw_signed_data(char *target, int size)
 {
@@ -286,6 +330,7 @@ static int
 convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
     PyObject *s;
+    const char *expected;
 
     if (ct->ct_flags & CT_ARRAY) {
         PyObject **items;
@@ -293,11 +338,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         CTypeDescrObject *ctitem = ct->ct_itemdescr;
 
         if (!(PyList_Check(init) || PyTuple_Check(init))) {
-            PyErr_Format(PyExc_TypeError,
-                         "initializer for '%s' must be a list or tuple, "
-                         "not %.200s",
-                         ct->ct_name, Py_TYPE(init)->tp_name);
-            return -1;
+            expected = "list or tuple";
+            goto cannot_convert;
         }
         n = PySequence_Fast_GET_SIZE(init);
         if (ct->ct_length >= 0 && n > ct->ct_length) {
@@ -316,12 +358,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
-        PY_LONG_LONG value;
-        if (PyInt_Check(init))
-            value = PyInt_AsLong(init);
-        else
-            value = PyLong_AsLongLong(init);
-
+        PY_LONG_LONG value = PyLong_AsLongLong(init);
         if (value == -1 && PyErr_Occurred())
             return -1;
         write_raw_integer_data(data, value, ct->ct_size);
@@ -330,21 +367,9 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_UNSIGNED) {
-        unsigned PY_LONG_LONG value;
-        if (PyInt_Check(init)) {
-            long value1 = PyInt_AsLong(init);
-            if (value1 < 0) {
-                if (PyErr_Occurred())
-                    return -1;
-                goto overflow;
-            }
-            value = value1;
-        }
-        else {
-            value = PyLong_AsUnsignedLongLong(init);
-            if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
-                return -1;
-        }
+        unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(init);
+        if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
+            return -1;
         write_raw_integer_data(data, value, ct->ct_size);
         if (value != read_raw_unsigned_data(data, ct->ct_size))
             goto overflow;
@@ -360,10 +385,13 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             data[0] = PyString_AS_STRING(init)[0];
             return 0;
         }
-        PyErr_Format(PyExc_TypeError,
-                     "expected string of length 1, but "
-                     "%.200s found", init->ob_type->tp_name);
-        return -1;
+        if (CData_Check(init) &&
+               (((CDataObject *)init)->c_type->ct_flags & CT_PRIMITIVE_CHAR)) {
+            data[0] = ((CDataObject *)init)->c_data[0];
+            return 0;
+        }
+        expected = "string of length 1";
+        goto cannot_convert;
     }
     fprintf(stderr, "convert_from_object: '%s'\n", ct->ct_name);
     Py_FatalError("convert_from_object");
@@ -376,6 +404,13 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     PyErr_Format(PyExc_OverflowError, "integer %s does not fit '%s'",
                  PyString_AS_STRING(s), ct->ct_name);
     Py_DECREF(s);
+    return -1;
+
+ cannot_convert:
+    PyErr_Format(PyExc_TypeError,
+                 "initializer for ctype '%s' must be a %s, "
+                 "not %.200s",
+                 ct->ct_name, expected, Py_TYPE(init)->tp_name);
     return -1;
 }
 
@@ -800,13 +835,10 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
     else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
         /* cast to an integer type */
         unsigned PY_LONG_LONG value;
-
-        if (PyInt_Check(ob))
-            value = (unsigned PY_LONG_LONG)PyInt_AS_LONG(ob);
-        else if (PyLong_Check(ob))
+        if (PyLong_Check(ob))
             value = PyLong_AsUnsignedLongLongMask(ob);
         else
-            goto cannot_cast;
+            value = PyInt_AsLong(ob);
 
         cd = _new_casted_primitive(ct);
         if (cd != NULL)
@@ -820,11 +852,8 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
                 goto cannot_cast;
             value = PyString_AS_STRING(ob)[0];
         }
-        else if (PyInt_Check(ob) || PyLong_Check(ob)) {
-            value = PyInt_AsLong(ob);
-        }
         else
-            goto cannot_cast;
+            value = PyInt_AsLong(ob);
 
         cd = _new_casted_primitive(ct);
         if (cd != NULL)

@@ -256,3 +256,44 @@ def test_array_initializer():
     for i in range(42):
         assert a[i] == 100 + i
     assert a[42] == 0      # extra uninitialized item
+
+def test_cast_primitive_from_cdata():
+    p = _ffi_backend.new_primitive_type(None, "int")
+    n = _ffi_backend.cast(p, _ffi_backend.cast(p, -42))
+    assert int(n) == -42
+    #
+    p = _ffi_backend.new_primitive_type(None, "unsigned int")
+    p1 = _ffi_backend.new_pointer_type(None, p)
+    n = _ffi_backend.cast(p, _ffi_backend.cast(p, 42))
+    assert int(n) == 42
+    #
+    p = _ffi_backend.new_primitive_type(None, "float")
+    p1 = _ffi_backend.new_pointer_type(None, p)
+    n = _ffi_backend.cast(p, _ffi_backend.cast(p, 42.5))
+    assert float(n) == 42.5
+    #
+    p = _ffi_backend.new_primitive_type(None, "char")
+    p1 = _ffi_backend.new_pointer_type(None, p)
+    n = _ffi_backend.cast(p, _ffi_backend.cast(p, "A"))
+    assert str(n) == "A"
+
+def test_new_primitive_from_cdata():
+    p = _ffi_backend.new_primitive_type(None, "int")
+    p1 = _ffi_backend.new_pointer_type(None, p)
+    n = _ffi_backend.new(p1, _ffi_backend.cast(p, -42))
+    assert n[0] == -42
+    #
+    p = _ffi_backend.new_primitive_type(None, "unsigned int")
+    p1 = _ffi_backend.new_pointer_type(None, p)
+    n = _ffi_backend.new(p1, _ffi_backend.cast(p, 42))
+    assert n[0] == 42
+    #
+    p = _ffi_backend.new_primitive_type(None, "float")
+    p1 = _ffi_backend.new_pointer_type(None, p)
+    n = _ffi_backend.new(p1, _ffi_backend.cast(p, 42.5))
+    assert n[0] == 42.5
+    #
+    p = _ffi_backend.new_primitive_type(None, "char")
+    p1 = _ffi_backend.new_pointer_type(None, p)
+    n = _ffi_backend.new(p1, _ffi_backend.cast(p, "A"))
+    assert n[0] == "A"
