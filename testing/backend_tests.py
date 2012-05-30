@@ -179,51 +179,52 @@ class BackendTests:
         assert p[1] == 456
 
     def test_repr(self):
+        typerepr = self.TypeRepr
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { short a, b, c; };")
         p = ffi.cast("unsigned short int", 0)
         assert repr(p) == "<cdata 'unsigned short'>"
-        assert repr(type(p)) == "<class 'ffi.CData<unsigned short>'>"
+        assert repr(ffi.typeof(p)) == typerepr % "unsigned short"
         p = ffi.cast("int*", 0)
         assert repr(p) == "<cdata 'int *'>"
-        assert repr(type(p)) == "<class 'ffi.CData<int *>'>"
+        assert repr(ffi.typeof(p)) == typerepr % "int *"
         #
         p = ffi.new("int")
         assert repr(p) == "<cdata 'int *' owning %d bytes>" % SIZE_OF_INT
-        assert repr(type(p)) == "<class 'ffi.CData<int *>'>"
+        assert repr(ffi.typeof(p)) == typerepr % "int *"
         p = ffi.new("int*")
         assert repr(p) == "<cdata 'int * *' owning %d bytes>" % SIZE_OF_PTR
-        assert repr(type(p)) == "<class 'ffi.CData<int * *>'>"
+        assert repr(ffi.typeof(p)) == typerepr % "int * *"
         p = ffi.new("int [2]")
         assert repr(p) == "<cdata 'int[2]' owning %d bytes>" % (2*SIZE_OF_INT)
-        assert repr(type(p)) == "<class 'ffi.CData<int[2]>'>"
+        assert repr(ffi.typeof(p)) == typerepr % "int[2]"
         p = ffi.new("int*[2][3]")
         assert repr(p) == "<cdata 'int *[2][3]' owning %d bytes>" % (
             6*SIZE_OF_PTR)
-        assert repr(type(p)) == "<class 'ffi.CData<int *[2][3]>'>"
+        assert repr(ffi.typeof(p)) == typerepr % "int *[2][3]"
         p = ffi.new("struct foo")
         assert repr(p) == "<cdata 'struct foo *' owning %d bytes>" % (
             3*SIZE_OF_SHORT)
-        assert repr(type(p)) == "<class 'ffi.CData<struct foo *>'>"
+        assert repr(ffi.typeof(p)) == typerepr % "struct foo *"
         #
         q = ffi.cast("short", -123)
         assert repr(q) == "<cdata 'short'>"
-        assert repr(type(q)) == "<class 'ffi.CData<short>'>"
+        assert repr(ffi.typeof(q)) == typerepr % "short"
         p = ffi.new("int")
         q = ffi.cast("short*", p)
         assert repr(q) == "<cdata 'short *'>"
-        assert repr(type(q)) == "<class 'ffi.CData<short *>'>"
+        assert repr(ffi.typeof(q)) == typerepr % "short *"
         p = ffi.new("int [2]")
         q = ffi.cast("int*", p)
         assert repr(q) == "<cdata 'int *'>"
-        assert repr(type(q)) == "<class 'ffi.CData<int *>'>"
+        assert repr(ffi.typeof(q)) == typerepr % "int *"
         p = ffi.new("struct foo")
         q = ffi.cast("struct foo *", p)
         assert repr(q) == "<cdata 'struct foo *'>"
-        assert repr(type(q)) == "<class 'ffi.CData<struct foo *>'>"
+        assert repr(ffi.typeof(q)) == typerepr % "struct foo *"
         q = q[0]
         assert repr(q) == "<cdata 'struct foo'>"
-        assert repr(type(q)) == "<class 'ffi.CData<struct foo>'>"
+        assert repr(ffi.typeof(q)) == typerepr % "struct foo"
 
     def test_new_array_of_array(self):
         ffi = FFI(backend=self.Backend())

@@ -1212,6 +1212,19 @@ static PyObject *b_sizeof_type(PyObject *self, PyObject *arg)
     return PyInt_FromLong(((CTypeDescrObject *)arg)->ct_size);
 }
 
+static PyObject *b_typeof_instance(PyObject *self, PyObject *arg)
+{
+    PyObject *res;
+
+    if (!CData_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "expected a 'cdata' object");
+        return NULL;
+    }
+    res = (PyObject *)((CDataObject *)arg)->c_type;
+    Py_INCREF(res);
+    return res;
+}
+
 static PyMethodDef FFIBackendMethods[] = {
     {"nonstandard_integer_types", b_nonstandard_integer_types, METH_NOARGS},
     {"load_library", b_load_library, METH_VARARGS},
@@ -1221,6 +1234,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"sizeof_type", b_sizeof_type, METH_O},
+    {"typeof_instance", b_typeof_instance, METH_O},
     {NULL,     NULL}	/* Sentinel */
 };
 

@@ -3,6 +3,7 @@ import _ffi_backend
 
 
 class TestFFI(backend_tests.BackendTests):
+    TypeRepr = "<ctype '%s'>"
 
     @staticmethod
     def Backend():

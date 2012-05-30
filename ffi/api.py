@@ -115,14 +115,18 @@ class FFI(object):
     def typeof(self, cdecl):
         """Parse the C type given as a string and return the
         corresponding Python type: <class 'ffi.CData<...>'>.
+        It can also be used on 'cdata' instance to get its C type.
         """
-        try:
-            return self._parsed_types[cdecl]
-        except KeyError:
-            typenode = self._parse_type(cdecl)
-            btype = self._get_btype(typenode)
-            self._parsed_types[cdecl] = btype
-            return btype
+        if isinstance(cdecl, (str, unicode)):
+            try:
+                return self._parsed_types[cdecl]
+            except KeyError:
+                typenode = self._parse_type(cdecl)
+                btype = self._get_btype(typenode)
+                self._parsed_types[cdecl] = btype
+                return btype
+        else:
+            return self._backend.typeof_instance(cdecl)
 
     def sizeof(self, cdecl):
         """Return the size in bytes of the argument.  It can be a
