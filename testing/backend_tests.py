@@ -59,9 +59,9 @@ class BackendTests:
         p = ffi.cast(c_decl, long(max))
         assert int(p) == max
         q = ffi.cast(c_decl, min - 1)
-        assert type(q) is type(p) and int(q) == max
+        assert ffi.typeof(q) is ffi.typeof(p) and int(q) == max
         q = ffi.cast(c_decl, long(min - 1))
-        assert type(q) is type(p) and int(q) == max
+        assert ffi.typeof(q) is ffi.typeof(p) and int(q) == max
         assert q != p
         assert hash(q) != hash(p)   # unlikely
         py.test.raises(OverflowError, ffi.new, c_decl, min - 1)
@@ -507,7 +507,7 @@ class BackendTests:
         assert res == -40 and type(res) is int
         assert repr(p).startswith(
             "<cdata 'int(*)(int)' calling <function cb at 0x")
-        assert type(p) is ffi.typeof("int(*)(int)")
+        assert ffi.typeof(p) is ffi.typeof("int(*)(int)")
         q = ffi.new("int(*)(int)", p)
         assert repr(q) == "<cdata 'int(* *)(int)' owning %d bytes>" % (
             SIZE_OF_PTR)
@@ -522,7 +522,7 @@ class BackendTests:
     def test_char_cast(self):
         ffi = FFI(backend=self.Backend())
         p = ffi.cast("int", '\x01')
-        assert type(p) is ffi.typeof("int")
+        assert ffi.typeof(p) is ffi.typeof("int")
         assert int(p) == 1
         p = ffi.cast("int", ffi.cast("char", "a"))
         assert int(p) == ord("a")

@@ -555,7 +555,7 @@ static PyObject *cdata_int(CDataObject *cd)
         return convert_to_object(cd->c_data, cd->c_type);
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
-        return PyInt_FromLong(cd->c_data[0]);
+        return PyInt_FromLong((unsigned char)cd->c_data[0]);
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
         PyObject *o = convert_to_object(cd->c_data, cd->c_type);
@@ -918,34 +918,23 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
             return NULL;
         return new_pointer_cdata((char *)(Py_ssize_t)value, ct);
     }
-    else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
-        /* cast to an integer type */
-        unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(ob, 0);
-        if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
-            return NULL;
-
-        cd = _new_casted_primitive(ct);
-        if (cd != NULL)
-            write_raw_integer_data(cd->c_data, value, ct->ct_size);
-        return (PyObject *)cd;
-    }
-    else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
-        /* cast to char */
-        long value;
+    else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED
+                             |CT_PRIMITIVE_CHAR)) {
+        /* cast to an integer type or a char */
+        unsigned PY_LONG_LONG value;
         if (PyString_Check(ob)) {
             if (PyString_Size(ob) != 1)
                 goto cannot_cast;
-            value = PyString_AS_STRING(ob)[0];
+            value = (unsigned char)PyString_AS_STRING(ob)[0];
         }
         else {
-            value = PyInt_AsLong(ob);
-            if (value == -1 && PyErr_Occurred())
+            value = _my_PyLong_AsUnsignedLongLong(ob, 0);
+            if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
                 return NULL;
         }
-
         cd = _new_casted_primitive(ct);
         if (cd != NULL)
-            cd->c_data[0] = value;
+            write_raw_integer_data(cd->c_data, value, ct->ct_size);
         return (PyObject *)cd;
     }
     else if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
