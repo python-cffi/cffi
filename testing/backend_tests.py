@@ -56,12 +56,18 @@ class BackendTests:
         assert int(p) == min
         p = ffi.cast(c_decl, max)
         assert int(p) == max
+        p = ffi.cast(c_decl, long(max))
+        assert int(p) == max
         q = ffi.cast(c_decl, min - 1)
+        assert type(q) is type(p) and int(q) == max
+        q = ffi.cast(c_decl, long(min - 1))
         assert type(q) is type(p) and int(q) == max
         assert q != p
         assert hash(q) != hash(p)   # unlikely
         py.test.raises(OverflowError, ffi.new, c_decl, min - 1)
         py.test.raises(OverflowError, ffi.new, c_decl, max + 1)
+        py.test.raises(OverflowError, ffi.new, c_decl, long(min - 1))
+        py.test.raises(OverflowError, ffi.new, c_decl, long(max + 1))
 
     def test_new_single_integer(self):
         ffi = FFI(backend=self.Backend())

@@ -179,15 +179,13 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob)
        OverflowError. */
     if (PyInt_Check(ob)) {
         long value1 = PyInt_AS_LONG(ob);
-        if (value1 < 0) {
-            /* TypeError? yes, like PyLong_AsUnsignedLongLong() would */
-            PyErr_SetString(PyExc_TypeError,
-                            "can't convert negative long to unsigned");
-            return -1;
-        }
+        if (value1 < 0)
+            goto negative;
         return (unsigned PY_LONG_LONG)value1;
     }
     else if (PyLong_Check(ob)) {
+        if (_PyLong_Sign(ob) < 0)
+            goto negative;
         return PyLong_AsUnsignedLongLong(ob);
     }
     else {
@@ -212,6 +210,11 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob)
         Py_DECREF(io);
         return res;
     }
+
+ negative:
+    PyErr_SetString(PyExc_OverflowError,
+                    "can't convert negative number to unsigned");
+    return -1;
 }
 
 static PY_LONG_LONG
