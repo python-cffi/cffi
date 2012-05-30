@@ -317,14 +317,20 @@ new_pointer_cdata(char *data, CTypeDescrObject *ct)
 static PyObject *
 convert_to_object(char *data, CTypeDescrObject *ct)
 {
-    if (ct->ct_flags & CT_POINTER) {
-        char *ptrdata = *(char **)data;
-        if (ptrdata != NULL) {
-            return new_pointer_cdata(ptrdata, ct);
+    if (!(ct->ct_flags & CT_PRIMITIVE_ANY)) {
+        /* non-primitive types (check done just for performance) */
+        if (ct->ct_flags & CT_POINTER) {
+            char *ptrdata = *(char **)data;
+            if (ptrdata != NULL) {
+                return new_pointer_cdata(ptrdata, ct);
+            }
+            else {
+                Py_INCREF(Py_None);
+                return Py_None;
+            }
         }
-        else {
-            Py_INCREF(Py_None);
-            return Py_None;
+        else if (ct->ct_flags & CT_ARRAY) {
+            return new_pointer_cdata(data, ct);
         }
     }
     else if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
@@ -350,11 +356,10 @@ convert_to_object(char *data, CTypeDescrObject *ct)
     else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
         return PyString_FromStringAndSize(data, 1);
     }
-    else {
-        fprintf(stderr, "convert_to_object: '%s'\n", ct->ct_name);
-        Py_FatalError("convert_to_object");
-        return NULL;
-    }
+
+    fprintf(stderr, "convert_to_object: '%s'\n", ct->ct_name);
+    Py_FatalError("convert_to_object");
+    return NULL;
 }
 
 static int
