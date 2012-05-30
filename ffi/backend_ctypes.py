@@ -134,7 +134,8 @@ class CTypesGenericPtr(CTypesData):
 
     @classmethod
     def _initialize(cls, ctypes_ptr, value):
-        ctypes_ptr.contents = cls._to_ctypes(value).contents
+        if value is not None:
+            ctypes_ptr.contents = cls._to_ctypes(value).contents
 
     def _convert_to_address(self, BClass):
         if BClass in (self.__class__, None) or BClass._automatic_casts:

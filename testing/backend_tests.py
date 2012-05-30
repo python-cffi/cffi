@@ -136,6 +136,15 @@ class BackendTests:
         py.test.raises(ValueError, ffi.new, "int[]", -1)
         assert repr(p) == "<cdata 'int[]' owning 0 bytes>"
 
+    def test_pointer_init(self):
+        ffi = FFI(backend=self.Backend())
+        n = ffi.new("int", 24)
+        a = ffi.new("int *[10]", [None, None, n, n, None])
+        for i in range(10):
+            if i not in (2, 3):
+                assert a[i] is None
+        assert a[2] == a[3] == n
+
     def test_cannot_cast(self):
         ffi = FFI(backend=self.Backend())
         a = ffi.new("short int[10]")
