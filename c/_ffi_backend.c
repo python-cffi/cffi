@@ -1240,6 +1240,25 @@ static PyObject *b_sizeof_type(PyObject *self, PyObject *arg)
     return PyInt_FromLong(((CTypeDescrObject *)arg)->ct_size);
 }
 
+static PyObject *b_sizeof_instance(PyObject *self, PyObject *arg)
+{
+    CDataObject *cd;
+    Py_ssize_t size;
+
+    if (!CData_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "expected a 'cdata' object");
+        return NULL;
+    }
+    cd = (CDataObject *)arg;
+
+    if (cd->c_type->ct_flags & CT_ARRAY)
+        size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
+    else
+        size = cd->c_type->ct_size;
+
+    return PyInt_FromSsize_t(size);
+}
+
 static PyObject *b_typeof_instance(PyObject *self, PyObject *arg)
 {
     PyObject *res;
@@ -1262,6 +1281,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"sizeof_type", b_sizeof_type, METH_O},
+    {"sizeof_instance", b_sizeof_instance, METH_O},
     {"typeof_instance", b_typeof_instance, METH_O},
     {NULL,     NULL}	/* Sentinel */
 };
