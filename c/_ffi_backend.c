@@ -908,6 +908,40 @@ cdata_sub(PyObject *v, PyObject *w)
     return _cdata_add_or_sub(v, w, -1);
 }
 
+static PyObject *
+cdata_getattro(CDataObject *cd, PyObject *attr)
+{
+    if (cd->c_type->ct_flags & (CT_STRUCT|CT_UNION)) {
+        PyObject *d = cd->c_type->ct_stuff;
+        if (d != NULL) {
+            CFieldObject *cf = (CFieldObject *)PyDict_GetItem(d, attr);
+            if (cf != NULL) {
+                /* read the field 'cf' */
+                char *data = cd->c_data + cf->cf_offset;
+                return convert_to_object(data, cf->cf_type);
+            }
+        }
+    }
+    return PyObject_GenericGetAttr((PyObject *)cd, attr);
+}
+
+static int
+cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
+{
+    if (cd->c_type->ct_flags & (CT_STRUCT|CT_UNION)) {
+        PyObject *d = cd->c_type->ct_stuff;
+        if (d != NULL) {
+            CFieldObject *cf = (CFieldObject *)PyDict_GetItem(d, attr);
+            if (cf != NULL) {
+                /* write the field 'cf' */
+                char *data = cd->c_data + cf->cf_offset;
+                return convert_from_object(data, cf->cf_type, value);
+            }
+        }
+    }
+    return PyObject_GenericSetAttr((PyObject *)cd, attr, value);
+}
+
 static PyNumberMethods CData_as_number = {
     (binaryfunc)cdata_add,      /*nb_add*/
     (binaryfunc)cdata_sub,      /*nb_subtract*/
@@ -957,8 +991,8 @@ static PyTypeObject CData_Type = {
     (hashfunc)cdata_hash,                       /* tp_hash */
     0,                                          /* tp_call */
     (reprfunc)cdata_str,                        /* tp_str */
-    PyObject_GenericGetAttr,                    /* tp_getattro */
-    0,                                          /* tp_setattro */
+    (getattrofunc)cdata_getattro,               /* tp_getattro */
+    (setattrofunc)cdata_setattro,               /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
     0,                                          /* tp_doc */

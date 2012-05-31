@@ -325,7 +325,7 @@ def test_new_union_type():
     assert repr(BPtr) == "<ctype 'union foo *'>"
 
 def test_complete_struct():
-    BLong = new_primitive_type("int")
+    BLong = new_primitive_type("long")
     BChar = new_primitive_type("char")
     BShort = new_primitive_type("short")
     BStruct = new_struct_type("foo")
@@ -348,7 +348,7 @@ def test_complete_struct():
     assert alignof(BStruct) == alignof(BLong)
 
 def test_complete_union():
-    BLong = new_primitive_type("int")
+    BLong = new_primitive_type("long")
     BChar = new_primitive_type("char")
     BUnion = new_union_type("foo")
     assert _getfields(BUnion) is None
@@ -364,3 +364,16 @@ def test_complete_union():
     assert d['a2'].bitsize == -1
     assert sizeof_type(BUnion) == sizeof_type(BLong)
     assert alignof(BUnion) == alignof(BLong)
+
+def test_struct_instance():
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BInt, -1),
+                                       ('a2', BInt, -1)])
+    p = new(BStructPtr, None)
+    s = p[0]
+    assert s.a1 == 0
+    s.a2 = 123
+    assert s.a1 == 0
+    assert s.a2 == 123
