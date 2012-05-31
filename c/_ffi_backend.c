@@ -376,7 +376,7 @@ write_raw_float_data(char *target, double source, int size)
 }
 
 static PyObject *
-new_pointer_cdata(char *data, CTypeDescrObject *ct)
+new_simple_cdata(char *data, CTypeDescrObject *ct)
 {
     CDataObject *cd = PyObject_New(CDataObject, &CData_Type);
     if (cd == NULL)
@@ -395,15 +395,15 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         if (ct->ct_flags & CT_POINTER) {
             char *ptrdata = *(char **)data;
             if (ptrdata != NULL) {
-                return new_pointer_cdata(ptrdata, ct);
+                return new_simple_cdata(ptrdata, ct);
             }
             else {
                 Py_INCREF(Py_None);
                 return Py_None;
             }
         }
-        else if (ct->ct_flags & CT_ARRAY) {
-            return new_pointer_cdata(data, ct);
+        else if (ct->ct_flags & (CT_ARRAY|CT_STRUCT|CT_UNION)) {
+            return new_simple_cdata(data, ct);
         }
         else if (ct->ct_flags & CT_OPAQUE) {
             PyErr_Format(PyExc_TypeError, "cannot return a cdata '%s'",
@@ -489,6 +489,10 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             expected = "list or tuple";
             goto cannot_convert;
         }
+    }
+    if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
+        /* XXX */
+        goto cannot_convert;
     }
     if (ct->ct_flags & CT_POINTER) {
         char *ptrdata;
@@ -864,8 +868,8 @@ _cdata_add_or_sub(PyObject *v, PyObject *w, int sign)
                      cd->c_type->ct_name);
         return NULL;
     }
-    return new_pointer_cdata(cd->c_data + i * ctptr->ct_itemdescr->ct_size,
-                             ctptr);
+    return new_simple_cdata(cd->c_data + i * ctptr->ct_itemdescr->ct_size,
+                            ctptr);
 
  not_implemented:
     Py_INCREF(Py_NotImplemented);               \
@@ -1105,13 +1109,13 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         if (CData_Check(ob)) {
             CDataObject *cdsrc = (CDataObject *)ob;
             if (cdsrc->c_type->ct_flags & (CT_POINTER|CT_ARRAY)) {
-                return new_pointer_cdata(cdsrc->c_data, ct);
+                return new_simple_cdata(cdsrc->c_data, ct);
             }
         }
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
             return NULL;
-        return new_pointer_cdata((char *)(Py_intptr_t)value, ct);
+        return new_simple_cdata((char *)(Py_intptr_t)value, ct);
     }
     else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED
                              |CT_PRIMITIVE_CHAR)) {
