@@ -310,3 +310,15 @@ def test_alignof():
     assert alignof(BPtr) == sizeof_type(BPtr)
     BArray = new_array_type(BPtr, None)
     assert alignof(BArray) == alignof(BInt)
+
+def test_new_struct_type():
+    BStruct = new_struct_type("foo")
+    assert repr(BStruct) == "<ctype 'struct foo'>"
+    BPtr = new_pointer_type(BStruct)
+    assert repr(BPtr) == "<ctype 'struct foo *'>"
+
+def test_new_union_type():
+    BUnion = new_union_type("foo")
+    assert repr(BUnion) == "<ctype 'union foo'>"
+    BPtr = new_pointer_type(BUnion)
+    assert repr(BPtr) == "<ctype 'union foo *'>"

@@ -1378,6 +1378,39 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *args)
     return (PyObject *)td;
 }
 
+static PyObject *_b_struct_or_union_type(const char *kind, const char *name)
+{
+    int kindlen = strlen(kind);
+    int namelen = strlen(name);
+    CTypeDescrObject *td = ctypedescr_new(kindlen + 1 + namelen + 1);
+    if (td == NULL)
+        return NULL;
+
+    td->ct_size = -1;
+    td->ct_flags = CT_STRUCT | CT_OPAQUE;
+    memcpy(td->ct_name, kind, kindlen);
+    td->ct_name[kindlen] = ' ';
+    memcpy(td->ct_name + kindlen + 1, name, namelen + 1);
+    td->ct_name_position = kindlen + 1 + namelen;
+    return (PyObject *)td;
+}
+
+static PyObject *b_new_struct_type(PyObject *self, PyObject *args)
+{
+    char *name;
+    if (!PyArg_ParseTuple(args, "s:new_struct_type", &name))
+        return NULL;
+    return _b_struct_or_union_type("struct", name);
+}
+
+static PyObject *b_new_union_type(PyObject *self, PyObject *args)
+{
+    char *name;
+    if (!PyArg_ParseTuple(args, "s:new_union_type", &name))
+        return NULL;
+    return _b_struct_or_union_type("union", name);
+}
+
 static PyObject *b_alignof(PyObject *self, PyObject *arg)
 {
     CTypeDescrObject *ct;
@@ -1482,6 +1515,8 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new_pointer_type", b_new_pointer_type, METH_VARARGS},
     {"new_array_type", b_new_array_type, METH_VARARGS},
     {"new_void_type", b_new_void_type, METH_NOARGS},
+    {"new_struct_type", b_new_struct_type, METH_VARARGS},
+    {"new_union_type", b_new_union_type, METH_VARARGS},
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"alignof", b_alignof, METH_O},
