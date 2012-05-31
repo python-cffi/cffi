@@ -430,7 +430,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
 {
     if (!(ct->ct_flags & CT_PRIMITIVE_ANY)) {
         /* non-primitive types (check done just for performance) */
-        if (ct->ct_flags & CT_POINTER) {
+        if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
             char *ptrdata = *(char **)data;
             if (ptrdata != NULL) {
                 return new_simple_cdata(ptrdata, ct);
@@ -528,7 +528,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             goto cannot_convert;
         }
     }
-    if (ct->ct_flags & CT_POINTER) {
+    if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
         char *ptrdata;
         CTypeDescrObject *ctinit;
 
@@ -1348,7 +1348,8 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
 
         if (CData_Check(ob)) {
             CDataObject *cdsrc = (CDataObject *)ob;
-            if (cdsrc->c_type->ct_flags & (CT_POINTER|CT_ARRAY)) {
+            if (cdsrc->c_type->ct_flags &
+                    (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)) {
                 return new_simple_cdata(cdsrc->c_data, ct);
             }
         }

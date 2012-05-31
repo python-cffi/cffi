@@ -562,7 +562,8 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         a = ffi.new("short int[]", [0x1234, 0x5678])
         p = ffi.cast("short*", a)
-        q = ffi.cast("char*", p)
+        p2 = ffi.cast("int*", p)
+        q = ffi.cast("char*", p2)
         data = ''.join([q[i] for i in range(4)])
         if sys.byteorder == 'little':
             assert data == '\x34\x12\x78\x56'
