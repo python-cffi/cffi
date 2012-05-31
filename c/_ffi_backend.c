@@ -6,6 +6,7 @@
 #include <dlfcn.h>
 
 #include <ffi.h>
+#include <sys/mman.h>
 
 /************************************************************/
 
@@ -95,6 +96,7 @@ typedef struct {
 
 typedef struct {
     ffi_cif cif;
+    int varargs;
     /* the following information is used when doing the call:
        - a buffer of size 'exchange_size' is malloced
        - the arguments are converted from Python objects to raw data
@@ -428,7 +430,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
 {
     if (!(ct->ct_flags & CT_PRIMITIVE_ANY)) {
         /* non-primitive types (check done just for performance) */
-        if (ct->ct_flags & CT_POINTER) {
+        if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
             char *ptrdata = *(char **)data;
             if (ptrdata != NULL) {
                 return new_simple_cdata(ptrdata, ct);
@@ -526,7 +528,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             goto cannot_convert;
         }
     }
-    if (ct->ct_flags & CT_POINTER) {
+    if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
         char *ptrdata;
         CTypeDescrObject *ctinit;
 
@@ -711,6 +713,16 @@ static void cdata_dealloc(CDataObject *cd)
     PyObject_Del(cd);
 }
 
+static void cdataowning_dealloc(CDataObject *cd)
+{
+    if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {
+        /* a callback */
+        PyObject *args = (PyObject *)((ffi_closure *)cd->c_data)->user_data;
+        Py_XDECREF(args);
+    }
+    cdata_dealloc(cd);
+}
+
 static int cdata_traverse(CDataObject *cd, visitproc visit, void *arg)
 {
     Py_VISIT(cd->c_type);
@@ -749,11 +761,29 @@ static PyObject *cdataowning_repr(CDataObject *cd)
         size = cd->c_type->ct_itemdescr->ct_size;
     else if (cd->c_type->ct_flags & CT_ARRAY)
         size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
+    else if (cd->c_type->ct_flags & CT_FUNCTIONPTR)
+        goto callback_repr;
     else
         size = cd->c_type->ct_size;
 
     return PyString_FromFormat("<cdata '%s' owning %zd bytes>",
                                cd->c_type->ct_name, size);
+
+ callback_repr:
+    {
+        PyObject *s, *res;
+        PyObject *args = (PyObject *)((ffi_closure *)cd->c_data)->user_data;
+        if (args == NULL)
+            return cdata_repr(cd);
+
+        s = PyObject_Repr(PyTuple_GET_ITEM(args, 1));
+        if (s == NULL)
+            return NULL;
+        res = PyString_FromFormat("<cdata '%s' calling %s>",
+                                  cd->c_type->ct_name, PyString_AsString(s));
+        Py_DECREF(s);
+        return res;
+    }
 }
 
 static int cdata_nonzero(CDataObject *cd)
@@ -1182,7 +1212,7 @@ static PyTypeObject CDataOwning_Type = {
     "_ffi_backend.CDataOwn",
     sizeof(CDataObject),
     0,
-    0,                                          /* tp_dealloc */
+    (destructor)cdataowning_dealloc,            /* tp_dealloc */
     0,                                          /* tp_print */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
@@ -1318,7 +1348,8 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
 
         if (CData_Check(ob)) {
             CDataObject *cdsrc = (CDataObject *)ob;
-            if (cdsrc->c_type->ct_flags & (CT_POINTER|CT_ARRAY)) {
+            if (cdsrc->c_type->ct_flags &
+                    (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)) {
                 return new_simple_cdata(cdsrc->c_data, ct);
             }
         }
@@ -2191,10 +2222,11 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     assert(funcbuilder.namep == fct->ct_name + funcbuilder.nb_bytes_in_name);
 
     cif_descr = (cif_description_t *)buffer;
+    cif_descr->varargs = 0;
     if (ffi_prep_cif(&cif_descr->cif, FFI_DEFAULT_ABI, funcbuilder.nargs,
                      funcbuilder.rtype, funcbuilder.atypes) != FFI_OK) {
         PyErr_SetString(PyExc_SystemError,
-                        "libffi fails to build this function type");
+                        "libffi failed to build this function type");
         goto error;
     }
 
@@ -2221,6 +2253,123 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
  error:
     Py_XDECREF(fct);
     PyObject_Free(buffer);
+    return NULL;
+}
+
+static void invoke_callback(ffi_cif *cif, void *result, void **args,
+                            void *userdata)
+{
+    PyObject *cb_args = (PyObject *)userdata;
+    CTypeDescrObject *ct = (CTypeDescrObject *)PyTuple_GET_ITEM(cb_args, 0);
+    PyObject *signature = ct->ct_stuff;
+    PyObject *py_ob = PyTuple_GET_ITEM(cb_args, 1);
+    PyObject *py_args = NULL;
+    PyObject *py_res = NULL;
+    Py_ssize_t i, n;
+
+#define SIGNATURE(i)  ((CTypeDescrObject *)PyTuple_GET_ITEM(signature, i))
+
+    Py_INCREF(cb_args);
+
+    n = PyTuple_GET_SIZE(signature) - 1;
+    py_args = PyTuple_New(n);
+    if (py_args == NULL)
+        goto error;
+
+    for (i=0; i<n; i++) {
+        PyObject *a = convert_to_object(args[i], SIGNATURE(i + 1));
+        if (a == NULL)
+            goto error;
+        PyTuple_SET_ITEM(py_args, i, a);
+    }
+
+    py_res = PyEval_CallObject(py_ob, py_args);
+    if (py_res == NULL)
+        goto error;
+
+    if (convert_from_object(result, SIGNATURE(0), py_res) < 0)
+        goto error;
+ done:
+    Py_XDECREF(py_args);
+    Py_XDECREF(py_res);
+    Py_DECREF(cb_args);
+    return;
+
+ error:
+    PyErr_WriteUnraisable(py_ob);
+    memset(result, 0, SIGNATURE(0)->ct_size);
+    goto done;
+
+#undef SIGNATURE
+}
+
+static PyObject *b_callback(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    CDataObject_with_alignment *cda;
+    PyObject *ob;
+    cif_description_t *cif_descr;
+    int dataoffset, datasize, pagesize;
+    ffi_closure *closure;
+    char *rawaddr;
+
+    if (!PyArg_ParseTuple(args, "O!O:callback", &CTypeDescr_Type, &ct, &ob))
+        return NULL;
+
+    if (!(ct->ct_flags & CT_FUNCTIONPTR)) {
+        PyErr_Format(PyExc_TypeError, "expected a function ctype, got '%s'",
+                     ct->ct_name);
+        return NULL;
+    }
+    if (!PyCallable_Check(ob)) {
+        PyErr_Format(PyExc_TypeError,
+                     "expected a callable object, not %.200s",
+                     Py_TYPE(ob)->tp_name);
+        return NULL;
+    }
+
+    dataoffset = offsetof(CDataObject_with_alignment, alignment);
+    datasize = sizeof(ffi_closure);
+    cda = (CDataObject_with_alignment *)PyObject_Malloc(dataoffset + datasize);
+    if (PyObject_Init((PyObject *)cda, &CDataOwning_Type) == NULL)
+        return NULL;
+    closure = (ffi_closure *)&cda->alignment;
+
+    Py_INCREF(ct);
+    cda->head.c_type = ct;
+    cda->head.c_data = (char *)closure;
+
+    cif_descr = (cif_description_t *)ct->ct_extra;
+    if (cif_descr->varargs) {
+        PyErr_SetString(PyExc_NotImplementedError,
+                        "callbacks with '...'");
+        goto error;
+    }
+    if (ffi_prep_closure(closure, &cif_descr->cif,
+                         invoke_callback, args) != FFI_OK) {
+        PyErr_SetString(PyExc_SystemError,
+                        "libffi failed to build this callback");
+        goto error;
+    }
+    /* make the memory containing 'closure' executable */
+    pagesize = sysconf(_SC_PAGE_SIZE);
+    if (pagesize == -1)
+        pagesize = 4096;
+    rawaddr = (char *)closure;
+    rawaddr -= ((Py_intptr_t)rawaddr) & (pagesize-1);
+    if (mprotect(rawaddr, (((char*)(closure + 1))) - rawaddr,
+                 PROT_READ | PROT_WRITE | PROT_EXEC) < 0) {
+        PyErr_SetFromErrno(PyExc_OSError);
+        goto error;
+    }
+
+    assert(closure->user_data == args);
+    Py_INCREF(args);   /* capture the tuple (CTypeDescr, Python callable) */
+    return (PyObject *)cda;
+
+ error:
+    closure->user_data = NULL;
+    Py_DECREF(cda);
     return NULL;
 }
 
@@ -2399,6 +2548,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"_getfields", b__getfields, METH_O},
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
+    {"callback", b_callback, METH_VARARGS},
     {"alignof", b_alignof, METH_O},
     {"sizeof_type", b_sizeof_type, METH_O},
     {"sizeof_instance", b_sizeof_instance, METH_O},

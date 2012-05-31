@@ -545,3 +545,13 @@ def test_load_and_call_function():
     assert strlen(input) == 6
     #
     assert strlen("foobarbaz") == 9
+
+def test_callback():
+    BInt = new_primitive_type("int")
+    def make_callback():
+        def cb(n):
+            return n + 1
+        BFunc = new_function_type((BInt,), BInt, False)
+        return callback(BFunc, cb)    # 'cb' and 'BFunc' go out of scope
+    f = make_callback()
+    assert f(-142) == -141

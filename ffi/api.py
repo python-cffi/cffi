@@ -201,7 +201,7 @@ class FFI(object):
         if not callable(python_callable):
             raise TypeError("the 'python_callable' argument is not callable")
         BFunc = self.typeof(cdecl)
-        return BFunc(python_callable)
+        return self._backend.callback(BFunc, python_callable)
 
     def _parse_type(self, cdecl):
         # XXX: for more efficiency we would need to poke into the
