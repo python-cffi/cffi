@@ -694,36 +694,47 @@ class CTypesBackend(object):
 
     def new_enum_type(self, name, enumerators, enumvalues):
         mapping = dict(zip(enumerators, enumvalues))
+        reverse_mapping = dict(reversed(zip(enumvalues, enumerators)))
         CTypesInt = self.ffi._get_cached_btype('new_primitive_type', 'int')
+        #
+        def forward_map(source):
+            if not isinstance(source, str):
+                return source
+            try:
+                return mapping[source]
+            except KeyError:
+                if source.startswith('#'):
+                    try:
+                        return int(source[1:])
+                    except ValueError:
+                        pass
+            raise ValueError("%r is not an enumerator for %r" % (
+                source, CTypesEnum))
         #
         class CTypesEnum(CTypesInt):
             __slots__ = []
             _reftypename = 'enum %s &' % name
 
+            def __str__(self):
+                return str(CTypesEnum._from_ctypes(self._value))
+
             @classmethod
             def _cast_from(cls, source):
-                if isinstance(source, str):
-                    try:
-                        source = mapping[source]
-                    except KeyError:
-                        raise ValueError("%r is not an enumerator for %r" % (
-                            source, CTypesEnum))
+                source = forward_map(source)
                 return super(CTypesEnum, cls)._cast_from(source)
 
             @staticmethod
             def _to_ctypes(x):
-                if isinstance(x, str):
-                    try:
-                        x = mapping[x]
-                    except KeyError:
-                        raise ValueError("%r is not an enumerator for %r" % (
-                            x, CTypesEnum))
+                x = forward_map(x)
                 return CTypesInt._to_ctypes(x)
 
             @staticmethod
             def _from_ctypes(value):
                 value = CTypesInt._from_ctypes(value)
-                return enumerators[value]
+                try:
+                    return reverse_mapping[value]
+                except KeyError:
+                    return '#%s' % value
         #
         CTypesEnum._fix_class()
         return CTypesEnum
