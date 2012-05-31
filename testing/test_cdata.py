@@ -12,7 +12,7 @@ class FakeBackend(object):
     def load_library(self, path):
         return "fake library"
 
-    def new_primitive_type(self, ffi, name):
+    def new_primitive_type(self, name):
         return FakePrimitiveType(name)
 
 class FakePrimitiveType(object):
