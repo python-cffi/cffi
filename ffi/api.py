@@ -294,8 +294,12 @@ class FFI(object):
         if isinstance(typenode, pycparser.c_ast.FuncDecl):
             # a function type
             params = list(typenode.args.params)
-            ellipsis = (len(params) > 0 and
-                        isinstance(params[-1], pycparser.c_ast.EllipsisParam))
+            ellipsis = (
+                len(params) > 0 and
+                isinstance(params[-1].type, pycparser.c_ast.TypeDecl) and
+                isinstance(params[-1].type.type,
+                           pycparser.c_ast.IdentifierType) and
+                ''.join(params[-1].type.type.names) == '__dotdotdot__')
             if ellipsis:
                 params.pop()
             if (len(params) == 1 and
@@ -331,7 +335,11 @@ class FFI(object):
         fnames = []
         btypes = []
         for decl in decls:
-            if getattr(decl.type, 'names', None) == '__dotdotdot__':
+            if (isinstance(decl.type, pycparser.c_ast.IdentifierType) and
+                    ''.join(decl.type.names) == '__dotdotdot__'):
+                # XXX pycparser is inconsistent: 'names' should be a list
+                # of strings, but is sometimes just one string.  Use
+                # str.join() as a way to cope with both.
                 raise ffiplatform.VerificationMissing("%s %s only partially"
                                                   " specified" % (kind, name))
             btypes.append(self._get_btype(decl.type))
