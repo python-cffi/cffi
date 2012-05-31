@@ -398,6 +398,17 @@ class BackendTests:
         assert s.b[1] == 'X'
         assert s.b[2] == 'c'
 
+    def test_recursive_struct(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo { int value; struct foo *next; };")
+        s = ffi.new("struct foo")
+        t = ffi.new("struct foo")
+        s.value = 123
+        s.next = t
+        t.value = 456
+        assert s.value == 123
+        assert s.next.value == 456
+
     def test_union_simple(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("union foo { int a; short b, c; };")

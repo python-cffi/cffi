@@ -39,6 +39,7 @@ class FFI(object):
         self._cached_btypes = {}
         self._parsed_types = new.module('parsed_types').__dict__
         self._new_types = new.module('new_types').__dict__
+        self._completed_struct_or_union = set()
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
         self.C = _make_ffi_library(self, None)
@@ -313,33 +314,32 @@ class FFI(object):
 
     def _get_struct_or_union_type(self, kind, type):
         name = type.name
+        result = self._get_cached_btype('new_%s_type' % kind, name)
+        if (kind, name) in self._completed_struct_or_union:
+            return result
+        #
         decls = type.decls
-        partial = False
         if decls is None and name is not None:
             key = '%s %s' % (kind, name)
             if key in self._declarations:
                 decls = self._declarations[key].decls
-        if decls is not None:
-            fnames = []
-            btypes = []
-            for decl in decls:
-                if getattr(decl.type, 'names', None) == '__dotdotdot__':
-                    partial = True
-                else:
-                    btypes.append(self._get_btype(decl.type))
-                    fnames.append(decl.name)
-            fnames = tuple(fnames)
-            btypes = tuple(btypes)
-            bitfields = tuple(map(self._get_bitfield_size, decls))
-        else:   # opaque struct or union
-            fnames = None
-            btypes = None
-            bitfields = None
-        if partial:
-            raise ffiplatform.VerificationMissing("Struct %s only partially"
-                                                  " specified" % name)
-        return self._get_cached_btype('new_%s_type' % kind, name,
-                                      fnames, btypes, bitfields)
+        if decls is None:
+            return result    # opaque type, so far
+        #
+        # mark it as complete *first*, to handle recursion
+        self._completed_struct_or_union.add((kind, name))
+        fnames = []
+        btypes = []
+        for decl in decls:
+            if getattr(decl.type, 'names', None) == '__dotdotdot__':
+                raise ffiplatform.VerificationMissing("%s %s only partially"
+                                                  " specified" % (kind, name))
+            btypes.append(self._get_btype(decl.type))
+            fnames.append(decl.name)
+        bitfields = map(self._get_bitfield_size, decls)
+        self._backend.complete_struct_or_union(result, fnames,
+                                               btypes, bitfields)
+        return result
 
     def _get_bitfield_size(self, decl):
         if decl.bitsize is None:
