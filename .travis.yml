@@ -5,7 +5,7 @@ python:
     - "pypy"
 before_install:
     - sudo apt-get update
-    - sudo apt-get install libffi-dev
+    - sudo apt-get install libffi-dev libffi6
 install:
     - pip install .
 script: py.test
