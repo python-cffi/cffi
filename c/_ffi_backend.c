@@ -1693,6 +1693,11 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         cf->cf_offset = offset;
         cf->cf_bitsize = fbitsize;
 
+        if (fbitsize >= 0) {
+            PyErr_SetString(PyExc_NotImplementedError, "bit fields");
+            goto error;
+        }
+
         Py_INCREF(fname);
         PyString_InternInPlace(&fname);
         err = PyDict_SetItem(interned_fields, fname, (PyObject *)cf);
