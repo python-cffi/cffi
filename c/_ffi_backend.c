@@ -2267,7 +2267,7 @@ static char _testfunc0(char a, char b)
 }
 static long _testfunc1(int a, long b)
 {
-    return a + b;
+    return (long)a + b;
 }
 static PY_LONG_LONG _testfunc2(PY_LONG_LONG a, PY_LONG_LONG b)
 {

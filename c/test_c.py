@@ -7,6 +7,10 @@ def size_of_int():
     BInt = new_primitive_type("int")
     return sizeof_type(BInt)
 
+def size_of_long():
+    BLong = new_primitive_type("long")
+    return sizeof_type(BLong)
+
 def size_of_ptr():
     BInt = new_primitive_type("int")
     BPtr = new_pointer_type(BInt)
@@ -439,8 +443,33 @@ def test_function_void_result():
     BFunc = new_function_type((BInt, BInt), BVoid, False)
     assert repr(BFunc) == "<ctype 'void(*)(int, int)'>"
 
-def test_call_functions():
+def test_call_function_0():
     BSignedChar = new_primitive_type("signed char")
     BFunc0 = new_function_type((BSignedChar, BSignedChar), BSignedChar, False)
     f = cast(BFunc0, _testfunc(0))
     assert f(40, 2) == 42
+    assert f(-100, -100) == -200 + 256
+    py.test.raises(OverflowError, f, 128, 0)
+    py.test.raises(OverflowError, f, 0, 128)
+
+def test_call_function_1():
+    BInt = new_primitive_type("int")
+    BLong = new_primitive_type("long")
+    BFunc1 = new_function_type((BInt, BLong), BLong, False)
+    f = cast(BFunc1, _testfunc(1))
+    assert f(40, 2) == 42
+    assert f(-100, -100) == -200
+    int_max = (1 << (8*size_of_int()-1)) - 1
+    long_max = (1 << (8*size_of_long()-1)) - 1
+    if int_max == long_max:
+        assert f(int_max, 1) == - int_max - 1
+    else:
+        assert f(int_max, 1) == int_max + 1
+
+def test_call_function_2():
+    BLongLong = new_primitive_type("long long")
+    BFunc2 = new_function_type((BLongLong, BLongLong), BLongLong, False)
+    f = cast(BFunc2, _testfunc(2))
+    longlong_max = (1 << (8*sizeof_type(BLongLong)-1)) - 1
+    assert f(longlong_max - 42, 42) == longlong_max
+    assert f(43, longlong_max - 42) == - longlong_max - 1
