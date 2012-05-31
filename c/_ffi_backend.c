@@ -584,6 +584,12 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     }
     if (ct->ct_flags & CT_STRUCT) {
 
+        if (CData_Check(init)) {
+            if (((CDataObject *)init)->c_type == ct && ct->ct_size >= 0) {
+                memcpy(data, ((CDataObject *)init)->c_data, ct->ct_size);
+                return 0;
+            }
+        }
         if (PyList_Check(init) || PyTuple_Check(init)) {
             PyObject **items = PySequence_Fast_ITEMS(init);
             Py_ssize_t i, n = PySequence_Fast_GET_SIZE(init);
@@ -620,7 +626,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             }
             return 0;
         }
-        expected = "list or tuple or dict";
+        expected = "list or tuple or dict or struct-cdata";
         goto cannot_convert;
     }
     if (ct->ct_flags & CT_UNION) {
@@ -1043,7 +1049,8 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     void** buffer_array;
     cif_description_t *cif_descr;
     Py_ssize_t i, nargs;
-    PyObject *signature, *restype, *res;
+    PyObject *signature, *res;
+    CTypeDescrObject *restype;
     char *resultdata;
 
     if (!(cd->c_type->ct_flags & CT_FUNCTIONPTR)) {
@@ -1077,21 +1084,21 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     buffer_array = (void **)buffer;
 
     for (i=0; i<nargs; i++) {
-        PyObject *argtype = PyTuple_GET_ITEM(signature, 1 + i);
+        CTypeDescrObject *argtype;
         char *data = buffer + cif_descr->exchange_offset_arg[1 + i];
+        argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 1 + i);
         buffer_array[i] = data;
-        if (convert_from_object(data, (CTypeDescrObject *)argtype,
-                                PyTuple_GET_ITEM(args, i)) < 0)
+        if (convert_from_object(data, argtype, PyTuple_GET_ITEM(args, i)) < 0)
             return NULL;
     }
 
-    restype = PyTuple_GET_ITEM(signature, 0);
+    restype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 0);
     resultdata = buffer + cif_descr->exchange_offset_arg[0];
 
     ffi_call(&cif_descr->cif, (void (*)(void))(cd->c_data),
              resultdata, buffer_array);
 
-    if (((CTypeDescrObject *)restype)->ct_flags & CT_VOID) {
+    if (restype->ct_flags & CT_VOID) {
         res = Py_None;
         Py_INCREF(res);
     }
@@ -1949,17 +1956,18 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
     else if (ct->ct_flags & CT_VOID) {
         return &ffi_type_void;
     }
-    else if (ct->ct_flags & CT_STRUCT) {
+
+    if (ct->ct_size < 0) {
+        PyErr_Format(PyExc_TypeError, "ctype '%s' has incomplete type",
+                     ct->ct_name);
+        return NULL;
+    }
+    if (ct->ct_flags & CT_STRUCT) {
         ffi_type *ffistruct, *ffifield;
         ffi_type **elements;
         Py_ssize_t i, n;
         CFieldObject *cf;
 
-        if (ct->ct_stuff == NULL) {
-            PyErr_Format(PyExc_TypeError, "ctype '%s' has incomplete type",
-                         ct->ct_name);
-            return NULL;
-        }
         n = PyDict_Size(ct->ct_stuff);
         elements = fb_alloc(fb, (n + 1) * sizeof(ffi_type*));
         cf = (CFieldObject *)ct->ct_extra;
@@ -2142,6 +2150,7 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
         goto error;
     }
 
+    /* build the signature, given by a tuple of ctype objects */
     fct->ct_stuff = PyTuple_New(1 + funcbuilder.nargs);
     if (fct->ct_stuff == NULL)
         goto error;
@@ -2149,11 +2158,14 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     PyTuple_SET_ITEM(fct->ct_stuff, 0, (PyObject *)fresult);
     for (i=0; i<funcbuilder.nargs; i++) {
         PyObject *o = PyTuple_GET_ITEM(fargs, i);
+        /* convert arrays into pointers */
+        if (((CTypeDescrObject *)o)->ct_flags & CT_ARRAY)
+            o = ((CTypeDescrObject *)o)->ct_stuff;
         Py_INCREF(o);
         PyTuple_SET_ITEM(fct->ct_stuff, 1 + i, o);
     }
     fct->ct_extra = buffer;
-    fct->ct_size = -1;
+    fct->ct_size = sizeof(void(*)(void));
     fct->ct_flags = CT_FUNCTIONPTR;
     fct->ct_name_position = funcbuilder.name_position;
     return (PyObject *)fct;
@@ -2290,6 +2302,17 @@ static float _testfunc4(float a, double b)
 static void _testfunc5(void)
 {
 }
+static int *_testfunc6(int *x)
+{
+    static int y;
+    y = *x - 1000;
+    return &y;
+}
+struct _testfunc7_s { char a1; short a2; };
+static short _testfunc7(struct _testfunc7_s inlined)
+{
+    return inlined.a1 + inlined.a2;
+}
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
@@ -2305,6 +2328,8 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 3: f = &_testfunc3; break;
     case 4: f = &_testfunc4; break;
     case 5: f = &_testfunc5; break;
+    case 6: f = &_testfunc6; break;
+    case 7: f = &_testfunc7; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;

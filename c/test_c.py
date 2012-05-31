@@ -496,3 +496,40 @@ def test_call_function_5():
     BFunc5 = new_function_type((), BVoid, False)
     f = cast(BFunc5, _testfunc(5))
     f()   # did not crash
+
+def test_call_function_6():
+    BInt = new_primitive_type("int")
+    BIntPtr = new_pointer_type(BInt)
+    BFunc6 = new_function_type((BIntPtr,), BIntPtr, False)
+    f = cast(BFunc6, _testfunc(6))
+    x = new(BIntPtr, 42)
+    res = f(x)
+    assert typeof_instance(res) is BIntPtr
+    assert res[0] == 42 - 1000
+    #
+    BIntArray = new_array_type(BIntPtr, None)
+    BFunc6bis = new_function_type((BIntArray,), BIntPtr, False)
+    f = cast(BFunc6bis, _testfunc(6))
+    #
+    py.test.raises(TypeError, f, [142])
+    #
+    x = new(BIntArray, [242])
+    res = f(x)
+    assert typeof_instance(res) is BIntPtr
+    assert res[0] == 242 - 1000
+
+def test_call_function_7():
+    BChar = new_primitive_type("char")
+    BShort = new_primitive_type("short")
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BChar, -1),
+                                       ('a2', BShort, -1)])
+    BFunc7 = new_function_type((BStruct,), BShort, False)
+    f = cast(BFunc7, _testfunc(7))
+    res = f({'a1': 'A', 'a2': -4042})
+    assert res == -4042 + ord('A')
+    #
+    x = new(BStructPtr, {'a1': 'A', 'a2': -4042})
+    res = f(x[0])
+    assert res == -4042 + ord('A')
