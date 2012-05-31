@@ -29,6 +29,7 @@ typedef struct _ctypedescr {
     struct _ctypedescr *ct_itemdescr;  /* ptrs and arrays: the item type */
     PyObject *ct_stuff;                /* structs: dict of the fields
                                           arrays: ctypedescr of the ptr type */
+    struct cfieldobject_s *ct_first_field;
 
     Py_ssize_t ct_size;     /* size of instances, or -1 if unknown */
     Py_ssize_t ct_length;   /* length of arrays, or -1 if unknown;
@@ -45,11 +46,12 @@ typedef struct {
     char *c_data;
 } CDataObject;
 
-typedef struct {
+typedef struct cfieldobject_s {
     PyObject_HEAD
     CTypeDescrObject *cf_type;
     Py_ssize_t cf_offset;
     int cf_bitsize;
+    struct cfieldobject_s *cf_next;
 } CFieldObject;
 
 static PyTypeObject CTypeDescr_Type;
@@ -184,6 +186,18 @@ static PyTypeObject CTypeDescr_Type = {
 };
 
 /************************************************************/
+
+static char *
+get_field_name(CTypeDescrObject *ct, CFieldObject *cf)
+{
+    Py_ssize_t i = 0;
+    PyObject *d_key, *d_value;
+    while (PyDict_Next(ct->ct_stuff, &i, &d_key, &d_value)) {
+        if (d_value == (PyObject *)cf)
+            return PyString_AsString(d_key);
+    }
+    return NULL;
+}
 
 static void
 cfield_dealloc(CFieldObject *cf)
@@ -490,11 +504,6 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             goto cannot_convert;
         }
     }
-    if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
-        /* XXX */
-        expected = "XXX";
-        goto cannot_convert;
-    }
     if (ct->ct_flags & CT_POINTER) {
         char *ptrdata;
         CTypeDescrObject *ctinit;
@@ -549,6 +558,22 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             return 0;
         }
         expected = "string of length 1";
+        goto cannot_convert;
+    }
+    if (ct->ct_flags & CT_STRUCT) {
+        /*        PyObject *d = ct->ct_stuff;
+
+        if (PyList_Check(init) || PyTuple_Check(init)) {
+            Py_ssize_t n = PySequence_Fast_GET_SIZE(init);
+            if (n > PyDict_Size(d)) {
+                ...;
+            }
+            }*/
+        expected = "XXX";
+        goto cannot_convert;
+    }
+    if (ct->ct_flags & CT_UNION) {
+        expected = "XXX";
         goto cannot_convert;
     }
     fprintf(stderr, "convert_from_object: '%s'\n", ct->ct_name);
@@ -1563,6 +1588,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     PyObject *fields, *interned_fields;
     int is_union, alignment;
     Py_ssize_t offset, i, nb_fields, maxsize;
+    CFieldObject **previous;
 
     if (!PyArg_ParseTuple(args, "O!O!:complete_struct_or_union",
                           &CTypeDescr_Type, &ct,
@@ -1588,6 +1614,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     interned_fields = PyDict_New();
     if (interned_fields == NULL)
         return NULL;
+
+    previous = &ct->ct_first_field;
 
     for (i=0; i<nb_fields; i++) {
         PyObject *fname;
@@ -1634,11 +1662,15 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         if (err < 0)
             goto error;
 
+        *previous = cf;
+        previous = &cf->cf_next;
+
         if (maxsize < ftype->ct_size)
             maxsize = ftype->ct_size;
         if (!is_union)
             offset += ftype->ct_size;
     }
+    *previous = NULL;
 
     if (is_union) {
         assert(offset == 0);
@@ -1665,17 +1697,35 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 static PyObject *b__getfields(PyObject *self, PyObject *arg)
 {
     CTypeDescrObject *ct = (CTypeDescrObject *)arg;
-    PyObject *res;
+    PyObject *d, *res;
 
     if (!CTypeDescr_Check(arg) ||
             !(ct->ct_flags & (CT_STRUCT|CT_UNION))) {
         PyErr_SetString(PyExc_TypeError, "expected a 'ctype' struct or union");
         return NULL;
     }
-    res = (PyObject *)ct->ct_stuff;
-    if (res == NULL)
+    d = (PyObject *)ct->ct_stuff;
+    if (d == NULL) {
         res = Py_None;
-    Py_INCREF(res);
+        Py_INCREF(res);
+    }
+    else {
+        CFieldObject *cf;
+        res = PyList_New(0);
+        if (res == NULL)
+            return NULL;
+        for (cf = ct->ct_first_field; cf != NULL; cf = cf->cf_next) {
+            int err;
+            PyObject *o = Py_BuildValue("sO", get_field_name(ct, cf),
+                                        (PyObject *)cf);
+            err = (o != NULL) ? PyList_Append(res, o) : -1;
+            Py_XDECREF(o);
+            if (err < 0) {
+                Py_DECREF(res);
+                return NULL;
+            }
+        }
+    }
     return res;
 }
 

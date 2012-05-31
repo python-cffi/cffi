@@ -334,16 +334,19 @@ def test_complete_struct():
                                        ('a2', BChar, -1),
                                        ('a3', BShort, -1)])
     d = _getfields(BStruct)
-    assert sorted(d.keys()) == ['a1', 'a2', 'a3']
-    assert d['a1'].type is BLong
-    assert d['a1'].offset == 0
-    assert d['a1'].bitsize == -1
-    assert d['a2'].type is BChar
-    assert d['a2'].offset == sizeof_type(BLong)
-    assert d['a2'].bitsize == -1
-    assert d['a3'].type is BShort
-    assert d['a3'].offset == sizeof_type(BLong) + sizeof_type(BShort)
-    assert d['a3'].bitsize == -1
+    assert len(d) == 3
+    assert d[0][0] == 'a1'
+    assert d[0][1].type is BLong
+    assert d[0][1].offset == 0
+    assert d[0][1].bitsize == -1
+    assert d[1][0] == 'a2'
+    assert d[1][1].type is BChar
+    assert d[1][1].offset == sizeof_type(BLong)
+    assert d[1][1].bitsize == -1
+    assert d[2][0] == 'a3'
+    assert d[2][1].type is BShort
+    assert d[2][1].offset == sizeof_type(BLong) + sizeof_type(BShort)
+    assert d[2][1].bitsize == -1
     assert sizeof_type(BStruct) == 2 * sizeof_type(BLong)
     assert alignof(BStruct) == alignof(BLong)
 
@@ -355,13 +358,15 @@ def test_complete_union():
     complete_struct_or_union(BUnion, [('a1', BLong, -1),
                                       ('a2', BChar, -1)])
     d = _getfields(BUnion)
-    assert sorted(d.keys()) == ['a1', 'a2']
-    assert d['a1'].type is BLong
-    assert d['a1'].offset == 0
-    assert d['a1'].bitsize == -1
-    assert d['a2'].type is BChar
-    assert d['a2'].offset == 0
-    assert d['a2'].bitsize == -1
+    assert len(d) == 2
+    assert d[0][0] == 'a1'
+    assert d[0][1].type is BLong
+    assert d[0][1].offset == 0
+    assert d[0][1].bitsize == -1
+    assert d[1][0] == 'a2'
+    assert d[1][1].type is BChar
+    assert d[1][1].offset == 0
+    assert d[1][1].bitsize == -1
     assert sizeof_type(BUnion) == sizeof_type(BLong)
     assert alignof(BUnion) == alignof(BLong)
 
