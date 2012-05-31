@@ -12,14 +12,14 @@ class FakeBackend(object):
         assert "libc" in name or "libm" in name
         return FakeLibrary()
 
-    def new_function_type(self, ffi, args, result, has_varargs):
+    def new_function_type(self, args, result, has_varargs):
         return '<func (%s), %s, %s>' % (', '.join(args), result, has_varargs)
 
-    def new_primitive_type(self, ffi, name):
+    def new_primitive_type(self, name):
         assert name == name.lower()
         return '<%s>' % name
 
-    def new_pointer_type(self, ffi, itemtype):
+    def new_pointer_type(self, itemtype):
         return '<pointer to %s>' % (itemtype,)
 
     def new_struct_type(self, ffi, name, fnames, btypes, bitfields):
