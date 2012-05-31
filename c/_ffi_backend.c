@@ -10,6 +10,7 @@
 
 /************************************************************/
 
+/* base type flag: exactly one of the following: */
 #define CT_PRIMITIVE_SIGNED   1
 #define CT_PRIMITIVE_UNSIGNED 2
 #define CT_PRIMITIVE_CHAR     4
@@ -21,9 +22,11 @@
 #define CT_FUNCTIONPTR      256
 #define CT_VOID             512
 
+/* other flags that may also be set in addition to the base flag: */
 #define CT_CAST_ANYTHING         1024    /* 'char' and 'void' only */
 #define CT_PRIMITIVE_FITS_LONG   2048
-#define CT_OPAQUE                4096
+#define CT_IS_OPAQUE             4096
+#define CT_IS_ENUM               8192
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -440,7 +443,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
                 return Py_None;
             }
         }
-        else if (ct->ct_flags & CT_OPAQUE) {
+        else if (ct->ct_flags & CT_IS_OPAQUE) {
             PyErr_Format(PyExc_TypeError, "cannot return a cdata '%s'",
                          ct->ct_name);
             return NULL;
@@ -1793,7 +1796,7 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *args)
 
     memcpy(td->ct_name, "void", name_size);
     td->ct_size = -1;
-    td->ct_flags = CT_VOID | CT_OPAQUE | CT_CAST_ANYTHING;
+    td->ct_flags = CT_VOID | CT_IS_OPAQUE | CT_CAST_ANYTHING;
     td->ct_name_position = strlen("void");
     return (PyObject *)td;
 }
@@ -1808,7 +1811,7 @@ static PyObject *_b_struct_or_union_type(const char *kind, const char *name,
         return NULL;
 
     td->ct_size = -1;
-    td->ct_flags = flag | CT_OPAQUE;
+    td->ct_flags = flag | CT_IS_OPAQUE;
     memcpy(td->ct_name, kind, kindlen);
     td->ct_name[kindlen] = ' ';
     memcpy(td->ct_name + kindlen + 1, name, namelen + 1);
@@ -1845,10 +1848,12 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                           &PyList_Type, &fields))
         return NULL;
 
-    if ((ct->ct_flags & (CT_STRUCT|CT_OPAQUE)) == (CT_STRUCT|CT_OPAQUE)) {
+    if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) ==
+                        (CT_STRUCT|CT_IS_OPAQUE)) {
         is_union = 0;
     }
-    else if ((ct->ct_flags & (CT_UNION|CT_OPAQUE)) == (CT_UNION|CT_OPAQUE)) {
+    else if ((ct->ct_flags & (CT_UNION|CT_IS_OPAQUE)) ==
+                             (CT_UNION|CT_IS_OPAQUE)) {
         is_union = 1;
     }
     else {
@@ -1946,7 +1951,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     }
     ct->ct_length = alignment;
     ct->ct_stuff = interned_fields;
-    ct->ct_flags &= ~CT_OPAQUE;
+    ct->ct_flags &= ~CT_IS_OPAQUE;
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -2374,6 +2379,42 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     return NULL;
 }
 
+static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
+{
+    char *ename;
+    PyObject *enumerators, *enumvalues;
+    ffi_type *ffitype;
+    int name_size;
+    CTypeDescrObject *td;
+    struct aligncheck_int { char x; int y; };
+
+    if (!PyArg_ParseTuple(args, "sO!O!:new_enum_type",
+                          &ename,
+                          &PyTuple_Type, &enumerators,
+                          &PyTuple_Type, &enumvalues))
+        return NULL;
+
+    switch (sizeof(int)) {
+    case 4: ffitype = &ffi_type_sint32; break;
+    case 8: ffitype = &ffi_type_sint64; break;
+    default: Py_FatalError("'int' is not 4 or 8 bytes");
+    }
+
+    name_size = strlen("enum ") + strlen(ename) + 1;
+    td = ctypedescr_new(name_size);
+    if (td == NULL)
+        return NULL;
+
+    memcpy(td->ct_name, "enum ", strlen("enum "));
+    memcpy(td->ct_name + strlen("enum "), ename, name_size - strlen("enum "));
+    td->ct_size = sizeof(int);
+    td->ct_length = offsetof(struct aligncheck_int, y);
+    td->ct_extra = ffitype;
+    td->ct_flags = CT_PRIMITIVE_SIGNED | CT_PRIMITIVE_FITS_LONG | CT_IS_ENUM;
+    td->ct_name_position = name_size - 1;
+    return (PyObject *)td;
+}
+
 static PyObject *b_alignof(PyObject *self, PyObject *arg)
 {
     int align;
@@ -2546,6 +2587,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new_union_type", b_new_union_type, METH_VARARGS},
     {"complete_struct_or_union", b_complete_struct_or_union, METH_VARARGS},
     {"new_function_type", b_new_function_type, METH_VARARGS},
+    {"new_enum_type", b_new_enum_type, METH_VARARGS},
     {"_getfields", b__getfields, METH_O},
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},

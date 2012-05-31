@@ -555,3 +555,10 @@ def test_callback():
         return callback(BFunc, cb)    # 'cb' and 'BFunc' go out of scope
     f = make_callback()
     assert f(-142) == -141
+
+def test_enum_type():
+    BEnum = new_enum_type("foo", (), ())
+    assert repr(BEnum) == "<ctype 'enum foo'>"
+
+def test_cast_to_enum():
+    BEnum = new_enum_type("foo", (), ())
