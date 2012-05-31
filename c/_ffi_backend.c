@@ -2273,6 +2273,14 @@ static PY_LONG_LONG _testfunc2(PY_LONG_LONG a, PY_LONG_LONG b)
 {
     return a + b;
 }
+static double _testfunc3(float a, double b)
+{
+    return a + b;
+}
+static float _testfunc4(float a, double b)
+{
+    return a + b;
+}
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
@@ -2285,7 +2293,11 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 0: f = &_testfunc0; break;
     case 1: f = &_testfunc1; break;
     case 2: f = &_testfunc2; break;
-    default: f = NULL;
+    case 3: f = &_testfunc3; break;
+    case 4: f = &_testfunc4; break;
+    default:
+        PyErr_SetNone(PyExc_ValueError);
+        return NULL;
     }
     return PyLong_FromVoidPtr(f);
 }

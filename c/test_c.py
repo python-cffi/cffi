@@ -473,3 +473,20 @@ def test_call_function_2():
     longlong_max = (1 << (8*sizeof_type(BLongLong)-1)) - 1
     assert f(longlong_max - 42, 42) == longlong_max
     assert f(43, longlong_max - 42) == - longlong_max - 1
+
+def test_call_function_3():
+    BFloat = new_primitive_type("float")
+    BDouble = new_primitive_type("double")
+    BFunc3 = new_function_type((BFloat, BDouble), BDouble, False)
+    f = cast(BFunc3, _testfunc(3))
+    assert f(1.25, 5.1) == 1.25 + 5.1     # exact
+    res = f(1.3, 5.1)
+    assert res != 6.4 and abs(res - 6.4) < 1E-5    # inexact
+
+def test_call_function_4():
+    BFloat = new_primitive_type("float")
+    BDouble = new_primitive_type("double")
+    BFunc4 = new_function_type((BFloat, BDouble), BFloat, False)
+    f = cast(BFunc4, _testfunc(4))
+    res = f(1.25, 5.1)
+    assert res != 6.35 and abs(res - 6.35) < 1E-5    # inexact
