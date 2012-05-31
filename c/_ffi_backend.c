@@ -402,13 +402,13 @@ convert_to_object(char *data, CTypeDescrObject *ct)
                 return Py_None;
             }
         }
-        else if (ct->ct_flags & (CT_ARRAY|CT_STRUCT|CT_UNION)) {
-            return new_simple_cdata(data, ct);
-        }
         else if (ct->ct_flags & CT_OPAQUE) {
             PyErr_Format(PyExc_TypeError, "cannot return a cdata '%s'",
                          ct->ct_name);
             return NULL;
+        }
+        else if (ct->ct_flags & (CT_ARRAY|CT_STRUCT|CT_UNION)) {
+            return new_simple_cdata(data, ct);
         }
     }
     else if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
@@ -492,6 +492,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     }
     if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
         /* XXX */
+        expected = "XXX";
         goto cannot_convert;
     }
     if (ct->ct_flags & CT_POINTER) {
@@ -911,15 +912,18 @@ cdata_sub(PyObject *v, PyObject *w)
 static PyObject *
 cdata_getattro(CDataObject *cd, PyObject *attr)
 {
-    if (cd->c_type->ct_flags & (CT_STRUCT|CT_UNION)) {
-        PyObject *d = cd->c_type->ct_stuff;
-        if (d != NULL) {
-            CFieldObject *cf = (CFieldObject *)PyDict_GetItem(d, attr);
-            if (cf != NULL) {
-                /* read the field 'cf' */
-                char *data = cd->c_data + cf->cf_offset;
-                return convert_to_object(data, cf->cf_type);
-            }
+    CFieldObject *cf;
+    CTypeDescrObject *ct = cd->c_type;
+
+    if (ct->ct_flags & CT_POINTER)
+        ct = ct->ct_itemdescr;
+
+    if ((ct->ct_flags & (CT_STRUCT|CT_UNION)) && ct->ct_stuff != NULL) {
+        cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
+        if (cf != NULL) {
+            /* read the field 'cf' */
+            char *data = cd->c_data + cf->cf_offset;
+            return convert_to_object(data, cf->cf_type);
         }
     }
     return PyObject_GenericGetAttr((PyObject *)cd, attr);
@@ -928,15 +932,18 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
 static int
 cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
 {
-    if (cd->c_type->ct_flags & (CT_STRUCT|CT_UNION)) {
-        PyObject *d = cd->c_type->ct_stuff;
-        if (d != NULL) {
-            CFieldObject *cf = (CFieldObject *)PyDict_GetItem(d, attr);
-            if (cf != NULL) {
-                /* write the field 'cf' */
-                char *data = cd->c_data + cf->cf_offset;
-                return convert_from_object(data, cf->cf_type, value);
-            }
+    CFieldObject *cf;
+    CTypeDescrObject *ct = cd->c_type;
+
+    if (ct->ct_flags & CT_POINTER)
+        ct = ct->ct_itemdescr;
+
+    if ((ct->ct_flags & (CT_STRUCT|CT_UNION)) && ct->ct_stuff != NULL) {
+        cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
+        if (cf != NULL) {
+            /* write the field 'cf' */
+            char *data = cd->c_data + cf->cf_offset;
+            return convert_from_object(data, cf->cf_type, value);
         }
     }
     return PyObject_GenericSetAttr((PyObject *)cd, attr, value);

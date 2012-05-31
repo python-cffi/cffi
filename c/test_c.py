@@ -377,3 +377,15 @@ def test_struct_instance():
     s.a2 = 123
     assert s.a1 == 0
     assert s.a2 == 123
+
+def test_struct_pointer():
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BInt, -1),
+                                       ('a2', BInt, -1)])
+    p = new(BStructPtr, None)
+    assert p.a1 == 0      # read/write via the pointer (C equivalent: '->')
+    p.a2 = 123
+    assert p.a1 == 0
+    assert p.a2 == 123
