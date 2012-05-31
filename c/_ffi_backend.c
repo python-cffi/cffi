@@ -602,8 +602,11 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         goto cannot_convert;
     }
     if (ct->ct_flags & CT_UNION) {
-        expected = "XXX";
-        goto cannot_convert;
+        if (ct->ct_first_field == NULL) {
+            PyErr_SetString(PyExc_ValueError, "empty union");
+            return -1;
+        }
+        return convert_from_object(data, ct->ct_first_field->cf_type, init);
     }
     fprintf(stderr, "convert_from_object: '%s'\n", ct->ct_name);
     Py_FatalError("convert_from_object");
