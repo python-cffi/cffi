@@ -543,3 +543,5 @@ def test_load_and_call_function():
     strlen = ll.load_function(BFunc, "strlen")
     input = new(new_array_type(BCharP, None), "foobar")
     assert strlen(input) == 6
+    #
+    assert strlen("foobarbaz") == 9

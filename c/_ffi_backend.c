@@ -1086,9 +1086,18 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     for (i=0; i<nargs; i++) {
         CTypeDescrObject *argtype;
         char *data = buffer + cif_descr->exchange_offset_arg[1 + i];
+        PyObject *obj = PyTuple_GET_ITEM(args, i);
+
         argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 1 + i);
         buffer_array[i] = data;
-        if (convert_from_object(data, argtype, PyTuple_GET_ITEM(args, i)) < 0)
+
+        if ((argtype->ct_flags & CT_POINTER) &&
+            (argtype->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) &&
+            PyString_Check(obj)) {
+            /* special case: Python string -> cdata 'char *' */
+            *(char **)data = PyString_AS_STRING(obj);
+        }
+        else if (convert_from_object(data, argtype, obj) < 0)
             return NULL;
     }
 
