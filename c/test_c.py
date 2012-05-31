@@ -416,3 +416,10 @@ def test_offsetof():
     assert offsetof(BStruct, 'abc') == 0
     assert offsetof(BStruct, 'def') == size_of_int()
     py.test.raises(KeyError, offsetof, BStruct, "ghi")
+
+def test_function_type():
+    BInt = new_primitive_type("int")
+    BFunc = new_function_type((BInt, BInt), BInt, False)
+    assert repr(BFunc) == "<ctype 'int(*)(int, int)'>"
+    BFunc2 = new_function_type((), BFunc, False)
+    assert repr(BFunc2) == "<ctype 'int(*(*)())(int, int)'>"

@@ -1,8 +1,11 @@
 #include <Python.h>
+#include "structmember.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <dlfcn.h>
-#include "structmember.h"
+
+#include <ffi.h>
 
 /************************************************************/
 
@@ -14,10 +17,11 @@
 #define CT_ARRAY             32
 #define CT_STRUCT            64
 #define CT_UNION            128
-#define CT_OPAQUE           256
+#define CT_FUNCTIONPTR      256
+#define CT_OPAQUE           512
 
-#define CT_CAST_ANYTHING          512    /* 'char' and 'void' only */
-#define CT_PRIMITIVE_FITS_LONG   1024
+#define CT_CAST_ANYTHING         1024    /* 'char' and 'void' only */
+#define CT_PRIMITIVE_FITS_LONG   2048
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -29,7 +33,9 @@ typedef struct _ctypedescr {
     struct _ctypedescr *ct_itemdescr;  /* ptrs and arrays: the item type */
     PyObject *ct_stuff;                /* structs: dict of the fields
                                           arrays: ctypedescr of the ptr type */
-    struct cfieldobject_s *ct_first_field;
+    void *ct_extra;                    /* structs: first field (not a ref!)
+                                          function types: the "cif" object
+                                          primitives: prebuilt "cif" object */
 
     Py_ssize_t ct_size;     /* size of instances, or -1 if unknown */
     Py_ssize_t ct_length;   /* length of arrays, or -1 if unknown;
@@ -140,6 +146,8 @@ ctypedescr_dealloc(CTypeDescrObject *ct)
     PyObject_GC_UnTrack(ct);
     Py_XDECREF(ct->ct_itemdescr);
     Py_XDECREF(ct->ct_stuff);
+    if (ct->ct_flags & CT_FUNCTIONPTR)
+        PyObject_Free(ct->ct_extra);
     Py_TYPE(ct)->tp_free((PyObject *)ct);
 }
 
@@ -565,7 +573,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         if (PyList_Check(init) || PyTuple_Check(init)) {
             PyObject **items = PySequence_Fast_ITEMS(init);
             Py_ssize_t i, n = PySequence_Fast_GET_SIZE(init);
-            CFieldObject *cf = ct->ct_first_field;
+            CFieldObject *cf = (CFieldObject *)ct->ct_extra;
 
             for (i=0; i<n; i++) {
                 if (cf == NULL) {
@@ -602,11 +610,12 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         goto cannot_convert;
     }
     if (ct->ct_flags & CT_UNION) {
-        if (ct->ct_first_field == NULL) {
+        CFieldObject *cf = (CFieldObject *)ct->ct_extra;   /* first field */
+        if (cf == NULL) {
             PyErr_SetString(PyExc_ValueError, "empty union");
             return -1;
         }
-        return convert_from_object(data, ct->ct_first_field->cf_type, init);
+        return convert_from_object(data, cf->cf_type, init);
     }
     fprintf(stderr, "convert_from_object: '%s'\n", ct->ct_name);
     Py_FatalError("convert_from_object");
@@ -1468,6 +1477,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     };
     const struct descr_s *ptypes;
     int name_size;
+    ffi_type *ffitype;
 
     if (!PyArg_ParseTuple(args, "s:new_primitive_type", &name))
         return NULL;
@@ -1481,6 +1491,33 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
             break;
     }
 
+    if (ptypes->flags & CT_PRIMITIVE_SIGNED) {
+        switch (ptypes->size) {
+        case 1: ffitype = &ffi_type_sint8; break;
+        case 2: ffitype = &ffi_type_sint16; break;
+        case 4: ffitype = &ffi_type_sint32; break;
+        case 8: ffitype = &ffi_type_sint64; break;
+        default: goto bad_ffi_type;
+        }
+    }
+    else if (ptypes->flags & CT_PRIMITIVE_FLOAT) {
+        if (strcmp(ptypes->name, "float") == 0)
+            ffitype = &ffi_type_float;
+        else if (strcmp(ptypes->name, "double") == 0)
+            ffitype = &ffi_type_double;
+        else
+            goto bad_ffi_type;
+    }
+    else {
+        switch (ptypes->size) {
+        case 1: ffitype = &ffi_type_uint8; break;
+        case 2: ffitype = &ffi_type_uint16; break;
+        case 4: ffitype = &ffi_type_uint32; break;
+        case 8: ffitype = &ffi_type_uint64; break;
+        default: goto bad_ffi_type;
+        }
+    }
+
     name_size = strlen(ptypes->name) + 1;
     td = ctypedescr_new(name_size);
     if (td == NULL)
@@ -1489,6 +1526,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     memcpy(td->ct_name, name, name_size);
     td->ct_size = ptypes->size;
     td->ct_length = ptypes->align;
+    td->ct_extra = ffitype;
     td->ct_flags = ptypes->flags;
     if (td->ct_flags & CT_PRIMITIVE_SIGNED) {
         if (td->ct_size <= sizeof(long))
@@ -1500,6 +1538,12 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     }
     td->ct_name_position = strlen(td->ct_name);
     return (PyObject *)td;
+
+ bad_ffi_type:
+    PyErr_Format(PyExc_NotImplementedError,
+                 "primitive type '%s' with a non-standard size %d",
+                 name, ptypes->size);
+    return NULL;
 }
 
 static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
@@ -1654,7 +1698,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     if (interned_fields == NULL)
         return NULL;
 
-    previous = &ct->ct_first_field;
+    previous = (CFieldObject **)&ct->ct_extra;
 
     for (i=0; i<nb_fields; i++) {
         PyObject *fname;
@@ -1758,7 +1802,7 @@ static PyObject *b__getfields(PyObject *self, PyObject *arg)
         res = PyList_New(0);
         if (res == NULL)
             return NULL;
-        for (cf = ct->ct_first_field; cf != NULL; cf = cf->cf_next) {
+        for (cf = (CFieldObject *)ct->ct_extra; cf != NULL; cf = cf->cf_next) {
             int err;
             PyObject *o = Py_BuildValue("sO", get_field_name(ct, cf),
                                         (PyObject *)cf);
@@ -1771,6 +1815,176 @@ static PyObject *b__getfields(PyObject *self, PyObject *arg)
         }
     }
     return res;
+}
+
+struct funcbuilder_s {
+    Py_ssize_t nb_bytes;
+    Py_ssize_t nb_bytes_in_name;
+    char *bufferp, *namep;
+    ffi_cif *cif;
+    ffi_type **atypes;
+    ffi_type *rtype;
+    unsigned int nargs;
+    int name_position;
+};
+
+static void *fb_alloc(struct funcbuilder_s *fb, Py_ssize_t size)
+{
+    if (fb->bufferp == NULL) {
+        fb->nb_bytes += size;
+        return NULL;
+    }
+    else {
+        char *result = fb->bufferp;
+        fb->bufferp += size;
+        return result;
+    }
+}
+
+static void fb_cat_name(struct funcbuilder_s *fb, char *piece, int piecelen)
+{
+    if (fb->namep == NULL) {
+        fb->nb_bytes_in_name += piecelen;
+    }
+    else {
+        memcpy(fb->namep, piece, piecelen);
+        fb->namep += piecelen;
+    }
+}
+
+static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
+{
+    if (ct->ct_flags & CT_PRIMITIVE_ANY) {
+        return (ffi_type *)ct->ct_extra;
+    }
+    else if (ct->ct_flags & (CT_POINTER|CT_ARRAY|CT_FUNCTIONPTR)) {
+        return &ffi_type_pointer;
+    }
+    else if ((ct->ct_flags & (CT_OPAQUE|CT_CAST_ANYTHING)) ==
+                             (CT_OPAQUE|CT_CAST_ANYTHING)) {    /* void type */
+        return &ffi_type_void;
+    }
+    else {
+        fprintf(stderr, "fb_fill_type: '%s'\n", ct->ct_name);
+        Py_FatalError("fb_fill_type");
+        return NULL;
+    }
+}
+
+static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
+                    CTypeDescrObject *fresult)
+{
+    Py_ssize_t i, nargs = PyTuple_GET_SIZE(fargs);
+
+    /* ffi buffer: start with a standard ffi_cif */
+    fb->cif = fb_alloc(fb, sizeof(ffi_cif));
+
+    /* ffi buffer: next comes an array of 'ffi_type*', one per argument */
+    fb->nargs = nargs;
+    fb->atypes = fb_alloc(fb, nargs * sizeof(ffi_type*));
+
+    /* ffi buffer: next comes the result type */
+    fb->rtype = fb_fill_type(fb, fresult);
+    if (PyErr_Occurred())
+        return -1;
+
+    /* name: the function type name we build here is, like in C, made
+       as follows:
+
+         RESULT_TYPE_HEAD (*)(ARG_1_TYPE, ARG_2_TYPE, etc) RESULT_TYPE_TAIL
+    */
+    fb_cat_name(fb, fresult->ct_name, fresult->ct_name_position);
+    fb_cat_name(fb, "(*)(", 4);
+    i = fresult->ct_name_position + 2;  /* between '(*' and ')(' */
+    fb->name_position = i;
+
+    /* loop over the arguments */
+    for (i=0; i<nargs; i++) {
+        CTypeDescrObject *farg;
+        ffi_type *atype;
+
+        farg = (CTypeDescrObject *)PyTuple_GET_ITEM(fargs, i);
+        if (!CTypeDescr_Check(farg)) {
+            PyErr_SetString(PyExc_TypeError, "expected a tuple of ctypes");
+            return -1;
+        }
+
+        /* ffi buffer: fill in the ffi for the i'th argument */
+        atype = fb_fill_type(fb, farg);
+        if (PyErr_Occurred())
+            return -1;
+        if (fb->atypes != NULL)
+            fb->atypes[i] = atype;
+
+        /* name: concatenate the name of the i'th argument's type */
+        if (i > 0)
+            fb_cat_name(fb, ", ", 2);
+        fb_cat_name(fb, farg->ct_name, strlen(farg->ct_name));
+    }
+
+    /* name: concatenate the tail of the result type */
+    fb_cat_name(fb, ")", 1);
+    fb_cat_name(fb, fresult->ct_name + fresult->ct_name_position,
+                strlen(fresult->ct_name) - fresult->ct_name_position + 1);
+    return 0;
+}
+
+static PyObject *b_new_function_type(PyObject *self, PyObject *args)
+{
+    PyObject *fargs;
+    CTypeDescrObject *fresult;
+    CTypeDescrObject *fct;
+    int ellipsis;
+    struct funcbuilder_s funcbuilder;
+    char *buffer;
+
+    if (!PyArg_ParseTuple(args, "O!O!i:new_function_type",
+                          &PyTuple_Type, &fargs,
+                          &CTypeDescr_Type, &fresult,
+                          &ellipsis))
+        return NULL;
+
+    if (ellipsis) {
+        PyErr_SetString(PyExc_NotImplementedError, "'...'");
+        return NULL;
+    }
+
+    funcbuilder.nb_bytes = 0;
+    funcbuilder.nb_bytes_in_name = 0;
+    funcbuilder.bufferp = NULL;
+    funcbuilder.namep = NULL;
+
+    /* compute the total size needed in the buffer for libffi */
+    if (fb_build(&funcbuilder, fargs, fresult) < 0)
+        return NULL;
+
+    /* allocate the buffer */
+    buffer = PyObject_Malloc(funcbuilder.nb_bytes);
+    if (buffer == NULL)
+        return PyErr_NoMemory();
+
+    /* allocate the function type */
+    fct = ctypedescr_new(funcbuilder.nb_bytes_in_name);
+    if (fct == NULL)
+        goto error;
+
+    /* call again fb_build() to really build the libffi data structures
+       and the ct_name */
+    funcbuilder.bufferp = buffer;
+    funcbuilder.namep = fct->ct_name;
+    if (fb_build(&funcbuilder, fargs, fresult) < 0)
+        goto error;
+
+    fct->ct_extra = buffer;
+    fct->ct_size = -1;
+    fct->ct_flags = CT_FUNCTIONPTR;
+    fct->ct_name_position = funcbuilder.name_position;
+    return (PyObject *)fct;
+
+ error:
+    Py_XDECREF(fct);
+    PyObject_Free(buffer);
+    return NULL;
 }
 
 static PyObject *b_alignof(PyObject *self, PyObject *arg)
@@ -1884,6 +2098,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new_struct_type", b_new_struct_type, METH_VARARGS},
     {"new_union_type", b_new_union_type, METH_VARARGS},
     {"complete_struct_or_union", b_complete_struct_or_union, METH_VARARGS},
+    {"new_function_type", b_new_function_type, METH_VARARGS},
     {"_getfields", b__getfields, METH_O},
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
