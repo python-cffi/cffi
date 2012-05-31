@@ -348,6 +348,7 @@ class BackendTests:
         assert s.a == 0
         assert s.b == 123
         assert s.c == 456
+        py.test.raises(KeyError, ffi.new, "struct foo", {'d': 456})
 
     def test_struct_pointer(self):
         ffi = FFI(backend=self.Backend())

@@ -569,7 +569,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 
             for (i=0; i<n; i++) {
                 if (cf == NULL) {
-                    PyErr_Format(PyExc_IndexError,
+                    PyErr_Format(PyExc_ValueError,
                                  "too many initializers for '%s' (got %zd)",
                                  ct->ct_name, n);
                     return -1;
@@ -581,7 +581,24 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             }
             return 0;
         }
-        expected = "XXX";
+        if (PyDict_Check(init)) {
+            PyObject *d_key, *d_value;
+            Py_ssize_t i = 0;
+            CFieldObject *cf;
+
+            while (PyDict_Next(init, &i, &d_key, &d_value)) {
+                cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, d_key);
+                if (cf == NULL) {
+                    PyErr_SetObject(PyExc_KeyError, d_key);
+                    return -1;
+                }
+                if (convert_from_object(data + cf->cf_offset,
+                                        cf->cf_type, d_value) < 0)
+                    return -1;
+            }
+            return 0;
+        }
+        expected = "list or tuple or dict";
         goto cannot_convert;
     }
     if (ct->ct_flags & CT_UNION) {
@@ -980,7 +997,14 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
         if (cf != NULL) {
             /* write the field 'cf' */
             char *data = cd->c_data + cf->cf_offset;
-            return convert_from_object(data, cf->cf_type, value);
+            if (value != NULL) {
+                return convert_from_object(data, cf->cf_type, value);
+            }
+            else {
+                PyErr_SetString(PyExc_AttributeError,
+                                "cannot delete struct field");
+                return -1;
+            }
         }
     }
     return PyObject_GenericSetAttr((PyObject *)cd, attr, value);
