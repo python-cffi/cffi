@@ -423,3 +423,12 @@ def test_function_type():
     assert repr(BFunc) == "<ctype 'int(*)(int, int)'>"
     BFunc2 = new_function_type((), BFunc, False)
     assert repr(BFunc2) == "<ctype 'int(*(*)())(int, int)'>"
+
+def test_function_type_taking_struct():
+    BChar = new_primitive_type("char")
+    BShort = new_primitive_type("short")
+    BStruct = new_struct_type("foo")
+    complete_struct_or_union(BStruct, [('a1', BChar, -1),
+                                       ('a2', BShort, -1)])
+    BFunc = new_function_type((BStruct,), BShort, False)
+    assert repr(BFunc) == "<ctype 'short(*)(struct foo)'>"

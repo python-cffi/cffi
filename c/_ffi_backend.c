@@ -1738,6 +1738,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         cf->cf_bitsize = fbitsize;
 
         if (fbitsize >= 0) {
+            Py_DECREF(cf);
             PyErr_SetString(PyExc_NotImplementedError, "bit fields");
             goto error;
         }
@@ -1749,6 +1750,12 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         Py_DECREF(cf);
         if (err < 0)
             goto error;
+
+        if (PyDict_Size(interned_fields) != i + 1) {
+            PyErr_Format(PyExc_KeyError, "duplicate field name '%s'",
+                         PyString_AS_STRING(fname));
+            goto error;
+        }
 
         *previous = cf;
         previous = &cf->cf_next;
@@ -1864,9 +1871,43 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
                              (CT_OPAQUE|CT_CAST_ANYTHING)) {    /* void type */
         return &ffi_type_void;
     }
+    else if (ct->ct_flags & CT_STRUCT) {
+        ffi_type *ffistruct, *ffifield;
+        ffi_type **elements;
+        Py_ssize_t i, n;
+        CFieldObject *cf;
+
+        if (ct->ct_stuff == NULL) {
+            PyErr_Format(PyExc_TypeError, "ctype '%s' has incomplete type",
+                         ct->ct_name);
+            return NULL;
+        }
+        n = PyDict_Size(ct->ct_stuff);
+        elements = fb_alloc(fb, n * sizeof(ffi_type*));
+        cf = (CFieldObject *)ct->ct_extra;
+
+        for (i=0; i<n; i++) {
+            assert(cf != NULL);
+            ffifield = fb_fill_type(fb, cf->cf_type);
+            if (elements != NULL)
+                elements[i] = ffifield;
+            cf = cf->cf_next;
+        }
+        assert(cf == NULL);
+
+        ffistruct = fb_alloc(fb, sizeof(ffi_type));
+        if (ffistruct != NULL) {
+            ffistruct->size = ct->ct_size;
+            ffistruct->alignment = ct->ct_length;
+            ffistruct->type = FFI_TYPE_STRUCT;
+            ffistruct->elements = elements;
+        }
+        return ffistruct;
+    }
     else {
-        fprintf(stderr, "fb_fill_type: '%s'\n", ct->ct_name);
-        Py_FatalError("fb_fill_type");
+        PyErr_Format(PyExc_TypeError,
+                     "ctype '%s' not supported as argument or return value",
+                     ct->ct_name);
         return NULL;
     }
 }
@@ -1974,6 +2015,8 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     funcbuilder.namep = fct->ct_name;
     if (fb_build(&funcbuilder, fargs, fresult) < 0)
         goto error;
+    assert(funcbuilder.bufferp == buffer + funcbuilder.nb_bytes);
+    assert(funcbuilder.namep == fct->ct_name + funcbuilder.nb_bytes_in_name);
 
     fct->ct_extra = buffer;
     fct->ct_size = -1;
