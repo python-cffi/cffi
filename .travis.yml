@@ -7,5 +7,6 @@ install:
     - pip install .
 script: py.test
 notifications:
+    email: false
     irc: "irc.freenode.org#pypy"
 
