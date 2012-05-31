@@ -1827,6 +1827,29 @@ static PyObject *b_typeof_instance(PyObject *self, PyObject *arg)
     return res;
 }
 
+static PyObject *b_offsetof(PyObject *self, PyObject *args)
+{
+    PyObject *fieldname;
+    CTypeDescrObject *ct;
+    CFieldObject *cf;
+
+    if (!PyArg_ParseTuple(args, "O!O:offsetof",
+                          &CTypeDescr_Type, &ct, &fieldname))
+        return NULL;
+
+    if (!((ct->ct_flags & (CT_STRUCT|CT_UNION)) && ct->ct_stuff != NULL)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "not an initialized struct or union ctype");
+        return NULL;
+    }
+    cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
+    if (cf == NULL) {
+        PyErr_SetObject(PyExc_KeyError, fieldname);
+        return NULL;
+    }
+    return PyInt_FromSsize_t(cf->cf_offset);
+}
+
 static PyObject *b_string(PyObject *self, PyObject *args)
 {
     CDataObject *cd;
@@ -1863,6 +1886,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"sizeof_type", b_sizeof_type, METH_O},
     {"sizeof_instance", b_sizeof_instance, METH_O},
     {"typeof_instance", b_typeof_instance, METH_O},
+    {"offsetof", b_offsetof, METH_VARARGS},
     {"string", b_string, METH_VARARGS},
     {NULL,     NULL}	/* Sentinel */
 };

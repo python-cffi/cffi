@@ -406,3 +406,13 @@ def test_struct_init_list():
     assert s.a1 == 123
     assert s.a2 == 456
     assert s.a3 == 0
+
+def test_offsetof():
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("foo")
+    py.test.raises(TypeError, offsetof, BInt, "abc")
+    py.test.raises(TypeError, offsetof, BStruct, "abc")
+    complete_struct_or_union(BStruct, [('abc', BInt, -1), ('def', BInt, -1)])
+    assert offsetof(BStruct, 'abc') == 0
+    assert offsetof(BStruct, 'def') == size_of_int()
+    py.test.raises(KeyError, offsetof, BStruct, "ghi")
