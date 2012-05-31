@@ -3,6 +3,9 @@ python:
     - "2.6"
     - "2.7"
     - "pypy"
+before_install:
+    - sudo apt-get update
+    - sudo apt-get install libffi-dev
 install:
     - pip install .
 script: py.test
