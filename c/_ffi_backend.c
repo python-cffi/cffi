@@ -18,10 +18,11 @@
 #define CT_STRUCT            64
 #define CT_UNION            128
 #define CT_FUNCTIONPTR      256
-#define CT_OPAQUE           512
+#define CT_VOID             512
 
 #define CT_CAST_ANYTHING         1024    /* 'char' and 'void' only */
 #define CT_PRIMITIVE_FITS_LONG   2048
+#define CT_OPAQUE                4096
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -32,9 +33,10 @@ typedef struct _ctypedescr {
 
     struct _ctypedescr *ct_itemdescr;  /* ptrs and arrays: the item type */
     PyObject *ct_stuff;                /* structs: dict of the fields
-                                          arrays: ctypedescr of the ptr type */
+                                          arrays: ctypedescr of the ptr type
+                                          function: tuple(ctres, ctargs...) */
     void *ct_extra;                    /* structs: first field (not a ref!)
-                                          function types: the "cif" object
+                                          function types: cif_description
                                           primitives: prebuilt "cif" object */
 
     Py_ssize_t ct_size;     /* size of instances, or -1 if unknown */
@@ -90,6 +92,18 @@ typedef struct {
     Py_ssize_t length;
     union_alignment alignment;
 } CDataObject_with_length;
+
+typedef struct {
+    ffi_cif cif;
+    /* the following information is used when doing the call:
+       - a buffer of size 'exchange_size' is malloced
+       - the arguments are converted from Python objects to raw data
+       - the i'th raw data is stored at 'buffer + exchange_offset_arg[1+i]'
+       - the call is done
+       - the result is read back from 'buffer + exchange_offset_arg[0]' */
+    Py_ssize_t exchange_size;
+    Py_ssize_t exchange_offset_arg[1];
+} cif_description_t;
 
 /************************************************************/
 
@@ -1022,6 +1036,66 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
     return PyObject_GenericSetAttr((PyObject *)cd, attr, value);
 }
 
+static PyObject*
+cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
+{
+    char *buffer;
+    void** buffer_array;
+    cif_description_t *cif_descr;
+    Py_ssize_t i, nargs;
+    PyObject *signature, *restype, *res;
+    char *resultdata;
+
+    if (!(cd->c_type->ct_flags & CT_FUNCTIONPTR)) {
+        PyErr_Format(PyExc_TypeError, "cdata '%s' is not callable",
+                     cd->c_type->ct_name);
+        return NULL;
+    }
+    if (kwds != NULL && PyDict_Size(kwds) != 0) {
+        PyErr_SetString(PyExc_TypeError,
+                "a cdata function cannot be called with keyword arguments");
+        return NULL;
+    }
+    signature = cd->c_type->ct_stuff;
+    nargs = PyTuple_GET_SIZE(signature) - 1;
+    if (PyTuple_Size(args) != nargs) {
+        if (!PyErr_Occurred()) {
+            PyObject *s = cdata_repr(cd);
+            PyErr_Format(PyExc_TypeError,
+                         "%s expects %zd arguments, got %zd",
+                         PyString_AsString(s),
+                         nargs, PyTuple_GET_SIZE(args));
+        }
+        return NULL;
+    }
+
+    cif_descr = (cif_description_t *)cd->c_type->ct_extra;
+    buffer = PyObject_Malloc(cif_descr->exchange_size);
+    if (buffer == NULL)
+        return PyErr_NoMemory();
+
+    buffer_array = (void **)buffer;
+
+    for (i=0; i<nargs; i++) {
+        PyObject *argtype = PyTuple_GET_ITEM(signature, 1 + i);
+        char *data = buffer + cif_descr->exchange_offset_arg[1 + i];
+        buffer_array[i] = data;
+        if (convert_from_object(data, (CTypeDescrObject *)argtype,
+                                PyTuple_GET_ITEM(args, i)) < 0)
+            return NULL;
+    }
+
+    restype = PyTuple_GET_ITEM(signature, 0);
+    resultdata = buffer + cif_descr->exchange_offset_arg[0];
+
+    ffi_call(&cif_descr->cif, (void (*)(void))(cd->c_data),
+             resultdata, buffer_array);
+
+    res = convert_to_object(resultdata, (CTypeDescrObject *)restype);
+    PyObject_Free(buffer);
+    return res;
+}
+
 static PyNumberMethods CData_as_number = {
     (binaryfunc)cdata_add,      /*nb_add*/
     (binaryfunc)cdata_sub,      /*nb_subtract*/
@@ -1069,7 +1143,7 @@ static PyTypeObject CData_Type = {
     0,                                          /* tp_as_sequence */
     &CData_as_mapping,                          /* tp_as_mapping */
     (hashfunc)cdata_hash,                       /* tp_hash */
-    0,                                          /* tp_call */
+    (ternaryfunc)cdata_call,                    /* tp_call */
     (reprfunc)cdata_str,                        /* tp_str */
     (getattrofunc)cdata_getattro,               /* tp_getattro */
     (setattrofunc)cdata_setattro,               /* tp_setattro */
@@ -1216,8 +1290,8 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!O:cast", &CTypeDescr_Type, &ct, &ob))
         return NULL;
 
-    if (ct->ct_flags & CT_POINTER) {
-        /* cast to a pointer */
+    if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
+        /* cast to a pointer or to a funcptr */
         unsigned PY_LONG_LONG value;
 
         if (CData_Check(ob)) {
@@ -1626,7 +1700,7 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *args)
 
     memcpy(td->ct_name, "void", name_size);
     td->ct_size = -1;
-    td->ct_flags = CT_OPAQUE | CT_CAST_ANYTHING;
+    td->ct_flags = CT_VOID | CT_OPAQUE | CT_CAST_ANYTHING;
     td->ct_name_position = strlen("void");
     return (PyObject *)td;
 }
@@ -1828,7 +1902,6 @@ struct funcbuilder_s {
     Py_ssize_t nb_bytes;
     Py_ssize_t nb_bytes_in_name;
     char *bufferp, *namep;
-    ffi_cif *cif;
     ffi_type **atypes;
     ffi_type *rtype;
     unsigned int nargs;
@@ -1867,8 +1940,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
     else if (ct->ct_flags & (CT_POINTER|CT_ARRAY|CT_FUNCTIONPTR)) {
         return &ffi_type_pointer;
     }
-    else if ((ct->ct_flags & (CT_OPAQUE|CT_CAST_ANYTHING)) ==
-                             (CT_OPAQUE|CT_CAST_ANYTHING)) {    /* void type */
+    else if (ct->ct_flags & CT_VOID) {
         return &ffi_type_void;
     }
     else if (ct->ct_flags & CT_STRUCT) {
@@ -1883,7 +1955,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
             return NULL;
         }
         n = PyDict_Size(ct->ct_stuff);
-        elements = fb_alloc(fb, n * sizeof(ffi_type*));
+        elements = fb_alloc(fb, (n + 1) * sizeof(ffi_type*));
         cf = (CFieldObject *)ct->ct_extra;
 
         for (i=0; i<n; i++) {
@@ -1897,6 +1969,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
 
         ffistruct = fb_alloc(fb, sizeof(ffi_type));
         if (ffistruct != NULL) {
+            elements[n] = NULL;
             ffistruct->size = ct->ct_size;
             ffistruct->alignment = ct->ct_length;
             ffistruct->type = FFI_TYPE_STRUCT;
@@ -1905,20 +1978,25 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
         return ffistruct;
     }
     else {
-        PyErr_Format(PyExc_TypeError,
+        PyErr_Format(PyExc_NotImplementedError,
                      "ctype '%s' not supported as argument or return value",
                      ct->ct_name);
         return NULL;
     }
 }
 
+#define ALIGN_ARG(n)  ((n) + 7) & ~7
+
 static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
                     CTypeDescrObject *fresult)
 {
     Py_ssize_t i, nargs = PyTuple_GET_SIZE(fargs);
+    Py_ssize_t exchange_offset;
+    cif_description_t *cif_descr;
 
-    /* ffi buffer: start with a standard ffi_cif */
-    fb->cif = fb_alloc(fb, sizeof(ffi_cif));
+    /* ffi buffer: start with a cif_description */
+    cif_descr = fb_alloc(fb, sizeof(cif_description_t) +
+                             nargs * sizeof(Py_ssize_t));
 
     /* ffi buffer: next comes an array of 'ffi_type*', one per argument */
     fb->nargs = nargs;
@@ -1928,6 +2006,24 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
     fb->rtype = fb_fill_type(fb, fresult);
     if (PyErr_Occurred())
         return -1;
+    if (cif_descr != NULL) {
+        if (fb->rtype->type == FFI_TYPE_STRUCT) {
+            PyErr_SetString(PyExc_NotImplementedError,
+                            "functions returning structs are not supported");
+            return -1;
+        }
+        /* exchange data size */
+        /* first, enough room for an array of 'nargs' pointers */
+        exchange_offset = nargs * sizeof(void*);
+        exchange_offset = ALIGN_ARG(exchange_offset);
+        cif_descr->exchange_offset_arg[0] = exchange_offset;
+        /* then enough room for the result --- which means at least
+           sizeof(ffi_arg), according to the ffi docs */
+        i = fb->rtype->size;
+        if (i < sizeof(ffi_arg))
+            i = sizeof(ffi_arg);
+        exchange_offset += i;
+    }
 
     /* name: the function type name we build here is, like in C, made
        as follows:
@@ -1954,13 +2050,23 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
         atype = fb_fill_type(fb, farg);
         if (PyErr_Occurred())
             return -1;
-        if (fb->atypes != NULL)
+        if (fb->atypes != NULL) {
             fb->atypes[i] = atype;
+            /* exchange data size */
+            exchange_offset = ALIGN_ARG(exchange_offset);
+            cif_descr->exchange_offset_arg[1 + i] = exchange_offset;
+            exchange_offset += atype->size;
+        }
 
         /* name: concatenate the name of the i'th argument's type */
         if (i > 0)
             fb_cat_name(fb, ", ", 2);
         fb_cat_name(fb, farg->ct_name, strlen(farg->ct_name));
+    }
+
+    if (cif_descr != NULL) {
+        /* exchange data size */
+        cif_descr->exchange_size = exchange_offset;
     }
 
     /* name: concatenate the tail of the result type */
@@ -1970,6 +2076,8 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
     return 0;
 }
 
+#undef ALIGN_ARG
+
 static PyObject *b_new_function_type(PyObject *self, PyObject *args)
 {
     PyObject *fargs;
@@ -1978,6 +2086,8 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     int ellipsis;
     struct funcbuilder_s funcbuilder;
     char *buffer;
+    cif_description_t *cif_descr;
+    Py_ssize_t i;
 
     if (!PyArg_ParseTuple(args, "O!O!i:new_function_type",
                           &PyTuple_Type, &fargs,
@@ -2018,6 +2128,24 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     assert(funcbuilder.bufferp == buffer + funcbuilder.nb_bytes);
     assert(funcbuilder.namep == fct->ct_name + funcbuilder.nb_bytes_in_name);
 
+    cif_descr = (cif_description_t *)buffer;
+    if (ffi_prep_cif(&cif_descr->cif, FFI_DEFAULT_ABI, funcbuilder.nargs,
+                     funcbuilder.rtype, funcbuilder.atypes) != FFI_OK) {
+        PyErr_SetString(PyExc_SystemError,
+                        "libffi fails to build this function type");
+        goto error;
+    }
+
+    fct->ct_stuff = PyTuple_New(1 + funcbuilder.nargs);
+    if (fct->ct_stuff == NULL)
+        goto error;
+    Py_INCREF(fresult);
+    PyTuple_SET_ITEM(fct->ct_stuff, 0, (PyObject *)fresult);
+    for (i=0; i<funcbuilder.nargs; i++) {
+        PyObject *o = PyTuple_GET_ITEM(fargs, i);
+        Py_INCREF(o);
+        PyTuple_SET_ITEM(fct->ct_stuff, 1 + i, o);
+    }
     fct->ct_extra = buffer;
     fct->ct_size = -1;
     fct->ct_flags = CT_FUNCTIONPTR;
@@ -2131,6 +2259,37 @@ static PyObject *b_string(PyObject *self, PyObject *args)
     return PyString_FromStringAndSize(cd->c_data, length);
 }
 
+/************************************************************/
+
+static char _testfunc0(char a, char b)
+{
+    return a + b;
+}
+static long _testfunc1(int a, long b)
+{
+    return a + b;
+}
+static PY_LONG_LONG _testfunc2(PY_LONG_LONG a, PY_LONG_LONG b)
+{
+    return a + b;
+}
+
+static PyObject *b__testfunc(PyObject *self, PyObject *args)
+{
+    /* for testing only */
+    int i;
+    void *f;
+    if (!PyArg_ParseTuple(args, "i:_testfunc", &i))
+        return NULL;
+    switch (i) {
+    case 0: f = &_testfunc0; break;
+    case 1: f = &_testfunc1; break;
+    case 2: f = &_testfunc2; break;
+    default: f = NULL;
+    }
+    return PyLong_FromVoidPtr(f);
+}
+
 static PyMethodDef FFIBackendMethods[] = {
     {"nonstandard_integer_types", b_nonstandard_integer_types, METH_NOARGS},
     {"load_library", b_load_library, METH_VARARGS},
@@ -2151,6 +2310,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"typeof_instance", b_typeof_instance, METH_O},
     {"offsetof", b_offsetof, METH_VARARGS},
     {"string", b_string, METH_VARARGS},
+    {"_testfunc", b__testfunc, METH_VARARGS},
     {NULL,     NULL}	/* Sentinel */
 };
 

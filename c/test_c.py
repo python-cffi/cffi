@@ -1,6 +1,6 @@
 import py, sys
 from _ffi_backend import *
-from _ffi_backend import _getfields
+from _ffi_backend import _getfields, _testfunc
 
 
 def size_of_int():
@@ -432,3 +432,15 @@ def test_function_type_taking_struct():
                                        ('a2', BShort, -1)])
     BFunc = new_function_type((BStruct,), BShort, False)
     assert repr(BFunc) == "<ctype 'short(*)(struct foo)'>"
+
+def test_function_void_result():
+    BVoid = new_void_type()
+    BInt = new_primitive_type("int")
+    BFunc = new_function_type((BInt, BInt), BVoid, False)
+    assert repr(BFunc) == "<ctype 'void(*)(int, int)'>"
+
+def test_call_functions():
+    BSignedChar = new_primitive_type("signed char")
+    BFunc0 = new_function_type((BSignedChar, BSignedChar), BSignedChar, False)
+    f = cast(BFunc0, _testfunc(0))
+    assert f(40, 2) == 42
