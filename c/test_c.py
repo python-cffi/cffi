@@ -394,3 +394,15 @@ def test_struct_pointer():
     p.a2 = 123
     assert p.a1 == 0
     assert p.a2 == 123
+
+def test_struct_init_list():
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BInt, -1),
+                                       ('a2', BInt, -1),
+                                       ('a3', BInt, -1)])
+    s = new(BStructPtr, [123, 456])
+    assert s.a1 == 123
+    assert s.a2 == 456
+    assert s.a3 == 0

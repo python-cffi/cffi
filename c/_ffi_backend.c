@@ -561,14 +561,26 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         goto cannot_convert;
     }
     if (ct->ct_flags & CT_STRUCT) {
-        /*        PyObject *d = ct->ct_stuff;
 
         if (PyList_Check(init) || PyTuple_Check(init)) {
-            Py_ssize_t n = PySequence_Fast_GET_SIZE(init);
-            if (n > PyDict_Size(d)) {
-                ...;
+            PyObject **items = PySequence_Fast_ITEMS(init);
+            Py_ssize_t i, n = PySequence_Fast_GET_SIZE(init);
+            CFieldObject *cf = ct->ct_first_field;
+
+            for (i=0; i<n; i++) {
+                if (cf == NULL) {
+                    PyErr_Format(PyExc_IndexError,
+                                 "too many initializers for '%s' (got %zd)",
+                                 ct->ct_name, n);
+                    return -1;
+                }
+                if (convert_from_object(data + cf->cf_offset,
+                                        cf->cf_type, items[i]) < 0)
+                    return -1;
+                cf = cf->cf_next;
             }
-            }*/
+            return 0;
+        }
         expected = "XXX";
         goto cannot_convert;
     }
