@@ -2616,6 +2616,8 @@ void init_ffi_backend(void)
     }
 
     m = Py_InitModule("_ffi_backend", FFIBackendMethods);
+    if (m == NULL)
+        return;
     if (PyType_Ready(&dl_type) < 0)
         return;
     if (PyType_Ready(&CTypeDescr_Type) < 0)
