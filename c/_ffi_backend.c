@@ -684,7 +684,7 @@ get_alignment(CTypeDescrObject *ct)
     if (ct->ct_flags & (CT_PRIMITIVE_ANY|CT_STRUCT|CT_UNION)) {
         align = ct->ct_length;
     }
-    else if (ct->ct_flags & CT_POINTER) {
+    else if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
         struct aligncheck_ptr { char x; char *y; };
         align = offsetof(struct aligncheck_ptr, y);
     }
@@ -1364,7 +1364,8 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
         unsigned PY_LONG_LONG value;
 
         if (CData_Check(ob) &&
-               ((CDataObject *)ob)->c_type->ct_flags & (CT_POINTER|CT_ARRAY)) {
+               ((CDataObject *)ob)->c_type->ct_flags &
+                                     (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)) {
             value = (Py_intptr_t)((CDataObject *)ob)->c_data;
         }
         else if (PyString_Check(ob)) {
