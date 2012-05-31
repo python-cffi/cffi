@@ -369,8 +369,8 @@ class FFI(object):
                 nextenumvalue += 1
             enumvalues = tuple(enumvalues)
         else:   # opaque enum
-            enumerators = None
-            enumvalues = None
+            enumerators = ()
+            enumvalues = ()
         return self._get_cached_btype('new_enum_type', name,
                                       enumerators, enumvalues)
 
