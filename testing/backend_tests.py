@@ -645,8 +645,9 @@ class BackendTests:
         assert s.e == "C"
         assert s[0].e == "C"
         s.e = ffi.cast("enum foo", -1)
-        assert s.e == -1
-        assert s[0].e == -1
+        assert s.e == '#-1'
+        assert s[0].e == '#-1'
+        s.e = s.e
 
     def test_enum_non_contiguous(self):
         ffi = FFI(backend=self.Backend())
@@ -659,7 +660,7 @@ class BackendTests:
         assert str(ffi.cast("enum foo", 43)) == "C"
         invalid_value = ffi.cast("enum foo", 2)
         assert int(invalid_value) == 2
-        assert str(invalid_value) == "2"
+        assert str(invalid_value) == "#2"
 
     def test_array_of_struct(self):
         ffi = FFI(backend=self.Backend())
