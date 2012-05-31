@@ -763,6 +763,9 @@ class CTypesBackend(object):
     def cast(self, BType, source):
         return BType._cast_from(source)
 
+    def callback(self, BType, source):
+        return BType(source)
+
     typeof_instance = type
 
 
