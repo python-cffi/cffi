@@ -1,7 +1,7 @@
 ffi
 ===
 
-Foreign Function Interface for Python
+Foreign Function Interface for Python.
 
 
 Initial motivation
