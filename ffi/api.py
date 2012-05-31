@@ -332,8 +332,7 @@ class FFI(object):
         #
         # mark it as complete *first*, to handle recursion
         self._completed_struct_or_union.add((kind, name))
-        fnames = []
-        btypes = []
+        fields = []
         for decl in decls:
             if (isinstance(decl.type, pycparser.c_ast.IdentifierType) and
                     ''.join(decl.type.names) == '__dotdotdot__'):
@@ -342,18 +341,15 @@ class FFI(object):
                 # str.join() as a way to cope with both.
                 raise ffiplatform.VerificationMissing("%s %s only partially"
                                                   " specified" % (kind, name))
-            btypes.append(self._get_btype(decl.type))
-            fnames.append(decl.name)
-        bitfields = map(self._get_bitfield_size, decls)
-        self._backend.complete_struct_or_union(result, fnames,
-                                               btypes, bitfields)
+            if decl.bitsize is None:
+                bitsize = -1
+            else:
+                bitsize = self._parse_constant(decl.bitsize)
+            fields.append((decl.name,
+                           self._get_btype(decl.type),
+                           bitsize))
+        self._backend.complete_struct_or_union(result, fields)
         return result
-
-    def _get_bitfield_size(self, decl):
-        if decl.bitsize is None:
-            return None
-        else:
-            return self._parse_constant(decl.bitsize)
 
     def _get_enum_type(self, type):
         name = type.name

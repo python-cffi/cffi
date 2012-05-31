@@ -542,13 +542,15 @@ class CTypesBackend(object):
     def new_union_type(self, name):
         return self._new_struct_or_union('union', name, ctypes.Union)
 
-    def complete_struct_or_union(self, CTypesStructOrUnion,
-                                 fnames, btypes, bitfields):
+    def complete_struct_or_union(self, CTypesStructOrUnion, fields):
         struct_or_union = CTypesStructOrUnion._ctype
+        fnames = [fname for (fname, BField, bitsize) in fields]
+        btypes = [BField for (fname, BField, bitsize) in fields]
+        bitfields = [bitsize for (fname, BField, bitsize) in fields]
         #
         cfields = []
-        for (fname, BField, bitsize) in zip(fnames, btypes, bitfields):
-            if bitsize is None:
+        for (fname, BField, bitsize) in fields:
+            if bitsize < 0:
                 cfields.append((fname, BField._ctype))
             else:
                 cfields.append((fname, BField._ctype, bitsize))
@@ -566,14 +568,14 @@ class CTypesBackend(object):
             def initialize(blob, init):
                 if not isinstance(init, dict):
                     init = tuple(init)
-                    if len(init) > len(fnames):
+                    if len(init) > len(fields):
                         raise ValueError("too many values for %s initializer" %
                                          CTypesStructOrUnion._get_c_name())
                     init = dict(zip(fnames, init))
                 addr = ctypes.addressof(blob)
                 for fname, value in init.items():
                     BField, bitsize = name2fieldtype[fname]
-                    assert bitsize is None, \
+                    assert bitsize < 0, \
                            "not implemented: initializer with bit fields"
                     offset = CTypesStructOrUnion._offsetof(fname)
                     PTR = ctypes.POINTER(BField._ctype)
@@ -589,11 +591,11 @@ class CTypesBackend(object):
                 PTR = ctypes.POINTER(BField._ctype)
                 BField._initialize(ctypes.cast(addr, PTR).contents, init)
         #
-        for fname, BField, bitsize in zip(fnames, btypes, bitfields):
+        for fname, BField, bitsize in fields:
             if hasattr(CTypesStructOrUnion, fname):
                 raise ValueError("the field name %r conflicts in "
                                  "the ctypes backend" % fname)
-            if bitsize is None:
+            if bitsize < 0:
                 def getter(self, fname=fname, BField=BField,
                            offset=CTypesStructOrUnion._offsetof(fname),
                            PTR=ctypes.POINTER(BField._ctype)):

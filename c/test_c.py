@@ -1,5 +1,6 @@
 import py, sys
 from _ffi_backend import *
+from _ffi_backend import _getfields
 
 
 def size_of_int():
@@ -322,3 +323,44 @@ def test_new_union_type():
     assert repr(BUnion) == "<ctype 'union foo'>"
     BPtr = new_pointer_type(BUnion)
     assert repr(BPtr) == "<ctype 'union foo *'>"
+
+def test_complete_struct():
+    BLong = new_primitive_type("int")
+    BChar = new_primitive_type("char")
+    BShort = new_primitive_type("short")
+    BStruct = new_struct_type("foo")
+    assert _getfields(BStruct) is None
+    complete_struct_or_union(BStruct, [('a1', BLong, -1),
+                                       ('a2', BChar, -1),
+                                       ('a3', BShort, -1)])
+    d = _getfields(BStruct)
+    assert sorted(d.keys()) == ['a1', 'a2', 'a3']
+    assert d['a1'].type is BLong
+    assert d['a1'].offset == 0
+    assert d['a1'].bitsize == -1
+    assert d['a2'].type is BChar
+    assert d['a2'].offset == sizeof_type(BLong)
+    assert d['a2'].bitsize == -1
+    assert d['a3'].type is BShort
+    assert d['a3'].offset == sizeof_type(BLong) + sizeof_type(BShort)
+    assert d['a3'].bitsize == -1
+    assert sizeof_type(BStruct) == 2 * sizeof_type(BLong)
+    assert alignof(BStruct) == alignof(BLong)
+
+def test_complete_union():
+    BLong = new_primitive_type("int")
+    BChar = new_primitive_type("char")
+    BUnion = new_union_type("foo")
+    assert _getfields(BUnion) is None
+    complete_struct_or_union(BUnion, [('a1', BLong, -1),
+                                      ('a2', BChar, -1)])
+    d = _getfields(BUnion)
+    assert sorted(d.keys()) == ['a1', 'a2']
+    assert d['a1'].type is BLong
+    assert d['a1'].offset == 0
+    assert d['a1'].bitsize == -1
+    assert d['a2'].type is BChar
+    assert d['a2'].offset == 0
+    assert d['a2'].bitsize == -1
+    assert sizeof_type(BUnion) == sizeof_type(BLong)
+    assert alignof(BUnion) == alignof(BLong)

@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <dlfcn.h>
+#include "structmember.h"
 
 /************************************************************/
 
@@ -12,10 +13,11 @@
 #define CT_POINTER           16
 #define CT_ARRAY             32
 #define CT_STRUCT            64
-#define CT_OPAQUE           128
+#define CT_UNION            128
+#define CT_OPAQUE           256
 
-#define CT_CAST_ANYTHING          256    /* 'char' and 'void' only */
-#define CT_PRIMITIVE_FITS_LONG    512
+#define CT_CAST_ANYTHING          512    /* 'char' and 'void' only */
+#define CT_PRIMITIVE_FITS_LONG   1024
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -30,7 +32,7 @@ typedef struct _ctypedescr {
 
     Py_ssize_t ct_size;     /* size of instances, or -1 if unknown */
     Py_ssize_t ct_length;   /* length of arrays, or -1 if unknown;
-                               or alignment of primitive types */
+                               or alignment of primitive and struct types */
     int ct_flags;           /* CT_xxx flags */
 
     int ct_name_position;   /* index in ct_name of where to put a var name */
@@ -43,7 +45,15 @@ typedef struct {
     char *c_data;
 } CDataObject;
 
+typedef struct {
+    PyObject_HEAD
+    CTypeDescrObject *cf_type;
+    Py_ssize_t cf_offset;
+    int cf_bitsize;
+} CFieldObject;
+
 static PyTypeObject CTypeDescr_Type;
+static PyTypeObject CField_Type;
 static PyTypeObject CData_Type;
 static PyTypeObject CDataOwning_Type;
 
@@ -171,6 +181,65 @@ static PyTypeObject CTypeDescr_Type = {
     0,                                          /* tp_doc */
     (traverseproc)ctypedescr_traverse,          /* tp_traverse */
     (inquiry)ctypedescr_clear,                  /* tp_clear */
+};
+
+/************************************************************/
+
+static void
+cfield_dealloc(CFieldObject *cf)
+{
+    Py_DECREF(cf->cf_type);
+    PyObject_Del(cf);
+}
+
+static int
+cfield_traverse(CFieldObject *cf, visitproc visit, void *arg)
+{
+    Py_VISIT(cf->cf_type);
+    return 0;
+}
+
+#undef OFF
+#define OFF(x) offsetof(CFieldObject, x)
+
+static PyMemberDef cfield_members[] = {
+    {"type", T_OBJECT, OFF(cf_type), RO},
+    {"offset", T_PYSSIZET, OFF(cf_offset), RO},
+    {"bitsize", T_INT, OFF(cf_bitsize), RO},
+    {NULL}      /* Sentinel */
+};
+#undef OFF
+
+static PyTypeObject CField_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_ffi_backend.CField",
+    sizeof(CFieldObject),
+    0,
+    (destructor)cfield_dealloc,                 /* tp_dealloc */
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+    0,                                          /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    PyObject_GenericGetAttr,                    /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    0,                                          /* tp_doc */
+    (traverseproc)cfield_traverse,              /* tp_traverse */
+    0,                                          /* tp_clear */
+    0,                                          /* tp_richcompare */
+    0,                                          /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    0,                                          /* tp_methods */
+    cfield_members,                             /* tp_members */
 };
 
 /************************************************************/
@@ -512,6 +581,37 @@ get_array_length(CDataObject *cd)
         return ((CDataObject_with_length *)cd)->length;
     else
         return cd->c_type->ct_length;
+}
+
+static int
+get_alignment(CTypeDescrObject *ct)
+{
+    int align;
+ retry:
+    if (ct->ct_flags & (CT_PRIMITIVE_ANY|CT_STRUCT|CT_UNION)) {
+        align = ct->ct_length;
+    }
+    else if (ct->ct_flags & CT_POINTER) {
+        struct aligncheck_ptr { char x; char *y; };
+        align = offsetof(struct aligncheck_ptr, y);
+    }
+    else if (ct->ct_flags & CT_ARRAY) {
+        ct = ct->ct_itemdescr;
+        goto retry;
+    }
+    else {
+        PyErr_Format(PyExc_TypeError, "ctype '%s' is of unknown alignment",
+                     ct->ct_name);
+        return -1;
+    }
+
+    if ((align < 1) || (align & (align-1))) {
+        PyErr_Format(PyExc_TypeError,
+                     "found for ctype '%s' bogus alignment '%d'",
+                     ct->ct_name, align);
+        return -1;
+    }
+    return align;
 }
 
 static void cdata_dealloc(CDataObject *cd)
@@ -1378,7 +1478,8 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *args)
     return (PyObject *)td;
 }
 
-static PyObject *_b_struct_or_union_type(const char *kind, const char *name)
+static PyObject *_b_struct_or_union_type(const char *kind, const char *name,
+                                         int flag)
 {
     int kindlen = strlen(kind);
     int namelen = strlen(name);
@@ -1387,7 +1488,7 @@ static PyObject *_b_struct_or_union_type(const char *kind, const char *name)
         return NULL;
 
     td->ct_size = -1;
-    td->ct_flags = CT_STRUCT | CT_OPAQUE;
+    td->ct_flags = flag | CT_OPAQUE;
     memcpy(td->ct_name, kind, kindlen);
     td->ct_name[kindlen] = ' ';
     memcpy(td->ct_name + kindlen + 1, name, namelen + 1);
@@ -1400,7 +1501,7 @@ static PyObject *b_new_struct_type(PyObject *self, PyObject *args)
     char *name;
     if (!PyArg_ParseTuple(args, "s:new_struct_type", &name))
         return NULL;
-    return _b_struct_or_union_type("struct", name);
+    return _b_struct_or_union_type("struct", name, CT_STRUCT);
 }
 
 static PyObject *b_new_union_type(PyObject *self, PyObject *args)
@@ -1408,38 +1509,141 @@ static PyObject *b_new_union_type(PyObject *self, PyObject *args)
     char *name;
     if (!PyArg_ParseTuple(args, "s:new_union_type", &name))
         return NULL;
-    return _b_struct_or_union_type("union", name);
+    return _b_struct_or_union_type("union", name, CT_UNION);
+}
+
+static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    PyObject *fields, *interned_fields;
+    int is_union, alignment;
+    Py_ssize_t offset, i, nb_fields, maxsize;
+
+    if (!PyArg_ParseTuple(args, "O!O!:complete_struct_or_union",
+                          &CTypeDescr_Type, &ct,
+                          &PyList_Type, &fields))
+        return NULL;
+
+    if ((ct->ct_flags & (CT_STRUCT|CT_OPAQUE)) == (CT_STRUCT|CT_OPAQUE)) {
+        is_union = 0;
+    }
+    else if ((ct->ct_flags & (CT_UNION|CT_OPAQUE)) == (CT_UNION|CT_OPAQUE)) {
+        is_union = 1;
+    }
+    else {
+        PyErr_SetString(PyExc_TypeError,
+                  "first arg must be a non-initialized struct or union ctype");
+        return NULL;
+    }
+
+    maxsize = 1;
+    alignment = 1;
+    offset = 0;
+    nb_fields = PyList_GET_SIZE(fields);
+    interned_fields = PyDict_New();
+    if (interned_fields == NULL)
+        return NULL;
+
+    for (i=0; i<nb_fields; i++) {
+        PyObject *fname;
+        CTypeDescrObject *ftype;
+        int fbitsize, falign, err;
+        CFieldObject *cf;
+
+        if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!i:list item",
+                              &PyString_Type, &fname,
+                              &CTypeDescr_Type, &ftype,
+                              &fbitsize))
+            goto error;
+
+        if (ftype->ct_size < 0) {
+            PyErr_Format(PyExc_TypeError,
+                         "field '%s' has ctype '%s' of unknown size",
+                         PyString_AS_STRING(fname),
+                         ftype->ct_name);
+            goto error;
+        }
+
+        falign = get_alignment(ftype);
+        if (falign < 0)
+            goto error;
+        if (alignment < falign)
+            alignment = falign;
+
+        /* align this field to its own 'falign' by inserting padding */
+        offset = (offset + falign - 1) & ~(falign-1);
+
+        cf = PyObject_New(CFieldObject, &CField_Type);
+        if (cf == NULL)
+            goto error;
+        Py_INCREF(ftype);
+        cf->cf_type = ftype;
+        cf->cf_offset = offset;
+        cf->cf_bitsize = fbitsize;
+
+        Py_INCREF(fname);
+        PyString_InternInPlace(&fname);
+        err = PyDict_SetItem(interned_fields, fname, (PyObject *)cf);
+        Py_DECREF(fname);
+        Py_DECREF(cf);
+        if (err < 0)
+            goto error;
+
+        if (maxsize < ftype->ct_size)
+            maxsize = ftype->ct_size;
+        if (!is_union)
+            offset += ftype->ct_size;
+    }
+
+    if (is_union) {
+        assert(offset == 0);
+        ct->ct_size = maxsize;
+    }
+    else {
+        if (offset == 0)
+            offset = 1;
+        offset = (offset + alignment - 1) & ~(alignment-1);
+        ct->ct_size = offset;
+    }
+    ct->ct_length = alignment;
+    ct->ct_stuff = interned_fields;
+    ct->ct_flags &= ~CT_OPAQUE;
+
+    Py_INCREF(Py_None);
+    return Py_None;
+
+ error:
+    Py_DECREF(interned_fields);
+    return NULL;
+}
+
+static PyObject *b__getfields(PyObject *self, PyObject *arg)
+{
+    CTypeDescrObject *ct = (CTypeDescrObject *)arg;
+    PyObject *res;
+
+    if (!CTypeDescr_Check(arg) ||
+            !(ct->ct_flags & (CT_STRUCT|CT_UNION))) {
+        PyErr_SetString(PyExc_TypeError, "expected a 'ctype' struct or union");
+        return NULL;
+    }
+    res = (PyObject *)ct->ct_stuff;
+    if (res == NULL)
+        res = Py_None;
+    Py_INCREF(res);
+    return res;
 }
 
 static PyObject *b_alignof(PyObject *self, PyObject *arg)
 {
-    CTypeDescrObject *ct;
     int align;
-
     if (!CTypeDescr_Check(arg)) {
         PyErr_SetString(PyExc_TypeError, "expected a 'ctype' object");
         return NULL;
     }
-
-    ct = (CTypeDescrObject *)arg;
-
- retry:
-    if (ct->ct_flags & CT_PRIMITIVE_ANY) {
-        align = ct->ct_length;
-    }
-    else if (ct->ct_flags & CT_POINTER) {
-        struct aligncheck_ptr { char x; char *y; };
-        align = offsetof(struct aligncheck_ptr, y);
-    }
-    else if (ct->ct_flags & CT_ARRAY) {
-        ct = ct->ct_itemdescr;
-        goto retry;
-    }
-    else {
-        PyErr_Format(PyExc_ValueError, "ctype '%s' is of unknown alignment",
-                     ct->ct_name);
+    align = get_alignment((CTypeDescrObject *)arg);
+    if (align < 0)
         return NULL;
-    }
     return PyInt_FromLong(align);
 }
 
@@ -1517,6 +1721,8 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new_void_type", b_new_void_type, METH_NOARGS},
     {"new_struct_type", b_new_struct_type, METH_VARARGS},
     {"new_union_type", b_new_union_type, METH_VARARGS},
+    {"complete_struct_or_union", b_complete_struct_or_union, METH_VARARGS},
+    {"_getfields", b__getfields, METH_O},
     {"new", b_new, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"alignof", b_alignof, METH_O},
@@ -1544,6 +1750,8 @@ void init_ffi_backend(void)
     if (PyType_Ready(&dl_type) < 0)
         return;
     if (PyType_Ready(&CTypeDescr_Type) < 0)
+        return;
+    if (PyType_Ready(&CField_Type) < 0)
         return;
     if (PyType_Ready(&CData_Type) < 0)
         return;
