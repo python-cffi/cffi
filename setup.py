@@ -13,7 +13,8 @@ setup(
             standard='__pypy__' not in sys.modules,
             ext_modules=[
                 Extension(name='_ffi_backend',
-                          sources=['c/_ffi_backend.c']),
+                          sources=['c/_ffi_backend.c'],
+                          libraries=['ffi']),
             ],
         ),
     },
