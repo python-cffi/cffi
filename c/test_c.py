@@ -490,3 +490,9 @@ def test_call_function_4():
     f = cast(BFunc4, _testfunc(4))
     res = f(1.25, 5.1)
     assert res != 6.35 and abs(res - 6.35) < 1E-5    # inexact
+
+def test_call_function_5():
+    BVoid = new_void_type()
+    BFunc5 = new_function_type((), BVoid, False)
+    f = cast(BFunc5, _testfunc(5))
+    f()   # did not crash

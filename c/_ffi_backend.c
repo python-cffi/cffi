@@ -1091,7 +1091,13 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     ffi_call(&cif_descr->cif, (void (*)(void))(cd->c_data),
              resultdata, buffer_array);
 
-    res = convert_to_object(resultdata, (CTypeDescrObject *)restype);
+    if (((CTypeDescrObject *)restype)->ct_flags & CT_VOID) {
+        res = Py_None;
+        Py_INCREF(res);
+    }
+    else {
+        res = convert_to_object(resultdata, (CTypeDescrObject *)restype);
+    }
     PyObject_Free(buffer);
     return res;
 }
@@ -2281,6 +2287,9 @@ static float _testfunc4(float a, double b)
 {
     return a + b;
 }
+static void _testfunc5(void)
+{
+}
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
@@ -2295,6 +2304,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 2: f = &_testfunc2; break;
     case 3: f = &_testfunc3; break;
     case 4: f = &_testfunc4; break;
+    case 5: f = &_testfunc5; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;
