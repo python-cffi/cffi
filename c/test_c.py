@@ -1,4 +1,10 @@
-import py, sys
+import sys
+
+import py
+
+if '__pypy__' in sys.modules:
+    py.test.skip("C backend in CPython only")
+
 from _ffi_backend import *
 from _ffi_backend import _getfields, _testfunc
 
