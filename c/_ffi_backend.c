@@ -1399,18 +1399,47 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
 typedef struct {
     PyObject_HEAD
     void *dl_handle;
-} dlobject;
+    char *dl_name;
+} DynLibObject;
 
-static void dl_dealloc(dlobject *dlobj)
+static void dl_dealloc(DynLibObject *dlobj)
 {
-    dlclose(dlobj->dl_handle);
+    if (dlobj->dl_handle != RTLD_DEFAULT)
+        dlclose(dlobj->dl_handle);
+    free(dlobj->dl_name);
     PyObject_Del(dlobj);
 }
 
-static PyObject *dl_load_function(dlobject *dlobj, PyObject *args)
+static PyObject *dl_repr(DynLibObject *dlobj)
 {
-    /* XXX */
-    return NULL;
+    if (dlobj->dl_name == NULL)
+        return PyString_FromString("<clibrary stdlib>");
+    else
+        return PyString_FromFormat("<clibrary '%s'>", dlobj->dl_name);
+}
+
+static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    char *funcname;
+    void *funcptr;
+
+    if (!PyArg_ParseTuple(args, "O!s", &CTypeDescr_Type, &ct, &funcname))
+        return NULL;
+
+    if (!(ct->ct_flags & CT_FUNCTIONPTR)) {
+        PyErr_Format(PyExc_TypeError, "function cdata expected, got '%s'",
+                     ct->ct_name);
+        return NULL;
+    }
+    funcptr = dlsym(dlobj->dl_handle, funcname);
+    if (funcptr == NULL) {
+        PyErr_Format(PyExc_KeyError, "function '%s' not found in library '%s'",
+                     funcname, dlobj->dl_name);
+        return NULL;
+    }
+
+    return new_simple_cdata(funcptr, ct);
 }
 
 static PyMethodDef dl_methods[] = {
@@ -1421,7 +1450,7 @@ static PyMethodDef dl_methods[] = {
 static PyTypeObject dl_type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "_ffi_backend.Library",             /* tp_name */
-    sizeof(dlobject),                   /* tp_basicsize */
+    sizeof(DynLibObject),               /* tp_basicsize */
     0,                                  /* tp_itemsize */
     /* methods */
     (destructor)dl_dealloc,             /* tp_dealloc */
@@ -1429,7 +1458,7 @@ static PyTypeObject dl_type = {
     0,                                  /* tp_getattr */
     0,                                  /* tp_setattr */
     0,                                  /* tp_compare */
-    0,                                  /* tp_repr */
+    (reprfunc)dl_repr,                  /* tp_repr */
     0,                                  /* tp_as_number */
     0,                                  /* tp_as_sequence */
     0,                                  /* tp_as_mapping */
@@ -1454,26 +1483,36 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
 {
     char *filename;
     void *handle;
-    dlobject *dlobj;
+    DynLibObject *dlobj;
 
     if (!PyArg_ParseTuple(args, "et:load_library",
-                          Py_FileSystemDefaultEncoding, &filename))
-        return NULL;
-
-    handle = dlopen(filename, RTLD_LAZY);
-    if (handle == NULL) {
-        char buf[200];
-        PyOS_snprintf(buf, sizeof(buf), "cannot load library: %s", filename);
-        PyErr_SetString(PyExc_OSError, buf);
-        return NULL;
+                          Py_FileSystemDefaultEncoding, &filename)) {
+        if (PyTuple_Size(args) == 1 && PyTuple_GetItem(args, 0) == Py_None) {
+            PyErr_Clear();
+            handle = RTLD_DEFAULT;
+            filename = NULL;
+        }
+        else
+            return NULL;
+    }
+    else {
+        handle = dlopen(filename, RTLD_LAZY);
+        if (handle == NULL) {
+            PyErr_Format(PyExc_OSError, "cannot load library: %s", filename);
+            return NULL;
+        }
+        filename = strdup(filename);
     }
 
-    dlobj = PyObject_New(dlobject, &dl_type);
+    dlobj = PyObject_New(DynLibObject, &dl_type);
     if (dlobj == NULL) {
-        dlclose(handle);
+        if (handle != RTLD_DEFAULT)
+            dlclose(handle);
+        free(filename);
         return NULL;
     }
     dlobj->dl_handle = handle;
+    dlobj->dl_name = filename;
     return (PyObject *)dlobj;
 }
 

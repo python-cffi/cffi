@@ -18,8 +18,8 @@ def size_of_ptr():
 
 
 def test_load_library():
-    x = load_library("libc.so.6")     # Linux only
-    assert repr(x).startswith("<_ffi_backend.Library object at 0x")
+    x = load_library(None)
+    assert repr(x) == '<clibrary stdlib>'
 
 def test_nonstandard_integer_types():
     d = nonstandard_integer_types()
@@ -533,3 +533,13 @@ def test_call_function_7():
     x = new(BStructPtr, {'a1': 'A', 'a2': -4042})
     res = f(x[0])
     assert res == -4042 + ord('A')
+
+def test_load_and_call_function():
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BLong = new_primitive_type("long")
+    BFunc = new_function_type((BCharP,), BLong, False)
+    ll = load_library(None)
+    strlen = ll.load_function(BFunc, "strlen")
+    input = new(new_array_type(BCharP, None), "foobar")
+    assert strlen(input) == 6
