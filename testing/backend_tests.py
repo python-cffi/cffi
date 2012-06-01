@@ -638,6 +638,8 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         ffi.cdef("enum foo { A, B, C, D }; struct bar { enum foo e; };")
         s = ffi.new("struct bar")
+        s.e = 0
+        assert s.e == "A"
         s.e = "D"
         assert s.e == "D"
         assert s[0].e == "D"

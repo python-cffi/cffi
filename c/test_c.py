@@ -565,6 +565,20 @@ def test_callback():
 def test_enum_type():
     BEnum = new_enum_type("foo", (), ())
     assert repr(BEnum) == "<ctype 'enum foo'>"
+    assert _getfields(BEnum) == []
+    #
+    BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
+    assert _getfields(BEnum) == [(-20, 'ab'), (0, 'def'), (1, 'c')]
 
 def test_cast_to_enum():
-    BEnum = new_enum_type("foo", (), ())
+    BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
+    e = cast(BEnum, 0)
+    assert repr(e) == "<cdata 'enum foo'>"
+    assert str(e) == 'def'
+    assert str(cast(BEnum, -20)) == 'ab'
+    assert str(cast(BEnum, 'c')) == 'c'
+    assert int(cast(BEnum, 'c')) == 1
+    assert int(cast(BEnum, 'def')) == 0
+    assert int(cast(BEnum, -242 + 2**128)) == -242
+    assert str(cast(BEnum, -242 + 2**128)) == '#-242'
+    assert str(cast(BEnum, '#-20')) == 'ab'

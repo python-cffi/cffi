@@ -1,3 +1,4 @@
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include "structmember.h"
 
@@ -38,7 +39,8 @@ typedef struct _ctypedescr {
     struct _ctypedescr *ct_itemdescr;  /* ptrs and arrays: the item type */
     PyObject *ct_stuff;                /* structs: dict of the fields
                                           arrays: ctypedescr of the ptr type
-                                          function: tuple(ctres, ctargs...) */
+                                          function: tuple(ctres, ctargs...)
+                                          enum: pair {"name":x},{x:"name"} */
     void *ct_extra;                    /* structs: first field (not a ref!)
                                           function types: cif_description
                                           primitives: prebuilt "cif" object */
@@ -428,6 +430,33 @@ new_simple_cdata(char *data, CTypeDescrObject *ct)
     return (PyObject *)cd;
 }
 
+static PyObject *convert_enum_string_to_int(CTypeDescrObject *ct, PyObject *ob)
+{
+    PyObject *d_value;
+
+    if (PyString_AS_STRING(ob)[0] == '#') {
+        char *number = PyString_AS_STRING(ob) + 1;   /* strip initial '#' */
+        PyObject *ob2 = PyString_FromString(number);
+        if (ob2 == NULL)
+            return NULL;
+
+        d_value = PyNumber_Long(ob2);
+        Py_DECREF(ob2);
+    }
+    else {
+        d_value = PyDict_GetItem(PyTuple_GET_ITEM(ct->ct_stuff, 0), ob);
+        if (d_value == NULL) {
+            PyErr_Format(PyExc_ValueError,
+                         "'%s' is not an enumerator for %s",
+                         PyString_AS_STRING(ob),
+                         ct->ct_name);
+            return NULL;
+        }
+        Py_INCREF(d_value);
+    }
+    return d_value;
+}
+
 static PyObject *
 convert_to_object(char *data, CTypeDescrObject *ct)
 {
@@ -455,7 +484,20 @@ convert_to_object(char *data, CTypeDescrObject *ct)
     else if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
         PY_LONG_LONG value = read_raw_signed_data(data, ct->ct_size);
 
-        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
+        if (ct->ct_flags & CT_IS_ENUM) {
+            PyObject *d_value, *d_key = PyInt_FromLong((int)value);
+            if (d_key == NULL)
+                return NULL;
+
+            d_value = PyDict_GetItem(PyTuple_GET_ITEM(ct->ct_stuff, 1), d_key);
+            Py_DECREF(d_key);
+            if (d_value != NULL)
+                Py_INCREF(d_value);
+            else
+                d_value = PyString_FromFormat("#%d", (int)value);
+            return d_value;
+        }
+        else if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
             return PyInt_FromLong((long)value);
         else
             return PyLong_FromLongLong(value);
@@ -553,8 +595,25 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     }
     if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
         PY_LONG_LONG value = PyLong_AsLongLong(init);
-        if (value == -1 && PyErr_Occurred())
-            return -1;
+
+        if (value == -1 && PyErr_Occurred()) {
+            if (!(ct->ct_flags & CT_IS_ENUM))
+                return -1;
+            else {
+                PyObject *ob;
+                PyErr_Clear();
+                if (!PyString_Check(init))
+                    goto cannot_convert;
+
+                ob = convert_enum_string_to_int(ct, init);
+                if (ob == NULL)
+                    return -1;
+                value = PyLong_AsLongLong(ob);
+                Py_DECREF(ob);
+                if (value == -1 && PyErr_Occurred())
+                    return -1;
+            }
+        }
         write_raw_integer_data(data, value, ct->ct_size);
         if (value != read_raw_signed_data(data, ct->ct_size))
             goto overflow;
@@ -753,6 +812,8 @@ static PyObject *cdata_str(CDataObject *cd)
 
         return PyString_FromStringAndSize(cd->c_data, length);
     }
+    else if (cd->c_type->ct_flags & CT_IS_ENUM)
+        return convert_to_object(cd->c_data, cd->c_type);
     else
         return cdata_repr(cd);
 }
@@ -796,6 +857,13 @@ static int cdata_nonzero(CDataObject *cd)
 
 static PyObject *cdata_int(CDataObject *cd)
 {
+    if ((cd->c_type->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_FITS_LONG))
+                             == (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_FITS_LONG)) {
+        /* this case is to handle enums, but also serves as a slight
+           performance improvement for some other primitive types */
+        long value = read_raw_signed_data(cd->c_data, cd->c_type->ct_size);
+        return PyInt_FromLong(value);
+    }
     if (cd->c_type->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
         return convert_to_object(cd->c_data, cd->c_type);
     }
@@ -1337,6 +1405,46 @@ static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
     return cd;
 }
 
+static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
+{
+    unsigned PY_LONG_LONG value;
+    CDataObject *cd;
+
+    if (CData_Check(ob) &&
+        ((CDataObject *)ob)->c_type->ct_flags &
+                                 (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)) {
+        value = (Py_intptr_t)((CDataObject *)ob)->c_data;
+    }
+    else if (PyString_Check(ob)) {
+        if (ct->ct_flags & CT_IS_ENUM) {
+            ob = convert_enum_string_to_int(ct, ob);
+            if (ob == NULL)
+                return NULL;
+            cd = cast_to_integer_or_char(ct, ob);
+            Py_DECREF(ob);
+            return cd;
+        }
+        else {
+            if (PyString_GET_SIZE(ob) != 1) {
+                PyErr_Format(PyExc_TypeError,
+                      "cannot cast string of length %zd to ctype '%s'",
+                             PyString_GET_SIZE(ob), ct->ct_name);
+                return NULL;
+            }
+            value = (unsigned char)PyString_AS_STRING(ob)[0];
+        }
+    }
+    else {
+        value = _my_PyLong_AsUnsignedLongLong(ob, 0);
+        if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
+            return NULL;
+    }
+    cd = _new_casted_primitive(ct);
+    if (cd != NULL)
+        write_raw_integer_data(cd->c_data, value, ct->ct_size);
+    return cd;
+}
+
 static PyObject *b_cast(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
@@ -1364,27 +1472,7 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
     else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED
                              |CT_PRIMITIVE_CHAR)) {
         /* cast to an integer type or a char */
-        unsigned PY_LONG_LONG value;
-
-        if (CData_Check(ob) &&
-               ((CDataObject *)ob)->c_type->ct_flags &
-                                     (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)) {
-            value = (Py_intptr_t)((CDataObject *)ob)->c_data;
-        }
-        else if (PyString_Check(ob)) {
-            if (PyString_GET_SIZE(ob) != 1)
-                goto cannot_cast;
-            value = (unsigned char)PyString_AS_STRING(ob)[0];
-        }
-        else {
-            value = _my_PyLong_AsUnsignedLongLong(ob, 0);
-            if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
-                return NULL;
-        }
-        cd = _new_casted_primitive(ct);
-        if (cd != NULL)
-            write_raw_integer_data(cd->c_data, value, ct->ct_size);
-        return (PyObject *)cd;
+        return (PyObject *)cast_to_integer_or_char(ct, ob);
     }
     else if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
         /* cast to a float */
@@ -1966,9 +2054,8 @@ static PyObject *b__getfields(PyObject *self, PyObject *arg)
     CTypeDescrObject *ct = (CTypeDescrObject *)arg;
     PyObject *d, *res;
 
-    if (!CTypeDescr_Check(arg) ||
-            !(ct->ct_flags & (CT_STRUCT|CT_UNION))) {
-        PyErr_SetString(PyExc_TypeError, "expected a 'ctype' struct or union");
+    if (!CTypeDescr_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError,"expected a 'ctype' object");
         return NULL;
     }
     d = (PyObject *)ct->ct_stuff;
@@ -1976,7 +2063,7 @@ static PyObject *b__getfields(PyObject *self, PyObject *arg)
         res = Py_None;
         Py_INCREF(res);
     }
-    else {
+    else if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
         CFieldObject *cf;
         res = PyList_New(0);
         if (res == NULL)
@@ -1992,6 +2079,17 @@ static PyObject *b__getfields(PyObject *self, PyObject *arg)
                 return NULL;
             }
         }
+    }
+    else if (ct->ct_flags & CT_IS_ENUM) {
+        res = PyDict_Items(PyTuple_GET_ITEM(d, 1));
+        if (res == NULL)
+            return NULL;
+        if (PyList_Sort(res) < 0)
+            Py_CLEAR(res);
+    }
+    else {
+        res = d;
+        Py_INCREF(res);
     }
     return res;
 }
@@ -2383,9 +2481,11 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
 {
     char *ename;
     PyObject *enumerators, *enumvalues;
+    PyObject *dict1 = NULL, *dict2 = NULL, *combined = NULL;
     ffi_type *ffitype;
     int name_size;
     CTypeDescrObject *td;
+    Py_ssize_t i, n;
     struct aligncheck_int { char x; int y; };
 
     if (!PyArg_ParseTuple(args, "sO!O!:new_enum_type",
@@ -2393,6 +2493,38 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
                           &PyTuple_Type, &enumerators,
                           &PyTuple_Type, &enumvalues))
         return NULL;
+
+    n = PyTuple_GET_SIZE(enumerators);
+    if (n != PyTuple_GET_SIZE(enumvalues)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "tuple args must have the same size");
+        return NULL;
+    }
+
+    dict1 = PyDict_New();
+    if (dict1 == NULL)
+        goto error;
+    for (i=n; --i >= 0; ) {
+        if (PyDict_SetItem(dict1, PyTuple_GET_ITEM(enumerators, i),
+                                  PyTuple_GET_ITEM(enumvalues, i)) < 0)
+            goto error;
+    }
+
+    dict2 = PyDict_New();
+    if (dict2 == NULL)
+        goto error;
+    for (i=n; --i >= 0; ) {
+        if (PyDict_SetItem(dict2, PyTuple_GET_ITEM(enumvalues, i),
+                                  PyTuple_GET_ITEM(enumerators, i)) < 0)
+            goto error;
+    }
+
+    combined = PyTuple_Pack(2, dict1, dict2);
+    if (combined == NULL)
+        goto error;
+
+    Py_CLEAR(dict2);
+    Py_CLEAR(dict1);
 
     switch (sizeof(int)) {
     case 4: ffitype = &ffi_type_sint32; break;
@@ -2403,16 +2535,23 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
     name_size = strlen("enum ") + strlen(ename) + 1;
     td = ctypedescr_new(name_size);
     if (td == NULL)
-        return NULL;
+        goto error;
 
     memcpy(td->ct_name, "enum ", strlen("enum "));
     memcpy(td->ct_name + strlen("enum "), ename, name_size - strlen("enum "));
+    td->ct_stuff = combined;
     td->ct_size = sizeof(int);
     td->ct_length = offsetof(struct aligncheck_int, y);
     td->ct_extra = ffitype;
     td->ct_flags = CT_PRIMITIVE_SIGNED | CT_PRIMITIVE_FITS_LONG | CT_IS_ENUM;
     td->ct_name_position = name_size - 1;
     return (PyObject *)td;
+
+ error:
+    Py_XDECREF(combined);
+    Py_XDECREF(dict2);
+    Py_XDECREF(dict1);
+    return NULL;
 }
 
 static PyObject *b_alignof(PyObject *self, PyObject *arg)
