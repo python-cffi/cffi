@@ -1241,16 +1241,20 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
     return PyObject_GenericSetAttr((PyObject *)cd, attr, value);
 }
 
+static cif_description_t *
+fb_prepare_cif(PyObject *fargs, CTypeDescrObject *fresult);    /* forward */
+
 static PyObject*
 cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 {
     char *buffer;
     void** buffer_array;
     cif_description_t *cif_descr;
-    Py_ssize_t i, nargs;
-    PyObject *signature, *res;
-    CTypeDescrObject *restype;
+    Py_ssize_t i, nargs, nargs_declared;
+    PyObject *signature, *res, *fvarargs;
+    CTypeDescrObject *fresult;
     char *resultdata;
+    char *errormsg;
 
     if (!(cd->c_type->ct_flags & CT_FUNCTIONPTR)) {
         PyErr_Format(PyExc_TypeError, "cdata '%s' is not callable",
@@ -1263,26 +1267,60 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         return NULL;
     }
     signature = cd->c_type->ct_stuff;
-    nargs = PyTuple_GET_SIZE(signature) - 1;
-    if (PyTuple_Size(args) != nargs) {
-        if (!PyErr_Occurred()) {
-            PyObject *s = cdata_repr(cd);
-            PyErr_Format(PyExc_TypeError,
-                         "%s expects %zd arguments, got %zd",
-                         PyString_AsString(s),
-                         nargs, PyTuple_GET_SIZE(args));
-        }
+    nargs = PyTuple_Size(args);
+    if (nargs < 0)
         return NULL;
-    }
+    nargs_declared = PyTuple_GET_SIZE(signature) - 1;
+    fresult = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 0);
+    fvarargs = NULL;
+    buffer = NULL;
 
     cif_descr = (cif_description_t *)cd->c_type->ct_extra;
-    if (cif_descr == NULL) {
-        PyErr_SetString(PyExc_NotImplementedError, "XXX call of a '...'");
-        return NULL;
+
+    if (cif_descr != NULL) {
+        /* regular case: this function does not take '...' arguments */
+        if (nargs != nargs_declared) {
+            errormsg = "%s expects %zd arguments, got %zd";
+            goto bad_number_of_arguments;
+        }
     }
+    else {
+        /* call of a variadic function */
+        if (nargs < nargs_declared) {
+            errormsg = "%s expects at least %zd arguments, got %zd";
+            goto bad_number_of_arguments;
+        }
+        fvarargs = PyTuple_New(nargs);
+        for (i = 0; i < nargs_declared; i++) {
+            PyObject *o = PyTuple_GET_ITEM(signature, 1 + i);
+            Py_INCREF(o);
+            PyTuple_SET_ITEM(fvarargs, i, o);
+        }
+        for (i = nargs_declared; i < nargs; i++) {
+            PyObject *obj = PyTuple_GET_ITEM(args, i);
+            CTypeDescrObject *ct;
+
+            if (!CData_Check(obj)) {
+                PyErr_Format(PyExc_TypeError,
+                             "argument %zd passed in the variadic part "
+                             "needs to be a cdata object (got %.200s)",
+                             i + 1, Py_TYPE(obj)->tp_name);
+                goto error;
+            }
+            ct = ((CDataObject *)obj)->c_type;
+            Py_INCREF(ct);
+            PyTuple_SET_ITEM(fvarargs, i, (PyObject *)ct);
+        }
+        cif_descr = fb_prepare_cif(fvarargs, fresult);
+        if (cif_descr == NULL)
+            goto error;
+    }
+
     buffer = PyObject_Malloc(cif_descr->exchange_size);
-    if (buffer == NULL)
-        return PyErr_NoMemory();
+    if (buffer == NULL) {
+        PyErr_NoMemory();
+        goto error;
+    }
 
     buffer_array = (void **)buffer;
 
@@ -1291,7 +1329,10 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         char *data = buffer + cif_descr->exchange_offset_arg[1 + i];
         PyObject *obj = PyTuple_GET_ITEM(args, i);
 
-        argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 1 + i);
+        if (i < nargs_declared)
+            argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 1 + i);
+        else
+            argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(fvarargs, i);
         buffer_array[i] = data;
 
         if ((argtype->ct_flags & CT_POINTER) &&
@@ -1301,10 +1342,9 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             *(char **)data = PyString_AS_STRING(obj);
         }
         else if (convert_from_object(data, argtype, obj) < 0)
-            return NULL;
+            goto error;
     }
 
-    restype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 0);
     resultdata = buffer + cif_descr->exchange_offset_arg[0];
 
     errno = saved_errno;
@@ -1312,15 +1352,35 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
              resultdata, buffer_array);
     saved_errno = errno;
 
-    if (restype->ct_flags & CT_VOID) {
+    if (fresult->ct_flags & CT_VOID) {
         res = Py_None;
         Py_INCREF(res);
     }
     else {
-        res = convert_to_object(resultdata, (CTypeDescrObject *)restype);
+        res = convert_to_object(resultdata, fresult);
     }
     PyObject_Free(buffer);
+ done:
+    if (fvarargs != NULL) {
+        Py_DECREF(fvarargs);
+        if (cif_descr != NULL)  /* but only if fvarargs != NULL, if variadic */
+            PyObject_Free(cif_descr);
+    }
     return res;
+
+ bad_number_of_arguments:
+    {
+        PyObject *s = cdata_repr(cd);
+        PyErr_Format(PyExc_TypeError, errormsg,
+                     PyString_AsString(s), nargs_declared, nargs);
+        goto error;
+    }
+
+ error:
+    if (buffer)
+        PyObject_Free(buffer);
+    res = NULL;
+    goto done;
 }
 
 static PyNumberMethods CData_as_number = {
@@ -2371,6 +2431,7 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
 
     /* ffi buffer: next comes an array of 'ffi_type*', one per argument */
     fb->atypes = fb_alloc(fb, nargs * sizeof(ffi_type*));
+    fb->nargs = nargs;
 
     /* ffi buffer: next comes the result type */
     fb->rtype = fb_fill_type(fb, fresult);
@@ -2519,22 +2580,22 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
     return NULL;
 }
 
-static cif_description_t *fb_prepare_cif(struct funcbuilder_s *fb,
-                                         PyObject *fargs,
+static cif_description_t *fb_prepare_cif(PyObject *fargs,
                                          CTypeDescrObject *fresult)
 {
     char *buffer;
     cif_description_t *cif_descr;
+    struct funcbuilder_s funcbuffer;
 
-    fb->nb_bytes = 0;
-    fb->bufferp = NULL;
+    funcbuffer.nb_bytes = 0;
+    funcbuffer.bufferp = NULL;
 
     /* compute the total size needed in the buffer for libffi */
-    if (fb_build(fb, fargs, fresult) < 0)
+    if (fb_build(&funcbuffer, fargs, fresult) < 0)
         return NULL;
 
     /* allocate the buffer */
-    buffer = PyObject_Malloc(fb->nb_bytes);
+    buffer = PyObject_Malloc(funcbuffer.nb_bytes);
     if (buffer == NULL) {
         PyErr_NoMemory();
         return NULL;
@@ -2542,14 +2603,14 @@ static cif_description_t *fb_prepare_cif(struct funcbuilder_s *fb,
 
     /* call again fb_build() to really build the libffi data structures
        and the ct_name */
-    fb->bufferp = buffer;
-    if (fb_build(fb, fargs, fresult) < 0)
+    funcbuffer.bufferp = buffer;
+    if (fb_build(&funcbuffer, fargs, fresult) < 0)
         goto error;
-    assert(fb->bufferp == buffer + fb->nb_bytes);
+    assert(funcbuffer.bufferp == buffer + funcbuffer.nb_bytes);
 
     cif_descr = (cif_description_t *)buffer;
-    if (ffi_prep_cif(&cif_descr->cif, FFI_DEFAULT_ABI, fb->nargs,
-                     fb->rtype, fb->atypes) != FFI_OK) {
+    if (ffi_prep_cif(&cif_descr->cif, FFI_DEFAULT_ABI, funcbuffer.nargs,
+                     funcbuffer.rtype, funcbuffer.atypes) != FFI_OK) {
         PyErr_SetString(PyExc_SystemError,
                         "libffi failed to build this function type");
         goto error;
@@ -2587,7 +2648,7 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
            is computed here. */
         cif_description_t *cif_descr;
 
-        cif_descr = fb_prepare_cif(&funcbuilder, fargs, fresult);
+        cif_descr = fb_prepare_cif(fargs, fresult);
         if (cif_descr == NULL)
             goto error;
 
@@ -2966,6 +3027,20 @@ static short _testfunc7(struct _testfunc7_s inlined)
 {
     return inlined.a1 + inlined.a2;
 }
+static int _testfunc9(int num, ...)
+{
+    va_list vargs;
+    int i, total = 0;
+    va_start(vargs, num);
+    for (i=0; i<num; i++) {
+        int value = va_arg(vargs, int);
+        if (value == 0)
+            value = -66666666;
+        total += value;
+    }
+    va_end(vargs);
+    return total;
+}
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
@@ -2984,6 +3059,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 6: f = &_testfunc6; break;
     case 7: f = &_testfunc7; break;
     case 8: f = stderr; break;
+    case 9: f = &_testfunc9; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;

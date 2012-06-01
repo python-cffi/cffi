@@ -686,8 +686,10 @@ class CTypesBackend(object):
                             ctypes_args.append(ctypes.c_void_p(0))  # NULL
                             continue
                         if not isinstance(arg, CTypesData):
-                            raise TypeError("argument %d needs to be a cdata" %
-                                            (1 + len(BArgs) + i,))
+                            raise TypeError(
+                                "argument %d passed in the variadic part "
+                                "needs to be a cdata object (got %s)" %
+                                (1 + len(BArgs) + i, type(arg).__name__))
                         ctypes_args.append(arg._arg_to_ctypes(arg))
                 result = self._as_ctype_ptr(*ctypes_args)
                 return BResult._from_ctypes(result)

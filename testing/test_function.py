@@ -120,7 +120,8 @@ class TestFunction(object):
            int printf(const char *format, ...);
         """)
         e = py.test.raises(TypeError, ffi.C.printf, "hello %d\n", 42)
-        assert str(e.value) == 'argument 2 needs to be a cdata'
+        assert str(e.value) == ("argument 2 passed in the variadic part "
+                                "needs to be a cdata object (got int)")
 
     def test_function_has_a_c_type(self):
         ffi = FFI(backend=self.Backend())

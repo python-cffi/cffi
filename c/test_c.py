@@ -543,6 +543,15 @@ def test_call_function_7():
     res = f(x[0])
     assert res == -4042 + ord('A')
 
+def test_call_function_9():
+    BInt = new_primitive_type("int")
+    BFunc9 = new_function_type((BInt,), BInt, True)    # vararg
+    f = cast(BFunc9, _testfunc(9))
+    assert f(0) == 0
+    assert f(1, cast(BInt, 42)) == 42
+    assert f(2, cast(BInt, 40), cast(BInt, 2)) == 42
+    py.test.raises(TypeError, f, 1, 42)
+
 def test_load_and_call_function():
     BChar = new_primitive_type("char")
     BCharP = new_pointer_type(BChar)
