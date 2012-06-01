@@ -105,12 +105,14 @@ class TestFunction(object):
                          ffi.cast("int", 42),
                          ffi.cast("long", 84),
                          ffi.cast("long long", 168))
+            ffi.C.printf("hello %p\n", None)
             ffi.C.fflush(None)
         res = fd.getvalue()
         assert res == ("hello\n"
                        "hello, world!\n"
                        "hello, world2!\n"
-                       "hello int 42 long 84 long long 168\n")
+                       "hello int 42 long 84 long long 168\n"
+                       "hello (nil)\n")
 
     def test_must_specify_type_of_vararg(self):
         ffi = FFI(backend=self.Backend())

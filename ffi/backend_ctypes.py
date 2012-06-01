@@ -682,6 +682,9 @@ class CTypesBackend(object):
                     ctypes_args.append(BArg._arg_to_ctypes(arg))
                 if has_varargs:
                     for i, arg in enumerate(extraargs):
+                        if arg is None:
+                            ctypes_args.append(ctypes.c_void_p(0))  # NULL
+                            continue
                         if not isinstance(arg, CTypesData):
                             raise TypeError("argument %d needs to be a cdata" %
                                             (1 + len(BArgs) + i,))
