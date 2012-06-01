@@ -125,7 +125,7 @@ class TestFunction(object):
             int puts(const char *);
         """)
         fptr = ffi.C.puts
-        assert type(fptr) == ffi.typeof("int(*)(const char*)")
+        assert ffi.typeof(fptr) == ffi.typeof("int(*)(const char*)")
         assert repr(fptr) == "<cdata 'int puts(char *)'>"
 
     def test_function_pointer(self):
