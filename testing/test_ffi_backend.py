@@ -5,11 +5,13 @@ import py
 if '__pypy__' in sys.modules:
     py.test.skip("C backend tests are CPython only")
 
-from testing import backend_tests
+from testing import backend_tests, test_function, test_ownlib
 import _ffi_backend
 
 
-class TestFFI(backend_tests.BackendTests):
+class TestFFI(backend_tests.BackendTests,
+              test_function.TestFunction,
+              test_ownlib.TestOwnLib):
     TypeRepr = "<ctype '%s'>"
 
     @staticmethod

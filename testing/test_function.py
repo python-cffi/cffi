@@ -27,167 +27,170 @@ class FdWriteCapture(object):
         return self._value
 
 
-def test_sin():
-    ffi = FFI()
-    ffi.cdef("""
-        double sin(double x);
-    """)
-    m = ffi.load("m")
-    x = m.sin(1.23)
-    assert x == math.sin(1.23)
+class TestFunction(object):
+    from ffi.backend_ctypes import CTypesBackend as Backend
 
-def test_sinf():
-    ffi = FFI()
-    ffi.cdef("""
-        float sinf(float x);
-    """)
-    m = ffi.load("m")
-    x = m.sinf(1.23)
-    assert type(x) is float
-    assert x != math.sin(1.23)    # rounding effects
-    assert abs(x - math.sin(1.23)) < 1E-6
+    def test_sin(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            double sin(double x);
+        """)
+        m = ffi.load("m")
+        x = m.sin(1.23)
+        assert x == math.sin(1.23)
 
-def test_puts():
-    ffi = FFI()
-    ffi.cdef("""
-        int puts(const char *);
-        int fflush(void *);
-    """)
-    ffi.C.puts   # fetch before capturing, for easier debugging
-    with FdWriteCapture() as fd:
-        ffi.C.puts("hello")
-        ffi.C.puts("  world")
-        ffi.C.fflush(None)
-    res = fd.getvalue()
-    assert res == 'hello\n  world\n'
+    def test_sinf(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            float sinf(float x);
+        """)
+        m = ffi.load("m")
+        x = m.sinf(1.23)
+        assert type(x) is float
+        assert x != math.sin(1.23)    # rounding effects
+        assert abs(x - math.sin(1.23)) < 1E-6
 
-def test_puts_wihtout_const():
-    ffi = FFI()
-    ffi.cdef("""
-        int puts(char *);
-        int fflush(void *);
-    """)
-    ffi.C.puts   # fetch before capturing, for easier debugging
-    with FdWriteCapture() as fd:
-        ffi.C.puts("hello")
-        ffi.C.puts("  world")
-        ffi.C.fflush(None)
-    res = fd.getvalue()
-    assert res == 'hello\n  world\n'
+    def test_puts(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            int puts(const char *);
+            int fflush(void *);
+        """)
+        ffi.C.puts   # fetch before capturing, for easier debugging
+        with FdWriteCapture() as fd:
+            ffi.C.puts("hello")
+            ffi.C.puts("  world")
+            ffi.C.fflush(None)
+        res = fd.getvalue()
+        assert res == 'hello\n  world\n'
 
-def test_fputs():
-    ffi = FFI()
-    ffi.cdef("""
-        int fputs(const char *, void *);
-        void *stdout, *stderr;
-    """)
-    with FdWriteCapture(2) as fd:
-        ffi.C.fputs("hello from stderr\n", ffi.C.stderr)
-    res = fd.getvalue()
-    assert res == 'hello from stderr\n'
+    def test_puts_wihtout_const(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            int puts(char *);
+            int fflush(void *);
+        """)
+        ffi.C.puts   # fetch before capturing, for easier debugging
+        with FdWriteCapture() as fd:
+            ffi.C.puts("hello")
+            ffi.C.puts("  world")
+            ffi.C.fflush(None)
+        res = fd.getvalue()
+        assert res == 'hello\n  world\n'
 
-def test_vararg():
-    ffi = FFI()
-    ffi.cdef("""
-       int printf(const char *format, ...);
-       int fflush(void *);
-    """)
-    with FdWriteCapture() as fd:
-        ffi.C.printf("hello\n")
-        ffi.C.printf("hello, %s!\n", ffi.new("char[]", "world"))
-        ffi.C.printf(ffi.new("char[]", "hello, %s!\n"),
-                     ffi.new("char[]", "world2"))
-        ffi.C.printf("hello int %d long %ld long long %lld\n",
-                     ffi.cast("int", 42),
-                     ffi.cast("long", 84),
-                     ffi.cast("long long", 168))
-        ffi.C.fflush(None)
-    res = fd.getvalue()
-    assert res == ("hello\n"
-                   "hello, world!\n"
-                   "hello, world2!\n"
-                   "hello int 42 long 84 long long 168\n")
+    def test_fputs(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            int fputs(const char *, void *);
+            void *stdout, *stderr;
+        """)
+        with FdWriteCapture(2) as fd:
+            ffi.C.fputs("hello from stderr\n", ffi.C.stderr)
+        res = fd.getvalue()
+        assert res == 'hello from stderr\n'
 
-def test_must_specify_type_of_vararg():
-    ffi = FFI()
-    ffi.cdef("""
-       int printf(const char *format, ...);
-    """)
-    e = py.test.raises(TypeError, ffi.C.printf, "hello %d\n", 42)
-    assert str(e.value) == 'argument 2 needs to be a cdata'
+    def test_vararg(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+           int printf(const char *format, ...);
+           int fflush(void *);
+        """)
+        with FdWriteCapture() as fd:
+            ffi.C.printf("hello\n")
+            ffi.C.printf("hello, %s!\n", ffi.new("char[]", "world"))
+            ffi.C.printf(ffi.new("char[]", "hello, %s!\n"),
+                         ffi.new("char[]", "world2"))
+            ffi.C.printf("hello int %d long %ld long long %lld\n",
+                         ffi.cast("int", 42),
+                         ffi.cast("long", 84),
+                         ffi.cast("long long", 168))
+            ffi.C.fflush(None)
+        res = fd.getvalue()
+        assert res == ("hello\n"
+                       "hello, world!\n"
+                       "hello, world2!\n"
+                       "hello int 42 long 84 long long 168\n")
 
-def test_function_has_a_c_type():
-    ffi = FFI()
-    ffi.cdef("""
-        int puts(const char *);
-    """)
-    fptr = ffi.C.puts
-    assert type(fptr) == ffi.typeof("int(*)(const char*)")
-    assert repr(fptr) == "<cdata 'int puts(char *)'>"
+    def test_must_specify_type_of_vararg(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+           int printf(const char *format, ...);
+        """)
+        e = py.test.raises(TypeError, ffi.C.printf, "hello %d\n", 42)
+        assert str(e.value) == 'argument 2 needs to be a cdata'
 
-def test_function_pointer():
-    ffi = FFI()
-    ffi.cdef("""
-        int puts(const char *);
-        int fflush(void *);
-    """)
-    def cb(charp):
-        assert repr(charp) == "<cdata 'char *'>"
-        return 42
-    fptr = ffi.callback("int(*)(const char *txt)", cb)
-    assert fptr != ffi.callback("int(*)(const char *)", cb)
-    assert repr(fptr) == "<cdata 'int(*)(char *)' calling %r>" % (cb,)
-    res = fptr("hello")
-    assert res == 42
-    #
-    fptr = ffi.cast("int(*)(const char *txt)", ffi.C.puts)
-    assert fptr == ffi.C.puts
-    assert repr(fptr) == "<cdata 'int(*)(char *)'>"
-    with FdWriteCapture() as fd:
-        fptr("world")
-        ffi.C.fflush(None)
-    res = fd.getvalue()
-    assert res == 'world\n'
+    def test_function_has_a_c_type(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            int puts(const char *);
+        """)
+        fptr = ffi.C.puts
+        assert type(fptr) == ffi.typeof("int(*)(const char*)")
+        assert repr(fptr) == "<cdata 'int puts(char *)'>"
 
-def test_passing_array():
-    ffi = FFI()
-    ffi.cdef("""
-        int strlen(char[]);
-    """)
-    p = ffi.new("char[]", "hello")
-    res = ffi.C.strlen(p)
-    assert res == 5
+    def test_function_pointer(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            int puts(const char *);
+            int fflush(void *);
+        """)
+        def cb(charp):
+            assert repr(charp) == "<cdata 'char *'>"
+            return 42
+        fptr = ffi.callback("int(*)(const char *txt)", cb)
+        assert fptr != ffi.callback("int(*)(const char *)", cb)
+        assert repr(fptr) == "<cdata 'int(*)(char *)' calling %r>" % (cb,)
+        res = fptr("hello")
+        assert res == 42
+        #
+        fptr = ffi.cast("int(*)(const char *txt)", ffi.C.puts)
+        assert fptr == ffi.C.puts
+        assert repr(fptr) == "<cdata 'int(*)(char *)'>"
+        with FdWriteCapture() as fd:
+            fptr("world")
+            ffi.C.fflush(None)
+        res = fd.getvalue()
+        assert res == 'world\n'
 
-def test_write_variable():
-    ffi = FFI()
-    ffi.cdef("""
-        int puts(const char *);
-        void *stdout, *stderr;
-    """)
-    pout = ffi.C.stdout
-    perr = ffi.C.stderr
-    assert repr(pout) == "<cdata 'void *'>"
-    assert repr(perr) == "<cdata 'void *'>"
-    with FdWriteCapture(2) as fd:     # capturing stderr
-        ffi.C.stdout = perr
-        try:
-            ffi.C.puts("hello!") # goes to stdout, which is equal to stderr now
-        finally:
-            ffi.C.stdout = pout
-    res = fd.getvalue()
-    assert res == "hello!\n"
+    def test_passing_array(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            int strlen(char[]);
+        """)
+        p = ffi.new("char[]", "hello")
+        res = ffi.C.strlen(p)
+        assert res == 5
 
-def test_strchr():
-    ffi = FFI()
-    ffi.cdef("""
-        char *strchr(const char *s, int c);
-    """)
-    p = ffi.new("char[]", "hello world!")
-    q = ffi.C.strchr(p, ord('w'))
-    assert str(q) == "world!"
+    def test_write_variable(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            int puts(const char *);
+            void *stdout, *stderr;
+        """)
+        pout = ffi.C.stdout
+        perr = ffi.C.stderr
+        assert repr(pout) == "<cdata 'void *'>"
+        assert repr(perr) == "<cdata 'void *'>"
+        with FdWriteCapture(2) as fd:     # capturing stderr
+            ffi.C.stdout = perr
+            try:
+                ffi.C.puts("hello!") # goes to stdout, which is equal to stderr now
+            finally:
+                ffi.C.stdout = pout
+        res = fd.getvalue()
+        assert res == "hello!\n"
 
-def test_function_with_struct_argument():
-    py.test.skip("in-progress")
+    def test_strchr(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            char *strchr(const char *s, int c);
+        """)
+        p = ffi.new("char[]", "hello world!")
+        q = ffi.C.strchr(p, ord('w'))
+        assert str(q) == "world!"
 
-def test_function_with_struct_return():
-    py.test.skip("in-progress")
+    def test_function_with_struct_argument(self):
+        py.test.skip("in-progress")
+
+    def test_function_with_struct_return(self):
+        py.test.skip("in-progress")
