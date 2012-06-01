@@ -22,10 +22,18 @@ class FakeBackend(object):
     def new_pointer_type(self, itemtype):
         return '<pointer to %s>' % (itemtype,)
 
-    def new_struct_type(self, ffi, name, fnames, btypes, bitfields):
-        return '<struct %s: %s>' % (
-            name,
-            ', '.join([y + x for x, y in zip(fnames, btypes)]))
+    def new_struct_type(self, name):
+        return FakeStruct(name)
+
+    def complete_struct_or_union(self, s, fields):
+        assert isinstance(s, FakeStruct)
+        s.fields = fields
+
+class FakeStruct(object):
+    def __init__(self, name):
+        self.name = name
+    def __str__(self):
+        return ', '.join([y + x for x, y, z in self.fields])
 
 class FakeLibrary(object):
     
@@ -84,7 +92,7 @@ def test_typedef_more_complex():
         typedef struct { int a, b; } foo_t, *foo_p;
         int foo(foo_p[]);
         """)
-    assert ffi.typeof("foo_t") == '<struct None: <int>a, <int>b>'
-    assert ffi.typeof("foo_p") == '<pointer to <struct None: <int>a, <int>b>>'
-    assert ffi.C.foo.BType == ('<func (<pointer to <pointer to <struct'
-                               ' None: <int>a, <int>b>>>), <int>, False>')
+    assert str(ffi.typeof("foo_t")) == '<int>a, <int>b'
+    assert ffi.typeof("foo_p") == '<pointer to <int>a, <int>b>'
+    assert ffi.C.foo.BType == ('<func (<pointer to <pointer to '
+                               '<int>a, <int>b>>), <int>, False>')
