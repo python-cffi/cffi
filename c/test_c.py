@@ -348,14 +348,17 @@ def test_complete_struct():
     assert d[0][0] == 'a1'
     assert d[0][1].type is BLong
     assert d[0][1].offset == 0
+    assert d[0][1].bitshift == -1
     assert d[0][1].bitsize == -1
     assert d[1][0] == 'a2'
     assert d[1][1].type is BChar
     assert d[1][1].offset == sizeof_type(BLong)
+    assert d[1][1].bitshift == -1
     assert d[1][1].bitsize == -1
     assert d[2][0] == 'a3'
     assert d[2][1].type is BShort
     assert d[2][1].offset == sizeof_type(BLong) + sizeof_type(BShort)
+    assert d[2][1].bitshift == -1
     assert d[2][1].bitsize == -1
     assert sizeof_type(BStruct) == 2 * sizeof_type(BLong)
     assert alignof(BStruct) == alignof(BLong)
@@ -372,11 +375,9 @@ def test_complete_union():
     assert d[0][0] == 'a1'
     assert d[0][1].type is BLong
     assert d[0][1].offset == 0
-    assert d[0][1].bitsize == -1
     assert d[1][0] == 'a2'
     assert d[1][1].type is BChar
     assert d[1][1].offset == 0
-    assert d[1][1].bitsize == -1
     assert sizeof_type(BUnion) == sizeof_type(BLong)
     assert alignof(BUnion) == alignof(BLong)
 
@@ -392,6 +393,8 @@ def test_struct_instance():
     s.a2 = 123
     assert s.a1 == 0
     assert s.a2 == 123
+    py.test.raises(OverflowError, "s.a1 = sys.maxint+1")
+    assert s.a1 == 0
 
 def test_struct_pointer():
     BInt = new_primitive_type("int")
@@ -582,3 +585,52 @@ def test_cast_to_enum():
     assert int(cast(BEnum, -242 + 2**128)) == -242
     assert str(cast(BEnum, -242 + 2**128)) == '#-242'
     assert str(cast(BEnum, '#-20')) == 'ab'
+
+def test_struct_with_bitfields():
+    BLong = new_primitive_type("long")
+    BStruct = new_struct_type("foo")
+    LONGBITS = 8 * sizeof_type(BLong)
+    complete_struct_or_union(BStruct, [('a1', BLong, 1),
+                                       ('a2', BLong, 2),
+                                       ('a3', BLong, 3),
+                                       ('a4', BLong, LONGBITS - 5)])
+    d = _getfields(BStruct)
+    assert d[0][1].offset == d[1][1].offset == d[2][1].offset == 0
+    assert d[3][1].offset == sizeof_type(BLong)
+    assert d[0][1].bitshift == 0
+    assert d[0][1].bitsize == 1
+    assert d[1][1].bitshift == 1
+    assert d[1][1].bitsize == 2
+    assert d[2][1].bitshift == 3
+    assert d[2][1].bitsize == 3
+    assert d[3][1].bitshift == 0
+    assert d[3][1].bitsize == LONGBITS - 5
+    assert sizeof_type(BStruct) == 2 * sizeof_type(BLong)
+    assert alignof(BStruct) == alignof(BLong)
+
+def test_bitfield_instance():
+    BInt = new_primitive_type("int")
+    BUnsignedInt = new_primitive_type("unsigned int")
+    BStruct = new_struct_type("foo")
+    complete_struct_or_union(BStruct, [('a1', BInt, 1),
+                                       ('a2', BUnsignedInt, 2),
+                                       ('a3', BInt, 3)])
+    p = new(new_pointer_type(BStruct), None)
+    p.a1 = -1
+    assert p.a1 == -1
+    p.a1 = 0
+    py.test.raises(OverflowError, "p.a1 = 1")
+    assert p.a1 == 0
+    #
+    p.a1 = -1
+    p.a2 = 3
+    p.a3 = -4
+    py.test.raises(OverflowError, "p.a3 = 4")
+    py.test.raises(OverflowError, "p.a3 = -5")
+    assert p.a1 == -1 and p.a2 == 3 and p.a3 == -4
+
+def test_bitfield_instance_init():
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("foo")
+    complete_struct_or_union(BStruct, [('a1', BInt, 1)])
+    py.test.raises(NotImplementedError, new, new_pointer_type(BStruct), [-1])

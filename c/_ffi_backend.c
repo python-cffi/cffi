@@ -64,7 +64,7 @@ typedef struct cfieldobject_s {
     PyObject_HEAD
     CTypeDescrObject *cf_type;
     Py_ssize_t cf_offset;
-    int cf_bitsize;
+    short cf_bitshift, cf_bitsize;
     struct cfieldobject_s *cf_next;
 } CFieldObject;
 
@@ -248,7 +248,8 @@ cfield_traverse(CFieldObject *cf, visitproc visit, void *arg)
 static PyMemberDef cfield_members[] = {
     {"type", T_OBJECT, OFF(cf_type), RO},
     {"offset", T_PYSSIZET, OFF(cf_offset), RO},
-    {"bitsize", T_INT, OFF(cf_bitsize), RO},
+    {"bitshift", T_SHORT, OFF(cf_bitshift), RO},
+    {"bitsize", T_SHORT, OFF(cf_bitsize), RO},
     {NULL}      /* Sentinel */
 };
 #undef OFF
@@ -523,11 +524,56 @@ convert_to_object(char *data, CTypeDescrObject *ct)
     return NULL;
 }
 
+static PyObject *
+convert_to_object_bitfield(char *data, CFieldObject *cf)
+{
+    CTypeDescrObject *ct = cf->cf_type;
+
+    if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
+        unsigned PY_LONG_LONG value, valuemask, shiftforsign;
+        PY_LONG_LONG result;
+
+        value = (unsigned PY_LONG_LONG)read_raw_signed_data(data, ct->ct_size);
+        valuemask = (1ULL << cf->cf_bitsize) - 1ULL;
+        shiftforsign = 1ULL << (cf->cf_bitsize - 1);
+        value = ((value >> cf->cf_bitshift) + shiftforsign) & valuemask;
+        result = ((PY_LONG_LONG)value) - (PY_LONG_LONG)shiftforsign;
+
+        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
+            return PyInt_FromLong((long)result);
+        else
+            return PyLong_FromLongLong(result);
+    }
+    else {
+        unsigned PY_LONG_LONG value, valuemask;
+
+        value = read_raw_unsigned_data(data, ct->ct_size);
+        valuemask = (1ULL << cf->cf_bitsize) - 1ULL;
+        value = (value >> cf->cf_bitshift) & valuemask;
+
+        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
+            return PyInt_FromLong((long)value);
+        else
+            return PyLong_FromUnsignedLongLong(value);
+    }
+}
+
+static int bitfield_not_supported(CFieldObject *cf)
+{
+    if (cf->cf_bitshift >= 0) {
+        PyErr_SetString(PyExc_NotImplementedError,
+                        "bit fields not supported for this operation");
+        return -1;
+    }
+    return 0;
+}
+
 static int
 convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
     PyObject *s;
     const char *expected;
+    char buf[sizeof(PY_LONG_LONG)];
 
     if (ct->ct_flags & CT_ARRAY) {
         CTypeDescrObject *ctitem = ct->ct_itemdescr;
@@ -614,18 +660,20 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                     return -1;
             }
         }
-        write_raw_integer_data(data, value, ct->ct_size);
-        if (value != read_raw_signed_data(data, ct->ct_size))
+        write_raw_integer_data(buf, value, ct->ct_size);
+        if (value != read_raw_signed_data(buf, ct->ct_size))
             goto overflow;
+        write_raw_integer_data(data, value, ct->ct_size);
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_UNSIGNED) {
         unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(init, 1);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
             return -1;
-        write_raw_integer_data(data, value, ct->ct_size);
-        if (value != read_raw_unsigned_data(data, ct->ct_size))
+        write_raw_integer_data(buf, value, ct->ct_size);
+        if (value != read_raw_unsigned_data(buf, ct->ct_size))
             goto overflow;
+        write_raw_integer_data(data, value, ct->ct_size);
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
@@ -666,6 +714,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                                  ct->ct_name, n);
                     return -1;
                 }
+                if (bitfield_not_supported(cf) < 0)
+                    return -1;
                 if (convert_from_object(data + cf->cf_offset,
                                         cf->cf_type, items[i]) < 0)
                     return -1;
@@ -684,6 +734,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                     PyErr_SetObject(PyExc_KeyError, d_key);
                     return -1;
                 }
+                if (bitfield_not_supported(cf) < 0)
+                    return -1;
                 if (convert_from_object(data + cf->cf_offset,
                                         cf->cf_type, d_value) < 0)
                     return -1;
@@ -699,6 +751,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             PyErr_SetString(PyExc_ValueError, "empty union");
             return -1;
         }
+        if (bitfield_not_supported(cf) < 0)
+            return -1;
         return convert_from_object(data, cf->cf_type, init);
     }
     fprintf(stderr, "convert_from_object: '%s'\n", ct->ct_name);
@@ -727,6 +781,39 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                      "not %.200s",
                      ct->ct_name, expected, Py_TYPE(init)->tp_name);
     return -1;
+}
+
+static int
+convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init)
+{
+    CTypeDescrObject *ct = cf->cf_type;
+    PY_LONG_LONG fmin, fmax, value = PyLong_AsLongLong(init);
+    unsigned PY_LONG_LONG rawfielddata, rawvalue, rawmask;
+    if (value == -1 && PyErr_Occurred())
+        return -1;
+
+    if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
+        fmin = -(1LL << (cf->cf_bitsize-1));
+        fmax = (1LL << (cf->cf_bitsize-1)) - 1LL;
+    }
+    else {
+        fmin = 0LL;
+        fmax = (PY_LONG_LONG)((1ULL << cf->cf_bitsize) - 1ULL);
+    }
+    if (value < fmin || value > fmax) {
+        PyErr_Format(PyExc_OverflowError,
+                     "value %lld outside the range allowed by the "
+                     "bit field width: %lld <= x <= %llx",
+                     value, fmin, fmax);
+        return -1;
+    }
+
+    rawmask = ((1ULL << cf->cf_bitsize) - 1ULL) << cf->cf_bitshift;
+    rawvalue = ((unsigned PY_LONG_LONG)value) << cf->cf_bitshift;
+    rawfielddata = read_raw_unsigned_data(data, ct->ct_size);
+    rawfielddata = (rawfielddata & ~rawmask) | (rawvalue & rawmask);
+    write_raw_integer_data(data, rawfielddata, ct->ct_size);
+    return 0;
 }
 
 static Py_ssize_t
@@ -1110,7 +1197,10 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
         if (cf != NULL) {
             /* read the field 'cf' */
             char *data = cd->c_data + cf->cf_offset;
-            return convert_to_object(data, cf->cf_type);
+            if (cf->cf_bitshift >= 0)
+                return convert_to_object_bitfield(data, cf);
+            else
+                return convert_to_object(data, cf->cf_type);
         }
     }
     return PyObject_GenericGetAttr((PyObject *)cd, attr);
@@ -1131,7 +1221,10 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
             /* write the field 'cf' */
             char *data = cd->c_data + cf->cf_offset;
             if (value != NULL) {
-                return convert_from_object(data, cf->cf_type, value);
+                if (cf->cf_bitshift >= 0)
+                    return convert_from_object_bitfield(data, cf, value);
+                else
+                    return convert_from_object(data, cf->cf_type, value);
             }
             else {
                 PyErr_SetString(PyExc_AttributeError,
@@ -1928,8 +2021,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     CTypeDescrObject *ct;
     PyObject *fields, *interned_fields;
     int is_union, alignment;
-    Py_ssize_t offset, i, nb_fields, maxsize;
-    CFieldObject **previous;
+    Py_ssize_t offset, i, nb_fields, maxsize, prev_bit_position;
+    CFieldObject **previous, *prev_field;
 
     if (!PyArg_ParseTuple(args, "O!O!:complete_struct_or_union",
                           &CTypeDescr_Type, &ct,
@@ -1959,11 +2052,13 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         return NULL;
 
     previous = (CFieldObject **)&ct->ct_extra;
+    prev_bit_position = 0;
+    prev_field = NULL;
 
     for (i=0; i<nb_fields; i++) {
         PyObject *fname;
         CTypeDescrObject *ftype;
-        int fbitsize, falign, err;
+        int fbitsize, falign, err, bitshift;
         CFieldObject *cf;
 
         if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!i:list item",
@@ -1989,19 +2084,51 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         /* align this field to its own 'falign' by inserting padding */
         offset = (offset + falign - 1) & ~(falign-1);
 
+        if (fbitsize < 0 || (fbitsize == 8 * ftype->ct_size &&
+                             !(ftype->ct_flags & CT_PRIMITIVE_CHAR))) {
+            fbitsize = -1;
+            bitshift = -1;
+            prev_bit_position = 0;
+        }
+        else {
+            if (!(ftype->ct_flags & (CT_PRIMITIVE_SIGNED |
+                                     CT_PRIMITIVE_UNSIGNED |
+                                     CT_PRIMITIVE_CHAR)) ||
+                    fbitsize == 0 ||
+                    fbitsize > 8 * ftype->ct_size) {
+                PyErr_Format(PyExc_TypeError, "invalid bit field '%s'",
+                             PyString_AS_STRING(fname));
+                goto error;
+            }
+            if (prev_bit_position > 0) {
+                assert(prev_field && prev_field->cf_bitshift >= 0);
+                if (prev_field->cf_type->ct_size != ftype->ct_size) {
+                    PyErr_SetString(PyExc_NotImplementedError,
+                                    "consecutive bit fields should be "
+                                    "declared with a same-sized type");
+                    goto error;
+                }
+                else if (prev_bit_position + fbitsize > 8 * ftype->ct_size) {
+                    prev_bit_position = 0;
+                }
+                else {
+                    /* we can share the same field as 'prev_field' */
+                    offset = prev_field->cf_offset;
+                }
+            }
+            bitshift = prev_bit_position;
+            if (!is_union)
+                prev_bit_position += fbitsize;
+        }
+
         cf = PyObject_New(CFieldObject, &CField_Type);
         if (cf == NULL)
             goto error;
         Py_INCREF(ftype);
         cf->cf_type = ftype;
         cf->cf_offset = offset;
+        cf->cf_bitshift = bitshift;
         cf->cf_bitsize = fbitsize;
-
-        if (fbitsize >= 0) {
-            Py_DECREF(cf);
-            PyErr_SetString(PyExc_NotImplementedError, "bit fields");
-            goto error;
-        }
 
         Py_INCREF(fname);
         PyString_InternInPlace(&fname);
@@ -2019,6 +2146,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 
         *previous = cf;
         previous = &cf->cf_next;
+        prev_field = cf;
 
         if (maxsize < ftype->ct_size)
             maxsize = ftype->ct_size;
@@ -2157,6 +2285,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
 
         for (i=0; i<n; i++) {
             assert(cf != NULL);
+            if (bitfield_not_supported(cf) < 0)
+                return NULL;
             ffifield = fb_fill_type(fb, cf->cf_type);
             if (elements != NULL)
                 elements[i] = ffifield;
