@@ -1687,9 +1687,33 @@ static PyObject *dl_read_variable(DynLibObject *dlobj, PyObject *args)
     return convert_to_object(data, ct);
 }
 
+static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    PyObject *value;
+    char *varname;
+    char *data;
+
+    if (!PyArg_ParseTuple(args, "O!sO:read_variable",
+                          &CTypeDescr_Type, &ct, &varname, &value))
+        return NULL;
+
+    data = dlsym(dlobj->dl_handle, varname);
+    if (data == NULL) {
+        PyErr_Format(PyExc_KeyError, "variable '%s' not found in library '%s'",
+                     varname, dlobj->dl_name);
+        return NULL;
+    }
+    if (convert_from_object(data, ct, value) < 0)
+        return NULL;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef dl_methods[] = {
     {"load_function",   (PyCFunction)dl_load_function,  METH_VARARGS},
     {"read_variable",   (PyCFunction)dl_read_variable,  METH_VARARGS},
+    {"write_variable",  (PyCFunction)dl_write_variable, METH_VARARGS},
     {NULL,              NULL}           /* sentinel */
 };
 

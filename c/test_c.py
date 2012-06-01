@@ -561,6 +561,15 @@ def test_read_variable():
     stderr = ll.read_variable(BVoidP, "stderr")
     assert stderr == cast(BVoidP, _testfunc(8))
 
+def test_write_variable():
+    BVoidP = new_pointer_type(new_void_type())
+    ll = load_library(None)
+    stderr = ll.read_variable(BVoidP, "stderr")
+    ll.write_variable(BVoidP, "stderr", None)
+    assert ll.read_variable(BVoidP, "stderr") is None
+    ll.write_variable(BVoidP, "stderr", stderr)
+    assert ll.read_variable(BVoidP, "stderr") == stderr
+
 def test_callback():
     BInt = new_primitive_type("int")
     def make_callback():
