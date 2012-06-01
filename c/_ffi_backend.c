@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <dlfcn.h>
+#include <errno.h>
 
 #include <ffi.h>
 #include <sys/mman.h>
@@ -111,6 +112,11 @@ typedef struct {
     Py_ssize_t exchange_size;
     Py_ssize_t exchange_offset_arg[1];
 } cif_description_t;
+
+
+/* whenever running Python code, the errno is saved in this thread-local
+   variable */
+static __thread int saved_errno = 0;
 
 /************************************************************/
 
@@ -1298,8 +1304,10 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     restype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 0);
     resultdata = buffer + cif_descr->exchange_offset_arg[0];
 
+    errno = saved_errno;
     ffi_call(&cif_descr->cif, (void (*)(void))(cd->c_data),
              resultdata, buffer_array);
+    saved_errno = errno;
 
     if (restype->ct_flags & CT_VOID) {
         res = Py_None;
@@ -2538,6 +2546,8 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
 static void invoke_callback(ffi_cif *cif, void *result, void **args,
                             void *userdata)
 {
+    saved_errno = errno;
+
     PyObject *cb_args = (PyObject *)userdata;
     CTypeDescrObject *ct = (CTypeDescrObject *)PyTuple_GET_ITEM(cb_args, 0);
     PyObject *signature = ct->ct_stuff;
@@ -2572,6 +2582,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     Py_XDECREF(py_args);
     Py_XDECREF(py_res);
     Py_DECREF(cb_args);
+    errno = saved_errno;
     return;
 
  error:
@@ -2830,6 +2841,21 @@ static PyObject *b_string(PyObject *self, PyObject *args)
     return PyString_FromStringAndSize(cd->c_data, length);
 }
 
+static PyObject *b_get_errno(PyObject *self, PyObject *noarg)
+{
+    return PyInt_FromLong(saved_errno);
+}
+
+static PyObject *b_set_errno(PyObject *self, PyObject *args)
+{
+    int i;
+    if (!PyArg_ParseTuple(args, "i:set_errno", &i))
+        return NULL;
+    saved_errno = i;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 /************************************************************/
 
 static char _testfunc0(char a, char b)
@@ -2913,6 +2939,8 @@ static PyMethodDef FFIBackendMethods[] = {
     {"typeof_instance", b_typeof_instance, METH_O},
     {"offsetof", b_offsetof, METH_VARARGS},
     {"string", b_string, METH_VARARGS},
+    {"get_errno", b_get_errno, METH_NOARGS},
+    {"set_errno", b_set_errno, METH_VARARGS},
     {"_testfunc", b__testfunc, METH_VARARGS},
     {NULL,     NULL}	/* Sentinel */
 };
