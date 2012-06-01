@@ -1,6 +1,7 @@
 import py
 from ffi import FFI
 import math, os
+from ffi.backend_ctypes import CTypesBackend
 
 
 class FdWriteCapture(object):
@@ -28,7 +29,7 @@ class FdWriteCapture(object):
 
 
 class TestFunction(object):
-    from ffi.backend_ctypes import CTypesBackend as Backend
+    Backend = CTypesBackend
 
     def test_sin(self):
         ffi = FFI(backend=self.Backend())
@@ -126,7 +127,8 @@ class TestFunction(object):
         """)
         fptr = ffi.C.puts
         assert ffi.typeof(fptr) == ffi.typeof("int(*)(const char*)")
-        assert repr(fptr) == "<cdata 'int puts(char *)'>"
+        if self.Backend is CTypesBackend:
+            assert repr(fptr) == "<cdata 'int puts(char *)'>"
 
     def test_function_pointer(self):
         ffi = FFI(backend=self.Backend())
