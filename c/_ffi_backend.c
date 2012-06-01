@@ -1300,15 +1300,22 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             PyObject *obj = PyTuple_GET_ITEM(args, i);
             CTypeDescrObject *ct;
 
-            if (!CData_Check(obj)) {
+            if (obj == Py_None) {
+                ct = NULL;    /* stand for 'void *' */
+            }
+            else if (CData_Check(obj)) {
+                ct = ((CDataObject *)obj)->c_type;
+                if (ct->ct_flags & CT_ARRAY)
+                    ct = (CTypeDescrObject *)ct->ct_stuff;
+                Py_INCREF(ct);
+            }
+            else {
                 PyErr_Format(PyExc_TypeError,
                              "argument %zd passed in the variadic part "
                              "needs to be a cdata object (got %.200s)",
                              i + 1, Py_TYPE(obj)->tp_name);
                 goto error;
             }
-            ct = ((CDataObject *)obj)->c_type;
-            Py_INCREF(ct);
             PyTuple_SET_ITEM(fvarargs, i, (PyObject *)ct);
         }
         cif_descr = fb_prepare_cif(fvarargs, fresult);
@@ -1329,13 +1336,18 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         char *data = buffer + cif_descr->exchange_offset_arg[1 + i];
         PyObject *obj = PyTuple_GET_ITEM(args, i);
 
+        buffer_array[i] = data;
+
         if (i < nargs_declared)
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 1 + i);
         else
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(fvarargs, i);
-        buffer_array[i] = data;
 
-        if ((argtype->ct_flags & CT_POINTER) &&
+        if (argtype == NULL) {        /* stands for a NULL pointer */
+            assert(obj == Py_None);
+            *(char **)data = NULL;
+        }
+        else if ((argtype->ct_flags & CT_POINTER) &&
             (argtype->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) &&
             PyString_Check(obj)) {
             /* special case: Python string -> cdata 'char *' */
@@ -2464,9 +2476,13 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
         farg = (CTypeDescrObject *)PyTuple_GET_ITEM(fargs, i);
 
         /* ffi buffer: fill in the ffi for the i'th argument */
-        atype = fb_fill_type(fb, farg);
-        if (PyErr_Occurred())
-            return -1;
+        if (farg == NULL)    /* stands for a NULL pointer in the varargs */
+            atype = &ffi_type_pointer;
+        else {
+            atype = fb_fill_type(fb, farg);
+            if (PyErr_Occurred())
+                return -1;
+        }
         if (fb->atypes != NULL) {
             fb->atypes[i] = atype;
             /* exchange data size */
