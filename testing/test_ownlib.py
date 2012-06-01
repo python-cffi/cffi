@@ -1,6 +1,7 @@
-import py
+import py, sys
 import subprocess
 from ffi import FFI
+from ffi.backend_ctypes import CTypesBackend
 
 
 SOURCE = """\
@@ -17,7 +18,7 @@ int test_setting_errno(void) {
 """
 
 class TestOwnLib(object):
-    from ffi.backend_ctypes import CTypesBackend as Backend
+    Backend = CTypesBackend
 
     def setup_class(cls):
         from testing.udir import udir
@@ -38,6 +39,8 @@ class TestOwnLib(object):
         assert ffi.C.errno == 123
 
     def test_setting_errno(self):
+        if self.Backend is CTypesBackend and '__pypy__' in sys.modules:
+            py.test.skip("XXX errno issue with ctypes on pypy?")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int test_setting_errno(void);
@@ -46,3 +49,4 @@ class TestOwnLib(object):
         ffi.C.errno = 42
         res = ownlib.test_setting_errno()
         assert res == 42
+        assert ffi.C.errno == 42
