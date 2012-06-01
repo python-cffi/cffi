@@ -1649,7 +1649,8 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
     char *funcname;
     void *funcptr;
 
-    if (!PyArg_ParseTuple(args, "O!s", &CTypeDescr_Type, &ct, &funcname))
+    if (!PyArg_ParseTuple(args, "O!s:load_function",
+                          &CTypeDescr_Type, &ct, &funcname))
         return NULL;
 
     if (!(ct->ct_flags & CT_FUNCTIONPTR)) {
@@ -1667,8 +1668,28 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
     return new_simple_cdata(funcptr, ct);
 }
 
+static PyObject *dl_read_variable(DynLibObject *dlobj, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    char *varname;
+    char *data;
+
+    if (!PyArg_ParseTuple(args, "O!s:read_variable",
+                          &CTypeDescr_Type, &ct, &varname))
+        return NULL;
+
+    data = dlsym(dlobj->dl_handle, varname);
+    if (data == NULL) {
+        PyErr_Format(PyExc_KeyError, "variable '%s' not found in library '%s'",
+                     varname, dlobj->dl_name);
+        return NULL;
+    }
+    return convert_to_object(data, ct);
+}
+
 static PyMethodDef dl_methods[] = {
     {"load_function",   (PyCFunction)dl_load_function,  METH_VARARGS},
+    {"read_variable",   (PyCFunction)dl_read_variable,  METH_VARARGS},
     {NULL,              NULL}           /* sentinel */
 };
 
@@ -2838,6 +2859,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 5: f = &_testfunc5; break;
     case 6: f = &_testfunc6; break;
     case 7: f = &_testfunc7; break;
+    case 8: f = stderr; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;
