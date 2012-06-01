@@ -102,7 +102,6 @@ typedef struct {
 
 typedef struct {
     ffi_cif cif;
-    int varargs;
     /* the following information is used when doing the call:
        - a buffer of size 'exchange_size' is malloced
        - the arguments are converted from Python objects to raw data
@@ -1277,6 +1276,10 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     }
 
     cif_descr = (cif_description_t *)cd->c_type->ct_extra;
+    if (cif_descr == NULL) {
+        PyErr_SetString(PyExc_NotImplementedError, "XXX call of a '...'");
+        return NULL;
+    }
     buffer = PyObject_Malloc(cif_descr->exchange_size);
     if (buffer == NULL)
         return PyErr_NoMemory();
@@ -2277,12 +2280,11 @@ static PyObject *b__getfields(PyObject *self, PyObject *arg)
 
 struct funcbuilder_s {
     Py_ssize_t nb_bytes;
-    Py_ssize_t nb_bytes_in_name;
-    char *bufferp, *namep;
+    char *bufferp;
     ffi_type **atypes;
     ffi_type *rtype;
     unsigned int nargs;
-    int name_position;
+    CTypeDescrObject *fct;
 };
 
 static void *fb_alloc(struct funcbuilder_s *fb, Py_ssize_t size)
@@ -2295,17 +2297,6 @@ static void *fb_alloc(struct funcbuilder_s *fb, Py_ssize_t size)
         char *result = fb->bufferp;
         fb->bufferp += size;
         return result;
-    }
-}
-
-static void fb_cat_name(struct funcbuilder_s *fb, char *piece, int piecelen)
-{
-    if (fb->namep == NULL) {
-        fb->nb_bytes_in_name += piecelen;
-    }
-    else {
-        memcpy(fb->namep, piece, piecelen);
-        fb->namep += piecelen;
     }
 }
 
@@ -2379,7 +2370,6 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
                              nargs * sizeof(Py_ssize_t));
 
     /* ffi buffer: next comes an array of 'ffi_type*', one per argument */
-    fb->nargs = nargs;
     fb->atypes = fb_alloc(fb, nargs * sizeof(ffi_type*));
 
     /* ffi buffer: next comes the result type */
@@ -2405,26 +2395,12 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
         exchange_offset += i;
     }
 
-    /* name: the function type name we build here is, like in C, made
-       as follows:
-
-         RESULT_TYPE_HEAD (*)(ARG_1_TYPE, ARG_2_TYPE, etc) RESULT_TYPE_TAIL
-    */
-    fb_cat_name(fb, fresult->ct_name, fresult->ct_name_position);
-    fb_cat_name(fb, "(*)(", 4);
-    i = fresult->ct_name_position + 2;  /* between '(*' and ')(' */
-    fb->name_position = i;
-
     /* loop over the arguments */
     for (i=0; i<nargs; i++) {
         CTypeDescrObject *farg;
         ffi_type *atype;
 
         farg = (CTypeDescrObject *)PyTuple_GET_ITEM(fargs, i);
-        if (!CTypeDescr_Check(farg)) {
-            PyErr_SetString(PyExc_TypeError, "expected a tuple of ctypes");
-            return -1;
-        }
 
         /* ffi buffer: fill in the ffi for the i'th argument */
         atype = fb_fill_type(fb, farg);
@@ -2437,16 +2413,66 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
             cif_descr->exchange_offset_arg[1 + i] = exchange_offset;
             exchange_offset += atype->size;
         }
+    }
 
+    if (cif_descr != NULL) {
+        /* exchange data size */
+        cif_descr->exchange_size = exchange_offset;
+    }
+    return 0;
+}
+
+#undef ALIGN_ARG
+
+static void fb_cat_name(struct funcbuilder_s *fb, char *piece, int piecelen)
+{
+    if (fb->bufferp == NULL) {
+        fb->nb_bytes += piecelen;
+    }
+    else {
+        memcpy(fb->bufferp, piece, piecelen);
+        fb->bufferp += piecelen;
+    }
+}
+
+static int fb_build_name(struct funcbuilder_s *fb, PyObject *fargs,
+                         CTypeDescrObject *fresult, int ellipsis)
+{
+    Py_ssize_t i, nargs = PyTuple_GET_SIZE(fargs);
+    fb->nargs = nargs;
+
+    /* name: the function type name we build here is, like in C, made
+       as follows:
+
+         RESULT_TYPE_HEAD (*)(ARG_1_TYPE, ARG_2_TYPE, etc) RESULT_TYPE_TAIL
+    */
+    fb_cat_name(fb, fresult->ct_name, fresult->ct_name_position);
+    fb_cat_name(fb, "(*)(", 4);
+    if (fb->fct) {
+        i = fresult->ct_name_position + 2;  /* between '(*' and ')(' */
+        fb->fct->ct_name_position = i;
+    }
+
+    /* loop over the arguments */
+    for (i=0; i<nargs; i++) {
+        CTypeDescrObject *farg;
+
+        farg = (CTypeDescrObject *)PyTuple_GET_ITEM(fargs, i);
+        if (!CTypeDescr_Check(farg)) {
+            PyErr_SetString(PyExc_TypeError, "expected a tuple of ctypes");
+            return -1;
+        }
         /* name: concatenate the name of the i'th argument's type */
         if (i > 0)
             fb_cat_name(fb, ", ", 2);
         fb_cat_name(fb, farg->ct_name, strlen(farg->ct_name));
     }
 
-    if (cif_descr != NULL) {
-        /* exchange data size */
-        cif_descr->exchange_size = exchange_offset;
+    /* name: add the '...' if needed */
+    if (ellipsis) {
+        if (nargs > 0)
+            fb_cat_name(fb, ", ", 2);
+        fb_cat_name(fb, "...", 3);
     }
 
     /* name: concatenate the tail of the result type */
@@ -2456,7 +2482,84 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
     return 0;
 }
 
-#undef ALIGN_ARG
+static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
+                                          PyObject *fargs,
+                                          CTypeDescrObject *fresult,
+                                          int ellipsis)
+{
+    CTypeDescrObject *fct;
+
+    fb->nb_bytes = 0;
+    fb->bufferp = NULL;
+    fb->fct = NULL;
+
+    /* compute the total size needed for the name */
+    if (fb_build_name(fb, fargs, fresult, ellipsis) < 0)
+        return NULL;
+
+    /* allocate the function type */
+    fct = ctypedescr_new(fb->nb_bytes);
+    if (fct == NULL)
+        return NULL;
+    fb->fct = fct;
+
+    /* call again fb_build() to really build the ct_name */
+    fb->bufferp = fct->ct_name;
+    if (fb_build_name(fb, fargs, fresult, ellipsis) < 0)
+        goto error;
+    assert(fb->bufferp == fct->ct_name + fb->nb_bytes);
+
+    fct->ct_extra = NULL;
+    fct->ct_size = sizeof(void(*)(void));
+    fct->ct_flags = CT_FUNCTIONPTR;
+    return fct;
+
+ error:
+    Py_DECREF(fct);
+    return NULL;
+}
+
+static cif_description_t *fb_prepare_cif(struct funcbuilder_s *fb,
+                                         PyObject *fargs,
+                                         CTypeDescrObject *fresult)
+{
+    char *buffer;
+    cif_description_t *cif_descr;
+
+    fb->nb_bytes = 0;
+    fb->bufferp = NULL;
+
+    /* compute the total size needed in the buffer for libffi */
+    if (fb_build(fb, fargs, fresult) < 0)
+        return NULL;
+
+    /* allocate the buffer */
+    buffer = PyObject_Malloc(fb->nb_bytes);
+    if (buffer == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    /* call again fb_build() to really build the libffi data structures
+       and the ct_name */
+    fb->bufferp = buffer;
+    if (fb_build(fb, fargs, fresult) < 0)
+        goto error;
+    assert(fb->bufferp == buffer + fb->nb_bytes);
+
+    cif_descr = (cif_description_t *)buffer;
+    if (ffi_prep_cif(&cif_descr->cif, FFI_DEFAULT_ABI, fb->nargs,
+                     fb->rtype, fb->atypes) != FFI_OK) {
+        PyErr_SetString(PyExc_SystemError,
+                        "libffi failed to build this function type");
+        goto error;
+    }
+    return cif_descr;
+
+ error:
+    PyObject_Free(buffer);
+    return NULL;
+}
 
 static PyObject *b_new_function_type(PyObject *self, PyObject *args)
 {
@@ -2465,8 +2568,6 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     CTypeDescrObject *fct;
     int ellipsis;
     struct funcbuilder_s funcbuilder;
-    char *buffer;
-    cif_description_t *cif_descr;
     Py_ssize_t i;
 
     if (!PyArg_ParseTuple(args, "O!O!i:new_function_type",
@@ -2475,46 +2576,22 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
                           &ellipsis))
         return NULL;
 
-    if (ellipsis) {
-        PyErr_SetString(PyExc_NotImplementedError, "'...'");
-        return NULL;
-    }
-
-    funcbuilder.nb_bytes = 0;
-    funcbuilder.nb_bytes_in_name = 0;
-    funcbuilder.bufferp = NULL;
-    funcbuilder.namep = NULL;
-
-    /* compute the total size needed in the buffer for libffi */
-    if (fb_build(&funcbuilder, fargs, fresult) < 0)
-        return NULL;
-
-    /* allocate the buffer */
-    buffer = PyObject_Malloc(funcbuilder.nb_bytes);
-    if (buffer == NULL)
-        return PyErr_NoMemory();
-
-    /* allocate the function type */
-    fct = ctypedescr_new(funcbuilder.nb_bytes_in_name);
+    fct = fb_prepare_ctype(&funcbuilder, fargs, fresult, ellipsis);
     if (fct == NULL)
-        goto error;
+        return NULL;
 
-    /* call again fb_build() to really build the libffi data structures
-       and the ct_name */
-    funcbuilder.bufferp = buffer;
-    funcbuilder.namep = fct->ct_name;
-    if (fb_build(&funcbuilder, fargs, fresult) < 0)
-        goto error;
-    assert(funcbuilder.bufferp == buffer + funcbuilder.nb_bytes);
-    assert(funcbuilder.namep == fct->ct_name + funcbuilder.nb_bytes_in_name);
+    if (!ellipsis) {
+        /* Functions with '...' varargs are stored without a cif_descr
+           at all.  The cif is computed on every call from the actual
+           types passed in.  For all other functions, the cif_descr
+           is computed here. */
+        cif_description_t *cif_descr;
 
-    cif_descr = (cif_description_t *)buffer;
-    cif_descr->varargs = 0;
-    if (ffi_prep_cif(&cif_descr->cif, FFI_DEFAULT_ABI, funcbuilder.nargs,
-                     funcbuilder.rtype, funcbuilder.atypes) != FFI_OK) {
-        PyErr_SetString(PyExc_SystemError,
-                        "libffi failed to build this function type");
-        goto error;
+        cif_descr = fb_prepare_cif(&funcbuilder, fargs, fresult);
+        if (cif_descr == NULL)
+            goto error;
+
+        fct->ct_extra = (char *)cif_descr;
     }
 
     /* build the signature, given by a tuple of ctype objects */
@@ -2531,15 +2608,12 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
         Py_INCREF(o);
         PyTuple_SET_ITEM(fct->ct_stuff, 1 + i, o);
     }
-    fct->ct_extra = buffer;
     fct->ct_size = sizeof(void(*)(void));
     fct->ct_flags = CT_FUNCTIONPTR;
-    fct->ct_name_position = funcbuilder.name_position;
     return (PyObject *)fct;
 
  error:
-    Py_XDECREF(fct);
-    PyObject_Free(buffer);
+    Py_DECREF(fct);
     return NULL;
 }
 
@@ -2630,7 +2704,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     cda->head.c_data = (char *)closure;
 
     cif_descr = (cif_description_t *)ct->ct_extra;
-    if (cif_descr->varargs) {
+    if (cif_descr == NULL) {
         PyErr_SetString(PyExc_NotImplementedError,
                         "callbacks with '...'");
         goto error;
