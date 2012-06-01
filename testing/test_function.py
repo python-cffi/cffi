@@ -97,7 +97,7 @@ class TestFunction(object):
            int fflush(void *);
         """)
         with FdWriteCapture() as fd:
-            ffi.C.printf("hello\n")
+            ffi.C.printf("hello with no arguments\n")
             ffi.C.printf("hello, %s!\n", ffi.new("char[]", "world"))
             ffi.C.printf(ffi.new("char[]", "hello, %s!\n"),
                          ffi.new("char[]", "world2"))
@@ -108,7 +108,7 @@ class TestFunction(object):
             ffi.C.printf("hello %p\n", None)
             ffi.C.fflush(None)
         res = fd.getvalue()
-        assert res == ("hello\n"
+        assert res == ("hello with no arguments\n"
                        "hello, world!\n"
                        "hello, world2!\n"
                        "hello int 42 long 84 long long 168\n"
@@ -135,19 +135,19 @@ class TestFunction(object):
 
     def test_function_pointer(self):
         ffi = FFI(backend=self.Backend())
-        ffi.cdef("""
-            int puts(const char *);
-            int fflush(void *);
-        """)
         def cb(charp):
             assert repr(charp) == "<cdata 'char *'>"
             return 42
         fptr = ffi.callback("int(*)(const char *txt)", cb)
         assert fptr != ffi.callback("int(*)(const char *)", cb)
         assert repr(fptr) == "<cdata 'int(*)(char *)' calling %r>" % (cb,)
-        res = fptr("hello")
+        res = fptr("Hello")
         assert res == 42
         #
+        ffi.cdef("""
+            int puts(const char *);
+            int fflush(void *);
+        """)
         fptr = ffi.cast("int(*)(const char *txt)", ffi.C.puts)
         assert fptr == ffi.C.puts
         assert repr(fptr) == "<cdata 'int(*)(char *)'>"

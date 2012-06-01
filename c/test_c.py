@@ -552,6 +552,15 @@ def test_call_function_9():
     assert f(2, cast(BInt, 40), cast(BInt, 2)) == 42
     py.test.raises(TypeError, f, 1, 42)
 
+def test_new_charp():
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BCharA = new_array_type(BCharP, None)
+    x = new(BCharA, 42)
+    assert len(x) == 42
+    x = new(BCharA, "foobar")
+    assert len(x) == 7
+
 def test_load_and_call_function():
     BChar = new_primitive_type("char")
     BCharP = new_pointer_type(BChar)
