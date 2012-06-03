@@ -195,7 +195,14 @@ class TestFunction(object):
         assert str(q) == "world!"
 
     def test_function_with_struct_argument(self):
-        py.test.skip("in-progress")
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            struct in_addr { unsigned int s_addr; };
+            char *inet_ntoa(struct in_addr in);
+        """)
+        ina = ffi.new("struct in_addr", [0x04040404])
+        a = ffi.C.inet_ntoa(ina[0])
+        assert str(a) == '4.4.4.4'
 
     def test_function_with_struct_return(self):
-        py.test.skip("in-progress")
+        py.test.skip("this is a GNU C extension")
