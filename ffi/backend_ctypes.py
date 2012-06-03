@@ -255,6 +255,12 @@ class CTypesBackend(object):
             def __init__(self, value):
                 self._value = value
 
+            @staticmethod
+            def _create_ctype_obj(init):
+                if init is None:
+                    return ctype()
+                return ctype(CTypesPrimitive._to_ctypes(init))
+
             if kind == 'int':
                 @classmethod
                 def _cast_from(cls, source):
@@ -299,8 +305,6 @@ class CTypesBackend(object):
             if kind == 'int':
                 @staticmethod
                 def _to_ctypes(x):
-                    if x is None:
-                        return 0
                     if not isinstance(x, (int, long)):
                         if isinstance(x, CTypesData):
                             x = int(x)
@@ -318,8 +322,6 @@ class CTypesBackend(object):
             if kind == 'char':
                 @staticmethod
                 def _to_ctypes(x):
-                    if x is None:
-                        return '\x00'
                     if isinstance(x, str) and len(x) == 1:
                         return x
                     if isinstance(x, CTypesPrimitive):    # <CData <char>>
@@ -330,8 +332,6 @@ class CTypesBackend(object):
             if kind == 'float':
                 @staticmethod
                 def _to_ctypes(x):
-                    if x is None:
-                        return 0.0
                     if not isinstance(x, (int, long, float, CTypesData)):
                         raise TypeError("float expected, got %s" %
                                         type(x).__name__)

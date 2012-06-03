@@ -619,6 +619,18 @@ def test_cast_to_enum():
     assert str(cast(BEnum, -242 + 2**128)) == '#-242'
     assert str(cast(BEnum, '#-20')) == 'ab'
 
+def test_enum_in_struct():
+    BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
+    BStruct = new_struct_type("bar")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BEnum, -1)])
+    p = new(BStructPtr, [-20])
+    assert p.a1 == "ab"
+    p = new(BStructPtr, ["c"])
+    assert p.a1 == "c"
+    e = py.test.raises(TypeError, new, BStructPtr, [None])
+    assert "must be a str or int, not NoneType" in str(e.value)
+
 def test_struct_with_bitfields():
     BLong = new_primitive_type("long")
     BStruct = new_struct_type("foo")
