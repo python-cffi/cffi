@@ -35,9 +35,11 @@ class Parser(object):
     def _parse_decl(self, decl):
         node = decl.type
         if isinstance(node, pycparser.c_ast.FuncDecl):
-            self._declare('function ' + decl.name, self._get_type(node))
+            self._declare('function ' + decl.name,
+                          self._get_type(node, name=decl.name))
         else:
             if isinstance(node, pycparser.c_ast.Struct):
+                # XXX do we need self._declare in any of those?
                 if node.decls is not None:
                     self._get_struct_or_union_type('struct', node)
             elif isinstance(node, pycparser.c_ast.Union):
@@ -81,7 +83,7 @@ class Parser(object):
         return model.PointerType(type)
 
     def _get_type(self, typenode, convert_array_to_pointer=False,
-                  force_pointer=False):
+                  force_pointer=False, name=None):
         # first, dereference typedefs, if we have it already parsed, we're good
         if (isinstance(typenode, pycparser.c_ast.TypeDecl) and
             isinstance(typenode.type, pycparser.c_ast.IdentifierType) and
@@ -143,11 +145,11 @@ class Parser(object):
         #
         if isinstance(typenode, pycparser.c_ast.FuncDecl):
             # a function type
-            return self._parse_function_type(typenode)
+            return self._parse_function_type(typenode, name)
         #
         raise ffi.FFIError("bad or unsupported type declaration")
 
-    def _parse_function_type(self, typenode):
+    def _parse_function_type(self, typenode, name=None):
         params = list(getattr(typenode.args, 'params', []))
         ellipsis = (
             len(params) > 0 and
@@ -166,7 +168,7 @@ class Parser(object):
                                convert_array_to_pointer=True)
                 for argdeclnode in params]
         result = self._get_type(typenode.type)
-        return model.FunctionType(tuple(args), result, ellipsis)
+        return model.FunctionType(name, tuple(args), result, ellipsis)
 
     def _get_struct_or_union_type(self, kind, type):
         name = type.name

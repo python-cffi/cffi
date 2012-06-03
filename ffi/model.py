@@ -25,8 +25,13 @@ class BaseType(object):
     def get_backend_type(self, ffi):
         return ffi._get_cached_btype(self)
 
+    def verifier_declare(self, verifier, f):
+        # nothing to see here
+        pass
+
 class VoidType(BaseType):
     _attrs_ = ()
+    name = 'void'
     
     def new_backend_type(self, ffi):
         return ffi._backend.new_void_type()
@@ -51,7 +56,8 @@ class PrimitiveType(BaseType):
 class FunctionType(BaseType):
     _attrs_ = ('args', 'result', 'ellipsis')
 
-    def __init__(self, args, result, ellipsis):
+    def __init__(self, name, args, result, ellipsis):
+        self.name = name # can be None in case it's an empty type
         self.args = args
         self.result = result
         self.ellipsis = ellipsis
@@ -70,6 +76,16 @@ class FunctionType(BaseType):
 
     def new_backend_type(self, ffi, result, *args):
         return ffi._backend.new_function_type(args, result, self.ellipsis)
+
+    def verifier_declare(self, verifier, f):
+        restype = self.result.name
+        args = []
+        for arg in self.args:
+            args.append(arg.name)
+        args = ', '.join(args)
+        f.write('  %s(* res%d)(%s) = %s;\n' % (restype, verifier.rescount,
+                                               args, self.name))
+        verifier.rescount += 1
 
 class PointerType(BaseType):
     _attrs_ = ('totype',)
@@ -135,6 +151,14 @@ class StructOrUnion(BaseType):
 class StructType(StructOrUnion):
     def get_btype(self, ffi):
         return ffi._backend.new_struct_type(self.name)
+
+    def verifier_declare(self, verifier, f):
+        verifier._write_printf(f, 'BEGIN struct %s size(%%ld)' % self.name,
+                      'sizeof(struct %s)' % self.name)
+        for decl in decl.decls:
+            pass
+            #_write_printf(f, 'FIELD ofs(%s) size(%s)')
+        verifier._write_printf(f, 'END struct %s' % self.name)
 
 class UnionType(StructOrUnion):
     def get_btype(self, ffi):
