@@ -178,29 +178,6 @@ class FFI(object):
             self._cached_btypes[type] = BType
         return BType
 
-    def _get_enum_type(self, type):
-        name = type.name
-        decls = type.values
-        if decls is None and name is not None:
-            key = 'enum %s' % (name,)
-            if key in self._declarations:
-                decls = self._declarations[key].values
-        if decls is not None:
-            enumerators = tuple([enum.name for enum in decls.enumerators])
-            enumvalues = []
-            nextenumvalue = 0
-            for enum in decls.enumerators:
-                if enum.value is not None:
-                    nextenumvalue = self._parse_constant(enum.value)
-                enumvalues.append(nextenumvalue)
-                nextenumvalue += 1
-            enumvalues = tuple(enumvalues)
-        else:   # opaque enum
-            enumerators = ()
-            enumvalues = ()
-        return self._get_cached_btype('new_enum_type', name,
-                                      enumerators, enumvalues)
-
     def verify(self, preamble='', **kwargs):
         """ Verify that the current ffi signatures compile on this machine
         """

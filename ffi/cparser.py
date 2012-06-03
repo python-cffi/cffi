@@ -46,8 +46,7 @@ class Parser(object):
                     self._get_struct_or_union_type('union', node)
             elif isinstance(node, pycparser.c_ast.Enum):
                 if node.values is not None:
-                    xxx
-                    self._declare('enum ' + node.name, node)
+                    self._get_enum_type(node)
             elif not decl.name:
                 raise ffi.CDefError("construct does not declare any variable",
                                     decl)
@@ -225,3 +224,27 @@ class Parser(object):
         #
         raise ffi.FFIError("unsupported non-constant or "
                            "not immediately constant expression")
+
+    def _get_enum_type(self, type):
+        name = type.name
+        decls = type.values
+        key = 'enum %s' % (name,)
+        if key in self._declarations:
+            return self._declarations[key]
+        if decls is not None:
+            enumerators = tuple([enum.name for enum in decls.enumerators])
+            enumvalues = []
+            nextenumvalue = 0
+            for enum in decls.enumerators:
+                if enum.value is not None:
+                    nextenumvalue = self._parse_constant(enum.value)
+                enumvalues.append(nextenumvalue)
+                nextenumvalue += 1
+            enumvalues = tuple(enumvalues) 
+            tp = model.EnumType(name, enumerators, enumvalues)
+            self._declarations[key] = tp
+        else:   # opaque enum
+            enumerators = ()
+            enumvalues = ()
+            tp = model.EnumType(name, (), ())
+        return tp

@@ -699,7 +699,7 @@ class CTypesBackend(object):
     def new_enum_type(self, name, enumerators, enumvalues):
         mapping = dict(zip(enumerators, enumvalues))
         reverse_mapping = dict(reversed(zip(enumvalues, enumerators)))
-        CTypesInt = self.ffi._get_cached_btype('new_primitive_type', 'int')
+        CTypesInt = self.ffi._get_cached_btype(model.PrimitiveType('int'))
         #
         def forward_map(source):
             if not isinstance(source, str):
