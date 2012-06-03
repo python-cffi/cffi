@@ -427,7 +427,7 @@ class CTypesBackend(object):
         else:
             brackets = ' &[%d]' % length
         BItem = CTypesPtr._BItem
-        if BItem is self.ffi._get_cached_btype('new_primitive_type', 'char'):
+        if BItem is self.ffi._get_cached_btype(model.PrimitiveType('char')):
             kind = 'char'
         else:
             kind = 'generic'
@@ -542,11 +542,12 @@ class CTypesBackend(object):
     def new_union_type(self, name):
         return self._new_struct_or_union('union', name, ctypes.Union)
 
-    def complete_struct_or_union(self, CTypesStructOrUnion, fields):
+    def complete_struct_or_union(self, CTypesStructOrUnion, tp):
         struct_or_union = CTypesStructOrUnion._ctype
-        fnames = [fname for (fname, BField, bitsize) in fields]
-        btypes = [BField for (fname, BField, bitsize) in fields]
-        bitfields = [bitsize for (fname, BField, bitsize) in fields]
+        fnames = tp.fldnames
+        btypes = [self.ffi._get_cached_btype(t) for t in tp.fldtypes]
+        bitfields = tp.fldbitsize
+        fields = zip(fnames, btypes, bitfields)
         #
         cfields = []
         for (fname, BField, bitsize) in fields:
@@ -568,7 +569,7 @@ class CTypesBackend(object):
             def initialize(blob, init):
                 if not isinstance(init, dict):
                     init = tuple(init)
-                    if len(init) > len(fields):
+                    if len(init) > len(fnames):
                         raise ValueError("too many values for %s initializer" %
                                          CTypesStructOrUnion._get_c_name())
                     init = dict(zip(fnames, init))
@@ -586,7 +587,7 @@ class CTypesBackend(object):
         if CTypesStructOrUnion._kind == 'union':
             def initialize(blob, init):
                 addr = ctypes.addressof(blob)
-                fname = fnames[0]
+                #fname = fnames[0]
                 BField = btypes[0]
                 PTR = ctypes.POINTER(BField._ctype)
                 BField._initialize(ctypes.cast(addr, PTR).contents, init)
@@ -617,8 +618,7 @@ class CTypesBackend(object):
                         raise OverflowError("value too large for bitfield")
             setattr(CTypesStructOrUnion, fname, property(getter, setter))
         #
-        CTypesPtr = self.ffi._get_cached_btype('new_pointer_type',
-                                               CTypesStructOrUnion)
+        CTypesPtr = self.ffi._get_cached_btype(model.PointerType(tp))
         for fname in fnames:
             if hasattr(CTypesPtr, fname):
                 raise ValueError("the field name %r conflicts in "

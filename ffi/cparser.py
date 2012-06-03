@@ -21,15 +21,41 @@ class Parser(object):
         ast = _get_parser().parse(csource)
         for decl in ast.ext:
             if isinstance(decl, pycparser.c_ast.Decl):
-                xxx
                 self._parse_decl(decl)
             elif isinstance(decl, pycparser.c_ast.Typedef):
                 if not decl.name:
                     raise ffi.CDefError("typedef does not declare any name",
                                         decl)
-                self._declare('typedef ' + decl.name, decl.type)
+                if decl.name != '__dotdotdot__':
+                    self._declare('typedef ' + decl.name,
+                                  self._get_type(decl.type))
             else:
                 raise ffi.CDefError("unrecognized construct", decl)
+
+    def _parse_decl(self, decl):
+        node = decl.type
+        if isinstance(node, pycparser.c_ast.FuncDecl):
+            xxx
+            self._declare('function ' + decl.name, node)
+        else:
+            if isinstance(node, pycparser.c_ast.Struct):
+                if node.decls is not None:
+                    self._get_struct_or_union_type('struct', node)
+            elif isinstance(node, pycparser.c_ast.Union):
+                xxx
+                if node.decls is not None:
+                    self._declare('union ' + node.name, node)
+            elif isinstance(node, pycparser.c_ast.Enum):
+                if node.values is not None:
+                    xxx
+                    self._declare('enum ' + node.name, node)
+            elif not decl.name:
+                raise ffi.CDefError("construct does not declare any variable",
+                                    decl)
+            #
+            if decl.name:
+                xxx
+                self._declare('variable ' + decl.name, node)
 
     def parse_type(self, cdecl, force_pointer=False,
                    convert_array_to_pointer=False):
@@ -48,12 +74,10 @@ class Parser(object):
         return self._get_type(typenode, force_pointer=force_pointer,
                               convert_array_to_pointer=convert_array_to_pointer)
 
-    def _declare(self, name, node):
-        if name == 'typedef __dotdotdot__':
-            return
+    def _declare(self, name, obj):
         if name in self._declarations:
             raise ffi.FFIError("multiple declarations of %s" % (name,))
-        self._declarations[name] = self._get_type(node)
+        self._declarations[name] = obj
 
     def _get_type_pointer(self, type):
         if isinstance(type, model.FunctionType):
@@ -75,25 +99,21 @@ class Parser(object):
             return type
         #
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):
-            xxx
             # array type
             if convert_array_to_pointer:
-                return self._get_btype_pointer(typenode.type)
+                return self._get_btype_pointer(self._get_type(typenode.type))
             if typenode.dim is None:
                 length = None
             else:
                 length = self._parse_constant(typenode.dim)
-            BItem = self._get_btype(typenode.type)
-            BPtr = self._get_cached_btype('new_pointer_type', BItem)
-            return self._get_cached_btype('new_array_type', BPtr, length)
+            return model.ArrayType(self._get_type(typenode.type), length)
         #
         if force_pointer:
             return self._get_type_pointer(self._get_type(typenode))
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
-            xxx
             # pointer type
-            return self._get_btype_pointer(typenode.type)
+            return self._get_type_pointer(self._get_type(typenode.type))
         #
         if isinstance(typenode, pycparser.c_ast.TypeDecl):
             type = typenode.type
@@ -149,3 +169,57 @@ class Parser(object):
                                           tuple(args), result, ellipsis)
         #
         raise ffi.FFIError("bad or unsupported type declaration")
+
+    def _get_struct_or_union_type(self, kind, type):
+        name = type.name
+        key = '%s %s' % (kind, name)
+        if key in self._declarations:
+            return self._declarations[key]
+        #
+        decls = type.decls
+        # create an empty type for now
+        tp = model.StructType(name, None, None, None)
+        self._declarations[key] = tp
+
+        #if decls is None and name is not None:
+        #    key = '%s %s' % (kind, name)
+        #    if key in self._declarations:
+        #        decls = self._declarations[key].decls
+        if decls is None:
+            return tp    # opaque type, so far
+        #
+        # mark it as complete *first*, to handle recursion
+        fldnames = []
+        fldtypes = []
+        fldbitsize = []
+        for decl in decls:
+            if (isinstance(decl.type, pycparser.c_ast.IdentifierType) and
+                    ''.join(decl.type.names) == '__dotdotdot__'):
+                xxxx
+                # XXX pycparser is inconsistent: 'names' should be a list
+                # of strings, but is sometimes just one string.  Use
+                # str.join() as a way to cope with both.
+            if decl.bitsize is None:
+                bitsize = -1
+            else:
+                bitsize = self._parse_constant(decl.bitsize)
+            fldnames.append(decl.name)
+            fldtypes.append(self._get_type(decl.type))
+            fldbitsize.append(bitsize)
+        tp.fldnames = tuple(fldnames)
+        tp.fldtypes = tuple(fldtypes)
+        tp.fldbitsize = tuple(fldbitsize)
+        return tp
+
+    def _parse_constant(self, exprnode):
+        # for now, limited to expressions that are an immediate number
+        # or negative number
+        if isinstance(exprnode, pycparser.c_ast.Constant):
+            return int(exprnode.value)
+        #
+        if (isinstance(exprnode, pycparser.c_ast.UnaryOp) and
+                exprnode.op == '-'):
+            return -self._parse_constant(exprnode.expr)
+        #
+        raise ffi.FFIError("unsupported non-constant or "
+                           "not immediately constant expression")

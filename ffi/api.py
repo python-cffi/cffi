@@ -39,7 +39,6 @@ class FFI(object):
         self._cached_btypes = {}
         self._parsed_types = new.module('parsed_types').__dict__
         self._new_types = new.module('new_types').__dict__
-        self._completed_struct_or_union = set()
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
         self.C = _make_ffi_library(self, None)
@@ -81,28 +80,6 @@ class FFI(object):
         #        self._declare('typedef ' + decl.name, decl.type)
         #    else:
         #        raise CDefError("unrecognized construct", decl)
-
-    def _parse_decl(self, decl):
-        xxx
-        node = decl.type
-        if isinstance(node, pycparser.c_ast.FuncDecl):
-            self._declare('function ' + decl.name, node)
-        else:
-            if isinstance(node, pycparser.c_ast.Struct):
-                if node.decls is not None:
-                    self._declare('struct ' + node.name, node)
-            elif isinstance(node, pycparser.c_ast.Union):
-                if node.decls is not None:
-                    self._declare('union ' + node.name, node)
-            elif isinstance(node, pycparser.c_ast.Enum):
-                if node.values is not None:
-                    self._declare('enum ' + node.name, node)
-            elif not decl.name:
-                raise CDefError("construct does not declare any variable",
-                                decl)
-            #
-            if decl.name:
-                self._declare('variable ' + decl.name, node)
 
     def load(self, name):
         """Load and return a dynamic library identified by 'name'.
@@ -208,42 +185,9 @@ class FFI(object):
         except KeyError:
             BType = type.new_backend_type(self)
             self._cached_btypes[type] = BType
+            if type.is_struct_or_union_type:
+                self._backend.complete_struct_or_union(BType, type)
         return BType
-
-    def _get_struct_or_union_type(self, kind, type):
-        name = type.name
-        result = self._get_cached_btype('new_%s_type' % kind, name)
-        if (kind, name) in self._completed_struct_or_union:
-            return result
-        #
-        decls = type.decls
-        if decls is None and name is not None:
-            key = '%s %s' % (kind, name)
-            if key in self._declarations:
-                decls = self._declarations[key].decls
-        if decls is None:
-            return result    # opaque type, so far
-        #
-        # mark it as complete *first*, to handle recursion
-        self._completed_struct_or_union.add((kind, name))
-        fields = []
-        for decl in decls:
-            if (isinstance(decl.type, pycparser.c_ast.IdentifierType) and
-                    ''.join(decl.type.names) == '__dotdotdot__'):
-                # XXX pycparser is inconsistent: 'names' should be a list
-                # of strings, but is sometimes just one string.  Use
-                # str.join() as a way to cope with both.
-                raise ffiplatform.VerificationMissing("%s %s only partially"
-                                                  " specified" % (kind, name))
-            if decl.bitsize is None:
-                bitsize = -1
-            else:
-                bitsize = self._parse_constant(decl.bitsize)
-            fields.append((decl.name,
-                           self._get_btype(decl.type),
-                           bitsize))
-        self._backend.complete_struct_or_union(result, fields)
-        return result
 
     def _get_enum_type(self, type):
         name = type.name
@@ -267,19 +211,6 @@ class FFI(object):
             enumvalues = ()
         return self._get_cached_btype('new_enum_type', name,
                                       enumerators, enumvalues)
-
-    def _parse_constant(self, exprnode):
-        # for now, limited to expressions that are an immediate number
-        # or negative number
-        if isinstance(exprnode, pycparser.c_ast.Constant):
-            return int(exprnode.value)
-        #
-        if (isinstance(exprnode, pycparser.c_ast.UnaryOp) and
-                exprnode.op == '-'):
-            return -self._parse_constant(exprnode.expr)
-        #
-        raise FFIError("unsupported non-constant or "
-                       "not immediately constant expression")
 
     def verify(self, preamble='', **kwargs):
         """ Verify that the current ffi signatures compile on this machine
