@@ -32,8 +32,14 @@ class FFI(object):
         select a non-default backend, mostly for tests.
         """
         if backend is None:
-            from . import backend_ctypes
-            backend = backend_ctypes.CTypesBackend()
+            try:
+                import _ffi_backend as backend
+            except ImportError, e:
+                import warnings
+                warnings.warn("ImportError: %s\n"
+                              "Falling back to the ctypes backend." % (e,))
+                from . import backend_ctypes
+                backend = backend_ctypes.CTypesBackend()
         self._backend = backend
         self._declarations = {}
         self._cached_btypes = {}
