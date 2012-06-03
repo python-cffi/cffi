@@ -56,10 +56,9 @@ class Parser(object):
         self._declarations[name] = self._get_type(node)
 
     def _get_type_pointer(self, type):
-        item = self._get_type(type)
         if isinstance(type, model.FunctionType):
-            return item # "pointer-to-function" ~== "function"
-        return model.PointerType(item)
+            return type # "pointer-to-function" ~== "function"
+        return model.PointerType(type)
 
     def _get_type(self, typenode, convert_array_to_pointer=False,
                   force_pointer=False):
@@ -68,7 +67,12 @@ class Parser(object):
             isinstance(typenode.type, pycparser.c_ast.IdentifierType) and
             len(typenode.type.names) == 1 and
             ('typedef ' + typenode.type.names[0]) in self._declarations):
-            return self._declarations['typedef ' + typenode.type.names[0]]
+            type = self._declarations['typedef ' + typenode.type.names[0]]
+            if force_pointer:
+                return self._get_type_pointer(type)
+            if convert_array_to_pointer:
+                xxx
+            return type
         #
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):
             xxx
@@ -84,7 +88,7 @@ class Parser(object):
             return self._get_cached_btype('new_array_type', BPtr, length)
         #
         if force_pointer:
-            return self._get_type_pointer(typenode)
+            return self._get_type_pointer(self._get_type(typenode))
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
             xxx

@@ -124,7 +124,7 @@ class FFI(object):
                 return self._parsed_types[cdecl]
             except KeyError:
                 type = self._parser.parse_type(cdecl)
-                btype = type.new_backend_type(self._backend)
+                btype = type.get_backend_type(self)
                 self._parsed_types[cdecl] = btype
                 return btype
         else:
@@ -176,7 +176,7 @@ class FFI(object):
             BType = self._new_types[cdecl]
         except KeyError:
             type = self._parser.parse_type(cdecl, force_pointer=True)
-            BType = type.new_backend_type(self._backend)
+            BType = type.get_backend_type(self)
             self._new_types[cdecl] = BType
         #
         return self._backend.new(BType, init)
@@ -202,12 +202,12 @@ class FFI(object):
         BFunc = self.typeof(cdecl)
         return self._backend.callback(BFunc, python_callable)
 
-    def _get_cached_btype(self, methname, *args):
+    def _get_cached_btype(self, type):
         try:
-            BType = self._cached_btypes[methname, args]
+            BType = self._cached_btypes[type]
         except KeyError:
-            BType = getattr(self._backend, methname)(*args)
-            self._cached_btypes[methname, args] = BType
+            BType = type.new_backend_type(self)
+            self._cached_btypes[type] = BType
         return BType
 
     def _get_struct_or_union_type(self, kind, type):

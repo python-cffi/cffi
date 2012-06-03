@@ -1,5 +1,5 @@
 import ctypes, ctypes.util
-
+from ffi import model
 
 class CTypesData(object):
     __slots__ = []
@@ -349,7 +349,7 @@ class CTypesBackend(object):
         return CTypesPrimitive
 
     def new_pointer_type(self, BItem):
-        if BItem is self.ffi._get_cached_btype('new_primitive_type', 'char'):
+        if BItem is self.ffi._get_cached_btype(model.PrimitiveType('char')):
             kind = 'charp'
         else:
             kind = 'generic'
@@ -414,8 +414,8 @@ class CTypesBackend(object):
                         ctypes.sizeof(self._as_ctype_ptr.contents),)
                 return ''
         #
-        if (BItem is self.ffi._get_cached_btype('new_void_type') or
-            BItem is self.ffi._get_cached_btype('new_primitive_type', 'char')):
+        if (BItem is self.ffi._get_cached_btype(model.void_type) or
+            BItem is self.ffi._get_cached_btype(model.PrimitiveType('char'))):
             CTypesPtr._automatic_casts = True
         #
         CTypesPtr._fix_class()
