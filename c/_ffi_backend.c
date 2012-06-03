@@ -653,8 +653,10 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             else {
                 PyObject *ob;
                 PyErr_Clear();
-                if (!PyString_Check(init))
+                if (!PyString_Check(init)) {
+                    expected = "str or int";
                     goto cannot_convert;
+                }
 
                 ob = convert_enum_string_to_int(ct, init);
                 if (ob == NULL)
@@ -2467,6 +2469,8 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
             i = sizeof(ffi_arg);
         exchange_offset += i;
     }
+    else
+        exchange_offset = 0;   /* not used */
 
     /* loop over the arguments */
     for (i=0; i<nargs; i++) {
