@@ -314,6 +314,28 @@ def test_new_primitive_from_cdata():
     n = new(p1, cast(p, "A"))
     assert n[0] == "A"
 
+def test_cast_between_pointers():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntA = new_array_type(BIntP, None)
+    a = new(BIntA, [40, 41, 42, 43, 44])
+    BShortP = new_pointer_type(new_primitive_type("short"))
+    b = cast(BShortP, a)
+    c = cast(BIntP, b)
+    assert c[3] == 43
+    BLongLong = new_primitive_type("long long")
+    d = cast(BLongLong, c)
+    e = cast(BIntP, d)
+    assert e[3] == 43
+    f = cast(BIntP, int(d))
+    assert f[3] == 43
+    #
+    for null in [0, None]:
+        b = cast(BShortP, null)
+        assert not b
+        c = cast(BIntP, b)
+        assert not c
+        assert int(cast(BLongLong, c)) == 0
+
 def test_alignof():
     BInt = new_primitive_type("int")
     assert alignof(BInt) == sizeof_type(BInt)
@@ -385,6 +407,8 @@ def test_struct_instance():
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo")
     BStructPtr = new_pointer_type(BStruct)
+    p = cast(BStructPtr, None)
+    py.test.raises(AttributeError, "p.a1")    # opaque
     complete_struct_or_union(BStruct, [('a1', BInt, -1),
                                        ('a2', BInt, -1)])
     p = new(BStructPtr, None)
@@ -395,6 +419,8 @@ def test_struct_instance():
     assert s.a2 == 123
     py.test.raises(OverflowError, "s.a1 = sys.maxint+1")
     assert s.a1 == 0
+    py.test.raises(AttributeError, "p.foobar")
+    py.test.raises(AttributeError, "s.foobar")
 
 def test_struct_pointer():
     BInt = new_primitive_type("int")

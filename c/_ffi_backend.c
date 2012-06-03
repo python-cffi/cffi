@@ -1642,9 +1642,14 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
                 return new_simple_cdata(cdsrc->c_data, ct);
             }
         }
-        value = _my_PyLong_AsUnsignedLongLong(ob, 0);
-        if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
-            return NULL;
+        if (ob == Py_None) {
+            value = 0;
+        }
+        else {
+            value = _my_PyLong_AsUnsignedLongLong(ob, 0);
+            if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
+                return NULL;
+        }
         return new_simple_cdata((char *)(Py_intptr_t)value, ct);
     }
     else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED
