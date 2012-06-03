@@ -650,6 +650,7 @@ class BackendTests:
         assert s.e == '#-1'
         assert s[0].e == '#-1'
         s.e = s.e
+        py.test.raises(TypeError, "s.e = None")
 
     def test_enum_non_contiguous(self):
         ffi = FFI(backend=self.Backend())
