@@ -1,6 +1,5 @@
 import new
-import pycparser    # http://code.google.com/p/pycparser/
-from ffi import ffiplatform
+from ffi import cparser
 
 class FFIError(Exception):
     pass
@@ -41,11 +40,10 @@ class FFI(object):
                 from . import backend_ctypes
                 backend = backend_ctypes.CTypesBackend()
         self._backend = backend
-        self._declarations = {}
+        self._parser = cparser.Parser()
         self._cached_btypes = {}
         self._parsed_types = new.module('parsed_types').__dict__
         self._new_types = new.module('new_types').__dict__
-        self._completed_struct_or_union = set()
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
         self.C = _make_ffi_library(self, None)
@@ -63,53 +61,13 @@ class FFI(object):
             lines.append('typedef %s %s;' % (equiv % by_size[size], name))
         self.cdef('\n'.join(lines))
 
-    def _declare(self, name, node):
-        if name == 'typedef __dotdotdot__':
-            return
-        if name in self._declarations:
-            raise FFIError("multiple declarations of %s" % (name,))
-        self._declarations[name] = node
-
     def cdef(self, csource):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
         then be accessed via 'ffi.C' or 'ffi.load()'.  The types can be used
         in 'ffi.new()' and other functions.
         """
-        csource = ("typedef int __dotdotdot__;\n" +
-                   csource.replace('...', '__dotdotdot__'))
-        ast = _get_parser().parse(csource)
-
-        for decl in ast.ext:
-            if isinstance(decl, pycparser.c_ast.Decl):
-                self._parse_decl(decl)
-            elif isinstance(decl, pycparser.c_ast.Typedef):
-                if not decl.name:
-                    raise CDefError("typedef does not declare any name", decl)
-                self._declare('typedef ' + decl.name, decl.type)
-            else:
-                raise CDefError("unrecognized construct", decl)
-
-    def _parse_decl(self, decl):
-        node = decl.type
-        if isinstance(node, pycparser.c_ast.FuncDecl):
-            self._declare('function ' + decl.name, node)
-        else:
-            if isinstance(node, pycparser.c_ast.Struct):
-                if node.decls is not None:
-                    self._declare('struct ' + node.name, node)
-            elif isinstance(node, pycparser.c_ast.Union):
-                if node.decls is not None:
-                    self._declare('union ' + node.name, node)
-            elif isinstance(node, pycparser.c_ast.Enum):
-                if node.values is not None:
-                    self._declare('enum ' + node.name, node)
-            elif not decl.name:
-                raise CDefError("construct does not declare any variable",
-                                decl)
-            #
-            if decl.name:
-                self._declare('variable ' + decl.name, node)
+        self._parser.parse(csource)
 
     def load(self, name):
         """Load and return a dynamic library identified by 'name'.
@@ -130,8 +88,8 @@ class FFI(object):
             try:
                 return self._parsed_types[cdecl]
             except KeyError:
-                typenode = self._parse_type(cdecl)
-                btype = self._get_btype(typenode)
+                type = self._parser.parse_type(cdecl)
+                btype = type.get_backend_type(self)
                 self._parsed_types[cdecl] = btype
                 return btype
         else:
@@ -182,11 +140,11 @@ class FFI(object):
         try:
             BType = self._new_types[cdecl]
         except KeyError:
-            typenode = self._parse_type(cdecl)
-            BType = self._get_btype(typenode, force_pointer=True)
+            type = self._parser.parse_type(cdecl, force_pointer=True)
+            BType = type.get_backend_type(self)
             self._new_types[cdecl] = BType
         #
-        return self._backend.new(BType, init)
+        return self._backend.newp(BType, init)
 
     def cast(self, cdecl, source):
         """Similar to a C cast: returns an instance of the named C
@@ -209,189 +167,16 @@ class FFI(object):
         BFunc = self.typeof(cdecl)
         return self._backend.callback(BFunc, python_callable)
 
-    def _parse_type(self, cdecl):
-        # XXX: for more efficiency we would need to poke into the
-        # internals of CParser...  the following registers the
-        # typedefs, because their presence or absence influences the
-        # parsing itself (but what they are typedef'ed to plays no role)
-        csourcelines = []
-        for name in sorted(self._declarations):
-            if name.startswith('typedef '):
-                csourcelines.append('typedef int %s;' % (name[8:],))
-        #
-        csourcelines.append('void __dummy(%s);' % cdecl)
-        ast = _get_parser().parse('\n'.join(csourcelines))
-        # XXX: insert some sanity check
-        typenode = ast.ext[-1].type.args.params[0].type
-        return typenode
-
-    def _get_cached_btype(self, methname, *args):
+    def _get_cached_btype(self, type):
         try:
-            BType = self._cached_btypes[methname, args]
+            BType = self._cached_btypes[type]
         except KeyError:
-            BType = getattr(self._backend, methname)(*args)
-            self._cached_btypes[methname, args] = BType
+            args = type.prepare_backend_type(self)
+            if args is None:
+                args = ()
+            BType = type.finish_backend_type(self, *args)
+            self._cached_btypes[type] = BType
         return BType
-
-    def _get_btype_pointer(self, type):
-        BItem = self._get_btype(type)
-        if isinstance(type, pycparser.c_ast.FuncDecl):
-            return BItem      # "pointer-to-function" ~== "function"
-        return self._get_cached_btype("new_pointer_type", BItem)
-
-    def _get_btype(self, typenode, convert_array_to_pointer=False,
-                   force_pointer=False):
-        # first, dereference typedefs, if necessary several times
-        while (isinstance(typenode, pycparser.c_ast.TypeDecl) and
-               isinstance(typenode.type, pycparser.c_ast.IdentifierType) and
-               len(typenode.type.names) == 1 and
-               ('typedef ' + typenode.type.names[0]) in self._declarations):
-            typenode = self._declarations['typedef ' + typenode.type.names[0]]
-        #
-        if isinstance(typenode, pycparser.c_ast.ArrayDecl):
-            # array type
-            if convert_array_to_pointer:
-                return self._get_btype_pointer(typenode.type)
-            if typenode.dim is None:
-                length = None
-            else:
-                length = self._parse_constant(typenode.dim)
-            BItem = self._get_btype(typenode.type)
-            BPtr = self._get_cached_btype('new_pointer_type', BItem)
-            return self._get_cached_btype('new_array_type', BPtr, length)
-        #
-        if force_pointer:
-            return self._get_btype_pointer(typenode)
-        #
-        if isinstance(typenode, pycparser.c_ast.PtrDecl):
-            # pointer type
-            return self._get_btype_pointer(typenode.type)
-        #
-        if isinstance(typenode, pycparser.c_ast.TypeDecl):
-            type = typenode.type
-            if isinstance(type, pycparser.c_ast.IdentifierType):
-                # assume a primitive type.  get it from .names, but reduce
-                # synonyms to a single chosen combination
-                names = list(type.names)
-                if names == ['signed'] or names == ['unsigned']:
-                    names.append('int')
-                if names[0] == 'signed' and names != ['signed', 'char']:
-                    names.pop(0)
-                if (len(names) > 1 and names[-1] == 'int'
-                        and names != ['unsigned', 'int']):
-                    names.pop()
-                ident = ' '.join(names)
-                if ident == 'void':
-                    return self._get_cached_btype("new_void_type")
-                return self._get_cached_btype('new_primitive_type', ident)
-            #
-            if isinstance(type, pycparser.c_ast.Struct):
-                # 'struct foobar'
-                return self._get_struct_or_union_type('struct', type)
-            #
-            if isinstance(type, pycparser.c_ast.Union):
-                # 'union foobar'
-                return self._get_struct_or_union_type('union', type)
-            #
-            if isinstance(type, pycparser.c_ast.Enum):
-                # 'enum foobar'
-                return self._get_enum_type(type)
-        #
-        if isinstance(typenode, pycparser.c_ast.FuncDecl):
-            # a function type
-            params = list(typenode.args.params)
-            ellipsis = (
-                len(params) > 0 and
-                isinstance(params[-1].type, pycparser.c_ast.TypeDecl) and
-                isinstance(params[-1].type.type,
-                           pycparser.c_ast.IdentifierType) and
-                ''.join(params[-1].type.type.names) == '__dotdotdot__')
-            if ellipsis:
-                params.pop()
-            if (len(params) == 1 and
-                isinstance(params[0].type, pycparser.c_ast.TypeDecl) and
-                isinstance(params[0].type.type, pycparser.c_ast.IdentifierType)
-                    and list(params[0].type.type.names) == ['void']):
-                del params[0]
-            args = [self._get_btype(argdeclnode.type,
-                                    convert_array_to_pointer=True)
-                    for argdeclnode in params]
-            result = self._get_btype(typenode.type)
-            return self._get_cached_btype('new_function_type',
-                                          tuple(args), result, ellipsis)
-        #
-        raise FFIError("bad or unsupported type declaration")
-
-    def _get_struct_or_union_type(self, kind, type):
-        name = type.name
-        result = self._get_cached_btype('new_%s_type' % kind, name)
-        if (kind, name) in self._completed_struct_or_union:
-            return result
-        #
-        decls = type.decls
-        if decls is None and name is not None:
-            key = '%s %s' % (kind, name)
-            if key in self._declarations:
-                decls = self._declarations[key].decls
-        if decls is None:
-            return result    # opaque type, so far
-        #
-        # mark it as complete *first*, to handle recursion
-        self._completed_struct_or_union.add((kind, name))
-        fields = []
-        for decl in decls:
-            if (isinstance(decl.type, pycparser.c_ast.IdentifierType) and
-                    ''.join(decl.type.names) == '__dotdotdot__'):
-                # XXX pycparser is inconsistent: 'names' should be a list
-                # of strings, but is sometimes just one string.  Use
-                # str.join() as a way to cope with both.
-                raise ffiplatform.VerificationMissing("%s %s only partially"
-                                                  " specified" % (kind, name))
-            if decl.bitsize is None:
-                bitsize = -1
-            else:
-                bitsize = self._parse_constant(decl.bitsize)
-            fields.append((decl.name,
-                           self._get_btype(decl.type),
-                           bitsize))
-        self._backend.complete_struct_or_union(result, fields)
-        return result
-
-    def _get_enum_type(self, type):
-        name = type.name
-        decls = type.values
-        if decls is None and name is not None:
-            key = 'enum %s' % (name,)
-            if key in self._declarations:
-                decls = self._declarations[key].values
-        if decls is not None:
-            enumerators = tuple([enum.name for enum in decls.enumerators])
-            enumvalues = []
-            nextenumvalue = 0
-            for enum in decls.enumerators:
-                if enum.value is not None:
-                    nextenumvalue = self._parse_constant(enum.value)
-                enumvalues.append(nextenumvalue)
-                nextenumvalue += 1
-            enumvalues = tuple(enumvalues)
-        else:   # opaque enum
-            enumerators = ()
-            enumvalues = ()
-        return self._get_cached_btype('new_enum_type', name,
-                                      enumerators, enumvalues)
-
-    def _parse_constant(self, exprnode):
-        # for now, limited to expressions that are an immediate number
-        # or negative number
-        if isinstance(exprnode, pycparser.c_ast.Constant):
-            return int(exprnode.value)
-        #
-        if (isinstance(exprnode, pycparser.c_ast.UnaryOp) and
-                exprnode.op == '-'):
-            return -self._parse_constant(exprnode.expr)
-        #
-        raise FFIError("unsupported non-constant or "
-                       "not immediately constant expression")
 
     def verify(self, preamble='', **kwargs):
         """ Verify that the current ffi signatures compile on this machine
@@ -426,17 +211,17 @@ def _make_ffi_library(ffi, libname):
                 pass
             #
             key = 'function ' + name
-            if key in ffi._declarations:
-                node = ffi._declarations[key]
-                BType = ffi._get_btype(node)
+            if key in ffi._parser._declarations:
+                tp = ffi._parser._declarations[key]
+                BType = ffi._get_cached_btype(tp)
                 value = backendlib.load_function(BType, name)
                 function_cache[name] = value
                 return value
             #
             key = 'variable ' + name
-            if key in ffi._declarations:
-                node = ffi._declarations[key]
-                BType = ffi._get_btype(node)
+            if key in ffi._parser._declarations:
+                tp = ffi._parser._declarations[key]
+                BType = ffi._get_cached_btype(tp)
                 return backendlib.read_variable(BType, name)
             #
             raise AttributeError(name)
@@ -447,9 +232,9 @@ def _make_ffi_library(ffi, libname):
                 return
             #
             key = 'variable ' + name
-            if key in ffi._declarations:
-                node = ffi._declarations[key]
-                BType = ffi._get_btype(node)
+            if key in ffi._parser._declarations:
+                tp = ffi._parser._declarations[key]
+                BType = ffi._get_cached_btype(tp)
                 backendlib.write_variable(BType, name, value)
                 return
             #
@@ -458,12 +243,3 @@ def _make_ffi_library(ffi, libname):
     if libname is not None:
         FFILibrary.__name__ = 'FFILibrary_%s' % libname
     return FFILibrary()
-
-
-_parser_cache = None
-
-def _get_parser():
-    global _parser_cache
-    if _parser_cache is None:
-        _parser_cache = pycparser.CParser()
-    return _parser_cache

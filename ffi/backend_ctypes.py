@@ -1,5 +1,5 @@
 import ctypes, ctypes.util
-
+from ffi import model
 
 class CTypesData(object):
     __slots__ = []
@@ -353,7 +353,7 @@ class CTypesBackend(object):
         return CTypesPrimitive
 
     def new_pointer_type(self, BItem):
-        if BItem is self.ffi._get_cached_btype('new_primitive_type', 'char'):
+        if BItem is self.ffi._get_cached_btype(model.PrimitiveType('char')):
             kind = 'charp'
         else:
             kind = 'generic'
@@ -418,8 +418,8 @@ class CTypesBackend(object):
                         ctypes.sizeof(self._as_ctype_ptr.contents),)
                 return ''
         #
-        if (BItem is self.ffi._get_cached_btype('new_void_type') or
-            BItem is self.ffi._get_cached_btype('new_primitive_type', 'char')):
+        if (BItem is self.ffi._get_cached_btype(model.void_type) or
+            BItem is self.ffi._get_cached_btype(model.PrimitiveType('char'))):
             CTypesPtr._automatic_casts = True
         #
         CTypesPtr._fix_class()
@@ -431,7 +431,7 @@ class CTypesBackend(object):
         else:
             brackets = ' &[%d]' % length
         BItem = CTypesPtr._BItem
-        if BItem is self.ffi._get_cached_btype('new_primitive_type', 'char'):
+        if BItem is self.ffi._get_cached_btype(model.PrimitiveType('char')):
             kind = 'char'
         else:
             kind = 'generic'
@@ -546,11 +546,11 @@ class CTypesBackend(object):
     def new_union_type(self, name):
         return self._new_struct_or_union('union', name, ctypes.Union)
 
-    def complete_struct_or_union(self, CTypesStructOrUnion, fields):
+    def complete_struct_or_union(self, CTypesStructOrUnion, tp, btypes):
         struct_or_union = CTypesStructOrUnion._ctype
-        fnames = [fname for (fname, BField, bitsize) in fields]
-        btypes = [BField for (fname, BField, bitsize) in fields]
-        bitfields = [bitsize for (fname, BField, bitsize) in fields]
+        fnames = tp.fldnames
+        bitfields = tp.fldbitsize
+        fields = zip(fnames, btypes, bitfields)
         #
         cfields = []
         for (fname, BField, bitsize) in fields:
@@ -572,7 +572,7 @@ class CTypesBackend(object):
             def initialize(blob, init):
                 if not isinstance(init, dict):
                     init = tuple(init)
-                    if len(init) > len(fields):
+                    if len(init) > len(fnames):
                         raise ValueError("too many values for %s initializer" %
                                          CTypesStructOrUnion._get_c_name())
                     init = dict(zip(fnames, init))
@@ -590,7 +590,7 @@ class CTypesBackend(object):
         if CTypesStructOrUnion._kind == 'union':
             def initialize(blob, init):
                 addr = ctypes.addressof(blob)
-                fname = fnames[0]
+                #fname = fnames[0]
                 BField = btypes[0]
                 PTR = ctypes.POINTER(BField._ctype)
                 BField._initialize(ctypes.cast(addr, PTR).contents, init)
@@ -621,8 +621,7 @@ class CTypesBackend(object):
                         raise OverflowError("value too large for bitfield")
             setattr(CTypesStructOrUnion, fname, property(getter, setter))
         #
-        CTypesPtr = self.ffi._get_cached_btype('new_pointer_type',
-                                               CTypesStructOrUnion)
+        CTypesPtr = self.ffi._get_cached_btype(model.PointerType(tp))
         for fname in fnames:
             if hasattr(CTypesPtr, fname):
                 raise ValueError("the field name %r conflicts in "
@@ -704,7 +703,7 @@ class CTypesBackend(object):
     def new_enum_type(self, name, enumerators, enumvalues):
         mapping = dict(zip(enumerators, enumvalues))
         reverse_mapping = dict(reversed(zip(enumvalues, enumerators)))
-        CTypesInt = self.ffi._get_cached_btype('new_primitive_type', 'int')
+        CTypesInt = self.ffi._get_cached_btype(model.PrimitiveType('int'))
         #
         def forward_map(source):
             if not isinstance(source, str):
@@ -777,7 +776,7 @@ class CTypesBackend(object):
         assert issubclass(BType, CTypesData)
         return BType._offsetof(fieldname)
 
-    def new(self, BType, source):
+    def newp(self, BType, source):
         return BType(source)
 
     def cast(self, BType, source):
