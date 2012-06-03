@@ -168,6 +168,10 @@ class CTypesBaseStructOrUnion(CTypesData):
         self._blob = ctypes_struct_or_union
         return self
 
+    @classmethod
+    def _to_ctypes(cls, value):
+        return value._blob
+
 
 class CTypesBackend(object):
 
