@@ -160,12 +160,11 @@ class Parser(object):
                 isinstance(params[0].type.type, pycparser.c_ast.IdentifierType)
                     and list(params[0].type.type.names) == ['void']):
                 del params[0]
-            args = [self._get_btype(argdeclnode.type,
-                                    convert_array_to_pointer=True)
+            args = [self._get_type(argdeclnode.type,
+                                   convert_array_to_pointer=True)
                     for argdeclnode in params]
-            result = self._get_btype(typenode.type)
-            return self._get_cached_btype('new_function_type',
-                                          tuple(args), result, ellipsis)
+            result = self._get_type(typenode.type)
+            return model.FunctionType(tuple(args), result, ellipsis)
         #
         raise ffi.FFIError("bad or unsupported type declaration")
 

@@ -189,10 +189,11 @@ class FFI(object):
         try:
             BType = self._cached_btypes[type]
         except KeyError:
-            BType = type.new_backend_type(self)
+            args = type.prepare_backend_type(self)
+            if args is None:
+                args = ()
+            BType = type.finish_backend_type(self, *args)
             self._cached_btypes[type] = BType
-            if type.is_struct_or_union_type:
-                self._backend.complete_struct_or_union(BType, type)
         return BType
 
     def _get_enum_type(self, type):
