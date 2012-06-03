@@ -18,11 +18,8 @@ class Verifier(object):
             f.write('#include <stdio.h>\n')
             f.write(preamble + "\n\n")
             f.write('int main() {\n')
-            for name, decl in ffi._declarations.iteritems():
-                if name.startswith('function '):
-                    self._declare_function(f, decl)
-                if name.startswith('struct '):
-                    self._declare_struct(f, decl)
+            for name, tp in ffi._parser._declarations.iteritems():
+                tp.declare(f)
             f.write('  return 0;\n')
             f.write('}\n')
         f.close()
@@ -32,7 +29,7 @@ class Verifier(object):
         assert out.returncode == 0
         outlines = out.out.splitlines()
 
-    def _declare_function(self, f, decl):
+    def _declare_function(self, f, tp):
         funcname = decl.type.declname
         restype = decl.type.type.names[0]
         if decl.args is None:

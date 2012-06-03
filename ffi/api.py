@@ -211,17 +211,17 @@ def _make_ffi_library(ffi, libname):
                 pass
             #
             key = 'function ' + name
-            if key in ffi._declarations:
-                node = ffi._declarations[key]
-                BType = ffi._get_btype(node)
+            if key in ffi._parser._declarations:
+                tp = ffi._parser._declarations[key]
+                BType = ffi._get_cached_btype(tp)
                 value = backendlib.load_function(BType, name)
                 function_cache[name] = value
                 return value
             #
             key = 'variable ' + name
-            if key in ffi._declarations:
-                node = ffi._declarations[key]
-                BType = ffi._get_btype(node)
+            if key in ffi._parser._declarations:
+                tp = ffi._parser._declarations[key]
+                BType = ffi._get_cached_btype(tp)
                 return backendlib.read_variable(BType, name)
             #
             raise AttributeError(name)
@@ -232,9 +232,9 @@ def _make_ffi_library(ffi, libname):
                 return
             #
             key = 'variable ' + name
-            if key in ffi._declarations:
-                node = ffi._declarations[key]
-                BType = ffi._get_btype(node)
+            if key in ffi._parser._declarations:
+                tp = ffi._parser._declarations[key]
+                BType = ffi._get_cached_btype(tp)
                 backendlib.write_variable(BType, name, value)
                 return
             #

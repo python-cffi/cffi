@@ -35,8 +35,7 @@ class Parser(object):
     def _parse_decl(self, decl):
         node = decl.type
         if isinstance(node, pycparser.c_ast.FuncDecl):
-            xxx
-            self._declare('function ' + decl.name, node)
+            self._declare('function ' + decl.name, self._get_type(node))
         else:
             if isinstance(node, pycparser.c_ast.Struct):
                 if node.decls is not None:
@@ -52,8 +51,7 @@ class Parser(object):
                                     decl)
             #
             if decl.name:
-                xxx
-                self._declare('variable ' + decl.name, node)
+                self._declare('variable ' + decl.name, self._get_type(node))
 
     def parse_type(self, cdecl, force_pointer=False,
                    convert_array_to_pointer=False):
@@ -99,7 +97,7 @@ class Parser(object):
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):
             # array type
             if convert_array_to_pointer:
-                return self._get_btype_pointer(self._get_type(typenode.type))
+                return self._get_type_pointer(self._get_type(typenode.type))
             if typenode.dim is None:
                 length = None
             else:
@@ -145,27 +143,30 @@ class Parser(object):
         #
         if isinstance(typenode, pycparser.c_ast.FuncDecl):
             # a function type
-            params = list(typenode.args.params)
-            ellipsis = (
-                len(params) > 0 and
-                isinstance(params[-1].type, pycparser.c_ast.TypeDecl) and
-                isinstance(params[-1].type.type,
-                           pycparser.c_ast.IdentifierType) and
-                ''.join(params[-1].type.type.names) == '__dotdotdot__')
-            if ellipsis:
-                params.pop()
-            if (len(params) == 1 and
-                isinstance(params[0].type, pycparser.c_ast.TypeDecl) and
-                isinstance(params[0].type.type, pycparser.c_ast.IdentifierType)
-                    and list(params[0].type.type.names) == ['void']):
-                del params[0]
-            args = [self._get_type(argdeclnode.type,
-                                   convert_array_to_pointer=True)
-                    for argdeclnode in params]
-            result = self._get_type(typenode.type)
-            return model.FunctionType(tuple(args), result, ellipsis)
+            return self._parse_function_type(typenode)
         #
         raise ffi.FFIError("bad or unsupported type declaration")
+
+    def _parse_function_type(self, typenode):
+        params = list(getattr(typenode.args, 'params', []))
+        ellipsis = (
+            len(params) > 0 and
+            isinstance(params[-1].type, pycparser.c_ast.TypeDecl) and
+            isinstance(params[-1].type.type,
+                       pycparser.c_ast.IdentifierType) and
+            ''.join(params[-1].type.type.names) == '__dotdotdot__')
+        if ellipsis:
+            params.pop()
+        if (len(params) == 1 and
+            isinstance(params[0].type, pycparser.c_ast.TypeDecl) and
+            isinstance(params[0].type.type, pycparser.c_ast.IdentifierType)
+                and list(params[0].type.type.names) == ['void']):
+            del params[0]
+        args = [self._get_type(argdeclnode.type,
+                               convert_array_to_pointer=True)
+                for argdeclnode in params]
+        result = self._get_type(typenode.type)
+        return model.FunctionType(tuple(args), result, ellipsis)
 
     def _get_struct_or_union_type(self, kind, type):
         name = type.name
