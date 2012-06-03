@@ -653,8 +653,10 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             else {
                 PyObject *ob;
                 PyErr_Clear();
-                if (!PyString_Check(init))
+                if (!PyString_Check(init)) {
+                    expected = "str or int";
                     goto cannot_convert;
+                }
 
                 ob = convert_enum_string_to_int(ct, init);
                 if (ob == NULL)
@@ -1640,9 +1642,14 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
                 return new_simple_cdata(cdsrc->c_data, ct);
             }
         }
-        value = _my_PyLong_AsUnsignedLongLong(ob, 0);
-        if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
-            return NULL;
+        if (ob == Py_None) {
+            value = 0;
+        }
+        else {
+            value = _my_PyLong_AsUnsignedLongLong(ob, 0);
+            if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
+                return NULL;
+        }
         return new_simple_cdata((char *)(Py_intptr_t)value, ct);
     }
     else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED
@@ -2467,6 +2474,8 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
             i = sizeof(ffi_arg);
         exchange_offset += i;
     }
+    else
+        exchange_offset = 0;   /* not used */
 
     /* loop over the arguments */
     for (i=0; i<nargs; i++) {
