@@ -1,6 +1,6 @@
 import new
 import pycparser    # http://code.google.com/p/pycparser/
-from ffi import ffiplatform, cparser, model
+from ffi import ffiplatform
 
 class FFIError(Exception):
     pass
@@ -41,7 +41,7 @@ class FFI(object):
                 from . import backend_ctypes
                 backend = backend_ctypes.CTypesBackend()
         self._backend = backend
-        self._parser = cparser.Parser()
+        self._declarations = {}
         self._cached_btypes = {}
         self._parsed_types = new.module('parsed_types').__dict__
         self._new_types = new.module('new_types').__dict__
@@ -64,7 +64,6 @@ class FFI(object):
         self.cdef('\n'.join(lines))
 
     def _declare(self, name, node):
-        xxx
         if name == 'typedef __dotdotdot__':
             return
         if name in self._declarations:
@@ -77,19 +76,21 @@ class FFI(object):
         then be accessed via 'ffi.C' or 'ffi.load()'.  The types can be used
         in 'ffi.new()' and other functions.
         """
-        self._parser.parse(csource)
-        #for decl in ast.ext:
-        #    if isinstance(decl, pycparser.c_ast.Decl):
-        #        self._parse_decl(decl)
-        #    elif isinstance(decl, pycparser.c_ast.Typedef):
-        #        if not decl.name:
-        #            raise CDefError("typedef does not declare any name", decl)
-        #        self._declare('typedef ' + decl.name, decl.type)
-        #    else:
-        #        raise CDefError("unrecognized construct", decl)
+        csource = ("typedef int __dotdotdot__;\n" +
+                   csource.replace('...', '__dotdotdot__'))
+        ast = _get_parser().parse(csource)
+
+        for decl in ast.ext:
+            if isinstance(decl, pycparser.c_ast.Decl):
+                self._parse_decl(decl)
+            elif isinstance(decl, pycparser.c_ast.Typedef):
+                if not decl.name:
+                    raise CDefError("typedef does not declare any name", decl)
+                self._declare('typedef ' + decl.name, decl.type)
+            else:
+                raise CDefError("unrecognized construct", decl)
 
     def _parse_decl(self, decl):
-        xxx
         node = decl.type
         if isinstance(node, pycparser.c_ast.FuncDecl):
             self._declare('function ' + decl.name, node)
@@ -129,8 +130,8 @@ class FFI(object):
             try:
                 return self._parsed_types[cdecl]
             except KeyError:
-                type = self._parser.parse_type(cdecl)
-                btype = type.new_backend_type(self._backend)
+                typenode = self._parse_type(cdecl)
+                btype = self._get_btype(typenode)
                 self._parsed_types[cdecl] = btype
                 return btype
         else:
@@ -181,8 +182,8 @@ class FFI(object):
         try:
             BType = self._new_types[cdecl]
         except KeyError:
-            type = self._parser.parse_type(cdecl, force_pointer=True)
-            BType = type.new_backend_type(self._backend)
+            typenode = self._parse_type(cdecl)
+            BType = self._get_btype(typenode, force_pointer=True)
             self._new_types[cdecl] = BType
         #
         return self._backend.new(BType, init)
@@ -208,6 +209,22 @@ class FFI(object):
         BFunc = self.typeof(cdecl)
         return self._backend.callback(BFunc, python_callable)
 
+    def _parse_type(self, cdecl):
+        # XXX: for more efficiency we would need to poke into the
+        # internals of CParser...  the following registers the
+        # typedefs, because their presence or absence influences the
+        # parsing itself (but what they are typedef'ed to plays no role)
+        csourcelines = []
+        for name in sorted(self._declarations):
+            if name.startswith('typedef '):
+                csourcelines.append('typedef int %s;' % (name[8:],))
+        #
+        csourcelines.append('void __dummy(%s);' % cdecl)
+        ast = _get_parser().parse('\n'.join(csourcelines))
+        # XXX: insert some sanity check
+        typenode = ast.ext[-1].type.args.params[0].type
+        return typenode
+
     def _get_cached_btype(self, methname, *args):
         try:
             BType = self._cached_btypes[methname, args]
@@ -215,6 +232,95 @@ class FFI(object):
             BType = getattr(self._backend, methname)(*args)
             self._cached_btypes[methname, args] = BType
         return BType
+
+    def _get_btype_pointer(self, type):
+        BItem = self._get_btype(type)
+        if isinstance(type, pycparser.c_ast.FuncDecl):
+            return BItem      # "pointer-to-function" ~== "function"
+        return self._get_cached_btype("new_pointer_type", BItem)
+
+    def _get_btype(self, typenode, convert_array_to_pointer=False,
+                   force_pointer=False):
+        # first, dereference typedefs, if necessary several times
+        while (isinstance(typenode, pycparser.c_ast.TypeDecl) and
+               isinstance(typenode.type, pycparser.c_ast.IdentifierType) and
+               len(typenode.type.names) == 1 and
+               ('typedef ' + typenode.type.names[0]) in self._declarations):
+            typenode = self._declarations['typedef ' + typenode.type.names[0]]
+        #
+        if isinstance(typenode, pycparser.c_ast.ArrayDecl):
+            # array type
+            if convert_array_to_pointer:
+                return self._get_btype_pointer(typenode.type)
+            if typenode.dim is None:
+                length = None
+            else:
+                length = self._parse_constant(typenode.dim)
+            BItem = self._get_btype(typenode.type)
+            BPtr = self._get_cached_btype('new_pointer_type', BItem)
+            return self._get_cached_btype('new_array_type', BPtr, length)
+        #
+        if force_pointer:
+            return self._get_btype_pointer(typenode)
+        #
+        if isinstance(typenode, pycparser.c_ast.PtrDecl):
+            # pointer type
+            return self._get_btype_pointer(typenode.type)
+        #
+        if isinstance(typenode, pycparser.c_ast.TypeDecl):
+            type = typenode.type
+            if isinstance(type, pycparser.c_ast.IdentifierType):
+                # assume a primitive type.  get it from .names, but reduce
+                # synonyms to a single chosen combination
+                names = list(type.names)
+                if names == ['signed'] or names == ['unsigned']:
+                    names.append('int')
+                if names[0] == 'signed' and names != ['signed', 'char']:
+                    names.pop(0)
+                if (len(names) > 1 and names[-1] == 'int'
+                        and names != ['unsigned', 'int']):
+                    names.pop()
+                ident = ' '.join(names)
+                if ident == 'void':
+                    return self._get_cached_btype("new_void_type")
+                return self._get_cached_btype('new_primitive_type', ident)
+            #
+            if isinstance(type, pycparser.c_ast.Struct):
+                # 'struct foobar'
+                return self._get_struct_or_union_type('struct', type)
+            #
+            if isinstance(type, pycparser.c_ast.Union):
+                # 'union foobar'
+                return self._get_struct_or_union_type('union', type)
+            #
+            if isinstance(type, pycparser.c_ast.Enum):
+                # 'enum foobar'
+                return self._get_enum_type(type)
+        #
+        if isinstance(typenode, pycparser.c_ast.FuncDecl):
+            # a function type
+            params = list(typenode.args.params)
+            ellipsis = (
+                len(params) > 0 and
+                isinstance(params[-1].type, pycparser.c_ast.TypeDecl) and
+                isinstance(params[-1].type.type,
+                           pycparser.c_ast.IdentifierType) and
+                ''.join(params[-1].type.type.names) == '__dotdotdot__')
+            if ellipsis:
+                params.pop()
+            if (len(params) == 1 and
+                isinstance(params[0].type, pycparser.c_ast.TypeDecl) and
+                isinstance(params[0].type.type, pycparser.c_ast.IdentifierType)
+                    and list(params[0].type.type.names) == ['void']):
+                del params[0]
+            args = [self._get_btype(argdeclnode.type,
+                                    convert_array_to_pointer=True)
+                    for argdeclnode in params]
+            result = self._get_btype(typenode.type)
+            return self._get_cached_btype('new_function_type',
+                                          tuple(args), result, ellipsis)
+        #
+        raise FFIError("bad or unsupported type declaration")
 
     def _get_struct_or_union_type(self, kind, type):
         name = type.name
@@ -352,3 +458,12 @@ def _make_ffi_library(ffi, libname):
     if libname is not None:
         FFILibrary.__name__ = 'FFILibrary_%s' % libname
     return FFILibrary()
+
+
+_parser_cache = None
+
+def _get_parser():
+    global _parser_cache
+    if _parser_cache is None:
+        _parser_cache = pycparser.CParser()
+    return _parser_cache
