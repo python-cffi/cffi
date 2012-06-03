@@ -76,9 +76,9 @@ class ArrayType(BaseType):
         return ffi._backend.new_array_type(ffi._get_cached_btype(self.item),
                                            self.length)
 
-class StructType(BaseType):
+class StructOrUnion(BaseType):
     _attrs_ = ('name',)
-    
+        
     is_struct_or_union_type = True
     
     def __init__(self, name, fldnames, fldtypes, fldbitsize):
@@ -94,5 +94,11 @@ class StructType(BaseType):
                              zip(self.fldnames, self.fldtypes)])
         return '<struct %s {%s}>' % (self.name, fldrepr)
 
+class StructType(StructOrUnion):
     def new_backend_type(self, ffi):
         return ffi._backend.new_struct_type(self.name)
+
+class UnionType(StructOrUnion):
+    def new_backend_type(self, ffi):
+        return ffi._backend.new_union_type(self.name)
+    

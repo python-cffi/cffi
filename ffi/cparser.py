@@ -42,9 +42,8 @@ class Parser(object):
                 if node.decls is not None:
                     self._get_struct_or_union_type('struct', node)
             elif isinstance(node, pycparser.c_ast.Union):
-                xxx
                 if node.decls is not None:
-                    self._declare('union ' + node.name, node)
+                    self._get_struct_or_union_type('union', node)
             elif isinstance(node, pycparser.c_ast.Enum):
                 if node.values is not None:
                     xxx
@@ -178,7 +177,11 @@ class Parser(object):
         #
         decls = type.decls
         # create an empty type for now
-        tp = model.StructType(name, None, None, None)
+        if kind == 'struct':
+            tp = model.StructType(name, None, None, None)
+        else:
+            assert kind == 'union'
+            tp = model.UnionType(name, None, None, None)
         self._declarations[key] = tp
 
         #if decls is None and name is not None:
