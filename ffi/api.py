@@ -162,7 +162,7 @@ class FFI(object):
             BType = type.get_backend_type(self)
             self._new_types[cdecl] = BType
         #
-        return self._backend.new(BType, init)
+        return self._backend.newp(BType, init)
 
     def cast(self, cdecl, source):
         """Similar to a C cast: returns an instance of the named C

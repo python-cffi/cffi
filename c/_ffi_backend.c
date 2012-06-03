@@ -1490,13 +1490,13 @@ static PyTypeObject CDataOwning_Type = {
     &CData_Type,                                /* tp_base */
 };
 
-static PyObject *b_new(PyObject *self, PyObject *args)
+static PyObject *b_newp(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct, *ctitem;
     CDataObject *cd;
     PyObject *init;
     Py_ssize_t dataoffset, datasize, explicitlength;
-    if (!PyArg_ParseTuple(args, "O!O:new", &CTypeDescr_Type, &ct, &init))
+    if (!PyArg_ParseTuple(args, "O!O:newp", &CTypeDescr_Type, &ct, &init))
         return NULL;
 
     explicitlength = -1;
@@ -3105,7 +3105,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new_function_type", b_new_function_type, METH_VARARGS},
     {"new_enum_type", b_new_enum_type, METH_VARARGS},
     {"_getfields", b__getfields, METH_O},
-    {"new", b_new, METH_VARARGS},
+    {"newp", b_newp, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"callback", b_callback, METH_VARARGS},
     {"alignof", b_alignof, METH_O},
