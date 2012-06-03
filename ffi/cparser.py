@@ -35,8 +35,7 @@ class Parser(object):
     def _parse_decl(self, decl):
         node = decl.type
         if isinstance(node, pycparser.c_ast.FuncDecl):
-            xxx
-            self._declare('function ' + decl.name, node)
+            self._declare('function ' + decl.name, self._get_type(node))
         else:
             if isinstance(node, pycparser.c_ast.Struct):
                 if node.decls is not None:
@@ -46,15 +45,13 @@ class Parser(object):
                     self._get_struct_or_union_type('union', node)
             elif isinstance(node, pycparser.c_ast.Enum):
                 if node.values is not None:
-                    xxx
-                    self._declare('enum ' + node.name, node)
+                    self._get_enum_type(node)
             elif not decl.name:
                 raise ffi.CDefError("construct does not declare any variable",
                                     decl)
             #
             if decl.name:
-                xxx
-                self._declare('variable ' + decl.name, node)
+                self._declare('variable ' + decl.name, self._get_type(node))
 
     def parse_type(self, cdecl, force_pointer=False,
                    convert_array_to_pointer=False):
@@ -100,7 +97,7 @@ class Parser(object):
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):
             # array type
             if convert_array_to_pointer:
-                return self._get_btype_pointer(self._get_type(typenode.type))
+                return self._get_type_pointer(self._get_type(typenode.type))
             if typenode.dim is None:
                 length = None
             else:
@@ -108,7 +105,7 @@ class Parser(object):
             return model.ArrayType(self._get_type(typenode.type), length)
         #
         if force_pointer:
-            return self._get_type_pointer(self._get_type(typenode))
+            return model.PointerType(self._get_type(typenode))
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
             # pointer type
@@ -146,27 +143,30 @@ class Parser(object):
         #
         if isinstance(typenode, pycparser.c_ast.FuncDecl):
             # a function type
-            params = list(typenode.args.params)
-            ellipsis = (
-                len(params) > 0 and
-                isinstance(params[-1].type, pycparser.c_ast.TypeDecl) and
-                isinstance(params[-1].type.type,
-                           pycparser.c_ast.IdentifierType) and
-                ''.join(params[-1].type.type.names) == '__dotdotdot__')
-            if ellipsis:
-                params.pop()
-            if (len(params) == 1 and
-                isinstance(params[0].type, pycparser.c_ast.TypeDecl) and
-                isinstance(params[0].type.type, pycparser.c_ast.IdentifierType)
-                    and list(params[0].type.type.names) == ['void']):
-                del params[0]
-            args = [self._get_type(argdeclnode.type,
-                                   convert_array_to_pointer=True)
-                    for argdeclnode in params]
-            result = self._get_type(typenode.type)
-            return model.FunctionType(tuple(args), result, ellipsis)
+            return self._parse_function_type(typenode)
         #
         raise ffi.FFIError("bad or unsupported type declaration")
+
+    def _parse_function_type(self, typenode):
+        params = list(getattr(typenode.args, 'params', []))
+        ellipsis = (
+            len(params) > 0 and
+            isinstance(params[-1].type, pycparser.c_ast.TypeDecl) and
+            isinstance(params[-1].type.type,
+                       pycparser.c_ast.IdentifierType) and
+            ''.join(params[-1].type.type.names) == '__dotdotdot__')
+        if ellipsis:
+            params.pop()
+        if (len(params) == 1 and
+            isinstance(params[0].type, pycparser.c_ast.TypeDecl) and
+            isinstance(params[0].type.type, pycparser.c_ast.IdentifierType)
+                and list(params[0].type.type.names) == ['void']):
+            del params[0]
+        args = [self._get_type(argdeclnode.type,
+                               convert_array_to_pointer=True)
+                for argdeclnode in params]
+        result = self._get_type(typenode.type)
+        return model.FunctionType(tuple(args), result, ellipsis)
 
     def _get_struct_or_union_type(self, kind, type):
         name = type.name
@@ -225,3 +225,27 @@ class Parser(object):
         #
         raise ffi.FFIError("unsupported non-constant or "
                            "not immediately constant expression")
+
+    def _get_enum_type(self, type):
+        name = type.name
+        decls = type.values
+        key = 'enum %s' % (name,)
+        if key in self._declarations:
+            return self._declarations[key]
+        if decls is not None:
+            enumerators = tuple([enum.name for enum in decls.enumerators])
+            enumvalues = []
+            nextenumvalue = 0
+            for enum in decls.enumerators:
+                if enum.value is not None:
+                    nextenumvalue = self._parse_constant(enum.value)
+                enumvalues.append(nextenumvalue)
+                nextenumvalue += 1
+            enumvalues = tuple(enumvalues) 
+            tp = model.EnumType(name, enumerators, enumvalues)
+            self._declarations[key] = tp
+        else:   # opaque enum
+            enumerators = ()
+            enumvalues = ()
+            tp = model.EnumType(name, (), ())
+        return tp

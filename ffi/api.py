@@ -1,6 +1,5 @@
 import new
-import pycparser    # http://code.google.com/p/pycparser/
-from ffi import ffiplatform, cparser, model
+from ffi import cparser
 
 class FFIError(Exception):
     pass
@@ -62,14 +61,6 @@ class FFI(object):
             lines.append('typedef %s %s;' % (equiv % by_size[size], name))
         self.cdef('\n'.join(lines))
 
-    def _declare(self, name, node):
-        xxx
-        if name == 'typedef __dotdotdot__':
-            return
-        if name in self._declarations:
-            raise FFIError("multiple declarations of %s" % (name,))
-        self._declarations[name] = node
-
     def cdef(self, csource):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
@@ -77,15 +68,6 @@ class FFI(object):
         in 'ffi.new()' and other functions.
         """
         self._parser.parse(csource)
-        #for decl in ast.ext:
-        #    if isinstance(decl, pycparser.c_ast.Decl):
-        #        self._parse_decl(decl)
-        #    elif isinstance(decl, pycparser.c_ast.Typedef):
-        #        if not decl.name:
-        #            raise CDefError("typedef does not declare any name", decl)
-        #        self._declare('typedef ' + decl.name, decl.type)
-        #    else:
-        #        raise CDefError("unrecognized construct", decl)
 
     def load(self, name):
         """Load and return a dynamic library identified by 'name'.
@@ -196,29 +178,6 @@ class FFI(object):
             self._cached_btypes[type] = BType
         return BType
 
-    def _get_enum_type(self, type):
-        name = type.name
-        decls = type.values
-        if decls is None and name is not None:
-            key = 'enum %s' % (name,)
-            if key in self._declarations:
-                decls = self._declarations[key].values
-        if decls is not None:
-            enumerators = tuple([enum.name for enum in decls.enumerators])
-            enumvalues = []
-            nextenumvalue = 0
-            for enum in decls.enumerators:
-                if enum.value is not None:
-                    nextenumvalue = self._parse_constant(enum.value)
-                enumvalues.append(nextenumvalue)
-                nextenumvalue += 1
-            enumvalues = tuple(enumvalues)
-        else:   # opaque enum
-            enumerators = ()
-            enumvalues = ()
-        return self._get_cached_btype('new_enum_type', name,
-                                      enumerators, enumvalues)
-
     def verify(self, preamble='', **kwargs):
         """ Verify that the current ffi signatures compile on this machine
         """
@@ -252,17 +211,17 @@ def _make_ffi_library(ffi, libname):
                 pass
             #
             key = 'function ' + name
-            if key in ffi._declarations:
-                node = ffi._declarations[key]
-                BType = ffi._get_btype(node)
+            if key in ffi._parser._declarations:
+                tp = ffi._parser._declarations[key]
+                BType = ffi._get_cached_btype(tp)
                 value = backendlib.load_function(BType, name)
                 function_cache[name] = value
                 return value
             #
             key = 'variable ' + name
-            if key in ffi._declarations:
-                node = ffi._declarations[key]
-                BType = ffi._get_btype(node)
+            if key in ffi._parser._declarations:
+                tp = ffi._parser._declarations[key]
+                BType = ffi._get_cached_btype(tp)
                 return backendlib.read_variable(BType, name)
             #
             raise AttributeError(name)
@@ -273,9 +232,9 @@ def _make_ffi_library(ffi, libname):
                 return
             #
             key = 'variable ' + name
-            if key in ffi._declarations:
-                node = ffi._declarations[key]
-                BType = ffi._get_btype(node)
+            if key in ffi._parser._declarations:
+                tp = ffi._parser._declarations[key]
+                BType = ffi._get_cached_btype(tp)
                 backendlib.write_variable(BType, name, value)
                 return
             #

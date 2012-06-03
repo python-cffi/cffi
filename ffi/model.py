@@ -1,17 +1,17 @@
 
 class BaseType(object):
-    is_struct_or_union_type = False
-    
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
-                self.__dict__ == other.__dict__)
+                self._get_items() == other._get_items())
 
     def __ne__(self, other):
         return not self == other
 
+    def _get_items(self):
+        return [(name, getattr(self, name)) for name in self._attrs_]
+
     def __hash__(self):
-        items = tuple([(name, getattr(self, name)) for name in self._attrs_])
-        return hash((self.__class__, tuple(items)))
+        return hash((self.__class__, tuple(self._get_items())))
 
     def prepare_backend_type(self, ffi):
         pass
@@ -107,8 +107,6 @@ class ArrayType(BaseType):
 class StructOrUnion(BaseType):
     _attrs_ = ('name',)
         
-    is_struct_or_union_type = True
-    
     def __init__(self, name, fldnames, fldtypes, fldbitsize):
         self.name = name
         self.fldnames = fldnames
@@ -142,3 +140,14 @@ class UnionType(StructOrUnion):
     def get_btype(self, ffi):
         return ffi._backend.new_union_type(self.name)
     
+class EnumType(BaseType):
+    _attrs_ = ('name',)
+
+    def __init__(self, name, enumerators, enumvalues):
+        self.name = name
+        self.enumerators = enumerators
+        self.enumvalues = enumvalues
+
+    def new_backend_type(self, ffi):
+        return ffi._backend.new_enum_type(self.name, self.enumerators,
+                                          self.enumvalues)
