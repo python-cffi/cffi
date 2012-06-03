@@ -1,6 +1,5 @@
 import new
-import pycparser    # http://code.google.com/p/pycparser/
-from ffi import ffiplatform, cparser, model
+from ffi import cparser
 
 class FFIError(Exception):
     pass
@@ -62,14 +61,6 @@ class FFI(object):
             lines.append('typedef %s %s;' % (equiv % by_size[size], name))
         self.cdef('\n'.join(lines))
 
-    def _declare(self, name, node):
-        xxx
-        if name == 'typedef __dotdotdot__':
-            return
-        if name in self._declarations:
-            raise FFIError("multiple declarations of %s" % (name,))
-        self._declarations[name] = node
-
     def cdef(self, csource):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
@@ -77,15 +68,6 @@ class FFI(object):
         in 'ffi.new()' and other functions.
         """
         self._parser.parse(csource)
-        #for decl in ast.ext:
-        #    if isinstance(decl, pycparser.c_ast.Decl):
-        #        self._parse_decl(decl)
-        #    elif isinstance(decl, pycparser.c_ast.Typedef):
-        #        if not decl.name:
-        #            raise CDefError("typedef does not declare any name", decl)
-        #        self._declare('typedef ' + decl.name, decl.type)
-        #    else:
-        #        raise CDefError("unrecognized construct", decl)
 
     def load(self, name):
         """Load and return a dynamic library identified by 'name'.

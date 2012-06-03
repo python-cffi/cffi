@@ -108,7 +108,7 @@ class Parser(object):
             return model.ArrayType(self._get_type(typenode.type), length)
         #
         if force_pointer:
-            return self._get_type_pointer(self._get_type(typenode))
+            return model.PointerType(self._get_type(typenode))
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
             # pointer type
