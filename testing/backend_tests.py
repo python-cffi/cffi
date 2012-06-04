@@ -536,6 +536,11 @@ class BackendTests:
         res = q(45)
         assert res == 46
 
+    def test_functionptr_advanced(self):
+        ffi = FFI(backend=self.Backend())
+        t = ffi.typeof("int(*(*)(int))(int)")
+        assert repr(t) == self.TypeRepr % "int(*(*)(int))(int)"
+
     def test_char_cast(self):
         ffi = FFI(backend=self.Backend())
         p = ffi.cast("int", '\x01')

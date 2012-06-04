@@ -644,7 +644,7 @@ class CTypesBackend(object):
             _ctype = ctypes.CFUNCTYPE(BResult._ctype,
                                       *[BArg._ctype for BArg in BArgs],
                                       use_errno=True)
-            _reftypename = '%s(* &)(%s)' % (BResult._get_c_name(), nameargs)
+            _reftypename = BResult._get_c_name('(* &)(%s)' % (nameargs,))
 
             def __init__(self, init):
                 # create a callback to the Python callable init()
