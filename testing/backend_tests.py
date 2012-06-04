@@ -714,6 +714,16 @@ class BackendTests:
         s.c = -4
         assert s.c == -4
 
+    def test_anonymous_struct(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("typedef struct { int a; } foo_t;")
+        ffi.cdef("typedef struct { char b, c; } bar_t;")
+        f = ffi.new("foo_t", [12345])
+        b = ffi.new("bar_t", ["B", "C"])
+        assert f.a == 12345
+        assert f.b == "B"
+        assert f.c == "C"
+
     def test_pointer_arithmetic(self):
         ffi = FFI(backend=self.Backend())
         s = ffi.new("short[]", range(100, 110))
