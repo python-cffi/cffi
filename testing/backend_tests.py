@@ -721,8 +721,16 @@ class BackendTests:
         f = ffi.new("foo_t", [12345])
         b = ffi.new("bar_t", ["B", "C"])
         assert f.a == 12345
-        assert f.b == "B"
-        assert f.c == "C"
+        assert b.b == "B"
+        assert b.c == "C"
+        assert repr(b).startswith("<cdata 'struct $bar_t *'")
+
+    def test_struct_with_two_usages(self):
+        for name in ['foo_s', '']:    # anonymous or not
+            ffi = FFI(backend=self.Backend())
+            ffi.cdef("typedef struct %s { int a; } foo_t, *foo_p;" % name)
+            f = ffi.new("foo_t", [12345])
+            ps = ffi.new("foo_p[]", [f])
 
     def test_pointer_arithmetic(self):
         ffi = FFI(backend=self.Backend())

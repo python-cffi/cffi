@@ -1,6 +1,6 @@
 
 from . import api, model
-import pycparser
+import pycparser, weakref
 
 _parser_cache = None
 
@@ -13,6 +13,8 @@ def _get_parser():
 class Parser(object):
     def __init__(self):
         self._declarations = {}
+        self._anonymous_counter = 0
+        self._structnode2type = weakref.WeakKeyDictionary()
 
     def parse(self, csource):
         csource = ("typedef int __dotdotdot__;\n" +
@@ -132,11 +134,11 @@ class Parser(object):
             #
             if isinstance(type, pycparser.c_ast.Struct):
                 # 'struct foobar'
-                return self._get_struct_or_union_type('struct', type)
+                return self._get_struct_or_union_type('struct', type, typenode)
             #
             if isinstance(type, pycparser.c_ast.Union):
                 # 'union foobar'
-                return self._get_struct_or_union_type('union', type)
+                return self._get_struct_or_union_type('union', type, typenode)
             #
             if isinstance(type, pycparser.c_ast.Enum):
                 # 'enum foobar'
@@ -169,26 +171,56 @@ class Parser(object):
         result = self._get_type(typenode.type)
         return model.FunctionType(name, tuple(args), result, ellipsis)
 
-    def _get_struct_or_union_type(self, kind, type):
+    def _get_struct_or_union_type(self, kind, type, typenode=None):
+        # First, a level of caching on the exact 'type' node of the AST.
+        # This is obscure, but needed because pycparser "unrolls" declarations
+        # such as "typedef struct { } foo_t, *foo_p" and we end up with
+        # an AST that is not a tree, but a DAG, with the "type" node of the
+        # two branches foo_t and foo_p of the trees being the same node.
+        # It's a bit silly but detecting "DAG-ness" in the AST tree seems
+        # to be the only way to distinguish this case from two independent
+        # structs.  See test_struct_with_two_usages.
+        try:
+            return self._structnode2type[type]
+        except KeyError:
+            pass
+        #
         # Note that this must handle parsing "struct foo" any number of
         # times and always return the same StructType object.  Additionally,
         # one of these times (not necessarily the first), the fields of
         # the struct can be specified with "struct foo { ...fields... }".
+        # If no name is given, then we have to create a new anonymous struct
+        # with no caching; in this case, the fields are either specified
+        # right now or never.
         #
         name = type.name
         #
         # get the type or create it if needed
-        key = '%s %s' % (kind, name)
-        try:
-            tp = self._declarations[key]
-        except KeyError:
+        if name is None:
+            # 'typenode' is only used to guess a more readable name for
+            # anonymous structs, for the common case "typedef struct { } foo".
+            if typenode is not None and isinstance(typenode.declname, str):
+                explicit_name = '$%s' % typenode.declname
+            else:
+                self._anonymous_counter += 1
+                explicit_name = '$%d' % self._anonymous_counter
+            tp = None
+        else:
+            explicit_name = name
+            key = '%s %s' % (kind, name)
+            tp = self._declarations.get(key, None)
+        #
+        if tp is None:
             if kind == 'struct':
-                tp = model.StructType(name, None, None, None)
+                tp = model.StructType(explicit_name, None, None, None)
             elif kind == 'union':
-                tp = model.UnionType(name, None, None, None)
+                tp = model.UnionType(explicit_name, None, None, None)
             else:
                 raise AssertionError("kind = %r" % (kind,))
-            self._declarations[key] = tp
+            if name is not None:
+                self._declare(key, tp)
+        #
+        self._structnode2type[type] = tp
         #
         # is there a 'type.decls'?  If yes, then this is the place in the
         # C sources that declare the fields.  If no, then just return the
