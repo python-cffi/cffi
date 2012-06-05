@@ -155,7 +155,7 @@ class Parser(object):
             isinstance(params[-1].type, pycparser.c_ast.TypeDecl) and
             isinstance(params[-1].type.type,
                        pycparser.c_ast.IdentifierType) and
-            ''.join(params[-1].type.type.names) == '__dotdotdot__')
+            params[-1].type.type.names == ['__dotdotdot__'])
         if ellipsis:
             params.pop()
         if (len(params) == 1 and
@@ -171,6 +171,7 @@ class Parser(object):
 
     def _get_struct_or_union_type(self, kind, type):
         name = type.name
+        assert name is not None       # needs to be fixed
         key = '%s %s' % (kind, name)
         if key in self._declarations:
             return self._declarations[key]
