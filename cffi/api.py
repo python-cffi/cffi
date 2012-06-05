@@ -1,5 +1,4 @@
 import new
-from ffi import cparser
 
 class FFIError(Exception):
     pass
@@ -30,6 +29,7 @@ class FFI(object):
         """Create an FFI instance.  The 'backend' argument is used to
         select a non-default backend, mostly for tests.
         """
+        from . import cparser
         if backend is None:
             try:
                 import _ffi_backend as backend
@@ -181,7 +181,7 @@ class FFI(object):
     def verify(self, preamble='', **kwargs):
         """ Verify that the current ffi signatures compile on this machine
         """
-        from ffi.verifier import Verifier
+        from .verifier import Verifier
         return Verifier().verify(self, preamble, **kwargs)
 
 def _make_ffi_library(ffi, libname):

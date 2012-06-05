@@ -1,5 +1,5 @@
 import ctypes, ctypes.util
-from ffi import model
+from . import model
 
 class CTypesData(object):
     __slots__ = []

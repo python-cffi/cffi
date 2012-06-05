@@ -1,6 +1,6 @@
 
 import py
-from ffi import FFI, VerificationMissing
+from cffi import FFI, VerificationMissing
 
 def test_ffi_nonfull_struct():
     py.test.skip("XXX")

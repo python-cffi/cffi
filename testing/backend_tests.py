@@ -1,6 +1,6 @@
 import py
 import sys, ctypes
-from ffi import FFI
+from cffi import FFI
 
 SIZE_OF_INT   = ctypes.sizeof(ctypes.c_int)
 SIZE_OF_LONG  = ctypes.sizeof(ctypes.c_long)

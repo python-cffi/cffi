@@ -1,7 +1,6 @@
 
-import ffi
+from . import api, model
 import pycparser
-from ffi import model
 
 _parser_cache = None
 
@@ -24,13 +23,13 @@ class Parser(object):
                 self._parse_decl(decl)
             elif isinstance(decl, pycparser.c_ast.Typedef):
                 if not decl.name:
-                    raise ffi.CDefError("typedef does not declare any name",
+                    raise api.CDefError("typedef does not declare any name",
                                         decl)
                 if decl.name != '__dotdotdot__':
                     self._declare('typedef ' + decl.name,
                                   self._get_type(decl.type))
             else:
-                raise ffi.CDefError("unrecognized construct", decl)
+                raise api.CDefError("unrecognized construct", decl)
 
     def _parse_decl(self, decl):
         node = decl.type
@@ -49,7 +48,7 @@ class Parser(object):
                 if node.values is not None:
                     self._get_enum_type(node)
             elif not decl.name:
-                raise ffi.CDefError("construct does not declare any variable",
+                raise api.CDefError("construct does not declare any variable",
                                     decl)
             #
             if decl.name:
@@ -74,7 +73,7 @@ class Parser(object):
 
     def _declare(self, name, obj):
         if name in self._declarations:
-            raise ffi.FFIError("multiple declarations of %s" % (name,))
+            raise api.FFIError("multiple declarations of %s" % (name,))
         self._declarations[name] = obj
 
     def _get_type_pointer(self, type):
@@ -147,7 +146,7 @@ class Parser(object):
             # a function type
             return self._parse_function_type(typenode, name)
         #
-        raise ffi.FFIError("bad or unsupported type declaration")
+        raise api.FFIError("bad or unsupported type declaration")
 
     def _parse_function_type(self, typenode, name=None):
         params = list(getattr(typenode.args, 'params', []))
@@ -225,7 +224,7 @@ class Parser(object):
                 exprnode.op == '-'):
             return -self._parse_constant(exprnode.expr)
         #
-        raise ffi.FFIError("unsupported non-constant or "
+        raise api.FFIError("unsupported non-constant or "
                            "not immediately constant expression")
 
     def _get_enum_type(self, type):

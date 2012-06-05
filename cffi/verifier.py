@@ -1,6 +1,6 @@
 
 from platformer import platform, ExternalCompilationInfo
-from ffi import ffiplatform
+from . import ffiplatform
 
 class Verifier(object):
     def __init__(self):

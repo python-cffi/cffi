@@ -1,6 +1,6 @@
 # A Linux-only demo
 #
-from ffi import FFI
+from cffi import FFI
 
 
 ffi = FFI()

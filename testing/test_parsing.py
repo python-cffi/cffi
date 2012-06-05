@@ -1,4 +1,4 @@
-from ffi import FFI
+from cffi import FFI
 
 class FakeBackend(object):
 

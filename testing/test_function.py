@@ -1,7 +1,7 @@
 import py
-from ffi import FFI
+from cffi import FFI
 import math, os
-from ffi.backend_ctypes import CTypesBackend
+from cffi.backend_ctypes import CTypesBackend
 
 
 class FdWriteCapture(object):

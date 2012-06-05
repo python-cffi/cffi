@@ -1,7 +1,7 @@
 import py, sys
 import subprocess
-from ffi import FFI
-from ffi.backend_ctypes import CTypesBackend
+from cffi import FFI
+from cffi.backend_ctypes import CTypesBackend
 
 
 SOURCE = """\

@@ -1,5 +1,5 @@
 from testing import backend_tests
-from ffi.backend_ctypes import CTypesBackend
+from cffi.backend_ctypes import CTypesBackend
 
 
 class TestCTypes(backend_tests.BackendTests):

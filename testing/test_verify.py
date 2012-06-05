@@ -1,6 +1,6 @@
 
 import py
-from ffi import FFI
+from cffi import FFI
 from platformer import CompilationError
 
 def test_simple_verify():
