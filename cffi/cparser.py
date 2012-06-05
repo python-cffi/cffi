@@ -170,33 +170,38 @@ class Parser(object):
         return model.FunctionType(name, tuple(args), result, ellipsis)
 
     def _get_struct_or_union_type(self, kind, type):
+        # Note that this must handle parsing "struct foo" any number of
+        # times and always return the same StructType object.  Additionally,
+        # one of these times (not necessarily the first), the fields of
+        # the struct can be specified with "struct foo { ...fields... }".
+        #
         name = type.name
-        assert name is not None       # needs to be fixed
+        #
+        # get the type or create it if needed
         key = '%s %s' % (kind, name)
-        if key in self._declarations:
-            return self._declarations[key]
+        try:
+            tp = self._declarations[key]
+        except KeyError:
+            if kind == 'struct':
+                tp = model.StructType(name, None, None, None)
+            elif kind == 'union':
+                tp = model.UnionType(name, None, None, None)
+            else:
+                raise AssertionError("kind = %r" % (kind,))
+            self._declarations[key] = tp
         #
-        decls = type.decls
-        # create an empty type for now
-        if kind == 'struct':
-            tp = model.StructType(name, None, None, None)
-        else:
-            assert kind == 'union'
-            tp = model.UnionType(name, None, None, None)
-        self._declarations[key] = tp
-
-        #if decls is None and name is not None:
-        #    key = '%s %s' % (kind, name)
-        #    if key in self._declarations:
-        #        decls = self._declarations[key].decls
-        if decls is None:
-            return tp    # opaque type, so far
+        # is there a 'type.decls'?  If yes, then this is the place in the
+        # C sources that declare the fields.  If no, then just return the
+        # existing type, possibly still incomplete.
+        if type.decls is None:
+            return tp
         #
-        # mark it as complete *first*, to handle recursion
+        if tp.fldnames is not None:
+            raise api.CDefError("duplicate declaration of struct %s" % name)
         fldnames = []
         fldtypes = []
         fldbitsize = []
-        for decl in decls:
+        for decl in type.decls:
             if (isinstance(decl.type, pycparser.c_ast.IdentifierType) and
                     ''.join(decl.type.names) == '__dotdotdot__'):
                 xxxx
