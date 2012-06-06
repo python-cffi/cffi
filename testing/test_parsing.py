@@ -28,6 +28,9 @@ class FakeBackend(object):
     def complete_struct_or_union(self, s, tp, fields):
         assert isinstance(s, FakeStruct)
         s.fields = zip(tp.fldnames, fields, tp.fldbitsize)
+    
+    def new_array_type(self, ptrtype, length):
+        return '<array %s x %s>' % (ptrtype, length)
 
 class FakeStruct(object):
     def __init__(self, name):
@@ -96,3 +99,12 @@ def test_typedef_more_complex():
     assert ffi.typeof("foo_p") == '<pointer to <int>a, <int>b>'
     assert ffi.C.foo.BType == ('<func (<pointer to <pointer to '
                                '<int>a, <int>b>>), <int>, False>')
+
+def test_typedef_array():
+    ffi = FFI(backend=FakeBackend())
+    ffi.cdef("""
+        typedef int array_t[5];
+        """)
+    type = ffi._parser.parse_type("array_t", force_pointer=True)
+    BType = type.get_backend_type(ffi)
+    assert BType == '<array <pointer to <int>> x 5>'
