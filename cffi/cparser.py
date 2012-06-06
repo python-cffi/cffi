@@ -91,10 +91,12 @@ class Parser(object):
             len(typenode.type.names) == 1 and
             ('typedef ' + typenode.type.names[0]) in self._declarations):
             type = self._declarations['typedef ' + typenode.type.names[0]]
-            if force_pointer and not isinstance(type, model.ArrayType):
-                return self._get_type_pointer(type)
-            if convert_array_to_pointer:
-                xxx
+            if isinstance(type, model.ArrayType):
+                if convert_array_to_pointer:
+                    return type.item
+            else:
+                if force_pointer:
+                    return self._get_type_pointer(type)
             return type
         #
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):

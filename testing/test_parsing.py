@@ -100,7 +100,7 @@ def test_typedef_more_complex():
     assert ffi.C.foo.BType == ('<func (<pointer to <pointer to '
                                '<int>a, <int>b>>), <int>, False>')
 
-def test_typedef_array():
+def test_typedef_array_force_pointer():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("""
         typedef int array_t[5];
@@ -108,3 +108,12 @@ def test_typedef_array():
     type = ffi._parser.parse_type("array_t", force_pointer=True)
     BType = type.get_backend_type(ffi)
     assert BType == '<array <pointer to <int>> x 5>'
+
+def test_typedef_array_convert_array_to_pointer():
+    ffi = FFI(backend=FakeBackend())
+    ffi.cdef("""
+        typedef int array_t[5];
+        """)
+    type = ffi._parser.parse_type("array_t", convert_array_to_pointer=True)
+    BType = type.get_backend_type(ffi)
+    assert BType == '<pointer to <int>>'
