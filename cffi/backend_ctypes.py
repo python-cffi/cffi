@@ -546,11 +546,11 @@ class CTypesBackend(object):
     def new_union_type(self, name):
         return self._new_struct_or_union('union', name, ctypes.Union)
 
-    def complete_struct_or_union(self, CTypesStructOrUnion, tp, btypes):
+    def complete_struct_or_union(self, CTypesStructOrUnion, fields, tp):
         struct_or_union = CTypesStructOrUnion._ctype
-        fnames = tp.fldnames
-        bitfields = tp.fldbitsize
-        fields = zip(fnames, btypes, bitfields)
+        fnames = [fname for (fname, BField, bitsize) in fields]
+        btypes = [BField for (fname, BField, bitsize) in fields]
+        bitfields = [bitsize for (fname, BField, bitsize) in fields]
         #
         cfields = []
         for (fname, BField, bitsize) in fields:

@@ -145,7 +145,8 @@ class StructOrUnion(BaseType):
         return args
 
     def finish_backend_type(self, ffi, BType, *fldtypes):
-        ffi._backend.complete_struct_or_union(BType, self, fldtypes)
+        lst = zip(self.fldnames, fldtypes, self.fldbitsize)
+        ffi._backend.complete_struct_or_union(BType, lst, self)
         return BType
 
 class StructType(StructOrUnion):

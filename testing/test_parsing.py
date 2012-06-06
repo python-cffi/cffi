@@ -25,9 +25,9 @@ class FakeBackend(object):
     def new_struct_type(self, name):
         return FakeStruct(name)
 
-    def complete_struct_or_union(self, s, tp, fields):
+    def complete_struct_or_union(self, s, fields, tp=None):
         assert isinstance(s, FakeStruct)
-        s.fields = zip(tp.fldnames, fields, tp.fldbitsize)
+        s.fields = fields
     
     def new_array_type(self, ptrtype, length):
         return '<array %s x %s>' % (ptrtype, length)

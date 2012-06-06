@@ -2221,14 +2221,15 @@ static PyObject *b_new_union_type(PyObject *self, PyObject *args)
 static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
-    PyObject *fields, *interned_fields;
+    PyObject *fields, *interned_fields, *ignored;
     int is_union, alignment;
     Py_ssize_t offset, i, nb_fields, maxsize, prev_bit_position;
     CFieldObject **previous, *prev_field;
 
-    if (!PyArg_ParseTuple(args, "O!O!:complete_struct_or_union",
+    if (!PyArg_ParseTuple(args, "O!O!|O:complete_struct_or_union",
                           &CTypeDescr_Type, &ct,
-                          &PyList_Type, &fields))
+                          &PyList_Type, &fields,
+                          &ignored))
         return NULL;
 
     if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) ==
