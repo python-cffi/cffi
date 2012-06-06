@@ -1326,6 +1326,8 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             goto bad_number_of_arguments;
         }
         fvarargs = PyTuple_New(nargs);
+        if (fvarargs == NULL)
+            goto error;
         for (i = 0; i < nargs_declared; i++) {
             PyObject *o = PyTuple_GET_ITEM(signature, 1 + i);
             Py_INCREF(o);
@@ -2657,7 +2659,7 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
         return NULL;
     fb->fct = fct;
 
-    /* call again fb_build() to really build the ct_name */
+    /* call again fb_build_name() to really build the ct_name */
     fb->bufferp = fct->ct_name;
     if (fb_build_name(fb, fargs, fresult, ellipsis) < 0)
         goto error;
@@ -2694,8 +2696,7 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
         return NULL;
     }
 
-    /* call again fb_build() to really build the libffi data structures
-       and the ct_name */
+    /* call again fb_build() to really build the libffi data structures */
     funcbuffer.bufferp = buffer;
     if (fb_build(&funcbuffer, fargs, fresult) < 0)
         goto error;
