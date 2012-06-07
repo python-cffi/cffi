@@ -808,16 +808,39 @@ convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init)
     if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
         fmin = -(1LL << (cf->cf_bitsize-1));
         fmax = (1LL << (cf->cf_bitsize-1)) - 1LL;
+        if (fmax == 0)
+            fmax = 1;    /* special case to let "int x:1" receive "1" */
     }
     else {
         fmin = 0LL;
         fmax = (PY_LONG_LONG)((1ULL << cf->cf_bitsize) - 1ULL);
     }
-    if ((value < fmin || value > fmax) && value != 1) {
+    if (value < fmin || value > fmax) {
+        /* phew, PyErr_Format does not support "%lld" in Python 2.6 */
+        PyObject *svalue = NULL, *sfmin = NULL, *sfmax = NULL;
+        PyObject *lfmin = NULL, *lfmax = NULL;
+        svalue = PyObject_Str(init);
+        if (svalue == NULL) goto skip;
+        lfmin = PyLong_FromLongLong(fmin);
+        if (lfmin == NULL) goto skip;
+        sfmin = PyObject_Str(lfmin);
+        if (sfmin == NULL) goto skip;
+        lfmax = PyLong_FromLongLong(fmax);
+        if (lfmax == NULL) goto skip;
+        sfmax = PyObject_Str(lfmax);
+        if (sfmax == NULL) goto skip;
         PyErr_Format(PyExc_OverflowError,
-                     "value %lld outside the range allowed by the "
-                     "bit field width: %lld <= x <= %llx",
-                     value, fmin, fmax);
+                     "value %s outside the range allowed by the "
+                     "bit field width: %s <= x <= %s",
+                     PyString_AS_STRING(svalue),
+                     PyString_AS_STRING(sfmin),
+                     PyString_AS_STRING(sfmax));
+       skip:
+        Py_XDECREF(svalue);
+        Py_XDECREF(sfmin);
+        Py_XDECREF(sfmax);
+        Py_XDECREF(lfmin);
+        Py_XDECREF(lfmax);
         return -1;
     }
 

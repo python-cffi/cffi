@@ -697,13 +697,18 @@ def test_bitfield_instance():
     p.a2 = 3
     p.a3 = -4
     py.test.raises(OverflowError, "p.a3 = 4")
-    py.test.raises(OverflowError, "p.a3 = -5")
+    e = py.test.raises(OverflowError, "p.a3 = -5")
+    assert str(e.value) == ("value -5 outside the range allowed by the "
+                            "bit field width: -4 <= x <= 3")
     assert p.a1 == -1 and p.a2 == 3 and p.a3 == -4
     #
     # special case for convenience: "int x:1", while normally signed,
     # allows also setting the value "1" (it still gets read back as -1)
     p.a1 = 1
     assert p.a1 == -1
+    e = py.test.raises(OverflowError, "p.a1 = -2")
+    assert str(e.value) == ("value -2 outside the range allowed by the "
+                            "bit field width: -1 <= x <= 1")
 
 def test_bitfield_instance_init():
     BInt = new_primitive_type("int")
