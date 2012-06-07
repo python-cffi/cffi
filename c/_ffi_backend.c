@@ -13,16 +13,16 @@
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
-#define CT_PRIMITIVE_SIGNED   1
-#define CT_PRIMITIVE_UNSIGNED 2
-#define CT_PRIMITIVE_CHAR     4
-#define CT_PRIMITIVE_FLOAT    8
-#define CT_POINTER           16
-#define CT_ARRAY             32
-#define CT_STRUCT            64
-#define CT_UNION            128
-#define CT_FUNCTIONPTR      256
-#define CT_VOID             512
+#define CT_PRIMITIVE_SIGNED   1    /* signed integer */
+#define CT_PRIMITIVE_UNSIGNED 2    /* unsigned integer */
+#define CT_PRIMITIVE_CHAR     4    /* char (and, later, wchar_t) */
+#define CT_PRIMITIVE_FLOAT    8    /* float, double */
+#define CT_POINTER           16    /* pointer, excluding ptr-to-func */
+#define CT_ARRAY             32    /* array */
+#define CT_STRUCT            64    /* struct */
+#define CT_UNION            128    /* union */
+#define CT_FUNCTIONPTR      256    /* pointer to function */
+#define CT_VOID             512    /* void */
 
 /* other flags that may also be set in addition to the base flag: */
 #define CT_CAST_ANYTHING         1024    /* 'char' and 'void' only */
