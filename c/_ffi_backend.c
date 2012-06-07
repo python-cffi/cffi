@@ -3268,4 +3268,6 @@ void init_ffi_backend(void)
         return;
     if (PyType_Ready(&CDataOwning_Type) < 0)
         return;
+    if (PyType_Ready(&CDataWithDestructor_Type) < 0)
+        return;
 }
