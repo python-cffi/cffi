@@ -813,7 +813,7 @@ convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init)
         fmin = 0LL;
         fmax = (PY_LONG_LONG)((1ULL << cf->cf_bitsize) - 1ULL);
     }
-    if (value < fmin || value > fmax) {
+    if ((value < fmin || value > fmax) && value != 1) {
         PyErr_Format(PyExc_OverflowError,
                      "value %lld outside the range allowed by the "
                      "bit field width: %lld <= x <= %llx",

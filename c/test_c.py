@@ -690,7 +690,7 @@ def test_bitfield_instance():
     p.a1 = -1
     assert p.a1 == -1
     p.a1 = 0
-    py.test.raises(OverflowError, "p.a1 = 1")
+    py.test.raises(OverflowError, "p.a1 = 2")
     assert p.a1 == 0
     #
     p.a1 = -1
