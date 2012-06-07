@@ -699,6 +699,11 @@ def test_bitfield_instance():
     py.test.raises(OverflowError, "p.a3 = 4")
     py.test.raises(OverflowError, "p.a3 = -5")
     assert p.a1 == -1 and p.a2 == 3 and p.a3 == -4
+    #
+    # special case for convenience: "int x:1", while normally signed,
+    # allows also setting the value "1" (it still gets read back as -1)
+    p.a1 = 1
+    assert p.a1 == -1
 
 def test_bitfield_instance_init():
     BInt = new_primitive_type("int")
