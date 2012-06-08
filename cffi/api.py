@@ -84,7 +84,7 @@ class FFI(object):
         corresponding Python type: <class 'ffi.CData<...>'>.
         It can also be used on 'cdata' instance to get its C type.
         """
-        if isinstance(cdecl, (str, unicode)):
+        if isinstance(cdecl, basestring):
             try:
                 return self._parsed_types[cdecl]
             except KeyError:
@@ -99,7 +99,7 @@ class FFI(object):
         """Return the size in bytes of the argument.  It can be a
         string naming a C type, or a 'cdata' instance.
         """
-        if isinstance(cdecl, (str, unicode)):
+        if isinstance(cdecl, basestring):
             BType = self.typeof(cdecl)
             return self._backend.sizeof_type(BType)
         else:
