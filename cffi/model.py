@@ -1,5 +1,9 @@
 
 class BaseType(object):
+
+    def __repr__(self):
+        return '<%s>' % (self.get_c_name(),)
+
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
                 self._get_items() == other._get_items())
@@ -22,22 +26,18 @@ class BaseType(object):
         except KeyError:
             return self.new_backend_type(ffi, *args)
 
-    def get_backend_type(self, ffi):
-        return ffi._get_cached_btype(self)
-
     def verifier_declare(self, verifier, f):
         # nothing to see here
         pass
 
 class VoidType(BaseType):
     _attrs_ = ()
-    name = 'void'
-    
+
+    def get_c_name(self, replace_with=''):
+        return 'void' + replace_with
+
     def new_backend_type(self, ffi):
         return ffi._backend.new_void_type()
-
-    def __repr__(self):
-        return '<void>'
 
 void_type = VoidType()
 
@@ -47,26 +47,26 @@ class PrimitiveType(BaseType):
     def __init__(self, name):
         self.name = name
 
+    def get_c_name(self, replace_with=''):
+        return self.name + replace_with
+
     def new_backend_type(self, ffi):
         return ffi._backend.new_primitive_type(self.name)
-
-    def __repr__(self):
-        return '<%s>' % (self.name,)
 
 class FunctionType(BaseType):
     _attrs_ = ('args', 'result', 'ellipsis')
 
-    def __init__(self, name, args, result, ellipsis):
-        self.name = name # can be None in case it's an empty type
+    def __init__(self, args, result, ellipsis):
         self.args = args
         self.result = result
         self.ellipsis = ellipsis
 
-    def __repr__(self):
-        args = ', '.join([repr(x) for x in self.args])
+    def get_c_name(self, replace_with=''):
+        reprargs = [arg.get_c_name() for arg in self.args]
         if self.ellipsis:
-            return '<(%s, ...) -> %r>' % (args, self.result)
-        return '<(%s) -> %r>' % (args, self.result)
+            reprargs.append('...')
+        replace_with = '(*%s)(%s)' % (replace_with, ', '.join(reprargs))
+        return self.result.get_c_name(replace_with)
 
     def prepare_backend_type(self, ffi):
         args = [ffi._get_cached_btype(self.result)]
@@ -83,9 +83,8 @@ class FunctionType(BaseType):
         for arg in self.args:
             args.append(arg.name)
         args = ', '.join(args)
-        f.write('  %s(* res%d)(%s) = %s;\n' % (restype, verifier.rescount,
-                                               args, self.name))
-        verifier.rescount += 1
+        f.write('  { %s(* result)(%s) = %s; }\n' % (restype,
+                                                    args, self.name))
 
 class PointerType(BaseType):
     _attrs_ = ('totype',)
@@ -93,32 +92,34 @@ class PointerType(BaseType):
     def __init__(self, totype):
         self.totype = totype
 
+    def get_c_name(self, replace_with=''):
+        return self.totype.get_c_name('* ' + replace_with)
+
     def prepare_backend_type(self, ffi):
         return (ffi._get_cached_btype(self.totype),)
 
     def new_backend_type(self, ffi, BItem):
         return ffi._backend.new_pointer_type(BItem)
 
-    def __repr__(self):
-        return '<*%r>' % (self.totype,)
-
 class ArrayType(BaseType):
     _attrs_ = ('item', 'length')
 
     def __init__(self, item, length):
-        self.item = PointerType(item) # XXX why is this pointer?
+        self.item = item
         self.length = length
 
-    def __repr__(self):
+    def get_c_name(self, replace_with=''):
         if self.length is None:
-            return '<%r[]>' % (self.item,)
-        return '<%r[%s]>' % (self.item, self.length)
+            brackets = '[]'
+        else:
+            brackets = '[%d]' % self.length
+        return self.item.get_c_name(replace_with + brackets)
 
     def prepare_backend_type(self, ffi):
-        return (ffi._get_cached_btype(self.item),)
+        return (ffi._get_cached_btype(PointerType(self.item)),)
 
-    def new_backend_type(self, ffi, BItem):
-        return ffi._backend.new_array_type(BItem, self.length)
+    def new_backend_type(self, ffi, BPtrItem):
+        return ffi._backend.new_array_type(BPtrItem, self.length)
 
 class StructOrUnion(BaseType):
     _attrs_ = ('name',)
@@ -129,12 +130,8 @@ class StructOrUnion(BaseType):
         self.fldtypes = fldtypes
         self.fldbitsize = fldbitsize
 
-    def __repr__(self):
-        if self.fldnames is None:
-            return '<struct %s>' % (self.name,)
-        fldrepr = ', '.join(['%s: %r' % (name, tp) for name, tp in
-                             zip(self.fldnames, self.fldtypes)])
-        return '<struct %s {%s}>' % (self.name, fldrepr)
+    def get_c_name(self, replace_with=''):
+        return '%s %s%s' % (self.kind, self.name, replace_with)
 
     def prepare_backend_type(self, ffi):
         BType = self.get_btype(ffi)
@@ -150,6 +147,8 @@ class StructOrUnion(BaseType):
         return BType
 
 class StructType(StructOrUnion):
+    kind = 'struct'
+
     def get_btype(self, ffi):
         return ffi._backend.new_struct_type(self.name)
 
@@ -162,6 +161,8 @@ class StructType(StructOrUnion):
         verifier._write_printf(f, 'END struct %s' % self.name)
 
 class UnionType(StructOrUnion):
+    kind = 'union'
+
     def get_btype(self, ffi):
         return ffi._backend.new_union_type(self.name)
     
@@ -172,6 +173,9 @@ class EnumType(BaseType):
         self.name = name
         self.enumerators = enumerators
         self.enumvalues = enumvalues
+
+    def get_c_name(self, replace_with=''):
+        return 'enum %s%s' % (self.name, replace_with)
 
     def new_backend_type(self, ffi):
         return ffi._backend.new_enum_type(self.name, self.enumerators,

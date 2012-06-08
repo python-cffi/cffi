@@ -1,5 +1,4 @@
 
-from platformer import udir
 
 class VerificationError(Exception):
     """ An error raised when verification fails

@@ -89,7 +89,7 @@ class FFI(object):
                 return self._parsed_types[cdecl]
             except KeyError:
                 type = self._parser.parse_type(cdecl)
-                btype = type.get_backend_type(self)
+                btype = self._get_cached_btype(type)
                 self._parsed_types[cdecl] = btype
                 return btype
         else:
@@ -141,7 +141,7 @@ class FFI(object):
             BType = self._new_types[cdecl]
         except KeyError:
             type = self._parser.parse_type(cdecl, force_pointer=True)
-            BType = type.get_backend_type(self)
+            BType = self._get_cached_btype(type)
             self._new_types[cdecl] = BType
         #
         return self._backend.newp(BType, init)

@@ -56,8 +56,7 @@ class Parser(object):
             if decl.name:
                 self._declare('variable ' + decl.name, self._get_type(node))
 
-    def parse_type(self, cdecl, force_pointer=False,
-                   convert_array_to_pointer=False):
+    def parse_type(self, cdecl, force_pointer=False):
         # XXX: for more efficiency we would need to poke into the
         # internals of CParser...  the following registers the
         # typedefs, because their presence or absence influences the
@@ -70,8 +69,7 @@ class Parser(object):
         csourcelines.append('void __dummy(%s);' % cdecl)
         ast = _get_parser().parse('\n'.join(csourcelines))
         typenode = ast.ext[-1].type.args.params[0].type
-        return self._get_type(typenode, force_pointer=force_pointer,
-                              convert_array_to_pointer=convert_array_to_pointer)
+        return self._get_type(typenode, force_pointer=force_pointer)
 
     def _declare(self, name, obj):
         if name in self._declarations:
@@ -152,7 +150,7 @@ class Parser(object):
         #
         raise api.FFIError("bad or unsupported type declaration")
 
-    def _parse_function_type(self, typenode, name=None):
+    def _parse_function_type(self, typenode, funcname=None):
         params = list(getattr(typenode.args, 'params', []))
         ellipsis = (
             len(params) > 0 and
@@ -171,7 +169,7 @@ class Parser(object):
                                convert_array_to_pointer=True)
                 for argdeclnode in params]
         result = self._get_type(typenode.type)
-        return model.FunctionType(name, tuple(args), result, ellipsis)
+        return model.FunctionType(tuple(args), result, ellipsis)
 
     def _get_struct_or_union_type(self, kind, type, typenode=None):
         # First, a level of caching on the exact 'type' node of the AST.

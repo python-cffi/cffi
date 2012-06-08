@@ -1,10 +1,7 @@
 
-from platformer import platform, ExternalCompilationInfo
 from . import ffiplatform
 
 class Verifier(object):
-    def __init__(self):
-        self.rescount = 0
 
     def _write_printf(f, what, *args):
         if not args:
