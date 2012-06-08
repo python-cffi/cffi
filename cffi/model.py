@@ -26,7 +26,7 @@ class BaseType(object):
         except KeyError:
             return self.new_backend_type(ffi, *args)
 
-    def verifier_declare(self, verifier, kind, name, f):
+    def verifier_declare(self, verifier, kind, name):
         # nothing to see here
         pass
 
@@ -78,9 +78,10 @@ class FunctionType(BaseType):
     def new_backend_type(self, ffi, result, *args):
         return ffi._backend.new_function_type(args, result, self.ellipsis)
 
-    def verifier_declare(self, verifier, kind, name, f):
+    def verifier_declare(self, verifier, kind, name):
         if kind == 'function':
-            f.write('  { %s = %s; }\n' % (self.get_c_name('result'), name))
+            verifier.write('  { %s = %s; }\n' % (
+                self.get_c_name('result'), name))
 
 
 class PointerType(BaseType):
@@ -157,17 +158,42 @@ class StructOrUnion(BaseType):
 
 class StructType(StructOrUnion):
     kind = 'struct'
+    partial = False
+
+    def check_not_partial(self):
+        if self.partial:
+            from . import ffiplatform
+            raise ffiplatform.VerificationMissing(self.get_c_name())
 
     def get_btype(self, ffi):
+        self.check_not_partial()
         return ffi._backend.new_struct_type(self.name)
 
-    def verifier_declare(self, verifier, name, f):
-        verifier._write_printf(f, 'BEGIN struct %s size(%%ld)' % self.name,
-                      'sizeof(struct %s)' % self.name)
-        for decl in decl.decls:
-            pass
-            #_write_printf(f, 'FIELD ofs(%s) size(%s)')
-        verifier._write_printf(f, 'END struct %s' % self.name)
+    def verifier_declare(self, verifier, kind, name):
+        if kind != 'struct':
+            return
+        if self.fldnames is None:
+            assert not self.partial
+            return
+        verifier.write('{')
+        verifier.write('struct __aligncheck__ { char x; struct %s y; };' %
+                       self.name)
+        verifier.write('struct %s __test__;' % self.name)
+        verifier.write_printf('BEGIN struct %s' % self.name)
+        verifier.write_printf('SIZE %ld %ld',
+                              '(long)sizeof(struct %s)' % self.name,
+                              '(long)offsetof(struct __aligncheck__, y)')
+        for fname, ftype, fbitsize in zip(self.fldnames, self.fldtypes,
+                                          self.fldbitsize):
+            if fbitsize < 0:
+                verifier.write_printf('FIELD ' + fname + ' %ld %ld',
+                                      '(long)offsetof(struct %s, %s)' %
+                                      (self.name, fname),
+                                      '(long)sizeof(__test__.%s)' % fname)
+            else:
+                assert 0, "XXX: bitfield"
+        verifier.write_printf('END')
+        verifier.write('}')
 
 class UnionType(StructOrUnion):
     kind = 'union'

@@ -83,6 +83,7 @@ class Parser(object):
     def _declare(self, name, obj):
         if name in self._declarations:
             raise api.FFIError("multiple declarations of %s" % (name,))
+        assert name != '__dotdotdot__'
         self._declarations[name] = obj
 
     def _get_type_pointer(self, type, const=False):
@@ -144,6 +145,8 @@ class Parser(object):
                 ident = ' '.join(names)
                 if ident == 'void':
                     return model.void_type
+                if ident == '__dotdotdot__':
+                    raise api.FFIError('bad usage of "..."')
                 return model.PrimitiveType(ident)
             #
             if isinstance(type, pycparser.c_ast.Struct):
@@ -250,10 +253,11 @@ class Parser(object):
         for decl in type.decls:
             if (isinstance(decl.type, pycparser.c_ast.IdentifierType) and
                     ''.join(decl.type.names) == '__dotdotdot__'):
-                xxxx
                 # XXX pycparser is inconsistent: 'names' should be a list
                 # of strings, but is sometimes just one string.  Use
                 # str.join() as a way to cope with both.
+                tp.partial = True
+                continue
             if decl.bitsize is None:
                 bitsize = -1
             else:

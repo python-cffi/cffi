@@ -3,23 +3,31 @@ from . import ffiplatform
 
 class Verifier(object):
 
-    def _write_printf(f, what, *args):
+    def write(self, what):
+        print >> self.f, '  ' + what
+
+    def write_printf(self, what, *args):
+        self.has_printf = True
         if not args:
-            f.write('  printf("%s\\n");\n' % (what,))
+            print >> self.f, '  printf("%s\\n");' % (what,)
         else:
-            f.write('  printf("%s\\n", %s);\n' % (what, ', '.join(args)))
+            print >> self.f, '  printf("%s\\n", %s);' % (
+                what, ', '.join(args))
 
     def verify(self, ffi, preamble, **kwargs):
         tst_file_base = ffiplatform._get_test_file_base()
+        self.has_printf = False
         with open(tst_file_base + '.c', 'w') as f:
             f.write('#include <stdio.h>\n')
             f.write('#include <stdint.h>\n')
             f.write('#include <stddef.h>\n')
             f.write(preamble + "\n\n")
             f.write('int main() {\n')
+            self.f = f
             for name, tp in ffi._parser._declarations.iteritems():
                 kind, realname = name.split(' ', 1)
-                tp.verifier_declare(self, kind, realname, f)
+                tp.verifier_declare(self, kind, realname)
+            del self.f
             f.write('  return 0;\n')
             f.write('}\n')
         err = os.system('gcc -Werror -c %s.c -o %s.o' %

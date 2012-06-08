@@ -1,5 +1,6 @@
 import py
-from cffi import FFI, VerificationError
+from cffi import FFI, VerificationError, VerificationMissing
+
 
 def test_simple_verify():
     ffi = FFI()
@@ -21,3 +22,24 @@ def test_simple_verify():
     ffi = FFI()
     ffi.cdef("size_t strlen(const char *s);")
     ffi.verify("#include <string.h>")
+
+
+def test_ffi_nonfull_struct():
+    py.test.skip("XXX")
+    ffi = FFI()
+    ffi.cdef("""
+    struct foo_s {
+       int x;
+       ...;
+    };
+    """)
+    py.test.raises(VerificationMissing, ffi.sizeof, 'struct foo_s')
+    py.test.raises(VerificationMissing, ffi.offsetof, 'struct foo_s', 'x')
+    py.test.raises(VerificationMissing, ffi.new, 'struct foo_s')
+    ffi.verify("""
+    struct foo_s {
+       int a, b, x, c, d, e;
+    };
+    """)
+    assert ffi.sizeof('struct foo_s') == 6 * ffi.sizeof(int)
+    assert ffi.offsetof('struct foo_s', 'x') == 2 * ffi.sizeof(int)
