@@ -1,4 +1,4 @@
-
+import os
 from . import ffiplatform
 
 class Verifier(object):
@@ -10,18 +10,19 @@ class Verifier(object):
             f.write('  printf("%s\\n", %s);\n' % (what, ', '.join(args)))
 
     def verify(self, ffi, preamble, **kwargs):
-        tst_file = ffiplatform._get_test_file()
-        with tst_file.open('w') as f:
+        tst_file_base = ffiplatform._get_test_file_base()
+        with open(tst_file_base + '.c', 'w') as f:
             f.write('#include <stdio.h>\n')
             f.write(preamble + "\n\n")
             f.write('int main() {\n')
             for name, tp in ffi._parser._declarations.iteritems():
-                tp.verifier_declare(self, f)
+                kind, realname = name.split(' ', 1)
+                tp.verifier_declare(self, kind, realname, f)
             f.write('  return 0;\n')
             f.write('}\n')
-        f.close()
-        exe_name = platform.compile([str(tst_file)],
-                                    ExternalCompilationInfo(**kwargs))
-        out = platform.execute(exe_name)
-        assert out.returncode == 0
-        outlines = out.out.splitlines()
+        err = os.system('gcc -Werror -c %s.c -o %s.o' %
+                        (tst_file_base, tst_file_base))
+        if err:
+            raise ffiplatform.VerificationError(
+                '%s.c: see compilation warnings and errors above' %
+                (tst_file_base,))

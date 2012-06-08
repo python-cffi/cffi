@@ -26,7 +26,7 @@ class BaseType(object):
         except KeyError:
             return self.new_backend_type(ffi, *args)
 
-    def verifier_declare(self, verifier, f):
+    def verifier_declare(self, verifier, kind, name, f):
         # nothing to see here
         pass
 
@@ -65,6 +65,7 @@ class FunctionType(BaseType):
         reprargs = [arg.get_c_name() for arg in self.args]
         if self.ellipsis:
             reprargs.append('...')
+        reprargs = reprargs or ['void']
         replace_with = '(*%s)(%s)' % (replace_with, ', '.join(reprargs))
         return self.result.get_c_name(replace_with)
 
@@ -77,14 +78,9 @@ class FunctionType(BaseType):
     def new_backend_type(self, ffi, result, *args):
         return ffi._backend.new_function_type(args, result, self.ellipsis)
 
-    def verifier_declare(self, verifier, f):
-        restype = self.result.name
-        args = []
-        for arg in self.args:
-            args.append(arg.name)
-        args = ', '.join(args)
-        f.write('  { %s(* result)(%s) = %s; }\n' % (restype,
-                                                    args, self.name))
+    def verifier_declare(self, verifier, kind, name, f):
+        if kind == 'function':
+            f.write('  { %s = %s; }\n' % (self.get_c_name('result'), name))
 
 class PointerType(BaseType):
     _attrs_ = ('totype',)
@@ -152,7 +148,7 @@ class StructType(StructOrUnion):
     def get_btype(self, ffi):
         return ffi._backend.new_struct_type(self.name)
 
-    def verifier_declare(self, verifier, f):
+    def verifier_declare(self, verifier, name, f):
         verifier._write_printf(f, 'BEGIN struct %s size(%%ld)' % self.name,
                       'sizeof(struct %s)' % self.name)
         for decl in decl.decls:

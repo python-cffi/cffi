@@ -106,14 +106,14 @@ def test_typedef_array_force_pointer():
         typedef int array_t[5];
         """)
     type = ffi._parser.parse_type("array_t", force_pointer=True)
-    BType = type.get_backend_type(ffi)
+    BType = ffi._get_cached_btype(type)
     assert BType == '<array <pointer to <int>> x 5>'
 
 def test_typedef_array_convert_array_to_pointer():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("""
-        typedef int array_t[5];
+        typedef int (*fn_t)(int[5]);
         """)
-    type = ffi._parser.parse_type("array_t", convert_array_to_pointer=True)
-    BType = type.get_backend_type(ffi)
-    assert BType == '<pointer to <int>>'
+    type = ffi._parser.parse_type("fn_t")
+    BType = ffi._get_cached_btype(type)
+    assert BType == '<func (<pointer to <int>>), <int>, False>'
