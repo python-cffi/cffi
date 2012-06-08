@@ -82,6 +82,7 @@ class FunctionType(BaseType):
         if kind == 'function':
             f.write('  { %s = %s; }\n' % (self.get_c_name('result'), name))
 
+
 class PointerType(BaseType):
     _attrs_ = ('totype',)
     
@@ -96,6 +97,18 @@ class PointerType(BaseType):
 
     def new_backend_type(self, ffi, BItem):
         return ffi._backend.new_pointer_type(BItem)
+
+class ConstPointerType(PointerType):
+
+    def get_c_name(self, replace_with=''):
+        return self.totype.get_c_name(' const * ' + replace_with)
+
+    def prepare_backend_type(self, ffi):
+        return (ffi._get_cached_btype(PointerType(self.totype)),)
+
+    def new_backend_type(self, ffi, BPtr):
+        return BPtr
+
 
 class ArrayType(BaseType):
     _attrs_ = ('item', 'length')

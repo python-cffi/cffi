@@ -85,9 +85,11 @@ class Parser(object):
             raise api.FFIError("multiple declarations of %s" % (name,))
         self._declarations[name] = obj
 
-    def _get_type_pointer(self, type):
+    def _get_type_pointer(self, type, const=False):
         if isinstance(type, model.FunctionType):
             return type # "pointer-to-function" ~== "function"
+        if const:
+            return model.ConstPointerType(type)
         return model.PointerType(type)
 
     def _get_type(self, typenode, convert_array_to_pointer=False,
@@ -121,7 +123,10 @@ class Parser(object):
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
             # pointer type
-            return self._get_type_pointer(self._get_type(typenode.type))
+            const = (isinstance(typenode.type, pycparser.c_ast.TypeDecl)
+                     and 'const' in typenode.type.quals)
+            return self._get_type_pointer(self._get_type(typenode.type), const)
+                                          
         #
         if isinstance(typenode, pycparser.c_ast.TypeDecl):
             type = typenode.type
