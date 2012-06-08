@@ -2,3 +2,4 @@ syntax: glob
 *.py[co]
 *~
 .*.swp
+*.orig
