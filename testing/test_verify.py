@@ -17,3 +17,7 @@ def test_simple_verify():
     ffi = FFI()
     ffi.cdef("double sin(float x);")
     py.test.raises(VerificationError, ffi.verify, '#include <math.h>')
+    #
+    ffi = FFI()
+    ffi.cdef("size_t strlen(const char *s);")
+    ffi.verify("#include <string.h>")

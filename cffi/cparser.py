@@ -16,20 +16,39 @@ class Parser(object):
         self._anonymous_counter = 0
         self._structnode2type = weakref.WeakKeyDictionary()
 
-    def parse(self, csource):
-        csource = ("typedef int __dotdotdot__;\n" +
-                   csource.replace('...', '__dotdotdot__'))
+    def _parse(self, csource):
+        # XXX: for more efficiency we would need to poke into the
+        # internals of CParser...  the following registers the
+        # typedefs, because their presence or absence influences the
+        # parsing itself (but what they are typedef'ed to plays no role)
+        csourcelines = []
+        for name in sorted(self._declarations):
+            if name.startswith('typedef '):
+                csourcelines.append('typedef int %s;' % (name[8:],))
+        csourcelines.append('typedef int __dotdotdot__;')
+        csourcelines.append(csource.replace('...', '__dotdotdot__'))
+        csource = '\n'.join(csourcelines)
         ast = _get_parser().parse(csource)
-        for decl in ast.ext:
+        return ast
+
+    def parse(self, csource):
+        ast = self._parse(csource)
+        # find the first "__dotdotdot__" and use that as a separator
+        # between the repeated typedefs and the real csource
+        iterator = iter(ast.ext)
+        for decl in iterator:
+            if decl.name == '__dotdotdot__':
+                break
+        #
+        for decl in iterator:
             if isinstance(decl, pycparser.c_ast.Decl):
                 self._parse_decl(decl)
             elif isinstance(decl, pycparser.c_ast.Typedef):
                 if not decl.name:
                     raise api.CDefError("typedef does not declare any name",
                                         decl)
-                if decl.name != '__dotdotdot__':
-                    self._declare('typedef ' + decl.name,
-                                  self._get_type(decl.type))
+                self._declare('typedef ' + decl.name,
+                              self._get_type(decl.type))
             else:
                 raise api.CDefError("unrecognized construct", decl)
 
@@ -57,17 +76,7 @@ class Parser(object):
                 self._declare('variable ' + decl.name, self._get_type(node))
 
     def parse_type(self, cdecl, force_pointer=False):
-        # XXX: for more efficiency we would need to poke into the
-        # internals of CParser...  the following registers the
-        # typedefs, because their presence or absence influences the
-        # parsing itself (but what they are typedef'ed to plays no role)
-        csourcelines = []
-        for name in sorted(self._declarations):
-            if name.startswith('typedef '):
-                csourcelines.append('typedef int %s;' % (name[8:],))
-        #
-        csourcelines.append('void __dummy(%s);' % cdecl)
-        ast = _get_parser().parse('\n'.join(csourcelines))
+        ast = self._parse('void __dummy(%s);' % cdecl)
         typenode = ast.ext[-1].type.args.params[0].type
         return self._get_type(typenode, force_pointer=force_pointer)
 

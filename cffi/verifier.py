@@ -13,6 +13,8 @@ class Verifier(object):
         tst_file_base = ffiplatform._get_test_file_base()
         with open(tst_file_base + '.c', 'w') as f:
             f.write('#include <stdio.h>\n')
+            f.write('#include <stdint.h>\n')
+            f.write('#include <stddef.h>\n')
             f.write(preamble + "\n\n")
             f.write('int main() {\n')
             for name, tp in ffi._parser._declarations.iteritems():
