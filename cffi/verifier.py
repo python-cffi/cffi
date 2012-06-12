@@ -24,6 +24,11 @@ class Verifier(object):
             self.f = f
             self.prnt("#include <Python.h>")
             self.prnt()
+            self.prnt('#define _cffi_from_c_double PyFloat_FromDouble')
+            self.prnt('#define _cffi_to_c_double PyFloat_AsDouble')
+            self.prnt('#define _cffi_from_c_float PyFloat_FromDouble')
+            self.prnt('#define _cffi_to_c_float PyFloat_AsDouble')
+            self.prnt()
             self.prnt(preamble)
             self.prnt()
             #
@@ -68,11 +73,23 @@ class Verifier(object):
     def generate_nothing(self, tp, name):
         pass
 
+    # ----------
+
     def convert_to_c(self, tp, fromvar, tovar, errcode):
-        self.prnt('  %s = PyFloat_AsDouble(%s);' % (tovar, fromvar))
+        if isinstance(tp, model.PrimitiveType):
+            self.prnt('  %s = _cffi_to_c_%s(%s);' % (
+                tovar, tp.name.replace(' ', '_'), fromvar))
+            self.prnt('  if (%s == (%s)-1 && PyErr_Occurred())' % (
+                tovar, tp.name))
+            self.prnt('    %s;' % errcode)
+        else:
+            raise NotImplementedError(tp)
 
     def get_converter_from_c(self, tp):
-        return 'PyFloat_FromDouble'
+        if isinstance(tp, model.PrimitiveType):
+            return '_cffi_from_c_%s' % (tp.name.replace(' ', '_'),)
+        else:
+            raise NotImplementedError(tp)
 
     # ----------
 
