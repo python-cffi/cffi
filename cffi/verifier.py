@@ -72,37 +72,7 @@ class Verifier(object):
 
     def convert_to_c(self, tp, fromvar, tovar, errcode, is_funcarg=False):
         if isinstance(tp, model.PrimitiveType):
-            bt = self.ffi._get_cached_btype(tp)
-            if tp.name in ('float', 'double'):
-                # float types
-                converter = 'PyFloat_AsDouble'
-            #
-            elif tp.name == 'char':
-                # char
-                converter = '_cffi_to_c_char'
-            #
-            else:
-                unsigned = tp.name.startswith('unsigned ')
-                size = self.ffi.sizeof(bt)
-                size_of_long = self.ffi.sizeof('long')
-                if size > size_of_long:
-                    # a 64-bit long long type on a 32-bit platform
-                    if unsigned:
-                        converter = '_cffi_to_c_unsigned_long_long'
-                    else:
-                        converter = 'PyLong_AsLongLong'
-                #
-                elif size == size_of_long and unsigned:
-                    # 'unsigned long' or an equivalently-sized unsigned type
-                    converter = '_cffi_to_c_unsigned_long'
-                #
-                elif size == size_of_long:
-                    # fits precisely in a 'long'
-                    converter = 'PyInt_AsLong'
-                else:
-                    # shorter than a 'long'
-                    converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
-            #
+            converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
             errvalue = '-1'
         #
         elif isinstance(tp, model.PointerType):
@@ -245,16 +215,29 @@ static PyObject *_cffi_from_c_char(char x) {
                  ((short(*)(PyObject *))_cffi_exports[3])
 #define _cffi_to_c_unsigned_short                                        \
                  ((unsigned short(*)(PyObject *))_cffi_exports[4])
-#define _cffi_to_c_int                                                   \
-                 ((int(*)(PyObject *))_cffi_exports[5])
-#define _cffi_to_c_unsigned_int                                          \
-                 ((unsigned int(*)(PyObject *))_cffi_exports[6])
+
+#if SIZEOF_INT < SIZEOF_LONG
+#  define _cffi_to_c_int                                                 \
+                   ((int(*)(PyObject *))_cffi_exports[5])
+#  define _cffi_to_c_unsigned_int                                        \
+                   ((unsigned int(*)(PyObject *))_cffi_exports[6])
+#else
+#  define _cffi_to_c_int          _cffi_to_c_long
+#  define _cffi_to_c_unsigned_int _cffi_to_c_unsigned_long
+#endif
+
 #define _cffi_to_c_unsigned_long                                         \
                  ((unsigned long(*)(PyObject *))_cffi_exports[7])
 #define _cffi_to_c_unsigned_long_long                                    \
                  ((unsigned long long(*)(PyObject *))_cffi_exports[8])
 #define _cffi_to_c_char                                                  \
                  ((char(*)(PyObject *))_cffi_exports[9])
+
+#if SIZEOF_LONG < SIZEOF_LONG_LONG
+#  define _cffi_to_c_long_long PyLong_AsLongLong
+#else
+#  define _cffi_to_c_long_long _cffi_to_c_long
+#endif
 
 static void **_cffi_exports;
 
