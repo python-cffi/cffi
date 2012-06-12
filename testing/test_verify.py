@@ -105,6 +105,12 @@ def test_ptr():
     assert lib.foo(p) == p
     assert lib.foo(q) != p
 
+def test_bogus_ptr():
+    ffi = FFI()
+    ffi.cdef("int *foo(int *);")
+    lib = ffi.verify("int *foo(int *a) { return a; }")
+    py.test.raises(TypeError, lib.foo, ffi.new("short", 42))
+
 
 def test_verify_typedefs():
     py.test.skip("XXX?")
