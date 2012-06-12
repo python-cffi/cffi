@@ -58,6 +58,17 @@ def test_all_integer_and_float_types():
         assert lib.foo(44L) == 45
         assert lib.foo(ffi.cast(typename, 46)) == 47
         py.test.raises(TypeError, lib.foo, None)
+        #
+        # check for overflow cases
+        if typename in all_float_types:
+            continue
+        for value in [-2**80, -2**40, -2**20, -2**10, -2**5, -1,
+                      2**5, 2**10, 2**20, 2**40, 2**80]:
+            overflows = int(ffi.cast(typename, value)) != value
+            if overflows:
+                py.test.raises(OverflowError, lib.foo, value)
+            else:
+                assert lib.foo(value) == value + 1
 
 def test_char_type():
     ffi = FFI()
