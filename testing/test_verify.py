@@ -113,7 +113,7 @@ def test_bogus_ptr():
 
 
 def test_verify_typedefs():
-    py.test.skip("XXX?")
+    py.test.skip("ignored so far")
     types = ['signed char', 'unsigned char', 'int', 'long']
     for cdefed in types:
         for real in types:
@@ -127,7 +127,7 @@ def test_verify_typedefs():
 
 
 def test_ffi_full_struct():
-    py.test.skip("XXX?")
+    py.test.skip("XXX")
     ffi = FFI()
     ffi.cdef("struct foo_s { char x; int y; long *z; };")
     ffi.verify("struct foo_s { char x; int y; long *z; };")
@@ -147,7 +147,6 @@ def test_ffi_full_struct():
 
 
 def test_ffi_nonfull_struct():
-    py.test.skip("XXX")
     ffi = FFI()
     ffi.cdef("""
     struct foo_s {
@@ -163,5 +162,5 @@ def test_ffi_nonfull_struct():
        int a, b, x, c, d, e;
     };
     """)
-    assert ffi.sizeof('struct foo_s') == 6 * ffi.sizeof(int)
-    assert ffi.offsetof('struct foo_s', 'x') == 2 * ffi.sizeof(int)
+    assert ffi.sizeof('struct foo_s') == 6 * ffi.sizeof('int')
+    assert ffi.offsetof('struct foo_s', 'x') == 2 * ffi.sizeof('int')

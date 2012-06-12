@@ -68,6 +68,12 @@ class Verifier(object):
         lst = [revmapping[i] for i in range(len(revmapping))]
         module._cffi_setup(lst)
         del module._cffi_setup
+        #
+        for name, tp in self.ffi._parser._declarations.iteritems():
+            kind, realname = name.split(' ', 1)
+            method = getattr(self, 'loading_cpy_%s' % (kind,))
+            method(tp, realname, module)
+        #
         return module
 
     def generate(self, step_name):
@@ -77,6 +83,9 @@ class Verifier(object):
             method(tp, realname)
 
     def generate_nothing(self, tp, name):
+        pass
+
+    def loaded_noop(self, tp, name, module):
         pass
 
     # ----------
@@ -115,13 +124,15 @@ class Verifier(object):
             raise NotImplementedError(tp)
 
     # ----------
+    # typedefs: generates no code so far
 
-    # XXX
     generate_cpy_typedef_decl   = generate_nothing
     generate_cpy_typedef_method = generate_nothing
     generate_cpy_typedef_init   = generate_nothing
+    loading_cpy_typedef         = loaded_noop
 
     # ----------
+    # function declarations
 
     def generate_cpy_function_decl(self, tp, name):
         assert isinstance(tp, model.FunctionType)
@@ -133,8 +144,8 @@ class Verifier(object):
             argname = 'arg0'
         else:
             argname = 'args'
-        prnt('static PyObject *_cffi_f_%s(PyObject *self, PyObject *%s)' %
-             (name, argname))
+        prnt('static PyObject *')
+        prnt('_cffi_f_%s(PyObject *self, PyObject *%s)' % (name, argname))
         prnt('{')
         assert not tp.ellipsis  # XXX later
         #
@@ -186,10 +197,50 @@ class Verifier(object):
         self.prnt('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
 
     generate_cpy_function_init = generate_nothing
+    loading_cpy_function       = loaded_noop
+
+    # ----------
+    # struct declarations
+
+    def generate_cpy_struct_decl(self, tp, name):
+        assert name == tp.name
+        prnt = self.prnt
+        prnt('static PyObject *')
+        prnt('_cffi_struct_%s(PyObject *self, PyObject *noarg)' % name)
+        prnt('{')
+        prnt('  struct _cffi_aligncheck { char x; struct %s y; };' % name)
+        prnt('  static Py_ssize_t nums[] = {')
+        prnt('    sizeof(struct %s),' % name)
+        prnt('    offsetof(struct _cffi_aligncheck, y),')
+        for i in range(len(tp.fldnames)):
+            prnt('    offsetof(struct %s, %s),' % (name, tp.fldnames[i]))
+        prnt('    -1')
+        prnt('  };')
+        prnt('  return _cffi_get_struct_layout(nums);')
+        prnt('}')
+
+    def generate_cpy_struct_method(self, tp, name):
+        self.prnt('  {"_cffi_struct_%s", _cffi_struct_%s, METH_NOARGS},' % (
+            name, name))
+
+    generate_cpy_struct_init = generate_nothing
+
+    def loading_cpy_struct(self, tp, name, module):
+        assert name == tp.name
+        function = getattr(module, '_cffi_struct_%s' % name)
+        layout = function()
+        totalsize = layout[0]
+        totalalignment = layout[1]
+        fieldofs = layout[2:]
+        assert len(fieldofs) == len(tp.fldnames)
+        tp.fixedlayout = fieldofs, totalsize, totalalignment
+
+    # ----------
 
 
 cffimod_header = r'''
 #include <Python.h>
+#include <stddef.h>
 
 #define _cffi_from_c_double PyFloat_FromDouble
 #define _cffi_from_c_float PyFloat_FromDouble
@@ -253,6 +304,8 @@ static PyObject *_cffi_from_c_char(char x) {
     ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[10])
 #define _cffi_to_c_pointer                                               \
     ((char *(*)(PyObject *, CTypeDescrObject *))_cffi_exports[11])
+#define _cffi_get_struct_layout                                          \
+    ((PyObject *(*)(Py_ssize_t[]))_cffi_exports[12])
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 #  define _cffi_to_c_long_long PyLong_AsLongLong

@@ -129,7 +129,8 @@ class ArrayType(BaseType):
 
 class StructOrUnion(BaseType):
     _attrs_ = ('name',)
-        
+    fixedlayout = None
+
     def __init__(self, name, fldnames, fldtypes, fldbitsize):
         self.name = name
         self.fldnames = fldnames
@@ -148,8 +149,14 @@ class StructOrUnion(BaseType):
         return args
 
     def finish_backend_type(self, ffi, BType, *fldtypes):
-        lst = zip(self.fldnames, fldtypes, self.fldbitsize)
-        ffi._backend.complete_struct_or_union(BType, lst, self)
+        if self.fixedlayout is None:
+            lst = zip(self.fldnames, fldtypes, self.fldbitsize)
+            ffi._backend.complete_struct_or_union(BType, lst, self)
+        else:
+            fieldofs, totalsize, totalalignment = self.fixedlayout
+            lst = zip(self.fldnames, fldtypes, self.fldbitsize, fieldofs)
+            ffi._backend.complete_struct_or_union(BType, lst, self,
+                                                  totalsize, totalalignment)
         return BType
 
 
@@ -158,66 +165,13 @@ class StructType(StructOrUnion):
     partial = False
 
     def check_not_partial(self):
-        if self.partial:
+        if self.partial and self.fixedlayout is None:
             from . import ffiplatform
             raise ffiplatform.VerificationMissing(self.get_c_name())
 
     def get_btype(self, ffi):
         self.check_not_partial()
         return ffi._backend.new_struct_type(self.name)
-
-    def verifier_declare_struct(self, verifier, name):
-        assert name == self.name
-        if self.partial:
-            self.verifier_decl_partial(verifier)
-        else:
-            self.verifier_decl_notpartial(verifier)
-
-    def verifier_decl_notpartial(self, verifier):
-        if self.fldnames is None:    # not partial, but fully opaque:
-            return                   # cannot really test even for existence
-        struct = verifier.ffi._get_cached_btype(self)
-        verifier.write('{')
-        verifier.write('struct __aligncheck__ { char x; struct %s y; };' %
-                       self.name)
-        verifier.write(
-            '__sameconstant__(sizeof(struct %s), %d)' % (
-            self.name, verifier.ffi.sizeof(struct)))
-        verifier.write(
-            '__sameconstant__(offsetof(struct __aligncheck__, y), %d)' % (
-            verifier.ffi.alignof(struct),))
-        for fname, ftype, fbitsize in zip(self.fldnames, self.fldtypes,
-                                          self.fldbitsize):
-            if fbitsize >= 0:
-                assert 0, "XXX: bitfield"
-            verifier.write('__sameconstant__(offsetof(struct %s, %s), %d)' % (
-                self.name, fname, verifier.ffi.offsetof(struct, fname)))
-            # XXX gcc only!
-            verifier.write('__sametype__(%s, typeof(((struct %s *)0)->%s))' % (
-                ftype.get_c_name('** result'), self.name, fname))
-        verifier.write('}')
-
-    def verifier_decl_partial(self, verifier):
-        assert self.fldnames is not None
-        verifier.write('{')
-        verifier.write('struct __aligncheck__ { char x; struct %s y; };' %
-                       self.name)
-        verifier.write('struct %s __test__;' % self.name)
-        verifier.write_printf('BEGIN struct %s' % self.name)
-        verifier.write_printf('SIZE %ld %ld',
-                              '(long)sizeof(struct %s)' % self.name,
-                              '(long)offsetof(struct __aligncheck__, y)')
-        for fname, ftype, fbitsize in zip(self.fldnames, self.fldtypes,
-                                          self.fldbitsize):
-            if fbitsize < 0:
-                verifier.write_printf('FIELD ' + fname + ' %ld %ld',
-                                      '(long)offsetof(struct %s, %s)' %
-                                      (self.name, fname),
-                                      '(long)sizeof(__test__.%s)' % fname)
-            else:
-                assert 0, "XXX: bitfield"
-        verifier.write_printf('END')
-        verifier.write('}')
 
 
 class UnionType(StructOrUnion):

@@ -2271,12 +2271,14 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     PyObject *fields, *interned_fields, *ignored;
     int is_union, alignment;
     Py_ssize_t offset, i, nb_fields, maxsize, prev_bit_position;
+    Py_ssize_t totalsize = -1;
+    int totalalignment = -1;
     CFieldObject **previous, *prev_field;
 
-    if (!PyArg_ParseTuple(args, "O!O!|O:complete_struct_or_union",
+    if (!PyArg_ParseTuple(args, "O!O!|Oni:complete_struct_or_union",
                           &CTypeDescr_Type, &ct,
                           &PyList_Type, &fields,
-                          &ignored))
+                          &ignored, &totalsize, &totalalignment))
         return NULL;
 
     if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) ==
@@ -2308,13 +2310,13 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     for (i=0; i<nb_fields; i++) {
         PyObject *fname;
         CTypeDescrObject *ftype;
-        int fbitsize, falign, err, bitshift;
+        int fbitsize, falign, err, bitshift, foffset = -1;
         CFieldObject *cf;
 
-        if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!i:list item",
+        if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!i|i:list item",
                               &PyString_Type, &fname,
                               &CTypeDescr_Type, &ftype,
-                              &fbitsize))
+                              &fbitsize, &foffset))
             goto error;
 
         if (ftype->ct_size < 0) {
@@ -2331,8 +2333,12 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         if (alignment < falign)
             alignment = falign;
 
-        /* align this field to its own 'falign' by inserting padding */
-        offset = (offset + falign - 1) & ~(falign-1);
+        if (foffset < 0) {
+            /* align this field to its own 'falign' by inserting padding */
+            offset = (offset + falign - 1) & ~(falign-1);
+        }
+        else
+            offset = foffset;
 
         if (fbitsize < 0 || (fbitsize == 8 * ftype->ct_size &&
                              !(ftype->ct_flags & CT_PRIMITIVE_CHAR))) {
@@ -2407,15 +2413,23 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 
     if (is_union) {
         assert(offset == 0);
-        ct->ct_size = maxsize;
+        offset = maxsize;
     }
     else {
         if (offset == 0)
             offset = 1;
         offset = (offset + alignment - 1) & ~(alignment-1);
-        ct->ct_size = offset;
     }
-    ct->ct_length = alignment;
+    if (totalsize < 0)
+        totalsize = offset;
+    else if (totalsize < offset) {
+        PyErr_Format(PyExc_TypeError,
+                     "%s cannot be of size %zd: there are fields at least "
+                     "up to %zd", ct->ct_name, totalsize, offset);
+        goto error;
+    }
+    ct->ct_size = totalsize;
+    ct->ct_length = totalalignment < 0 ? alignment : totalalignment;
     ct->ct_stuff = interned_fields;
     ct->ct_flags &= ~CT_IS_OPAQUE;
 
@@ -3328,6 +3342,28 @@ static char *_cffi_to_c_pointer(PyObject *obj, CTypeDescrObject *ct)
     return result;
 }
 
+static PyObject *_cffi_get_struct_layout(Py_ssize_t nums[])
+{
+    PyObject *result;
+    int count = 0;
+    while (nums[count] >= 0)
+        count++;
+
+    result = PyList_New(count);
+    if (result == NULL)
+        return NULL;
+
+    while (--count >= 0) {
+        PyObject *o = PyInt_FromSsize_t(nums[count]);
+        if (o == NULL) {
+            Py_DECREF(result);
+            return NULL;
+        }
+        PyList_SET_ITEM(result, count, o);
+    }
+    return result;
+}
+
 static void *cffi_exports[] = {
     _cffi_to_c_char_p,
     _cffi_to_c_signed_char,
@@ -3346,6 +3382,7 @@ static void *cffi_exports[] = {
     _cffi_to_c_char,
     _cffi_from_c_pointer,
     _cffi_to_c_pointer,
+    _cffi_get_struct_layout,
 };
 
 /************************************************************/
