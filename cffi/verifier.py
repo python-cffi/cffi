@@ -1,5 +1,5 @@
 import os
-from . import ffiplatform
+from . import model, ffiplatform
 
 class Verifier(object):
 
@@ -15,13 +15,6 @@ class Verifier(object):
 ##        else:
 ##            print >> self.f, '  printf("%s\\n", %s);' % (
 ##                what, ', '.join(args))
-
-    def generate(self, step_name):
-        for name, tp in self.ffi._parser._declarations.iteritems():
-            kind, realname = name.split(' ', 1)
-            method = getattr(tp, 'generate_cpy_%s_%s' % (kind, step_name), 0)
-            if method:
-                method(self, realname)
 
     def verify(self, preamble, **kwargs):
         modname = ffiplatform.undercffi_module_name()
@@ -65,3 +58,89 @@ class Verifier(object):
             return imp.load_dynamic(modname, '%s.so' % filebase)
         except ImportError, e:
             raise ffiplatform.VerificationError(str(e))
+
+    def generate(self, step_name):
+        for name, tp in self.ffi._parser._declarations.iteritems():
+            kind, realname = name.split(' ', 1)
+            method = getattr(self, 'generate_cpy_%s_%s' % (kind, step_name))
+            method(tp, realname)
+
+    def generate_nothing(self, tp, name):
+        pass
+
+    def convert_to_c(self, tp, fromvar, tovar, errcode):
+        self.prnt('  %s = PyFloat_AsDouble(%s);' % (tovar, fromvar))
+
+    def get_converter_from_c(self, tp):
+        return 'PyFloat_FromDouble'
+
+    # ----------
+
+    # XXX
+    generate_cpy_typedef_decl   = generate_nothing
+    generate_cpy_typedef_method = generate_nothing
+    generate_cpy_typedef_init   = generate_nothing
+
+    # ----------
+
+    def generate_cpy_function_decl(self, tp, name):
+        assert isinstance(tp, model.FunctionType)
+        prnt = self.prnt
+        numargs = len(tp.args)
+        if numargs == 0:
+            argname = 'no_arg'
+        elif numargs == 1:
+            argname = 'arg0'
+        else:
+            argname = 'args'
+        prnt('static PyObject *_cffi_f_%s(PyObject *self, PyObject *%s)' %
+             (name, argname))
+        prnt('{')
+        assert not tp.ellipsis  # XXX later
+        #
+        for i, type in enumerate(tp.args):
+            prnt('  %s;' % type.get_c_name(' x%d' % i))
+        if not isinstance(tp.result, model.VoidType):
+            result_code = 'result = '
+            prnt('  %s;' % tp.result.get_c_name(' result'))
+        else:
+            result_code = ''
+        #
+        if len(tp.args) > 1:
+            rng = range(len(tp.args))
+            for i in rng:
+                prnt('  PyObject *arg%d;' % i)
+            prnt()
+            prnt('  if (!PyArg_ParseTuple("%s:%s", %s)) {' % (
+                'O' * numargs, name, ', '.join(['&arg%d' % i for i in rng])))
+            prnt('    return NULL;')
+        prnt()
+        #
+        for i, type in enumerate(tp.args):
+            self.convert_to_c(type, 'arg%d' % i, 'x%d' % i, 'return NULL')
+            prnt()
+        #
+        prnt('  { %s%s(%s); }' % (
+            result_code, name,
+            ', '.join(['x%d' % i for i in range(len(tp.args))])))
+        prnt()
+        #
+        if result_code:
+            prnt('  return %s(result);' % self.get_converter_from_c(tp.result))
+        else:
+            prnt('  Py_INCREF(Py_None);')
+            prnt('  return Py_None;')
+        prnt('}')
+        prnt()
+
+    def generate_cpy_function_method(self, tp, name):
+        numargs = len(tp.args)
+        if numargs == 0:
+            meth = 'METH_NOARGS'
+        elif numargs == 1:
+            meth = 'METH_O'
+        else:
+            meth = 'METH_VARARGS'
+        self.prnt('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
+
+    generate_cpy_function_init = generate_nothing

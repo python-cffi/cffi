@@ -26,9 +26,6 @@ class BaseType(object):
         except KeyError:
             return self.new_backend_type(ffi, *args)
 
-    #def generate_cpy_typedef(self, verifier, name, step):
-    #    XXX
-
 
 class VoidType(BaseType):
     _attrs_ = ()
@@ -79,63 +76,6 @@ class FunctionType(BaseType):
 
     def new_backend_type(self, ffi, result, *args):
         return ffi._backend.new_function_type(args, result, self.ellipsis)
-
-    def generate_cpy_function_decl(self, verifier, name):
-        prnt = verifier.prnt
-        numargs = len(self.args)
-        if numargs == 0:
-            argname = 'no_arg'
-        elif numargs == 1:
-            argname = 'arg0'
-        else:
-            argname = 'args'
-        prnt('static PyObject *_cffi_f_%s(PyObject *self, PyObject *%s)' %
-             (name, argname))
-        prnt('{')
-        assert not self.ellipsis  # XXX later
-        #
-        for i, type in enumerate(self.args):
-            prnt('  %s;' % type.get_c_name(' x%d;' % i))
-        if not isinstance(self.result, VoidType):
-            result_code = 'result = '
-            prnt('  %s;' % self.result.get_c_name(' result'))
-        else:
-            result_code = ''
-        #
-        if len(self.args) > 1:
-            rng = range(len(self.args))
-            for i in rng:
-                prnt('  PyObject *arg%d;' % i)
-            prnt()
-            prnt('  if (!PyArg_ParseTuple("%s:%s", %s)) {' % (
-                'O' * numargs, name, ', '.join(['&arg%d' % i for i in rng])))
-            prnt('    return NULL;')
-        prnt()
-        #
-        for i in range(len(self.args)):
-            prnt('  x%d = PyFloat_AsDouble(arg%d);' % (i, i))
-            prnt('  if (x%d == -1.0 && PyErr_Occurred())' % i)
-            prnt('    return NULL;')
-            prnt()
-        #
-        prnt('  { %s%s(%s); }' % (
-            result_code, name,
-            ', '.join(['x%d' % i for i in range(len(self.args))])))
-        prnt()
-        #
-        prnt('  return PyFloat_FromDouble(result);')
-        prnt('}')
-        prnt()
-
-    def generate_cpy_function_method(self, verifier, name):
-        numargs = len(self.args)
-        if numargs == 0:
-            meth = 'METH_NOARGS'
-        elif numargs == 1:
-            meth = 'METH_O'
-        else:
-            meth = 'METH_VARARGS'
-        verifier.prnt('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
 
 
 class PointerType(BaseType):
