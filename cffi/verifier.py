@@ -21,12 +21,14 @@ class Verifier(object):
             f.write('#include <stdio.h>\n')
             f.write('#include <stdint.h>\n')
             f.write('#include <stddef.h>\n')
+            f.write('#include <unistd.h>\n')
             f.write(preamble + "\n\n")
             f.write('int main() {\n')
             self.f = f
             for name, tp in ffi._parser._declarations.iteritems():
                 kind, realname = name.split(' ', 1)
-                tp.verifier_declare(self, kind, realname)
+                method = getattr(tp, 'verifier_declare_' + kind)
+                method(self, realname)
             del self.f
             f.write('  return 0;\n')
             f.write('}\n')

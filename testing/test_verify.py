@@ -24,6 +24,19 @@ def test_simple_verify():
     ffi.verify("#include <string.h>")
 
 
+def test_verify_typedefs():
+    types = ['signed char', 'unsigned char', 'int', 'long']
+    for cdefed in types:
+        for real in types:
+            ffi = FFI()
+            ffi.cdef("typedef %s foo_t;" % cdefed)
+            if cdefed == real:
+                ffi.verify("typedef %s foo_t;" % real)
+            else:
+                py.test.raises(VerificationError, ffi.verify,
+                               "typedef %s foo_t;" % real)
+
+
 def test_ffi_nonfull_struct():
     py.test.skip("XXX")
     ffi = FFI()

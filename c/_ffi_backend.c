@@ -1988,7 +1988,7 @@ static PyObject *b_nonstandard_integer_types(PyObject *self, PyObject *noarg)
         { "ptrdiff_t",     sizeof(ptrdiff_t) },
         { "size_t",        sizeof(size_t) | UNSIGNED },
         { "ssize_t",       sizeof(ssize_t) },
-        { "wchar_t",       sizeof(wchar_t) | UNSIGNED },
+        /*{ "wchar_t",       sizeof(wchar_t) | UNSIGNED },*/
         { NULL }
     };
 #undef UNSIGNED

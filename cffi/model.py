@@ -26,9 +26,10 @@ class BaseType(object):
         except KeyError:
             return self.new_backend_type(ffi, *args)
 
-    def verifier_declare(self, verifier, kind, name):
-        # nothing to see here
-        pass
+    def verifier_declare_typedef(self, verifier, name):
+        verifier.write('{ %s = (%s**)0; }' % (
+            self.get_c_name('** result'), name))
+
 
 class VoidType(BaseType):
     _attrs_ = ()
@@ -78,10 +79,9 @@ class FunctionType(BaseType):
     def new_backend_type(self, ffi, result, *args):
         return ffi._backend.new_function_type(args, result, self.ellipsis)
 
-    def verifier_declare(self, verifier, kind, name):
-        if kind == 'function':
-            verifier.write('  { %s = %s; }\n' % (
-                self.get_c_name('result'), name))
+    def verifier_declare_function(self, verifier, name):
+        verifier.write('{ %s = %s; }' % (
+            self.get_c_name('result'), name))
 
 
 class PointerType(BaseType):
@@ -169,9 +169,7 @@ class StructType(StructOrUnion):
         self.check_not_partial()
         return ffi._backend.new_struct_type(self.name)
 
-    def verifier_declare(self, verifier, kind, name):
-        if kind != 'struct':
-            return
+    def verifier_declare_struct(self, verifier, name):
         if self.fldnames is None:
             assert not self.partial
             return
