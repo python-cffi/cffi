@@ -76,9 +76,11 @@ class Verifier(object):
             if tp.name in ('float', 'double'):
                 # float types
                 converter = 'PyFloat_AsDouble'
+            #
             elif tp.name == 'char':
                 # char
-                xxx
+                converter = '_cffi_to_c_char'
+            #
             else:
                 unsigned = tp.name.startswith('unsigned ')
                 size = self.ffi.sizeof(bt)
@@ -225,6 +227,10 @@ cffimod_header = r'''
 #  define _cffi_from_c_long_long PyInt_FromLong
 #endif
 
+static PyObject *_cffi_from_c_char(char x) {
+    return PyString_FromStringAndSize(&x, 1);
+}
+
 #define _cffi_to_c_short PyInt_AsLong
 #define _cffi_to_c_int PyInt_AsLong
 #define _cffi_to_c_long PyInt_AsLong
@@ -250,6 +256,8 @@ cffimod_header = r'''
                  ((unsigned long(*)(PyObject *))_cffi_exports[7])
 #define _cffi_to_c_unsigned_long_long                                    \
                  ((unsigned long long(*)(PyObject *))_cffi_exports[8])
+#define _cffi_to_c_char                                                  \
+                 ((char(*)(PyObject *))_cffi_exports[9])
 
 static void **_cffi_exports;
 

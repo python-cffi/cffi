@@ -59,6 +59,13 @@ def test_all_integer_and_float_types():
         assert lib.foo(ffi.cast(typename, 46)) == 47
         py.test.raises(TypeError, lib.foo, None)
 
+def test_char_type():
+    ffi = FFI()
+    ffi.cdef("char foo(char);")
+    lib = ffi.verify("char foo(char x) { return x+1; }")
+    assert lib.foo("A") == "B"
+    py.test.raises(TypeError, lib.foo, "bar")
+
 
 def test_verify_typedefs():
     py.test.skip("XXX?")

@@ -593,6 +593,21 @@ static int _convert_overflow(PyObject *init, const char *ct_name)
     return -1;
 }
 
+static int _convert_to_char(PyObject *init)
+{
+    if (PyString_Check(init) && PyString_GET_SIZE(init) == 1) {
+        return (unsigned char)(PyString_AS_STRING(init)[0]);
+    }
+    if (CData_Check(init) &&
+           (((CDataObject *)init)->c_type->ct_flags & CT_PRIMITIVE_CHAR)) {
+        return (unsigned char)(((CDataObject *)init)->c_data[0]);
+    }
+    PyErr_Format(PyExc_TypeError,
+                 "initializer for ctype 'char' must be a string of length 1, "
+                 "not %.200s", Py_TYPE(init)->tp_name);
+    return -1;
+}
+
 static int
 convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
@@ -708,17 +723,11 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
-        if (PyString_Check(init) && PyString_GET_SIZE(init) == 1) {
-            data[0] = PyString_AS_STRING(init)[0];
-            return 0;
-        }
-        if (CData_Check(init) &&
-               (((CDataObject *)init)->c_type->ct_flags & CT_PRIMITIVE_CHAR)) {
-            data[0] = ((CDataObject *)init)->c_data[0];
-            return 0;
-        }
-        expected = "string of length 1";
-        goto cannot_convert;
+        int res = _convert_to_char(init);
+        if (res < 0)
+            return -1;
+        data[0] = res;
+        return 0;
     }
     if (ct->ct_flags & CT_STRUCT) {
 
@@ -3293,6 +3302,11 @@ static unsigned PY_LONG_LONG _cffi_to_c_unsigned_long_long(PyObject *obj)
     return _my_PyLong_AsUnsignedLongLong(obj, 1);
 }
 
+static char _cffi_to_c_char(PyObject *obj)
+{
+    return (char)_convert_to_char(obj);
+}
+
 static void *cffi_exports[] = {
     _cffi_to_c_char_p,
     _cffi_to_c_signed_char,
@@ -3308,6 +3322,7 @@ static void *cffi_exports[] = {
 #endif
     _cffi_to_c_unsigned_long,
     _cffi_to_c_unsigned_long_long,
+    _cffi_to_c_char,
 };
 
 /************************************************************/
