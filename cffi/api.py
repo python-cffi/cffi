@@ -93,7 +93,7 @@ class FFI(object):
                 self._parsed_types[cdecl] = btype
                 return btype
         else:
-            return self._backend.typeof_instance(cdecl)
+            return self._backend.typeof(cdecl)
 
     def sizeof(self, cdecl):
         """Return the size in bytes of the argument.  It can be a
@@ -101,9 +101,9 @@ class FFI(object):
         """
         if isinstance(cdecl, (str, unicode)):
             BType = self.typeof(cdecl)
-            return self._backend.sizeof_type(BType)
+            return self._backend.sizeof(BType)
         else:
-            return self._backend.sizeof_instance(cdecl)
+            return self._backend.sizeof(cdecl)
 
     def alignof(self, cdecl):
         """Return the natural alignment size in bytes of the C type
@@ -182,7 +182,7 @@ class FFI(object):
         """ Verify that the current ffi signatures compile on this machine
         """
         from .verifier import Verifier
-        return Verifier().verify(self, preamble, **kwargs)
+        return Verifier(self).verify(preamble, **kwargs)
 
 def _make_ffi_library(ffi, libname):
     name = libname

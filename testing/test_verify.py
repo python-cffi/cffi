@@ -37,6 +37,25 @@ def test_verify_typedefs():
                                "typedef %s foo_t;" % real)
 
 
+def test_ffi_full_struct():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { char x; int y; long *z; };")
+    ffi.verify("struct foo_s { char x; int y; long *z; };")
+    #
+    for real in [
+        "struct foo_s { char x; int y; int *z; };",
+        "struct foo_s { char x; long *z; int y; };",
+        "struct foo_s { int y; long *z; };",
+        "struct foo_s { char x; int y; long *z; char extra; };",
+        ]:
+        py.test.raises(VerificationError, ffi.verify, real)
+    #
+    # a corner case that we cannot really detect, but where it has no
+    # bad consequences: the size is the same, but there is an extra field
+    # that replaces what is just padding in our declaration above
+    ffi.verify("struct foo_s { char x, extra; int y; long *z; };")
+
+
 def test_ffi_nonfull_struct():
     py.test.skip("XXX")
     ffi = FFI()

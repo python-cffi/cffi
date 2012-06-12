@@ -300,7 +300,7 @@ class Parser(object):
                 nextenumvalue += 1
             enumvalues = tuple(enumvalues) 
             tp = model.EnumType(name, enumerators, enumvalues)
-            self._declarations[key] = tp
+            self._declare(key, tp)
         else:   # opaque enum
             enumerators = ()
             enumvalues = ()

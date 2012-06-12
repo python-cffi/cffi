@@ -760,13 +760,12 @@ class CTypesBackend(object):
         p = ctypes.cast(bptr._as_ctype_ptr, ctypes.POINTER(ctypes.c_char))
         return ''.join([p[i] for i in range(length)])
 
-    def sizeof_type(self, BType):
-        assert issubclass(BType, CTypesData)
-        return BType._get_size()
-
-    def sizeof_instance(self, cdata):
-        assert isinstance(cdata, CTypesData)
-        return cdata._get_size_of_instance()
+    def sizeof(self, cdata_or_BType):
+        if isinstance(cdata_or_BType, CTypesData):
+            return cdata_or_BType._get_size_of_instance()
+        else:
+            assert issubclass(cdata_or_BType, CTypesData)
+            return cdata_or_BType._get_size()
 
     def alignof(self, BType):
         assert issubclass(BType, CTypesData)
@@ -785,7 +784,7 @@ class CTypesBackend(object):
     def callback(self, BType, source):
         return BType(source)
 
-    typeof_instance = type
+    typeof = type
 
 
 class CTypesLibrary(object):

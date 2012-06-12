@@ -3,6 +3,9 @@ from . import ffiplatform
 
 class Verifier(object):
 
+    def __init__(self, ffi):
+        self.ffi = ffi
+
     def write(self, what):
         print >> self.f, '  ' + what
 
@@ -14,25 +17,30 @@ class Verifier(object):
             print >> self.f, '  printf("%s\\n", %s);' % (
                 what, ', '.join(args))
 
-    def verify(self, ffi, preamble, **kwargs):
+    def verify(self, preamble, **kwargs):
         tst_file_base = ffiplatform._get_test_file_base()
         self.has_printf = False
         with open(tst_file_base + '.c', 'w') as f:
-            f.write('#include <stdio.h>\n')
-            f.write('#include <stdint.h>\n')
-            f.write('#include <stddef.h>\n')
-            f.write('#include <unistd.h>\n')
+            f.write('#include <stdio.h>\n'
+                    '#include <stdint.h>\n'
+                    '#include <stddef.h>\n'
+                    '#include <unistd.h>\n'
+                    '\n'
+                    '#define __sameconstant__(x, y) \\\n'
+                    '  { int result[1-2*((x)-(y))*((x)-(y))]; }\n'
+                    '\n'
+                    )
             f.write(preamble + "\n\n")
             f.write('int main() {\n')
             self.f = f
-            for name, tp in ffi._parser._declarations.iteritems():
+            for name, tp in self.ffi._parser._declarations.iteritems():
                 kind, realname = name.split(' ', 1)
                 method = getattr(tp, 'verifier_declare_' + kind)
                 method(self, realname)
             del self.f
             f.write('  return 0;\n')
             f.write('}\n')
-        err = os.system('gcc -Werror -c %s.c -o %s.o' %
+        err = os.system('gcc -Werror -S %s.c -o %s.s' %
                         (tst_file_base, tst_file_base))
         if err:
             raise ffiplatform.VerificationError(

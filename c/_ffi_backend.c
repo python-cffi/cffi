@@ -3005,40 +3005,35 @@ static PyObject *b_alignof(PyObject *self, PyObject *arg)
     return PyInt_FromLong(align);
 }
 
-static PyObject *b_sizeof_type(PyObject *self, PyObject *arg)
+static PyObject *b_sizeof(PyObject *self, PyObject *arg)
 {
-    if (!CTypeDescr_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "expected a 'ctype' object");
-        return NULL;
-    }
-    if (((CTypeDescrObject *)arg)->ct_size < 0) {
-        PyErr_Format(PyExc_ValueError, "ctype '%s' is of unknown size",
-                     ((CTypeDescrObject *)arg)->ct_name);
-        return NULL;
-    }
-    return PyInt_FromSsize_t(((CTypeDescrObject *)arg)->ct_size);
-}
-
-static PyObject *b_sizeof_instance(PyObject *self, PyObject *arg)
-{
-    CDataObject *cd;
     Py_ssize_t size;
 
-    if (!CData_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "expected a 'cdata' object");
+    if (CData_Check(arg)) {
+        CDataObject *cd = (CDataObject *)arg;
+
+        if (cd->c_type->ct_flags & CT_ARRAY)
+            size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
+        else
+            size = cd->c_type->ct_size;
+    }
+    else if (CTypeDescr_Check(arg)) {
+        if (((CTypeDescrObject *)arg)->ct_size < 0) {
+            PyErr_Format(PyExc_ValueError, "ctype '%s' is of unknown size",
+                         ((CTypeDescrObject *)arg)->ct_name);
+            return NULL;
+        }
+        size = ((CTypeDescrObject *)arg)->ct_size;
+    }
+    else {
+        PyErr_SetString(PyExc_TypeError,
+                        "expected a 'cdata' or 'ctype' object");
         return NULL;
     }
-    cd = (CDataObject *)arg;
-
-    if (cd->c_type->ct_flags & CT_ARRAY)
-        size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
-    else
-        size = cd->c_type->ct_size;
-
     return PyInt_FromSsize_t(size);
 }
 
-static PyObject *b_typeof_instance(PyObject *self, PyObject *arg)
+static PyObject *b_typeof(PyObject *self, PyObject *arg)
 {
     PyObject *res;
 
@@ -3230,9 +3225,8 @@ static PyMethodDef FFIBackendMethods[] = {
     {"cast", b_cast, METH_VARARGS},
     {"callback", b_callback, METH_VARARGS},
     {"alignof", b_alignof, METH_O},
-    {"sizeof_type", b_sizeof_type, METH_O},
-    {"sizeof_instance", b_sizeof_instance, METH_O},
-    {"typeof_instance", b_typeof_instance, METH_O},
+    {"sizeof", b_sizeof, METH_O},
+    {"typeof", b_typeof, METH_O},
     {"offsetof", b_offsetof, METH_VARARGS},
     {"string", b_string, METH_VARARGS},
     {"get_errno", b_get_errno, METH_NOARGS},

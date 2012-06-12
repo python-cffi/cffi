@@ -170,9 +170,20 @@ class StructType(StructOrUnion):
         return ffi._backend.new_struct_type(self.name)
 
     def verifier_declare_struct(self, verifier, name):
-        if self.fldnames is None:
-            assert not self.partial
-            return
+        if self.partial:
+            self.verifier_decl_partial(verifier, name)
+        else:
+            self.verifier_decl_notpartial(verifier, name)
+
+    def verifier_decl_notpartial(self, verifier, name):
+        if self.fldnames is None:    # not partial, but fully opaque:
+            return                   # cannot really test even for existence
+        struct = verifier.ffi._get_cached_btype(self)
+        verifier.write('__sameconstant__(sizeof(struct %s), %d)' % (
+            name, verifier.ffi.sizeof(struct)))
+
+    def verifier_decl_partial(self, verifier, name):
+        assert self.fldnames is not None
         verifier.write('{')
         verifier.write('struct __aligncheck__ { char x; struct %s y; };' %
                        self.name)
