@@ -78,6 +78,12 @@ def test_two_arguments():
     lib = ffi.verify("int foo(int a, int b) { return a - b; }")
     assert lib.foo(40, -2) == 42
 
+def test_macro():
+    ffi = FFI()
+    ffi.cdef("int foo(int, int);")
+    lib = ffi.verify("#define foo(a, b) ((a) * (b))")
+    assert lib.foo(-6, -7) == 42
+
 
 def test_verify_typedefs():
     py.test.skip("XXX?")
