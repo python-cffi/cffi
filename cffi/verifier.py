@@ -47,7 +47,7 @@ class Verifier(object):
         # XXX use more distutils?
         import distutils.sysconfig
         python_h = distutils.sysconfig.get_python_inc()
-        err = os.system("gcc -I'%s' -O2 -shared %s.c -o %s.so" %
+        err = os.system("gcc -I'%s' -O2 -shared -fPIC %s.c -o %s.so" %
                         (python_h, filebase, filebase))
         if err:
             raise ffiplatform.VerificationError(
@@ -231,10 +231,7 @@ static PyObject *_cffi_from_c_char(char x) {
     return PyString_FromStringAndSize(&x, 1);
 }
 
-#define _cffi_to_c_short PyInt_AsLong
-#define _cffi_to_c_int PyInt_AsLong
 #define _cffi_to_c_long PyInt_AsLong
-
 #define _cffi_to_c_double PyFloat_AsDouble
 #define _cffi_to_c_float PyFloat_AsDouble
 
