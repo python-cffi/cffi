@@ -579,10 +579,23 @@ static int bitfield_not_supported(CFieldObject *cf)
     return 0;
 }
 
+static int _convert_overflow(PyObject *init, const char *ct_name)
+{
+    PyObject *s;
+    if (PyErr_Occurred())   /* already an exception pending */
+        return -1;
+    s = PyObject_Str(init);
+    if (s == NULL)
+        return -1;
+    PyErr_Format(PyExc_OverflowError, "integer %s does not fit '%s'",
+                 PyString_AS_STRING(s), ct_name);
+    Py_DECREF(s);
+    return -1;
+}
+
 static int
 convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
-    PyObject *s;
     const char *expected;
     char buf[sizeof(PY_LONG_LONG)];
 
@@ -773,13 +786,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     return -1;
 
  overflow:
-    s = PyObject_Str(init);
-    if (s == NULL)
-        return -1;
-    PyErr_Format(PyExc_OverflowError, "integer %s does not fit '%s'",
-                 PyString_AS_STRING(s), ct->ct_name);
-    Py_DECREF(s);
-    return -1;
+    return _convert_overflow(init, ct->ct_name);
 
  cannot_convert:
     if (CData_Check(init))
@@ -3256,8 +3263,51 @@ static char *_cffi_to_c_char_p(PyObject *obj)
     return NULL;
 }
 
+#define _cffi_to_c_PRIMITIVE(TARGETNAME, TARGET)        \
+static TARGET _cffi_to_c_##TARGETNAME(PyObject *obj) {  \
+    long tmp = PyInt_AsLong(obj);                       \
+    if (tmp != (TARGET)tmp)                             \
+        return (TARGET)_convert_overflow(obj, #TARGET); \
+    return (TARGET)tmp;                                 \
+}
+
+_cffi_to_c_PRIMITIVE(signed_char,    signed char)
+_cffi_to_c_PRIMITIVE(unsigned_char,  unsigned char)
+_cffi_to_c_PRIMITIVE(short,          short)
+_cffi_to_c_PRIMITIVE(unsigned_short, unsigned short)
+#if SIZEOF_INT < SIZEOF_LONG
+_cffi_to_c_PRIMITIVE(int,            int)
+_cffi_to_c_PRIMITIVE(unsigned_int,   unsigned int)
+#endif
+
+static unsigned long _cffi_to_c_unsigned_long(PyObject *obj)
+{
+    unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(obj, 1);
+    if (value != (unsigned long)value)
+        return (unsigned long)_convert_overflow(obj, "unsigned long");
+    return (unsigned long)value;
+}
+
+static unsigned PY_LONG_LONG _cffi_to_c_unsigned_long_long(PyObject *obj)
+{
+    return _my_PyLong_AsUnsignedLongLong(obj, 1);
+}
+
 static void *cffi_exports[] = {
     _cffi_to_c_char_p,
+    _cffi_to_c_signed_char,
+    _cffi_to_c_unsigned_char,
+    _cffi_to_c_short,
+    _cffi_to_c_unsigned_short,
+#if SIZEOF_INT < SIZEOF_LONG
+    _cffi_to_c_int,
+    _cffi_to_c_unsigned_int,
+#else
+    0,
+    0,
+#endif
+    _cffi_to_c_unsigned_long,
+    _cffi_to_c_unsigned_long_long,
 };
 
 /************************************************************/

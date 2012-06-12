@@ -55,6 +55,9 @@ def test_all_integer_and_float_types():
         ffi.cdef("%s foo(%s);" % (typename, typename))
         lib = ffi.verify("%s foo(%s x) { return x+1; }" % (typename, typename))
         assert lib.foo(42) == 43
+        assert lib.foo(44L) == 45
+        assert lib.foo(ffi.cast(typename, 46)) == 47
+        py.test.raises(TypeError, lib.foo, None)
 
 
 def test_verify_typedefs():

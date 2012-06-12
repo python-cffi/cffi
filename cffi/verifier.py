@@ -72,19 +72,36 @@ class Verifier(object):
 
     def convert_to_c(self, tp, fromvar, tovar, errcode, is_funcarg=False):
         if isinstance(tp, model.PrimitiveType):
+            bt = self.ffi._get_cached_btype(tp)
             if tp.name in ('float', 'double'):
                 # float types
                 converter = 'PyFloat_AsDouble'
-                errvalue = '-1'
-            elif tp.name.startswith('unsigned '):
-                # unsigned integer types
-                xxx
             elif tp.name == 'char':
                 # char
                 xxx
             else:
-                # signed integer types
-                xxx
+                unsigned = tp.name.startswith('unsigned ')
+                size = self.ffi.sizeof(bt)
+                size_of_long = self.ffi.sizeof('long')
+                if size > size_of_long:
+                    # a 64-bit long long type on a 32-bit platform
+                    if unsigned:
+                        converter = '_cffi_to_c_unsigned_long_long'
+                    else:
+                        converter = 'PyLong_AsLongLong'
+                #
+                elif size == size_of_long and unsigned:
+                    # 'unsigned long' or an equivalently-sized unsigned type
+                    converter = '_cffi_to_c_unsigned_long'
+                #
+                elif size == size_of_long:
+                    # fits precisely in a 'long'
+                    converter = 'PyInt_AsLong'
+                else:
+                    # shorter than a 'long'
+                    converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
+            #
+            errvalue = '-1'
         #
         elif isinstance(tp, model.PointerType):
             if (is_funcarg and
@@ -209,16 +226,30 @@ cffimod_header = r'''
 #endif
 
 #define _cffi_to_c_short PyInt_AsLong
-#define _cffi_to_c_short PyInt_AsLong
-#define _cffi_to_c_short PyInt_AsLong
-#define _cffi_to_c_short PyInt_AsLong
-#define _cffi_to_c_short PyInt_AsLong
-#define _cffi_to_c_short PyInt_AsLong
+#define _cffi_to_c_int PyInt_AsLong
+#define _cffi_to_c_long PyInt_AsLong
+
 #define _cffi_to_c_double PyFloat_AsDouble
 #define _cffi_to_c_float PyFloat_AsDouble
 
-#define _cffi_to_c_char_p ((char *(*)(PyObject *))_cffi_exports[0])
-
+#define _cffi_to_c_char_p                                                \
+                 ((char *(*)(PyObject *))_cffi_exports[0])
+#define _cffi_to_c_signed_char                                           \
+                 ((signed char(*)(PyObject *))_cffi_exports[1])
+#define _cffi_to_c_unsigned_char                                         \
+                 ((unsigned char(*)(PyObject *))_cffi_exports[2])
+#define _cffi_to_c_short                                                 \
+                 ((short(*)(PyObject *))_cffi_exports[3])
+#define _cffi_to_c_unsigned_short                                        \
+                 ((unsigned short(*)(PyObject *))_cffi_exports[4])
+#define _cffi_to_c_int                                                   \
+                 ((int(*)(PyObject *))_cffi_exports[5])
+#define _cffi_to_c_unsigned_int                                          \
+                 ((unsigned int(*)(PyObject *))_cffi_exports[6])
+#define _cffi_to_c_unsigned_long                                         \
+                 ((unsigned long(*)(PyObject *))_cffi_exports[7])
+#define _cffi_to_c_unsigned_long_long                                    \
+                 ((unsigned long long(*)(PyObject *))_cffi_exports[8])
 
 static void **_cffi_exports;
 
