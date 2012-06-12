@@ -5,16 +5,19 @@ class Verifier(object):
 
     def __init__(self, ffi):
         self.ffi = ffi
+        self.typesdict = {}
 
     def prnt(self, what=''):
         print >> self.f, what
 
-##    def write_printf(self, what, *args):
-##        if not args:
-##            print >> self.f, '  printf("%s\\n");' % (what,)
-##        else:
-##            print >> self.f, '  printf("%s\\n", %s);' % (
-##                what, ', '.join(args))
+    def gettypenum(self, type):
+        BType = self.ffi._get_cached_btype(type)
+        try:
+            return self.typesdict[BType]
+        except KeyError:
+            num = len(self.typesdict)
+            self.typesdict[BType] = num
+            return num
 
     def verify(self, preamble, **kwargs):
         modname = ffiplatform.undercffi_module_name()
@@ -31,6 +34,7 @@ class Verifier(object):
             #
             self.prnt('static PyMethodDef _cffi_methods[] = {')
             self.generate("method")
+            self.prnt('  {"_cffi_setup", _cffi_setup, METH_O},')
             self.prnt('  {NULL, NULL}    /* Sentinel */')
             self.prnt('};')
             self.prnt()
@@ -55,9 +59,16 @@ class Verifier(object):
         #
         import imp
         try:
-            return imp.load_dynamic(modname, '%s.so' % filebase)
+            module = imp.load_dynamic(modname, '%s.so' % filebase)
         except ImportError, e:
             raise ffiplatform.VerificationError(str(e))
+        #
+        revmapping = dict([(value, key)
+                           for (key, value) in self.typesdict.items()])
+        lst = [revmapping[i] for i in range(len(revmapping))]
+        module._cffi_setup(lst)
+        del module._cffi_setup
+        return module
 
     def generate(self, step_name):
         for name, tp in self.ffi._parser._declarations.iteritems():
@@ -71,6 +82,7 @@ class Verifier(object):
     # ----------
 
     def convert_to_c(self, tp, fromvar, tovar, errcode, is_funcarg=False):
+        extraarg = ''
         if isinstance(tp, model.PrimitiveType):
             converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
             errvalue = '-1'
@@ -81,20 +93,24 @@ class Verifier(object):
                     tp.totype.name == 'char'):
                 converter = '_cffi_to_c_char_p'
             else:
-                converter = '_cffi_to_c_pointer'
+                converter = '(%s)_cffi_to_c_pointer' % tp.get_c_name('')
+                extraarg = ', _cffi_type(%d)' % self.gettypenum(tp)
             errvalue = 'NULL'
         #
         else:
             raise NotImplementedError(tp)
         #
-        self.prnt('  %s = %s(%s);' % (tovar, converter, fromvar))
+        self.prnt('  %s = %s(%s%s);' % (tovar, converter, fromvar, extraarg))
         self.prnt('  if (%s == (%s)%s && PyErr_Occurred())' % (
             tovar, tp.get_c_name(''), errvalue))
         self.prnt('    %s;' % errcode)
 
-    def get_converter_from_c(self, tp):
+    def convert_expr_from_c(self, tp, var):
         if isinstance(tp, model.PrimitiveType):
-            return '_cffi_from_c_%s' % (tp.name.replace(' ', '_'),)
+            return '_cffi_from_c_%s(%s)' % (tp.name.replace(' ', '_'), var)
+        elif isinstance(tp, model.PointerType):
+            return '_cffi_from_c_pointer((char *)%s, _cffi_type(%d))' % (
+                var, self.gettypenum(tp))
         else:
             raise NotImplementedError(tp)
 
@@ -151,7 +167,8 @@ class Verifier(object):
         prnt()
         #
         if result_code:
-            prnt('  return %s(result);' % self.get_converter_from_c(tp.result))
+            prnt('  return %s;' %
+                 self.convert_expr_from_c(tp.result, 'result'))
         else:
             prnt('  Py_INCREF(Py_None);')
             prnt('  return Py_None;')
@@ -232,6 +249,10 @@ static PyObject *_cffi_from_c_char(char x) {
                  ((unsigned long long(*)(PyObject *))_cffi_exports[8])
 #define _cffi_to_c_char                                                  \
                  ((char(*)(PyObject *))_cffi_exports[9])
+#define _cffi_from_c_pointer                                             \
+    ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[10])
+#define _cffi_to_c_pointer                                               \
+    ((char *(*)(PyObject *, CTypeDescrObject *))_cffi_exports[11])
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 #  define _cffi_to_c_long_long PyLong_AsLongLong
@@ -239,7 +260,10 @@ static PyObject *_cffi_from_c_char(char x) {
 #  define _cffi_to_c_long_long _cffi_to_c_long
 #endif
 
+typedef struct _ctypedescr CTypeDescrObject;
+
 static void **_cffi_exports;
+static PyObject *_cffi_types;
 
 static int _cffi_init(void)
 {
@@ -259,6 +283,16 @@ static int _cffi_init(void)
     _cffi_exports = (void **)PyCObject_AsVoidPtr(c_api_object);
     return 0;
 }
+
+static PyObject *_cffi_setup(PyObject *self, PyObject *arg)
+{
+    Py_INCREF(arg);
+    _cffi_types = arg;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+#define _cffi_type(num) ((CTypeDescrObject *)PyList_GET_ITEM(_cffi_types, num))
 
 /**********/
 '''

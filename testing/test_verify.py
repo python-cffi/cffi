@@ -95,6 +95,16 @@ def test_macro():
     lib = ffi.verify("#define foo(a, b) ((a) * (b))")
     assert lib.foo(-6, -7) == 42
 
+def test_ptr():
+    ffi = FFI()
+    ffi.cdef("int *foo(int *);")
+    lib = ffi.verify("int *foo(int *a) { return a; }")
+    assert lib.foo(None) is None
+    p = ffi.new("int", 42)
+    q = ffi.new("int", 42)
+    assert lib.foo(p) == p
+    assert lib.foo(q) != p
+
 
 def test_verify_typedefs():
     py.test.skip("XXX?")

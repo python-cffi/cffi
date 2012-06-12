@@ -608,6 +608,23 @@ static int _convert_to_char(PyObject *init)
     return -1;
 }
 
+static int _convert_error(PyObject *init, const char *ct_name,
+                          const char *expected)
+{
+    if (CData_Check(init))
+        PyErr_Format(PyExc_TypeError,
+                     "initializer for ctype '%s' must be a %s, "
+                     "not cdata '%s'",
+                     ct_name, expected,
+                     ((CDataObject *)init)->c_type->ct_name);
+    else
+        PyErr_Format(PyExc_TypeError,
+                     "initializer for ctype '%s' must be a %s, "
+                     "not %.200s",
+                     ct_name, expected, Py_TYPE(init)->tp_name);
+    return -1;
+}
+
 static int
 convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
@@ -798,18 +815,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     return _convert_overflow(init, ct->ct_name);
 
  cannot_convert:
-    if (CData_Check(init))
-        PyErr_Format(PyExc_TypeError,
-                     "initializer for ctype '%s' must be a %s, "
-                     "not cdata '%s'",
-                     ct->ct_name, expected,
-                     ((CDataObject *)init)->c_type->ct_name);
-    else
-        PyErr_Format(PyExc_TypeError,
-                     "initializer for ctype '%s' must be a %s, "
-                     "not %.200s",
-                     ct->ct_name, expected, Py_TYPE(init)->tp_name);
-    return -1;
+    return _convert_error(init, ct->ct_name, expected);
 }
 
 static int
@@ -3266,9 +3272,7 @@ static char *_cffi_to_c_char_p(PyObject *obj)
     if (CData_Check(obj)) {
         return ((CDataObject *)obj)->c_data;
     }
-    PyErr_Format(PyExc_TypeError,
-                "initializer for ctype 'char *' must be a compatible pointer, "
-                 "not %.200s", Py_TYPE(obj)->tp_name);
+    _convert_error(obj, "char *", "compatible pointer");
     return NULL;
 }
 
@@ -3311,6 +3315,19 @@ static char _cffi_to_c_char(PyObject *obj)
     return (char)_convert_to_char(obj);
 }
 
+static PyObject *_cffi_from_c_pointer(char *ptr, CTypeDescrObject *ct)
+{
+    return convert_to_object((char *)&ptr, ct);
+}
+
+static char *_cffi_to_c_pointer(PyObject *obj, CTypeDescrObject *ct)
+{
+    char *result;
+    if (convert_from_object((char *)&result, ct, obj) < 0)
+        return NULL;
+    return result;
+}
+
 static void *cffi_exports[] = {
     _cffi_to_c_char_p,
     _cffi_to_c_signed_char,
@@ -3327,6 +3344,8 @@ static void *cffi_exports[] = {
     _cffi_to_c_unsigned_long,
     _cffi_to_c_unsigned_long_long,
     _cffi_to_c_char,
+    _cffi_from_c_pointer,
+    _cffi_to_c_pointer,
 };
 
 /************************************************************/
