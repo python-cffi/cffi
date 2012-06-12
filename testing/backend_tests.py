@@ -50,6 +50,8 @@ class BackendTests:
         else:
             min = -(1 << (8*size-1))
             max = (1 << (8*size-1)) - 1
+        min = int(min)
+        max = int(max)
         p = ffi.cast(c_decl, min)
         assert p != min       # no __eq__(int)
         assert bool(p) is True
@@ -68,6 +70,10 @@ class BackendTests:
         py.test.raises(OverflowError, ffi.new, c_decl, max + 1)
         py.test.raises(OverflowError, ffi.new, c_decl, long(min - 1))
         py.test.raises(OverflowError, ffi.new, c_decl, long(max + 1))
+        assert ffi.new(c_decl, min)[0] == min
+        assert ffi.new(c_decl, max)[0] == max
+        assert ffi.new(c_decl, long(min))[0] == min
+        assert ffi.new(c_decl, long(max))[0] == max
 
     def test_new_single_integer(self):
         ffi = FFI(backend=self.Backend())

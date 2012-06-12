@@ -76,8 +76,14 @@ class Verifier(object):
                 # float types
                 converter = 'PyFloat_AsDouble'
                 errvalue = '-1'
+            elif tp.name.startswith('unsigned '):
+                # unsigned integer types
+                xxx
+            elif tp.name == 'char':
+                # char
+                xxx
             else:
-                # integer types
+                # signed integer types
                 xxx
         #
         elif isinstance(tp, model.PointerType):

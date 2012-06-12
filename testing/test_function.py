@@ -36,7 +36,7 @@ class TestFunction(object):
         ffi.cdef("""
             double sin(double x);
         """)
-        m = ffi.load("m")
+        m = ffi.rawload("m")
         x = m.sin(1.23)
         assert x == math.sin(1.23)
 
@@ -45,7 +45,7 @@ class TestFunction(object):
         ffi.cdef("""
             float sinf(float x);
         """)
-        m = ffi.load("m")
+        m = ffi.rawload("m")
         x = m.sinf(1.23)
         assert type(x) is float
         assert x != math.sin(1.23)    # rounding effects
@@ -57,6 +57,7 @@ class TestFunction(object):
             int puts(const char *);
             int fflush(void *);
         """)
+        ffi.C = ffi.rawload(None)
         ffi.C.puts   # fetch before capturing, for easier debugging
         with FdWriteCapture() as fd:
             ffi.C.puts("hello")
@@ -71,6 +72,7 @@ class TestFunction(object):
             int puts(char *);
             int fflush(void *);
         """)
+        ffi.C = ffi.rawload(None)
         ffi.C.puts   # fetch before capturing, for easier debugging
         with FdWriteCapture() as fd:
             ffi.C.puts("hello")
@@ -85,6 +87,7 @@ class TestFunction(object):
             int fputs(const char *, void *);
             void *stdout, *stderr;
         """)
+        ffi.C = ffi.rawload(None)
         with FdWriteCapture(2) as fd:
             ffi.C.fputs("hello from stderr\n", ffi.C.stderr)
         res = fd.getvalue()
@@ -96,6 +99,7 @@ class TestFunction(object):
            int printf(const char *format, ...);
            int fflush(void *);
         """)
+        ffi.C = ffi.rawload(None)
         with FdWriteCapture() as fd:
             ffi.C.printf("hello with no arguments\n")
             ffi.C.printf("hello, %s!\n", ffi.new("char[]", "world"))
@@ -119,6 +123,7 @@ class TestFunction(object):
         ffi.cdef("""
            int printf(const char *format, ...);
         """)
+        ffi.C = ffi.rawload(None)
         e = py.test.raises(TypeError, ffi.C.printf, "hello %d\n", 42)
         assert str(e.value) == ("argument 2 passed in the variadic part "
                                 "needs to be a cdata object (got int)")
@@ -128,6 +133,7 @@ class TestFunction(object):
         ffi.cdef("""
             int puts(const char *);
         """)
+        ffi.C = ffi.rawload(None)
         fptr = ffi.C.puts
         assert ffi.typeof(fptr) == ffi.typeof("int(*)(const char*)")
         if self.Backend is CTypesBackend:
@@ -148,6 +154,7 @@ class TestFunction(object):
             int puts(const char *);
             int fflush(void *);
         """)
+        ffi.C = ffi.rawload(None)
         fptr = ffi.cast("int(*)(const char *txt)", ffi.C.puts)
         assert fptr == ffi.C.puts
         assert repr(fptr) == "<cdata 'int(*)(char *)'>"
@@ -162,6 +169,7 @@ class TestFunction(object):
         ffi.cdef("""
             int strlen(char[]);
         """)
+        ffi.C = ffi.rawload(None)
         p = ffi.new("char[]", "hello")
         res = ffi.C.strlen(p)
         assert res == 5
@@ -172,6 +180,7 @@ class TestFunction(object):
             int puts(const char *);
             void *stdout, *stderr;
         """)
+        ffi.C = ffi.rawload(None)
         pout = ffi.C.stdout
         perr = ffi.C.stderr
         assert repr(pout) == "<cdata 'void *'>"
@@ -190,6 +199,7 @@ class TestFunction(object):
         ffi.cdef("""
             char *strchr(const char *s, int c);
         """)
+        ffi.C = ffi.rawload(None)
         p = ffi.new("char[]", "hello world!")
         q = ffi.C.strchr(p, ord('w'))
         assert str(q) == "world!"
@@ -200,6 +210,7 @@ class TestFunction(object):
             struct in_addr { unsigned int s_addr; };
             char *inet_ntoa(struct in_addr in);
         """)
+        ffi.C = ffi.rawload(None)
         ina = ffi.new("struct in_addr", [0x04040404])
         a = ffi.C.inet_ntoa(ina[0])
         assert str(a) == '4.4.4.4'

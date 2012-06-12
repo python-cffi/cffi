@@ -33,10 +33,11 @@ class TestOwnLib(object):
         ffi.cdef("""
             int test_getting_errno(void);
         """)
-        ownlib = ffi.load(self.module)
+        ownlib = ffi.rawload(self.module)
+        C = ffi.rawload(None)
         res = ownlib.test_getting_errno()
         assert res == -1
-        assert ffi.C.errno == 123
+        assert C.errno == 123
 
     def test_setting_errno(self):
         if self.Backend is CTypesBackend and '__pypy__' in sys.modules:
@@ -45,8 +46,9 @@ class TestOwnLib(object):
         ffi.cdef("""
             int test_setting_errno(void);
         """)
-        ownlib = ffi.load(self.module)
-        ffi.C.errno = 42
+        ownlib = ffi.rawload(self.module)
+        C = ffi.rawload(None)
+        C.errno = 42
         res = ownlib.test_setting_errno()
         assert res == 42
-        assert ffi.C.errno == 42
+        assert C.errno == 42
