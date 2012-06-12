@@ -20,14 +20,9 @@ class Verifier(object):
         modname = ffiplatform.undercffi_module_name()
         filebase = os.path.join(ffiplatform.tmpdir(), modname)
         
-        with open(filebase + 'module.c', 'w') as f:
+        with open(filebase + '.c', 'w') as f:
             self.f = f
-            self.prnt("#include <Python.h>")
-            self.prnt()
-            self.prnt('#define _cffi_from_c_double PyFloat_FromDouble')
-            self.prnt('#define _cffi_to_c_double PyFloat_AsDouble')
-            self.prnt('#define _cffi_from_c_float PyFloat_FromDouble')
-            self.prnt('#define _cffi_to_c_float PyFloat_AsDouble')
+            self.prnt(cffimod_header)
             self.prnt()
             self.prnt(preamble)
             self.prnt()
@@ -43,7 +38,7 @@ class Verifier(object):
             self.prnt('void init%s()' % modname)
             self.prnt('{')
             self.prnt('  Py_InitModule("%s", _cffi_methods);' % modname)
-            self.prnt('  if (PyErr_Occurred()) return;')
+            self.prnt('  if (PyErr_Occurred() || _cffi_init()) return;')
             self.generate("init")
             self.prnt('}')
             #
@@ -52,11 +47,11 @@ class Verifier(object):
         # XXX use more distutils?
         import distutils.sysconfig
         python_h = distutils.sysconfig.get_python_inc()
-        err = os.system("gcc -I'%s' -O2 -shared %smodule.c -o %s.so" %
+        err = os.system("gcc -I'%s' -O2 -shared %s.c -o %s.so" %
                         (python_h, filebase, filebase))
         if err:
             raise ffiplatform.VerificationError(
-                '%smodule.c: see compilation errors above' % (filebase,))
+                '%s.c: see compilation errors above' % (filebase,))
         #
         import imp
         try:
@@ -75,15 +70,27 @@ class Verifier(object):
 
     # ----------
 
-    def convert_to_c(self, tp, fromvar, tovar, errcode):
+    def convert_to_c(self, tp, fromvar, tovar, errcode, is_funcarg=False):
         if isinstance(tp, model.PrimitiveType):
-            self.prnt('  %s = _cffi_to_c_%s(%s);' % (
-                tovar, tp.name.replace(' ', '_'), fromvar))
-            self.prnt('  if (%s == (%s)-1 && PyErr_Occurred())' % (
-                tovar, tp.name))
-            self.prnt('    %s;' % errcode)
+            converter = '_cffi_to_c_%s' % tp.name.replace(' ', '_')
+            errvalue = '-1'
+        #
+        elif isinstance(tp, model.PointerType):
+            if (is_funcarg and
+                    isinstance(tp.totype, model.PrimitiveType) and
+                    tp.totype.name == 'char'):
+                converter = '_cffi_to_c_char_p'
+            else:
+                converter = '_cffi_to_c_pointer'
+            errvalue = 'NULL'
+        #
         else:
             raise NotImplementedError(tp)
+        #
+        self.prnt('  %s = %s(%s);' % (tovar, converter, fromvar))
+        self.prnt('  if (%s == (%s)%s && PyErr_Occurred())' % (
+            tovar, tp.get_c_name(''), errvalue))
+        self.prnt('    %s;' % errcode)
 
     def get_converter_from_c(self, tp):
         if isinstance(tp, model.PrimitiveType):
@@ -134,7 +141,8 @@ class Verifier(object):
         prnt()
         #
         for i, type in enumerate(tp.args):
-            self.convert_to_c(type, 'arg%d' % i, 'x%d' % i, 'return NULL')
+            self.convert_to_c(type, 'arg%d' % i, 'x%d' % i, 'return NULL',
+                              is_funcarg=True)
             prnt()
         #
         prnt('  { %s%s(%s); }' % (
@@ -161,3 +169,39 @@ class Verifier(object):
         self.prnt('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
 
     generate_cpy_function_init = generate_nothing
+
+
+cffimod_header = r'''
+#include <Python.h>
+
+#define _cffi_from_c_double PyFloat_FromDouble
+#define _cffi_to_c_double PyFloat_AsDouble
+#define _cffi_from_c_float PyFloat_FromDouble
+#define _cffi_to_c_float PyFloat_AsDouble
+
+#define _cffi_to_c_char_p ((char *(*)(PyObject *))_cffi_exports[0])
+
+
+static void **_cffi_exports;
+
+static int _cffi_init(void)
+{
+    PyObject *module = PyImport_ImportModule("_ffi_backend");
+    PyObject *c_api_object;
+
+    if (module == NULL)
+        return -1;
+
+    c_api_object = PyObject_GetAttrString(module, "_C_API");
+    if (c_api_object == NULL)
+        return -1;
+    if (!PyCObject_Check(c_api_object)) {
+        PyErr_SetNone(PyExc_ImportError);
+        return -1;
+    }
+    _cffi_exports = (void **)PyCObject_AsVoidPtr(c_api_object);
+    return 0;
+}
+
+/**********/
+'''

@@ -3236,6 +3236,32 @@ static PyMethodDef FFIBackendMethods[] = {
     {NULL,     NULL}	/* Sentinel */
 };
 
+/************************************************************/
+/* Functions used by '_cffi_N.so', the generated modules    */
+
+static char *_cffi_to_c_char_p(PyObject *obj)
+{
+    if (PyString_Check(obj)) {
+        return PyString_AS_STRING(obj);
+    }
+    if (obj == Py_None) {
+        return NULL;
+    }
+    if (CData_Check(obj)) {
+        return ((CDataObject *)obj)->c_data;
+    }
+    PyErr_Format(PyExc_TypeError,
+                "initializer for ctype 'char *' must be a compatible pointer, "
+                 "not %.200s", Py_TYPE(obj)->tp_name);
+    return NULL;
+}
+
+static void *cffi_exports[] = {
+    _cffi_to_c_char_p,
+};
+
+/************************************************************/
+
 void init_ffi_backend(void)
 {
     PyObject *m, *v;
@@ -3263,5 +3289,9 @@ void init_ffi_backend(void)
     if (PyType_Ready(&CDataOwning_Type) < 0)
         return;
     if (PyType_Ready(&CDataWithDestructor_Type) < 0)
+        return;
+
+    v = PyCObject_FromVoidPtr((void *)cffi_exports, NULL);
+    if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
         return;
 }
