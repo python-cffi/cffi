@@ -22,7 +22,12 @@ class FFI(object):
         ffi.cdef("""
             int printf(const char *, ...);
         """)
-        ffi.C.printf("hello, %s!\n", ffi.new("char[]", "world"))
+
+        C = ffi.rawload(name=None)   # standard library
+        -or-
+        C = ffi.verify()  # use a C compiler: verify the decl above is right
+
+        C.printf("hello, %s!\n", ffi.new("char[]", "world"))
     '''
 
     def __init__(self, backend=None):
@@ -46,7 +51,6 @@ class FFI(object):
         self._new_types = new.module('new_types').__dict__
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
-        self.C = _make_ffi_library(self, None)
         #
         lines = []
         by_size = {}
@@ -64,19 +68,19 @@ class FFI(object):
     def cdef(self, csource):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
-        then be accessed via 'ffi.C' or 'ffi.load()'.  The types can be used
+        then be accessed via 'ffi.rawload()'.  The types can be used
         in 'ffi.new()' and other functions.
         """
         self._parser.parse(csource)
 
-    def load(self, name):
+    def rawload(self, name):
         """Load and return a dynamic library identified by 'name'.
-        The standard C library is preloaded into 'ffi.C'.
+        The standard C library can be loaded by passing None.
         Note that functions and types declared by 'ffi.cdef()' are not
         linked to a particular library, just like C headers; in the
         library we only look for the actual (untyped) symbols.
         """
-        assert isinstance(name, str)
+        assert isinstance(name, str) or name is None
         return _make_ffi_library(self, name)
 
     def typeof(self, cdecl):
@@ -181,7 +185,13 @@ class FFI(object):
         return BType
 
     def verify(self, preamble='', **kwargs):
-        """ Verify that the current ffi signatures compile on this machine
+        """Verify that the current ffi signatures compile on this
+        machine, and return a dynamic library object.  The dynamic
+        library can be used to call functions and access global
+        variables declared in this 'ffi'.  The library is compiled
+        by the C compiler: it gives you C-level API compatibility
+        (including calling macros).  This is unlike 'ffi.rawload()',
+        which requires binary compatibility in the signatures.
         """
         from .verifier import Verifier
         return Verifier(self).verify(preamble, **kwargs)

@@ -10,15 +10,22 @@ class VerificationMissing(Exception):
     cdef, but no verification has been done
     """
 
-test_file_counter = 0
+_file_counter = 0
+_tmpdir = None
 
-def _get_test_file_base():
+def undercffi_module_name():
+    global _file_counter
+    modname = '_cffi_%d' % _file_counter
+    _file_counter += 1
+    return modname
+
+def tmpdir():
     # for now, living in the __pycache__ subdirectory
-    global test_file_counter
-    try:
-        os.mkdir('__pycache__')
-    except OSError:
-        pass
-    tst_file_base = '__pycache__/test%d' % test_file_counter
-    test_file_counter += 1
-    return tst_file_base
+    global _tmpdir
+    if _tmpdir is None:
+        try:
+            os.mkdir('__pycache__')
+        except OSError:
+            pass
+        _tmpdir = os.path.abspath('__pycache__')
+    return _tmpdir

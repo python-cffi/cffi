@@ -1,27 +1,46 @@
 import py
+import math
 from cffi import FFI, VerificationError, VerificationMissing
 
 
-def test_simple_verify():
+def test_missing_function():
     ffi = FFI()
     ffi.cdef("void some_completely_unknown_function();")
     py.test.raises(VerificationError, ffi.verify)
+
+def test_simple_case():
     ffi = FFI()
     ffi.cdef("double sin(double x);")
-    # omission of math.h
-    py.test.raises(VerificationError, ffi.verify)
-    assert ffi.verify('#include <math.h>') is None
-    #
+    lib = ffi.verify('#include <math.h>')
+    assert lib.sin(1.23) == math.sin(1.23)
+
+def test_rounding_1():
     ffi = FFI()
     ffi.cdef("float sin(double x);")
-    py.test.raises(VerificationError, ffi.verify, '#include <math.h>')
+    lib = ffi.verify('#include <math.h>')
+    res = lib.sin(1.23)
+    assert res != math.sin(1.23)     # not exact, because of double->float
+    assert abs(res - math.sin(1.23)) < 1E-5
+
+def test_rounding_2():
     ffi = FFI()
     ffi.cdef("double sin(float x);")
-    py.test.raises(VerificationError, ffi.verify, '#include <math.h>')
-    #
+    lib = ffi.verify('#include <math.h>')
+    res = lib.sin(1.23)
+    assert res != math.sin(1.23)     # not exact, because of double->float
+    assert abs(res - math.sin(1.23)) < 1E-5
+
+def test_strlen_exact():
     ffi = FFI()
     ffi.cdef("size_t strlen(const char *s);")
-    ffi.verify("#include <string.h>")
+    lib = ffi.verify("#include <string.h>")
+    assert lib.strlen("hi there!") == 9
+
+def test_strlen_approximate():
+    ffi = FFI()
+    ffi.cdef("int strlen(char *s);")
+    lib = ffi.verify("#include <string.h>")
+    assert lib.strlen("hi there!") == 9
 
 
 def test_verify_typedefs():
