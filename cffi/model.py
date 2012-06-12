@@ -41,6 +41,7 @@ class VoidType(BaseType):
 
 void_type = VoidType()
 
+
 class PrimitiveType(BaseType):
     _attrs_ = ('name',)
 
@@ -52,6 +53,7 @@ class PrimitiveType(BaseType):
 
     def new_backend_type(self, ffi):
         return ffi._backend.new_primitive_type(self.name)
+
 
 class FunctionType(BaseType):
     _attrs_ = ('args', 'result', 'ellipsis')
@@ -92,9 +94,13 @@ class FunctionType(BaseType):
         prnt('{')
         assert not self.ellipsis  # XXX later
         #
-        for i in range(len(self.args)):
-            prnt('  double x%d;' % i)
-        prnt('  double result;')
+        for i, type in enumerate(self.args):
+            prnt('  %s;' % type.get_c_name(' x%d;' % i))
+        if not isinstance(self.result, VoidType):
+            result_code = 'result = '
+            prnt('  %s;' % self.result.get_c_name(' result'))
+        else:
+            result_code = ''
         #
         if len(self.args) > 1:
             rng = range(len(self.args))
@@ -112,8 +118,9 @@ class FunctionType(BaseType):
             prnt('    return NULL;')
             prnt()
         #
-        prnt('  { result = %s(%s); }' % (
-            name, ', '.join(['x%d' % i for i in range(len(self.args))])))
+        prnt('  { %s%s(%s); }' % (
+            result_code, name,
+            ', '.join(['x%d' % i for i in range(len(self.args))])))
         prnt()
         #
         prnt('  return PyFloat_FromDouble(result);')
@@ -131,7 +138,6 @@ class FunctionType(BaseType):
         verifier.prnt('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
 
 
-
 class PointerType(BaseType):
     _attrs_ = ('totype',)
     
@@ -146,6 +152,7 @@ class PointerType(BaseType):
 
     def new_backend_type(self, ffi, BItem):
         return ffi._backend.new_pointer_type(BItem)
+
 
 class ConstPointerType(PointerType):
 
@@ -179,6 +186,7 @@ class ArrayType(BaseType):
     def new_backend_type(self, ffi, BPtrItem):
         return ffi._backend.new_array_type(BPtrItem, self.length)
 
+
 class StructOrUnion(BaseType):
     _attrs_ = ('name',)
         
@@ -203,6 +211,7 @@ class StructOrUnion(BaseType):
         lst = zip(self.fldnames, fldtypes, self.fldbitsize)
         ffi._backend.complete_struct_or_union(BType, lst, self)
         return BType
+
 
 class StructType(StructOrUnion):
     kind = 'struct'
@@ -270,12 +279,14 @@ class StructType(StructOrUnion):
         verifier.write_printf('END')
         verifier.write('}')
 
+
 class UnionType(StructOrUnion):
     kind = 'union'
 
     def get_btype(self, ffi):
         return ffi._backend.new_union_type(self.name)
-    
+
+
 class EnumType(BaseType):
     _attrs_ = ('name',)
 
