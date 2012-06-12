@@ -72,8 +72,13 @@ class Verifier(object):
 
     def convert_to_c(self, tp, fromvar, tovar, errcode, is_funcarg=False):
         if isinstance(tp, model.PrimitiveType):
-            converter = '_cffi_to_c_%s' % tp.name.replace(' ', '_')
-            errvalue = '-1'
+            if tp.name in ('float', 'double'):
+                # float types
+                converter = 'PyFloat_AsDouble'
+                errvalue = '-1'
+            else:
+                # integer types
+                xxx
         #
         elif isinstance(tp, model.PointerType):
             if (is_funcarg and
@@ -175,8 +180,35 @@ cffimod_header = r'''
 #include <Python.h>
 
 #define _cffi_from_c_double PyFloat_FromDouble
-#define _cffi_to_c_double PyFloat_AsDouble
 #define _cffi_from_c_float PyFloat_FromDouble
+#define _cffi_from_c_signed_char PyInt_FromLong
+#define _cffi_from_c_short PyInt_FromLong
+#define _cffi_from_c_int PyInt_FromLong
+#define _cffi_from_c_long PyInt_FromLong
+#define _cffi_from_c_unsigned_char PyInt_FromLong
+#define _cffi_from_c_unsigned_short PyInt_FromLong
+#define _cffi_from_c_unsigned_long PyLong_FromUnsignedLong
+#define _cffi_from_c_unsigned_long_long PyLong_FromUnsignedLongLong
+
+#if SIZEOF_INT < SIZEOF_LONG
+#  define _cffi_from_c_unsigned_int PyInt_FromLong
+#else
+#  define _cffi_from_c_unsigned_int PyLong_FromUnsignedLong
+#endif
+
+#if SIZEOF_LONG < SIZEOF_LONG_LONG
+#  define _cffi_from_c_long_long PyLong_FromLongLong
+#else
+#  define _cffi_from_c_long_long PyInt_FromLong
+#endif
+
+#define _cffi_to_c_short PyInt_AsLong
+#define _cffi_to_c_short PyInt_AsLong
+#define _cffi_to_c_short PyInt_AsLong
+#define _cffi_to_c_short PyInt_AsLong
+#define _cffi_to_c_short PyInt_AsLong
+#define _cffi_to_c_short PyInt_AsLong
+#define _cffi_to_c_double PyFloat_AsDouble
 #define _cffi_to_c_float PyFloat_AsDouble
 
 #define _cffi_to_c_char_p ((char *(*)(PyObject *))_cffi_exports[0])
