@@ -84,7 +84,7 @@ class FFI(object):
         corresponding Python type: <class 'ffi.CData<...>'>.
         It can also be used on 'cdata' instance to get its C type.
         """
-        if isinstance(cdecl, (str, unicode)):
+        if isinstance(cdecl, basestring):
             try:
                 return self._parsed_types[cdecl]
             except KeyError:
@@ -99,7 +99,7 @@ class FFI(object):
         """Return the size in bytes of the argument.  It can be a
         string naming a C type, or a 'cdata' instance.
         """
-        if isinstance(cdecl, (str, unicode)):
+        if isinstance(cdecl, basestring):
             BType = self.typeof(cdecl)
             return self._backend.sizeof(BType)
         else:
@@ -109,15 +109,17 @@ class FFI(object):
         """Return the natural alignment size in bytes of the C type
         given as a string.
         """
-        BType = self.typeof(cdecl)
-        return self._backend.alignof(BType)
+        if isinstance(cdecl, basestring):
+            cdecl = self.typeof(cdecl)
+        return self._backend.alignof(cdecl)
 
     def offsetof(self, cdecl, fieldname):
         """Return the offset of the named field inside the given
         structure, which must be given as a C type name.
         """
-        BType = self.typeof(cdecl)
-        return self._backend.offsetof(BType, fieldname)
+        if isinstance(cdecl, basestring):
+            cdecl = self.typeof(cdecl)
+        return self._backend.offsetof(cdecl, fieldname)
 
     def new(self, cdecl, init=None):
         """Allocate an instance 'x' of the named C type, and return a

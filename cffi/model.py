@@ -27,7 +27,7 @@ class BaseType(object):
             return self.new_backend_type(ffi, *args)
 
     def verifier_declare_typedef(self, verifier, name):
-        verifier.write('{ %s = (%s**)0; }' % (
+        verifier.write('__sametype__(%s, %s)' % (
             self.get_c_name('** result'), name))
 
 
@@ -170,19 +170,37 @@ class StructType(StructOrUnion):
         return ffi._backend.new_struct_type(self.name)
 
     def verifier_declare_struct(self, verifier, name):
+        assert name == self.name
         if self.partial:
-            self.verifier_decl_partial(verifier, name)
+            self.verifier_decl_partial(verifier)
         else:
-            self.verifier_decl_notpartial(verifier, name)
+            self.verifier_decl_notpartial(verifier)
 
-    def verifier_decl_notpartial(self, verifier, name):
+    def verifier_decl_notpartial(self, verifier):
         if self.fldnames is None:    # not partial, but fully opaque:
             return                   # cannot really test even for existence
         struct = verifier.ffi._get_cached_btype(self)
-        verifier.write('__sameconstant__(sizeof(struct %s), %d)' % (
-            name, verifier.ffi.sizeof(struct)))
+        verifier.write('{')
+        verifier.write('struct __aligncheck__ { char x; struct %s y; };' %
+                       self.name)
+        verifier.write(
+            '__sameconstant__(sizeof(struct %s), %d)' % (
+            self.name, verifier.ffi.sizeof(struct)))
+        verifier.write(
+            '__sameconstant__(offsetof(struct __aligncheck__, y), %d)' % (
+            verifier.ffi.alignof(struct),))
+        for fname, ftype, fbitsize in zip(self.fldnames, self.fldtypes,
+                                          self.fldbitsize):
+            if fbitsize >= 0:
+                assert 0, "XXX: bitfield"
+            verifier.write('__sameconstant__(offsetof(struct %s, %s), %d)' % (
+                self.name, fname, verifier.ffi.offsetof(struct, fname)))
+            # XXX gcc only!
+            verifier.write('__sametype__(%s, typeof(((struct %s *)0)->%s))' % (
+                ftype.get_c_name('** result'), self.name, fname))
+        verifier.write('}')
 
-    def verifier_decl_partial(self, verifier, name):
+    def verifier_decl_partial(self, verifier):
         assert self.fldnames is not None
         verifier.write('{')
         verifier.write('struct __aligncheck__ { char x; struct %s y; };' %

@@ -21,15 +21,19 @@ class Verifier(object):
         tst_file_base = ffiplatform._get_test_file_base()
         self.has_printf = False
         with open(tst_file_base + '.c', 'w') as f:
-            f.write('#include <stdio.h>\n'
-                    '#include <stdint.h>\n'
-                    '#include <stddef.h>\n'
-                    '#include <unistd.h>\n'
-                    '\n'
-                    '#define __sameconstant__(x, y) \\\n'
-                    '  { int result[1-2*((x)-(y))*((x)-(y))]; }\n'
-                    '\n'
-                    )
+            f.write("""\
+#include <stdio.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <unistd.h>
+
+#define __sameconstant__(x, y) \\
+  { int result[1-2*((x)-(y))*((x)-(y))]; }
+
+#define __sametype__(ppresult, typename) \\
+  { ppresult = (typename**)0; }
+
+""")
             f.write(preamble + "\n\n")
             f.write('int main() {\n')
             self.f = f
