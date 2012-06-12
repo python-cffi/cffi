@@ -3289,6 +3289,7 @@ _cffi_to_c_PRIMITIVE(int,            int)
 _cffi_to_c_PRIMITIVE(unsigned_int,   unsigned int)
 #endif
 
+#if SIZEOF_LONG < SIZEOF_LONG_LONG
 static unsigned long _cffi_to_c_unsigned_long(PyObject *obj)
 {
     unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(obj, 1);
@@ -3296,6 +3297,9 @@ static unsigned long _cffi_to_c_unsigned_long(PyObject *obj)
         return (unsigned long)_convert_overflow(obj, "unsigned long");
     return (unsigned long)value;
 }
+#else
+#  define _cffi_to_c_unsigned_long _cffi_to_c_unsigned_long_long
+#endif
 
 static unsigned PY_LONG_LONG _cffi_to_c_unsigned_long_long(PyObject *obj)
 {
