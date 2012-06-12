@@ -53,7 +53,7 @@ class FakeFunction(object):
 def test_simple():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("double sin(double x);")
-    m = ffi.load("m")
+    m = ffi.rawload("m")
     func = m.sin    # should be a callable on real backends
     assert func.name == 'sin'
     assert func.BType == '<func (<double>), <double>, False>'
@@ -61,14 +61,16 @@ def test_simple():
 def test_pipe():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("int pipe(int pipefd[2]);")
-    func = ffi.C.pipe
+    C = ffi.rawload(None)
+    func = C.pipe
     assert func.name == 'pipe'
     assert func.BType == '<func (<pointer to <int>>), <int>, False>'
 
 def test_vararg():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("short foo(int, ...);")
-    func = ffi.C.foo
+    C = ffi.rawload(None)
+    func = C.foo
     assert func.name == 'foo'
     assert func.BType == '<func (<int>), <short>, True>'
 
@@ -77,7 +79,8 @@ def test_no_args():
     ffi.cdef("""
         int foo(void);
         """)
-    assert ffi.C.foo.BType == '<func (), <int>, False>'
+    C = ffi.rawload(None)
+    assert C.foo.BType == '<func (), <int>, False>'
 
 def test_typedef():
     ffi = FFI(backend=FakeBackend())
@@ -86,8 +89,9 @@ def test_typedef():
         typedef UInt UIntReally;
         UInt foo(void);
         """)
+    C = ffi.rawload(None)
     assert ffi.typeof("UIntReally") == '<unsigned int>'
-    assert ffi.C.foo.BType == '<func (), <unsigned int>, False>'
+    assert C.foo.BType == '<func (), <unsigned int>, False>'
 
 def test_typedef_more_complex():
     ffi = FFI(backend=FakeBackend())
@@ -95,10 +99,11 @@ def test_typedef_more_complex():
         typedef struct { int a, b; } foo_t, *foo_p;
         int foo(foo_p[]);
         """)
+    C = ffi.rawload(None)
     assert str(ffi.typeof("foo_t")) == '<int>a, <int>b'
     assert ffi.typeof("foo_p") == '<pointer to <int>a, <int>b>'
-    assert ffi.C.foo.BType == ('<func (<pointer to <pointer to '
-                               '<int>a, <int>b>>), <int>, False>')
+    assert C.foo.BType == ('<func (<pointer to <pointer to '
+                           '<int>a, <int>b>>), <int>, False>')
 
 def test_typedef_array_force_pointer():
     ffi = FFI(backend=FakeBackend())
