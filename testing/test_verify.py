@@ -66,6 +66,18 @@ def test_char_type():
     assert lib.foo("A") == "B"
     py.test.raises(TypeError, lib.foo, "bar")
 
+def test_no_argument():
+    ffi = FFI()
+    ffi.cdef("int foo(void);")
+    lib = ffi.verify("int foo() { return 42; }")
+    assert lib.foo() == 42
+
+def test_two_arguments():
+    ffi = FFI()
+    ffi.cdef("int foo(int, int);")
+    lib = ffi.verify("int foo(int a, int b) { return a - b; }")
+    assert lib.foo(40, -2) == 42
+
 
 def test_verify_typedefs():
     py.test.skip("XXX?")

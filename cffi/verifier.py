@@ -165,7 +165,7 @@ class Verifier(object):
             for i in rng:
                 prnt('  PyObject *arg%d;' % i)
             prnt()
-            prnt('  if (!PyArg_ParseTuple("%s:%s", %s)) {' % (
+            prnt('  if (!PyArg_ParseTuple(args, "%s:%s", %s))' % (
                 'O' * numargs, name, ', '.join(['&arg%d' % i for i in rng])))
             prnt('    return NULL;')
         prnt()
