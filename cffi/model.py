@@ -48,6 +48,12 @@ class PrimitiveType(BaseType):
     def get_c_name(self, replace_with=''):
         return self.name + replace_with
 
+    def is_integer_type(self):
+        return not self.is_float_type()
+
+    def is_float_type(self):
+        return self.name in ('double', 'float')
+
     def new_backend_type(self, ffi):
         return ffi._backend.new_primitive_type(self.name)
 

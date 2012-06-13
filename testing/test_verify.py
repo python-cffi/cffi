@@ -203,3 +203,11 @@ def test_struct_bad_sized_float():
 def test_struct_signedness_ignored():
     _check_field_match("int", "unsigned int", expect_mismatch=False)
     _check_field_match("unsigned short", "signed short", expect_mismatch=False)
+
+def test_struct_float_vs_int():
+    for typename in all_signed_integer_types:
+        for real in all_float_types:
+            _check_field_match(typename, real, expect_mismatch=True)
+    for typename in all_float_types:
+        for real in all_signed_integer_types:
+            _check_field_match(typename, real, expect_mismatch=True)

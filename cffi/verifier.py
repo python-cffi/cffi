@@ -229,6 +229,22 @@ class Verifier(object):
         prnt('  };')
         prnt('  return _cffi_get_struct_layout(nums);')
         prnt('}')
+        prnt()
+        prnt('static void _cffi_check_%s(struct %s *p)' % (name, name))
+        prnt('{')
+        prnt('  /* only to generate compile-time warnings or errors */')
+        for i in range(len(tp.fldnames)):
+            fname = tp.fldnames[i]
+            ftype = tp.fldtypes[i]
+            if (isinstance(ftype, model.PrimitiveType)
+                and ftype.is_integer_type()):
+                # accept all integers, but complain on float or double
+                prnt('  (p->%s) << 1;' % fname)
+            else:
+                # only accept exactly the type declared
+                prnt('  { %s = &p->%s; }' % (
+                    ftype.get_c_name('* tmp'), fname))
+        prnt('}')
 
     def generate_cpy_struct_method(self, tp, name):
         self.prnt('  {"_cffi_struct_%s", _cffi_struct_%s, METH_NOARGS},' % (
