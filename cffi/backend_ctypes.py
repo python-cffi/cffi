@@ -77,6 +77,10 @@ class CTypesGenericPrimitive(CTypesData):
     __slots__ = []
 
 
+class CTypesGenericArray(CTypesData):
+    __slots__ = []
+
+
 class CTypesGenericPtr(CTypesData):
     __slots__ = ['_address', '_as_ctype_ptr']
     _automatic_casts = False
@@ -366,7 +370,10 @@ class CTypesBackend(object):
                 _bitem_size = ctypes.sizeof(BItem._ctype)
             else:
                 _ctype = ctypes.c_void_p
-            _reftypename = BItem._get_c_name(' * &')
+            if issubclass(BItem, CTypesGenericArray):
+                _reftypename = BItem._get_c_name('(* &)')
+            else:
+                _reftypename = BItem._get_c_name(' * &')
 
             def __init__(self, init):
                 ctypeobj = BItem._create_ctype_obj(init)
@@ -436,7 +443,7 @@ class CTypesBackend(object):
         else:
             kind = 'generic'
         #
-        class CTypesArray(CTypesData):
+        class CTypesArray(CTypesGenericArray):
             __slots__ = ['_blob', '_own']
             if length is not None:
                 _ctype = BItem._ctype * length
