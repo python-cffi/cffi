@@ -460,6 +460,15 @@ def test_struct_init_list():
     assert s.a2 == 456
     assert s.a3 == 0
 
+def test_array_in_struct():
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("foo")
+    BArrayInt5 = new_array_type(new_pointer_type(BInt), 5)
+    complete_struct_or_union(BStruct, [('a1', BArrayInt5, -1)])
+    s = newp(new_pointer_type(BStruct), [[20, 24, 27, 29, 30]])
+    assert s.a1[2] == 27
+    assert repr(s.a1) == "<cdata 'int[5]'>"
+
 def test_offsetof():
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo")
