@@ -265,9 +265,11 @@ class Verifier(object):
                 # accept all integers, but complain on float or double
                 prnt('  (p->%s) << 1;' % fname)
             else:
-                # only accept exactly the type declared
+                # only accept exactly the type declared.  Note the parentheses
+                # around the '*tmp' below.  In most cases they are not needed
+                # but don't hurt --- except test_struct_array_field.
                 prnt('  { %s = &p->%s; }' % (
-                    ftype.get_c_name(' *tmp'), fname))
+                    ftype.get_c_name('(*tmp)'), fname))
         prnt('}')
         prnt()
 

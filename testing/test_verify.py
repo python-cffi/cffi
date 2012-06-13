@@ -212,7 +212,6 @@ def test_struct_float_vs_int():
             _check_field_match(typename, real, expect_mismatch=True)
 
 def test_struct_array_field():
-    py.test.skip("in-progress")
     ffi = FFI()
     ffi.cdef("struct foo_s { int a[17]; ...; };")
     ffi.verify("struct foo_s { int x; int a[17]; int y; };")
