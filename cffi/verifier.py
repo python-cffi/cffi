@@ -19,7 +19,7 @@ class Verifier(object):
             self.typesdict[BType] = num
             return num
 
-    def verify(self, preamble, **kwargs):
+    def verify(self, preamble, stop_on_warnings=True):
         modname = ffiplatform.undercffi_module_name()
         filebase = os.path.join(ffiplatform.tmpdir(), modname)
         
@@ -51,8 +51,11 @@ class Verifier(object):
         # XXX use more distutils?
         import distutils.sysconfig
         python_h = distutils.sysconfig.get_python_inc()
-        err = os.system("gcc -I'%s' -O2 -shared -fPIC %s.c -o %s.so" %
-                        (python_h, filebase, filebase))
+        cmdline = "gcc -I'%s' -O2 -shared -fPIC %s.c -o %s.so" % (
+            python_h, filebase, filebase)
+        if stop_on_warnings:
+            cmdline += " -Werror"
+        err = os.system(cmdline)
         if err:
             raise ffiplatform.VerificationError(
                 '%s.c: see compilation errors above' % (filebase,))

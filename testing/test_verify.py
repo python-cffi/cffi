@@ -174,15 +174,32 @@ def test_ffi_nonfull_alignment():
     assert ffi.sizeof('struct foo_s') == 3 * ffi.sizeof('int')
     assert ffi.alignof('struct foo_s') == ffi.sizeof('int')
 
+def _check_field_match(typename, real, expect_mismatch):
+    ffi = FFI()
+    if expect_mismatch == 'by_size':
+        expect_mismatch = ffi.sizeof(typename) != ffi.sizeof(real)
+    ffi.cdef("struct foo_s { %s x; ...; };" % typename)
+    try:
+        ffi.verify("struct foo_s { %s x; };" % real)
+    except VerificationError:
+        if not expect_mismatch:
+            raise AssertionError("unexpected mismatch: %s should be accepted "
+                                 "as equal to %s" % (typename, real))
+    else:
+        if expect_mismatch:
+            raise AssertionError("mismatch not detected: "
+                                 "%s != %s" % (typename, real))
+
 def test_struct_bad_sized_integer():
     for typename in all_signed_integer_types:
         for real in all_signed_integer_types:
-            ffi = FFI()
-            if ffi.sizeof(typename) != ffi.sizeof(real):
-                ffi.cdef("struct foo_s { %s x; ...; };" % typename)
-                try:
-                    ffi.verify("struct foo_s { %s x; };" % real)
-                except VerificationError:
-                    pass
-                else:
-                    raise AssertionError("%s != %s" % (typename, real))
+            _check_field_match(typename, real, "by_size")
+
+def test_struct_bad_sized_float():
+    for typename in all_float_types:
+        for real in all_float_types:
+            _check_field_match(typename, real, "by_size")
+
+def test_struct_signedness_ignored():
+    _check_field_match("int", "unsigned int", expect_mismatch=False)
+    _check_field_match("unsigned short", "signed short", expect_mismatch=False)
