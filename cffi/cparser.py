@@ -73,7 +73,11 @@ class Parser(object):
                                     decl)
             #
             if decl.name:
-                self._declare('variable ' + decl.name, self._get_type(node))
+                tp = self._get_type(node)
+                if 'const' in decl.quals:
+                    self._declare('constant ' + decl.name, tp)
+                else:
+                    self._declare('variable ' + decl.name, tp)
 
     def parse_type(self, cdecl, force_pointer=False):
         ast = self._parse('void __dummy(%s);' % cdecl)

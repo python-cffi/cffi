@@ -226,3 +226,15 @@ def test_struct_array_guess_length():
     assert ffi.sizeof('struct foo_s') == 19 * ffi.sizeof('int')
     s = ffi.new("struct foo_s")
     assert ffi.sizeof(s.a) == 17 * ffi.sizeof('int')
+
+def test_global_constants():
+    ffi = FFI()
+    # use 'static const int', as generally documented, although in this
+    # case the 'static' is completely ignored.
+    ffi.cdef("static const int AA, BB, CC;")
+    lib = ffi.verify("#define AA 42\n"
+                     "#define BB (-43)\n"
+                     "#define CC (22*2)\n")
+    assert lib.AA == 42
+    assert lib.BB == -43
+    assert lib.CC == 44

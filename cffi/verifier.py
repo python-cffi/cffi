@@ -22,6 +22,7 @@ class Verifier(object):
     def verify(self, preamble, stop_on_warnings=True):
         modname = ffiplatform.undercffi_module_name()
         filebase = os.path.join(ffiplatform.tmpdir(), modname)
+        self.chained_list_constants = None
         
         with open(filebase + '.c', 'w') as f:
             self.f = f
@@ -31,6 +32,20 @@ class Verifier(object):
             self.prnt()
             #
             self.generate("decl")
+            #
+            self.prnt('static PyObject *_cffi_setup_custom(void)')
+            self.prnt('{')
+            self.prnt('  PyObject *dct = PyDict_New();')
+            if self.chained_list_constants is not None:
+                self.prnt('  if (dct == NULL)')
+                self.prnt('    return NULL;')
+                self.prnt('  if (%s(dct) < 0) {' % self.chained_list_constants)
+                self.prnt('    Py_DECREF(dct);')
+                self.prnt('    return NULL;')
+                self.prnt('  }')
+            self.prnt('  return dct;')
+            self.prnt('}')
+            self.prnt()
             #
             self.prnt('static PyMethodDef _cffi_methods[] = {')
             self.generate("method")
@@ -42,8 +57,6 @@ class Verifier(object):
             self.prnt('void init%s()' % modname)
             self.prnt('{')
             self.prnt('  Py_InitModule("%s", _cffi_methods);' % modname)
-            self.prnt('  if (PyErr_Occurred() || _cffi_init()) return;')
-            self.generate("init")
             self.prnt('}')
             #
             del self.f
@@ -69,8 +82,9 @@ class Verifier(object):
         revmapping = dict([(value, key)
                            for (key, value) in self.typesdict.items()])
         lst = [revmapping[i] for i in range(len(revmapping))]
-        module._cffi_setup(lst)
+        dct = module._cffi_setup(lst)
         del module._cffi_setup
+        module.__dict__.update(dct)
         #
         self.load(module, 'loading')
         self.load(module, 'loaded')
@@ -135,7 +149,6 @@ class Verifier(object):
 
     generate_cpy_typedef_decl   = generate_nothing
     generate_cpy_typedef_method = generate_nothing
-    generate_cpy_typedef_init   = generate_nothing
     loading_cpy_typedef         = loaded_noop
     loaded_cpy_typedef          = loaded_noop
 
@@ -204,7 +217,6 @@ class Verifier(object):
             meth = 'METH_VARARGS'
         self.prnt('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
 
-    generate_cpy_function_init = generate_nothing
     loading_cpy_function       = loaded_noop
     loaded_cpy_function        = loaded_noop
 
@@ -277,8 +289,6 @@ class Verifier(object):
         self.prnt('  {"_cffi_struct_%s", _cffi_struct_%s, METH_NOARGS},' % (
             name, name))
 
-    generate_cpy_struct_init = generate_nothing
-
     def loading_cpy_struct(self, tp, name, module):
         assert name == tp.name
         function = getattr(module, '_cffi_struct_%s' % name)
@@ -300,7 +310,36 @@ class Verifier(object):
         self.ffi._get_cached_btype(tp)   # force 'fixedlayout' to be considered
 
     # ----------
+    # constants, likely declared with '#define'
 
+    def generate_cpy_constant_decl(self, tp, name):
+        prnt = self.prnt
+        my_func_name = '_cffi_const_%s' % name
+        prnt('static int %s(PyObject *dct)' % my_func_name)
+        prnt('{')
+        prnt('  %s;' % tp.get_c_name(' i'))
+        prnt('  PyObject *o;')
+        prnt('  int res;')
+        if self.chained_list_constants is not None:
+            prnt('  if (%s(dct) < 0)' % self.chained_list_constants)
+            prnt('    return -1;')
+        self.chained_list_constants = my_func_name
+        prnt('  i = (%s);' % (name,))
+        prnt('  o = %s;' % (self.convert_expr_from_c(tp, 'i'),))
+        prnt('  if (o == NULL)')
+        prnt('    return -1;')
+        prnt('  res = PyDict_SetItemString(dct, "%s", o);' % name)
+        prnt('  Py_DECREF(o);')
+        prnt('  return res;')
+        prnt('}')
+        prnt()
+
+    generate_cpy_constant_method = generate_nothing
+
+    loading_cpy_constant = loaded_noop
+    loaded_cpy_constant  = loaded_noop
+
+    # ----------
 
 cffimod_header = r'''
 #include <Python.h>
@@ -382,31 +421,29 @@ typedef struct _ctypedescr CTypeDescrObject;
 static void **_cffi_exports;
 static PyObject *_cffi_types;
 
-static int _cffi_init(void)
+static PyObject *_cffi_setup_custom(void);   /* forward */
+
+static PyObject *_cffi_setup(PyObject *self, PyObject *arg)
 {
     PyObject *module = PyImport_ImportModule("_ffi_backend");
     PyObject *c_api_object;
 
     if (module == NULL)
-        return -1;
+        return NULL;
 
     c_api_object = PyObject_GetAttrString(module, "_C_API");
     if (c_api_object == NULL)
-        return -1;
+        return NULL;
     if (!PyCObject_Check(c_api_object)) {
         PyErr_SetNone(PyExc_ImportError);
-        return -1;
+        return NULL;
     }
     _cffi_exports = (void **)PyCObject_AsVoidPtr(c_api_object);
-    return 0;
-}
 
-static PyObject *_cffi_setup(PyObject *self, PyObject *arg)
-{
     Py_INCREF(arg);
     _cffi_types = arg;
-    Py_INCREF(Py_None);
-    return Py_None;
+
+    return _cffi_setup_custom();
 }
 
 #define _cffi_type(num) ((CTypeDescrObject *)PyList_GET_ITEM(_cffi_types, num))
