@@ -2321,8 +2321,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 
         if (ftype->ct_size < 0) {
             PyErr_Format(PyExc_TypeError,
-                         "field '%s' has ctype '%s' of unknown size",
-                         PyString_AS_STRING(fname),
+                         "field '%s.%s' has ctype '%s' of unknown size",
+                         ct->ct_name, PyString_AS_STRING(fname),
                          ftype->ct_name);
             goto error;
         }

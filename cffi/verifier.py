@@ -69,10 +69,8 @@ class Verifier(object):
         module._cffi_setup(lst)
         del module._cffi_setup
         #
-        for name, tp in self.ffi._parser._declarations.iteritems():
-            kind, realname = name.split(' ', 1)
-            method = getattr(self, 'loading_cpy_%s' % (kind,))
-            method(tp, realname, module)
+        self.load(module, 'loading')
+        self.load(module, 'loaded')
         #
         return module
 
@@ -81,6 +79,12 @@ class Verifier(object):
             kind, realname = name.split(' ', 1)
             method = getattr(self, 'generate_cpy_%s_%s' % (kind, step_name))
             method(tp, realname)
+
+    def load(self, module, step_name):
+        for name, tp in self.ffi._parser._declarations.iteritems():
+            kind, realname = name.split(' ', 1)
+            method = getattr(self, '%s_cpy_%s' % (step_name, kind))
+            method(tp, realname, module)
 
     def generate_nothing(self, tp, name):
         pass
@@ -130,6 +134,7 @@ class Verifier(object):
     generate_cpy_typedef_method = generate_nothing
     generate_cpy_typedef_init   = generate_nothing
     loading_cpy_typedef         = loaded_noop
+    loaded_cpy_typedef          = loaded_noop
 
     # ----------
     # function declarations
@@ -198,11 +203,13 @@ class Verifier(object):
 
     generate_cpy_function_init = generate_nothing
     loading_cpy_function       = loaded_noop
+    loaded_cpy_function        = loaded_noop
 
     # ----------
     # struct declarations
 
     def generate_cpy_struct_decl(self, tp, name):
+        assert tp.partial    # xxx
         assert name == tp.name
         prnt = self.prnt
         prnt('static PyObject *')
@@ -214,6 +221,7 @@ class Verifier(object):
         prnt('    offsetof(struct _cffi_aligncheck, y),')
         for i in range(len(tp.fldnames)):
             prnt('    offsetof(struct %s, %s),' % (name, tp.fldnames[i]))
+            prnt('    sizeof(((struct %s *)0)->%s),' % (name, tp.fldnames[i]))
         prnt('    -1')
         prnt('  };')
         prnt('  return _cffi_get_struct_layout(nums);')
@@ -231,9 +239,13 @@ class Verifier(object):
         layout = function()
         totalsize = layout[0]
         totalalignment = layout[1]
-        fieldofs = layout[2:]
-        assert len(fieldofs) == len(tp.fldnames)
-        tp.fixedlayout = fieldofs, totalsize, totalalignment
+        fieldofs = layout[2::2]
+        fieldsize = layout[3::2]
+        assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
+        tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
+
+    def loaded_cpy_struct(self, tp, name, module):
+        self.ffi._get_cached_btype(tp)   # force 'fixedlayout' to be considered
 
     # ----------
 

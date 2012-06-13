@@ -47,6 +47,8 @@ all_integer_types = ['short', 'int', 'long', 'long long',
                      'signed char', 'unsigned char',
                      'unsigned short', 'unsigned int',
                      'unsigned long', 'unsigned long long']
+all_signed_integer_types = [_typename for _typename in all_integer_types
+                                      if not _typename.startswith('unsigned ')]
 all_float_types = ['float', 'double']
 
 def test_all_integer_and_float_types():
@@ -164,3 +166,23 @@ def test_ffi_nonfull_struct():
     """)
     assert ffi.sizeof('struct foo_s') == 6 * ffi.sizeof('int')
     assert ffi.offsetof('struct foo_s', 'x') == 2 * ffi.sizeof('int')
+
+def test_ffi_nonfull_alignment():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { char x; ...; };")
+    ffi.verify("struct foo_s { int a, b; char x; };")
+    assert ffi.sizeof('struct foo_s') == 3 * ffi.sizeof('int')
+    assert ffi.alignof('struct foo_s') == ffi.sizeof('int')
+
+def test_struct_bad_sized_integer():
+    for typename in all_signed_integer_types:
+        for real in all_signed_integer_types:
+            ffi = FFI()
+            if ffi.sizeof(typename) != ffi.sizeof(real):
+                ffi.cdef("struct foo_s { %s x; ...; };" % typename)
+                try:
+                    ffi.verify("struct foo_s { %s x; };" % real)
+                except VerificationError:
+                    pass
+                else:
+                    raise AssertionError("%s != %s" % (typename, real))

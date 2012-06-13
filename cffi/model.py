@@ -153,7 +153,14 @@ class StructOrUnion(BaseType):
             lst = zip(self.fldnames, fldtypes, self.fldbitsize)
             ffi._backend.complete_struct_or_union(BType, lst, self)
         else:
-            fieldofs, totalsize, totalalignment = self.fixedlayout
+            fieldofs, fieldsize, totalsize, totalalignment = self.fixedlayout
+            for fname, ftype, fsize in zip(self.fldnames, fldtypes, fieldsize):
+                if ffi.sizeof(ftype) != fsize:
+                    from .ffiplatform import VerificationError
+                    raise VerificationError, (
+                        "field '%s.%s' is declared as %d bytes, but is "
+                        "really %d bytes" % (self.name, fname,
+                                             ffi.sizeof(ftype), fsize))
             lst = zip(self.fldnames, fldtypes, self.fldbitsize, fieldofs)
             ffi._backend.complete_struct_or_union(BType, lst, self,
                                                   totalsize, totalalignment)
