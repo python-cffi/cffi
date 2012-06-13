@@ -766,3 +766,12 @@ class BackendTests:
             assert s == '\x64\x00\x00\x00\x65\x00\x00\x00'
         else:
             assert s == '\x00\x00\x00\x64\x00\x00\x00\x65'
+
+    def test_new_struct_containing_array_varsize(self):
+        py.test.skip("later?")
+        ffi = FFI(backend=_ffi_backend)
+        ffi.cdef("struct foo_s { int len; short data[]; };")
+        p = ffi.new("struct foo_s", 10)     # a single integer is the length
+        assert p.len == 0
+        assert p.data[9] == 0
+        py.test.raises(IndexError, "p.data[10]")
