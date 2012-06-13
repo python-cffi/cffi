@@ -212,22 +212,47 @@ class Verifier(object):
     # struct declarations
 
     def generate_cpy_struct_decl(self, tp, name):
-        assert tp.partial    # xxx
         assert name == tp.name
         prnt = self.prnt
         prnt('static PyObject *')
         prnt('_cffi_struct_%s(PyObject *self, PyObject *noarg)' % name)
         prnt('{')
         prnt('  struct _cffi_aligncheck { char x; struct %s y; };' % name)
-        prnt('  static Py_ssize_t nums[] = {')
-        prnt('    sizeof(struct %s),' % name)
-        prnt('    offsetof(struct _cffi_aligncheck, y),')
-        for i in range(len(tp.fldnames)):
-            prnt('    offsetof(struct %s, %s),' % (name, tp.fldnames[i]))
-            prnt('    sizeof(((struct %s *)0)->%s),' % (name, tp.fldnames[i]))
-        prnt('    -1')
-        prnt('  };')
-        prnt('  return _cffi_get_struct_layout(nums);')
+        if tp.partial:
+            prnt('  static Py_ssize_t nums[] = {')
+            prnt('    sizeof(struct %s),' % name)
+            prnt('    offsetof(struct _cffi_aligncheck, y),')
+            for fname in tp.fldnames:
+                prnt('    offsetof(struct %s, %s),' % (name, fname))
+                prnt('    sizeof(((struct %s *)0)->%s),' % (name, fname))
+            prnt('    -1')
+            prnt('  };')
+            prnt('  return _cffi_get_struct_layout(nums);')
+        else:
+            ffi = self.ffi
+            BStruct = ffi._get_cached_btype(tp)
+            conditions = [
+                'sizeof(struct %s) != %d' % (name, ffi.sizeof(BStruct)),
+                'offsetof(struct _cffi_aligncheck, y) != %d' % (
+                    ffi.alignof(BStruct),)]
+            for fname, ftype in zip(tp.fldnames, tp.fldtypes):
+                BField = ffi._get_cached_btype(ftype)
+                conditions += [
+                    'offsetof(struct %s, %s) != %d' % (
+                        name, fname, ffi.offsetof(BStruct, fname)),
+                    'sizeof(((struct %s *)0)->%s) != %d' % (
+                        name, fname, ffi.sizeof(BField))]
+            prnt('  if (%s ||' % conditions[0])
+            for i in range(1, len(conditions)-1):
+                prnt('      %s ||' % conditions[i])
+            prnt('      %s) {' % conditions[-1])
+            prnt('    Py_INCREF(Py_False);')
+            prnt('    return Py_False;')
+            prnt('  }')
+            prnt('  else {')
+            prnt('    Py_INCREF(Py_True);')
+            prnt('    return Py_True;')
+            prnt('  }')
         prnt('}')
         prnt()
         prnt('static void _cffi_check_%s(struct %s *p)' % (name, name))
@@ -256,12 +281,18 @@ class Verifier(object):
         assert name == tp.name
         function = getattr(module, '_cffi_struct_%s' % name)
         layout = function()
-        totalsize = layout[0]
-        totalalignment = layout[1]
-        fieldofs = layout[2::2]
-        fieldsize = layout[3::2]
-        assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
-        tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
+        if layout is False:
+            raise ffiplatform.VerificationError(
+                "incompatible layout for struct %s" % name)
+        elif layout is True:
+            assert not tp.partial
+        else:
+            totalsize = layout[0]
+            totalalignment = layout[1]
+            fieldofs = layout[2::2]
+            fieldsize = layout[3::2]
+            assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
+            tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
 
     def loaded_cpy_struct(self, tp, name, module):
         self.ffi._get_cached_btype(tp)   # force 'fixedlayout' to be considered

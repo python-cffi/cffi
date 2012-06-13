@@ -129,7 +129,6 @@ def test_verify_typedefs():
 
 
 def test_ffi_full_struct():
-    py.test.skip("XXX")
     ffi = FFI()
     ffi.cdef("struct foo_s { char x; int y; long *z; };")
     ffi.verify("struct foo_s { char x; int y; long *z; };")
