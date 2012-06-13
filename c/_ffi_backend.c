@@ -1232,8 +1232,8 @@ _cdata_add_or_sub(PyObject *v, PyObject *w, int sign)
                             ctptr);
 
  not_implemented:
-    Py_INCREF(Py_NotImplemented);               \
-    return Py_NotImplemented;                   \
+    Py_INCREF(Py_NotImplemented);
+    return Py_NotImplemented;
 }
 
 static PyObject *
@@ -2149,12 +2149,17 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *td, *ctitem;
+    const char *extra;
 
     if (!PyArg_ParseTuple(args, "O!:new_pointer_type",
                           &CTypeDescr_Type, &ctitem))
         return NULL;
 
-    td = ctypedescr_new_on_top(ctitem, " *", 2);
+    if (ctitem->ct_flags & CT_ARRAY)
+        extra = "(*)";   /* obscure case: see test_array_add */
+    else
+        extra = " *";
+    td = ctypedescr_new_on_top(ctitem, extra, 2);
     if (td == NULL)
         return NULL;
 

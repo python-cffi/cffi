@@ -11,16 +11,16 @@ from _ffi_backend import _getfields, _testfunc
 
 def size_of_int():
     BInt = new_primitive_type("int")
-    return sizeof_type(BInt)
+    return sizeof(BInt)
 
 def size_of_long():
     BLong = new_primitive_type("long")
-    return sizeof_type(BLong)
+    return sizeof(BLong)
 
 def size_of_ptr():
     BInt = new_primitive_type("int")
     BPtr = new_pointer_type(BInt)
-    return sizeof_type(BPtr)
+    return sizeof(BPtr)
 
 
 def test_load_library():
@@ -55,14 +55,14 @@ def test_cast_to_signed_char():
     assert (x != cast(q, -66)) is True
 
 def test_sizeof_type():
-    py.test.raises(TypeError, sizeof_type, 42.5)
+    py.test.raises(TypeError, sizeof, 42.5)
     p = new_primitive_type("short")
-    assert sizeof_type(p) == 2
+    assert sizeof(p) == 2
 
 def test_integer_types():
     for name in ['signed char', 'short', 'int', 'long', 'long long']:
         p = new_primitive_type(name)
-        size = sizeof_type(p)
+        size = sizeof(p)
         min = -(1 << (8*size-1))
         max = (1 << (8*size-1)) - 1
         assert int(cast(p, min)) == min
@@ -72,7 +72,7 @@ def test_integer_types():
         assert long(cast(p, min - 1)) == max
     for name in ['char', 'short', 'int', 'long', 'long long']:
         p = new_primitive_type('unsigned ' + name)
-        size = sizeof_type(p)
+        size = sizeof(p)
         max = (1 << (8*size)) - 1
         assert int(cast(p, 0)) == 0
         assert int(cast(p, max)) == max
@@ -268,6 +268,20 @@ def test_array_initializer():
         assert a[i] == 100 + i
     assert a[42] == 0      # extra uninitialized item
 
+def test_array_add():
+    p = new_primitive_type("int")
+    p1 = new_array_type(new_pointer_type(p), 5)    # int[5]
+    p2 = new_array_type(new_pointer_type(p1), 3)   # int[3][5]
+    a = newp(p2, [range(n, n+5) for n in [100, 200, 300]])
+    assert repr(a) == "<cdata 'int[3][5]' owning %d bytes>" % (
+        3*5*size_of_int(),)
+    assert repr(a + 0) == "<cdata 'int(*)[5]'>"
+    assert repr(a[0]) == "<cdata 'int[5]'>"
+    assert repr((a + 0)[0]) == "<cdata 'int[5]'>"
+    assert repr(a[0] + 0) == "<cdata 'int *'>"
+    assert type(a[0][0]) is int
+    assert type((a[0] + 0)[0]) is int
+
 def test_cast_primitive_from_cdata():
     p = new_primitive_type("int")
     n = cast(p, cast(p, -42))
@@ -338,9 +352,9 @@ def test_cast_between_pointers():
 
 def test_alignof():
     BInt = new_primitive_type("int")
-    assert alignof(BInt) == sizeof_type(BInt)
+    assert alignof(BInt) == sizeof(BInt)
     BPtr = new_pointer_type(BInt)
-    assert alignof(BPtr) == sizeof_type(BPtr)
+    assert alignof(BPtr) == sizeof(BPtr)
     BArray = new_array_type(BPtr, None)
     assert alignof(BArray) == alignof(BInt)
 
@@ -374,15 +388,15 @@ def test_complete_struct():
     assert d[0][1].bitsize == -1
     assert d[1][0] == 'a2'
     assert d[1][1].type is BChar
-    assert d[1][1].offset == sizeof_type(BLong)
+    assert d[1][1].offset == sizeof(BLong)
     assert d[1][1].bitshift == -1
     assert d[1][1].bitsize == -1
     assert d[2][0] == 'a3'
     assert d[2][1].type is BShort
-    assert d[2][1].offset == sizeof_type(BLong) + sizeof_type(BShort)
+    assert d[2][1].offset == sizeof(BLong) + sizeof(BShort)
     assert d[2][1].bitshift == -1
     assert d[2][1].bitsize == -1
-    assert sizeof_type(BStruct) == 2 * sizeof_type(BLong)
+    assert sizeof(BStruct) == 2 * sizeof(BLong)
     assert alignof(BStruct) == alignof(BLong)
 
 def test_complete_union():
@@ -400,7 +414,7 @@ def test_complete_union():
     assert d[1][0] == 'a2'
     assert d[1][1].type is BChar
     assert d[1][1].offset == 0
-    assert sizeof_type(BUnion) == sizeof_type(BLong)
+    assert sizeof(BUnion) == sizeof(BLong)
     assert alignof(BUnion) == alignof(BLong)
 
 def test_struct_instance():
@@ -505,7 +519,7 @@ def test_call_function_2():
     BLongLong = new_primitive_type("long long")
     BFunc2 = new_function_type((BLongLong, BLongLong), BLongLong, False)
     f = cast(BFunc2, _testfunc(2))
-    longlong_max = (1 << (8*sizeof_type(BLongLong)-1)) - 1
+    longlong_max = (1 << (8*sizeof(BLongLong)-1)) - 1
     assert f(longlong_max - 42, 42) == longlong_max
     assert f(43, longlong_max - 42) == - longlong_max - 1
 
@@ -539,7 +553,7 @@ def test_call_function_6():
     f = cast(BFunc6, _testfunc(6))
     x = newp(BIntPtr, 42)
     res = f(x)
-    assert typeof_instance(res) is BIntPtr
+    assert typeof(res) is BIntPtr
     assert res[0] == 42 - 1000
     #
     BIntArray = new_array_type(BIntPtr, None)
@@ -550,7 +564,7 @@ def test_call_function_6():
     #
     x = newp(BIntArray, [242])
     res = f(x)
-    assert typeof_instance(res) is BIntPtr
+    assert typeof(res) is BIntPtr
     assert res[0] == 242 - 1000
 
 def test_call_function_7():
@@ -660,14 +674,14 @@ def test_enum_in_struct():
 def test_struct_with_bitfields():
     BLong = new_primitive_type("long")
     BStruct = new_struct_type("foo")
-    LONGBITS = 8 * sizeof_type(BLong)
+    LONGBITS = 8 * sizeof(BLong)
     complete_struct_or_union(BStruct, [('a1', BLong, 1),
                                        ('a2', BLong, 2),
                                        ('a3', BLong, 3),
                                        ('a4', BLong, LONGBITS - 5)])
     d = _getfields(BStruct)
     assert d[0][1].offset == d[1][1].offset == d[2][1].offset == 0
-    assert d[3][1].offset == sizeof_type(BLong)
+    assert d[3][1].offset == sizeof(BLong)
     assert d[0][1].bitshift == 0
     assert d[0][1].bitsize == 1
     assert d[1][1].bitshift == 1
@@ -676,7 +690,7 @@ def test_struct_with_bitfields():
     assert d[2][1].bitsize == 3
     assert d[3][1].bitshift == 0
     assert d[3][1].bitsize == LONGBITS - 5
-    assert sizeof_type(BStruct) == 2 * sizeof_type(BLong)
+    assert sizeof(BStruct) == 2 * sizeof(BLong)
     assert alignof(BStruct) == alignof(BLong)
 
 def test_bitfield_instance():
