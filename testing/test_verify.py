@@ -210,3 +210,21 @@ def test_struct_float_vs_int():
     for typename in all_float_types:
         for real in all_signed_integer_types:
             _check_field_match(typename, real, expect_mismatch=True)
+
+def test_struct_array_field():
+    py.test.skip("in-progress")
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int a[17]; ...; };")
+    ffi.verify("struct foo_s { int x; int a[17]; int y; };")
+    assert ffi.sizeof('struct foo_s') == 19 * ffi.sizeof('int')
+    s = ffi.new("struct foo_s")
+    assert ffi.sizeof(s.a) == 17 * ffi.sizeof('int')
+
+def test_struct_array_guess_length():
+    py.test.skip("in-progress")
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int a[]; ...; };")
+    ffi.verify("struct foo_s { int x; int a[17]; int y; };")
+    assert ffi.sizeof('struct foo_s') == 19 * ffi.sizeof('int')
+    s = ffi.new("struct foo_s")
+    assert ffi.sizeof(s.a) == 17 * ffi.sizeof('int')
