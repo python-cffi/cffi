@@ -220,9 +220,8 @@ def test_struct_array_field():
     assert ffi.sizeof(s.a) == 17 * ffi.sizeof('int')
 
 def test_struct_array_guess_length():
-    py.test.skip("in-progress")
     ffi = FFI()
-    ffi.cdef("struct foo_s { int a[]; ...; };")
+    ffi.cdef("struct foo_s { int a[]; ...; };")    # <= no declared length
     ffi.verify("struct foo_s { int x; int a[17]; int y; };")
     assert ffi.sizeof('struct foo_s') == 19 * ffi.sizeof('int')
     s = ffi.new("struct foo_s")

@@ -119,6 +119,9 @@ class ArrayType(BaseType):
         self.item = item
         self.length = length
 
+    def resolve_length(self, newlength):
+        return ArrayType(self.item, newlength)
+
     def get_c_name(self, replace_with=''):
         if self.length is None:
             brackets = '[]'
@@ -158,19 +161,43 @@ class StructOrUnion(BaseType):
         if self.fixedlayout is None:
             lst = zip(self.fldnames, fldtypes, self.fldbitsize)
             ffi._backend.complete_struct_or_union(BType, lst, self)
+            #
         else:
             fieldofs, fieldsize, totalsize, totalalignment = self.fixedlayout
-            for fname, ftype, fsize in zip(self.fldnames, fldtypes, fieldsize):
-                if ffi.sizeof(ftype) != fsize:
-                    from .ffiplatform import VerificationError
-                    raise VerificationError, (
+            for i in range(len(self.fldnames)):
+                fsize = fieldsize[i]
+                ftype = self.fldtypes[i]
+                #
+                if isinstance(ftype, ArrayType) and ftype.length is None:
+                    # fix the length to match the total size
+                    BItemType = ffi._get_cached_btype(ftype.item)
+                    nlen, nrest = divmod(fsize, ffi.sizeof(BItemType))
+                    if nrest != 0:
+                        self._verification_error(
+                            "field '%s.%s' has a bogus size?" % (
+                            self.name, self.fldnames[i]))
+                    ftype = ftype.resolve_length(nlen)
+                    self.fldtypes = (self.fldtypes[:i] + (ftype,) +
+                                     self.fldtypes[i+1:])
+                    BArrayType = ffi._get_cached_btype(ftype)
+                    fldtypes = (fldtypes[:i] + (BArrayType,) +
+                                fldtypes[i+1:])
+                    continue
+                #
+                bitemsize = ffi.sizeof(fldtypes[i])
+                if bitemsize != fsize:
+                    self._verification_error(
                         "field '%s.%s' is declared as %d bytes, but is "
-                        "really %d bytes" % (self.name, fname,
-                                             ffi.sizeof(ftype), fsize))
+                        "really %d bytes" % (self.name, self.fldnames[i],
+                                             bitemsize, fsize))
             lst = zip(self.fldnames, fldtypes, self.fldbitsize, fieldofs)
             ffi._backend.complete_struct_or_union(BType, lst, self,
                                                   totalsize, totalalignment)
         return BType
+
+    def _verification_error(self, msg):
+        from .ffiplatform import VerificationError
+        raise VerificationError(msg)
 
 
 class StructType(StructOrUnion):
