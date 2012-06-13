@@ -254,7 +254,6 @@ class Verifier(object):
             prnt('    return Py_True;')
             prnt('  }')
         prnt('}')
-        prnt()
         prnt('static void _cffi_check_%s(struct %s *p)' % (name, name))
         prnt('{')
         prnt('  /* only to generate compile-time warnings or errors */')
@@ -268,8 +267,9 @@ class Verifier(object):
             else:
                 # only accept exactly the type declared
                 prnt('  { %s = &p->%s; }' % (
-                    ftype.get_c_name('* tmp'), fname))
+                    ftype.get_c_name(' *tmp'), fname))
         prnt('}')
+        prnt()
 
     def generate_cpy_struct_method(self, tp, name):
         self.prnt('  {"_cffi_struct_%s", _cffi_struct_%s, METH_NOARGS},' % (
