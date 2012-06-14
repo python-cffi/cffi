@@ -252,15 +252,19 @@ def test_global_constants():
 
 def test_global_const_int_size():
     # integer constants: ignore the declared type, always just use the value
-    for value in [-2**80, -2**40, -2**20, -2**10, -2**5, -1,
-                  2**5, 2**10, 2**20, 2**40, 2**80]:
+    for value in [-2**63, -2**31, -2**15,
+                  2**15-1, 2**15, 2**31-1, 2**31, 2**32-1, 2**32,
+                  2**63-1, 2**63, 2**64-1]:
         ffi = FFI()
         if value == int(ffi.cast("long long", value)):
-            vstr = '%dLL' % value
+            if value < 0:
+                vstr = '(-%dLL-1)' % (~value,)
+            else:
+                vstr = '%dLL' % value
         elif value == int(ffi.cast("unsigned long long", value)):
             vstr = '%dULL' % value
         else:
-            continue
+            raise AssertionError(value)
         ffi.cdef("static const unsigned short AA;")
         lib = ffi.verify("#define AA %s\n" % vstr)
         assert lib.AA == value

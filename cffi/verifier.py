@@ -330,12 +330,13 @@ class Verifier(object):
             prnt('  i = (%s);' % (name,))
             prnt('  o = %s;' % (self.convert_expr_from_c(tp, 'i'),))
         else:
-            prnt('  if ((%s) == (long)(%s))' % (name, name))
+            prnt('  if (LONG_MIN <= (%s) && (%s) <= LONG_MAX)' % (name, name))
             prnt('    o = PyInt_FromLong((long)(%s));' % (name,))
-            prnt('  else if ((%s) == (long long)(%s))' % (name, name))
+            prnt('  else if ((%s) < 0)' % (name,))
             prnt('    o = PyLong_FromLongLong((long long)(%s));' % (name,))
             prnt('  else')
-            prnt('    o = PyLong_FromUnsignedLongLong(%s);' % (name,))
+            prnt('    o = PyLong_FromUnsignedLongLong((unsigned long long)%s);'
+                 % (name,))
         prnt('  if (o == NULL)')
         prnt('    return -1;')
         prnt('  res = PyDict_SetItemString(dct, "%s", o);' % name)
