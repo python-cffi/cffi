@@ -20,10 +20,18 @@ Simple example
     >>> from cffi import FFI
     >>> ffi = FFI()
     >>> ffi.cdef("""
-    ...     int printf(const char *format, ...);
-    ... """)
-    >>> C = ffi.rawload(None) # loads the entire C namespace
-    >>> C.printf("hi there, %s!\n", ffi.new("char[]", "world"));
+    ...     int printf(const char *format, ...); // copy-pasted from the man page
+    ... """)                                  
+    >>> C = ffi.dlopen(None)                     # loads the entire C namespace
+    >>> arg = ffi.new("char[]", "world")         # equivalent to C code: char arg[] = "world";
+    >>> C.printf("hi there, %s!\n", arg);        # call printf
+    hi there, world!
+    >>>
+
+More documentation
+------------------
+
+See [More docs](https://bitbucket.org/xxx) for examples and supported features.
 
 Contact
 -------
