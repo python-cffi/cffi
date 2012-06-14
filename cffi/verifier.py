@@ -479,6 +479,7 @@ static PyObject *_cffi_from_c_char(char x) {
     ((void(*)(void))_cffi_exports[13])
 #define _cffi_save_errno                                                 \
     ((void(*)(void))_cffi_exports[14])
+#define _CFFI_NUM_EXPORTS 15
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 #  define _cffi_to_c_long_long PyLong_AsLongLong
@@ -488,7 +489,7 @@ static PyObject *_cffi_from_c_char(char x) {
 
 typedef struct _ctypedescr CTypeDescrObject;
 
-static void **_cffi_exports;
+static void *_cffi_exports[_CFFI_NUM_EXPORTS];
 static PyObject *_cffi_types, *_cffi_VerificationError;
 
 static PyObject *_cffi_setup_custom(void);   /* forward */
@@ -518,7 +519,8 @@ static void _cffi_init(void)
         PyErr_SetNone(PyExc_ImportError);
         return;
     }
-    _cffi_exports = (void **)PyCObject_AsVoidPtr(c_api_object);
+    memcpy(_cffi_exports, PyCObject_AsVoidPtr(c_api_object),
+           _CFFI_NUM_EXPORTS * sizeof(void *));
 }
 
 #define _cffi_type(num) ((CTypeDescrObject *)PyList_GET_ITEM(_cffi_types, num))
