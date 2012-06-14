@@ -24,8 +24,8 @@ Simple example
     >>> ffi.cdef("""
     ...     int printf(const char *format, ...);
     ... """)
-    >>> C = ffi.rawload(None) # loads what?
-    >>> C.printf("hi there, %s!\n", "world");
+    >>> C = ffi.rawload(None) # loads the entire C namespace
+    >>> C.printf("hi there, %s!\n", ffi.new("char[]", "world"));
 
 Contact
 -------
