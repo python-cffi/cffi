@@ -184,7 +184,7 @@ class FFI(object):
             self._cached_btypes[type] = BType
         return BType
 
-    def verify(self, preamble='', **kwargs):
+    def verify(self, source='', **kwargs):
         """Verify that the current ffi signatures compile on this
         machine, and return a dynamic library object.  The dynamic
         library can be used to call functions and access global
@@ -194,7 +194,7 @@ class FFI(object):
         which requires binary compatibility in the signatures.
         """
         from .verifier import Verifier
-        return Verifier(self).verify(preamble, **kwargs)
+        return Verifier(self).verify(source, **kwargs)
 
 def _make_ffi_library(ffi, libname):
     name = libname
