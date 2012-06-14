@@ -255,6 +255,17 @@ def test_struct_array_guess_length():
     s = ffi.new("struct foo_s")
     assert ffi.sizeof(s.a) == 17 * ffi.sizeof('int')
 
+def test_struct_array_guess_length_2():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int a[]; ...; };\n"    # <= no declared length
+             "int bar(struct foo_s *);\n")
+    lib = ffi.verify("struct foo_s { int x; int a[17]; int y; };\n"
+                     "int bar(struct foo_s *f) { return f->a[14]; }\n")
+    assert ffi.sizeof('struct foo_s') == 19 * ffi.sizeof('int')
+    s = ffi.new("struct foo_s")
+    s.a[14] = 4242
+    assert lib.bar(s) == 4242
+
 def test_global_constants():
     ffi = FFI()
     # use 'static const int', as generally documented, although in this

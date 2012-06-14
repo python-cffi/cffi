@@ -11,12 +11,11 @@ class Verifier(object):
         print >> self.f, what
 
     def gettypenum(self, type):
-        BType = self.ffi._get_cached_btype(type)
         try:
-            return self.typesdict[BType]
+            return self.typesdict[type]
         except KeyError:
             num = len(self.typesdict)
-            self.typesdict[BType] = num
+            self.typesdict[type] = num
             return num
 
     def verify(self, preamble, stop_on_warnings=True):
@@ -57,6 +56,7 @@ class Verifier(object):
             self.prnt('void init%s()' % modname)
             self.prnt('{')
             self.prnt('  Py_InitModule("%s", _cffi_methods);' % modname)
+            self.prnt('  _cffi_init();')
             self.prnt('}')
             #
             del self.f
@@ -79,14 +79,16 @@ class Verifier(object):
         except ImportError, e:
             raise ffiplatform.VerificationError(str(e))
         #
+        self.load(module, 'loading')
+        #
         revmapping = dict([(value, key)
                            for (key, value) in self.typesdict.items()])
         lst = [revmapping[i] for i in range(len(revmapping))]
+        lst = map(self.ffi._get_cached_btype, lst)
         dct = module._cffi_setup(lst, ffiplatform.VerificationError)
         del module._cffi_setup
         module.__dict__.update(dct)
         #
-        self.load(module, 'loading')
         self.load(module, 'loaded')
         #
         return module
@@ -486,28 +488,30 @@ static PyObject *_cffi_setup_custom(void);   /* forward */
 
 static PyObject *_cffi_setup(PyObject *self, PyObject *args)
 {
-    PyObject *module;
-    PyObject *c_api_object;
-
     if (!PyArg_ParseTuple(args, "OO", &_cffi_types, &_cffi_VerificationError))
         return NULL;
     Py_INCREF(_cffi_types);
     Py_INCREF(_cffi_VerificationError);
 
-    module = PyImport_ImportModule("_ffi_backend");
+    return _cffi_setup_custom();
+}
+
+static void _cffi_init(void)
+{
+    PyObject *module = PyImport_ImportModule("_ffi_backend");
+    PyObject *c_api_object;
+
     if (module == NULL)
-        return NULL;
+        return;
 
     c_api_object = PyObject_GetAttrString(module, "_C_API");
     if (c_api_object == NULL)
-        return NULL;
+        return;
     if (!PyCObject_Check(c_api_object)) {
         PyErr_SetNone(PyExc_ImportError);
-        return NULL;
+        return;
     }
     _cffi_exports = (void **)PyCObject_AsVoidPtr(c_api_object);
-
-    return _cffi_setup_custom();
 }
 
 #define _cffi_type(num) ((CTypeDescrObject *)PyList_GET_ITEM(_cffi_types, num))
