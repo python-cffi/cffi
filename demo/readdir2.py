@@ -19,10 +19,15 @@ ffi.cdef("""
     DIR *fdopendir(int fd);
     int closedir(DIR *dirp);
 
+    static const int DT_DIR;
+
 """)
 ffi.C = ffi.verify("""
 #ifndef _ATFILE_SOURCE
 #  define _ATFILE_SOURCE
+#endif
+#ifndef _BSD_SOURCE
+#  define _BSD_SOURCE
 #endif
 #include <fcntl.h>
 #include <sys/types.h>
@@ -47,7 +52,7 @@ def walk(basefd, path):
             break
         name = str(dirent.d_name)
         print '%3d %s' % (dirent.d_type, name)
-        if dirent.d_type == 4 and name != '.' and name != '..':
+        if dirent.d_type == ffi.C.DT_DIR and name != '.' and name != '..':
             walk(dirfd, name)
     ffi.C.closedir(dir)
     print '}'
