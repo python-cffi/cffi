@@ -138,6 +138,13 @@ def test_verify_typedefs():
                 py.test.raises(VerificationError, ffi.verify,
                                "typedef %s foo_t;" % real)
 
+def test_nondecl_struct():
+    ffi = FFI()
+    ffi.cdef("typedef struct foo_s foo_t; int bar(foo_t *);")
+    lib = ffi.verify("typedef struct foo_s foo_t;\n"
+                     "int bar(foo_t *f) { return 42; }\n")
+    assert lib.bar(None) == 42
+
 def test_missing_typedef():
     py.test.skip("in-progress")
     ffi = FFI()

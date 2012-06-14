@@ -224,6 +224,8 @@ class Verifier(object):
     # struct declarations
 
     def generate_cpy_struct_decl(self, tp, name):
+        if tp.fldnames is None:
+            return     # nothing to do with opaque structs
         assert name == tp.name
         prnt = self.prnt
         prnt('static PyObject *')
@@ -286,10 +288,14 @@ class Verifier(object):
         prnt()
 
     def generate_cpy_struct_method(self, tp, name):
+        if tp.fldnames is None:
+            return     # nothing to do with opaque structs
         self.prnt('  {"_cffi_struct_%s", _cffi_struct_%s, METH_NOARGS},' % (
             name, name))
 
     def loading_cpy_struct(self, tp, name, module):
+        if tp.fldnames is None:
+            return     # nothing to do with opaque structs
         assert name == tp.name
         function = getattr(module, '_cffi_struct_%s' % name)
         layout = function()
@@ -307,6 +313,8 @@ class Verifier(object):
             tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
 
     def loaded_cpy_struct(self, tp, name, module):
+        if tp.fldnames is None:
+            return     # nothing to do with opaque structs
         self.ffi._get_cached_btype(tp)   # force 'fixedlayout' to be considered
 
     # ----------

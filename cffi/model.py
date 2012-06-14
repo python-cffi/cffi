@@ -158,11 +158,15 @@ class StructOrUnion(BaseType):
         BType = self.get_btype(ffi)
         ffi._cached_btypes[self] = BType
         args = [BType]
-        for tp in self.fldtypes:
-            args.append(ffi._get_cached_btype(tp))
+        if self.fldtypes is not None:
+            for tp in self.fldtypes:
+                args.append(ffi._get_cached_btype(tp))
         return args
 
     def finish_backend_type(self, ffi, BType, *fldtypes):
+        if self.fldnames is None:
+            return BType   # not completing it: it's an opaque struct
+        #
         if self.fixedlayout is None:
             lst = zip(self.fldnames, fldtypes, self.fldbitsize)
             ffi._backend.complete_struct_or_union(BType, lst, self)
