@@ -44,17 +44,17 @@ some cross-platform issues.  Work on Windows will be coming soon.
 
 Requirements:
 
-  * Python 2.6 or 2.7
+* Python 2.6 or 2.7
 
-  * pycparser 2.06: http://code.google.com/p/pycparser/
+* pycparser 2.06: http://code.google.com/p/pycparser/
 
 Installation as usual:
 
-  * ``python setup.py install``
+* ``python setup.py install``
 
-  * or you can directly import and use ``cffi``, but if you don't
-    compile the ``_ffi_backend`` extension module, it will fall back
-    to using internally ``ctypes`` (slower).
+* or you can directly import and use ``cffi``, but if you don't
+  compile the ``_ffi_backend`` extension module, it will fall back
+  to using internally ``ctypes`` (slower).
 
 
 Examples
@@ -177,7 +177,7 @@ Declaring types and functions
 
 ``ffi.cdef(source)`` parses the given C source.  This should be done
 first.  It registers all the functions, types, and global variables in
-the C source.  The types can be used immediately in 'ffi.new()' and
+the C source.  The types can be used immediately in ``ffi.new()`` and
 other functions.  Before you can access the functions and global
 variables, you need to give ``ffi`` another piece of information: where
 they actually come from (which you do with either ``ffi.dlopen()`` or
@@ -188,16 +188,16 @@ cannot contain ``#include``.  It should typically be a self-contained
 piece of declarations extracted from a man page.  The only things it
 can assume to exist are the standard types:
 
- * char, short, int, long, long long (both signed and unsigned)
+* char, short, int, long, long long (both signed and unsigned)
 
- * float, double
+* float, double
 
- * intN_t, uintN_t (for N=8,16,32,64), intptr_t, uintptr_t, ptrdiff_t,
-   size_t, ssize_t
+* intN_t, uintN_t (for N=8,16,32,64), intptr_t, uintptr_t, ptrdiff_t,
+  size_t, ssize_t
 
-As we will see on `the verification step`_ below, the declarations
-can also contain ``...`` at various places as placeholders that are
-completed only by during a call to ``verify()``.
+As we will see on `the verification step`_ below, the declarations can
+also contain ``...`` at various places; there are placeholders that will
+be completed by a call to ``verify()``.
 
 
 Loading libraries
@@ -225,16 +225,17 @@ Note that only functions and global variables are in library objects;
 types exist in the ``ffi`` instance independently of library objects.
 This is due to the C model: the types you declare in C are not tied to a
 particular library, as long as you ``#include`` their headers; but you
-cannot call functions from a library without linking it in your program.
+cannot call functions from a library without linking it in your program,
+as ``dlopen()`` does dynamically in C.
 
 
 The verification step
 ---------------------
 
-``ffi.verify(source, ...)``: verifies that the current ffi signatures
+``ffi.verify(source, **kwargs)``: verifies that the current ffi signatures
 compile on this machine, and return a dynamic library object.  The
 dynamic library can be used to call functions and access global
-variables declared by a previous 'ffi.cdef()'.  The library is compiled
+variables declared by a previous ``ffi.cdef()``.  The library is compiled
 by the C compiler: it gives you C-level API compatibility (including
 calling macros, as long as you declared them as functions in
 ``ffi.cdef()``).  This differs from ``ffi.dlopen()``, which requires
@@ -248,14 +249,14 @@ systems which don't have a C compiler).
 
 The arguments to ``ffi.verify()`` are:
 
- * ``source``: C code that is pasted verbatim in the generated code (it
+*  ``source``: C code that is pasted verbatim in the generated code (it
    is *not* parsed internally).  It should contain at least the
    necessary ``#include``.  It can also contain the complete
    implementation of some functions declared in ``cdef()``; this is
    useful if you really need to write a piece of C code, e.g. to access
    some advanced macros.
 
- * ``include_dirs``, ``define_macros``, ``undef_macros``, ``libraries``,
+*  ``include_dirs``, ``define_macros``, ``undef_macros``, ``libraries``,
    ``library_dirs``, ``extra_objects``, ``extra_compile_args``,
    ``extra_link_args`` (keyword arguments): these are used when
    compiling the C code, and are passed directly to distutils_.
@@ -264,35 +265,35 @@ The arguments to ``ffi.verify()`` are:
 
 On the plus side, this solution gives more "C-like" flexibility:
 
- * functions taking or returning integer or float-point arguments can be
+*  functions taking or returning integer or float-point arguments can be
    misdeclared: if e.g. a function is declared by ``cdef()`` as taking a
    ``int``, but actually takes a ``long``, then the C compiler handles the
    difference.
 
- * other arguments are checked: you get a compilation warning or error
+*  other arguments are checked: you get a compilation warning or error
    if you pass a ``int *`` argument to a function expecting a ``long *``.
 
 Moreover, you can use ``...`` in the following places in the ``cdef()``
 for leaving details unspecified (filled in by the C compiler):
 
- * structure declarations: any ``struct`` that ends with ``...;`` is
-   partial.  It will be completed by the compiler.  (You can only access
-   fields that you declared; the compiler can only consider the missing
-   fields as padding.)  Any ``struct`` declaration without ``...;`` is
-   assumed to be exact, but this is checked: you get a
-   ``VerificationError`` if it is not.
+*  structure declarations: any ``struct`` that ends with "``...;``" is
+   partial.  It will be completed by the compiler.  (But note that you
+   can only access fields that you declared.)  Any ``struct``
+   declaration without ``...;`` is assumed to be exact, and this is
+   checked: you get a ``VerificationError`` if it is not.
 
- * unknown types: the syntax ``typedef ... foo_t;`` declares the type
+*  unknown types: the syntax "``typedef ... foo_t;``" declares the type
    ``foo_t`` as opaque.
 
- * array lengths: when used as structure fields, arrays can have an
-   unspecified length, as in ``int n[];``.  The length is completed
+*  array lengths: when used as structure fields, arrays can have an
+   unspecified length, as in "``int n[];``".  The length is completed
    by the C compiler.
 
- * enums: in ``enum foo { A, B, C, ... };``, the enumerated values are
-   not necessarily in order; the C compiler will reorder them as needed
-   and skip any unmentioned value.  Like with structs, an ``enum`` that
-   does not end in ``...`` is assumed to be exact, and this is checked.
+*  enums: in "``enum foo { A, B, C, ... };``" (with a trailing ``...``),
+   the enumerated values are not necessarily in order; the C compiler
+   will reorder them as needed and skip any unmentioned value.  Like
+   with structs, an ``enum`` that does not end in ``...`` is assumed to
+   be exact, and this is checked.
 
 
 Working with pointers, structures and arrays
@@ -304,20 +305,28 @@ correspond to single-character strings in Python.  (If you want it to
 map to small integers, use either ``signed char`` or ``unsigned char``.)
 
 Pointers, structures and arrays are more complex: they don't have an
-obvious Python equivalent.  They correspond to objects of type
+obvious Python equivalent.  Thus, they correspond to objects of type
 ``cdata``, which are printed for example as ``<cdata 'struct foo_s *'>``.
 
 ``ffi.new(ctype [, initializer])``: this function builds a new cdata
 object of the given ``ctype``.  The ctype is usually some constant
 string describing the C type.  This is similar to a malloc: it allocates
 the memory needed to store an object of the given C type, and returns a
-pointer to it.  Unlike C, the returned pointer object has *ownership* on
-the allocated memory: when this exact object is garbage-collected, then
-the memory is freed.  If you store a pointer to the memory somewhere
-else, then make sure you also keep the object alive for as long as needed.
+pointer to it.  The memory is initially filled with zeros.  An
+initializer can be given too, as described later.
 
-The memory is initially filled with zeros.  An initializer can be given
-too, as described later.
+Example::
+
+    >>> ffi.new("int")
+    <cdata 'int *' owning 4 bytes>
+    >>> ffi.new("int[10]")
+    <cdata 'int[10]' owning 40 bytes>
+
+Unlike C, the returned pointer object has *ownership* on the allocated
+memory: when this exact object is garbage-collected, then the memory is
+freed.  If, at the level of C, you store a pointer to the memory
+somewhere else, then make sure you also keep the object alive for as
+long as needed.
 
 The cdata objects support mostly the same operations as in C: you can
 read or write from pointers, arrays and structures.  Dereferencing a
@@ -325,6 +334,9 @@ pointer is done usually in C with the syntax ``*p``, which is not valid
 Python, so instead you have to use the alternative syntax ``p[0]``
 (which is also valid C).  Additionally, the ``p->x`` syntax in C becomes
 ``p.x`` in Python.  And instead of ``NULL`` you use None.
+
+There is no equivalent to the ``&`` operator in C (because it would not
+fit nicely in the model, and it does not seem to be needed here).
 
 Any operation that would in C return a pointer or array or struct type
 gives you a new cdata object.  Unlike the "original" one, these new
@@ -367,16 +379,23 @@ Example::
 Like C, arrays of chars can also be initialized from a string, in
 which case a terminating null character is appended implicitly::
 
-    >>> x = ffi.new("char[]", "hello" + chr(0) + "world")
+    >>> x = ffi.new("char[]", "hello")
     >>> x
-    <cdata 'char[]' owning 12 bytes>
+    <cdata 'char[]' owning 6 bytes>
     >>> len(x)        # the actual size of the array
-    12
+    6
+    >>> x[5]          # the last item in the array
+    '\x00'
+    >>> x[0] = 'H'    # change the first item
     >>> str(x)        # interpret 'x' as a regular null-terminated string
-    'hello'
+    'Hello'
 
-The C array types can have their length unspecified in C types, as long
-as their length can be derived from the initializer, like in C::
+Note that unlike Python lists or tuples, but like C, you cannot index in
+a C array using negative numbers.
+
+More generally, the C array types can have their length unspecified in C
+types, as long as their length can be derived from the initializer, like
+in C::
 
     static int globvar[] = { 1, 2, 3, 4 };    // C syntax
     globvar = ffi.new("int[]", [1, 2, 3, 4])  # CFFI equivalent
@@ -389,9 +408,30 @@ the length (in case you just want zero-initialization)::
     globvar = ffi.new("int[]", 1000)    # CFFI 2nd equivalent
 
 This is useful if the length is not actually a constant, to avoid doing
-things like ``ffi.new("int[%d]" % x)``, which is not recommended:
+things like ``ffi.new("int[%d]"%x)``.  Indeed, this is not recommended:
 ``ffi`` normally caches the string ``"int[]"`` to not need to re-parse
 it all the time.
+
+
+Variadic function calls
+-----------------------
+
+Variadic functions in C (which end with "``...``" as their last
+argument) can be declared and called normally, with the exception that
+all the arguments passed in the variable part *must* be cdata objects,
+or possibly None for ``NULL``.  This is because it would not be possible
+to guess, if you wrote this::
+
+    C.printf("hello, %d\n", 42)
+
+that you really meant the 42 to be passed as a C ``int``, and not a
+``long`` or ``long long``.  The same issue occurs with ``float`` versus
+``double``.  So you have to force cdata objects of the C type you want,
+if necessary with ``ffi.cast()``::
+  
+    C.printf("hello, %d\n", ffi.cast("int", 42))
+    C.printf("hello, %ld\n", ffi.cast("long", 42))
+    C.printf("hello, %f\n", ffi.cast("double", 42))
 
 
 Callbacks
@@ -408,31 +448,45 @@ Python function, you need to use::
     <cdata 'int(*)(int, int)' calling <function myfunc at 0xf757bbc4>>
 
 Warning: like ffi.new(), ffi.callback() returns a cdata that has
-ownership of its C data.  This means that the callback can only be
-invoked as long as this cdata object is alive.  If you store this
-callback somewhere, then make sure you also keep this object alive for
-as long as the callback may be invoked.
+ownership of its C data.  (In this case, the necessary C data contains
+the libffi data structures to do a callback.)  This means that the
+callback can only be invoked as long as this cdata object is alive.  If
+you store this callback somewhere, then make sure you also keep this
+object alive for as long as the callback may be invoked.  (If you want
+the callback to remain valid forever, store the object in a fresh global
+variable somewhere.)
+
+Note that callbacks of a variadic function type are not supported.
 
 
 Miscellaneous
 -------------
 
 ``ffi.string(pointer, length)``: return a Python string containing all
-the data at the given location with the given size.  The pointer must
-be a cdata of type ``void *`` or ``char *``.
+the data at the given location with the given size.  The pointer must be
+a cdata of type ``void *`` or ``char *``.  Null characters are not
+considered special here: the resulting string always has the given
+``length``, possibly with embedded null characters.
 
-``ffi.typeof("C type")``: return an object of type ``ctype``
-corresponding to the parsed string.  Usually you don't need to call this
-function: any place that accepts a C type can receive either a string or
-a pre-parsed ``ctype`` object (and does caching of the string, so there
-is no real performance advantage).
+``ffi.typeof("C type" or cdata object)``: return an object of type
+``<ctype>`` corresponding to the parsed string, or to the C type of the
+cdata instance.  Usually you don't need to call this function or to
+explicitly manipulate ``<ctype>`` objects in your code: any place that
+accepts a C type can receive either a string or a pre-parsed ``ctype``
+object (and because of caching of the string, there is no real
+performance difference).  It can still be useful in writing typechecks,
+e.g.::
+  
+    def myfunction(ptr):
+        assert ffi.typeof(ptr) is ffi.typeof("foo_t*")
+        ...
 
 ``ffi.sizeof("C type" or cdata object)``: return the size of the
 argument in bytes.  The argument can be either a C type, or a cdata object,
 like in the equivalent ``sizeof`` operator in C.
 
 ``ffi.alignof("C type")``: return the alignment of the C type.
-Corresponds to e.g. the ``__alignof__`` operator in GCC.
+Corresponds to the ``__alignof__`` operator in GCC.
 
 ``ffi.offsetof("C struct type", "fieldname")``: return the offset within
 the struct of the given field.  Corresponds to ``offsetof()`` in C.
