@@ -1,4 +1,4 @@
-cffi
+CFFI
 ====
 
 Foreign Function Interface for Python calling C code. The aim of this project
@@ -31,19 +31,42 @@ follows a few principles:
   but all C89 should be, including macros (apart from the most advanced
   (ab)uses of these macros).
 
-Simple example
---------------
+Simple example (ABI level)
+--------------------------
 
     >>> from cffi import FFI
     >>> ffi = FFI()
     >>> ffi.cdef("""
-    ...     int printf(const char *format, ...); // copy-pasted from the man page
+    ...     int printf(const char *format, ...);     // copy-pasted from the man page
     ... """)                                  
     >>> C = ffi.dlopen(None)                     # loads the entire C namespace
     >>> arg = ffi.new("char[]", "world")         # equivalent to C code: char arg[] = "world";
     >>> C.printf("hi there, %s!\n", arg);        # call printf
     hi there, world!
     >>>
+
+Simple example (API level)
+--------------------------
+
+    from cffi import FFI
+    ffi = FFI()
+    ffi.cdef("""     // some declarations from the man page
+        struct passwd {
+            char *pw_name;
+            ...;
+        };
+        struct passwd *getpwuid(int uid);
+    """)
+    C = ffi.verify("""   // passed to the real C compiler
+    #include <sys/types.h>
+    #include <pwd.h>
+    """)
+    assert str(C.getpwuid(0).pw_name) == 'root'
+
+Note that the above example works independently of the exact layout of
+"struct passwd", but so far require a C compiler at runtime.  (This will
+be improved with caching and distribution of the compiled code.)
+
 
 More documentation
 ------------------
