@@ -71,7 +71,7 @@ be improved with caching and distribution of the compiled code.)
 More documentation
 ------------------
 
-See [More docs](https://bitbucket.org/xxx) for examples and supported features.
+See [More docs](http://cffi.readthedocs.org/) for examples and supported features.
 
 Contact
 -------
