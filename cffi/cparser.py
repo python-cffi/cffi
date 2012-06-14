@@ -57,8 +57,12 @@ class Parser(object):
                 if not decl.name:
                     raise api.CDefError("typedef does not declare any name",
                                         decl)
-                self._declare('typedef ' + decl.name,
-                              self._get_type(decl.type))
+                if (isinstance(decl.type.type, pycparser.c_ast.IdentifierType)
+                        and decl.type.type.names == ['__dotdotdot__']):
+                    realtype = model.OpaqueType(decl.name)
+                else:
+                    realtype = self._get_type(decl.type)
+                self._declare('typedef ' + decl.name, realtype)
             else:
                 raise api.CDefError("unrecognized construct", decl)
 

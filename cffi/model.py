@@ -251,3 +251,16 @@ class EnumType(BaseType):
         self.check_not_partial()
         return ffi._backend.new_enum_type(self.name, self.enumerators,
                                           self.enumvalues)
+
+
+class OpaqueType(BaseType):
+    _attrs_ = ('name',)
+
+    def __init__(self, name):
+        self.name = name
+
+    def get_c_name(self, replace_with=''):
+        return self.name + replace_with
+
+    def new_backend_type(self, ffi):
+        return ffi._backend.new_struct_type('$' + self.name)

@@ -146,13 +146,13 @@ def test_nondecl_struct():
     assert lib.bar(None) == 42
 
 def test_missing_typedef():
-    py.test.skip("in-progress")
     ffi = FFI()
     ffi.cdef("typedef ... foo_t; int bar(foo_t *);")
-    py.test.raises(VerificationMissing, ffi.new, "foo_t")
+    py.test.raises(TypeError, ffi.new, "foo_t")
     lib = ffi.verify("typedef struct foo_s { int x; } foo_t;\n"
                      "int bar(foo_t *f) { return 42; }\n")
-    f = ffi.new("foo_t")
+    py.test.raises(TypeError, ffi.new, "foo_t")
+    f = ffi.cast("foo_t*", 0)
     assert lib.bar(f) == 42
 
 
