@@ -22,28 +22,11 @@ Current status
 Next steps
 ----------
 
-the verify() step, which should handle:
+the verify() step, which is missing:
 
-* completing "...;" structs
+* global variables
 
-* checking the other structs, and the arguments to functions, using the real C compiler
+* typedef ... some_integer_type;
 
-* simple "#define FOO value" macros
-
-* macros of the kind "#define funcname otherfuncname"
-
-* more complicated macros "#define foo(a, b, c) ..."
-
-* checking and correcting the value of the enum {} declarations
-
-* probably also fixing the array lengths, e.g. declared as a field "int foo[...];"
-
-generating C extensions:
-
-* this is needed anyway to call macros
-
-* faster, libffi-free way to call C code
-
-* partial blockers: callbacks (probably still use libffi)
 
 _ffi backend for PyPy
