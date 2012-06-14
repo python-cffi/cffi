@@ -82,8 +82,10 @@ Struct/Array Example
     image[0].g = 192
     image[0].b = 128
 
-This can be used as a more flexible replacement of the struct_ and
-array_ modules.  You could also call ``ffi.new("pixel_t[600][800]")``
+This can be used as a more flexible replacement of the
+[struct](http://docs.python.org/library/struct.html) and
+[array](http://docs.python.org/library/array.html) modules.
+You could also call ``ffi.new("pixel_t[600][800]")``
 and get a two-dimensional array.
 
 
