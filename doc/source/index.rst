@@ -58,7 +58,8 @@ Download and Installation:
 
 * or you can directly import and use ``cffi``, but if you don't
   compile the ``_ffi_backend`` extension module, it will fall back
-  to using internally ``ctypes`` (slower).
+  to using internally ``ctypes`` (slower and does not support
+  ``verify()``).
 
 
 Examples
