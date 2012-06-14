@@ -9,8 +9,9 @@ ffi.cdef("""
     typedef ... DIR;
 
     struct dirent {
-        unsigned char  d_type;
-        char           d_name[];
+        unsigned char  d_type;      /* type of file; not supported
+                                       by all file system types */
+        char           d_name[256]; /* filename */
         ...;
     };
 
