@@ -7,14 +7,12 @@ The interface is based on [luajit FFI](http://luajit.org/ext_ffi.html) and follo
 
 * You want to use C code from Python code, so you should be able to do so
   without needing to learn a 3rd language
-  (unlike Cython or SWIG or ctypes)
+  (unlike [Cython](http://www.cython.org) or [SWIG](http://www.swig.org/) or ctypes)
 
-* Keep all the python-related logic in Python instead of C (unlike CPython
-  native C extensions)
+* Keep all the python-related logic in Python instead of C (unlike
+  [CPython native C extensions](http://docs.python.org/extending/extending.html))
 
-* Be complete and work on the level of API (unlike ctypes)
-
-.. _`luajit FFI`: 
+* Be complete and work on the level of API (unlike [ctypes](http://docs.python.org/library/ctypes.html))
 
 Simple example
 --------------
@@ -30,7 +28,7 @@ Simple example
 Contact
 -------
 
-Mailing list: https://groups.google.com/forum/#!forum/python-cffi
+[Mailing list](https://groups.google.com/forum/#!forum/python-cffi)
 
 
 Initial motivation
