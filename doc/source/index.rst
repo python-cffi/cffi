@@ -313,7 +313,8 @@ string describing the C type.  This is similar to a malloc: it allocates
 the memory needed to store an object of the given C type, and returns a
 pointer to it.  Unlike C, the returned pointer object has *ownership* on
 the allocated memory: when this exact object is garbage-collected, then
-the memory is freed.
+the memory is freed.  If you store a pointer to the memory somewhere
+else, then make sure you also keep the object alive for as long as needed.
 
 The memory is initially filled with zeros.  An initializer can be given
 too, as described later.
@@ -323,7 +324,7 @@ read or write from pointers, arrays and structures.  Dereferencing a
 pointer is done usually in C with the syntax ``*p``, which is not valid
 Python, so instead you have to use the alternative syntax ``p[0]``
 (which is also valid C).  Additionally, the ``p->x`` syntax in C becomes
-``p.x`` in Python.
+``p.x`` in Python.  And instead of ``NULL`` you use None.
 
 Any operation that would in C return a pointer or array or struct type
 gives you a new cdata object.  Unlike the "original" one, these new
@@ -340,11 +341,20 @@ Example::
     lib.somefunction(x)       # call the C function
     print x[0]                # read the possibly-changed value
 
-The initializer given in ``ffi.new()`` can be mostly anything that you
-would use as an initializer for C code, with lists or tuples instead of
-using the C syntax ``{ .., .., .. }``.  And like C, arrays of chars can
-also be initialized from a string, in which case a terminating null
-character is appended implicitly.  Example::
+The equivalent of C casts are provided with ``ffi.cast("type", value)``.
+They should work in the same cases as they do in C.  Additionally, this
+is the only way to get cdata objects of integer or floating-point type::
+
+    >>> x = ffi.cast("int", 42)
+    >>> x
+    <cdata 'int'>
+    >>> int(x)
+    42
+
+The initializer given as the optional second argument to ``ffi.new()``
+can be mostly anything that you would use as an initializer for C code,
+with lists or tuples instead of using the C syntax ``{ .., .., .. }``.
+Example::
 
     typedef struct { int x, y; } foo_t;
 
@@ -353,6 +363,17 @@ character is appended implicitly.  Example::
 
     static foo_t globvar = { .y=1, .x=2 };        // C syntax
     globvar = ffi.new("foo_t", {'y': 1, 'x': 2})  # CFFI equivalent
+
+Like C, arrays of chars can also be initialized from a string, in
+which case a terminating null character is appended implicitly::
+
+    >>> x = ffi.new("char[]", "hello" + chr(0) + "world")
+    >>> x
+    <cdata 'char[]' owning 12 bytes>
+    >>> len(x)        # the actual size of the array
+    12
+    >>> str(x)        # interpret 'x' as a regular null-terminated string
+    'hello'
 
 The C array types can have their length unspecified in C types, as long
 as their length can be derived from the initializer, like in C::
@@ -371,6 +392,50 @@ This is useful if the length is not actually a constant, to avoid doing
 things like ``ffi.new("int[%d]" % x)``, which is not recommended:
 ``ffi`` normally caches the string ``"int[]"`` to not need to re-parse
 it all the time.
+
+
+Callbacks
+---------
+
+C functions can also be viewed as ``cdata`` objects, and so can be
+passed as callbacks.  To make new C callback objects that will invoke a
+Python function, you need to use::
+
+    >>> def myfunc(x, y):
+    ...    return x + y
+    ...
+    >>> ffi.callback("int(*)(int, int)", myfunc)
+    <cdata 'int(*)(int, int)' calling <function myfunc at 0xf757bbc4>>
+
+Warning: like ffi.new(), ffi.callback() returns a cdata that has
+ownership of its C data.  This means that the callback can only be
+invoked as long as this cdata object is alive.  If you store this
+callback somewhere, then make sure you also keep this object alive for
+as long as the callback may be invoked.
+
+
+Miscellaneous
+-------------
+
+``ffi.string(pointer, length)``: return a Python string containing all
+the data at the given location with the given size.  The pointer must
+be a cdata of type ``void *`` or ``char *``.
+
+``ffi.typeof("C type")``: return an object of type ``ctype``
+corresponding to the parsed string.  Usually you don't need to call this
+function: any place that accepts a C type can receive either a string or
+a pre-parsed ``ctype`` object (and does caching of the string, so there
+is no real performance advantage).
+
+``ffi.sizeof("C type" or cdata object)``: return the size of the
+argument in bytes.  The argument can be either a C type, or a cdata object,
+like in the equivalent ``sizeof`` operator in C.
+
+``ffi.alignof("C type")``: return the alignment of the C type.
+Corresponds to e.g. the ``__alignof__`` operator in GCC.
+
+``ffi.offsetof("C struct type", "fieldname")``: return the offset within
+the struct of the given field.  Corresponds to ``offsetof()`` in C.
 
 
 
