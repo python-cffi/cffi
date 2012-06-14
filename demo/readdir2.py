@@ -1,4 +1,4 @@
-# A Linux-only demo
+# A Linux-only demo, using verify() instead of hard-coding the exact layouts
 #
 from cffi import FFI
 
@@ -6,16 +6,12 @@ from cffi import FFI
 ffi = FFI()
 ffi.cdef("""
 
-    typedef void DIR;
-    typedef long ino_t;
-    typedef long off_t;
+    typedef ... DIR;
 
     struct dirent {
-        ino_t          d_ino;       
-        off_t          d_off;       
-        unsigned short d_reclen;    
-        unsigned char  d_type;      
-        char           d_name[256]; 
+        unsigned char  d_type;
+        char           d_name[];
+        ...;
     };
 
     int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
@@ -24,8 +20,14 @@ ffi.cdef("""
     int closedir(DIR *dirp);
 
 """)
-ffi.C = ffi.rawload(None)
-
+ffi.C = ffi.verify("""
+#ifndef _ATFILE_SOURCE
+#  define _ATFILE_SOURCE
+#endif
+#include <fcntl.h>
+#include <sys/types.h>
+#include <dirent.h>
+""")
 
 
 def walk(basefd, path):
