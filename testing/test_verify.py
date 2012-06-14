@@ -271,3 +271,9 @@ def test_global_const_int_size():
         lib = ffi.verify("#define AA %s\n" % vstr)
         assert lib.AA == value
         assert type(lib.AA) is type(int(lib.AA))
+
+def test_nonfull_enum():
+    ffi = FFI()
+    ffi.cdef("enum ee { EE1, EE2, EE3, ... \n \t };")
+    py.test.skip("in-progress")
+    py.test.raises(VerificationMissing, ffi.cast, 'enum ee', 'EE2')

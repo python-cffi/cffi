@@ -1,7 +1,8 @@
 
 from . import api, model
-import pycparser, weakref
+import pycparser, weakref, re
 
+_r_partial_enum = re.compile(r"\.\.\.\s*\}")
 _parser_cache = None
 
 def _get_parser():
@@ -9,6 +10,14 @@ def _get_parser():
     if _parser_cache is None:
         _parser_cache = pycparser.CParser()
     return _parser_cache
+
+def _preprocess(csource):
+    matches = list(_r_partial_enum.finditer(csource))
+    for number, match in enumerate(reversed(matches)):
+        p = match.start()
+        assert csource[p:p+3] == '...'
+        csource = '%s__dotdotdot%d__%s' % (csource[:p], number, csource[p+3:])
+    return csource.replace('...', '__dotdotdot__')
 
 class Parser(object):
     def __init__(self):
@@ -26,7 +35,7 @@ class Parser(object):
             if name.startswith('typedef '):
                 csourcelines.append('typedef int %s;' % (name[8:],))
         csourcelines.append('typedef int __dotdotdot__;')
-        csourcelines.append(csource.replace('...', '__dotdotdot__'))
+        csourcelines.append(_preprocess(csource))
         csource = '\n'.join(csourcelines)
         ast = _get_parser().parse(csource)
         return ast
