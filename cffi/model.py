@@ -48,9 +48,14 @@ class PrimitiveType(BaseType):
     def get_c_name(self, replace_with=''):
         return self.name + replace_with
 
+    def is_char_type(self):
+        return self.name == 'char'
+    def is_signed_type(self):
+        return self.is_integer_type() and not self.is_unsigned_type()
+    def is_unsigned_type(self):
+        return self.name.startswith('unsigned ')
     def is_integer_type(self):
-        return not self.is_float_type()
-
+        return not self.is_float_type() and not self.is_char_type()
     def is_float_type(self):
         return self.name in ('double', 'float')
 

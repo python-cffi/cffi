@@ -313,19 +313,29 @@ class Verifier(object):
     # constants, likely declared with '#define'
 
     def generate_cpy_constant_decl(self, tp, name):
+        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
         prnt = self.prnt
         my_func_name = '_cffi_const_%s' % name
         prnt('static int %s(PyObject *dct)' % my_func_name)
         prnt('{')
-        prnt('  %s;' % tp.get_c_name(' i'))
+        if not is_int:
+            prnt('  %s;' % tp.get_c_name(' i'))
         prnt('  PyObject *o;')
         prnt('  int res;')
         if self.chained_list_constants is not None:
             prnt('  if (%s(dct) < 0)' % self.chained_list_constants)
             prnt('    return -1;')
         self.chained_list_constants = my_func_name
-        prnt('  i = (%s);' % (name,))
-        prnt('  o = %s;' % (self.convert_expr_from_c(tp, 'i'),))
+        if not is_int:
+            prnt('  i = (%s);' % (name,))
+            prnt('  o = %s;' % (self.convert_expr_from_c(tp, 'i'),))
+        else:
+            prnt('  if ((%s) == (long)(%s))' % (name, name))
+            prnt('    o = PyInt_FromLong((long)(%s));' % (name,))
+            prnt('  else if ((%s) == (long long)(%s))' % (name, name))
+            prnt('    o = PyLong_FromLongLong((long long)(%s));' % (name,))
+            prnt('  else')
+            prnt('    o = PyLong_FromUnsignedLongLong(%s);' % (name,))
         prnt('  if (o == NULL)')
         prnt('    return -1;')
         prnt('  res = PyDict_SetItemString(dct, "%s", o);' % name)

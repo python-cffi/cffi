@@ -1,6 +1,6 @@
 import py
 import math
-from cffi import FFI, VerificationError, VerificationMissing
+from cffi import FFI, VerificationError, VerificationMissing, model
 
 
 def test_missing_function():
@@ -49,7 +49,18 @@ all_integer_types = ['short', 'int', 'long', 'long long',
                      'unsigned long', 'unsigned long long']
 all_signed_integer_types = [_typename for _typename in all_integer_types
                                       if not _typename.startswith('unsigned ')]
+all_unsigned_integer_types = [_typename for _typename in all_integer_types
+                                        if _typename.startswith('unsigned ')]
 all_float_types = ['float', 'double']
+
+def test_primitive_category():
+    for typename in all_integer_types + all_float_types + ['char']:
+        tp = model.PrimitiveType(typename)
+        assert tp.is_char_type() == (typename == 'char')
+        assert tp.is_signed_type() == (typename in all_signed_integer_types)
+        assert tp.is_unsigned_type()== (typename in all_unsigned_integer_types)
+        assert tp.is_integer_type() == (typename in all_integer_types)
+        assert tp.is_float_type() == (typename in all_float_types)
 
 def test_all_integer_and_float_types():
     for typename in all_integer_types + all_float_types:
@@ -238,3 +249,19 @@ def test_global_constants():
     assert lib.AA == 42
     assert lib.BB == -43
     assert lib.CC == 44
+
+def test_global_const_int_size():
+    # integer constants: ignore the declared type, always just use the value
+    for value in [-2**80, -2**40, -2**20, -2**10, -2**5, -1,
+                  2**5, 2**10, 2**20, 2**40, 2**80]:
+        ffi = FFI()
+        if value == int(ffi.cast("long long", value)):
+            vstr = '%dLL' % value
+        elif value == int(ffi.cast("unsigned long long", value)):
+            vstr = '%dULL' % value
+        else:
+            continue
+        ffi.cdef("static const unsigned short AA;")
+        lib = ffi.verify("#define AA %s\n" % vstr)
+        assert lib.AA == value
+        assert type(lib.AA) is type(int(lib.AA))
