@@ -48,7 +48,9 @@ Requirements:
 
 * pycparser 2.06: http://code.google.com/p/pycparser/
 
-Installation as usual:
+Download and Installation:
+
+* https://bitbucket.org/cffi/cffi/downloads
 
 * ``python setup.py install``
 
