@@ -1,4 +1,4 @@
-# A Linux-only demo
+# A Linux-only demo, using verify() instead of hard-coding the exact layouts
 #
 from cffi import FFI
 
@@ -6,17 +6,13 @@ from cffi import FFI
 ffi = FFI()
 ffi.cdef("""
 
-    typedef void DIR;
-    typedef long ino_t;
-    typedef long off_t;
+    typedef ... DIR;
 
     struct dirent {
-        ino_t          d_ino;       /* inode number */
-        off_t          d_off;       /* offset to the next dirent */
-        unsigned short d_reclen;    /* length of this record */
         unsigned char  d_type;      /* type of file; not supported
                                        by all file system types */
         char           d_name[256]; /* filename */
+        ...;
     };
 
     int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
@@ -24,9 +20,20 @@ ffi.cdef("""
     DIR *fdopendir(int fd);
     int closedir(DIR *dirp);
 
-""")
-ffi.C = ffi.rawload(None)
+    static const int DT_DIR;
 
+""")
+ffi.C = ffi.verify("""
+#ifndef _ATFILE_SOURCE
+#  define _ATFILE_SOURCE
+#endif
+#ifndef _BSD_SOURCE
+#  define _BSD_SOURCE
+#endif
+#include <fcntl.h>
+#include <sys/types.h>
+#include <dirent.h>
+""")
 
 
 def walk(basefd, path):
@@ -46,7 +53,7 @@ def walk(basefd, path):
             break
         name = str(dirent.d_name)
         print '%3d %s' % (dirent.d_type, name)
-        if dirent.d_type == 4 and name != '.' and name != '..':
+        if dirent.d_type == ffi.C.DT_DIR and name != '.' and name != '..':
             walk(dirfd, name)
     ffi.C.closedir(dir)
     print '}'

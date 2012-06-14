@@ -77,6 +77,10 @@ class CTypesGenericPrimitive(CTypesData):
     __slots__ = []
 
 
+class CTypesGenericArray(CTypesData):
+    __slots__ = []
+
+
 class CTypesGenericPtr(CTypesData):
     __slots__ = ['_address', '_as_ctype_ptr']
     _automatic_casts = False
@@ -208,8 +212,8 @@ class CTypesBackend(object):
             if size == ctypes.sizeof(ctypes.c_size_t):
                 result['size_t'] = size | UNSIGNED
                 result['ssize_t'] = size
-            if size == ctypes.sizeof(ctypes.c_wchar):
-                result['wchar_t'] = size | UNSIGNED
+            #if size == ctypes.sizeof(ctypes.c_wchar):
+            #    result['wchar_t'] = size | UNSIGNED
         return result
 
     def load_library(self, path):
@@ -366,7 +370,10 @@ class CTypesBackend(object):
                 _bitem_size = ctypes.sizeof(BItem._ctype)
             else:
                 _ctype = ctypes.c_void_p
-            _reftypename = BItem._get_c_name(' * &')
+            if issubclass(BItem, CTypesGenericArray):
+                _reftypename = BItem._get_c_name('(* &)')
+            else:
+                _reftypename = BItem._get_c_name(' * &')
 
             def __init__(self, init):
                 ctypeobj = BItem._create_ctype_obj(init)
@@ -436,7 +443,7 @@ class CTypesBackend(object):
         else:
             kind = 'generic'
         #
-        class CTypesArray(CTypesData):
+        class CTypesArray(CTypesGenericArray):
             __slots__ = ['_blob', '_own']
             if length is not None:
                 _ctype = BItem._ctype * length
@@ -760,13 +767,12 @@ class CTypesBackend(object):
         p = ctypes.cast(bptr._as_ctype_ptr, ctypes.POINTER(ctypes.c_char))
         return ''.join([p[i] for i in range(length)])
 
-    def sizeof_type(self, BType):
-        assert issubclass(BType, CTypesData)
-        return BType._get_size()
-
-    def sizeof_instance(self, cdata):
-        assert isinstance(cdata, CTypesData)
-        return cdata._get_size_of_instance()
+    def sizeof(self, cdata_or_BType):
+        if isinstance(cdata_or_BType, CTypesData):
+            return cdata_or_BType._get_size_of_instance()
+        else:
+            assert issubclass(cdata_or_BType, CTypesData)
+            return cdata_or_BType._get_size()
 
     def alignof(self, BType):
         assert issubclass(BType, CTypesData)
@@ -785,7 +791,7 @@ class CTypesBackend(object):
     def callback(self, BType, source):
         return BType(source)
 
-    typeof_instance = type
+    typeof = type
 
 
 class CTypesLibrary(object):

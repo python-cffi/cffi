@@ -6,7 +6,7 @@ SIZE_OF_INT   = ctypes.sizeof(ctypes.c_int)
 SIZE_OF_LONG  = ctypes.sizeof(ctypes.c_long)
 SIZE_OF_SHORT = ctypes.sizeof(ctypes.c_short)
 SIZE_OF_PTR   = ctypes.sizeof(ctypes.c_void_p)
-SIZE_OF_WCHAR = ctypes.sizeof(ctypes.c_wchar)
+#SIZE_OF_WCHAR = ctypes.sizeof(ctypes.c_wchar)
 
 
 class BackendTests:
@@ -41,7 +41,7 @@ class BackendTests:
         self._test_int_type(ffi, 'ptrdiff_t', SIZE_OF_PTR, False)
         self._test_int_type(ffi, 'size_t', SIZE_OF_PTR, True)
         self._test_int_type(ffi, 'ssize_t', SIZE_OF_PTR, False)
-        self._test_int_type(ffi, 'wchar_t', SIZE_OF_WCHAR, True)
+        #self._test_int_type(ffi, 'wchar_t', SIZE_OF_WCHAR, True)
 
     def _test_int_type(self, ffi, c_decl, size, unsigned):
         if unsigned:
@@ -50,6 +50,8 @@ class BackendTests:
         else:
             min = -(1 << (8*size-1))
             max = (1 << (8*size-1)) - 1
+        min = int(min)
+        max = int(max)
         p = ffi.cast(c_decl, min)
         assert p != min       # no __eq__(int)
         assert bool(p) is True
@@ -68,6 +70,10 @@ class BackendTests:
         py.test.raises(OverflowError, ffi.new, c_decl, max + 1)
         py.test.raises(OverflowError, ffi.new, c_decl, long(min - 1))
         py.test.raises(OverflowError, ffi.new, c_decl, long(max + 1))
+        assert ffi.new(c_decl, min)[0] == min
+        assert ffi.new(c_decl, max)[0] == max
+        assert ffi.new(c_decl, long(min))[0] == min
+        assert ffi.new(c_decl, long(max))[0] == max
 
     def test_new_single_integer(self):
         ffi = FFI(backend=self.Backend())
@@ -680,6 +686,11 @@ class BackendTests:
         assert s[0].b == 412
         py.test.raises(IndexError, 's[1]')
 
+    def test_pointer_to_array(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int(*)[5]")
+        assert repr(p) == "<cdata 'int(* *)[5]' owning %d bytes>" % SIZE_OF_INT
+
     def test_offsetof(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { int a, b, c; };")
@@ -755,3 +766,12 @@ class BackendTests:
             assert s == '\x64\x00\x00\x00\x65\x00\x00\x00'
         else:
             assert s == '\x00\x00\x00\x64\x00\x00\x00\x65'
+
+    def test_new_struct_containing_array_varsize(self):
+        py.test.skip("later?")
+        ffi = FFI(backend=_ffi_backend)
+        ffi.cdef("struct foo_s { int len; short data[]; };")
+        p = ffi.new("struct foo_s", 10)     # a single integer is the length
+        assert p.len == 0
+        assert p.data[9] == 0
+        py.test.raises(IndexError, "p.data[10]")

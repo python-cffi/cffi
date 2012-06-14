@@ -1,7 +1,10 @@
 
 from . import api, model
-import pycparser, weakref
+import pycparser, weakref, re
 
+_r_comment = re.compile(r"/\*.*?\*/|//.*?$", re.DOTALL | re.MULTILINE)
+_r_partial_enum = re.compile(r"\.\.\.\s*\}")
+_r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _parser_cache = None
 
 def _get_parser():
@@ -10,26 +13,66 @@ def _get_parser():
         _parser_cache = pycparser.CParser()
     return _parser_cache
 
+def _preprocess(csource):
+    # Remove comments.  NOTE: this only work because the cdef() section
+    # should not contain any string literal!
+    csource = _r_comment.sub(' ', csource)
+    # Replace "...}" with "__dotdotdotNUM__}".  This construction should
+    # occur only at the end of enums; at the end of structs we have "...;}"
+    # and at the end of vararg functions "...);"
+    matches = list(_r_partial_enum.finditer(csource))
+    for number, match in enumerate(reversed(matches)):
+        p = match.start()
+        assert csource[p:p+3] == '...'
+        csource = '%s __dotdotdot%d__ %s' % (csource[:p], number,
+                                             csource[p+3:])
+    # Replace all remaining "..." with the same name, "__dotdotdot__",
+    # which is declared with a typedef for the purpose of C parsing.
+    return csource.replace('...', ' __dotdotdot__ ')
+
 class Parser(object):
     def __init__(self):
         self._declarations = {}
         self._anonymous_counter = 0
         self._structnode2type = weakref.WeakKeyDictionary()
 
-    def parse(self, csource):
-        csource = ("typedef int __dotdotdot__;\n" +
-                   csource.replace('...', '__dotdotdot__'))
+    def _parse(self, csource):
+        # XXX: for more efficiency we would need to poke into the
+        # internals of CParser...  the following registers the
+        # typedefs, because their presence or absence influences the
+        # parsing itself (but what they are typedef'ed to plays no role)
+        csourcelines = []
+        for name in sorted(self._declarations):
+            if name.startswith('typedef '):
+                csourcelines.append('typedef int %s;' % (name[8:],))
+        csourcelines.append('typedef int __dotdotdot__;')
+        csourcelines.append(_preprocess(csource))
+        csource = '\n'.join(csourcelines)
         ast = _get_parser().parse(csource)
-        for decl in ast.ext:
+        return ast
+
+    def parse(self, csource):
+        ast = self._parse(csource)
+        # find the first "__dotdotdot__" and use that as a separator
+        # between the repeated typedefs and the real csource
+        iterator = iter(ast.ext)
+        for decl in iterator:
+            if decl.name == '__dotdotdot__':
+                break
+        #
+        for decl in iterator:
             if isinstance(decl, pycparser.c_ast.Decl):
                 self._parse_decl(decl)
             elif isinstance(decl, pycparser.c_ast.Typedef):
                 if not decl.name:
                     raise api.CDefError("typedef does not declare any name",
                                         decl)
-                if decl.name != '__dotdotdot__':
-                    self._declare('typedef ' + decl.name,
-                                  self._get_type(decl.type))
+                if (isinstance(decl.type.type, pycparser.c_ast.IdentifierType)
+                        and decl.type.type.names == ['__dotdotdot__']):
+                    realtype = model.OpaqueType(decl.name)
+                else:
+                    realtype = self._get_type(decl.type)
+                self._declare('typedef ' + decl.name, realtype)
             else:
                 raise api.CDefError("unrecognized construct", decl)
 
@@ -54,33 +97,28 @@ class Parser(object):
                                     decl)
             #
             if decl.name:
-                self._declare('variable ' + decl.name, self._get_type(node))
+                tp = self._get_type(node)
+                if 'const' in decl.quals:
+                    self._declare('constant ' + decl.name, tp)
+                else:
+                    self._declare('variable ' + decl.name, tp)
 
-    def parse_type(self, cdecl, force_pointer=False,
-                   convert_array_to_pointer=False):
-        # XXX: for more efficiency we would need to poke into the
-        # internals of CParser...  the following registers the
-        # typedefs, because their presence or absence influences the
-        # parsing itself (but what they are typedef'ed to plays no role)
-        csourcelines = []
-        for name in sorted(self._declarations):
-            if name.startswith('typedef '):
-                csourcelines.append('typedef int %s;' % (name[8:],))
-        #
-        csourcelines.append('void __dummy(%s);' % cdecl)
-        ast = _get_parser().parse('\n'.join(csourcelines))
+    def parse_type(self, cdecl, force_pointer=False):
+        ast = self._parse('void __dummy(%s);' % cdecl)
         typenode = ast.ext[-1].type.args.params[0].type
-        return self._get_type(typenode, force_pointer=force_pointer,
-                              convert_array_to_pointer=convert_array_to_pointer)
+        return self._get_type(typenode, force_pointer=force_pointer)
 
     def _declare(self, name, obj):
         if name in self._declarations:
             raise api.FFIError("multiple declarations of %s" % (name,))
+        assert name != '__dotdotdot__'
         self._declarations[name] = obj
 
-    def _get_type_pointer(self, type):
+    def _get_type_pointer(self, type, const=False):
         if isinstance(type, model.FunctionType):
             return type # "pointer-to-function" ~== "function"
+        if const:
+            return model.ConstPointerType(type)
         return model.PointerType(type)
 
     def _get_type(self, typenode, convert_array_to_pointer=False,
@@ -114,7 +152,10 @@ class Parser(object):
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
             # pointer type
-            return self._get_type_pointer(self._get_type(typenode.type))
+            const = (isinstance(typenode.type, pycparser.c_ast.TypeDecl)
+                     and 'const' in typenode.type.quals)
+            return self._get_type_pointer(self._get_type(typenode.type), const)
+                                          
         #
         if isinstance(typenode, pycparser.c_ast.TypeDecl):
             type = typenode.type
@@ -132,6 +173,8 @@ class Parser(object):
                 ident = ' '.join(names)
                 if ident == 'void':
                     return model.void_type
+                if ident == '__dotdotdot__':
+                    raise api.FFIError('bad usage of "..."')
                 return model.PrimitiveType(ident)
             #
             if isinstance(type, pycparser.c_ast.Struct):
@@ -152,7 +195,7 @@ class Parser(object):
         #
         raise api.FFIError("bad or unsupported type declaration")
 
-    def _parse_function_type(self, typenode, name=None):
+    def _parse_function_type(self, typenode, funcname=None):
         params = list(getattr(typenode.args, 'params', []))
         ellipsis = (
             len(params) > 0 and
@@ -171,7 +214,7 @@ class Parser(object):
                                convert_array_to_pointer=True)
                 for argdeclnode in params]
         result = self._get_type(typenode.type)
-        return model.FunctionType(name, tuple(args), result, ellipsis)
+        return model.FunctionType(tuple(args), result, ellipsis)
 
     def _get_struct_or_union_type(self, kind, type, typenode=None):
         # First, a level of caching on the exact 'type' node of the AST.
@@ -238,10 +281,11 @@ class Parser(object):
         for decl in type.decls:
             if (isinstance(decl.type, pycparser.c_ast.IdentifierType) and
                     ''.join(decl.type.names) == '__dotdotdot__'):
-                xxxx
                 # XXX pycparser is inconsistent: 'names' should be a list
                 # of strings, but is sometimes just one string.  Use
                 # str.join() as a way to cope with both.
+                tp.partial = True
+                continue
             if decl.bitsize is None:
                 bitsize = -1
             else:
@@ -274,17 +318,23 @@ class Parser(object):
         if key in self._declarations:
             return self._declarations[key]
         if decls is not None:
-            enumerators = tuple([enum.name for enum in decls.enumerators])
+            enumerators = [enum.name for enum in decls.enumerators]
+            partial = False
+            if enumerators and _r_enum_dotdotdot.match(enumerators[-1]):
+                enumerators.pop()
+                partial = True
+            enumerators = tuple(enumerators)
             enumvalues = []
             nextenumvalue = 0
-            for enum in decls.enumerators:
+            for enum in decls.enumerators[:len(enumerators)]:
                 if enum.value is not None:
                     nextenumvalue = self._parse_constant(enum.value)
                 enumvalues.append(nextenumvalue)
                 nextenumvalue += 1
             enumvalues = tuple(enumvalues) 
             tp = model.EnumType(name, enumerators, enumvalues)
-            self._declarations[key] = tp
+            tp.partial = partial
+            self._declare(key, tp)
         else:   # opaque enum
             enumerators = ()
             enumvalues = ()

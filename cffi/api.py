@@ -22,7 +22,12 @@ class FFI(object):
         ffi.cdef("""
             int printf(const char *, ...);
         """)
-        ffi.C.printf("hello, %s!\n", ffi.new("char[]", "world"))
+
+        C = ffi.rawload(name=None)   # standard library
+        -or-
+        C = ffi.verify()  # use a C compiler: verify the decl above is right
+
+        C.printf("hello, %s!\n", ffi.new("char[]", "world"))
     '''
 
     def __init__(self, backend=None):
@@ -46,7 +51,6 @@ class FFI(object):
         self._new_types = new.module('new_types').__dict__
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
-        self.C = _make_ffi_library(self, None)
         #
         lines = []
         by_size = {}
@@ -64,19 +68,19 @@ class FFI(object):
     def cdef(self, csource):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
-        then be accessed via 'ffi.C' or 'ffi.load()'.  The types can be used
+        then be accessed via 'ffi.rawload()'.  The types can be used
         in 'ffi.new()' and other functions.
         """
         self._parser.parse(csource)
 
-    def load(self, name):
+    def rawload(self, name):
         """Load and return a dynamic library identified by 'name'.
-        The standard C library is preloaded into 'ffi.C'.
+        The standard C library can be loaded by passing None.
         Note that functions and types declared by 'ffi.cdef()' are not
         linked to a particular library, just like C headers; in the
         library we only look for the actual (untyped) symbols.
         """
-        assert isinstance(name, str)
+        assert isinstance(name, str) or name is None
         return _make_ffi_library(self, name)
 
     def typeof(self, cdecl):
@@ -89,11 +93,11 @@ class FFI(object):
                 return self._parsed_types[cdecl]
             except KeyError:
                 type = self._parser.parse_type(cdecl)
-                btype = type.get_backend_type(self)
+                btype = self._get_cached_btype(type)
                 self._parsed_types[cdecl] = btype
                 return btype
         else:
-            return self._backend.typeof_instance(cdecl)
+            return self._backend.typeof(cdecl)
 
     def sizeof(self, cdecl):
         """Return the size in bytes of the argument.  It can be a
@@ -101,23 +105,25 @@ class FFI(object):
         """
         if isinstance(cdecl, basestring):
             BType = self.typeof(cdecl)
-            return self._backend.sizeof_type(BType)
+            return self._backend.sizeof(BType)
         else:
-            return self._backend.sizeof_instance(cdecl)
+            return self._backend.sizeof(cdecl)
 
     def alignof(self, cdecl):
         """Return the natural alignment size in bytes of the C type
         given as a string.
         """
-        BType = self.typeof(cdecl)
-        return self._backend.alignof(BType)
+        if isinstance(cdecl, basestring):
+            cdecl = self.typeof(cdecl)
+        return self._backend.alignof(cdecl)
 
     def offsetof(self, cdecl, fieldname):
         """Return the offset of the named field inside the given
         structure, which must be given as a C type name.
         """
-        BType = self.typeof(cdecl)
-        return self._backend.offsetof(BType, fieldname)
+        if isinstance(cdecl, basestring):
+            cdecl = self.typeof(cdecl)
+        return self._backend.offsetof(cdecl, fieldname)
 
     def new(self, cdecl, init=None):
         """Allocate an instance 'x' of the named C type, and return a
@@ -141,7 +147,7 @@ class FFI(object):
             BType = self._new_types[cdecl]
         except KeyError:
             type = self._parser.parse_type(cdecl, force_pointer=True)
-            BType = type.get_backend_type(self)
+            BType = self._get_cached_btype(type)
             self._new_types[cdecl] = BType
         #
         return self._backend.newp(BType, init)
@@ -179,10 +185,16 @@ class FFI(object):
         return BType
 
     def verify(self, preamble='', **kwargs):
-        """ Verify that the current ffi signatures compile on this machine
+        """Verify that the current ffi signatures compile on this
+        machine, and return a dynamic library object.  The dynamic
+        library can be used to call functions and access global
+        variables declared in this 'ffi'.  The library is compiled
+        by the C compiler: it gives you C-level API compatibility
+        (including calling macros).  This is unlike 'ffi.rawload()',
+        which requires binary compatibility in the signatures.
         """
         from .verifier import Verifier
-        return Verifier().verify(self, preamble, **kwargs)
+        return Verifier(self).verify(preamble, **kwargs)
 
 def _make_ffi_library(ffi, libname):
     name = libname
