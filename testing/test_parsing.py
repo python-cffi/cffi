@@ -122,3 +122,20 @@ def test_typedef_array_convert_array_to_pointer():
     type = ffi._parser.parse_type("fn_t")
     BType = ffi._get_cached_btype(type)
     assert BType == '<func (<pointer to <int>>), <int>, False>'
+
+def test_remove_comments():
+    ffi = FFI(backend=FakeBackend())
+    ffi.cdef("""
+        double /*comment here*/ sin   // blah blah
+        /* multi-
+           line-
+           //comment */  (
+        // foo
+        double // bar      /* <- ignored, because it's in a comment itself
+        x, double/*several*//*comment*/y) /*on the same line*/
+        ;
+    """)
+    m = ffi.rawload("m")
+    func = m.sin
+    assert func.name == 'sin'
+    assert func.BType == '<func (<double>, <double>), <double>, False>'

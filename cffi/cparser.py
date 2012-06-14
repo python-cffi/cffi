@@ -2,6 +2,7 @@
 from . import api, model
 import pycparser, weakref, re
 
+_r_comment = re.compile(r"/\*.*?\*/|//.*?$", re.DOTALL | re.MULTILINE)
 _r_partial_enum = re.compile(r"\.\.\.\s*\}")
 _r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _parser_cache = None
@@ -13,12 +14,19 @@ def _get_parser():
     return _parser_cache
 
 def _preprocess(csource):
+    # Remove comments
+    csource = _r_comment.sub(' ', csource)
+    # Replace "...}" with "__dotdotdotNUM__}".  This construction should
+    # occur only at the end of enums; at the end of structs we have "...;}"
+    # and at the end of vararg functions "...);"
     matches = list(_r_partial_enum.finditer(csource))
     for number, match in enumerate(reversed(matches)):
         p = match.start()
         assert csource[p:p+3] == '...'
         csource = '%s __dotdotdot%d__ %s' % (csource[:p], number,
                                              csource[p+3:])
+    # Replace all remaining "..." with the same name, "__dotdotdot__",
+    # which is declared with a typedef for the purpose of C parsing.
     return csource.replace('...', ' __dotdotdot__ ')
 
 class Parser(object):
