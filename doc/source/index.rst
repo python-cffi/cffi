@@ -465,9 +465,20 @@ variable somewhere.)
 
 Note that callbacks of a variadic function type are not supported.
 
+Be careful when writing the Python callback function: if it returns an
+object of the wrong type, or more generally raises an exception, then
+the exception cannot be propagated.  Instead, it is printed to stderr
+and the C-level callback is made to return, randomly, a null value.
+
 
 Miscellaneous
 -------------
+
+``errno``: the value of ``errno`` received from the most recent C call
+in this thread, and passed to the following C call, is available via
+``ffi.dlopen(None).errno`` as a global variable of the C standard
+library.  It can also be accessed more directly via reads and writes of
+``ffi.errno``.
 
 ``ffi.string(pointer, length)``: return a Python string containing all
 the data at the given location with the given size.  The pointer must be

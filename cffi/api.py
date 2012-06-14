@@ -196,6 +196,13 @@ class FFI(object):
         from .verifier import Verifier
         return Verifier(self).verify(source, **kwargs)
 
+    def _get_errno(self):
+        return self._backend.get_errno()
+    def _set_errno(self, errno):
+        self._backend.set_errno(errno)
+    errno = property(_get_errno, _set_errno, None,
+                     "the value of 'errno' from/to the C calls")
+
 def _make_ffi_library(ffi, libname):
     name = libname
     if name is None:
