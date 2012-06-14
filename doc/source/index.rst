@@ -511,6 +511,20 @@ the struct of the given field.  Corresponds to ``offsetof()`` in C.
 
 
 
+Comments and bugs
+=================
+
+Please report to the `issue tracker`_ any bugs.  Feel free to discuss
+matters in the `mailing list`_.  As a general rule, when there is a
+design issue to resolve, we pick the solution that is the "most C-like".
+We hope that this module has got everything you need to access C code
+and nothing more.
+
+.. _`issue tracker`: https://bitbucket.org/cffi/cffi/issues
+.. _`mailing list`: https://groups.google.com/forum/#!forum/python-cffi
+
+
+
 Indices and tables
 ==================
 
