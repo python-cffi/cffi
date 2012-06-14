@@ -31,32 +31,31 @@ The interface is based on `luajit FFI`_ and follows a few principles:
 .. _`luajit FFI`: http://luajit.org/ext_ffi.html
 .. _`Cython`: http://www.cython.org
 .. _`SWIG`: http://www.swig.org/
-.. _`CPython native C extensions`_: http://docs.python.org/extending/extending.html
-.. _`native C extensions`_: http://docs.python.org/extending/extending.html
+.. _`CPython native C extensions`: http://docs.python.org/extending/extending.html
+.. _`native C extensions`: http://docs.python.org/extending/extending.html
 .. _`ctypes`: http://docs.python.org/library/ctypes.html
 
 
 Simple example (ABI level)
 --------------------------
 
-.. Python::
+.. code-block:: python
 
     >>> from cffi import FFI
     >>> ffi = FFI()
     >>> ffi.cdef("""
-    ...     int printf(const char *format, ...); // copy-pasted from the man page
+    ...     int printf(const char *format, ...);   // copy-pasted from the man page
     ... """)                                  
     >>> C = ffi.dlopen(None)                     # loads the entire C namespace
     >>> arg = ffi.new("char[]", "world")         # equivalent to C code: char arg[] = "world";
     >>> C.printf("hi there, %s!\n", arg);        # call printf
     hi there, world!
-    >>>
 
 
 Real example (API level)
 ------------------------
 
-.. Python::
+.. code-block:: python
 
     from cffi import FFI
     ffi = FFI()
@@ -80,7 +79,7 @@ to improve with caching and a way to distribute the compiled code.)
 Struct/Array Example
 --------------------
 
-.. Python::
+.. code-block:: python
 
     from cffi import FFI
     ffi = FFI()
