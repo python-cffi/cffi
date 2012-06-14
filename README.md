@@ -45,8 +45,8 @@ Simple example (ABI level)
     hi there, world!
     >>>
 
-Simple example (API level)
---------------------------
+Real example (API level)
+------------------------
 
     from cffi import FFI
     ffi = FFI()
@@ -64,8 +64,27 @@ Simple example (API level)
     assert str(C.getpwuid(0).pw_name) == 'root'
 
 Note that the above example works independently of the exact layout of
-"struct passwd", but so far require a C compiler at runtime.  (This will
-be improved with caching and distribution of the compiled code.)
+"struct passwd", but so far require a C compiler at runtime.  (We plan
+to improve with caching and a way to distribute the compiled code.)
+
+Struct/Array Example
+--------------------
+
+    from cffi import FFI
+    ffi = FFI()
+    ffi.cdef("""
+        typedef struct {
+            unsigned char r, g, b;
+        } pixel_t;
+    """)
+    image = ffi.new("pixel_t[]", 800*600)
+    image[0].r = 255
+    image[0].g = 192
+    image[0].b = 128
+
+This can be used as a more flexible replacement of the struct_ and
+array_ modules.  You could also call ``ffi.new("pixel_t[600][800]")``
+and get a two-dimensional array.
 
 
 More documentation
