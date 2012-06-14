@@ -285,6 +285,10 @@ for leaving details unspecified (filled in by the C compiler):
  * unknown types: the syntax ``typedef ... foo_t;`` declares the type
    ``foo_t`` as opaque.
 
+ * array lengths: when used as structure fields, arrays can have an
+   unspecified length, as in ``int n[];``.  The length is completed
+   by the C compiler.
+
  * enums: in ``enum foo { A, B, C, ... };``, the enumerated values are
    not necessarily in order; the C compiler will reorder them as needed
    and skip any unmentioned value.  Like with structs, an ``enum`` that
@@ -294,7 +298,79 @@ for leaving details unspecified (filled in by the C compiler):
 Working with pointers, structures and arrays
 --------------------------------------------
 
+The C code's integers and floating-point values are mapped to Python's
+regular ``int``, ``long`` and ``float``.  Moreover, the C type ``char``
+correspond to single-character strings in Python.  (If you want it to
+map to small integers, use either ``signed char`` or ``unsigned char``.)
 
+Pointers, structures and arrays are more complex: they don't have an
+obvious Python equivalent.  They correspond to objects of type
+``cdata``, which are printed for example as ``<cdata 'struct foo_s *'>``.
+
+``ffi.new(ctype [, initializer])``: this function builds a new cdata
+object of the given ``ctype``.  The ctype is usually some constant
+string describing the C type.  This is similar to a malloc: it allocates
+the memory needed to store an object of the given C type, and returns a
+pointer to it.  Unlike C, the returned pointer object has *ownership* on
+the allocated memory: when this exact object is garbage-collected, then
+the memory is freed.
+
+The memory is initially filled with zeros.  An initializer can be given
+too, as described later.
+
+The cdata objects support mostly the same operations as in C: you can
+read or write from pointers, arrays and structures.  Dereferencing a
+pointer is done usually in C with the syntax ``*p``, which is not valid
+Python, so instead you have to use the alternative syntax ``p[0]``
+(which is also valid C).  Additionally, the ``p->x`` syntax in C becomes
+``p.x`` in Python.
+
+Any operation that would in C return a pointer or array or struct type
+gives you a new cdata object.  Unlike the "original" one, these new
+cdata objects don't have ownership: they are merely references to
+existing memory.
+
+Example::
+
+    ffi.cdef("void somefunction(int *);")
+    lib = ffi.verify("#include <foo.h>")
+
+    x = ffi.new("int")        # allocate one int, and return a pointer to it
+    x[0] = 42                 # fill it
+    lib.somefunction(x)       # call the C function
+    print x[0]                # read the possibly-changed value
+
+The initializer given in ``ffi.new()`` can be mostly anything that you
+would use as an initializer for C code, with lists or tuples instead of
+using the C syntax ``{ .., .., .. }``.  And like C, arrays of chars can
+also be initialized from a string, in which case a terminating null
+character is appended implicitly.  Example::
+
+    typedef struct { int x, y; } foo_t;
+
+    static foo_t globvar = { 1, 2 };     // C syntax
+    globvar = ffi.new("foo_t", [1, 2])   # CFFI equivalent
+
+    static foo_t globvar = { .y=1, .x=2 };        // C syntax
+    globvar = ffi.new("foo_t", {'y': 1, 'x': 2})  # CFFI equivalent
+
+The C array types can have their length unspecified in C types, as long
+as their length can be derived from the initializer, like in C::
+
+    static int globvar[] = { 1, 2, 3, 4 };    // C syntax
+    globvar = ffi.new("int[]", [1, 2, 3, 4])  # CFFI equivalent
+
+As an extension, the initializer can also be just a number, giving
+the length (in case you just want zero-initialization)::
+
+    static int globvar[1000];           // C syntax
+    globvar = ffi.new("int[1000]")      # CFFI 1st equivalent
+    globvar = ffi.new("int[]", 1000)    # CFFI 2nd equivalent
+
+This is useful if the length is not actually a constant, to avoid doing
+things like ``ffi.new("int[%d]" % x)``, which is not recommended:
+``ffi`` normally caches the string ``"int[]"`` to not need to re-parse
+it all the time.
 
 
 
