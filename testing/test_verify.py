@@ -286,21 +286,18 @@ def test_nonfull_enum():
     ffi = FFI()
     ffi.cdef("enum ee { EE1, EE2, EE3, ... \n \t };")
     py.test.raises(VerificationMissing, ffi.cast, 'enum ee', 'EE2')
-    py.test.skip("in-progress")
     ffi.verify("enum ee { EE1=10, EE2, EE3=-10, EE4 };")
     assert int(ffi.cast('enum ee', 'EE2')) == 11
     assert int(ffi.cast('enum ee', 'EE3')) == -10
-    py.test.raises(AttributeError, ffi.cast, 'enum ee', '__dotdotdot0__')
+    py.test.raises(ValueError, ffi.cast, 'enum ee', '__dotdotdot0__')
 
 def test_full_enum():
-    py.test.skip("in-progress")
     ffi = FFI()
     ffi.cdef("enum ee { EE1, EE2, EE3 };")
     ffi.verify("enum ee { EE1, EE2, EE3 };")
-    for real in [
-        "enum ee { EE1, EE2 };"
-        "enum ee { EE1, EE3, EE2 };"
-        ]:
-        py.test.raises(VerificationError, ffi.verify, real)
+    py.test.raises(VerificationError, ffi.verify, "enum ee { EE1, EE2 };")
+    e = py.test.raises(VerificationError, ffi.verify,
+                       "enum ee { EE1, EE3, EE2 };")
+    assert str(e.value) == 'in enum ee: EE2 has the real value 2, not 1'
     # extra items cannot be seen and have no bad consequence anyway
     ffi.verify("enum ee { EE1, EE2, EE3, EE4 };")

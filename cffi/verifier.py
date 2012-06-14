@@ -49,7 +49,7 @@ class Verifier(object):
             #
             self.prnt('static PyMethodDef _cffi_methods[] = {')
             self.generate("method")
-            self.prnt('  {"_cffi_setup", _cffi_setup, METH_O},')
+            self.prnt('  {"_cffi_setup", _cffi_setup, METH_VARARGS},')
             self.prnt('  {NULL, NULL}    /* Sentinel */')
             self.prnt('};')
             self.prnt()
@@ -82,7 +82,7 @@ class Verifier(object):
         revmapping = dict([(value, key)
                            for (key, value) in self.typesdict.items()])
         lst = [revmapping[i] for i in range(len(revmapping))]
-        dct = module._cffi_setup(lst)
+        dct = module._cffi_setup(lst, ffiplatform.VerificationError)
         del module._cffi_setup
         module.__dict__.update(dct)
         #
@@ -312,20 +312,25 @@ class Verifier(object):
     # ----------
     # constants, likely declared with '#define'
 
-    def generate_cpy_constant_decl(self, tp, name):
-        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
+    def _generate_chain_header(self, funcname, *vardecls):
         prnt = self.prnt
-        my_func_name = '_cffi_const_%s' % name
-        prnt('static int %s(PyObject *dct)' % my_func_name)
+        prnt('static int %s(PyObject *dct)' % funcname)
         prnt('{')
-        if not is_int:
-            prnt('  %s;' % tp.get_c_name(' i'))
-        prnt('  PyObject *o;')
-        prnt('  int res;')
+        for decl in vardecls:
+            prnt('  ' + decl)
         if self.chained_list_constants is not None:
             prnt('  if (%s(dct) < 0)' % self.chained_list_constants)
             prnt('    return -1;')
-        self.chained_list_constants = my_func_name
+        self.chained_list_constants = funcname
+
+    def _generate_cpy_const(self, is_int, name, tp=None):
+        vardecls = ['PyObject *o;',
+                    'int res;']
+        if not is_int:
+            vardecls.append('%s;' % tp.get_c_name(' i'))
+        self._generate_chain_header('_cffi_const_%s' % name, *vardecls)
+        #
+        prnt = self.prnt
         if not is_int:
             prnt('  i = (%s);' % (name,))
             prnt('  o = %s;' % (self.convert_expr_from_c(tp, 'i'),))
@@ -345,10 +350,47 @@ class Verifier(object):
         prnt('}')
         prnt()
 
-    generate_cpy_constant_method = generate_nothing
+    def generate_cpy_constant_decl(self, tp, name):
+        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
+        self._generate_cpy_const(is_int, name, tp)
 
+    generate_cpy_constant_method = generate_nothing
     loading_cpy_constant = loaded_noop
     loaded_cpy_constant  = loaded_noop
+
+    # ----------
+    # enums
+
+    def generate_cpy_enum_decl(self, tp, name):
+        if tp.partial:
+            for enumerator in tp.enumerators:
+                self._generate_cpy_const(True, enumerator)
+            return
+        #
+        self._generate_chain_header('_cffi_enum_%s' % name)
+        prnt = self.prnt
+        for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
+            prnt('  if (%s != %d) {' % (enumerator, enumvalue))
+            prnt('    PyErr_Format(_cffi_VerificationError,')
+            prnt('                 "in enum %s: %s has the real value %d, '
+                 'not %d",')
+            prnt('                 "%s", "%s", (int)%s, %d);' % (
+                name, enumerator, enumerator, enumvalue))
+            prnt('    return -1;')
+            prnt('  }')
+        prnt('  return 0;')
+        prnt('}')
+        prnt()
+
+    generate_cpy_enum_method = generate_nothing
+    loading_cpy_enum = loaded_noop
+
+    def loaded_cpy_enum(self, tp, name, module):
+        if tp.partial:
+            enumvalues = [getattr(module, enumerator)
+                          for enumerator in tp.enumerators]
+            tp.enumvalues = tuple(enumvalues)
+            tp.partial = False
 
     # ----------
 
@@ -430,15 +472,21 @@ static PyObject *_cffi_from_c_char(char x) {
 typedef struct _ctypedescr CTypeDescrObject;
 
 static void **_cffi_exports;
-static PyObject *_cffi_types;
+static PyObject *_cffi_types, *_cffi_VerificationError;
 
 static PyObject *_cffi_setup_custom(void);   /* forward */
 
-static PyObject *_cffi_setup(PyObject *self, PyObject *arg)
+static PyObject *_cffi_setup(PyObject *self, PyObject *args)
 {
-    PyObject *module = PyImport_ImportModule("_ffi_backend");
+    PyObject *module;
     PyObject *c_api_object;
 
+    if (!PyArg_ParseTuple(args, "OO", &_cffi_types, &_cffi_VerificationError))
+        return NULL;
+    Py_INCREF(_cffi_types);
+    Py_INCREF(_cffi_VerificationError);
+
+    module = PyImport_ImportModule("_ffi_backend");
     if (module == NULL)
         return NULL;
 
@@ -450,9 +498,6 @@ static PyObject *_cffi_setup(PyObject *self, PyObject *arg)
         return NULL;
     }
     _cffi_exports = (void **)PyCObject_AsVoidPtr(c_api_object);
-
-    Py_INCREF(arg);
-    _cffi_types = arg;
 
     return _cffi_setup_custom();
 }
