@@ -14,7 +14,8 @@ def _get_parser():
     return _parser_cache
 
 def _preprocess(csource):
-    # Remove comments
+    # Remove comments.  NOTE: this only work because the cdef() section
+    # should not contain any string literal!
     csource = _r_comment.sub(' ', csource)
     # Replace "...}" with "__dotdotdotNUM__}".  This construction should
     # occur only at the end of enums; at the end of structs we have "...;}"
