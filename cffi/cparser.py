@@ -17,8 +17,9 @@ def _preprocess(csource):
     for number, match in enumerate(reversed(matches)):
         p = match.start()
         assert csource[p:p+3] == '...'
-        csource = '%s__dotdotdot%d__%s' % (csource[:p], number, csource[p+3:])
-    return csource.replace('...', '__dotdotdot__')
+        csource = '%s __dotdotdot%d__ %s' % (csource[:p], number,
+                                             csource[p+3:])
+    return csource.replace('...', ' __dotdotdot__ ')
 
 class Parser(object):
     def __init__(self):

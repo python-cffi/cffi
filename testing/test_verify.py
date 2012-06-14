@@ -147,7 +147,7 @@ def test_nondecl_struct():
 
 def test_missing_typedef():
     ffi = FFI()
-    ffi.cdef("typedef ... foo_t; int bar(foo_t *);")
+    ffi.cdef("typedef...foo_t; int bar(foo_t *);")
     py.test.raises(TypeError, ffi.new, "foo_t")
     lib = ffi.verify("typedef struct foo_s { int x; } foo_t;\n"
                      "int bar(foo_t *f) { return 42; }\n")
