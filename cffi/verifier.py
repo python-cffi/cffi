@@ -332,7 +332,7 @@ class Verifier(object):
         else:
             prnt('  if (LONG_MIN <= (%s) && (%s) <= LONG_MAX)' % (name, name))
             prnt('    o = PyInt_FromLong((long)(%s));' % (name,))
-            prnt('  else if ((%s) < 0)' % (name,))
+            prnt('  else if ((%s) <= 0)' % (name,))
             prnt('    o = PyLong_FromLongLong((long long)(%s));' % (name,))
             prnt('  else')
             prnt('    o = PyLong_FromUnsignedLongLong('

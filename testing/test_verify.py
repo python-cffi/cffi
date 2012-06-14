@@ -242,13 +242,15 @@ def test_global_constants():
     ffi = FFI()
     # use 'static const int', as generally documented, although in this
     # case the 'static' is completely ignored.
-    ffi.cdef("static const int AA, BB, CC;")
+    ffi.cdef("static const int AA, BB, CC, DD;")
     lib = ffi.verify("#define AA 42\n"
                      "#define BB (-43)\n"
-                     "#define CC (22*2)\n")
+                     "#define CC (22*2)\n"
+                     "#define DD ((unsigned int)142)\n")
     assert lib.AA == 42
     assert lib.BB == -43
     assert lib.CC == 44
+    assert lib.DD == 142
 
 def test_global_const_int_size():
     # integer constants: ignore the declared type, always just use the value
