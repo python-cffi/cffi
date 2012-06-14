@@ -228,6 +228,7 @@ class UnionType(StructOrUnion):
 
 class EnumType(BaseType):
     _attrs_ = ('name',)
+    partial = False
 
     def __init__(self, name, enumerators, enumvalues):
         self.name = name
@@ -237,6 +238,12 @@ class EnumType(BaseType):
     def get_c_name(self, replace_with=''):
         return 'enum %s%s' % (self.name, replace_with)
 
+    def check_not_partial(self):
+        if self.partial:
+            from . import ffiplatform
+            raise ffiplatform.VerificationMissing(self.get_c_name())
+
     def new_backend_type(self, ffi):
+        self.check_not_partial()
         return ffi._backend.new_enum_type(self.name, self.enumerators,
                                           self.enumvalues)

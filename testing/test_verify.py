@@ -138,6 +138,16 @@ def test_verify_typedefs():
                 py.test.raises(VerificationError, ffi.verify,
                                "typedef %s foo_t;" % real)
 
+def test_missing_typedef():
+    py.test.skip("in-progress")
+    ffi = FFI()
+    ffi.cdef("typedef ... foo_t; int bar(foo_t *);")
+    py.test.raises(VerificationMissing, ffi.new, "foo_t")
+    lib = ffi.verify("typedef struct foo_s { int x; } foo_t;\n"
+                     "int bar(foo_t *f) { return 42; }\n")
+    f = ffi.new("foo_t")
+    assert lib.bar(f) == 42
+
 
 def test_ffi_full_struct():
     ffi = FFI()
@@ -275,5 +285,22 @@ def test_global_const_int_size():
 def test_nonfull_enum():
     ffi = FFI()
     ffi.cdef("enum ee { EE1, EE2, EE3, ... \n \t };")
-    py.test.skip("in-progress")
     py.test.raises(VerificationMissing, ffi.cast, 'enum ee', 'EE2')
+    py.test.skip("in-progress")
+    ffi.verify("enum ee { EE1=10, EE2, EE3=-10, EE4 };")
+    assert int(ffi.cast('enum ee', 'EE2')) == 11
+    assert int(ffi.cast('enum ee', 'EE3')) == -10
+    py.test.raises(AttributeError, ffi.cast, 'enum ee', '__dotdotdot0__')
+
+def test_full_enum():
+    py.test.skip("in-progress")
+    ffi = FFI()
+    ffi.cdef("enum ee { EE1, EE2, EE3 };")
+    ffi.verify("enum ee { EE1, EE2, EE3 };")
+    for real in [
+        "enum ee { EE1, EE2 };"
+        "enum ee { EE1, EE3, EE2 };"
+        ]:
+        py.test.raises(VerificationError, ffi.verify, real)
+    # extra items cannot be seen and have no bad consequence anyway
+    ffi.verify("enum ee { EE1, EE2, EE3, EE4 };")

@@ -3,6 +3,7 @@ from . import api, model
 import pycparser, weakref, re
 
 _r_partial_enum = re.compile(r"\.\.\.\s*\}")
+_r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _parser_cache = None
 
 def _get_parser():
@@ -303,16 +304,22 @@ class Parser(object):
         if key in self._declarations:
             return self._declarations[key]
         if decls is not None:
-            enumerators = tuple([enum.name for enum in decls.enumerators])
+            enumerators = [enum.name for enum in decls.enumerators]
+            partial = False
+            if enumerators and _r_enum_dotdotdot.match(enumerators[-1]):
+                enumerators.pop()
+                partial = True
+            enumerators = tuple(enumerators)
             enumvalues = []
             nextenumvalue = 0
-            for enum in decls.enumerators:
+            for enum in decls.enumerators[:len(enumerators)]:
                 if enum.value is not None:
                     nextenumvalue = self._parse_constant(enum.value)
                 enumvalues.append(nextenumvalue)
                 nextenumvalue += 1
             enumvalues = tuple(enumvalues) 
             tp = model.EnumType(name, enumerators, enumvalues)
+            tp.partial = partial
             self._declare(key, tp)
         else:   # opaque enum
             enumerators = ()
