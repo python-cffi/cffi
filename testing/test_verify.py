@@ -319,3 +319,17 @@ def test_full_enum():
     assert str(e.value) == 'in enum ee: EE2 has the real value 2, not 1'
     # extra items cannot be seen and have no bad consequence anyway
     ffi.verify("enum ee { EE1, EE2, EE3, EE4 };")
+
+def test_get_set_errno():
+    ffi = FFI()
+    ffi.cdef("int foo(int);")
+    lib = ffi.verify("""
+        static int foo(int x)
+        {
+            errno += 1;
+            return x * 7;
+        }
+    """)
+    ffi.errno = 15
+    assert lib.foo(6) == 42
+    assert ffi.errno == 16

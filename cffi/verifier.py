@@ -19,6 +19,7 @@ class Verifier(object):
             return num
 
     def verify(self, preamble, stop_on_warnings=True):
+        # XXX  take **kwds
         modname = ffiplatform.undercffi_module_name()
         filebase = os.path.join(ffiplatform.tmpdir(), modname)
         self.chained_list_constants = None
@@ -195,9 +196,11 @@ class Verifier(object):
                               is_funcarg=True)
             prnt()
         #
+        prnt('  _cffi_restore_errno();')
         prnt('  { %s%s(%s); }' % (
             result_code, name,
             ', '.join(['x%d' % i for i in range(len(tp.args))])))
+        prnt('  _cffi_save_errno();')
         prnt()
         #
         if result_code:
@@ -472,6 +475,10 @@ static PyObject *_cffi_from_c_char(char x) {
     ((char *(*)(PyObject *, CTypeDescrObject *))_cffi_exports[11])
 #define _cffi_get_struct_layout                                          \
     ((PyObject *(*)(Py_ssize_t[]))_cffi_exports[12])
+#define _cffi_restore_errno                                              \
+    ((void(*)(void))_cffi_exports[13])
+#define _cffi_save_errno                                                 \
+    ((void(*)(void))_cffi_exports[14])
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 #  define _cffi_to_c_long_long PyLong_AsLongLong
