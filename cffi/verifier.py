@@ -335,8 +335,8 @@ class Verifier(object):
             prnt('  else if ((%s) < 0)' % (name,))
             prnt('    o = PyLong_FromLongLong((long long)(%s));' % (name,))
             prnt('  else')
-            prnt('    o = PyLong_FromUnsignedLongLong((unsigned long long)%s);'
-                 % (name,))
+            prnt('    o = PyLong_FromUnsignedLongLong('
+                 '(unsigned long long)(%s));' % (name,))
         prnt('  if (o == NULL)')
         prnt('    return -1;')
         prnt('  res = PyDict_SetItemString(dct, "%s", o);' % name)
