@@ -33,8 +33,8 @@ class TestOwnLib(object):
         ffi.cdef("""
             int test_getting_errno(void);
         """)
-        ownlib = ffi.rawload(self.module)
-        C = ffi.rawload(None)
+        ownlib = ffi.dlopen(self.module)
+        C = ffi.dlopen(None)
         res = ownlib.test_getting_errno()
         assert res == -1
         assert C.errno == 123
@@ -46,8 +46,8 @@ class TestOwnLib(object):
         ffi.cdef("""
             int test_setting_errno(void);
         """)
-        ownlib = ffi.rawload(self.module)
-        C = ffi.rawload(None)
+        ownlib = ffi.dlopen(self.module)
+        C = ffi.dlopen(None)
         C.errno = 42
         res = ownlib.test_setting_errno()
         assert res == 42

@@ -25,7 +25,7 @@ ffi.cdef("""
     int closedir(DIR *dirp);
 
 """)
-ffi.C = ffi.rawload(None)
+ffi.C = ffi.dlopen(None)
 
 
 

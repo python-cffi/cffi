@@ -23,7 +23,7 @@ class FFI(object):
             int printf(const char *, ...);
         """)
 
-        C = ffi.rawload(name=None)   # standard library
+        C = ffi.dlopen(None)   # standard library
         -or-
         C = ffi.verify()  # use a C compiler: verify the decl above is right
 
@@ -68,12 +68,12 @@ class FFI(object):
     def cdef(self, csource):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
-        then be accessed via 'ffi.rawload()'.  The types can be used
-        in 'ffi.new()' and other functions.
+        then be accessed via either 'ffi.dlopen()' or 'ffi.verify()'.
+        The types can be used in 'ffi.new()' and other functions.
         """
         self._parser.parse(csource)
 
-    def rawload(self, name):
+    def dlopen(self, name):
         """Load and return a dynamic library identified by 'name'.
         The standard C library can be loaded by passing None.
         Note that functions and types declared by 'ffi.cdef()' are not
@@ -190,7 +190,7 @@ class FFI(object):
         library can be used to call functions and access global
         variables declared in this 'ffi'.  The library is compiled
         by the C compiler: it gives you C-level API compatibility
-        (including calling macros).  This is unlike 'ffi.rawload()',
+        (including calling macros).  This is unlike 'ffi.dlopen()',
         which requires binary compatibility in the signatures.
         """
         from .verifier import Verifier

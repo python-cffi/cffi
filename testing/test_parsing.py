@@ -53,7 +53,7 @@ class FakeFunction(object):
 def test_simple():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("double sin(double x);")
-    m = ffi.rawload("m")
+    m = ffi.dlopen("m")
     func = m.sin    # should be a callable on real backends
     assert func.name == 'sin'
     assert func.BType == '<func (<double>), <double>, False>'
@@ -61,7 +61,7 @@ def test_simple():
 def test_pipe():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("int pipe(int pipefd[2]);")
-    C = ffi.rawload(None)
+    C = ffi.dlopen(None)
     func = C.pipe
     assert func.name == 'pipe'
     assert func.BType == '<func (<pointer to <int>>), <int>, False>'
@@ -69,7 +69,7 @@ def test_pipe():
 def test_vararg():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("short foo(int, ...);")
-    C = ffi.rawload(None)
+    C = ffi.dlopen(None)
     func = C.foo
     assert func.name == 'foo'
     assert func.BType == '<func (<int>), <short>, True>'
@@ -79,7 +79,7 @@ def test_no_args():
     ffi.cdef("""
         int foo(void);
         """)
-    C = ffi.rawload(None)
+    C = ffi.dlopen(None)
     assert C.foo.BType == '<func (), <int>, False>'
 
 def test_typedef():
@@ -89,7 +89,7 @@ def test_typedef():
         typedef UInt UIntReally;
         UInt foo(void);
         """)
-    C = ffi.rawload(None)
+    C = ffi.dlopen(None)
     assert ffi.typeof("UIntReally") == '<unsigned int>'
     assert C.foo.BType == '<func (), <unsigned int>, False>'
 
@@ -99,7 +99,7 @@ def test_typedef_more_complex():
         typedef struct { int a, b; } foo_t, *foo_p;
         int foo(foo_p[]);
         """)
-    C = ffi.rawload(None)
+    C = ffi.dlopen(None)
     assert str(ffi.typeof("foo_t")) == '<int>a, <int>b'
     assert ffi.typeof("foo_p") == '<pointer to <int>a, <int>b>'
     assert C.foo.BType == ('<func (<pointer to <pointer to '
@@ -135,7 +135,7 @@ def test_remove_comments():
         x, double/*several*//*comment*/y) /*on the same line*/
         ;
     """)
-    m = ffi.rawload("m")
+    m = ffi.dlopen("m")
     func = m.sin
     assert func.name == 'sin'
     assert func.BType == '<func (<double>, <double>), <double>, False>'
