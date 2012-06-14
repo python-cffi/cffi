@@ -44,9 +44,11 @@ some cross-platform issues.  Work on Windows will be coming soon.
 
 Requirements:
 
-* Python 2.6 or 2.7
+* Python 2.6 or 2.7 (you need ``python-dev``)
 
 * pycparser 2.06: http://code.google.com/p/pycparser/
+
+* libffi (you need ``libffi-dev``)
 
 Download and Installation:
 
