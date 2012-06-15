@@ -396,11 +396,11 @@ Example::
 
     typedef struct { int x, y; } foo_t;
 
-    static foo_t globvar = { 1, 2 };     // C syntax
-    globvar = ffi.new("foo_t", [1, 2])   # CFFI equivalent
+    foo_t v = { 1, 2 };            // C syntax
+    v = ffi.new("foo_t", [1, 2])   # CFFI equivalent
 
-    static foo_t globvar = { .y=1, .x=2 };        // C syntax
-    globvar = ffi.new("foo_t", {'y': 1, 'x': 2})  # CFFI equivalent
+    foo_t v = { .y=1, .x=2 };               // C syntax
+    v = ffi.new("foo_t", {'y': 1, 'x': 2})  # CFFI equivalent
 
 Like C, arrays of chars can also be initialized from a string, in
 which case a terminating null character is appended implicitly::
