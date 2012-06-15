@@ -495,9 +495,7 @@ Miscellaneous
 
 ``errno``: the value of ``errno`` received from the most recent C call
 in this thread, and passed to the following C call, is available via
-``ffi.dlopen(None).errno`` as a global variable of the C standard
-library.  It can also be accessed more directly via reads and writes of
-``ffi.errno``.
+reads and writes of ``ffi.errno``.
 
 ``ffi.buffer(pointer)``: return a read-write buffer object that
 references the raw C data pointed to by the given 'cdata'.  The 'cdata'
