@@ -3369,14 +3369,16 @@ static PyObject *_cffi_get_struct_layout(Py_ssize_t nums[])
     return result;
 }
 
-void _cffi_restore_errno(void)
-{
+static void _cffi_restore_errno(void) {
     errno = saved_errno;
 }
 
-void _cffi_save_errno(void)
-{
+static void _cffi_save_errno(void) {
     saved_errno = errno;
+}
+
+static PyObject *_cffi_from_c_char(char x) {
+    return PyString_FromStringAndSize(&x, 1);
 }
 
 static void *cffi_exports[] = {
@@ -3400,6 +3402,7 @@ static void *cffi_exports[] = {
     _cffi_get_struct_layout,
     _cffi_restore_errno,
     _cffi_save_errno,
+    _cffi_from_c_char,
 };
 
 /************************************************************/

@@ -3,6 +3,13 @@ import math
 from cffi import FFI, VerificationError, VerificationMissing, model
 
 
+class FFI(FFI):
+    def verify(self, *args, **kwds):
+        # XXX a GCC-only way to say "crash upon warnings too"
+        return super(FFI, self).verify(*args, extra_compile_args=['-Werror'],
+                                       **kwds)
+
+
 def test_missing_function():
     ffi = FFI()
     ffi.cdef("void some_completely_unknown_function();")
@@ -93,7 +100,7 @@ def test_char_type():
 def test_no_argument():
     ffi = FFI()
     ffi.cdef("int foo(void);")
-    lib = ffi.verify("int foo() { return 42; }")
+    lib = ffi.verify("int foo(void) { return 42; }")
     assert lib.foo() == 42
 
 def test_two_arguments():

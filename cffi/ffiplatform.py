@@ -52,12 +52,18 @@ def compile(tmpdir, modname, **kwds):
 def _build(modname, kwds):
     # XXX compact but horrible :-(
     from distutils.core import Distribution, Extension
+    import distutils.errors
+    #
     ext = Extension(name=modname, sources=[modname + '.c'], **kwds)
     dist = Distribution({'ext_modules': [ext]})
     options = dist.get_option_dict('build_ext')
     options['force'] = ('ffiplatform', True)
     #
-    dist.run_command('build_ext')
+    try:
+        dist.run_command('build_ext')
+    except (distutils.errors.CompileError,
+            distutils.errors.LinkError), e:
+        raise VerificationError(str(e))
     #
     cmd_obj = dist.get_command_obj('build_ext')
     [soname] = cmd_obj.get_outputs()

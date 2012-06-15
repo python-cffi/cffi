@@ -54,7 +54,8 @@ class Verifier(object):
             self.prnt('};')
             self.prnt()
             #
-            self.prnt('void init%s()' % modname)
+            self.prnt('PyMODINIT_FUNC')
+            self.prnt('init%s(void)' % modname)
             self.prnt('{')
             self.prnt('  Py_InitModule("%s", _cffi_methods);' % modname)
             self.prnt('  _cffi_init();')
@@ -223,6 +224,24 @@ class Verifier(object):
             return     # nothing to do with opaque structs
         assert name == tp.name
         prnt = self.prnt
+        checkfuncname = '_cffi_check_%s' % (name,)
+        prnt('static void %s(struct %s *p)' % (checkfuncname, name))
+        prnt('{')
+        prnt('  /* only to generate compile-time warnings or errors */')
+        for i in range(len(tp.fldnames)):
+            fname = tp.fldnames[i]
+            ftype = tp.fldtypes[i]
+            if (isinstance(ftype, model.PrimitiveType)
+                and ftype.is_integer_type()):
+                # accept all integers, but complain on float or double
+                prnt('  (void)((p->%s) << 1);' % fname)
+            else:
+                # only accept exactly the type declared.  Note the parentheses
+                # around the '*tmp' below.  In most cases they are not needed
+                # but don't hurt --- except test_struct_array_field.
+                prnt('  { %s = &p->%s; (void)tmp; }' % (
+                    ftype.get_c_name('(*tmp)'), fname))
+        prnt('}')
         prnt('static PyObject *')
         prnt('_cffi_struct_%s(PyObject *self, PyObject *noarg)' % name)
         prnt('{')
@@ -262,23 +281,8 @@ class Verifier(object):
             prnt('    Py_INCREF(Py_True);')
             prnt('    return Py_True;')
             prnt('  }')
-        prnt('}')
-        prnt('static void _cffi_check_%s(struct %s *p)' % (name, name))
-        prnt('{')
-        prnt('  /* only to generate compile-time warnings or errors */')
-        for i in range(len(tp.fldnames)):
-            fname = tp.fldnames[i]
-            ftype = tp.fldtypes[i]
-            if (isinstance(ftype, model.PrimitiveType)
-                and ftype.is_integer_type()):
-                # accept all integers, but complain on float or double
-                prnt('  (p->%s) << 1;' % fname)
-            else:
-                # only accept exactly the type declared.  Note the parentheses
-                # around the '*tmp' below.  In most cases they are not needed
-                # but don't hurt --- except test_struct_array_field.
-                prnt('  { %s = &p->%s; }' % (
-                    ftype.get_c_name('(*tmp)'), fname))
+        prnt('  /* the next line is not executed, but compiled */')
+        prnt('  %s(0);' % (checkfuncname,))
         prnt('}')
         prnt()
 
@@ -424,10 +428,6 @@ cffimod_header = r'''
 #  define _cffi_from_c_long_long PyInt_FromLong
 #endif
 
-static PyObject *_cffi_from_c_char(char x) {
-    return PyString_FromStringAndSize(&x, 1);
-}
-
 #define _cffi_to_c_long PyInt_AsLong
 #define _cffi_to_c_double PyFloat_AsDouble
 #define _cffi_to_c_float PyFloat_AsDouble
@@ -469,7 +469,9 @@ static PyObject *_cffi_from_c_char(char x) {
     ((void(*)(void))_cffi_exports[13])
 #define _cffi_save_errno                                                 \
     ((void(*)(void))_cffi_exports[14])
-#define _CFFI_NUM_EXPORTS 15
+#define _cffi_from_c_char                                                \
+    ((PyObject *(*)(char))_cffi_exports[15])
+#define _CFFI_NUM_EXPORTS 16
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 #  define _cffi_to_c_long_long PyLong_AsLongLong
