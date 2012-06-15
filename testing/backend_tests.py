@@ -689,7 +689,7 @@ class BackendTests:
     def test_pointer_to_array(self):
         ffi = FFI(backend=self.Backend())
         p = ffi.new("int(*)[5]")
-        assert repr(p) == "<cdata 'int(* *)[5]' owning %d bytes>" % SIZE_OF_INT
+        assert repr(p) == "<cdata 'int(* *)[5]' owning %d bytes>" % SIZE_OF_PTR
 
     def test_offsetof(self):
         ffi = FFI(backend=self.Backend())
