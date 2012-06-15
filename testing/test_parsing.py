@@ -1,4 +1,5 @@
-from cffi import FFI
+import py
+from cffi import FFI, CDefError
 
 class FakeBackend(object):
 
@@ -139,3 +140,9 @@ def test_remove_comments():
     func = m.sin
     assert func.name == 'sin'
     assert func.BType == '<func (<double>, <double>), <double>, False>'
+
+def test_define_not_supported_for_now():
+    ffi = FFI(backend=FakeBackend())
+    e = py.test.raises(CDefError, ffi.cdef, "#define FOO 42")
+    assert str(e.value) == \
+           'only supports the syntax "#define FOO ..." for now (literally)'

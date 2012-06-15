@@ -786,7 +786,7 @@ class BackendTests:
 
     def test_new_struct_containing_array_varsize(self):
         py.test.skip("later?")
-        ffi = FFI(backend=_ffi_backend)
+        ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo_s { int len; short data[]; };")
         p = ffi.new("struct foo_s", 10)     # a single integer is the length
         assert p.len == 0

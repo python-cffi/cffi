@@ -400,6 +400,17 @@ class Verifier(object):
             tp.partial = False
 
     # ----------
+    # macros: for now only for integers
+
+    def generate_cpy_macro_decl(self, tp, name):
+        assert tp == '...'
+        self._generate_cpy_const(True, name)
+
+    generate_cpy_macro_method = generate_nothing
+    loading_cpy_macro = loaded_noop
+    loaded_cpy_macro  = loaded_noop
+
+    # ----------
 
 cffimod_header = r'''
 #include <Python.h>

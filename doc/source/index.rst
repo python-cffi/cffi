@@ -311,6 +311,16 @@ for leaving details unspecified (filled in by the C compiler):
    with structs, an ``enum`` that does not end in ``...`` is assumed to
    be exact, and this is checked.
 
+*  integer macros: you can write in the ``cdef`` the line
+   "``#define FOO ...``", with any macro name FOO.  Provided the macro
+   is defined to be an integer value, this value will be available via
+   an attribute of the library object returned by ``verify()``.  The
+   same effect can be achieved by writing a declaration
+   ``static const int FOO;``.  The latter is more general because it
+   supports other types than integer types (note: the syntax is then
+   to write the ``const`` together with the variable name, as in
+   ``static char *const FOO;``).
+
 
 Working with pointers, structures and arrays
 --------------------------------------------

@@ -3,6 +3,8 @@ from . import api, model
 import pycparser, weakref, re
 
 _r_comment = re.compile(r"/\*.*?\*/|//.*?$", re.DOTALL | re.MULTILINE)
+_r_define  = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z_0-9]*)\s+(.*?)$",
+                        re.MULTILINE)
 _r_partial_enum = re.compile(r"\.\.\.\s*\}")
 _r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _parser_cache = None
@@ -17,6 +19,12 @@ def _preprocess(csource):
     # Remove comments.  NOTE: this only work because the cdef() section
     # should not contain any string literal!
     csource = _r_comment.sub(' ', csource)
+    # Remove the "#define FOO x" lines
+    macros = {}
+    for match in _r_define.finditer(csource):
+        macroname, macrovalue = match.groups()
+        macros[macroname] = macrovalue
+    csource = _r_define.sub('', csource)
     # Replace "...}" with "__dotdotdotNUM__}".  This construction should
     # occur only at the end of enums; at the end of structs we have "...;}"
     # and at the end of vararg functions "...);"
@@ -28,7 +36,7 @@ def _preprocess(csource):
                                              csource[p+3:])
     # Replace all remaining "..." with the same name, "__dotdotdot__",
     # which is declared with a typedef for the purpose of C parsing.
-    return csource.replace('...', ' __dotdotdot__ ')
+    return csource.replace('...', ' __dotdotdot__ '), macros
 
 class Parser(object):
     def __init__(self):
@@ -46,13 +54,21 @@ class Parser(object):
             if name.startswith('typedef '):
                 csourcelines.append('typedef int %s;' % (name[8:],))
         csourcelines.append('typedef int __dotdotdot__;')
-        csourcelines.append(_preprocess(csource))
+        csource, macros = _preprocess(csource)
+        csourcelines.append(csource)
         csource = '\n'.join(csourcelines)
         ast = _get_parser().parse(csource)
-        return ast
+        return ast, macros
 
     def parse(self, csource):
-        ast = self._parse(csource)
+        ast, macros = self._parse(csource)
+        # add the macros
+        for key, value in macros.items():
+            value = value.strip()
+            if value != '...':
+                raise api.CDefError('only supports the syntax "#define '
+                                    '%s ..." for now (literally)' % key)
+            self._declare('macro ' + key, value)
         # find the first "__dotdotdot__" and use that as a separator
         # between the repeated typedefs and the real csource
         iterator = iter(ast.ext)
@@ -98,13 +114,14 @@ class Parser(object):
             #
             if decl.name:
                 tp = self._get_type(node)
-                if 'const' in decl.quals:
+                if self._is_constant_declaration(node):
                     self._declare('constant ' + decl.name, tp)
                 else:
                     self._declare('variable ' + decl.name, tp)
 
     def parse_type(self, cdecl, force_pointer=False):
-        ast = self._parse('void __dummy(%s);' % cdecl)
+        ast, macros = self._parse('void __dummy(%s);' % cdecl)
+        assert not macros
         typenode = ast.ext[-1].type.args.params[0].type
         return self._get_type(typenode, force_pointer=force_pointer)
 
@@ -155,7 +172,6 @@ class Parser(object):
             const = (isinstance(typenode.type, pycparser.c_ast.TypeDecl)
                      and 'const' in typenode.type.quals)
             return self._get_type_pointer(self._get_type(typenode.type), const)
-                                          
         #
         if isinstance(typenode, pycparser.c_ast.TypeDecl):
             type = typenode.type
@@ -215,6 +231,16 @@ class Parser(object):
                 for argdeclnode in params]
         result = self._get_type(typenode.type)
         return model.FunctionType(tuple(args), result, ellipsis)
+
+    def _is_constant_declaration(self, typenode, const=False):
+        if isinstance(typenode, pycparser.c_ast.ArrayDecl):
+            return self._is_constant_declaration(typenode.type)
+        if isinstance(typenode, pycparser.c_ast.PtrDecl):
+            const = 'const' in typenode.quals
+            return self._is_constant_declaration(typenode.type, const)
+        if isinstance(typenode, pycparser.c_ast.TypeDecl):
+            return const or 'const' in typenode.quals
+        return False
 
     def _get_struct_or_union_type(self, kind, type, typenode=None):
         # First, a level of caching on the exact 'type' node of the AST.

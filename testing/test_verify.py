@@ -307,6 +307,13 @@ def test_global_const_int_size():
         assert lib.AA == value
         assert type(lib.AA) is type(int(lib.AA))
 
+def test_global_constants_non_int():
+    ffi = FFI()
+    ffi.cdef("static char *const PP;")
+    lib = ffi.verify('static char *const PP = "testing!";\n')
+    assert ffi.typeof(lib.PP) == ffi.typeof("char *")
+    assert str(lib.PP) == "testing!"
+
 def test_nonfull_enum():
     ffi = FFI()
     ffi.cdef("enum ee { EE1, EE2, EE3, ... \n \t };")
@@ -340,3 +347,12 @@ def test_get_set_errno():
     ffi.errno = 15
     assert lib.foo(6) == 42
     assert ffi.errno == 16
+
+def test_define_int():
+    ffi = FFI()
+    ffi.cdef("#define FOO ...\n"
+             "#define BAR ...")
+    lib = ffi.verify("#define FOO 42\n"
+                     "#define BAR (-44)\n")
+    assert lib.FOO == 42
+    assert lib.BAR == -44
