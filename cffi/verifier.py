@@ -78,12 +78,13 @@ class Verifier(object):
         lst = [revmapping[i] for i in range(len(revmapping))]
         lst = map(self.ffi._get_cached_btype, lst)
         dct = module._cffi_setup(lst, ffiplatform.VerificationError)
-        del module._cffi_setup
-        module.__dict__.update(dct)
         #
-        self.load(module, 'loaded')
-        #
-        return module
+        class FFILibrary(object):
+            pass
+        library = FFILibrary()
+        library.__dict__.update(dct)
+        self.load(module, 'loaded', library=library)
+        return library
 
     def generate(self, step_name):
         for name, tp in self.ffi._parser._declarations.iteritems():
@@ -91,16 +92,16 @@ class Verifier(object):
             method = getattr(self, 'generate_cpy_%s_%s' % (kind, step_name))
             method(tp, realname)
 
-    def load(self, module, step_name):
+    def load(self, module, step_name, **kwds):
         for name, tp in self.ffi._parser._declarations.iteritems():
             kind, realname = name.split(' ', 1)
             method = getattr(self, '%s_cpy_%s' % (step_name, kind))
-            method(tp, realname, module)
+            method(tp, realname, module, **kwds)
 
     def generate_nothing(self, tp, name):
         pass
 
-    def loaded_noop(self, tp, name, module):
+    def loaded_noop(self, tp, name, module, **kwds):
         pass
 
     # ----------
@@ -213,8 +214,10 @@ class Verifier(object):
             meth = 'METH_VARARGS'
         self.prnt('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
 
-    loading_cpy_function       = loaded_noop
-    loaded_cpy_function        = loaded_noop
+    loading_cpy_function = loaded_noop
+
+    def loaded_cpy_function(self, tp, name, module, library):
+        setattr(library, name, getattr(module, name))
 
     # ----------
     # struct declarations
@@ -311,7 +314,7 @@ class Verifier(object):
             assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
             tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
 
-    def loaded_cpy_struct(self, tp, name, module):
+    def loaded_cpy_struct(self, tp, name, module, **kwds):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
         self.ffi._get_cached_btype(tp)   # force 'fixedlayout' to be considered
@@ -330,16 +333,23 @@ class Verifier(object):
             prnt('    return -1;')
         self.chained_list_constants = funcname
 
-    def _generate_cpy_const(self, is_int, name, tp=None):
+    def _generate_cpy_const(self, is_int, name, tp=None, category='const'):
         vardecls = ['PyObject *o;',
                     'int res;']
         if not is_int:
             vardecls.append('%s;' % tp.get_c_name(' i'))
-        self._generate_chain_header('_cffi_const_%s' % name, *vardecls)
+        else:
+            assert category == 'const'
+        self._generate_chain_header('_cffi_%s_%s' % (category, name),
+                                    *vardecls)
         #
         prnt = self.prnt
         if not is_int:
-            prnt('  i = (%s);' % (name,))
+            if category == 'var':
+                realexpr = '&' + name
+            else:
+                realexpr = name
+            prnt('  i = (%s);' % (realexpr,))
             prnt('  o = %s;' % (self.convert_expr_from_c(tp, 'i'),))
         else:
             prnt('  if (LONG_MIN <= (%s) && (%s) <= LONG_MAX)' % (name, name))
@@ -392,12 +402,15 @@ class Verifier(object):
     generate_cpy_enum_method = generate_nothing
     loading_cpy_enum = loaded_noop
 
-    def loaded_cpy_enum(self, tp, name, module):
+    def loaded_cpy_enum(self, tp, name, module, library):
         if tp.partial:
-            enumvalues = [getattr(module, enumerator)
+            enumvalues = [getattr(library, enumerator)
                           for enumerator in tp.enumerators]
             tp.enumvalues = tuple(enumvalues)
             tp.partial = False
+        else:
+            for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
+                setattr(library, enumerator, enumvalue)
 
     # ----------
     # macros: for now only for integers
@@ -409,6 +422,27 @@ class Verifier(object):
     generate_cpy_macro_method = generate_nothing
     loading_cpy_macro = loaded_noop
     loaded_cpy_macro  = loaded_noop
+
+    # ----------
+    # global variables
+
+    def generate_cpy_variable_decl(self, tp, name):
+        tp_ptr = model.PointerType(tp)
+        self._generate_cpy_const(False, name, tp_ptr, category='var')
+
+    generate_cpy_variable_method = generate_nothing
+    loading_cpy_variable = loaded_noop
+
+    def loaded_cpy_variable(self, tp, name, module, library):
+        # remove ptr=<cdata 'int *'> from the library instance, and replace
+        # it by a property on the class, which reads/writes into ptr[0].
+        ptr = getattr(library, name)
+        delattr(library, name)
+        def getter(library):
+            return ptr[0]
+        def setter(library, value):
+            ptr[0] = value
+        setattr(library.__class__, name, property(getter, setter))
 
     # ----------
 

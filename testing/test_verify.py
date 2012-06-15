@@ -332,7 +332,8 @@ def test_full_enum():
                        "enum ee { EE1, EE3, EE2 };")
     assert str(e.value) == 'in enum ee: EE2 has the real value 2, not 1'
     # extra items cannot be seen and have no bad consequence anyway
-    ffi.verify("enum ee { EE1, EE2, EE3, EE4 };")
+    lib = ffi.verify("enum ee { EE1, EE2, EE3, EE4 };")
+    assert lib.EE3 == 2
 
 def test_get_set_errno():
     ffi = FFI()
@@ -356,3 +357,19 @@ def test_define_int():
                      "#define BAR (-44)\n")
     assert lib.FOO == 42
     assert lib.BAR == -44
+
+def test_access_variable():
+    ffi = FFI()
+    ffi.cdef("int foo(void);\n"
+             "int somenumber;")
+    lib = ffi.verify("""
+        static int somenumber = 2;
+        static int foo(void) {
+            return somenumber * 7;
+        }
+    """)
+    assert lib.somenumber == 2
+    assert lib.foo() == 14
+    lib.somenumber = -6
+    assert lib.foo() == -42
+    assert lib.somenumber == -6
