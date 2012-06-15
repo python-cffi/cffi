@@ -18,10 +18,10 @@ class Verifier(object):
             self.typesdict[type] = num
             return num
 
-    def verify(self, preamble, stop_on_warnings=True):
-        # XXX  take **kwds
+    def verify(self, preamble, **kwds):
         modname = ffiplatform.undercffi_module_name()
-        filebase = os.path.join(ffiplatform.tmpdir(), modname)
+        tmpdir = ffiplatform.tmpdir()
+        filebase = os.path.join(tmpdir, modname)
         self.chained_list_constants = None
         
         with open(filebase + '.c', 'w') as f:
@@ -62,21 +62,11 @@ class Verifier(object):
             #
             del self.f
 
-        # XXX use more distutils?
-        import distutils.sysconfig
-        python_h = distutils.sysconfig.get_python_inc()
-        cmdline = "gcc -I'%s' -O2 -shared -fPIC %s.c -o %s.so" % (
-            python_h, filebase, filebase)
-        if stop_on_warnings:
-            cmdline += " -Werror"
-        err = os.system(cmdline)
-        if err:
-            raise ffiplatform.VerificationError(
-                '%s.c: see compilation errors above' % (filebase,))
+        outputfilename = ffiplatform.compile(tmpdir, modname, **kwds)
         #
         import imp
         try:
-            module = imp.load_dynamic(modname, '%s.so' % filebase)
+            module = imp.load_dynamic(modname, outputfilename)
         except ImportError, e:
             raise ffiplatform.VerificationError(str(e))
         #
