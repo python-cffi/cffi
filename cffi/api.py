@@ -166,7 +166,7 @@ class FFI(object):
         an array.  To get a copy of it in a regular string, call str() on
         the result.
         """
-        return self._backend.buffer(pointer)
+        return self._backend.buffer(cdata)
 
     def callback(self, cdecl, python_callable):
         if not callable(python_callable):
