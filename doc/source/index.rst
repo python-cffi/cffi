@@ -423,15 +423,15 @@ More generally, the C array types can have their length unspecified in C
 types, as long as their length can be derived from the initializer, like
 in C::
 
-    static int globvar[] = { 1, 2, 3, 4 };    // C syntax
-    globvar = ffi.new("int[]", [1, 2, 3, 4])  # CFFI equivalent
+    int array[] = { 1, 2, 3, 4 };           // C syntax
+    array = ffi.new("int[]", [1, 2, 3, 4])  # CFFI equivalent
 
 As an extension, the initializer can also be just a number, giving
 the length (in case you just want zero-initialization)::
 
-    static int globvar[1000];           // C syntax
-    globvar = ffi.new("int[1000]")      # CFFI 1st equivalent
-    globvar = ffi.new("int[]", 1000)    # CFFI 2nd equivalent
+    int array[1000];                  // C syntax
+    array = ffi.new("int[1000]")      # CFFI 1st equivalent
+    array = ffi.new("int[]", 1000)    # CFFI 2nd equivalent
 
 This is useful if the length is not actually a constant, to avoid doing
 things like ``ffi.new("int[%d]"%x)``.  Indeed, this is not recommended:
@@ -477,7 +477,7 @@ Warning: like ffi.new(), ffi.callback() returns a cdata that has
 ownership of its C data.  (In this case, the necessary C data contains
 the libffi data structures to do a callback.)  This means that the
 callback can only be invoked as long as this cdata object is alive.  If
-you store this callback somewhere, then make sure you also keep this
+you store the function pointer into C code, then make sure you also keep this
 object alive for as long as the callback may be invoked.  (If you want
 the callback to remain valid forever, store the object in a fresh global
 variable somewhere.)
@@ -487,20 +487,24 @@ Note that callbacks of a variadic function type are not supported.
 Be careful when writing the Python callback function: if it returns an
 object of the wrong type, or more generally raises an exception, then
 the exception cannot be propagated.  Instead, it is printed to stderr
-and the C-level callback is made to return, randomly, a null value.
+and the C-level callback is made to return a null value (this is a
+random choice).
 
 
 Miscellaneous
 -------------
 
-``errno``: the value of ``errno`` received from the most recent C call
+``ffi.errno``: the value of ``errno`` received from the most recent C call
 in this thread, and passed to the following C call, is available via
-reads and writes of ``ffi.errno``.
+reads and writes of the property ``ffi.errno``.
 
 ``ffi.buffer(pointer)``: return a read-write buffer object that
 references the raw C data pointed to by the given 'cdata'.  The 'cdata'
 must be a pointer or an array.  To get a copy of it in a regular string,
-call str() on the result.
+call str() on the result.  Getting a buffer is useful because you can
+read from it without an extra copy, or write to it to change the original
+value; you can use for example ``file.readinto()`` and ``file.write()``
+with such a buffer.
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
 ``<ctype>`` corresponding to the parsed string, or to the C type of the
