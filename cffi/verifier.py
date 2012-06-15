@@ -467,7 +467,7 @@ class Verifier(object):
     loading_cpy_variable = loaded_noop
 
     def loaded_cpy_variable(self, tp, name, module, library):
-        if isinstance(tp, model.ArrayType):   # a[5] is "constant" in the
+        if isinstance(tp, model.ArrayType):   # int a[5] is "constant" in the
             return                            # sense that "a=..." is forbidden
         # remove ptr=<cdata 'int *'> from the library instance, and replace
         # it by a property on the class, which reads/writes into ptr[0].
