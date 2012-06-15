@@ -3119,7 +3119,7 @@ static PyObject *b_buffer(PyObject *self, PyObject *args)
         return NULL;
 
     if (cd->c_type->ct_flags & CT_POINTER)
-        length = cd->c_type->ct_size;
+        length = cd->c_type->ct_itemdescr->ct_size;
     else if (cd->c_type->ct_flags & CT_ARRAY)
         length = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
     else {

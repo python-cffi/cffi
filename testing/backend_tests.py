@@ -759,15 +759,16 @@ class BackendTests:
 
     def test_ffi_buffer_ptr(self):
         ffi = FFI(backend=self.Backend())
-        a = ffi.new("int", 100)
+        a = ffi.new("short", 100)
         b = ffi.buffer(a)
         assert type(b) is buffer
+        assert len(str(b)) == 2
         if sys.byteorder == 'little':
-            assert str(b) == '\x64\x00\x00\x00'
+            assert str(b) == '\x64\x00'
             b[0] = '\x65'
         else:
-            assert str(b) == '\x00\x00\x00\x64'
-            b[3] = '\x65'
+            assert str(b) == '\x00\x64'
+            b[1] = '\x65'
         assert a[0] == 101
 
     def test_ffi_buffer_array(self):
