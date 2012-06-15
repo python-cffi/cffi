@@ -24,6 +24,11 @@ class Verifier(object):
         an instance.  Finally, we copy all the API elements from
         the module to the class or the instance as needed.
         """
+        import _ffi_backend
+        if self.ffi._backend is not _ffi_backend:
+            raise NotImplementedError(
+                "verify() is only available for the _ffi_backend")
+
         modname = ffiplatform.undercffi_module_name()
         tmpdir = ffiplatform.tmpdir()
         filebase = os.path.join(tmpdir, modname)

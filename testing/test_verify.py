@@ -429,3 +429,9 @@ def test_access_callback():
     my_callback = ffi.callback("int(*)(int)", lambda n: n * 222)
     lib.cb = my_callback
     assert lib.foo(4) == 887
+
+def test_cannot_verify_with_ctypes():
+    from cffi.backend_ctypes import CTypesBackend
+    ffi = FFI(backend=CTypesBackend())
+    ffi.cdef("int a;")
+    py.test.raises(NotImplementedError, ffi.verify, "int a;")
