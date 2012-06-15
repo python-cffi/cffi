@@ -415,3 +415,17 @@ def test_access_struct_variable():
     lib.stuff.x = -6
     assert lib.foo(0) == -42
     assert lib.foo(1) == 35
+
+def test_access_callback():
+    ffi = FFI()
+    ffi.cdef("int (*cb)(int);\n"
+             "int foo(int);")
+    lib = ffi.verify("""
+        static int g(int x) { return x * 7; }
+        static int (*cb)(int) = g;
+        static int foo(int i) { return cb(i) - 1; }
+    """)
+    assert lib.foo(6) == 41
+    my_callback = ffi.callback("int(*)(int)", lambda n: n * 222)
+    lib.cb = my_callback
+    assert lib.foo(4) == 887
