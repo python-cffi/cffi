@@ -19,34 +19,47 @@ class Verifier(object):
             return num
 
     def verify(self, preamble, **kwds):
+        """Produce an extension module, compile it and import it.
+        Then make a fresh FFILibrary class, of which we will return
+        an instance.  Finally, we copy all the API elements from
+        the module to the class or the instance as needed.
+        """
         modname = ffiplatform.undercffi_module_name()
         tmpdir = ffiplatform.tmpdir()
         filebase = os.path.join(tmpdir, modname)
-        self.chained_list_constants = None
-        
+
+        # The new module will have a _cffi_setup() function that receives
+        # objects from the ffi world, and that calls some setup code in
+        # the module.  This setup code is split in several independent
+        # functions, e.g. one per constant.  The functions are "chained"
+        # by ending in a tail call to each other.  The following
+        # 'chained_list_constants' attribute contains the head of this
+        # chained list, as a string that gives the call to do, if any.
+        self.chained_list_constants = '0'
+
         with open(filebase + '.c', 'w') as f:
             self.f = f
+            # first paste some standard set of lines that are mostly '#define'
             self.prnt(cffimod_header)
             self.prnt()
+            # then paste the C source given by the user, verbatim.
             self.prnt(preamble)
             self.prnt()
             #
+            # call generate_cpy_xxx_decl(), for every xxx found from
+            # ffi._parser._declarations.  This generates all the functions.
             self.generate("decl")
             #
-            self.prnt('static PyObject *_cffi_setup_custom(void)')
+            # implement this function as calling the head of the chained list.
+            self.prnt('static int _cffi_setup_custom(PyObject *lib)')
             self.prnt('{')
-            self.prnt('  PyObject *dct = PyDict_New();')
-            if self.chained_list_constants is not None:
-                self.prnt('  if (dct == NULL)')
-                self.prnt('    return NULL;')
-                self.prnt('  if (%s(dct) < 0) {' % self.chained_list_constants)
-                self.prnt('    Py_DECREF(dct);')
-                self.prnt('    return NULL;')
-                self.prnt('  }')
-            self.prnt('  return dct;')
+            self.prnt('  return %s;' % self.chained_list_constants)
             self.prnt('}')
             self.prnt()
             #
+            # produce the method table, including the entries for the
+            # generated Python->C function wrappers, which are done
+            # by generate_cpy_function_method().
             self.prnt('static PyMethodDef _cffi_methods[] = {')
             self.generate("method")
             self.prnt('  {"_cffi_setup", _cffi_setup, METH_VARARGS},')
@@ -54,6 +67,7 @@ class Verifier(object):
             self.prnt('};')
             self.prnt()
             #
+            # standard init.
             self.prnt('PyMODINIT_FUNC')
             self.prnt('init%s(void)' % modname)
             self.prnt('{')
@@ -63,26 +77,41 @@ class Verifier(object):
             #
             del self.f
 
+        # compile this C source
         outputfilename = ffiplatform.compile(tmpdir, modname, **kwds)
         #
+        # import it as a new extension module
         import imp
         try:
             module = imp.load_dynamic(modname, outputfilename)
         except ImportError, e:
             raise ffiplatform.VerificationError(str(e))
         #
+        # call loading_cpy_struct() to get the struct layout inferred by
+        # the C compiler
         self.load(module, 'loading')
         #
+        # the C code will need the <ctype> objects.  Collect them in
+        # order in a list.
         revmapping = dict([(value, key)
                            for (key, value) in self.typesdict.items()])
         lst = [revmapping[i] for i in range(len(revmapping))]
         lst = map(self.ffi._get_cached_btype, lst)
-        dct = module._cffi_setup(lst, ffiplatform.VerificationError)
         #
+        # build the FFILibrary class and instance and call _cffi_setup().
+        # this will set up some fields like '_cffi_types', and only then
+        # it will invoke the chained list of functions that will really
+        # build (notably) the constant objects, as <cdata> if they are
+        # pointers, and store them as attributes on the 'library' object.
         class FFILibrary(object):
             pass
         library = FFILibrary()
-        library.__dict__.update(dct)
+        module._cffi_setup(lst, ffiplatform.VerificationError, library)
+        #
+        # finally, call the loaded_cpy_xxx() functions.  This will perform
+        # the final adjustments, like copying the Python->C wrapper
+        # functions from the module to the 'library' object, and setting
+        # up the FFILibrary class with properties for the global C variables.
         self.load(module, 'loaded', library=library)
         return library
 
@@ -322,28 +351,18 @@ class Verifier(object):
     # ----------
     # constants, likely declared with '#define'
 
-    def _generate_chain_header(self, funcname, *vardecls):
-        prnt = self.prnt
-        prnt('static int %s(PyObject *dct)' % funcname)
-        prnt('{')
-        for decl in vardecls:
-            prnt('  ' + decl)
-        if self.chained_list_constants is not None:
-            prnt('  if (%s(dct) < 0)' % self.chained_list_constants)
-            prnt('    return -1;')
-        self.chained_list_constants = funcname
-
     def _generate_cpy_const(self, is_int, name, tp=None, category='const'):
-        vardecls = ['PyObject *o;',
-                    'int res;']
+        prnt = self.prnt
+        funcname = '_cffi_%s_%s' % (category, name)
+        prnt('static int %s(PyObject *lib)' % funcname)
+        prnt('{')
+        prnt('  PyObject *o;')
+        prnt('  int res;')
         if not is_int:
-            vardecls.append('%s;' % tp.get_c_name(' i'))
+            prnt('  %s;' % tp.get_c_name(' i'))
         else:
             assert category == 'const'
-        self._generate_chain_header('_cffi_%s_%s' % (category, name),
-                                    *vardecls)
         #
-        prnt = self.prnt
         if not is_int:
             if category == 'var':
                 realexpr = '&' + name
@@ -361,9 +380,12 @@ class Verifier(object):
                  '(unsigned long long)(%s));' % (name,))
         prnt('  if (o == NULL)')
         prnt('    return -1;')
-        prnt('  res = PyDict_SetItemString(dct, "%s", o);' % name)
+        prnt('  res = PyObject_SetAttrString(lib, "%s", o);' % name)
         prnt('  Py_DECREF(o);')
-        prnt('  return res;')
+        prnt('  if (res < 0)')
+        prnt('    return -1;')
+        prnt('  return %s;' % self.chained_list_constants)
+        self.chained_list_constants = funcname + '(lib)'
         prnt('}')
         prnt()
 
@@ -384,8 +406,10 @@ class Verifier(object):
                 self._generate_cpy_const(True, enumerator)
             return
         #
-        self._generate_chain_header('_cffi_enum_%s' % name)
+        funcname = '_cffi_enum_%s' % name
         prnt = self.prnt
+        prnt('static int %s(PyObject *lib)' % funcname)
+        prnt('{')
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
             prnt('  if (%s != %d) {' % (enumerator, enumvalue))
             prnt('    PyErr_Format(_cffi_VerificationError,')
@@ -395,7 +419,8 @@ class Verifier(object):
                 name, enumerator, enumerator, enumvalue))
             prnt('    return -1;')
             prnt('  }')
-        prnt('  return 0;')
+        prnt('  return %s;' % self.chained_list_constants)
+        self.chained_list_constants = funcname + '(lib)'
         prnt('}')
         prnt()
 
@@ -529,16 +554,22 @@ typedef struct _ctypedescr CTypeDescrObject;
 static void *_cffi_exports[_CFFI_NUM_EXPORTS];
 static PyObject *_cffi_types, *_cffi_VerificationError;
 
-static PyObject *_cffi_setup_custom(void);   /* forward */
+static int _cffi_setup_custom(PyObject *lib);   /* forward */
 
 static PyObject *_cffi_setup(PyObject *self, PyObject *args)
 {
-    if (!PyArg_ParseTuple(args, "OO", &_cffi_types, &_cffi_VerificationError))
+    PyObject *library;
+    if (!PyArg_ParseTuple(args, "OOO", &_cffi_types, &_cffi_VerificationError,
+                                       &library))
+        return NULL;
+
+    if (_cffi_setup_custom(library) < 0)
         return NULL;
     Py_INCREF(_cffi_types);
     Py_INCREF(_cffi_VerificationError);
 
-    return _cffi_setup_custom();
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 static void _cffi_init(void)
