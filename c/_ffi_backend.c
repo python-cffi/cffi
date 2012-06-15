@@ -3411,6 +3411,7 @@ static void *cffi_exports[] = {
     _cffi_restore_errno,
     _cffi_save_errno,
     _cffi_from_c_char,
+    convert_to_object,
 };
 
 /************************************************************/

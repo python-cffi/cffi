@@ -373,3 +373,20 @@ def test_access_variable():
     lib.somenumber = -6
     assert lib.foo() == -42
     assert lib.somenumber == -6
+
+def test_access_array_variable():
+    ffi = FFI()
+    ffi.cdef("int foo(int);\n"
+             "int somenumber[5];")
+    lib = ffi.verify("""
+        static int somenumber[] = {2, 2, 3, 4, 5};
+        static int foo(int i) {
+            return somenumber[i] * 7;
+        }
+    """)
+    assert lib.somenumber[3] == 4
+    assert lib.foo(3) == 28
+    lib.somenumber[3] = -6
+    assert lib.foo(3) == -42
+    assert lib.somenumber[3] == -6
+    assert lib.somenumber[4] == 5

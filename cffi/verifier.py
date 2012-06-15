@@ -165,6 +165,9 @@ class Verifier(object):
         elif isinstance(tp, model.PointerType):
             return '_cffi_from_c_pointer((char *)%s, _cffi_type(%d))' % (
                 var, self.gettypenum(tp))
+        elif isinstance(tp, model.ArrayType):
+            return '_cffi_from_c_deref((char *)%s, _cffi_type(%d))' % (
+                var, self.gettypenum(tp))
         else:
             raise NotImplementedError(tp)
 
@@ -351,7 +354,8 @@ class Verifier(object):
     # ----------
     # constants, likely declared with '#define'
 
-    def _generate_cpy_const(self, is_int, name, tp=None, category='const'):
+    def _generate_cpy_const(self, is_int, name, tp=None, category='const',
+                            vartp=None):
         prnt = self.prnt
         funcname = '_cffi_%s_%s' % (category, name)
         prnt('static int %s(PyObject *lib)' % funcname)
@@ -359,7 +363,7 @@ class Verifier(object):
         prnt('  PyObject *o;')
         prnt('  int res;')
         if not is_int:
-            prnt('  %s;' % tp.get_c_name(' i'))
+            prnt('  %s;' % (vartp or tp).get_c_name(' i'))
         else:
             assert category == 'const'
         #
@@ -452,13 +456,19 @@ class Verifier(object):
     # global variables
 
     def generate_cpy_variable_decl(self, tp, name):
-        tp_ptr = model.PointerType(tp)
-        self._generate_cpy_const(False, name, tp_ptr, category='var')
+        if isinstance(tp, model.ArrayType):
+            tp_ptr = model.PointerType(tp.item)
+            self._generate_cpy_const(False, name, tp, vartp=tp_ptr)
+        else:
+            tp_ptr = model.PointerType(tp)
+            self._generate_cpy_const(False, name, tp_ptr, category='var')
 
     generate_cpy_variable_method = generate_nothing
     loading_cpy_variable = loaded_noop
 
     def loaded_cpy_variable(self, tp, name, module, library):
+        if isinstance(tp, model.ArrayType):   # a[5] is "constant" in the
+            return                            # sense that "a=..." is forbidden
         # remove ptr=<cdata 'int *'> from the library instance, and replace
         # it by a property on the class, which reads/writes into ptr[0].
         ptr = getattr(library, name)
@@ -541,7 +551,9 @@ cffimod_header = r'''
     ((void(*)(void))_cffi_exports[14])
 #define _cffi_from_c_char                                                \
     ((PyObject *(*)(char))_cffi_exports[15])
-#define _CFFI_NUM_EXPORTS 16
+#define _cffi_from_c_deref                                               \
+    ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[16])
+#define _CFFI_NUM_EXPORTS 17
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 #  define _cffi_to_c_long_long PyLong_AsLongLong
