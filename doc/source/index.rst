@@ -124,6 +124,10 @@ Struct/Array Example
     image[0].g = 192
     image[0].b = 128
 
+    f = open('data', 'wb')
+    f.write(ffi.buffer(image))
+    f.close()
+
 This can be used as a more flexible replacement of the struct_ and
 array_ modules.  You could also call ``ffi.new("pixel_t[600][800]")``
 and get a two-dimensional array.
@@ -480,11 +484,10 @@ in this thread, and passed to the following C call, is available via
 library.  It can also be accessed more directly via reads and writes of
 ``ffi.errno``.
 
-``ffi.string(pointer, length)``: return a Python string containing all
-the data at the given location with the given size.  The pointer must be
-a cdata of type ``void *`` or ``char *``.  Null characters are not
-considered special here: the resulting string always has the given
-``length``, possibly with embedded null characters.
+``ffi.buffer(pointer)``: return a read-write buffer object that
+references the raw C data pointed to by the given 'cdata'.  The 'cdata'
+must be a pointer or an array.  To get a copy of it in a regular string,
+call str() on the result.
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
 ``<ctype>`` corresponding to the parsed string, or to the C type of the

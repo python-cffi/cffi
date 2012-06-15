@@ -3110,23 +3110,31 @@ static PyObject *b_offsetof(PyObject *self, PyObject *args)
     return PyInt_FromSsize_t(cf->cf_offset);
 }
 
-static PyObject *b_string(PyObject *self, PyObject *args)
+static PyObject *b_buffer(PyObject *self, PyObject *args)
 {
     CDataObject *cd;
-    CTypeDescrObject *ct;
     Py_ssize_t length;
-    if (!PyArg_ParseTuple(args, "O!n:string",
-                          &CData_Type, &cd, &length))
+    if (!PyArg_ParseTuple(args, "O!:buffer",
+                          &CData_Type, &cd))
         return NULL;
-    ct = cd->c_type;
-    if (!(ct->ct_flags & CT_POINTER) ||
-            !(ct->ct_itemdescr->ct_flags & CT_CAST_ANYTHING)) {
+
+    if (cd->c_type->ct_flags & CT_POINTER)
+        length = cd->c_type->ct_size;
+    else if (cd->c_type->ct_flags & CT_ARRAY)
+        length = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
+    else {
         PyErr_Format(PyExc_TypeError,
-                     "expected a cdata 'char *' or 'void *', got '%s'",
-                     ct->ct_name);
+                     "expected a pointer or array cdata, got '%s'",
+                     cd->c_type->ct_name);
         return NULL;
     }
-    return PyString_FromStringAndSize(cd->c_data, length);
+    if (length < 0) {
+        PyErr_Format(PyExc_TypeError,
+                     "don't know the size pointed to by '%s'",
+                     cd->c_type->ct_name);
+        return NULL;
+    }
+    return PyBuffer_FromReadWriteMemory(cd->c_data, length);
 }
 
 static PyObject *b_get_errno(PyObject *self, PyObject *noarg)
@@ -3269,7 +3277,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"sizeof", b_sizeof, METH_O},
     {"typeof", b_typeof, METH_O},
     {"offsetof", b_offsetof, METH_VARARGS},
-    {"string", b_string, METH_VARARGS},
+    {"buffer", b_buffer, METH_VARARGS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_VARARGS},
     {"gc", b_gc, METH_VARARGS},

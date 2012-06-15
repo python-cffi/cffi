@@ -160,12 +160,13 @@ class FFI(object):
         BType = self.typeof(cdecl)
         return self._backend.cast(BType, source)
 
-    def string(self, pointer, length):
-        """Return a Python string containing the data at the given
-        raw pointer with the given size.  The pointer must be a
-        <cdata 'void *'> or <cdata 'char *'>.
+    def buffer(self, cdata):
+        """Return a read-write buffer object that references the raw C data
+        pointed to by the given 'cdata'.  The 'cdata' must be a pointer or
+        an array.  To get a copy of it in a regular string, call str() on
+        the result.
         """
-        return self._backend.string(pointer, length)
+        return self._backend.buffer(pointer)
 
     def callback(self, cdecl, python_callable):
         if not callable(python_callable):

@@ -757,15 +757,32 @@ class BackendTests:
         assert p == s+0
         assert p+1 == s+1
 
-    def test_ffi_string(self):
+    def test_ffi_buffer_ptr(self):
+        ffi = FFI(backend=self.Backend())
+        a = ffi.new("int", 100)
+        b = ffi.buffer(a)
+        assert type(b) is buffer
+        if sys.byteorder == 'little':
+            assert str(b) == '\x64\x00\x00\x00'
+            b[0] = '\x65'
+        else:
+            assert str(b) == '\x00\x00\x00\x64'
+            b[3] = '\x65'
+        assert a[0] == 101
+
+    def test_ffi_buffer_array(self):
         ffi = FFI(backend=self.Backend())
         a = ffi.new("int[]", range(100, 110))
-        s = ffi.string(ffi.cast("void *", a), 8)
-        assert type(s) is str
+        b = ffi.buffer(a)
+        assert type(b) is buffer
         if sys.byteorder == 'little':
-            assert s == '\x64\x00\x00\x00\x65\x00\x00\x00'
+            assert str(b).startswith('\x64\x00\x00\x00\x65\x00\x00\x00')
+            b[4] = '\x45'
         else:
-            assert s == '\x00\x00\x00\x64\x00\x00\x00\x65'
+            assert str(b).startswith('\x00\x00\x00\x64\x00\x00\x00\x65')
+            b[7] = '\x45'
+        assert len(str(b)) == 4 * 10
+        assert a[1] == 0x45
 
     def test_new_struct_containing_array_varsize(self):
         py.test.skip("later?")
