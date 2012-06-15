@@ -120,9 +120,14 @@ Struct/Array Example
         } pixel_t;
     """)
     image = ffi.new("pixel_t[]", 800*600)
-    image[0].r = 255
-    image[0].g = 192
-    image[0].b = 128
+
+    f = open('data', 'rb')
+    f.readinto(ffi.buffer(image))
+    f.close()
+
+    image[100].r = 255
+    image[100].g = 192
+    image[100].b = 128
 
     f = open('data', 'wb')
     f.write(ffi.buffer(image))
