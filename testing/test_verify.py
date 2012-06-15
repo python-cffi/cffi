@@ -390,3 +390,28 @@ def test_access_array_variable():
     assert lib.foo(3) == -42
     assert lib.somenumber[3] == -6
     assert lib.somenumber[4] == 5
+
+def test_access_struct_variable():
+    ffi = FFI()
+    ffi.cdef("struct foo { int x; ...; };\n"
+             "int foo(int);\n"
+             "struct foo stuff;")
+    lib = ffi.verify("""
+        struct foo { int x, y, z; };
+        static struct foo stuff = {2, 5, 8};
+        static int foo(int i) {
+            switch (i) {
+            case 0: return stuff.x * 7;
+            case 1: return stuff.y * 7;
+            case 2: return stuff.z * 7;
+            }
+            return -1;
+        }
+    """)
+    assert lib.stuff.x == 2
+    assert lib.foo(0) == 14
+    assert lib.foo(1) == 35
+    assert lib.foo(2) == 56
+    lib.stuff.x = -6
+    assert lib.foo(0) == -42
+    assert lib.foo(1) == 35
