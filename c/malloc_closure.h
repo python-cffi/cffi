@@ -102,7 +102,7 @@ static void more_core(void)
 /******************************************************************/
 
 /* put the item back into the free list */
-static void ffi_closure_free(ffi_closure *p)
+static void cffi_closure_free(ffi_closure *p)
 {
     union mmaped_block *item = (union mmaped_block *)p;
     item->next = free_list;
@@ -110,7 +110,7 @@ static void ffi_closure_free(ffi_closure *p)
 }
 
 /* return one item from the free list, allocating more if needed */
-static ffi_closure *ffi_closure_alloc(void)
+static ffi_closure *cffi_closure_alloc(void)
 {
     union mmaped_block *item;
     if (!free_list)

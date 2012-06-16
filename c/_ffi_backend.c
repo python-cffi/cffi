@@ -929,7 +929,7 @@ static void cdataowning_dealloc(CDataObject *cd)
         ffi_closure *closure = (ffi_closure *)cd->c_data;
         PyObject *args = (PyObject *)(closure->user_data);
         Py_XDECREF(args);
-        ffi_closure_free(closure);
+        cffi_closure_free(closure);
     }
     cdata_dealloc(cd);
 }
@@ -2913,7 +2913,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    closure = ffi_closure_alloc();
+    closure = cffi_closure_alloc();
 
     cd = PyObject_New(CDataObject, &CDataOwning_Type);
     if (cd == NULL)
@@ -2941,7 +2941,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
  error:
     closure->user_data = NULL;
     if (cd == NULL)
-        ffi_closure_free(closure);
+        cffi_closure_free(closure);
     else
         Py_DECREF(cd);
     return NULL;
