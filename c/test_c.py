@@ -647,6 +647,18 @@ def test_callback():
     f = make_callback()
     assert f(-142) == -141
 
+def test_a_lot_of_callbacks():
+    BInt = new_primitive_type("int")
+    def make_callback(m):
+        def cb(n):
+            return n + m
+        BFunc = new_function_type((BInt,), BInt, False)
+        return callback(BFunc, cb)    # 'cb' and 'BFunc' go out of scope
+    #
+    flist = [make_callback(i) for i in range(10000)]
+    for i, f in enumerate(flist):
+        assert f(-142) == -142 + i
+
 def test_enum_type():
     BEnum = new_enum_type("foo", (), ())
     assert repr(BEnum) == "<ctype 'enum foo'>"

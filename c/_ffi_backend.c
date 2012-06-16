@@ -10,6 +10,8 @@
 #include <ffi.h>
 #include <sys/mman.h>
 
+#include "malloc_closure.h"
+
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
@@ -924,8 +926,10 @@ static void cdataowning_dealloc(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {
         /* a callback */
-        PyObject *args = (PyObject *)((ffi_closure *)cd->c_data)->user_data;
+        ffi_closure *closure = (ffi_closure *)cd->c_data;
+        PyObject *args = (PyObject *)(closure->user_data);
         Py_XDECREF(args);
+        ffi_closure_free(closure);
     }
     cdata_dealloc(cd);
 }
@@ -2889,12 +2893,10 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
 static PyObject *b_callback(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
-    CDataObject_with_alignment *cda;
+    CDataObject *cd;
     PyObject *ob;
     cif_description_t *cif_descr;
-    int dataoffset, datasize, pagesize;
     ffi_closure *closure;
-    char *rawaddr;
 
     if (!PyArg_ParseTuple(args, "O!O:callback", &CTypeDescr_Type, &ct, &ob))
         return NULL;
@@ -2911,16 +2913,14 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    dataoffset = offsetof(CDataObject_with_alignment, alignment);
-    datasize = sizeof(ffi_closure);
-    cda = (CDataObject_with_alignment *)PyObject_Malloc(dataoffset + datasize);
-    if (PyObject_Init((PyObject *)cda, &CDataOwning_Type) == NULL)
-        return NULL;
-    closure = (ffi_closure *)&cda->alignment;
+    closure = ffi_closure_alloc();
 
+    cd = PyObject_New(CDataObject, &CDataOwning_Type);
+    if (cd == NULL)
+        goto error;
     Py_INCREF(ct);
-    cda->head.c_type = ct;
-    cda->head.c_data = (char *)closure;
+    cd->c_type = ct;
+    cd->c_data = (char *)closure;
 
     cif_descr = (cif_description_t *)ct->ct_extra;
     if (cif_descr == NULL) {
@@ -2934,25 +2934,16 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
                         "libffi failed to build this callback");
         goto error;
     }
-    /* make the memory containing 'closure' executable */
-    pagesize = sysconf(_SC_PAGE_SIZE);
-    if (pagesize == -1)
-        pagesize = 4096;
-    rawaddr = (char *)closure;
-    rawaddr -= ((Py_intptr_t)rawaddr) & (pagesize-1);
-    if (mprotect(rawaddr, (((char*)(closure + 1))) - rawaddr,
-                 PROT_READ | PROT_WRITE | PROT_EXEC) < 0) {
-        PyErr_SetFromErrno(PyExc_OSError);
-        goto error;
-    }
-
     assert(closure->user_data == args);
     Py_INCREF(args);   /* capture the tuple (CTypeDescr, Python callable) */
-    return (PyObject *)cda;
+    return (PyObject *)cd;
 
  error:
     closure->user_data = NULL;
-    Py_DECREF(cda);
+    if (cd == NULL)
+        ffi_closure_free(closure);
+    else
+        Py_DECREF(cd);
     return NULL;
 }
 
