@@ -53,6 +53,19 @@ class TestFunction(object):
         assert x != math.sin(1.23)    # rounding effects
         assert abs(x - math.sin(1.23)) < 1E-6
 
+    def test_tlsalloc(self):
+        if sys.platform != 'win32':
+            py.test.skip("win32 only")
+        if self.Backend is CTypesBackend:
+            py.test.skip("ctypes complains on wrong calling conv")
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("long TlsAlloc(void); int TlsFree(long);")
+        lib = ffi.dlopen('KERNEL32')
+        x = lib.TlsAlloc()
+        assert x != 0
+        y = lib.TlsFree(x)
+        assert y != 0
+
     def test_puts(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
