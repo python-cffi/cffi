@@ -23,9 +23,14 @@ def size_of_ptr():
     return sizeof(BPtr)
 
 
+def find_and_load_library(name):
+    import ctypes.util
+    path = ctypes.util.find_library(name)
+    return load_library(path)
+
 def test_load_library():
-    x = load_library(None)
-    assert repr(x) == "<clibrary '<stdlib>'>"
+    x = find_and_load_library('c')
+    assert repr(x).startswith("<clibrary '")
 
 def test_nonstandard_integer_types():
     d = nonstandard_integer_types()
@@ -615,7 +620,7 @@ def test_load_and_call_function():
     BCharP = new_pointer_type(BChar)
     BLong = new_primitive_type("long")
     BFunc = new_function_type((BCharP,), BLong, False)
-    ll = load_library(None)
+    ll = find_and_load_library('c')
     strlen = ll.load_function(BFunc, "strlen")
     input = newp(new_array_type(BCharP, None), "foobar")
     assert strlen(input) == 6
@@ -626,7 +631,7 @@ def test_read_variable():
     if sys.platform == 'win32':
         py.test.skip("untested")
     BVoidP = new_pointer_type(new_void_type())
-    ll = load_library(None)
+    ll = find_and_load_library('c')
     stderr = ll.read_variable(BVoidP, "stderr")
     assert stderr == cast(BVoidP, _testfunc(8))
 
@@ -634,7 +639,7 @@ def test_write_variable():
     if sys.platform == 'win32':
         py.test.skip("untested")
     BVoidP = new_pointer_type(new_void_type())
-    ll = load_library(None)
+    ll = find_and_load_library('c')
     stderr = ll.read_variable(BVoidP, "stderr")
     ll.write_variable(BVoidP, "stderr", None)
     assert ll.read_variable(BVoidP, "stderr") is None

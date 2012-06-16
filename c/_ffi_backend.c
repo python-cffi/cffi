@@ -1847,20 +1847,14 @@ typedef struct {
 
 static void dl_dealloc(DynLibObject *dlobj)
 {
-    if (dlobj->dl_handle != RTLD_DEFAULT)
-        dlclose(dlobj->dl_handle);
+    dlclose(dlobj->dl_handle);
     free(dlobj->dl_name);
     PyObject_Del(dlobj);
 }
 
-static const char *get_dl_name(DynLibObject *dlobj)
-{
-    return dlobj->dl_name ? dlobj->dl_name : "<stdlib>";
-}
-
 static PyObject *dl_repr(DynLibObject *dlobj)
 {
-    return PyString_FromFormat("<clibrary '%s'>", get_dl_name(dlobj));
+    return PyString_FromFormat("<clibrary '%s'>", dlobj->dl_name);
 }
 
 static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
@@ -1881,7 +1875,7 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
     funcptr = dlsym(dlobj->dl_handle, funcname);
     if (funcptr == NULL) {
         PyErr_Format(PyExc_KeyError, "function '%s' not found in library '%s'",
-                     funcname, get_dl_name(dlobj));
+                     funcname, dlobj->dl_name);
         return NULL;
     }
 
@@ -1901,7 +1895,7 @@ static PyObject *dl_read_variable(DynLibObject *dlobj, PyObject *args)
     data = dlsym(dlobj->dl_handle, varname);
     if (data == NULL) {
         PyErr_Format(PyExc_KeyError, "variable '%s' not found in library '%s'",
-                     varname, get_dl_name(dlobj));
+                     varname, dlobj->dl_name);
         return NULL;
     }
     return convert_to_object(data, ct);
@@ -1921,7 +1915,7 @@ static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
     data = dlsym(dlobj->dl_handle, varname);
     if (data == NULL) {
         PyErr_Format(PyExc_KeyError, "variable '%s' not found in library '%s'",
-                     varname, get_dl_name(dlobj));
+                     varname, dlobj->dl_name);
         return NULL;
     }
     if (convert_from_object(data, ct, value) < 0)
@@ -1975,32 +1969,23 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
     void *handle;
     DynLibObject *dlobj;
 
-    if (PyTuple_Size(args) == 1 && PyTuple_GetItem(args, 0) == Py_None) {
-        handle = RTLD_DEFAULT;
-        filename = NULL;
-    }
-    else {
-        if (!PyArg_ParseTuple(args, "et:load_library",
-                              Py_FileSystemDefaultEncoding, &filename))
-            return NULL;
+    if (!PyArg_ParseTuple(args, "et:load_library",
+                          Py_FileSystemDefaultEncoding, &filename))
+        return NULL;
 
-        handle = dlopen(filename, RTLD_LAZY);
-        if (handle == NULL) {
-            PyErr_Format(PyExc_OSError, "cannot load library: %s", filename);
-            return NULL;
-        }
-        filename = strdup(filename);
+    handle = dlopen(filename, RTLD_LAZY);
+    if (handle == NULL) {
+        PyErr_Format(PyExc_OSError, "cannot load library: %s", filename);
+        return NULL;
     }
 
     dlobj = PyObject_New(DynLibObject, &dl_type);
     if (dlobj == NULL) {
-        if (handle != RTLD_DEFAULT)
-            dlclose(handle);
-        free(filename);
+        dlclose(handle);
         return NULL;
     }
     dlobj->dl_handle = handle;
-    dlobj->dl_name = filename;
+    dlobj->dl_name = strdup(filename);
     return (PyObject *)dlobj;
 }
 

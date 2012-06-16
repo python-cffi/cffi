@@ -60,8 +60,7 @@ static void restore_errno(void)
 /************************************************************/
 /* Emulate dlopen()&co. from the Windows API */
 
-#define RTLD_DEFAULT   NULL
-#define RTLD_LAZY      0
+#define RTLD_LAZY  0
 
 static void *dlopen(const char *filename, int flag)
 {
@@ -70,34 +69,7 @@ static void *dlopen(const char *filename, int flag)
 
 static void *dlsym(void *handle, const char *symbol)
 {
-    if (handle == RTLD_DEFAULT) {
-        static const char *standard_dlls[] = {
-            "MSVCR110",  /* XXX! */
-            "MSVCR100",
-            "MSVCR90",
-            "MSVCR80",
-
-            "KERNEL32",
-            "USER32",
-            "GDI32",
-            NULL
-        };
-        const char **p;
-        void *result;
-
-        for (p = standard_dlls; *p != NULL; p++) {
-            HMODULE h = GetModuleHandle(*p);
-            if (h) {
-                result = GetProcAddress(h, symbol);
-                if (result)
-                    return result;
-            }
-        }
-        return NULL;
-    }
-    else {
-        return GetProcAddress((HMODULE)handle, symbol);
-    }
+    return GetProcAddress((HMODULE)handle, symbol);
 }
 
 static void dlclose(void *handle)
