@@ -1,6 +1,6 @@
 import py
 from cffi import FFI
-import math, os
+import math, os, sys
 from cffi.backend_ctypes import CTypesBackend
 
 
@@ -41,6 +41,8 @@ class TestFunction(object):
         assert x == math.sin(1.23)
 
     def test_sinf(self):
+        if sys.platform == 'win32':
+            py.test.skip("no 'sinf'")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             float sinf(float x);
@@ -82,6 +84,8 @@ class TestFunction(object):
         assert res == 'hello\n  world\n'
 
     def test_fputs(self):
+        if sys.platform == 'win32':
+            py.test.skip("no 'stderr'")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int fputs(const char *, void *);
@@ -112,11 +116,15 @@ class TestFunction(object):
             ffi.C.printf("hello %p\n", None)
             ffi.C.fflush(None)
         res = fd.getvalue()
+        if sys.platform == 'win32':
+            NIL = "00000000"
+        else:
+            NIL = "(nil)"
         assert res == ("hello with no arguments\n"
                        "hello, world!\n"
                        "hello, world2!\n"
                        "hello int 42 long 84 long long 168\n"
-                       "hello (nil)\n")
+                       "hello " + NIL + "\n")
 
     def test_must_specify_type_of_vararg(self):
         ffi = FFI(backend=self.Backend())
@@ -175,6 +183,8 @@ class TestFunction(object):
         assert res == 5
 
     def test_write_variable(self):
+        if sys.platform == 'win32':
+            py.test.skip("no 'stdout'")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int puts(const char *);
@@ -205,6 +215,8 @@ class TestFunction(object):
         assert str(q) == "world!"
 
     def test_function_with_struct_argument(self):
+        if sys.platform == 'win32':
+            py.test.skip("no 'inet_ntoa'")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             struct in_addr { unsigned int s_addr; };

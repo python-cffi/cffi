@@ -1,4 +1,4 @@
-import py
+import py, sys
 from cffi import FFI, CDefError
 
 class FakeBackend(object):
@@ -10,7 +10,10 @@ class FakeBackend(object):
         return 1
 
     def load_library(self, name):
-        assert "libc" in name or "libm" in name
+        if sys.platform == 'win32':
+            assert "msvcr" in name
+        else:
+            assert "libc" in name or "libm" in name
         return FakeLibrary()
 
     def new_function_type(self, args, result, has_varargs):

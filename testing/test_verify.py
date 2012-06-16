@@ -1,13 +1,14 @@
 import py
-import math
+import sys, math
 from cffi import FFI, VerificationError, VerificationMissing, model
 
 
-class FFI(FFI):
-    def verify(self, *args, **kwds):
-        # XXX a GCC-only way to say "crash upon warnings too"
-        return super(FFI, self).verify(*args, extra_compile_args=['-Werror'],
-                                       **kwds)
+if sys.platform != 'win32':
+    class FFI(FFI):
+        def verify(self, *args, **kwds):
+            # XXX a GCC-only way to say "crash upon warnings too"
+            return super(FFI, self).verify(
+                *args, extra_compile_args=['-Werror'], **kwds)
 
 
 def test_missing_function():
