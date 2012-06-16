@@ -53,6 +53,16 @@ class TestFunction(object):
         assert x != math.sin(1.23)    # rounding effects
         assert abs(x - math.sin(1.23)) < 1E-6
 
+    def test_sin_no_return_value(self):
+        # check that 'void'-returning functions work too
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            void sin(double x);
+        """)
+        m = ffi.dlopen("m")
+        x = m.sin(1.23)
+        assert x is None
+
     def test_tlsalloc(self):
         if sys.platform != 'win32':
             py.test.skip("win32 only")
