@@ -25,7 +25,7 @@ def size_of_ptr():
 
 def test_load_library():
     x = load_library(None)
-    assert repr(x) == '<clibrary stdlib>'
+    assert repr(x) == "<clibrary '<stdlib>'>"
 
 def test_nonstandard_integer_types():
     d = nonstandard_integer_types()
@@ -623,12 +623,16 @@ def test_load_and_call_function():
     assert strlen("foobarbaz") == 9
 
 def test_read_variable():
+    if sys.platform == 'win32':
+        py.test.skip("untested")
     BVoidP = new_pointer_type(new_void_type())
     ll = load_library(None)
     stderr = ll.read_variable(BVoidP, "stderr")
     assert stderr == cast(BVoidP, _testfunc(8))
 
 def test_write_variable():
+    if sys.platform == 'win32':
+        py.test.skip("untested")
     BVoidP = new_pointer_type(new_void_type())
     ll = load_library(None)
     stderr = ll.read_variable(BVoidP, "stderr")

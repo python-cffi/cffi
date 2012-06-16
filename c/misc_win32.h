@@ -72,18 +72,26 @@ static void *dlsym(void *handle, const char *symbol)
 {
     if (handle == RTLD_DEFAULT) {
         static const char *standard_dlls[] = {
-            "kernel32.dll",
-            "user32.dll",
-            "gdi32.dll",
+            "MSVCR110",  /* XXX! */
+            "MSVCR100",
+            "MSVCR90",
+            "MSVCR80",
+
+            "KERNEL32",
+            "USER32",
+            "GDI32",
             NULL
         };
         const char **p;
         void *result;
 
         for (p = standard_dlls; *p != NULL; p++) {
-            result = GetProcAddress(GetModuleHandle(*p), symbol);
-            if (result)
-                return result;
+            HMODULE h = GetModuleHandle(*p);
+            if (h) {
+                result = GetProcAddress(h, symbol);
+                if (result)
+                    return result;
+            }
         }
         return NULL;
     }
