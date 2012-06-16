@@ -486,6 +486,10 @@ variable somewhere.)
 
 Note that callbacks of a variadic function type are not supported.
 
+Windows: you can't yet specify the calling convention of callbacks.
+(For regular calls, the correct calling convention should be
+automatically inferred by the C backend.)
+
 Be careful when writing the Python callback function: if it returns an
 object of the wrong type, or more generally raises an exception, then
 the exception cannot be propagated.  Instead, it is printed to stderr
