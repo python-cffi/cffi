@@ -3104,28 +3104,32 @@ static PyObject *b_offsetof(PyObject *self, PyObject *args)
 static PyObject *b_buffer(PyObject *self, PyObject *args)
 {
     CDataObject *cd;
-    Py_ssize_t length;
-    if (!PyArg_ParseTuple(args, "O!:buffer",
-                          &CData_Type, &cd))
+    Py_ssize_t size = -1;
+    if (!PyArg_ParseTuple(args, "O!|n:buffer",
+                          &CData_Type, &cd, &size))
         return NULL;
 
-    if (cd->c_type->ct_flags & CT_POINTER)
-        length = cd->c_type->ct_itemdescr->ct_size;
-    else if (cd->c_type->ct_flags & CT_ARRAY)
-        length = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
+    if (cd->c_type->ct_flags & CT_POINTER) {
+        if (size < 0)
+            size = cd->c_type->ct_itemdescr->ct_size;
+    }
+    else if (cd->c_type->ct_flags & CT_ARRAY) {
+        if (size < 0)
+            size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
+    }
     else {
         PyErr_Format(PyExc_TypeError,
                      "expected a pointer or array cdata, got '%s'",
                      cd->c_type->ct_name);
         return NULL;
     }
-    if (length < 0) {
+    if (size < 0) {
         PyErr_Format(PyExc_TypeError,
                      "don't know the size pointed to by '%s'",
                      cd->c_type->ct_name);
         return NULL;
     }
-    return PyBuffer_FromReadWriteMemory(cd->c_data, length);
+    return PyBuffer_FromReadWriteMemory(cd->c_data, size);
 }
 
 static PyObject *b_get_errno(PyObject *self, PyObject *noarg)

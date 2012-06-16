@@ -785,6 +785,27 @@ class BackendTests:
         assert len(str(b)) == 4 * 10
         assert a[1] == 0x45
 
+    def test_ffi_buffer_ptr_size(self):
+        ffi = FFI(backend=self.Backend())
+        a = ffi.new("short", 0x4243)
+        b = ffi.buffer(a, 1)
+        assert type(b) is buffer
+        assert len(str(b)) == 1
+        if sys.byteorder == 'little':
+            assert str(b) == '\x43'
+            b[0] = '\x62'
+            assert a[0] == 0x4262
+        else:
+            assert str(b) == '\x42'
+            b[0] = '\x63'
+            assert a[0] == 0x6343
+
+    def test_ffi_buffer_array_size(self):
+        ffi = FFI(backend=self.Backend())
+        a1 = ffi.new("int[]", range(100, 110))
+        a2 = ffi.new("int[]", range(100, 115))
+        assert str(ffi.buffer(a1)) == str(ffi.buffer(a2, 4*10))
+
     def test_new_struct_containing_array_varsize(self):
         py.test.skip("later?")
         ffi = FFI(backend=self.Backend())

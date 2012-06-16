@@ -336,7 +336,7 @@ Pointers, structures and arrays are more complex: they don't have an
 obvious Python equivalent.  Thus, they correspond to objects of type
 ``cdata``, which are printed for example as ``<cdata 'struct foo_s *'>``.
 
-``ffi.new(ctype [, initializer])``: this function builds a new cdata
+``ffi.new(ctype, [initializer])``: this function builds a new cdata
 object of the given ``ctype``.  The ctype is usually some constant
 string describing the C type.  This is similar to a malloc: it allocates
 the memory needed to store an object of the given C type, and returns a
@@ -504,13 +504,15 @@ Miscellaneous
 in this thread, and passed to the following C call, is available via
 reads and writes of the property ``ffi.errno``.
 
-``ffi.buffer(pointer)``: return a read-write buffer object that
-references the raw C data pointed to by the given 'cdata'.  The 'cdata'
-must be a pointer or an array.  To get a copy of it in a regular string,
-call str() on the result.  Getting a buffer is useful because you can
-read from it without an extra copy, or write to it to change the original
-value; you can use for example ``file.readinto()`` and ``file.write()``
-with such a buffer.
+``ffi.buffer(pointer, [size])``: return a read-write buffer object that
+references the raw C data pointed to by the given 'cdata', of 'size'
+bytes.  The 'cdata' must be a pointer or an array.  To get a copy of it
+in a regular string, call str() on the result.  If unspecified, the
+default size of the buffer is ``sizeof(*pointer)`` or the whole size of
+the array.  Getting a buffer is useful because you can read from it
+without an extra copy, or write into it to change the original value;
+you can use for example ``file.write()`` and ``file.readinto()`` with
+such a buffer.
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
 ``<ctype>`` corresponding to the parsed string, or to the C type of the

@@ -760,18 +760,22 @@ class CTypesBackend(object):
     def set_errno(self, value):
         ctypes.set_errno(value)
 
-    def buffer(self, bptr):
+    def buffer(self, bptr, size=-1):
         # haaaaaaaaaaaack
         call = ctypes.pythonapi.PyBuffer_FromReadWriteMemory
         call.argtypes = (ctypes.c_void_p, ctypes.c_size_t)
         call.restype = ctypes.py_object
         #
         if isinstance(bptr, CTypesGenericPtr):
-            return call(bptr._as_ctype_ptr, bptr._bitem_size)
+            if size < 0:
+                size = bptr._bitem_size
+            return call(bptr._as_ctype_ptr, size)
         elif isinstance(bptr, CTypesGenericArray):
-            return call(ctypes.pointer(bptr._blob), ctypes.sizeof(bptr._blob))
+            if size < 0:
+                size = ctypes.sizeof(bptr._blob)
+            return call(ctypes.pointer(bptr._blob), size)
         else:
-            raise TypeError("'void *' argument expected, got %r" %
+            raise TypeError("pointer or array argument expected, got %r" %
                             (type(bptr).__name__,))
 
     def sizeof(self, cdata_or_BType):
