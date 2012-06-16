@@ -87,7 +87,7 @@ class Parser(object):
                         and decl.type.type.names == ['__dotdotdot__']):
                     realtype = model.OpaqueType(decl.name)
                 else:
-                    realtype = self._get_type(decl.type)
+                    realtype = self._get_type(decl.type, name=decl.name)
                 self._declare('typedef ' + decl.name, realtype)
             else:
                 raise api.CDefError("unrecognized construct", decl)
@@ -195,11 +195,11 @@ class Parser(object):
             #
             if isinstance(type, pycparser.c_ast.Struct):
                 # 'struct foobar'
-                return self._get_struct_or_union_type('struct', type, typenode)
+                return self._get_struct_or_union_type('struct', type, name)
             #
             if isinstance(type, pycparser.c_ast.Union):
                 # 'union foobar'
-                return self._get_struct_or_union_type('union', type, typenode)
+                return self._get_struct_or_union_type('union', type, name)
             #
             if isinstance(type, pycparser.c_ast.Enum):
                 # 'enum foobar'
@@ -242,7 +242,7 @@ class Parser(object):
             return const or 'const' in typenode.quals
         return False
 
-    def _get_struct_or_union_type(self, kind, type, typenode=None):
+    def _get_struct_or_union_type(self, kind, type, name=None):
         # First, a level of caching on the exact 'type' node of the AST.
         # This is obscure, but needed because pycparser "unrolls" declarations
         # such as "typedef struct { } foo_t, *foo_p" and we end up with
@@ -264,14 +264,15 @@ class Parser(object):
         # with no caching; in this case, the fields are either specified
         # right now or never.
         #
+        force_name = name
         name = type.name
         #
         # get the type or create it if needed
         if name is None:
-            # 'typenode' is only used to guess a more readable name for
+            # 'force_name' is used to guess a more readable name for
             # anonymous structs, for the common case "typedef struct { } foo".
-            if typenode is not None and isinstance(typenode.declname, str):
-                explicit_name = '$%s' % typenode.declname
+            if force_name is not None:
+                explicit_name = '$%s' % force_name
             else:
                 self._anonymous_counter += 1
                 explicit_name = '$%d' % self._anonymous_counter
@@ -290,6 +291,7 @@ class Parser(object):
                 raise AssertionError("kind = %r" % (kind,))
             if name is not None:
                 self._declare(key, tp)
+        tp.forcename = tp.forcename or force_name
         #
         self._structnode2type[type] = tp
         #

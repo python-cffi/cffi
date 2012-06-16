@@ -1,5 +1,5 @@
 import py, sys
-from cffi import FFI, CDefError
+from cffi import FFI, CDefError, VerificationError
 
 class FakeBackend(object):
 
@@ -149,3 +149,18 @@ def test_define_not_supported_for_now():
     e = py.test.raises(CDefError, ffi.cdef, "#define FOO 42")
     assert str(e.value) == \
            'only supports the syntax "#define FOO ..." for now (literally)'
+
+def test_unnamed_struct():
+    ffi = FFI(backend=FakeBackend())
+    ffi.cdef("typedef struct { int x; } foo_t;\n"
+             "typedef struct { int y; } *bar_p;\n")
+    assert 'typedef foo_t' in ffi._parser._declarations
+    assert 'typedef bar_p' in ffi._parser._declarations
+    #assert 'structdef foo_t' in ffi._parser._declarations ...
+    #assert 'structdef bar_p' in ffi._parser._declarations
+    type_foo = ffi._parser.parse_type("foo_t")
+    type_bar = ffi._parser.parse_type("bar_p").totype
+    assert repr(type_foo) == "<foo_t>"
+    assert repr(type_bar) == "<struct $1>"
+    py.test.raises(VerificationError, type_bar.get_c_name)
+    assert type_foo.get_c_name() == "foo_t"

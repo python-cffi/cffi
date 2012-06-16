@@ -1,8 +1,17 @@
 
 class BaseType(object):
 
+    def get_c_name(self, replace_with=''):
+        result = self._get_c_name(replace_with)
+        if '$' in result:
+            from .ffiplatform import VerificationError
+            raise VerificationError(
+                "cannot generate '%s' in a C file: unknown type name"
+                % (result,))
+        return result
+
     def __repr__(self):
-        return '<%s>' % (self.get_c_name(),)
+        return '<%s>' % (self._get_c_name(''),)
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
@@ -30,7 +39,7 @@ class BaseType(object):
 class VoidType(BaseType):
     _attrs_ = ()
 
-    def get_c_name(self, replace_with=''):
+    def _get_c_name(self, replace_with):
         return 'void' + replace_with
 
     def new_backend_type(self, ffi):
@@ -45,7 +54,7 @@ class PrimitiveType(BaseType):
     def __init__(self, name):
         self.name = name
 
-    def get_c_name(self, replace_with=''):
+    def _get_c_name(self, replace_with):
         return self.name + replace_with
 
     def is_char_type(self):
@@ -71,13 +80,13 @@ class FunctionType(BaseType):
         self.result = result
         self.ellipsis = ellipsis
 
-    def get_c_name(self, replace_with=''):
-        reprargs = [arg.get_c_name() for arg in self.args]
+    def _get_c_name(self, replace_with):
+        reprargs = [arg._get_c_name('') for arg in self.args]
         if self.ellipsis:
             reprargs.append('...')
         reprargs = reprargs or ['void']
         replace_with = '(*%s)(%s)' % (replace_with, ', '.join(reprargs))
-        return self.result.get_c_name(replace_with)
+        return self.result._get_c_name(replace_with)
 
     def prepare_backend_type(self, ffi):
         args = [ffi._get_cached_btype(self.result)]
@@ -95,8 +104,8 @@ class PointerType(BaseType):
     def __init__(self, totype):
         self.totype = totype
 
-    def get_c_name(self, replace_with=''):
-        return self.totype.get_c_name('* ' + replace_with)
+    def _get_c_name(self, replace_with):
+        return self.totype._get_c_name('* ' + replace_with)
 
     def prepare_backend_type(self, ffi):
         return (ffi._get_cached_btype(self.totype),)
@@ -107,8 +116,8 @@ class PointerType(BaseType):
 
 class ConstPointerType(PointerType):
 
-    def get_c_name(self, replace_with=''):
-        return self.totype.get_c_name(' const * ' + replace_with)
+    def _get_c_name(self, replace_with):
+        return self.totype._get_c_name(' const * ' + replace_with)
 
     def prepare_backend_type(self, ffi):
         return (ffi._get_cached_btype(PointerType(self.totype)),)
@@ -127,12 +136,12 @@ class ArrayType(BaseType):
     def resolve_length(self, newlength):
         return ArrayType(self.item, newlength)
 
-    def get_c_name(self, replace_with=''):
+    def _get_c_name(self, replace_with):
         if self.length is None:
             brackets = '[]'
         else:
             brackets = '[%d]' % self.length
-        return self.item.get_c_name(replace_with + brackets)
+        return self.item._get_c_name(replace_with + brackets)
 
     def prepare_backend_type(self, ffi):
         return (ffi._get_cached_btype(PointerType(self.item)),)
@@ -143,6 +152,7 @@ class ArrayType(BaseType):
 
 class StructOrUnion(BaseType):
     _attrs_ = ('name',)
+    forcename = None
     fixedlayout = None
 
     def __init__(self, name, fldnames, fldtypes, fldbitsize):
@@ -151,8 +161,9 @@ class StructOrUnion(BaseType):
         self.fldtypes = fldtypes
         self.fldbitsize = fldbitsize
 
-    def get_c_name(self, replace_with=''):
-        return '%s %s%s' % (self.kind, self.name, replace_with)
+    def _get_c_name(self, replace_with):
+        name = self.forcename or '%s %s' % (self.kind, self.name)
+        return name + replace_with
 
     def prepare_backend_type(self, ffi):
         BType = self.get_btype(ffi)
@@ -216,7 +227,7 @@ class StructType(StructOrUnion):
     def check_not_partial(self):
         if self.partial and self.fixedlayout is None:
             from . import ffiplatform
-            raise ffiplatform.VerificationMissing(self.get_c_name())
+            raise ffiplatform.VerificationMissing(self._get_c_name(''))
 
     def get_btype(self, ffi):
         self.check_not_partial()
@@ -239,13 +250,13 @@ class EnumType(BaseType):
         self.enumerators = enumerators
         self.enumvalues = enumvalues
 
-    def get_c_name(self, replace_with=''):
+    def _get_c_name(self, replace_with):
         return 'enum %s%s' % (self.name, replace_with)
 
     def check_not_partial(self):
         if self.partial:
             from . import ffiplatform
-            raise ffiplatform.VerificationMissing(self.get_c_name())
+            raise ffiplatform.VerificationMissing(self._get_c_name(''))
 
     def new_backend_type(self, ffi):
         self.check_not_partial()
@@ -259,7 +270,7 @@ class OpaqueType(BaseType):
     def __init__(self, name):
         self.name = name
 
-    def get_c_name(self, replace_with=''):
+    def _get_c_name(self, replace_with):
         return self.name + replace_with
 
     def new_backend_type(self, ffi):

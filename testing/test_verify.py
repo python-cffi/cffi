@@ -452,3 +452,14 @@ def test_cannot_verify_with_ctypes():
     ffi = FFI(backend=CTypesBackend())
     ffi.cdef("int a;")
     py.test.raises(NotImplementedError, ffi.verify, "int a;")
+
+def test_call_with_struct_ptr():
+    ffi = FFI()
+    ffi.cdef("typedef struct { int x; ...; } foo_t; int foo(foo_t *);")
+    lib = ffi.verify("""
+        typedef struct { int y, x; } foo_t;
+        static int foo(foo_t *f) { return f->x * 7; }
+    """)
+    f = ffi.new("foo_t")
+    f.x = 6
+    assert lib.foo(f) == 42
