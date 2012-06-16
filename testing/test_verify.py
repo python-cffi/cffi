@@ -357,7 +357,7 @@ def test_get_set_errno():
 def test_define_int():
     ffi = FFI()
     ffi.cdef("#define FOO ...\n"
-             "#define BAR ...")
+             "\t#\tdefine\tBAR\t...\t")
     lib = ffi.verify("#define FOO 42\n"
                      "#define BAR (-44)\n")
     assert lib.FOO == 42
