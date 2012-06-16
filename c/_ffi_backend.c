@@ -4,6 +4,7 @@
 
 #ifdef MS_WIN32
 #include <windows.h>
+#include "misc_win32.h"
 #else
 #include <stddef.h>
 #include <stdint.h>
@@ -126,17 +127,11 @@ typedef struct {
 
 /* whenever running Python code, the errno is saved in this thread-local
    variable */
-#if defined(__GNUC__) && !defined(MS_WIN32)
-#  define CFFI_USE_THREAD_LOCALS
-#endif
-
-#ifdef CFFI_USE_THREAD_LOCALS
+#ifndef MS_WIN32
 static __thread int cffi_saved_errno = 0;
 static void save_errno(void) { cffi_saved_errno = errno; }
 static void *restore_errno(void) { errno = cffi_saved_errno; return NULL; }
 static void init_errno(void) { }
-#else
-#include "non_gcc_errno.h"
 #endif
 
 /************************************************************/
@@ -1844,27 +1839,16 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
 
 /************************************************************/
 
-#ifdef MS_WIN32
-typedef HMODULE dl_handle_t;
-#else
-typedef void *dl_handle_t;
-#endif
-
 typedef struct {
     PyObject_HEAD
-    dl_handle_t dl_handle;
+    void *dl_handle;
     char *dl_name;
 } DynLibObject;
 
 static void dl_dealloc(DynLibObject *dlobj)
 {
-#ifdef MS_WIN32
-    if (dlobj->dl_handle)
-        FreeLibrary(dlobj->dl_handle);
-#else
     if (dlobj->dl_handle != RTLD_DEFAULT)
         dlclose(dlobj->dl_handle);
-#endif
     free(dlobj->dl_name);
     PyObject_Del(dlobj);
 }
@@ -2526,7 +2510,7 @@ struct funcbuilder_s {
     char *bufferp;
     ffi_type **atypes;
     ffi_type *rtype;
-    unsigned int nargs;
+    Py_ssize_t nargs;
     CTypeDescrObject *fct;
 };
 
@@ -2870,7 +2854,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
                             void *userdata)
 {
     save_errno();
-
+    {
     PyObject *cb_args = (PyObject *)userdata;
     CTypeDescrObject *ct = (CTypeDescrObject *)PyTuple_GET_ITEM(cb_args, 0);
     PyObject *signature = ct->ct_stuff;
@@ -2912,6 +2896,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     PyErr_WriteUnraisable(py_ob);
     memset(result, 0, SIGNATURE(0)->ct_size);
     goto done;
+    }
 
 #undef SIGNATURE
 }
@@ -3224,7 +3209,7 @@ static double _testfunc3(float a, double b)
 }
 static float _testfunc4(float a, double b)
 {
-    return a + b;
+    return (float)(a + b);
 }
 static void _testfunc5(void)
 {

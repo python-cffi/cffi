@@ -1,7 +1,6 @@
 
-#ifndef MS_WIN32
-#  error "only GCC or Win32 are supported so far"
-#endif
+/************************************************************/
+/* errno and GetLastError support */
 
 struct cffi_errno_s {
     int saved_errno;
@@ -56,3 +55,50 @@ static void restore_errno(void)
     }
     /* else: cannot report the error */
 }
+
+
+/************************************************************/
+/* Emulate dlopen()&co. from the Windows API */
+
+#define RTLD_DEFAULT   NULL
+#define RTLD_LAZY      0
+
+static void *dlopen(const char *filename, int flag)
+{
+    return (void *)LoadLibrary(filename);
+}
+
+static void *dlsym(void *handle, const char *symbol)
+{
+    if (handle == RTLD_DEFAULT) {
+        static const char *standard_dlls[] = {
+            "kernel32.dll",
+            "user32.dll",
+            "gdi32.dll",
+            NULL
+        };
+        const char **p;
+        void *result;
+
+        for (p = standard_dlls; *p != NULL; p++) {
+            result = GetProcAddress(GetModuleHandle(*p), symbol);
+            if (result)
+                return result;
+        }
+        return NULL;
+    }
+    else {
+        return GetProcAddress((HMODULE)handle, symbol);
+    }
+}
+
+static void dlclose(void *handle)
+{
+    FreeLibrary((HMODULE)handle);
+}
+
+
+/************************************************************/
+/* obscure */
+
+#define ffi_prep_closure(a,b,c,d)  ffi_prep_closure_loc(a,b,c,d,a)
