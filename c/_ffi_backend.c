@@ -2,13 +2,16 @@
 #include <Python.h>
 #include "structmember.h"
 
+#ifdef MS_WIN32
+#include <windows.h>
+#else
 #include <stddef.h>
 #include <stdint.h>
 #include <dlfcn.h>
 #include <errno.h>
-
 #include <ffi.h>
 #include <sys/mman.h>
+#endif
 
 #include "malloc_closure.h"
 
@@ -123,7 +126,18 @@ typedef struct {
 
 /* whenever running Python code, the errno is saved in this thread-local
    variable */
-static __thread int saved_errno = 0;
+#if defined(__GNUC__) && !defined(MS_WIN32)
+#  define CFFI_USE_THREAD_LOCALS
+#endif
+
+#ifdef CFFI_USE_THREAD_LOCALS
+static __thread int cffi_saved_errno = 0;
+static void save_errno(void) { cffi_saved_errno = errno; }
+static void *restore_errno(void) { errno = cffi_saved_errno; return NULL; }
+static void init_errno(void) { }
+#else
+#include "non_gcc_errno.h"
+#endif
 
 /************************************************************/
 
@@ -395,13 +409,13 @@ static void
 write_raw_integer_data(char *target, unsigned PY_LONG_LONG source, int size)
 {
     if (size == sizeof(unsigned char))
-        *((unsigned char*)target) = source;
+        *((unsigned char*)target) = (unsigned char)source;
     else if (size == sizeof(unsigned short))
-        *((unsigned short*)target) = source;
+        *((unsigned short*)target) = (unsigned short)source;
     else if (size == sizeof(unsigned int))
-        *((unsigned int*)target) = source;
+        *((unsigned int*)target) = (unsigned int)source;
     else if (size == sizeof(unsigned long))
-        *((unsigned long*)target) = source;
+        *((unsigned long*)target) = (unsigned long)source;
     else if (size == sizeof(unsigned PY_LONG_LONG))
         *((unsigned PY_LONG_LONG*)target) = source;
     else
@@ -425,7 +439,7 @@ static void
 write_raw_float_data(char *target, double source, int size)
 {
     if (size == sizeof(float))
-        *((float*)target) = source;
+        *((float*)target) = (float)source;
     else if (size == sizeof(double))
         *((double*)target) = source;
     else
@@ -1037,7 +1051,8 @@ static PyObject *cdata_int(CDataObject *cd)
                              == (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_FITS_LONG)) {
         /* this case is to handle enums, but also serves as a slight
            performance improvement for some other primitive types */
-        long value = read_raw_signed_data(cd->c_data, cd->c_type->ct_size);
+        long value = (long)read_raw_signed_data(cd->c_data,
+                                                cd->c_type->ct_size);
         return PyInt_FromLong(value);
     }
     if (cd->c_type->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
@@ -1445,10 +1460,10 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 
     resultdata = buffer + cif_descr->exchange_offset_arg[0];
 
-    errno = saved_errno;
+    restore_errno();
     ffi_call(&cif_descr->cif, (void (*)(void))(cd->c_data),
              resultdata, buffer_array);
-    saved_errno = errno;
+    save_errno();
 
     if (fresult->ct_flags & CT_VOID) {
         res = Py_None;
@@ -1829,16 +1844,27 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
 
 /************************************************************/
 
+#ifdef MS_WIN32
+typedef HMODULE dl_handle_t;
+#else
+typedef void *dl_handle_t;
+#endif
+
 typedef struct {
     PyObject_HEAD
-    void *dl_handle;
+    dl_handle_t dl_handle;
     char *dl_name;
 } DynLibObject;
 
 static void dl_dealloc(DynLibObject *dlobj)
 {
+#ifdef MS_WIN32
+    if (dlobj->dl_handle)
+        FreeLibrary(dlobj->dl_handle);
+#else
     if (dlobj->dl_handle != RTLD_DEFAULT)
         dlclose(dlobj->dl_handle);
+#endif
     free(dlobj->dl_name);
     PyObject_Del(dlobj);
 }
@@ -2843,7 +2869,7 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
 static void invoke_callback(ffi_cif *cif, void *result, void **args,
                             void *userdata)
 {
-    saved_errno = errno;
+    save_errno();
 
     PyObject *cb_args = (PyObject *)userdata;
     CTypeDescrObject *ct = (CTypeDescrObject *)PyTuple_GET_ITEM(cb_args, 0);
@@ -2879,7 +2905,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     Py_XDECREF(py_args);
     Py_XDECREF(py_res);
     Py_DECREF(cb_args);
-    errno = saved_errno;
+    restore_errno();
     return;
 
  error:
@@ -3130,7 +3156,11 @@ static PyObject *b_buffer(PyObject *self, PyObject *args)
 
 static PyObject *b_get_errno(PyObject *self, PyObject *noarg)
 {
-    return PyInt_FromLong(saved_errno);
+    int err;
+    restore_errno();
+    err = errno;
+    errno = 0;
+    return PyInt_FromLong(err);
 }
 
 static PyObject *b_set_errno(PyObject *self, PyObject *args)
@@ -3138,7 +3168,9 @@ static PyObject *b_set_errno(PyObject *self, PyObject *args)
     int i;
     if (!PyArg_ParseTuple(args, "i:set_errno", &i))
         return NULL;
-    saved_errno = i;
+    errno = i;
+    save_errno();
+    errno = 0;
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -3368,14 +3400,6 @@ static PyObject *_cffi_get_struct_layout(Py_ssize_t nums[])
     return result;
 }
 
-static void _cffi_restore_errno(void) {
-    errno = saved_errno;
-}
-
-static void _cffi_save_errno(void) {
-    saved_errno = errno;
-}
-
 static PyObject *_cffi_from_c_char(char x) {
     return PyString_FromStringAndSize(&x, 1);
 }
@@ -3399,8 +3423,8 @@ static void *cffi_exports[] = {
     _cffi_from_c_pointer,
     _cffi_to_c_pointer,
     _cffi_get_struct_layout,
-    _cffi_restore_errno,
-    _cffi_save_errno,
+    restore_errno,
+    save_errno,
     _cffi_from_c_char,
     convert_to_object,
 };
@@ -3439,4 +3463,6 @@ void init_ffi_backend(void)
     v = PyCObject_FromVoidPtr((void *)cffi_exports, NULL);
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
         return;
+
+    init_errno();
 }

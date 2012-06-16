@@ -1,5 +1,23 @@
-import sys
+import sys, os
 from setuptools import setup, Feature, Extension
+
+
+sources = ['c/_ffi_backend.c']
+libraries = ['ffi']
+include_dirs = []
+
+
+if sys.platform == 'win32':
+    COMPILE_LIBFFI = 'libffi_msvc'    # from the CPython distribution
+else:
+    COMPILE_LIBFFI = None
+
+if COMPILE_LIBFFI:
+    include_dirs.append(COMPILE_LIBFFI)
+    libraries.remove('ffi')
+    sources.extend(os.path.join(COMPILE_LIBFFI, filename)
+                   for filename in os.listdir(COMPILE_LIBFFI)
+                   if filename.lower().endswith('.c'))
 
 
 setup(
@@ -13,8 +31,9 @@ setup(
             standard='__pypy__' not in sys.modules,
             ext_modules=[
                 Extension(name='_ffi_backend',
-                          sources=['c/_ffi_backend.c'],
-                          libraries=['ffi']),
+                          include_dirs=include_dirs,
+                          sources=sources,
+                          libraries=libraries),
             ],
         ),
     },
