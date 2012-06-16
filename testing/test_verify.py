@@ -379,6 +379,18 @@ def test_access_variable():
     assert lib.foo() == -42
     assert lib.somenumber == -6
 
+def test_access_address_of_variable():
+    # access the address of 'somenumber': need a trick
+    ffi = FFI()
+    ffi.cdef("int somenumber; static int *const somenumberptr;")
+    lib = ffi.verify("""
+        static int somenumber = 2;
+        #define somenumberptr (&somenumber)
+    """)
+    assert lib.somenumber == 2
+    lib.somenumberptr[0] = 42
+    assert lib.somenumber == 42
+
 def test_access_array_variable():
     ffi = FFI()
     ffi.cdef("int foo(int);\n"
