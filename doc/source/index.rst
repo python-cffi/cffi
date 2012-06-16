@@ -39,8 +39,8 @@ The interface is based on `luajit FFI`_ and follows a few principles:
 Installation and Status
 =======================================================
 
-This code has been tested on Linux only.  It is known to contain
-some cross-platform issues.  Work on Windows will be coming soon.
+This code has been developed on Linux but should work on any POSIX
+or Windows platform.  There are some Windows-specific issues left.
 
 Requirements:
 
@@ -48,7 +48,9 @@ Requirements:
 
 * pycparser 2.06: http://code.google.com/p/pycparser/
 
-* libffi (you need ``libffi-dev``)
+* libffi (you need ``libffi-dev``); or, on Windows, you need to
+  copy the directory ``Modules\_ctypes\libffi_msvc`` from the
+  CPython sources (2.6 or 2.7) into the top-level directory.
 
 Download and Installation:
 
