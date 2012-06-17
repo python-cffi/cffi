@@ -65,6 +65,18 @@ Download and Installation:
   to using internally ``ctypes`` (slower and does not support
   ``verify()``).
 
+Demos:
+
+* The ``demo`` directory contains a number of small and large demos
+  of using ``cffi``.
+
+* The documentation below is sketchy on the details; for now the
+  ultimate reference is given by the tests, notably
+  `testing/test_verify.py`_ and `testing/backend_tests.py`_.
+
+.. _`testing/backend_tests.py`: https://bitbucket.org/cffi/cffi/src/default/testing/backend_tests.py
+.. _`testing/test_verify.py`: https://bitbucket.org/cffi/cffi/src/default/testing/test_verify.py
+
 
 Examples
 =======================================================
