@@ -356,7 +356,10 @@ Unlike C, the returned pointer object has *ownership* on the allocated
 memory: when this exact object is garbage-collected, then the memory is
 freed.  If, at the level of C, you store a pointer to the memory
 somewhere else, then make sure you also keep the object alive for as
-long as needed.
+long as needed.  (This also applies if you immediately cast the returned
+pointer to a pointer of a different type: only the original object has
+ownership, so you must keep it alive.  As soon as you forget it, then
+the casted pointer will point to garbage.)
 
 The cdata objects support mostly the same operations as in C: you can
 read or write from pointers, arrays and structures.  Dereferencing a
