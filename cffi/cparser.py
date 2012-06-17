@@ -127,6 +127,8 @@ class Parser(object):
 
     def _declare(self, name, obj):
         if name in self._declarations:
+            if self._declarations[name] is obj:
+                return
             raise api.FFIError("multiple declarations of %s" % (name,))
         assert name != '__dotdotdot__'
         self._declarations[name] = obj
@@ -292,6 +294,8 @@ class Parser(object):
             if name is not None:
                 self._declare(key, tp)
         tp.forcename = tp.forcename or force_name
+        if tp.forcename and '$' in tp.name:
+            self._declare('anonymous %s' % tp.forcename, tp)
         #
         self._structnode2type[type] = tp
         #
@@ -313,6 +317,9 @@ class Parser(object):
                 # of strings, but is sometimes just one string.  Use
                 # str.join() as a way to cope with both.
                 tp.partial = True
+                if not tp.has_c_name():
+                    raise api.CDefError("%s is partial but has no C name"
+                                        % (tp,))
                 continue
             if decl.bitsize is None:
                 bitsize = -1

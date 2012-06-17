@@ -123,7 +123,12 @@ class Verifier(object):
     def generate(self, step_name):
         for name, tp in self.ffi._parser._declarations.iteritems():
             kind, realname = name.split(' ', 1)
-            method = getattr(self, 'generate_cpy_%s_%s' % (kind, step_name))
+            try:
+                method = getattr(self, 'generate_cpy_%s_%s' % (kind,
+                                                               step_name))
+            except AttributeError:
+                raise ffiplatform.VerificationError(
+                    "not implemented in verify(): %r" % name)
             method(tp, realname)
 
     def load(self, module, step_name, **kwds):
@@ -257,15 +262,30 @@ class Verifier(object):
         setattr(library, name, getattr(module, name))
 
     # ----------
-    # struct declarations
+    # named structs
 
     def generate_cpy_struct_decl(self, tp, name):
+        assert name == tp.name
+        self._generate_struct_or_union_decl(tp, 'struct', name)
+
+    def generate_cpy_struct_method(self, tp, name):
+        self._generate_struct_or_union_method(tp, 'struct', name)
+
+    def loading_cpy_struct(self, tp, name, module):
+        self._loading_struct_or_union(tp, 'struct', name, module)
+
+    def loaded_cpy_struct(self, tp, name, module, **kwds):
+        self._loaded_struct_or_union(tp)
+
+    def _generate_struct_or_union_decl(self, tp, prefix, name):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
-        assert name == tp.name
+        checkfuncname = '_cffi_check_%s_%s' % (prefix, name)
+        layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
+        cname = ('%s %s' % (prefix, name)).strip()
+        #
         prnt = self.prnt
-        checkfuncname = '_cffi_check_%s' % (name,)
-        prnt('static void %s(struct %s *p)' % (checkfuncname, name))
+        prnt('static void %s(%s *p)' % (checkfuncname, cname))
         prnt('{')
         prnt('  /* only to generate compile-time warnings or errors */')
         for i in range(len(tp.fldnames)):
@@ -283,16 +303,16 @@ class Verifier(object):
                     ftype.get_c_name('(*tmp)'), fname))
         prnt('}')
         prnt('static PyObject *')
-        prnt('_cffi_struct_%s(PyObject *self, PyObject *noarg)' % name)
+        prnt('%s(PyObject *self, PyObject *noarg)' % (layoutfuncname,))
         prnt('{')
-        prnt('  struct _cffi_aligncheck { char x; struct %s y; };' % name)
+        prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
         if tp.partial:
             prnt('  static Py_ssize_t nums[] = {')
-            prnt('    sizeof(struct %s),' % name)
+            prnt('    sizeof(%s),' % cname)
             prnt('    offsetof(struct _cffi_aligncheck, y),')
             for fname in tp.fldnames:
-                prnt('    offsetof(struct %s, %s),' % (name, fname))
-                prnt('    sizeof(((struct %s *)0)->%s),' % (name, fname))
+                prnt('    offsetof(%s, %s),' % (cname, fname))
+                prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
             prnt('    -1')
             prnt('  };')
             prnt('  return _cffi_get_struct_layout(nums);')
@@ -300,16 +320,16 @@ class Verifier(object):
             ffi = self.ffi
             BStruct = ffi._get_cached_btype(tp)
             conditions = [
-                'sizeof(struct %s) != %d' % (name, ffi.sizeof(BStruct)),
+                'sizeof(%s) != %d' % (cname, ffi.sizeof(BStruct)),
                 'offsetof(struct _cffi_aligncheck, y) != %d' % (
                     ffi.alignof(BStruct),)]
             for fname, ftype in zip(tp.fldnames, tp.fldtypes):
                 BField = ffi._get_cached_btype(ftype)
                 conditions += [
-                    'offsetof(struct %s, %s) != %d' % (
-                        name, fname, ffi.offsetof(BStruct, fname)),
-                    'sizeof(((struct %s *)0)->%s) != %d' % (
-                        name, fname, ffi.sizeof(BField))]
+                    'offsetof(%s, %s) != %d' % (
+                        cname, fname, ffi.offsetof(BStruct, fname)),
+                    'sizeof(((%s *)0)->%s) != %d' % (
+                        cname, fname, ffi.sizeof(BField))]
             prnt('  if (%s ||' % conditions[0])
             for i in range(1, len(conditions)-1):
                 prnt('      %s ||' % conditions[i])
@@ -326,21 +346,24 @@ class Verifier(object):
         prnt('}')
         prnt()
 
-    def generate_cpy_struct_method(self, tp, name):
+    def _generate_struct_or_union_method(self, tp, prefix, name):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
-        self.prnt('  {"_cffi_struct_%s", _cffi_struct_%s, METH_NOARGS},' % (
-            name, name))
+        layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
+        self.prnt('  {"%s", %s, METH_NOARGS},' % (layoutfuncname,
+                                                  layoutfuncname))
 
-    def loading_cpy_struct(self, tp, name, module):
+    def _loading_struct_or_union(self, tp, prefix, name, module):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
-        assert name == tp.name
-        function = getattr(module, '_cffi_struct_%s' % name)
+        layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
+        cname = ('%s %s' % (prefix, name)).strip()
+        #
+        function = getattr(module, layoutfuncname)
         layout = function()
         if layout is False:
             raise ffiplatform.VerificationError(
-                "incompatible layout for struct %s" % name)
+                "incompatible layout for %s" % cname)
         elif layout is True:
             assert not tp.partial
         else:
@@ -351,10 +374,26 @@ class Verifier(object):
             assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
             tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
 
-    def loaded_cpy_struct(self, tp, name, module, **kwds):
+    def _loaded_struct_or_union(self, tp):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
         self.ffi._get_cached_btype(tp)   # force 'fixedlayout' to be considered
+
+    # ----------
+    # 'anonymous' declarations.  These are produced for anonymous structs
+    # or unions; the 'name' is obtained by a typedef.
+
+    def generate_cpy_anonymous_decl(self, tp, name):
+        self._generate_struct_or_union_decl(tp, '', name)
+
+    def generate_cpy_anonymous_method(self, tp, name):
+        self._generate_struct_or_union_method(tp, '', name)
+
+    def loading_cpy_anonymous(self, tp, name, module):
+        self._loading_struct_or_union(tp, '', name, module)
+
+    def loaded_cpy_anonymous(self, tp, name, module, **kwds):
+        self._loaded_struct_or_union(tp)
 
     # ----------
     # constants, likely declared with '#define'

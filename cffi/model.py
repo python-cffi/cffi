@@ -10,6 +10,9 @@ class BaseType(object):
                 % (result,))
         return result
 
+    def has_c_name(self):
+        return '$' not in self._get_c_name('')
+
     def __repr__(self):
         return '<%s>' % (self._get_c_name(''),)
 

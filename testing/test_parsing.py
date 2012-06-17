@@ -156,8 +156,7 @@ def test_unnamed_struct():
              "typedef struct { int y; } *bar_p;\n")
     assert 'typedef foo_t' in ffi._parser._declarations
     assert 'typedef bar_p' in ffi._parser._declarations
-    #assert 'structdef foo_t' in ffi._parser._declarations ...
-    #assert 'structdef bar_p' in ffi._parser._declarations
+    assert 'anonymous foo_t' in ffi._parser._declarations
     type_foo = ffi._parser.parse_type("foo_t")
     type_bar = ffi._parser.parse_type("bar_p").totype
     assert repr(type_foo) == "<foo_t>"
