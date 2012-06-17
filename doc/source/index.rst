@@ -123,7 +123,7 @@ Struct/Array Example
     """)
     image = ffi.new("pixel_t[]", 800*600)
 
-    f = open('data', 'rb')
+    f = open('data', 'rb')     # binary mode -- important
     f.readinto(ffi.buffer(image))
     f.close()
 
@@ -516,7 +516,7 @@ default size of the buffer is ``sizeof(*pointer)`` or the whole size of
 the array.  Getting a buffer is useful because you can read from it
 without an extra copy, or write into it to change the original value;
 you can use for example ``file.write()`` and ``file.readinto()`` with
-such a buffer.
+such a buffer (for files opened in binary mode).
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
 ``<ctype>`` corresponding to the parsed string, or to the C type of the
