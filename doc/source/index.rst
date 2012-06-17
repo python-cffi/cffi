@@ -41,7 +41,8 @@ Installation and Status
 =======================================================
 
 This code has been developed on Linux but should work on any POSIX
-or Windows platform.  There are some Windows-specific issues left.
+platform as well as on Win32.  There are some Windows-specific issues
+left.
 
 Requirements:
 
