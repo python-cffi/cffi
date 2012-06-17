@@ -6,7 +6,7 @@ CFFI documentation
 
 Foreign Function Interface for Python calling C code. The aim of this project
 is to provide a convenient and reliable way of calling C code from Python.
-The interface is based on `luajit FFI`_ and follows a few principles:
+The interface is based on `LuaJIT's FFI`_ and follows a few principles:
 
 * The goal is to call C code from Python.  You should be able to do so
   without learning a 3rd language: every alternative requires you to learn
@@ -28,7 +28,7 @@ The interface is based on `luajit FFI`_ and follows a few principles:
   but all C89 should be, including macros (apart from the most advanced
   (ab)uses of these macros).
 
-.. _`luajit FFI`: http://luajit.org/ext_ffi.html
+.. _`LuaJIT's FFI`: http://luajit.org/ext_ffi.html
 .. _`Cython`: http://www.cython.org
 .. _`SWIG`: http://www.swig.org/
 .. _`CPython native C extensions`: http://docs.python.org/extending/extending.html
