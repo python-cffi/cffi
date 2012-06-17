@@ -267,14 +267,8 @@ class EnumType(BaseType):
                                           self.enumvalues)
 
 
-class OpaqueType(BaseType):
-    _attrs_ = ('name',)
-
-    def __init__(self, name):
-        self.name = name
-
-    def _get_c_name(self, replace_with):
-        return self.name + replace_with
-
-    def new_backend_type(self, ffi):
-        return ffi._backend.new_struct_type('$' + self.name)
+def unknown_type(name):
+    tp = StructType('$%s' % name, [], [], [])
+    tp.partial = True
+    tp.forcename = name
+    return tp

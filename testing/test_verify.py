@@ -153,17 +153,6 @@ def test_nondecl_struct():
                      "int bar(foo_t *f) { return 42; }\n")
     assert lib.bar(None) == 42
 
-def test_missing_typedef():
-    ffi = FFI()
-    ffi.cdef("typedef...foo_t; int bar(foo_t *);")
-    py.test.raises(TypeError, ffi.new, "foo_t")
-    lib = ffi.verify("typedef struct foo_s { int x; } foo_t;\n"
-                     "int bar(foo_t *f) { return 42; }\n")
-    py.test.raises(TypeError, ffi.new, "foo_t")
-    f = ffi.cast("foo_t*", 0)
-    assert lib.bar(f) == 42
-
-
 def test_ffi_full_struct():
     ffi = FFI()
     ffi.cdef("struct foo_s { char x; int y; long *z; };")
@@ -463,3 +452,20 @@ def test_call_with_struct_ptr():
     f = ffi.new("foo_t")
     f.x = 6
     assert lib.foo(f) == 42
+
+def test_unknown_type():
+    ffi = FFI()
+    ffi.cdef("typedef ... token_t; int foo(token_t *);")
+    lib = ffi.verify("""
+        typedef float token_t;
+        static int foo(token_t *tk) {
+            if (!tk)
+                return -42;
+            *tk += 1.601;
+            return (int)*tk;
+        }
+    """)
+    tk = ffi.new("token_t")    # zero-initialized
+    results = [lib.foo(tk) for i in range(6)]
+    assert results == [1, 3, 4, 6, 8, 9]
+    assert lib.foo(None) == -42

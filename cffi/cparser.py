@@ -85,7 +85,8 @@ class Parser(object):
                                         decl)
                 if (isinstance(decl.type.type, pycparser.c_ast.IdentifierType)
                         and decl.type.type.names == ['__dotdotdot__']):
-                    realtype = model.OpaqueType(decl.name)
+                    realtype = model.unknown_type(decl.name)
+                    self._declare('anonymous ' + decl.name, realtype)
                 else:
                     realtype = self._get_type(decl.type, name=decl.name)
                 self._declare('typedef ' + decl.name, realtype)
