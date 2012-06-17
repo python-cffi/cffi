@@ -1092,6 +1092,7 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
 {
     CDataObject *obv, *obw;
     int equal;
+    PyObject *res;
 
     if (op != Py_EQ && op != Py_NE)
         goto Unimplemented;
@@ -1109,11 +1110,14 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
     else
         goto Unimplemented;
 
-    return (equal ^ (op == Py_NE)) ? Py_True : Py_False;
+    res = (equal ^ (op == Py_NE)) ? Py_True : Py_False;
+ done:
+    Py_INCREF(res);
+    return res;
 
  Unimplemented:
-    Py_INCREF(Py_NotImplemented);
-    return Py_NotImplemented;
+    res = Py_NotImplemented;
+    goto done;
 }
 
 static long cdata_hash(CDataObject *cd)
