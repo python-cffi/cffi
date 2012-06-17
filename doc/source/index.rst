@@ -361,8 +361,9 @@ The cdata objects support mostly the same operations as in C: you can
 read or write from pointers, arrays and structures.  Dereferencing a
 pointer is done usually in C with the syntax ``*p``, which is not valid
 Python, so instead you have to use the alternative syntax ``p[0]``
-(which is also valid C).  Additionally, the ``p->x`` syntax in C becomes
-``p.x`` in Python.  And instead of ``NULL`` you use None.
+(which is also valid C).  Additionally, the ``p.x`` and ``p->x``
+syntaxes in C both become ``p.x`` in Python.  And instead of ``NULL``
+you use None.
 
 There is no equivalent to the ``&`` operator in C (because it would not
 fit nicely in the model, and it does not seem to be needed here).
