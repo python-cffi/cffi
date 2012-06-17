@@ -268,7 +268,6 @@ class EnumType(BaseType):
 
 
 def unknown_type(name):
-    tp = StructType('$%s' % name, [], [], [])
-    tp.partial = True
+    tp = StructType('$%s' % name, None, None, None)
     tp.forcename = name
     return tp

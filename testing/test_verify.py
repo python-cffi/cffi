@@ -455,7 +455,11 @@ def test_call_with_struct_ptr():
 
 def test_unknown_type():
     ffi = FFI()
-    ffi.cdef("typedef ... token_t; int foo(token_t *);")
+    ffi.cdef("""
+        typedef ... token_t;
+        int foo(token_t *);
+        #define TOKEN_SIZE ...
+    """)
     lib = ffi.verify("""
         typedef float token_t;
         static int foo(token_t *tk) {
@@ -464,8 +468,19 @@ def test_unknown_type():
             *tk += 1.601;
             return (int)*tk;
         }
+        #define TOKEN_SIZE sizeof(token_t)
     """)
-    tk = ffi.new("token_t")    # zero-initialized
+    # we cannot let ffi.new("token_t") work, because we don't know ahead of
+    # time if it's ok to ask 'sizeof(token_t)' in the C code or not.
+    # See test_unknown_type_2.  Workaround.
+    tkmem = ffi.new("char[]", lib.TOKEN_SIZE)    # zero-initialized
+    tk = ffi.cast("token_t *", tkmem)
     results = [lib.foo(tk) for i in range(6)]
     assert results == [1, 3, 4, 6, 8, 9]
     assert lib.foo(None) == -42
+
+def test_unknown_type_2():
+    ffi = FFI()
+    ffi.cdef("typedef ... token_t;")
+    lib = ffi.verify("typedef struct token_s token_t;")
+    # assert did not crash, even though 'sizeof(token_t)' is not valid in C.
