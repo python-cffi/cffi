@@ -809,6 +809,22 @@ class BackendTests:
         a2 = ffi.new("int[]", range(100, 115))
         assert str(ffi.buffer(a1)) == str(ffi.buffer(a2, 4*10))
 
+    def test_ffi_buffer_with_file(self):
+        ffi = FFI(backend=self.Backend())
+        import tempfile, os, array
+        fd, filename = tempfile.mkstemp()
+        f = os.fdopen(fd, 'r+b')
+        a = ffi.new("int[]", range(1005))
+        f.write(ffi.buffer(a, 1000 * ffi.sizeof("int")))
+        f.seek(0)
+        assert f.read() == array.array('i', range(1000)).tostring()
+        f.seek(0)
+        b = ffi.new("int[]", 1005)
+        f.readinto(ffi.buffer(b, 1000 * ffi.sizeof("int")))
+        assert list(a)[:1000] + [0] * (len(a)-1000) == list(b)
+        f.close()
+        os.unlink(filename)
+
     def test_new_struct_containing_array_varsize(self):
         py.test.skip("later?")
         ffi = FFI(backend=self.Backend())
