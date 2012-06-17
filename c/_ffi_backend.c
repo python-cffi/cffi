@@ -1097,12 +1097,18 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
         goto Unimplemented;
 
     assert(CData_Check(v));
-    if (!CData_Check(w))
+    obv = (CDataObject *)v;
+
+    if (w == Py_None) {
+        equal = (obv->c_data == NULL);
+    }
+    else if (CData_Check(w)) {
+        obw = (CDataObject *)w;
+        equal = (obv->c_type == obw->c_type) && (obv->c_data == obw->c_data);
+    }
+    else
         goto Unimplemented;
 
-    obv = (CDataObject *)v;
-    obw = (CDataObject *)w;
-    equal = (obv->c_type == obw->c_type) && (obv->c_data == obw->c_data);
     return (equal ^ (op == Py_NE)) ? Py_True : Py_False;
 
  Unimplemented:

@@ -174,8 +174,11 @@ class BackendTests:
     def test_pointer_direct(self):
         ffi = FFI(backend=self.Backend())
         p = ffi.cast("int*", 0)
+        assert p is not None
         assert bool(p) is False
         assert p == ffi.cast("int*", 0)
+        assert p == ffi.cast("int*", None)
+        assert p == None == p
         a = ffi.new("int[]", [123, 456])
         p = ffi.cast("int*", a)
         assert bool(p) is True

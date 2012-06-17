@@ -112,6 +112,8 @@ class CTypesGenericPtr(CTypesData):
         return bool(self._address)
 
     def __eq__(self, other):
+        if other is None:
+            return not bool(self._address)
         return (type(self) is type(other) and
                 self._address == other._address)
 

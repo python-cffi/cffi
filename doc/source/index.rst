@@ -391,6 +391,9 @@ is the only way to get cdata objects of integer or floating-point type::
     >>> int(x)
     42
 
+Similarly, this is the only way to get cdata objects for ``NULL``
+pointers, which are normally returned as None.
+
 The initializer given as the optional second argument to ``ffi.new()``
 can be mostly anything that you would use as an initializer for C code,
 with lists or tuples instead of using the C syntax ``{ .., .., .. }``.
