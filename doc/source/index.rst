@@ -283,7 +283,7 @@ The arguments to ``ffi.verify()`` are:
    compiling the C code, and are passed directly to distutils_.
 
 .. _distutils: http://docs.python.org/distutils/setupscript.html#describing-extension-modules
-.. _`demo/curses.py`: https://bitbucket.org/cffi/cffi/src/default/demo/_curses.py
+.. _`demo/_curses.py`: https://bitbucket.org/cffi/cffi/src/default/demo/_curses.py
 
 On the plus side, this solution gives more "C-like" flexibility:
 
