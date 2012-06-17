@@ -273,7 +273,8 @@ The arguments to ``ffi.verify()`` are:
    necessary ``#include``.  It can also contain the complete
    implementation of some functions declared in ``cdef()``; this is
    useful if you really need to write a piece of C code, e.g. to access
-   some advanced macros.
+   some advanced macros (see the example of ``getyx()`` in
+   ``demo/_curses.py``).
 
 *  ``include_dirs``, ``define_macros``, ``undef_macros``, ``libraries``,
    ``library_dirs``, ``extra_objects``, ``extra_compile_args``,
