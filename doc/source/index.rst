@@ -576,6 +576,8 @@ design issue to resolve, we pick the solution that is the "most C-like".
 We hope that this module has got everything you need to access C code
 and nothing more.
 
+--- the authors, Armin Rigo and Maciej Fijalkowski
+
 .. _`issue tracker`: https://bitbucket.org/cffi/cffi/issues
 .. _`mailing list`: https://groups.google.com/forum/#!forum/python-cffi
 
