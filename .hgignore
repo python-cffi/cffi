@@ -3,4 +3,5 @@ syntax: glob
 *~
 .*.swp
 testing/__pycache__
+demo/__pycache__
 doc/build
