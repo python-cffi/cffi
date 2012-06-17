@@ -57,7 +57,7 @@ Download and Installation:
 
 * https://bitbucket.org/cffi/cffi/downloads
 
-* ``python setup.py install``
+* ``python setup.py install`` or ``python setup_base.py install``
 
 * or you can directly import and use ``cffi``, but if you don't
   compile the ``_ffi_backend`` extension module, it will fall back
