@@ -44,9 +44,12 @@ This code has been developed on Linux but should work on any POSIX
 platform as well as on Win32.  There are some Windows-specific issues
 left.
 
+It currently supports CPython 2.x.  Support for PyPy is coming soon.
+Support for CPython 3.x should not be too hard.
+
 Requirements:
 
-* Python 2.6 or 2.7 (you need ``python-dev``)
+* CPython 2.6 or 2.7 (you need ``python-dev``)
 
 * pycparser 2.06: http://code.google.com/p/pycparser/
 
