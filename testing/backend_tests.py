@@ -694,6 +694,17 @@ class BackendTests:
         p = ffi.new("int(*)[5]")
         assert repr(p) == "<cdata 'int(* *)[5]' owning %d bytes>" % SIZE_OF_PTR
 
+    def test_iterate_array(self):
+        ffi = FFI(backend=self.Backend())
+        a = ffi.new("char[]", "hello")
+        assert list(a) == ["h", "e", "l", "l", "o", chr(0)]
+        assert list(iter(a)) == ["h", "e", "l", "l", "o", chr(0)]
+        #
+        py.test.raises(TypeError, iter, ffi.cast("char *", a))
+        py.test.raises(TypeError, list, ffi.cast("char *", a))
+        py.test.raises(TypeError, iter, ffi.new("int"))
+        py.test.raises(TypeError, list, ffi.new("int"))
+
     def test_offsetof(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { int a, b, c; };")

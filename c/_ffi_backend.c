@@ -1497,6 +1497,8 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     goto done;
 }
 
+static PyObject *cdata_iter(CDataObject *);
+
 static PyNumberMethods CData_as_number = {
     (binaryfunc)cdata_add,      /*nb_add*/
     (binaryfunc)cdata_sub,      /*nb_subtract*/
@@ -1554,6 +1556,8 @@ static PyTypeObject CData_Type = {
     (traverseproc)cdata_traverse,               /* tp_traverse */
     0,                                          /* tp_clear */
     cdata_richcompare,                          /* tp_richcompare */
+    0,                                          /* tp_weaklistoffset */
+    (getiterfunc)cdata_iter,                    /* tp_iter */
 };
 
 static PyTypeObject CDataOwning_Type = {
@@ -1623,6 +1627,89 @@ static PyTypeObject CDataWithDestructor_Type = {
     0,                                          /* tp_getset */
     &CData_Type,                                /* tp_base */
 };
+
+/************************************************************/
+
+typedef struct {
+    PyObject_HEAD
+    char *di_next, *di_stop;
+    CDataObject *di_object;
+    CTypeDescrObject *di_itemtype;
+} CDataIterObject;
+
+static PyObject *
+cdataiter_next(CDataIterObject *it)
+{
+    char *result = it->di_next;
+    if (result != it->di_stop) {
+        it->di_next = result + it->di_itemtype->ct_size;
+        return convert_to_object(result, it->di_itemtype);
+    }
+    return NULL;
+}
+
+static void
+cdataiter_dealloc(CDataIterObject *it)
+{
+    Py_DECREF(it->di_object);
+    PyObject_Del(it);
+}
+
+static PyTypeObject CDataIter_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_ffi_backend.CDataIter",               /* tp_name */
+    sizeof(CDataIterObject),                /* tp_basicsize */
+    0,                                      /* tp_itemsize */
+    /* methods */
+    (destructor)cdataiter_dealloc,          /* tp_dealloc */
+    0,                                      /* tp_print */
+    0,                                      /* tp_getattr */
+    0,                                      /* tp_setattr */
+    0,                                      /* tp_compare */
+    0,                                      /* tp_repr */
+    0,                                      /* tp_as_number */
+    0,                                      /* tp_as_sequence */
+    0,                                      /* tp_as_mapping */
+    0,                                      /* tp_hash */
+    0,                                      /* tp_call */
+    0,                                      /* tp_str */
+    PyObject_GenericGetAttr,                /* tp_getattro */
+    0,                                      /* tp_setattro */
+    0,                                      /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,                     /* tp_flags */
+    0,                                      /* tp_doc */
+    0,                                      /* tp_traverse */
+    0,                                      /* tp_clear */
+    0,                                      /* tp_richcompare */
+    0,                                      /* tp_weaklistoffset */
+    PyObject_SelfIter,                      /* tp_iter */
+    (iternextfunc)cdataiter_next,           /* tp_iternext */
+};
+
+static PyObject *
+cdata_iter(CDataObject *cd)
+{
+    CDataIterObject *it;
+
+    if (!(cd->c_type->ct_flags & CT_ARRAY)) {
+        PyErr_Format(PyExc_TypeError, "cdata '%s' does not support iteration",
+                     cd->c_type->ct_name);
+        return NULL;
+    }
+
+    it = PyObject_New(CDataIterObject, &CDataIter_Type);
+    if (it == NULL)
+        return NULL;
+
+    Py_INCREF(cd);
+    it->di_object = cd;
+    it->di_itemtype = cd->c_type->ct_itemdescr;
+    it->di_next = cd->c_data;
+    it->di_stop = cd->c_data + get_array_length(cd) * it->di_itemtype->ct_size;
+    return (PyObject *)it;
+}
+
+/************************************************************/
 
 static PyObject *b_newp(PyObject *self, PyObject *args)
 {
@@ -3442,6 +3529,8 @@ void init_ffi_backend(void)
     if (PyType_Ready(&CDataOwning_Type) < 0)
         return;
     if (PyType_Ready(&CDataWithDestructor_Type) < 0)
+        return;
+    if (PyType_Ready(&CDataIter_Type) < 0)
         return;
 
     v = PyCObject_FromVoidPtr((void *)cffi_exports, NULL);

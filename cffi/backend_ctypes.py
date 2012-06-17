@@ -72,6 +72,10 @@ class CTypesData(object):
     def _alignment(cls):
         return ctypes.alignment(cls._ctype)
 
+    def __iter__(self):
+        raise TypeError("cdata %r does not support iteration" % (
+            self._get_c_name()),)
+
 
 class CTypesGenericPrimitive(CTypesData):
     __slots__ = []
@@ -79,6 +83,10 @@ class CTypesGenericPrimitive(CTypesData):
 
 class CTypesGenericArray(CTypesData):
     __slots__ = []
+
+    def __iter__(self):
+        for i in xrange(len(self)):
+            yield self[i]
 
 
 class CTypesGenericPtr(CTypesData):
