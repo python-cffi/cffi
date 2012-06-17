@@ -172,7 +172,7 @@ class Verifier(object):
     def convert_expr_from_c(self, tp, var):
         if isinstance(tp, model.PrimitiveType):
             return '_cffi_from_c_%s(%s)' % (tp.name.replace(' ', '_'), var)
-        elif isinstance(tp, model.PointerType):
+        elif isinstance(tp, (model.PointerType, model.FunctionType)):
             return '_cffi_from_c_pointer((char *)%s, _cffi_type(%d))' % (
                 var, self.gettypenum(tp))
         elif isinstance(tp, model.ArrayType):
@@ -194,6 +194,12 @@ class Verifier(object):
 
     def generate_cpy_function_decl(self, tp, name):
         assert isinstance(tp, model.FunctionType)
+        if tp.ellipsis:
+            # cannot support vararg functions better than this: check for its
+            # exact type (including the fixed arguments), and build it as a
+            # constant function pointer (no CPython wrapper)
+            self._generate_cpy_const(False, name, tp)
+            return
         prnt = self.prnt
         numargs = len(tp.args)
         if numargs == 0:
@@ -205,7 +211,6 @@ class Verifier(object):
         prnt('static PyObject *')
         prnt('_cffi_f_%s(PyObject *self, PyObject *%s)' % (name, argname))
         prnt('{')
-        assert not tp.ellipsis  # XXX later
         #
         for i, type in enumerate(tp.args):
             prnt('  %s;' % type.get_c_name(' x%d' % i))
@@ -247,6 +252,8 @@ class Verifier(object):
         prnt()
 
     def generate_cpy_function_method(self, tp, name):
+        if tp.ellipsis:
+            return
         numargs = len(tp.args)
         if numargs == 0:
             meth = 'METH_NOARGS'
@@ -259,6 +266,8 @@ class Verifier(object):
     loading_cpy_function = loaded_noop
 
     def loaded_cpy_function(self, tp, name, module, library):
+        if tp.ellipsis:
+            return
         setattr(library, name, getattr(module, name))
 
     # ----------

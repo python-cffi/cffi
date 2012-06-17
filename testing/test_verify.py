@@ -484,3 +484,29 @@ def test_unknown_type_2():
     ffi.cdef("typedef ... token_t;")
     lib = ffi.verify("typedef struct token_s token_t;")
     # assert did not crash, even though 'sizeof(token_t)' is not valid in C.
+
+def test_varargs():
+    ffi = FFI()
+    ffi.cdef("int foo(int x, ...);")
+    lib = ffi.verify("""
+        int foo(int x, ...) {
+            va_list vargs;
+            va_start(vargs, x);
+            x -= va_arg(vargs, int);
+            x -= va_arg(vargs, int);
+            va_end(vargs);
+            return x;
+        }
+    """)
+    assert lib.foo(50, ffi.cast("int", 5), ffi.cast("int", 3)) == 42
+
+def test_varargs_exact():
+    if sys.platform == 'win32':
+        py.test.skip("XXX fixme: only gives warnings")
+    ffi = FFI()
+    ffi.cdef("int foo(int x, ...);")
+    py.test.raises(VerificationError, ffi.verify, """
+        int foo(long long x, ...) {
+            return x;
+        }
+    """)
