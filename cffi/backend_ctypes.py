@@ -260,6 +260,8 @@ class CTypesBackend(object):
                 source = source._cast_to_integer()
             elif isinstance(source, str):
                 source = ord(source)
+            elif source is None:
+                source = 0
             else:
                 raise TypeError("bad type for cast to %r: %r" %
                                 (CTypesPrimitive, type(source).__name__))

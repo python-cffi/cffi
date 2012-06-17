@@ -594,6 +594,7 @@ class BackendTests:
         q = ffi.cast("short*", l1)
         assert q == ffi.cast("short*", int(l1))
         assert q[0] == 0x1234
+        assert int(ffi.cast("intptr_t", None)) == 0
 
     def test_cast_functionptr_and_int(self):
         ffi = FFI(backend=self.Backend())

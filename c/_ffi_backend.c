@@ -1833,6 +1833,9 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
             value = (unsigned char)PyString_AS_STRING(ob)[0];
         }
     }
+    else if (ob == Py_None) {
+        value = 0;
+    }
     else {
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
