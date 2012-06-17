@@ -25,8 +25,8 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
   work at the API level.)
 
 * We try to be complete.  For now some C99 constructs are not supported,
-  but all C89 should be, including macros (apart from the most advanced
-  (ab)uses of these macros).
+  but all C89 should be, including macros (and including macro "abuses",
+  which you can `manually wrap`_ in saner-looking C functions).
 
 .. _`LuaJIT's FFI`: http://luajit.org/ext_ffi.html
 .. _`Cython`: http://www.cython.org
@@ -34,6 +34,7 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
 .. _`CPython native C extensions`: http://docs.python.org/extending/extending.html
 .. _`native C extensions`: http://docs.python.org/extending/extending.html
 .. _`ctypes`: http://docs.python.org/library/ctypes.html
+.. _`manually wrap`: `The verification step`_
 
 
 Installation and Status
