@@ -428,7 +428,7 @@ which case a terminating null character is appended implicitly::
     'Hello'
 
 Note that unlike Python lists or tuples, but like C, you *cannot* index in
-a C array from the end, using negative numbers.
+a C array from the end using negative numbers.
 
 More generally, the C array types can have their length unspecified in C
 types, as long as their length can be derived from the initializer, like
