@@ -7,7 +7,7 @@ from setup_base import sources, libraries, include_dirs
 
 
 setup(
-    name='ffi',
+    name='cffi',
     descripton='experimental ffi after the example of lua ffi',
     get_version_from_scm=True,
 
