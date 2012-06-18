@@ -5,3 +5,6 @@ syntax: glob
 testing/__pycache__
 demo/__pycache__
 doc/build
+build
+dist
+*.egg-info

@@ -1,0 +1,3 @@
+recursive-include c *
+recursive-include testing *.py
+recursive-include doc *.py *.rst Makefile *.bat
