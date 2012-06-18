@@ -21,7 +21,7 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
   or the API (Application Programming Interface).  Usually, C
   libraries have a specified C API but often not an ABI (e.g. they may
   document a "struct" as having at least these fields, but maybe more).
-  (ctypes_ works at the ABI level, whereas `native C extensions`_
+  (ctypes_ works at the ABI level, whereas Cython_ and `native C extensions`_
   work at the API level.)
 
 * We try to be complete.  For now some C99 constructs are not supported,
