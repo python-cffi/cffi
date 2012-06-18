@@ -7,7 +7,7 @@ include_dirs = []
 
 
 if sys.platform == 'win32':
-    COMPILE_LIBFFI = 'libffi_msvc'    # from the CPython distribution
+    COMPILE_LIBFFI = 'c/libffi_msvc'    # from the CPython distribution
 else:
     COMPILE_LIBFFI = None
 
