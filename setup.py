@@ -1,5 +1,4 @@
 import sys, os
-from setuptools import setup, Feature, Extension
 
 
 sources = ['c/_ffi_backend.c']
@@ -24,8 +23,9 @@ if COMPILE_LIBFFI:
                    if filename.lower().endswith('.c'))
 
 
-
-setup(
+if __name__ == '__main__':
+  from setuptools import setup, Feature, Extension
+  setup(
     name='cffi',
     description='Foreign Function Interface for Python calling C code.',
     get_version_from_scm=True,
@@ -53,4 +53,4 @@ setup(
     install_requires=[
         'pycparser',
     ]
-)
+  )
