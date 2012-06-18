@@ -1,4 +1,6 @@
 import sys, os
+import subprocess
+import errno
 
 
 sources = ['c/_ffi_backend.c']
@@ -21,6 +23,18 @@ if COMPILE_LIBFFI:
     sources.extend(os.path.join(COMPILE_LIBFFI, filename)
                    for filename in os.listdir(COMPILE_LIBFFI)
                    if filename.lower().endswith('.c'))
+else:
+    try:
+        p = subprocess.Popen(['pkg-config', '--cflags-only-I', 'libffi'],
+                             stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
+    except OSError, e:
+        if e.errno != errno.ENOENT:
+            raise
+    else:
+        t = p.stdout.read().strip()
+        if p.wait() == 0 and t:
+            # '-I/usr/...' -> '/usr/...'
+            include_dirs.append(t[2:])
 
 
 if __name__ == '__main__':
