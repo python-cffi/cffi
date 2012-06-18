@@ -16,6 +16,12 @@
 
 #include "malloc_closure.h"
 
+/* Define USE__THREAD if gcc on your platform supports "__thread"
+   global variables. */
+#if !defined(MS_WIN32) && !defined(X86_DARWIN) && !defined(POWERPC_DARWIN)
+# define USE__THREAD
+#endif
+
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
@@ -128,10 +134,14 @@ typedef struct {
 /* whenever running Python code, the errno is saved in this thread-local
    variable */
 #ifndef MS_WIN32
+# ifdef USE__THREAD
 static __thread int cffi_saved_errno = 0;
 static void save_errno(void) { cffi_saved_errno = errno; }
-static void *restore_errno(void) { errno = cffi_saved_errno; return NULL; }
+static void restore_errno(void) { errno = cffi_saved_errno; }
 static void init_errno(void) { }
+# else
+#  include "misc_thread.h"
+# endif
 #endif
 
 /************************************************************/
