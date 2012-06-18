@@ -1,7 +1,7 @@
 This directory contains the libffi package, which is not part of GCC but
 shipped with GCC as convenience.
 
-Copied without changes from CPython 2.6.
+Copied without changes from CPython 2.7 head (e04e1f253ed8).
 
 Status
 ======
