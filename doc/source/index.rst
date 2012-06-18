@@ -565,6 +565,13 @@ Corresponds to the ``__alignof__`` operator in GCC.
 ``ffi.offsetof("C struct type", "fieldname")``: return the offset within
 the struct of the given field.  Corresponds to ``offsetof()`` in C.
 
+``ffi.getcname("C type" or <ctype>, ["extra"])``: return the string
+representation of the given C type.  If non-empty, the "extra" string is
+appended (or inserted at the right place in more complicated cases); it
+can be the name of a variable to declare, or an extra part of the type
+like ``"*"`` or ``"[5]"``, so that for example
+``ffi.getcname(ffi.typeof(x), "*")`` returns the string representation
+of the C type "pointer to the same type than x".
 
 
 Comments and bugs

@@ -3201,6 +3201,34 @@ static PyObject *b_offsetof(PyObject *self, PyObject *args)
     return PyInt_FromSsize_t(cf->cf_offset);
 }
 
+static PyObject *b_getcname(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    char *replace_with, *p;
+    PyObject *s;
+    Py_ssize_t namelen, replacelen;
+
+    if (!PyArg_ParseTuple(args, "O!s:getcname",
+                          &CTypeDescr_Type, &ct, &replace_with))
+        return NULL;
+
+    namelen = strlen(ct->ct_name);
+    replacelen = strlen(replace_with);
+    s = PyString_FromStringAndSize(NULL, namelen + replacelen);
+    if (s == NULL)
+        return NULL;
+
+    p = PyString_AS_STRING(s);
+    memcpy(p, ct->ct_name, ct->ct_name_position);
+    p += ct->ct_name_position;
+    memcpy(p, replace_with, replacelen);
+    p += replacelen;
+    memcpy(p, ct->ct_name + ct->ct_name_position,
+           namelen - ct->ct_name_position);
+
+    return s;
+}
+
 static PyObject *b_buffer(PyObject *self, PyObject *args)
 {
     CDataObject *cd;
@@ -3378,6 +3406,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"sizeof", b_sizeof, METH_O},
     {"typeof", b_typeof, METH_O},
     {"offsetof", b_offsetof, METH_VARARGS},
+    {"getcname", b_getcname, METH_VARARGS},
     {"buffer", b_buffer, METH_VARARGS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_VARARGS},

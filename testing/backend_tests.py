@@ -845,3 +845,20 @@ class BackendTests:
         assert p.len == 0
         assert p.data[9] == 0
         py.test.raises(IndexError, "p.data[10]")
+
+    def test_ffi_typeof_getcname(self):
+        ffi = FFI(backend=self.Backend())
+        assert ffi.getctype("int") == "int"
+        assert ffi.getctype("int", 'x') == "int x"
+        assert ffi.getctype("int*") == "int *"
+        assert ffi.getctype("int*", '') == "int *"
+        assert ffi.getctype("int", '*') == "int *"
+        assert ffi.getctype("int", ' * x ') == "int * x"
+        assert ffi.getctype(ffi.typeof("int*"), '*') == "int * *"
+        assert ffi.getctype("int", '[5]') == "int[5]"
+        assert ffi.getctype("int[5]", '[6]') == "int[6][5]"
+        assert ffi.getctype("int[5]", '(*)') == "int(*)[5]"
+        # special-case for convenience: automatically put '()' around '*'
+        assert ffi.getctype("int[5]", '*') == "int(*)[5]"
+        assert ffi.getctype("int[5]", '*foo') == "int(*foo)[5]"
+        assert ffi.getctype("int[5]", ' ** foo ') == "int(** foo)[5]"

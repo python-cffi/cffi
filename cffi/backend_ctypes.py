@@ -816,6 +816,9 @@ class CTypesBackend(object):
 
     typeof = type
 
+    def getcname(self, BType, replace_with):
+        return BType._get_c_name(replace_with)
+
 
 class CTypesLibrary(object):
 

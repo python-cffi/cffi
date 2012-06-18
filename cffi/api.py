@@ -169,10 +169,31 @@ class FFI(object):
         return self._backend.buffer(cdata, size)
 
     def callback(self, cdecl, python_callable):
+        """Return a callback object.  'cdecl' must name a C function pointer
+        type.  The callback invokes the specified 'python_callable'.
+        Important: the callback object must be manually kept alive for as
+        long as the callback may be invoked from the C level.
+        """
         if not callable(python_callable):
             raise TypeError("the 'python_callable' argument is not callable")
         BFunc = self.typeof(cdecl)
         return self._backend.callback(BFunc, python_callable)
+
+    def getctype(self, cdecl, replace_with=''):
+        """Return a string giving the C type 'cdecl', which may be itself
+        a string or a <ctype> object.  If 'replace_with' is given, it gives
+        extra text to append (or insert for more complicated C types), like
+        a variable name, or '*' to get actually the C type 'pointer-to-cdecl'.
+        """
+        if isinstance(cdecl, basestring):
+            cdecl = self.typeof(cdecl)
+        replace_with = replace_with.strip()
+        if (replace_with.startswith('*')
+                and '&[' in self._backend.getcname(cdecl, '&')):
+            replace_with = '(%s)' % replace_with
+        elif replace_with and not replace_with[0] in '[(':
+            replace_with = ' ' + replace_with
+        return self._backend.getcname(cdecl, replace_with)
 
     def _get_cached_btype(self, type):
         try:
