@@ -8,10 +8,10 @@ from setup_base import sources, libraries, include_dirs
 
 setup(
     name='cffi',
-    descripton='experimental ffi after the example of lua ffi',
+    description='Foreign Function Interface for Python calling C code.',
     get_version_from_scm=True,
 
-    url='https://bitbucket.org/cffi/cffi',
+    url='http://cffi.readthedocs.org',
     author='Armin Rigo, Maciej Fijalkowski',
     author_email='python-cffi@googlegroups.com',
 
