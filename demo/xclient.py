@@ -4,7 +4,7 @@ ffi = FFI()
 ffi.cdef("""
 
 typedef ... Display;
-typedef unsigned int Window;   /* 32-bit integer */
+typedef uint32_t Window;   /* 32-bit integer */
 
 typedef struct { int type; ...; } XEvent;
 
