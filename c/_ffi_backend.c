@@ -994,8 +994,14 @@ static PyObject *cdata_str(CDataObject *cd)
              cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) {
         Py_ssize_t length;
 
-        if (cd->c_type->ct_flags & CT_ARRAY)
-            length = strnlen(cd->c_data, get_array_length(cd));
+        if (cd->c_type->ct_flags & CT_ARRAY) {
+            const char *start = cd->c_data;
+            const char *end;
+            length = get_array_length(cd);
+            end = (const char *)memchr(start, 0, length);
+            if (end != NULL)
+                length = end - start;
+        }
         else
             length = strlen(cd->c_data);
 
