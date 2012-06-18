@@ -39,13 +39,13 @@ def opendir(dir):
     if not dirname.endswith('/'):
         dirname += '/'
     dirp = lib.opendir(dir)
-    if dirp == None:
+    if dirp is None:
         raise _posix_error()
     try:
         while True:
             ffi.errno = 0
             dirent = lib.readdir(dirp)
-            if dirent == None:
+            if dirent is None:
                 if ffi.errno != 0:
                     raise _posix_error()
                 return
