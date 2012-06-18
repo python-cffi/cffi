@@ -28,7 +28,6 @@ setup(
         'hgdistver',
     ],
     install_requires=[
-        'platformer',
         'pycparser',
     ]
 )
