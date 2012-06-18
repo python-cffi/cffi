@@ -28,6 +28,14 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
   but all C89 should be, including macros (and including macro "abuses",
   which you can `manually wrap`_ in saner-looking C functions).
 
+* We attempt to support both PyPy and CPython (although PyPy support is not
+  complete yet) with a reasonable path for other Python implementations like
+  IronPython and Jython.
+
+* Note that this project is **not** about embedding C in Python. Look for
+  ``weave.inline`` for this purpose. This is about calling existing C libraries
+  from Python.
+
 .. _`LuaJIT's FFI`: http://luajit.org/ext_ffi.html
 .. _`Cython`: http://www.cython.org
 .. _`SWIG`: http://www.swig.org/
