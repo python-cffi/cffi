@@ -24,6 +24,11 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
   (ctypes_ works at the ABI level, whereas `native C extensions`_
   work at the API level.)
 
+* This is not `weave`_: it's the other way around.  Weave is about
+  writing some C code to execute inline in the Python program; in CFFI
+  you write the *declarations* in C syntax but the execution of your
+  program is in Python.
+
 * We try to be complete.  For now some C99 constructs are not supported,
   but all C89 should be, including macros (and including macro "abuses",
   which you can `manually wrap`_ in saner-looking C functions).
@@ -34,6 +39,7 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
 .. _`CPython native C extensions`: http://docs.python.org/extending/extending.html
 .. _`native C extensions`: http://docs.python.org/extending/extending.html
 .. _`ctypes`: http://docs.python.org/library/ctypes.html
+.. _`weave`: http://www.scipy.org/Weave
 .. _`manually wrap`: `The verification step`_
 
 
@@ -44,8 +50,10 @@ This code has been developed on Linux but should work on any POSIX
 platform as well as on Win32.  There are some Windows-specific issues
 left.
 
-It currently supports CPython 2.x.  Support for PyPy is coming soon.
-Support for CPython 3.x should not be too hard.
+It currently supports CPython 2.x.  Support for CPython 3.x should not
+be too hard.  Support for PyPy is coming soon.  (In fact, the authors of
+CFFI are also on the PyPy team; we plan to make it the first (and
+fastest) choice for PyPy.)
 
 Requirements:
 
