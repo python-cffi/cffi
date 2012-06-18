@@ -29,6 +29,7 @@ if __name__ == '__main__':
     name='cffi',
     description='Foreign Function Interface for Python calling C code.',
     get_version_from_scm=True,
+    packages=['cffi'],
 
     url='http://cffi.readthedocs.org',
     author='Armin Rigo, Maciej Fijalkowski',
