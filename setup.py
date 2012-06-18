@@ -35,6 +35,8 @@ if __name__ == '__main__':
     author='Armin Rigo, Maciej Fijalkowski',
     author_email='python-cffi@googlegroups.com',
 
+    license='MIT',
+
     features={
         'cextension': Feature(
             "fast c backend for cpython",
