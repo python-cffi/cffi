@@ -12,6 +12,10 @@ else:
     COMPILE_LIBFFI = None
 
 if COMPILE_LIBFFI:
+    assert os.path.isdir(COMPILE_LIBFFI), (
+        "On Windows, you need to copy the directory "
+        "Modules\\_ctypes\\libffi_msvc from the CPython sources (2.6 or 2.7) "
+        "into the top-level directory.")
     include_dirs.append(COMPILE_LIBFFI)
     libraries.remove('ffi')
     sources.extend(os.path.join(COMPILE_LIBFFI, filename)
