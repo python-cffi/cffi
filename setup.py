@@ -11,6 +11,10 @@ setup(
     descripton='experimental ffi after the example of lua ffi',
     get_version_from_scm=True,
 
+    url='https://bitbucket.org/cffi/cffi',
+    author='Armin Rigo, Maciej Fijalkowski',
+    author_email='python-cffi@googlegroups.com',
+
     features={
         'cextension': Feature(
             "fast c backend for cpython",
