@@ -1,3 +1,2 @@
 pycparser
 pytest
--e git+git://github.com/fijal/platformer.git#egg=platformer
