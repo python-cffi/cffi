@@ -673,11 +673,23 @@ class CTypesBackend(object):
                         args2.append(BArg._from_ctypes(arg))
                     res2 = init(*args2)
                     res2 = BResult._to_ctypes(res2)
-                    if isinstance(res2, ctypes.c_void_p):
-                        # workaround for http://bugs.python.org/issue1574593
-                        res2 = res2.value
+                    if issubclass(BResult, CTypesGenericPtr):
+                        if res2:
+                            res2 = ctypes.cast(res2, ctypes.c_void_p).value
+                                # .value: http://bugs.python.org/issue1574593
+                        else:
+                            res2 = None
                     return res2
-                self._as_ctype_ptr = CTypesFunction._ctype(callback)
+                if issubclass(BResult, CTypesGenericPtr):
+                    # The only pointers callbacks can return are void*s:
+                    # http://bugs.python.org/issue5710
+                    callback_ctype = ctypes.CFUNCTYPE(
+                        ctypes.c_void_p,
+                        *[BArg._ctype for BArg in BArgs],
+                        use_errno=True)
+                else:
+                    callback_ctype = CTypesFunction._ctype
+                self._as_ctype_ptr = callback_ctype(callback)
                 self._address = ctypes.cast(self._as_ctype_ptr,
                                             ctypes.c_void_p).value
                 self._own_callback = init

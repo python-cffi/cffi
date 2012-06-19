@@ -566,6 +566,28 @@ class BackendTests:
         assert repr(res) == "<cdata 'void *'>"
         assert ffi.cast("long", res) != 0
 
+    def test_functionptr_intptr_return(self):
+        ffi = FFI(backend=self.Backend())
+        def cb():
+            return None
+        p = ffi.callback("int*(*)()", cb)
+        res = p()
+        assert res is None
+        int_ptr = ffi.new('int')
+        def cb():
+            return int_ptr
+        p = ffi.callback("int*(*)()", cb)
+        res = p()
+        assert repr(res) == "<cdata 'int *'>"
+        assert ffi.cast("long", res) != 0
+        int_array_ptr = ffi.new('int[1]')
+        def cb():
+            return int_array_ptr
+        p = ffi.callback("int*(*)()", cb)
+        res = p()
+        assert repr(res) == "<cdata 'int *'>"
+        assert ffi.cast("long", res) != 0
+
     def test_char_cast(self):
         ffi = FFI(backend=self.Backend())
         p = ffi.cast("int", '\x01')
