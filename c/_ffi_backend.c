@@ -3208,12 +3208,12 @@ static PyObject *b_sizeof(PyObject *self, PyObject *arg)
             size = cd->c_type->ct_size;
     }
     else if (CTypeDescr_Check(arg)) {
-        if (((CTypeDescrObject *)arg)->ct_size < 0) {
+        size = ((CTypeDescrObject *)arg)->ct_size;
+        if (size < 0) {
             PyErr_Format(PyExc_ValueError, "ctype '%s' is of unknown size",
                          ((CTypeDescrObject *)arg)->ct_name);
             return NULL;
         }
-        size = ((CTypeDescrObject *)arg)->ct_size;
     }
     else {
         PyErr_SetString(PyExc_TypeError,
