@@ -176,6 +176,13 @@ def test_reading_pointer_to_float():
     p = newp(BPtr, 1.1)
     assert p[0] != 1.1 and abs(p[0] - 1.1) < 1E-5   # rounding errors
 
+def test_cast_float_to_int():
+    for type in ["int", "unsigned int", "long", "unsigned long",
+                 "long long", "unsigned long long"]:
+        p = new_primitive_type(type)
+        assert int(cast(p, 4.2)) == 4
+        py.test.raises(TypeError, newp, new_pointer_type(p), 4.2)
+
 def test_reading_pointer_to_char():
     BChar = new_primitive_type("char")
     py.test.raises(TypeError, newp, BChar, None)

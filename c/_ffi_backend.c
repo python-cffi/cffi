@@ -320,21 +320,61 @@ static PyTypeObject CField_Type = {
 
 /************************************************************/
 
+static PY_LONG_LONG
+_my_PyLong_AsLongLong(PyObject *ob)
+{
+    /* (possibly) convert and cast a Python object to a long long.
+       Like PyLong_AsLongLong(), this version accepts a Python int too, and
+       does convertions from other types of objects.  The difference is that
+       this version refuses floats. */
+    if (PyInt_Check(ob)) {
+        return PyInt_AS_LONG(ob);
+    }
+    else if (PyLong_Check(ob)) {
+        return PyLong_AsLongLong(ob);
+    }
+    else {
+        PyObject *io;
+        PY_LONG_LONG res;
+        PyNumberMethods *nb = ob->ob_type->tp_as_number;
+
+        if (PyFloat_Check(ob) ||
+                nb == NULL || nb->nb_int == NULL) {
+            PyErr_SetString(PyExc_TypeError, "an integer is required");
+            return -1;
+        }
+        io = (*nb->nb_int) (ob);
+        if (io == NULL)
+            return -1;
+
+        if (PyInt_Check(io) || PyLong_Check(io)) {
+            res = _my_PyLong_AsLongLong(io);
+        }
+        else {
+            PyErr_SetString(PyExc_TypeError, "integer conversion failed");
+            res = -1;
+        }
+        Py_DECREF(io);
+        return res;
+    }
+}
+
 static unsigned PY_LONG_LONG
-_my_PyLong_AsUnsignedLongLong(PyObject *ob, int overflow)
+_my_PyLong_AsUnsignedLongLong(PyObject *ob, int strict)
 {
     /* (possibly) convert and cast a Python object to an unsigned long long.
-       Like PyLong_AsLongLong(), this version accepts a Python int too,
-       does convertions from other types of objects.  If 'overflow',
-       complains with OverflowError; if '!overflow', mask the result. */
+       Like PyLong_AsLongLong(), this version accepts a Python int too, and
+       does convertions from other types of objects.  If 'strict', complains
+       with OverflowError and refuses floats.  If '!strict', rounds floats
+       and masks the result. */
     if (PyInt_Check(ob)) {
         long value1 = PyInt_AS_LONG(ob);
-        if (overflow && value1 < 0)
+        if (strict && value1 < 0)
             goto negative;
         return (unsigned PY_LONG_LONG)(PY_LONG_LONG)value1;
     }
     else if (PyLong_Check(ob)) {
-        if (overflow) {
+        if (strict) {
             if (_PyLong_Sign(ob) < 0)
                 goto negative;
             return PyLong_AsUnsignedLongLong(ob);
@@ -348,7 +388,8 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int overflow)
         unsigned PY_LONG_LONG res;
         PyNumberMethods *nb = ob->ob_type->tp_as_number;
 
-        if (nb == NULL || nb->nb_int == NULL) {
+        if ((strict && PyFloat_Check(ob)) ||
+                nb == NULL || nb->nb_int == NULL) {
             PyErr_SetString(PyExc_TypeError, "an integer is required");
             return (unsigned PY_LONG_LONG)-1;
         }
@@ -356,12 +397,13 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int overflow)
         if (io == NULL)
             return (unsigned PY_LONG_LONG)-1;
 
-        if (!PyInt_Check(io) && !PyLong_Check(io)) {
-            Py_DECREF(io);
-            PyErr_SetString(PyExc_TypeError, "integer conversion failed");
-            return -1;
+        if (PyInt_Check(io) || PyLong_Check(io)) {
+            res = _my_PyLong_AsUnsignedLongLong(io, strict);
         }
-        res = _my_PyLong_AsUnsignedLongLong(io, overflow);
+        else {
+            PyErr_SetString(PyExc_TypeError, "integer conversion failed");
+            res = (unsigned PY_LONG_LONG)-1;
+        }
         Py_DECREF(io);
         return res;
     }
@@ -369,7 +411,7 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int overflow)
  negative:
     PyErr_SetString(PyExc_OverflowError,
                     "can't convert negative number to unsigned");
-    return -1;
+    return (unsigned PY_LONG_LONG)-1;
 }
 
 static PY_LONG_LONG
@@ -717,7 +759,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
-        PY_LONG_LONG value = PyLong_AsLongLong(init);
+        PY_LONG_LONG value = _my_PyLong_AsLongLong(init);
 
         if (value == -1 && PyErr_Occurred()) {
             if (!(ct->ct_flags & CT_IS_ENUM))
