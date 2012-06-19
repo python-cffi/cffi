@@ -11,8 +11,6 @@ Next steps
 
 the verify() step, which is missing:
 
-* global variables
-
 * typedef ... some_integer_type;
 
 
