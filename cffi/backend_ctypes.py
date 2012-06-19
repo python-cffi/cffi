@@ -672,7 +672,11 @@ class CTypesBackend(object):
                     for arg, BArg in zip(args, BArgs):
                         args2.append(BArg._from_ctypes(arg))
                     res2 = init(*args2)
-                    return BResult._to_ctypes(res2)
+                    res2 = BResult._to_ctypes(res2)
+                    if isinstance(res2, ctypes.c_void_p):
+                        # workaround for http://bugs.python.org/issue1574593
+                        res2 = res2.value
+                    return res2
                 self._as_ctype_ptr = CTypesFunction._ctype(callback)
                 self._address = ctypes.cast(self._as_ctype_ptr,
                                             ctypes.c_void_p).value
