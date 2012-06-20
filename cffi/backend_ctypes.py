@@ -222,8 +222,8 @@ class CTypesBackend(object):
             if size == ctypes.sizeof(ctypes.c_size_t):
                 result['size_t'] = size | UNSIGNED
                 result['ssize_t'] = size
-            #if size == ctypes.sizeof(ctypes.c_wchar):
-            #    result['wchar_t'] = size | UNSIGNED
+            if size == ctypes.sizeof(ctypes.c_wchar):
+                result['wchar_t'] = size | UNSIGNED
         return result
 
     def load_library(self, path):

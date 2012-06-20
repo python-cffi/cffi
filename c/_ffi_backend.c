@@ -1794,7 +1794,7 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
             return NULL;
         }
         if (ctitem->ct_flags & CT_PRIMITIVE_CHAR)
-            datasize += sizeof(char);  /* forcefully add a null character */
+            datasize *= 2;   /* forcefully add another character: a null */
     }
     else if (ct->ct_flags & CT_ARRAY) {
         dataoffset = offsetof(CDataObject_with_alignment, alignment);
