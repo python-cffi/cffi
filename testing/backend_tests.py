@@ -588,6 +588,14 @@ class BackendTests:
         assert repr(res) == "<cdata 'int *'>"
         assert ffi.cast("long", res) != 0
 
+    def test_functionptr_void_return(self):
+        ffi = FFI(backend=self.Backend())
+        def foo():
+            pass
+        foo_cb = ffi.callback("void foo()", foo)
+        result = foo_cb()
+        assert result is None
+
     def test_char_cast(self):
         ffi = FFI(backend=self.Backend())
         p = ffi.cast("int", '\x01')

@@ -593,8 +593,8 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         return PyString_FromStringAndSize(data, 1);
     }
 
-    fprintf(stderr, "convert_to_object: '%s'\n", ct->ct_name);
-    Py_FatalError("convert_to_object");
+    PyErr_Format(PyExc_SystemError,
+                 "convert_to_object: '%s'", ct->ct_name);
     return NULL;
 }
 
@@ -870,8 +870,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             return -1;
         return convert_from_object(data, cf->cf_type, init);
     }
-    fprintf(stderr, "convert_from_object: '%s'\n", ct->ct_name);
-    Py_FatalError("convert_from_object");
+    PyErr_Format(PyExc_SystemError,
+                 "convert_from_object: '%s'", ct->ct_name);
     return -1;
 
  overflow:
@@ -3030,8 +3030,9 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     if (py_res == NULL)
         goto error;
 
-    if (convert_from_object(result, SIGNATURE(0), py_res) < 0)
-        goto error;
+    if (SIGNATURE(0)->ct_size > 0)
+        if (convert_from_object(result, SIGNATURE(0), py_res) < 0)
+            goto error;
  done:
     Py_XDECREF(py_args);
     Py_XDECREF(py_res);
@@ -3041,7 +3042,8 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
 
  error:
     PyErr_WriteUnraisable(py_ob);
-    memset(result, 0, SIGNATURE(0)->ct_size);
+    if (SIGNATURE(0)->ct_size > 0)
+        memset(result, 0, SIGNATURE(0)->ct_size);
     goto done;
     }
 
