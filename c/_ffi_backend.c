@@ -1969,6 +1969,9 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
             }
             value = (unsigned char)PyString_AS_STRING(io)[0];
         }
+        else if (io == Py_None) {
+            value = 0.0;
+        }
         else {
             value = PyFloat_AsDouble(io);
         }

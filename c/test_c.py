@@ -114,6 +114,9 @@ def test_float_types():
 
         assert cast(p, -1.1) != cast(p, -1.1)
         assert repr(float(cast(p, -0.0))) == '-0.0'
+        assert float(cast(p, '\x09')) == 9.0
+        assert float(cast(p, True)) == 1.0
+        assert float(cast(p, None)) == 0.0
 
 def test_character_type():
     p = new_primitive_type("char")
