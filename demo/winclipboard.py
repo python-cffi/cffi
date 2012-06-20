@@ -1,3 +1,5 @@
+__author__ = "Israel Fruchter <israel.fruchter@gmail.com>"
+
 from cffi import FFI
 
 ffi = FFI()
@@ -10,43 +12,49 @@ ffi.cdef('''
     typedef char * LPTSTR;
     typedef HANDLE HGLOBAL;
     typedef HANDLE LPVOID;
-   
+
     HWND GetConsoleWindow(void);
 
     LPVOID GlobalLock( HGLOBAL hMem );
     BOOL GlobalUnlock( HGLOBAL hMem );
     HGLOBAL GlobalAlloc(UINT uFlags, SIZE_T dwBytes);
-   
+
     BOOL  OpenClipboard(HWND hWndNewOwner);
     BOOL  CloseClipboard(void);
     BOOL  EmptyClipboard(void);
     HANDLE  SetClipboardData(UINT uFormat, HANDLE hMem);
-   
+
     void * memcpy(void * s1, void * s2, int n);
     ''')
-   
+
 lib = ffi.verify('''
     #include <windows.h>
 ''', libraries=["user32"])
 
-def PutToClipboard(string):
-    CF_TEXT=1
+globals().update(lib.__dict__)
+
+def CopyToClipboard(string):
+    '''
+        use win32 api to copy `string` to the clipboard
+    '''
+    CF_TEXT = 1
     GMEM_MOVEABLE = 0x0002
-
-    hWnd = lib.GetConsoleWindow()
- 
-    if lib.OpenClipboard(hWnd):
+    
+    hWnd = GetConsoleWindow()
+  
+    if OpenClipboard(hWnd):
         cstring = ffi.new("char[]", string)
-
+        size = ffi.sizeof(cstring)
+        
         # make it a moveable memory for other processes
-        hGlobal = lib.GlobalAlloc(GMEM_MOVEABLE, size)
-        buffer = lib.GlobalLock(hGlobal)
-        lib.memcpy(buffer, cstring, size)
-        lib.GlobalUnlock(hGlobal)
-       
-        res = lib.EmptyClipboard()
-        res = lib.SetClipboardData(CF_TEXT, buffer)
+        hGlobal = GlobalAlloc(GMEM_MOVEABLE, size)
+        buffer = GlobalLock(hGlobal)
+        memcpy(buffer, cstring, size)
+        GlobalUnlock(hGlobal)
+        
+        res = EmptyClipboard()
+        res = SetClipboardData(CF_TEXT, buffer)
  
-        lib.CloseClipboard()
-       
-PutToClipboard("this string from cffi")
+        CloseClipboard()
+        
+CopyToClipboard("hello world from cffi")
