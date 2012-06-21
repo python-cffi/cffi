@@ -65,6 +65,7 @@ class BackendTests:
         q = ffi.cast(c_decl, long(min - 1))
         assert ffi.typeof(q) is ffi.typeof(p) and int(q) == max
         assert q != p
+        assert int(q) == int(p)
         assert hash(q) != hash(p)   # unlikely
         py.test.raises(OverflowError, ffi.new, c_decl, min - 1)
         py.test.raises(OverflowError, ffi.new, c_decl, max + 1)
@@ -817,6 +818,67 @@ class BackendTests:
         assert (p+5) - (p+1) == 4
         assert p == s+0
         assert p+1 == s+1
+
+    def test_pointer_comparison(self):
+        ffi = FFI(backend=self.Backend())
+        s = ffi.new("short[]", range(100))
+        p = ffi.cast("short *", s)
+        assert (p <  s) is False
+        assert (p <= s) is True
+        assert (p == s) is True
+        assert (p != s) is False
+        assert (p >  s) is False
+        assert (p >= s) is True
+        assert (s <  p) is False
+        assert (s <= p) is True
+        assert (s == p) is True
+        assert (s != p) is False
+        assert (s >  p) is False
+        assert (s >= p) is True
+        q = p + 1
+        assert (q <  s) is False
+        assert (q <= s) is False
+        assert (q == s) is False
+        assert (q != s) is True
+        assert (q >  s) is True
+        assert (q >= s) is True
+        assert (s <  q) is True
+        assert (s <= q) is True
+        assert (s == q) is False
+        assert (s != q) is True
+        assert (s >  q) is False
+        assert (s >= q) is False
+        assert (q <  p) is False
+        assert (q <= p) is False
+        assert (q == p) is False
+        assert (q != p) is True
+        assert (q >  p) is True
+        assert (q >= p) is True
+        assert (p <  q) is True
+        assert (p <= q) is True
+        assert (p == q) is False
+        assert (p != q) is True
+        assert (p >  q) is False
+        assert (p >= q) is False
+        #
+        assert (None == s) is False
+        assert (None != s) is True
+        assert (s == None) is False
+        assert (s != None) is True
+        assert (None == q) is False
+        assert (None != q) is True
+        assert (q == None) is False
+        assert (q != None) is True
+
+    def test_no_integer_comparison(self):
+        ffi = FFI(backend=self.Backend())
+        x = ffi.cast("int", 123)
+        y = ffi.cast("int", 456)
+        py.test.raises(TypeError, "x < y")
+        #
+        z = ffi.cast("double", 78.9)
+        py.test.raises(TypeError, "x < z")
+        py.test.raises(TypeError, "z < y")
 
     def test_ffi_buffer_ptr(self):
         ffi = FFI(backend=self.Backend())

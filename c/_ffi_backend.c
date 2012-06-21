@@ -1148,34 +1148,52 @@ static PyObject *cdata_float(CDataObject *cd)
 
 static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
 {
-    CDataObject *obv, *obw;
-    int equal;
-    PyObject *res;
+    int res, full_order;
+    PyObject *pyres;
+    char *v_cdata, *w_cdata;
 
-    if (op != Py_EQ && op != Py_NE)
-        goto Unimplemented;
+    full_order = (op != Py_EQ && op != Py_NE);
 
     assert(CData_Check(v));
-    obv = (CDataObject *)v;
+    v_cdata = ((CDataObject *)v)->c_data;
+    if (full_order &&
+        (((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY))
+        goto Error;
 
     if (w == Py_None) {
-        equal = (obv->c_data == NULL);
+        w_cdata = NULL;
     }
     else if (CData_Check(w)) {
-        obw = (CDataObject *)w;
-        equal = (obv->c_type == obw->c_type) && (obv->c_data == obw->c_data);
+        w_cdata = ((CDataObject *)w)->c_data;
+        if (full_order &&
+            (((CDataObject *)w)->c_type->ct_flags & CT_PRIMITIVE_ANY))
+            goto Error;
     }
     else
         goto Unimplemented;
 
-    res = (equal ^ (op == Py_NE)) ? Py_True : Py_False;
+    switch (op) {
+    case Py_EQ: res = (v_cdata == w_cdata); break;
+    case Py_NE: res = (v_cdata != w_cdata); break;
+    case Py_LT: res = (v_cdata <  w_cdata); break;
+    case Py_LE: res = (v_cdata <= w_cdata); break;
+    case Py_GT: res = (v_cdata >  w_cdata); break;
+    case Py_GE: res = (v_cdata >= w_cdata); break;
+    default: res = -1;
+    }
+    pyres = res ? Py_True : Py_False;
  done:
-    Py_INCREF(res);
-    return res;
+    Py_INCREF(pyres);
+    return pyres;
 
  Unimplemented:
-    res = Py_NotImplemented;
+    pyres = Py_NotImplemented;
     goto done;
+
+ Error:
+    PyErr_SetString(PyExc_TypeError,
+                    "cannot do comparison on a primitive cdata");
+    return NULL;
 }
 
 static long cdata_hash(CDataObject *cd)
