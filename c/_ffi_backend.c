@@ -2002,8 +2002,11 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
             write_raw_float_data(cd->c_data, value, ct->ct_size);
         return (PyObject *)cd;
     }
-    else
-        goto cannot_cast;
+    else {
+        PyErr_Format(PyExc_TypeError, "cannot cast to ctype '%s'",
+                     ct->ct_name);
+        return NULL;
+    }
 
  cannot_cast:
     if (CData_Check(ob))
