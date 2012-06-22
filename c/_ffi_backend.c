@@ -2363,11 +2363,7 @@ static PyObject *b_new_array_type(PyObject *self, PyObject *args)
                 PyErr_SetString(PyExc_ValueError, "negative array length");
             return NULL;
         }
-#ifdef MS_WIN32
-        sprintf(extra_text, "[%ld]", (long)length);  /* XXX not large enough */
-#else
-        sprintf(extra_text, "[%zd]", length);
-#endif
+        sprintf(extra_text, "[%llu]", (unsigned PY_LONG_LONG)length);
         arraysize = length * ctitem->ct_size;
         if (length > 0 && (arraysize / length) != ctitem->ct_size) {
             PyErr_SetString(PyExc_OverflowError,
