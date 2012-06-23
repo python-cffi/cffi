@@ -699,6 +699,20 @@ static int _convert_error(PyObject *init, const char *ct_name,
     return -1;
 }
 
+static int    /* forward */
+convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init);
+static int    /* forward */
+convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init);
+
+static int
+convert_field_from_object(char *data, CFieldObject *cf, PyObject *value)
+{
+    if (cf->cf_bitshift >= 0)
+        return convert_from_object_bitfield(data, cf, value);
+    else
+        return convert_from_object(data, cf->cf_type, value);
+}
+
 static int
 convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
@@ -840,10 +854,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                                  ct->ct_name, n);
                     return -1;
                 }
-                if (bitfield_not_supported(cf) < 0)
-                    return -1;
-                if (convert_from_object(data + cf->cf_offset,
-                                        cf->cf_type, items[i]) < 0)
+                if (convert_field_from_object(data + cf->cf_offset,
+                                              cf, items[i]) < 0)
                     return -1;
                 cf = cf->cf_next;
             }
@@ -1374,10 +1386,7 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
             /* write the field 'cf' */
             char *data = cd->c_data + cf->cf_offset;
             if (value != NULL) {
-                if (cf->cf_bitshift >= 0)
-                    return convert_from_object_bitfield(data, cf, value);
-                else
-                    return convert_from_object(data, cf->cf_type, value);
+                return convert_field_from_object(data, cf, value);
             }
             else {
                 PyErr_SetString(PyExc_AttributeError,
