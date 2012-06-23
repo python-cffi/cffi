@@ -643,16 +643,6 @@ convert_to_object_bitfield(char *data, CFieldObject *cf)
     }
 }
 
-static int bitfield_not_supported(CFieldObject *cf)
-{
-    if (cf->cf_bitshift >= 0) {
-        PyErr_SetString(PyExc_NotImplementedError,
-                        "bit fields not supported for this operation");
-        return -1;
-    }
-    return 0;
-}
-
 static int _convert_overflow(PyObject *init, const char *ct_name)
 {
     PyObject *s;
@@ -2664,8 +2654,11 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
 
         for (i=0; i<n; i++) {
             assert(cf != NULL);
-            if (bitfield_not_supported(cf) < 0)
+            if (cf->cf_bitshift >= 0) {
+                PyErr_SetString(PyExc_NotImplementedError,
+                    "cannot pass as argument a struct with bit fields");
                 return NULL;
+            }
             ffifield = fb_fill_type(fb, cf->cf_type);
             if (elements != NULL)
                 elements[i] = ffifield;
