@@ -8,6 +8,8 @@ SIZE_OF_SHORT = ctypes.sizeof(ctypes.c_short)
 SIZE_OF_PTR   = ctypes.sizeof(ctypes.c_void_p)
 SIZE_OF_WCHAR = ctypes.sizeof(ctypes.c_wchar)
 
+WCHAR_IS_UNSIGNED = (SIZE_OF_WCHAR < 4)
+
 
 class BackendTests:
 
@@ -41,7 +43,7 @@ class BackendTests:
         self._test_int_type(ffi, 'ptrdiff_t', SIZE_OF_PTR, False)
         self._test_int_type(ffi, 'size_t', SIZE_OF_PTR, True)
         self._test_int_type(ffi, 'ssize_t', SIZE_OF_PTR, False)
-        self._test_int_type(ffi, 'wchar_t', SIZE_OF_WCHAR, True)
+        self._test_int_type(ffi, 'wchar_t', SIZE_OF_WCHAR, WCHAR_IS_UNSIGNED)
 
     def _test_int_type(self, ffi, c_decl, size, unsigned):
         if unsigned:

@@ -27,7 +27,7 @@
 /* base type flag: exactly one of the following: */
 #define CT_PRIMITIVE_SIGNED   1    /* signed integer */
 #define CT_PRIMITIVE_UNSIGNED 2    /* unsigned integer */
-#define CT_PRIMITIVE_CHAR     4    /* char (and, later, wchar_t) */
+#define CT_PRIMITIVE_CHAR     4    /* char, wchar_t */
 #define CT_PRIMITIVE_FLOAT    8    /* float, double */
 #define CT_POINTER           16    /* pointer, excluding ptr-to-func */
 #define CT_ARRAY             32    /* array */
@@ -2170,7 +2170,8 @@ static PyObject *b_nonstandard_integer_types(PyObject *self, PyObject *noarg)
         { "ptrdiff_t",     sizeof(ptrdiff_t) },
         { "size_t",        sizeof(size_t) | UNSIGNED },
         { "ssize_t",       sizeof(ssize_t) },
-        /*{ "wchar_t",       sizeof(wchar_t) | UNSIGNED },*/
+        { "wchar_t",       sizeof(wchar_t) |
+                               (sizeof(wchar_t) < 4 ? UNSIGNED : 0 },
         { NULL }
     };
 #undef UNSIGNED
