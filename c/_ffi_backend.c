@@ -1325,7 +1325,7 @@ cdata_sub(PyObject *v, PyObject *w)
                 (ct->ct_itemdescr->ct_size <= 0)) {
             PyErr_Format(PyExc_TypeError,
                          "cannot subtract cdata '%s' and cdata '%s'",
-                         ct->ct_name, cdw->c_type->ct_name);
+                         cdv->c_type->ct_name, ct->ct_name);
             return NULL;
         }
         diff = (cdv->c_data - cdw->c_data) / ct->ct_itemdescr->ct_size;
