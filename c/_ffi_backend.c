@@ -872,10 +872,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                     PyErr_SetObject(PyExc_KeyError, d_key);
                     return -1;
                 }
-                if (bitfield_not_supported(cf) < 0)
-                    return -1;
-                if (convert_from_object(data + cf->cf_offset,
-                                        cf->cf_type, d_value) < 0)
+                if (convert_field_from_object(data + cf->cf_offset,
+                                              cf, d_value) < 0)
                     return -1;
             }
             return 0;
