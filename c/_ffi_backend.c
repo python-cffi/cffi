@@ -887,9 +887,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             PyErr_SetString(PyExc_ValueError, "empty union");
             return -1;
         }
-        if (bitfield_not_supported(cf) < 0)
-            return -1;
-        return convert_from_object(data, cf->cf_type, init);
+        return convert_field_from_object(data, cf, init);
     }
     PyErr_Format(PyExc_SystemError,
                  "convert_from_object: '%s'", ct->ct_name);
