@@ -113,12 +113,6 @@ typedef struct {
 } CDataObject_with_length;
 
 typedef struct {
-    CDataObject head;
-    CDataObject *original_object;
-    PyObject *destructor_callback;
-} CDataObject_with_destructor;
-
-typedef struct {
     ffi_cif cif;
     /* the following information is used when doing the call:
        - a buffer of size 'exchange_size' is malloced
@@ -995,27 +989,6 @@ static void cdataowning_dealloc(CDataObject *cd)
     cdata_dealloc(cd);
 }
 
-static void cdatagc_dealloc(CDataObject_with_destructor *cdd)
-{
-    PyObject *error_type, *error_value, *error_traceback, *res;
-
-    /* Save the current exception, if any. */
-    PyErr_Fetch(&error_type, &error_value, &error_traceback);
-    /* Execute the destructor. */
-    res = PyObject_CallFunctionObjArgs(cdd->destructor_callback,
-                                       cdd->original_object, NULL);
-    if (res == NULL)
-        PyErr_WriteUnraisable(cdd->destructor_callback);
-    else
-        Py_DECREF(res);
-    /* Restore the saved exception. */
-    PyErr_Restore(error_type, error_value, error_traceback);
-
-    Py_DECREF(cdd->destructor_callback);
-    Py_DECREF(cdd->original_object);
-    cdata_dealloc((CDataObject *)cdd);
-}
-
 static int cdata_traverse(CDataObject *cd, visitproc visit, void *arg)
 {
     Py_VISIT(cd->c_type);
@@ -1085,12 +1058,6 @@ static PyObject *cdataowning_repr(CDataObject *cd)
         Py_DECREF(s);
         return res;
     }
-}
-
-static PyObject *cdatagc_repr(CDataObject_with_destructor *cdd)
-{
-    return PyString_FromFormat("<cdata '%s' with destructor>",
-                               cdd->head.c_type->ct_name);
 }
 
 static int cdata_nonzero(CDataObject *cd)
@@ -1631,40 +1598,6 @@ static PyTypeObject CDataOwning_Type = {
     0,                                          /* tp_setattr */
     0,                                          /* tp_compare */
     (reprfunc)cdataowning_repr,                 /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
-    0,                                          /* tp_doc */
-    0,                                          /* tp_traverse */
-    0,                                          /* tp_clear */
-    0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
-    0,                                          /* tp_iternext */
-    0,                                          /* tp_methods */
-    0,                                          /* tp_members */
-    0,                                          /* tp_getset */
-    &CData_Type,                                /* tp_base */
-};
-
-static PyTypeObject CDataWithDestructor_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    "_ffi_backend.CDataGC",
-    sizeof(CDataObject_with_destructor),
-    0,
-    (destructor)cdatagc_dealloc,                /* tp_dealloc */
-    0,                                          /* tp_print */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    0,                                          /* tp_compare */
-    (reprfunc)cdatagc_repr,                     /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
     0,                                          /* tp_as_mapping */
@@ -3341,35 +3274,6 @@ static PyObject *b_set_errno(PyObject *self, PyObject *args)
     return Py_None;
 }
 
-static PyObject *b_gc(PyObject *self, PyObject *args)
-{
-    CDataObject *cd;
-    PyObject *destructor;
-    CDataObject_with_destructor *cdd;
-
-    if (!PyArg_ParseTuple(args, "O!O:gc", &CData_Type, &cd, &destructor))
-        return NULL;
-    if (!PyCallable_Check(destructor)) {
-        PyErr_Format(PyExc_TypeError,
-                     "arg 2 must be a callable object, not %.200s",
-                     Py_TYPE(destructor)->tp_name);
-        return NULL;
-    }
-
-    cdd = PyObject_New(CDataObject_with_destructor, &CDataWithDestructor_Type);
-    if (cdd == NULL)
-        return NULL;
-
-    cdd->head.c_data = cd->c_data;
-    Py_INCREF(cd->c_type);
-    cdd->head.c_type = cd->c_type;
-    Py_INCREF(destructor);
-    cdd->destructor_callback = destructor;
-    Py_INCREF(cd);
-    cdd->original_object = cd;
-    return (PyObject *)cdd;
-}
-
 /************************************************************/
 
 static char _testfunc0(char a, char b)
@@ -3470,7 +3374,6 @@ static PyMethodDef FFIBackendMethods[] = {
     {"buffer", b_buffer, METH_VARARGS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_VARARGS},
-    {"gc", b_gc, METH_VARARGS},
     {"_testfunc", b__testfunc, METH_VARARGS},
     {NULL,     NULL}	/* Sentinel */
 };
@@ -3623,8 +3526,6 @@ void init_ffi_backend(void)
     if (PyType_Ready(&CData_Type) < 0)
         return;
     if (PyType_Ready(&CDataOwning_Type) < 0)
-        return;
-    if (PyType_Ready(&CDataWithDestructor_Type) < 0)
         return;
     if (PyType_Ready(&CDataIter_Type) < 0)
         return;
