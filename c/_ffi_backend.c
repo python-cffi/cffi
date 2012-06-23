@@ -962,7 +962,8 @@ get_alignment(CTypeDescrObject *ct)
 {
     int align;
  retry:
-    if (ct->ct_flags & (CT_PRIMITIVE_ANY|CT_STRUCT|CT_UNION)) {
+    if ((ct->ct_flags & (CT_PRIMITIVE_ANY|CT_STRUCT|CT_UNION)) &&
+        !(ct->ct_flags & CT_IS_OPAQUE)) {
         align = ct->ct_length;
     }
     else if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
@@ -980,7 +981,7 @@ get_alignment(CTypeDescrObject *ct)
     }
 
     if ((align < 1) || (align & (align-1))) {
-        PyErr_Format(PyExc_TypeError,
+        PyErr_Format(PyExc_SystemError,
                      "found for ctype '%s' bogus alignment '%d'",
                      ct->ct_name, align);
         return -1;
@@ -2361,6 +2362,7 @@ static PyObject *_b_struct_or_union_type(const char *kind, const char *name,
         return NULL;
 
     td->ct_size = -1;
+    td->ct_length = -1;
     td->ct_flags = flag | CT_IS_OPAQUE;
     memcpy(td->ct_name, kind, kindlen);
     td->ct_name[kindlen] = ' ';
