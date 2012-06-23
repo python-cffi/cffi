@@ -1,4 +1,4 @@
-import ctypes, ctypes.util
+import ctypes, ctypes.util, operator
 from . import model
 
 class CTypesData(object):
@@ -76,9 +76,41 @@ class CTypesData(object):
         raise TypeError("cdata %r does not support iteration" % (
             self._get_c_name()),)
 
+    def _make_cmp(name):
+        cmpfunc = getattr(operator, name)
+        def cmp(self, other):
+            if isinstance(other, CTypesData):
+                return cmpfunc(self._convert_to_address(None),
+                               other._convert_to_address(None))
+            elif other is None:
+                return cmpfunc(self._convert_to_address(None), 0)
+            else:
+                return NotImplemented
+        cmp.func_name = name
+        return cmp
+
+    __eq__ = _make_cmp('__eq__')
+    __ne__ = _make_cmp('__ne__')
+    __lt__ = _make_cmp('__lt__')
+    __le__ = _make_cmp('__le__')
+    __gt__ = _make_cmp('__gt__')
+    __ge__ = _make_cmp('__ge__')
+
+    def __hash__(self):
+        return hash(type(self)) ^ hash(self._convert_to_address(None))
+
 
 class CTypesGenericPrimitive(CTypesData):
     __slots__ = []
+
+    def __eq__(self, other):
+        return self is other
+
+    def __ne__(self, other):
+        return self is not other
+
+    def __hash__(self):
+        return object.__hash__(self)
 
 
 class CTypesGenericArray(CTypesData):
@@ -118,18 +150,6 @@ class CTypesGenericPtr(CTypesData):
 
     def __nonzero__(self):
         return bool(self._address)
-
-    def __eq__(self, other):
-        if other is None:
-            return not bool(self._address)
-        return (type(self) is type(other) and
-                self._address == other._address)
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __hash__(self):
-        return hash(type(self)) ^ hash(self._address)
 
     @classmethod
     def _to_ctypes(cls, value):

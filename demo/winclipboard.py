@@ -24,6 +24,9 @@ ffi.cdef('''
     BOOL  EmptyClipboard(void);
     HANDLE  SetClipboardData(UINT uFormat, HANDLE hMem);
 
+    #define CF_TEXT ...
+    #define GMEM_MOVEABLE ...
+
     void * memcpy(void * s1, void * s2, int n);
     ''')
 
@@ -37,9 +40,6 @@ def CopyToClipboard(string):
     '''
         use win32 api to copy `string` to the clipboard
     '''
-    CF_TEXT = 1
-    GMEM_MOVEABLE = 0x0002
-    
     hWnd = GetConsoleWindow()
   
     if OpenClipboard(hWnd):

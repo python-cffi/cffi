@@ -1148,34 +1148,52 @@ static PyObject *cdata_float(CDataObject *cd)
 
 static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
 {
-    CDataObject *obv, *obw;
-    int equal;
-    PyObject *res;
+    int res, full_order;
+    PyObject *pyres;
+    char *v_cdata, *w_cdata;
 
-    if (op != Py_EQ && op != Py_NE)
-        goto Unimplemented;
+    full_order = (op != Py_EQ && op != Py_NE);
 
     assert(CData_Check(v));
-    obv = (CDataObject *)v;
+    v_cdata = ((CDataObject *)v)->c_data;
+    if (full_order &&
+        (((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY))
+        goto Error;
 
     if (w == Py_None) {
-        equal = (obv->c_data == NULL);
+        w_cdata = NULL;
     }
     else if (CData_Check(w)) {
-        obw = (CDataObject *)w;
-        equal = (obv->c_type == obw->c_type) && (obv->c_data == obw->c_data);
+        w_cdata = ((CDataObject *)w)->c_data;
+        if (full_order &&
+            (((CDataObject *)w)->c_type->ct_flags & CT_PRIMITIVE_ANY))
+            goto Error;
     }
     else
         goto Unimplemented;
 
-    res = (equal ^ (op == Py_NE)) ? Py_True : Py_False;
+    switch (op) {
+    case Py_EQ: res = (v_cdata == w_cdata); break;
+    case Py_NE: res = (v_cdata != w_cdata); break;
+    case Py_LT: res = (v_cdata <  w_cdata); break;
+    case Py_LE: res = (v_cdata <= w_cdata); break;
+    case Py_GT: res = (v_cdata >  w_cdata); break;
+    case Py_GE: res = (v_cdata >= w_cdata); break;
+    default: res = -1;
+    }
+    pyres = res ? Py_True : Py_False;
  done:
-    Py_INCREF(res);
-    return res;
+    Py_INCREF(pyres);
+    return pyres;
 
  Unimplemented:
-    res = Py_NotImplemented;
+    pyres = Py_NotImplemented;
     goto done;
+
+ Error:
+    PyErr_SetString(PyExc_TypeError,
+                    "cannot do comparison on a primitive cdata");
+    return NULL;
 }
 
 static long cdata_hash(CDataObject *cd)
@@ -1197,12 +1215,9 @@ cdata_length(CDataObject *cd)
     return -1;
 }
 
-static PyObject *
-cdata_subscript(CDataObject *cd, PyObject *key)
+static char *
+_cdata_get_indexed_ptr(CDataObject *cd, PyObject *key)
 {
-    CTypeDescrObject *ctitem = cd->c_type->ct_itemdescr;
-    /* use 'mp_subscript' instead of 'sq_item' because we don't want
-       negative indexes to be corrected automatically */
     Py_ssize_t i = PyNumber_AsSsize_t(key, PyExc_IndexError);
     if (i == -1 && PyErr_Occurred())
         return NULL;
@@ -1234,48 +1249,31 @@ cdata_subscript(CDataObject *cd, PyObject *key)
                      cd->c_type->ct_name);
         return NULL;
     }
-    return convert_to_object(cd->c_data + i * ctitem->ct_size, ctitem);
+    return cd->c_data + i * cd->c_type->ct_itemdescr->ct_size;
+}
+
+static PyObject *
+cdata_subscript(CDataObject *cd, PyObject *key)
+{
+    char *c = _cdata_get_indexed_ptr(cd, key);
+    CTypeDescrObject *ctitem = cd->c_type->ct_itemdescr;
+    /* use 'mp_subscript' instead of 'sq_item' because we don't want
+       negative indexes to be corrected automatically */
+    if (c == NULL)
+        return NULL;
+    return convert_to_object(c, ctitem);
 }
 
 static int
 cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
 {
+    char *c = _cdata_get_indexed_ptr(cd, key);
     CTypeDescrObject *ctitem = cd->c_type->ct_itemdescr;
     /* use 'mp_ass_subscript' instead of 'sq_ass_item' because we don't want
        negative indexes to be corrected automatically */
-    Py_ssize_t i = PyNumber_AsSsize_t(key, PyExc_IndexError);
-    if (i == -1 && PyErr_Occurred())
+    if (c == NULL)
         return -1;
-
-    if (cd->c_type->ct_flags & CT_POINTER) {
-        if (CDataOwn_Check(cd) && i != 0) {
-            PyErr_Format(PyExc_IndexError,
-                         "cdata '%s' can only be indexed by 0",
-                         cd->c_type->ct_name);
-            return -1;
-        }
-    }
-    else if (cd->c_type->ct_flags & CT_ARRAY) {
-        if (i < 0) {
-            PyErr_SetString(PyExc_IndexError,
-                            "negative index not supported");
-            return -1;
-        }
-        if (i >= get_array_length(cd)) {
-            PyErr_Format(PyExc_IndexError,
-                         "index too large for cdata '%s' (expected %zd < %zd)",
-                         cd->c_type->ct_name,
-                         i, get_array_length(cd));
-            return -1;
-        }
-    }
-    else {
-        PyErr_Format(PyExc_TypeError,
-                     "cdata of type '%s' does not support index assignment",
-                     cd->c_type->ct_name);
-        return -1;
-    }
-    return convert_from_object(cd->c_data + i * ctitem->ct_size, ctitem, v);
+    return convert_from_object(c, ctitem, v);
 }
 
 static PyObject *
@@ -1984,8 +1982,11 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
             write_raw_float_data(cd->c_data, value, ct->ct_size);
         return (PyObject *)cd;
     }
-    else
-        goto cannot_cast;
+    else {
+        PyErr_Format(PyExc_TypeError, "cannot cast to ctype '%s'",
+                     ct->ct_name);
+        return NULL;
+    }
 
  cannot_cast:
     if (CData_Check(ob))
@@ -2363,11 +2364,7 @@ static PyObject *b_new_array_type(PyObject *self, PyObject *args)
                 PyErr_SetString(PyExc_ValueError, "negative array length");
             return NULL;
         }
-#ifdef MS_WIN32
-        sprintf(extra_text, "[%ld]", (long)length);  /* XXX not large enough */
-#else
-        sprintf(extra_text, "[%zd]", length);
-#endif
+        sprintf(extra_text, "[%llu]", (unsigned PY_LONG_LONG)length);
         arraysize = length * ctitem->ct_size;
         if (length > 0 && (arraysize / length) != ctitem->ct_size) {
             PyErr_SetString(PyExc_OverflowError,
