@@ -943,3 +943,13 @@ def test_newp_copying_struct_and_union():
     u1 = newp(BUnionPtr, 42)
     u2 = newp(BUnionPtr, u1[0])
     assert u2.a1 == 42
+
+def test_str():
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BArray = new_array_type(BCharP, 10)
+    a = newp(BArray, "hello")
+    assert len(a) == 10
+    assert str(a) == "hello"
+    p = a + 2
+    assert str(p) == "llo"
