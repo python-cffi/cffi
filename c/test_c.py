@@ -875,3 +875,17 @@ def test_no_inheritance():
         pass
     else:
         raise AssertionError
+
+def test_assign_string():
+    BChar = new_primitive_type("char")
+    BArray1 = new_array_type(new_pointer_type(BChar), 5)
+    BArray2 = new_array_type(new_pointer_type(BArray1), 5)
+    a = newp(BArray2, ["abc", "de", "ghij"])
+    assert str(a[2]) == "ghij"
+    a[2] = "."
+    assert str(a[2]) == "."
+    a[2] = "12345"
+    assert str(a[2]) == "12345"
+    e = py.test.raises(IndexError, 'a[2] = "123456"')
+    assert 'char[5]' in str(e.value)
+    assert 'got 6 characters' in str(e.value)

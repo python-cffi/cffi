@@ -744,6 +744,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                              "(got %zd characters)", ct->ct_name, n);
                 return -1;
             }
+            if (n != ct->ct_length)
+                n++;
             srcdata = PyString_AS_STRING(init);
             memcpy(data, srcdata, n);
             return 0;
