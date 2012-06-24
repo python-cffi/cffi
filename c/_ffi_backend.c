@@ -874,6 +874,13 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         goto cannot_convert;
     }
     if (ct->ct_flags & CT_UNION) {
+
+        if (CData_Check(init)) {
+            if (((CDataObject *)init)->c_type == ct && ct->ct_size >= 0) {
+                memcpy(data, ((CDataObject *)init)->c_data, ct->ct_size);
+                return 0;
+            }
+        }
         CFieldObject *cf = (CFieldObject *)ct->ct_extra;   /* first field */
         if (cf == NULL) {
             PyErr_SetString(PyExc_ValueError, "empty union");
