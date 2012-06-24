@@ -215,9 +215,17 @@ def test_hash_differences():
     BChar = new_primitive_type("char")
     BInt = new_primitive_type("int")
     BFloat = new_primitive_type("float")
-    assert (hash(cast(BChar, 'A')) !=
-            hash(cast(BInt, 65)))
-    assert hash(cast(BFloat, 65)) != hash(65.0)
+    for i in range(1, 20):
+        if (hash(cast(BChar, chr(i))) !=
+            hash(cast(BInt, i))):
+            break
+    else:
+        raise AssertionError("hashes are equal")
+    for i in range(1, 20):
+        if hash(cast(BFloat, i)) != hash(float(i)):
+            break
+    else:
+        raise AssertionError("hashes are equal")
 
 def test_no_len_on_nonarray():
     p = new_primitive_type("int")
