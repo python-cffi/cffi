@@ -624,6 +624,9 @@ def test_struct_init_list():
     s = newp(BStructPtr, [12, 34, 56, p])
     assert s.p4 == p
     #
+    s = newp(BStructPtr, [12, 34, 56, cast(BVoidP, 0)])
+    assert s.p4 == cast(BVoidP, 0)
+    #
     py.test.raises(TypeError, newp, BStructPtr, [12, 34, 56, None])
 
 def test_array_in_struct():
