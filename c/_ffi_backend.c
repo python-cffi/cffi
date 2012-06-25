@@ -2909,11 +2909,11 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     PyObject *fargs;
     CTypeDescrObject *fresult;
     CTypeDescrObject *fct;
-    int ellipsis;
+    int ellipsis = 0;
     struct funcbuilder_s funcbuilder;
     Py_ssize_t i;
 
-    if (!PyArg_ParseTuple(args, "O!O!i:new_function_type",
+    if (!PyArg_ParseTuple(args, "O!O!|i:new_function_type",
                           &PyTuple_Type, &fargs,
                           &CTypeDescr_Type, &fresult,
                           &ellipsis))
