@@ -64,6 +64,8 @@ class FFI(object):
                 equiv = 'signed %s'
             lines.append('typedef %s %s;' % (equiv % by_size[size], name))
         self.cdef('\n'.join(lines))
+        #
+        self.NULL = self.cast("void *", 0)
 
     def cdef(self, csource):
         """Parse the given C source.  This registers all declared functions,

@@ -1463,10 +1463,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             PyObject *obj = PyTuple_GET_ITEM(args, i);
             CTypeDescrObject *ct;
 
-            if (obj == Py_None) {
-                ct = NULL;    /* stand for 'void *' */
-            }
-            else if (CData_Check(obj)) {
+            if (CData_Check(obj)) {
                 ct = ((CDataObject *)obj)->c_type;
                 if (ct->ct_flags & CT_ARRAY)
                     ct = (CTypeDescrObject *)ct->ct_stuff;
@@ -1506,11 +1503,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         else
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(fvarargs, i);
 
-        if (argtype == NULL) {        /* stands for a NULL pointer */
-            assert(obj == Py_None);
-            *(char **)data = NULL;
-        }
-        else if ((argtype->ct_flags & CT_POINTER) &&
+        if ((argtype->ct_flags & CT_POINTER) &&
             (argtype->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) &&
             PyString_Check(obj)) {
             /* special case: Python string -> cdata 'char *' */

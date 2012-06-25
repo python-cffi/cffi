@@ -129,6 +129,9 @@ def test_character_type():
     assert type(int(cast(p, 'A'))) is int
     assert type(long(cast(p, 'A'))) is long
     assert str(cast(p, 'A')) == 'A'
+    assert repr(cast(p, 'A')) == "<cdata 'char' 'A'>"
+    assert repr(cast(p, 255)) == r"<cdata 'char' '\xff'>"
+    assert repr(cast(p, 0)) == r"<cdata 'char' '\x00'>"
 
 def test_pointer_type():
     p = new_primitive_type("int")
@@ -769,6 +772,7 @@ def test_call_function_9():
     assert f(1, cast(BInt, 42)) == 42
     assert f(2, cast(BInt, 40), cast(BInt, 2)) == 42
     py.test.raises(TypeError, f, 1, 42)
+    py.test.raises(TypeError, f, 2, None)
 
 def test_new_charp():
     BChar = new_primitive_type("char")

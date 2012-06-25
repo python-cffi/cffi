@@ -87,11 +87,11 @@ class TestFunction(object):
         with FdWriteCapture() as fd:
             ffi.C.puts("hello")
             ffi.C.puts("  world")
-            ffi.C.fflush(None)
+            ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
         assert res == 'hello\n  world\n'
 
-    def test_puts_wihtout_const(self):
+    def test_puts_without_const(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int puts(char *);
@@ -102,7 +102,7 @@ class TestFunction(object):
         with FdWriteCapture() as fd:
             ffi.C.puts("hello")
             ffi.C.puts("  world")
-            ffi.C.fflush(None)
+            ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
         assert res == 'hello\n  world\n'
 
@@ -136,8 +136,8 @@ class TestFunction(object):
                          ffi.cast("int", 42),
                          ffi.cast("long", 84),
                          ffi.cast("long long", 168))
-            ffi.C.printf("hello %p\n", None)
-            ffi.C.fflush(None)
+            ffi.C.printf("hello %p\n", ffi.NULL)
+            ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
         if sys.platform == 'win32':
             NIL = "00000000"
@@ -173,7 +173,7 @@ class TestFunction(object):
     def test_function_pointer(self):
         ffi = FFI(backend=self.Backend())
         def cb(charp):
-            assert repr(charp) == "<cdata 'char *'>"
+            assert repr(charp).startswith("<cdata 'char *' 0x")
             return 42
         fptr = ffi.callback("int(*)(const char *txt)", cb)
         assert fptr != ffi.callback("int(*)(const char *)", cb)
@@ -188,10 +188,10 @@ class TestFunction(object):
         ffi.C = ffi.dlopen(None)
         fptr = ffi.cast("int(*)(const char *txt)", ffi.C.puts)
         assert fptr == ffi.C.puts
-        assert repr(fptr) == "<cdata 'int(*)(char *)'>"
+        assert repr(fptr).startswith("<cdata 'int(*)(char *)' 0x")
         with FdWriteCapture() as fd:
             fptr("world")
-            ffi.C.fflush(None)
+            ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
         assert res == 'world\n'
 
@@ -216,8 +216,8 @@ class TestFunction(object):
         ffi.C = ffi.dlopen(None)
         pout = ffi.C.stdout
         perr = ffi.C.stderr
-        assert repr(pout) == "<cdata 'void *'>"
-        assert repr(perr) == "<cdata 'void *'>"
+        assert repr(pout).startswith("<cdata 'void *' 0x")
+        assert repr(perr).startswith("<cdata 'void *' 0x")
         with FdWriteCapture(2) as fd:     # capturing stderr
             ffi.C.stdout = perr
             try:
