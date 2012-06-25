@@ -62,7 +62,7 @@ Requirements:
 
 * CPython 2.6 or 2.7 (you need ``python-dev``)
 
-* pycparser 2.06: http://code.google.com/p/pycparser/
+* pycparser 2.06 or 2.07: http://code.google.com/p/pycparser/
 
 * libffi (you need ``libffi-dev``); on Windows, it is included already.
 
