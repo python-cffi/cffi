@@ -64,9 +64,7 @@ Requirements:
 
 * pycparser 2.06: http://code.google.com/p/pycparser/
 
-* libffi (you need ``libffi-dev``); or, on Windows, you need to
-  copy the directory ``Modules\_ctypes\libffi_msvc`` from the
-  CPython sources (2.6 or 2.7) into the top-level directory.
+* libffi (you need ``libffi-dev``); on Windows, it is included already.
 
 Download and Installation:
 
