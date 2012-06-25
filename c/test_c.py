@@ -48,11 +48,11 @@ def test_new_primitive_type():
 def test_cast_to_signed_char():
     p = new_primitive_type("signed char")
     x = cast(p, -65 + 17*256)
-    assert repr(x) == "<cdata 'signed char'>"
+    assert repr(x) == "<cdata 'signed char' -65>"
     assert repr(type(x)) == "<type '_ffi_backend.CData'>"
     assert int(x) == -65
     x = cast(p, -66 + (1<<199)*256)
-    assert repr(x) == "<cdata 'signed char'>"
+    assert repr(x) == "<cdata 'signed char' -66>"
     assert int(x) == -66
     assert (x == cast(p, -66)) is False
     assert (x != cast(p, -66)) is True
@@ -75,7 +75,7 @@ def test_integer_types():
         assert int(cast(p, max)) == max
         assert int(cast(p, min - 1)) == max
         assert int(cast(p, max + 1)) == min
-        assert int(cast(p, None)) == 0
+        py.test.raises(TypeError, cast, p, None)
         assert long(cast(p, min - 1)) == max
     for name in ['char', 'short', 'int', 'long', 'long long']:
         p = new_primitive_type('unsigned ' + name)
@@ -118,7 +118,7 @@ def test_float_types():
         assert repr(float(cast(p, -0.0))) == '-0.0'
         assert float(cast(p, '\x09')) == 9.0
         assert float(cast(p, True)) == 1.0
-        assert float(cast(p, None)) == 0.0
+        py.test.raises(TypeError, cast, p, None)
 
 def test_character_type():
     p = new_primitive_type("char")
@@ -142,22 +142,23 @@ def test_pointer_type():
 
 def test_pointer_to_int():
     BInt = new_primitive_type("int")
+    py.test.raises(TypeError, newp, BInt)
     py.test.raises(TypeError, newp, BInt, None)
     BPtr = new_pointer_type(BInt)
+    p = newp(BPtr)
+    assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
     p = newp(BPtr, None)
     assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
     p = newp(BPtr, 5000)
     assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
     q = cast(BPtr, p)
-    assert repr(q) == "<cdata 'int *'>"
+    assert repr(q).startswith("<cdata 'int *' 0x")
     assert p == q
     assert hash(p) == hash(q)
 
 def test_pointer_bool():
     BInt = new_primitive_type("int")
     BPtr = new_pointer_type(BInt)
-    p = cast(BPtr, None)
-    assert bool(p) is False
     p = cast(BPtr, 0)
     assert bool(p) is False
     p = cast(BPtr, 42)
@@ -231,6 +232,29 @@ def test_reading_pointer_to_char():
     py.test.raises(TypeError, newp, BPtr, "foo")
     assert str(cast(BChar, 'A')) == 'A'
     py.test.raises(TypeError, cast, BChar, 'foo')
+
+def test_reading_pointer_to_pointer():
+    BVoidP = new_pointer_type(new_void_type())
+    BCharP = new_pointer_type(new_primitive_type("char"))
+    BInt = new_primitive_type("int")
+    BIntPtr = new_pointer_type(BInt)
+    BIntPtrPtr = new_pointer_type(BIntPtr)
+    q = newp(BIntPtr, 42)
+    assert q[0] == 42
+    p = newp(BIntPtrPtr, None)
+    assert p[0] is not None
+    assert p[0] == cast(BVoidP, 0)
+    assert p[0] == cast(BCharP, 0)
+    assert p[0] != None
+    assert repr(p[0]) == "<cdata 'int *' NULL>"
+    p[0] = q
+    assert p[0] != cast(BVoidP, 0)
+    assert p[0] != cast(BCharP, 0)
+    assert p[0][0] == 42
+    q[0] += 1
+    assert p[0][0] == 43
+    p = newp(BIntPtrPtr, q)
+    assert p[0][0] == 43
 
 def test_hash_differences():
     BChar = new_primitive_type("char")
@@ -375,10 +399,10 @@ def test_array_add():
     a = newp(p2, [range(n, n+5) for n in [100, 200, 300]])
     assert repr(a) == "<cdata 'int[3][5]' owning %d bytes>" % (
         3*5*size_of_int(),)
-    assert repr(a + 0) == "<cdata 'int(*)[5]'>"
-    assert repr(a[0]) == "<cdata 'int[5]'>"
-    assert repr((a + 0)[0]) == "<cdata 'int[5]'>"
-    assert repr(a[0] + 0) == "<cdata 'int *'>"
+    assert repr(a + 0).startswith("<cdata 'int(*)[5]' 0x")
+    assert repr(a[0]).startswith("<cdata 'int[5]' 0x")
+    assert repr((a + 0)[0]).startswith("<cdata 'int[5]' 0x")
+    assert repr(a[0] + 0).startswith("<cdata 'int *' 0x")
     assert type(a[0][0]) is int
     assert type((a[0] + 0)[0]) is int
 
@@ -459,12 +483,11 @@ def test_cast_between_pointers():
     f = cast(BIntP, int(d))
     assert f[3] == 43
     #
-    for null in [0, None]:
-        b = cast(BShortP, null)
-        assert not b
-        c = cast(BIntP, b)
-        assert not c
-        assert int(cast(BLongLong, c)) == 0
+    b = cast(BShortP, 0)
+    assert not b
+    c = cast(BIntP, b)
+    assert not c
+    assert int(cast(BLongLong, c)) == 0
 
 def test_alignof():
     BInt = new_primitive_type("int")
@@ -538,7 +561,7 @@ def test_struct_instance():
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo")
     BStructPtr = new_pointer_type(BStruct)
-    p = cast(BStructPtr, None)
+    p = cast(BStructPtr, 0)
     py.test.raises(AttributeError, "p.a1")    # opaque
     complete_struct_or_union(BStruct, [('a1', BInt, -1),
                                        ('a2', BInt, -1)])
@@ -553,6 +576,15 @@ def test_struct_instance():
     py.test.raises(AttributeError, "p.foobar")
     py.test.raises(AttributeError, "s.foobar")
 
+def test_union_instance():
+    BInt = new_primitive_type("int")
+    BUInt = new_primitive_type("unsigned int")
+    BUnion = new_union_type("bar")
+    complete_struct_or_union(BUnion, [('a1', BInt, -1), ('a2', BUInt, -1)])
+    p = newp(new_pointer_type(BUnion), -42)
+    assert p.a1 == -42
+    assert p.a2 == -42 + (1 << (8*size_of_int()))
+
 def test_struct_pointer():
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo")
@@ -566,23 +598,33 @@ def test_struct_pointer():
     assert p.a2 == 123
 
 def test_struct_init_list():
+    BVoidP = new_pointer_type(new_void_type())
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo")
     BStructPtr = new_pointer_type(BStruct)
     complete_struct_or_union(BStruct, [('a1', BInt, -1),
                                        ('a2', BInt, -1),
-                                       ('a3', BInt, -1)])
+                                       ('a3', BInt, -1),
+                                       ('p4', new_pointer_type(BInt), -1)])
     s = newp(BStructPtr, [123, 456])
     assert s.a1 == 123
     assert s.a2 == 456
     assert s.a3 == 0
+    assert s.p4 == cast(BVoidP, 0)
     #
     s = newp(BStructPtr, {'a2': 41122, 'a3': -123})
     assert s.a1 == 0
     assert s.a2 == 41122
     assert s.a3 == -123
+    assert s.p4 == cast(BVoidP, 0)
     #
     py.test.raises(KeyError, newp, BStructPtr, {'foobar': 0})
+    #
+    p = newp(new_pointer_type(BInt), 14141)
+    s = newp(BStructPtr, [12, 34, 56, p])
+    assert s.p4 == p
+    #
+    py.test.raises(TypeError, newp, BStructPtr, [12, 34, 56, None])
 
 def test_array_in_struct():
     BInt = new_primitive_type("int")
@@ -591,7 +633,7 @@ def test_array_in_struct():
     complete_struct_or_union(BStruct, [('a1', BArrayInt5, -1)])
     s = newp(new_pointer_type(BStruct), [[20, 24, 27, 29, 30]])
     assert s.a1[2] == 27
-    assert repr(s.a1) == "<cdata 'int[5]'>"
+    assert repr(s.a1).startswith("<cdata 'int[5]' 0x")
 
 def test_offsetof():
     BInt = new_primitive_type("int")
@@ -760,8 +802,9 @@ def test_write_variable():
     BVoidP = new_pointer_type(new_void_type())
     ll = find_and_load_library('c')
     stderr = ll.read_variable(BVoidP, "stderr")
-    ll.write_variable(BVoidP, "stderr", None)
-    assert ll.read_variable(BVoidP, "stderr") is None
+    ll.write_variable(BVoidP, "stderr", cast(BVoidP, 0))
+    assert ll.read_variable(BVoidP, "stderr") is not None
+    assert not ll.read_variable(BVoidP, "stderr")
     ll.write_variable(BVoidP, "stderr", stderr)
     assert ll.read_variable(BVoidP, "stderr") == stderr
 
@@ -798,7 +841,7 @@ def test_enum_type():
 def test_cast_to_enum():
     BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
     e = cast(BEnum, 0)
-    assert repr(e) == "<cdata 'enum foo'>"
+    assert repr(e) == "<cdata 'enum foo' 'def'>"
     assert str(e) == 'def'
     assert str(cast(BEnum, -20)) == 'ab'
     assert str(cast(BEnum, 'c')) == 'c'
@@ -807,6 +850,8 @@ def test_cast_to_enum():
     assert int(cast(BEnum, -242 + 2**128)) == -242
     assert str(cast(BEnum, -242 + 2**128)) == '#-242'
     assert str(cast(BEnum, '#-20')) == 'ab'
+    assert repr(cast(BEnum, '#-20')) == "<cdata 'enum foo' 'ab'>"
+    assert repr(cast(BEnum, '#-21')) == "<cdata 'enum foo' '#-21'>"
 
 def test_enum_in_struct():
     BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))

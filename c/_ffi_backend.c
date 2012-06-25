@@ -550,13 +550,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         /* non-primitive types (check done just for performance) */
         if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
             char *ptrdata = *(char **)data;
-            if (ptrdata != NULL) {
-                return new_simple_cdata(ptrdata, ct);
-            }
-            else {
-                Py_INCREF(Py_None);
-                return Py_None;
-            }
+            return new_simple_cdata(ptrdata, ct);
         }
         else if (ct->ct_flags & CT_IS_OPAQUE) {
             PyErr_Format(PyExc_TypeError, "cannot return a cdata '%s'",
@@ -759,21 +753,17 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         char *ptrdata;
         CTypeDescrObject *ctinit;
 
-        if (init != Py_None) {
-            expected = "compatible pointer";
-            if (!CData_Check(init))
-                goto cannot_convert;
-            ctinit = ((CDataObject *)init)->c_type;
-            if (!(ctinit->ct_flags & (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)))
-                goto cannot_convert;
-            if (ctinit->ct_itemdescr != ct->ct_itemdescr &&
-                    !(ct->ct_itemdescr->ct_flags & CT_CAST_ANYTHING))
-                goto cannot_convert;
-            ptrdata = ((CDataObject *)init)->c_data;
-        }
-        else {
-            ptrdata = NULL;
-        }
+        expected = "compatible pointer";
+        if (!CData_Check(init))
+            goto cannot_convert;
+        ctinit = ((CDataObject *)init)->c_type;
+        if (!(ctinit->ct_flags & (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)))
+            goto cannot_convert;
+        if (ctinit->ct_itemdescr != ct->ct_itemdescr &&
+            !(ct->ct_itemdescr->ct_flags & CT_CAST_ANYTHING))
+            goto cannot_convert;
+        ptrdata = ((CDataObject *)init)->c_data;
+
         *(char **)data = ptrdata;
         return 0;
     }
@@ -1027,7 +1017,32 @@ static int cdata_traverse(CDataObject *cd, visitproc visit, void *arg)
 
 static PyObject *cdata_repr(CDataObject *cd)
 {
-    return PyString_FromFormat("<cdata '%s'>", cd->c_type->ct_name);
+    char *p;
+    PyObject *result, *s = NULL;
+
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
+        PyObject *o = convert_to_object(cd->c_data, cd->c_type);
+        if (o == NULL)
+            return NULL;
+        s = PyObject_Repr(o);
+        Py_DECREF(o);
+        if (s == NULL)
+            return NULL;
+        p = PyString_AS_STRING(s);
+    }
+    else {
+        if (cd->c_data != NULL) {
+            s = PyString_FromFormat("%p", cd->c_data);
+            if (s == NULL)
+                return NULL;
+            p = PyString_AS_STRING(s);
+        }
+        else
+            p = "NULL";
+    }
+    result = PyString_FromFormat("<cdata '%s' %s>", cd->c_type->ct_name, p);
+    Py_XDECREF(s);
+    return result;
 }
 
 static PyObject *cdata_str(CDataObject *cd)
@@ -1145,29 +1160,20 @@ static PyObject *cdata_float(CDataObject *cd)
 
 static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
 {
-    int res, full_order;
+    int res;
     PyObject *pyres;
     char *v_cdata, *w_cdata;
 
-    full_order = (op != Py_EQ && op != Py_NE);
-
     assert(CData_Check(v));
-    v_cdata = ((CDataObject *)v)->c_data;
-    if (full_order &&
-        (((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY))
-        goto Error;
-
-    if (w == Py_None) {
-        w_cdata = NULL;
-    }
-    else if (CData_Check(w)) {
-        w_cdata = ((CDataObject *)w)->c_data;
-        if (full_order &&
-            (((CDataObject *)w)->c_type->ct_flags & CT_PRIMITIVE_ANY))
-            goto Error;
-    }
-    else
+    if (!CData_Check(w))
         goto Unimplemented;
+
+    v_cdata = ((CDataObject *)v)->c_data;
+    w_cdata = ((CDataObject *)w)->c_data;
+    if ((op != Py_EQ && op != Py_NE) &&
+        ((((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY) ||
+         (((CDataObject *)w)->c_type->ct_flags & CT_PRIMITIVE_ANY)))
+        goto Error;
 
     switch (op) {
     case Py_EQ: res = (v_cdata == w_cdata); break;
@@ -1735,9 +1741,9 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct, *ctitem;
     CDataObject_own_base *cdb;
-    PyObject *init;
+    PyObject *init = Py_None;
     Py_ssize_t dataoffset, datasize, explicitlength;
-    if (!PyArg_ParseTuple(args, "O!O:newp", &CTypeDescr_Type, &ct, &init))
+    if (!PyArg_ParseTuple(args, "O!|O:newp", &CTypeDescr_Type, &ct, &init))
         return NULL;
 
     explicitlength = -1;
@@ -1854,9 +1860,6 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
             value = (unsigned char)PyString_AS_STRING(ob)[0];
         }
     }
-    else if (ob == Py_None) {
-        value = 0;
-    }
     else {
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
@@ -1887,14 +1890,9 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
                 return new_simple_cdata(cdsrc->c_data, ct);
             }
         }
-        if (ob == Py_None) {
-            value = 0;
-        }
-        else {
-            value = _my_PyLong_AsUnsignedLongLong(ob, 0);
-            if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
-                return NULL;
-        }
+        value = _my_PyLong_AsUnsignedLongLong(ob, 0);
+        if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
+            return NULL;
         return new_simple_cdata((char *)(Py_intptr_t)value, ct);
     }
     else if (ct->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED
@@ -1927,9 +1925,6 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
                 goto cannot_cast;
             }
             value = (unsigned char)PyString_AS_STRING(io)[0];
-        }
-        else if (io == Py_None) {
-            value = 0.0;
         }
         else {
             value = PyFloat_AsDouble(io);
@@ -3418,9 +3413,6 @@ static char *_cffi_to_c_char_p(PyObject *obj)
 {
     if (PyString_Check(obj)) {
         return PyString_AS_STRING(obj);
-    }
-    if (obj == Py_None) {
-        return NULL;
     }
     if (CData_Check(obj)) {
         return ((CDataObject *)obj)->c_data;
