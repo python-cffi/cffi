@@ -555,6 +555,13 @@ def test_struct_init_list():
     assert s.a1 == 123
     assert s.a2 == 456
     assert s.a3 == 0
+    #
+    s = newp(BStructPtr, {'a2': 41122, 'a3': -123})
+    assert s.a1 == 0
+    assert s.a2 == 41122
+    assert s.a3 == -123
+    #
+    py.test.raises(KeyError, newp, BStructPtr, {'foobar': 0})
 
 def test_array_in_struct():
     BInt = new_primitive_type("int")
