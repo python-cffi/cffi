@@ -655,6 +655,15 @@ class BackendTests:
         assert a == b
         assert hash(a) == hash(b)
 
+    def test_callback_crash(self):
+        py.test.skip("in-progress")
+        ffi = FFI(backend=self.Backend())
+        def cb(n):
+            raise Exception
+        a = ffi.callback("int(*)(int)", cb, error=42)
+        res = a(1)    # and the error reported to stderr
+        assert res == 42
+
     def test_cast_float(self):
         ffi = FFI(backend=self.Backend())
         a = ffi.cast("float", 12)
