@@ -291,7 +291,7 @@ def test_array_type():
                    new_array_type, new_pointer_type(p), sys.maxint // 3)
 
 def test_array_instance():
-    LENGTH = 14242
+    LENGTH = 1423
     p = new_primitive_type("int")
     p1 = new_array_type(new_pointer_type(p), LENGTH)
     a = newp(p1, None)
