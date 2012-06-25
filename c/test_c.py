@@ -1023,3 +1023,10 @@ def test_str():
     assert str(a) == "hello"
     p = a + 2
     assert str(p) == "llo"
+
+def test_bug_convert_to_ptr():
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BDouble = new_primitive_type("double")
+    x = cast(BDouble, 42)
+    py.test.raises(TypeError, newp, new_pointer_type(BCharP), x)
