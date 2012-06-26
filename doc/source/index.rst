@@ -367,7 +367,8 @@ map to small integers, use either ``signed char`` or ``unsigned char``.)
 
 Pointers, structures and arrays are more complex: they don't have an
 obvious Python equivalent.  Thus, they correspond to objects of type
-``cdata``, which are printed for example as ``<cdata 'struct foo_s *'>``.
+``cdata``, which are printed for example as
+``<cdata 'struct foo_s *' 0xa3290d8>``.
 
 ``ffi.new(ctype, [initializer])``: this function builds a new cdata
 object of the given ``ctype``.  The ctype is usually some constant
@@ -430,7 +431,7 @@ is the only way to get cdata objects of integer or floating-point type::
 
     >>> x = ffi.cast("int", 42)
     >>> x
-    <cdata 'int'>
+    <cdata 'int' 42>
     >>> int(x)
     42
 
