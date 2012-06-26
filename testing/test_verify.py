@@ -518,3 +518,22 @@ def test_varargs_exact():
             return x;
         }
     """)
+
+def test_varargs_struct():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { char a; int b; }; int foo(int x, ...);")
+    lib = ffi.verify("""
+        struct foo_s {
+            char a; int b;
+        };
+        int foo(int x, ...) {
+            va_list vargs;
+            struct foo_s s;
+            va_start(vargs, x);
+            s = va_arg(vargs, struct foo_s);
+            va_end(vargs);
+            return s.a - s.b;
+        }
+    """)
+    s = ffi.new("struct foo_s", ['B', 1])
+    assert lib.foo(50, s[0]) == ord('A')
