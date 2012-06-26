@@ -164,7 +164,10 @@ class CTypesGenericPtr(CTypesData):
         return self
 
     def _get_own_repr(self):
-        return self._addr_repr(self._address)
+        try:
+            return self._addr_repr(self._address)
+        except AttributeError:
+            return '???'
 
     def _cast_to_integer(self):
         return self._address
@@ -706,21 +709,33 @@ class CTypesBackend(object):
                                       use_errno=True)
             _reftypename = BResult._get_c_name('(* &)(%s)' % (nameargs,))
 
-            def __init__(self, init):
+            def __init__(self, init, error=None):
                 # create a callback to the Python callable init()
+                import traceback
                 assert not has_varargs, "varargs not supported for callbacks"
+                if getattr(BResult, '_ctype', None) is not None:
+                    error = BResult._from_ctypes(
+                        BResult._create_ctype_obj(error))
+                else:
+                    error = None
                 def callback(*args):
                     args2 = []
                     for arg, BArg in zip(args, BArgs):
                         args2.append(BArg._from_ctypes(arg))
-                    res2 = init(*args2)
-                    res2 = BResult._to_ctypes(res2)
+                    try:
+                        res2 = init(*args2)
+                    except:
+                        traceback.print_exc()
+                        res2 = error
+                    else:
+                        res2 = BResult._to_ctypes(res2)
                     if issubclass(BResult, CTypesGenericPtr):
                         if res2:
                             res2 = ctypes.cast(res2, ctypes.c_void_p).value
                                 # .value: http://bugs.python.org/issue1574593
                         else:
                             res2 = None
+                    print repr(res2)
                     return res2
                 if issubclass(BResult, CTypesGenericPtr):
                     # The only pointers callbacks can return are void*s:
@@ -869,8 +884,8 @@ class CTypesBackend(object):
     def cast(self, BType, source):
         return BType._cast_from(source)
 
-    def callback(self, BType, source):
-        return BType(source)
+    def callback(self, BType, source, error):
+        return BType(source, error)
 
     typeof = type
 

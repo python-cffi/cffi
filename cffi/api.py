@@ -170,7 +170,7 @@ class FFI(object):
         """
         return self._backend.buffer(cdata, size)
 
-    def callback(self, cdecl, python_callable):
+    def callback(self, cdecl, python_callable, error=None):
         """Return a callback object.  'cdecl' must name a C function pointer
         type.  The callback invokes the specified 'python_callable'.
         Important: the callback object must be manually kept alive for as
@@ -179,7 +179,7 @@ class FFI(object):
         if not callable(python_callable):
             raise TypeError("the 'python_callable' argument is not callable")
         BFunc = self.typeof(cdecl)
-        return self._backend.callback(BFunc, python_callable)
+        return self._backend.callback(BFunc, python_callable, error)
 
     def getctype(self, cdecl, replace_with=''):
         """Return a string giving the C type 'cdecl', which may be itself

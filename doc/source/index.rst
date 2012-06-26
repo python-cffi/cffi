@@ -536,8 +536,16 @@ automatically inferred by the C backend.)
 Be careful when writing the Python callback function: if it returns an
 object of the wrong type, or more generally raises an exception, then
 the exception cannot be propagated.  Instead, it is printed to stderr
-and the C-level callback is made to return a null value (this is a
-random choice).
+and the C-level callback is made to return a default value.
+
+.. versionadded:: 0.2
+   The returned value in case of errors is null by default, but can be
+   specified with the ``error`` keyword argument to ``ffi.callback()``::
+
+       >>> ffi.callback("int(*)(int, int)", myfunc, error=42)
+
+   In all cases the exception is printed to stderr, so this should be
+   used only as a last-resort solution.
 
 
 Miscellaneous

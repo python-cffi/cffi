@@ -662,7 +662,6 @@ class BackendTests:
         assert hash(a) == hash(b)
 
     def test_callback_crash(self):
-        py.test.skip("in-progress")
         ffi = FFI(backend=self.Backend())
         def cb(n):
             raise Exception

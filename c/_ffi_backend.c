@@ -2921,6 +2921,11 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
                           &ellipsis))
         return NULL;
 
+    if (fresult->ct_size < 0 && !(fresult->ct_flags & CT_VOID)) {
+        PyErr_SetString(PyExc_TypeError, "result type is of unknown size");
+        return NULL;
+    }
+
     fct = fb_prepare_ctype(&funcbuilder, fargs, fresult, ellipsis);
     if (fct == NULL)
         return NULL;
@@ -2973,6 +2978,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     PyObject *py_ob = PyTuple_GET_ITEM(cb_args, 1);
     PyObject *py_args = NULL;
     PyObject *py_res = NULL;
+    PyObject *py_rawerr;
     Py_ssize_t i, n;
 
 #define SIGNATURE(i)  ((CTypeDescrObject *)PyTuple_GET_ITEM(signature, i))
@@ -3007,8 +3013,10 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
 
  error:
     PyErr_WriteUnraisable(py_ob);
-    if (SIGNATURE(0)->ct_size > 0)
-        memset(result, 0, SIGNATURE(0)->ct_size);
+    if (SIGNATURE(0)->ct_size > 0) {
+        py_rawerr = PyTuple_GET_ITEM(cb_args, 2);
+        memcpy(result, PyString_AS_STRING(py_rawerr), SIGNATURE(0)->ct_size);
+    }
     goto done;
     }
 
@@ -3017,13 +3025,16 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
 
 static PyObject *b_callback(PyObject *self, PyObject *args)
 {
-    CTypeDescrObject *ct;
+    CTypeDescrObject *ct, *ctresult;
     CDataObject_own_base *cdb;
-    PyObject *ob;
+    PyObject *ob, *error_ob = Py_None;
+    PyObject *py_rawerr, *infotuple = NULL;
     cif_description_t *cif_descr;
     ffi_closure *closure;
+    Py_ssize_t size;
 
-    if (!PyArg_ParseTuple(args, "O!O:callback", &CTypeDescr_Type, &ct, &ob))
+    if (!PyArg_ParseTuple(args, "O!O|O:callback", &CTypeDescr_Type, &ct, &ob,
+                          &error_ob))
         return NULL;
 
     if (!(ct->ct_flags & CT_FUNCTIONPTR)) {
@@ -3037,6 +3048,26 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
                      Py_TYPE(ob)->tp_name);
         return NULL;
     }
+
+    ctresult = (CTypeDescrObject *)PyTuple_GET_ITEM(ct->ct_stuff, 0);
+    size = ctresult->ct_size;
+    if (size < 0)
+        size = 0;
+    py_rawerr = PyString_FromStringAndSize(NULL, size);
+    if (py_rawerr == NULL)
+        return NULL;
+    memset(PyString_AS_STRING(py_rawerr), 0, size);
+    if (error_ob != Py_None) {
+        if (convert_from_object(PyString_AS_STRING(py_rawerr),
+                                ctresult, error_ob) < 0) {
+            Py_DECREF(py_rawerr);
+            return NULL;
+        }
+    }
+    infotuple = Py_BuildValue("OOO", ct, ob, py_rawerr);
+    Py_DECREF(py_rawerr);
+    if (infotuple == NULL)
+        return NULL;
 
     closure = cffi_closure_alloc();
 
@@ -3055,13 +3086,12 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         goto error;
     }
     if (ffi_prep_closure(closure, &cif_descr->cif,
-                         invoke_callback, args) != FFI_OK) {
+                         invoke_callback, infotuple) != FFI_OK) {
         PyErr_SetString(PyExc_SystemError,
                         "libffi failed to build this callback");
         goto error;
     }
-    assert(closure->user_data == args);
-    Py_INCREF(args);   /* capture the tuple (CTypeDescr, Python callable) */
+    assert(closure->user_data == infotuple);
     return (PyObject *)cdb;
 
  error:
@@ -3070,6 +3100,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         cffi_closure_free(closure);
     else
         Py_DECREF(cdb);
+    Py_XDECREF(infotuple);
     return NULL;
 }
 
