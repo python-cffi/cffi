@@ -1,6 +1,6 @@
 import py
 import sys, ctypes
-from cffi import FFI
+from cffi import FFI, CDefError
 
 SIZE_OF_INT   = ctypes.sizeof(ctypes.c_int)
 SIZE_OF_LONG  = ctypes.sizeof(ctypes.c_long)
@@ -984,3 +984,22 @@ class BackendTests:
         assert ffi.getctype("int[5]", '*') == "int(*)[5]"
         assert ffi.getctype("int[5]", '*foo') == "int(*foo)[5]"
         assert ffi.getctype("int[5]", ' ** foo ') == "int(** foo)[5]"
+
+    def test_array_of_func_ptr(self):
+        ffi = FFI(backend=self.Backend())
+        f = ffi.cast("int(*)(int)", 42)
+        assert f != ffi.NULL
+        py.test.raises(CDefError, ffi.cast, "int(int)", 42)
+        py.test.raises(CDefError, ffi.new, "int([5])(int)")
+        a = ffi.new("int(*[5])(int)", [f])
+        assert ffi.getctype(ffi.typeof(a)) == "int(*[5])(int)"
+        assert len(a) == 5
+        assert a[0] == f
+        assert a[1] == ffi.NULL
+        py.test.raises(TypeError, ffi.cast, "int(*)(int)[5]", 0)
+        #
+        def cb(n):
+            return n + 1
+        f = ffi.callback("int(*)(int)", cb)
+        a = ffi.new("int(*[5])(int)", [f, f])
+        assert a[1](42) == 43

@@ -172,7 +172,7 @@ class Verifier(object):
     def convert_expr_from_c(self, tp, var):
         if isinstance(tp, model.PrimitiveType):
             return '_cffi_from_c_%s(%s)' % (tp.name.replace(' ', '_'), var)
-        elif isinstance(tp, (model.PointerType, model.FunctionType)):
+        elif isinstance(tp, (model.PointerType, model.FunctionPtrType)):
             return '_cffi_from_c_pointer((char *)%s, _cffi_type(%d))' % (
                 var, self.gettypenum(tp))
         elif isinstance(tp, model.ArrayType):
@@ -193,7 +193,7 @@ class Verifier(object):
     # function declarations
 
     def generate_cpy_function_decl(self, tp, name):
-        assert isinstance(tp, model.FunctionType)
+        assert isinstance(tp, model.FunctionPtrType)
         if tp.ellipsis:
             # cannot support vararg functions better than this: check for its
             # exact type (including the fixed arguments), and build it as a

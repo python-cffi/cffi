@@ -85,19 +85,23 @@ class FFI(object):
         assert isinstance(name, str) or name is None
         return _make_ffi_library(self, name)
 
-    def typeof(self, cdecl):
+    def typeof(self, cdecl, consider_function_as_funcptr=False):
         """Parse the C type given as a string and return the
         corresponding Python type: <class 'ffi.CData<...>'>.
         It can also be used on 'cdata' instance to get its C type.
         """
         if isinstance(cdecl, basestring):
             try:
-                return self._parsed_types[cdecl]
+                btype, cfaf = self._parsed_types[cdecl]
+                if consider_function_as_funcptr and not cfaf:
+                    raise KeyError
             except KeyError:
-                type = self._parser.parse_type(cdecl)
+                cfaf = consider_function_as_funcptr
+                type = self._parser.parse_type(cdecl,
+                           consider_function_as_funcptr=cfaf)
                 btype = self._get_cached_btype(type)
-                self._parsed_types[cdecl] = btype
-                return btype
+                self._parsed_types[cdecl] = btype, cfaf
+            return btype
         else:
             return self._backend.typeof(cdecl)
 
@@ -178,7 +182,7 @@ class FFI(object):
         """
         if not callable(python_callable):
             raise TypeError("the 'python_callable' argument is not callable")
-        BFunc = self.typeof(cdecl)
+        BFunc = self.typeof(cdecl, consider_function_as_funcptr=True)
         return self._backend.callback(BFunc, python_callable, error)
 
     def getctype(self, cdecl, replace_with=''):

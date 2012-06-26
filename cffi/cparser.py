@@ -98,8 +98,10 @@ class Parser(object):
     def _parse_decl(self, decl):
         node = decl.type
         if isinstance(node, pycparser.c_ast.FuncDecl):
-            self._declare('function ' + decl.name,
-                          self._get_type(node, name=decl.name))
+            tp = self._get_type(node, name=decl.name)
+            assert isinstance(tp, model.RawFunctionType)
+            tp = self._get_type_pointer(tp)
+            self._declare('function ' + decl.name, tp)
         else:
             if isinstance(node, pycparser.c_ast.Struct):
                 # XXX do we need self._declare in any of those?
@@ -122,11 +124,16 @@ class Parser(object):
                 else:
                     self._declare('variable ' + decl.name, tp)
 
-    def parse_type(self, cdecl, force_pointer=False):
+    def parse_type(self, cdecl, force_pointer=False,
+                   consider_function_as_funcptr=False):
         ast, macros = self._parse('void __dummy(%s);' % cdecl)
         assert not macros
         typenode = ast.ext[-1].type.args.params[0].type
-        return self._get_type(typenode, force_pointer=force_pointer)
+        type = self._get_type(typenode, force_pointer=force_pointer)
+        if consider_function_as_funcptr:
+            if isinstance(type, model.RawFunctionType):
+                type = self._get_type_pointer(type)
+        return type
 
     def _declare(self, name, obj):
         if name in self._declarations:
@@ -137,8 +144,8 @@ class Parser(object):
         self._declarations[name] = obj
 
     def _get_type_pointer(self, type, const=False):
-        if isinstance(type, model.FunctionType):
-            return type # "pointer-to-function" ~== "function"
+        if isinstance(type, model.RawFunctionType):
+            return model.FunctionPtrType(type.args, type.result, type.ellipsis)
         if const:
             return model.ConstPointerType(type)
         return model.PointerType(type)
@@ -236,7 +243,7 @@ class Parser(object):
                                convert_array_to_pointer=True)
                 for argdeclnode in params]
         result = self._get_type(typenode.type)
-        return model.FunctionType(tuple(args), result, ellipsis)
+        return model.RawFunctionType(tuple(args), result, ellipsis)
 
     def _is_constant_declaration(self, typenode, const=False):
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):

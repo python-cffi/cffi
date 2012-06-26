@@ -2921,8 +2921,15 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
                           &ellipsis))
         return NULL;
 
-    if (fresult->ct_size < 0 && !(fresult->ct_flags & CT_VOID)) {
-        PyErr_SetString(PyExc_TypeError, "result type is of unknown size");
+    if (fresult->ct_flags & (CT_STRUCT|CT_UNION)) {
+        PyErr_SetString(PyExc_NotImplementedError,
+                        "functions returning a struct or a union");
+        return NULL;
+    }
+    if ((fresult->ct_size < 0 && !(fresult->ct_flags & CT_VOID)) ||
+        (fresult->ct_flags & CT_ARRAY)) {
+        PyErr_Format(PyExc_TypeError, "invalid result type: '%s'",
+                     fresult->ct_name);
         return NULL;
     }
 

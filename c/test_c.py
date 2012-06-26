@@ -1118,3 +1118,15 @@ def test_set_struct_fields():
     assert list(p.a1) == ['f', 'o', 'o'] + ['\x00'] * 7
     p.a1 = ['x', 'y']
     assert str(p.a1) == 'xyo'
+
+def test_no_struct_return_in_func():
+    BFunc = new_function_type((), new_void_type())
+    BArray = new_array_type(new_pointer_type(BFunc), 5)        # works
+    new_function_type((), BFunc)    # works
+    new_function_type((), new_primitive_type("int"))
+    new_function_type((), new_pointer_type(BFunc))
+    py.test.raises(NotImplementedError, new_function_type, (),
+                   new_struct_type("foo_s"))
+    py.test.raises(NotImplementedError, new_function_type, (),
+                   new_union_type("foo_u"))
+    py.test.raises(TypeError, new_function_type, (), BArray)

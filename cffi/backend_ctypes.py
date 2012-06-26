@@ -702,7 +702,7 @@ class CTypesBackend(object):
             nameargs.append('...')
         nameargs = ', '.join(nameargs)
         #
-        class CTypesFunction(CTypesGenericPtr):
+        class CTypesFunctionPtr(CTypesGenericPtr):
             __slots__ = ['_own_callback', '_name']
             _ctype = ctypes.CFUNCTYPE(getattr(BResult, '_ctype', None),
                                       *[BArg._ctype for BArg in BArgs],
@@ -745,11 +745,17 @@ class CTypesBackend(object):
                         *[BArg._ctype for BArg in BArgs],
                         use_errno=True)
                 else:
-                    callback_ctype = CTypesFunction._ctype
+                    callback_ctype = CTypesFunctionPtr._ctype
                 self._as_ctype_ptr = callback_ctype(callback)
                 self._address = ctypes.cast(self._as_ctype_ptr,
                                             ctypes.c_void_p).value
                 self._own_callback = init
+
+            @staticmethod
+            def _initialize(ctypes_ptr, value):
+                if value:
+                    raise NotImplementedError("ctypes backend: not supported: "
+                                          "initializers for function pointers")
 
             def __repr__(self):
                 c_name = getattr(self, '_name', None)
@@ -763,7 +769,7 @@ class CTypesBackend(object):
             def _get_own_repr(self):
                 if getattr(self, '_own_callback', None) is not None:
                     return 'calling %r' % (self._own_callback,)
-                return super(CTypesFunction, self)._get_own_repr()
+                return super(CTypesFunctionPtr, self)._get_own_repr()
 
             def __call__(self, *args):
                 if has_varargs:
@@ -789,8 +795,8 @@ class CTypesBackend(object):
                 result = self._as_ctype_ptr(*ctypes_args)
                 return BResult._from_ctypes(result)
         #
-        CTypesFunction._fix_class()
-        return CTypesFunction
+        CTypesFunctionPtr._fix_class()
+        return CTypesFunctionPtr
 
     def new_enum_type(self, name, enumerators, enumvalues):
         mapping = dict(zip(enumerators, enumvalues))
