@@ -2172,7 +2172,7 @@ static PyObject *b_nonstandard_integer_types(PyObject *self, PyObject *noarg)
         { "size_t",        sizeof(size_t) | UNSIGNED },
         { "ssize_t",       sizeof(ssize_t) },
         { "wchar_t",       sizeof(wchar_t) |
-                               (sizeof(wchar_t) < 4 ? UNSIGNED : 0 },
+                               (sizeof(wchar_t) < 4 ? UNSIGNED : 0) },
         { NULL }
     };
 #undef UNSIGNED
