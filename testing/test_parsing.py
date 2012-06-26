@@ -36,6 +36,11 @@ class FakeBackend(object):
     def new_array_type(self, ptrtype, length):
         return '<array %s x %s>' % (ptrtype, length)
 
+    def new_void_type(self):
+        return "<void>"
+    def cast(self, x, y):
+        return 'casted!'
+
 class FakeStruct(object):
     def __init__(self, name):
         self.name = name

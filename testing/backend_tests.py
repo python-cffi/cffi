@@ -1,6 +1,6 @@
 import py
 import sys, ctypes
-from cffi import FFI
+from cffi import FFI, CDefError
 
 SIZE_OF_INT   = ctypes.sizeof(ctypes.c_int)
 SIZE_OF_LONG  = ctypes.sizeof(ctypes.c_long)
@@ -148,10 +148,10 @@ class BackendTests:
     def test_pointer_init(self):
         ffi = FFI(backend=self.Backend())
         n = ffi.new("int", 24)
-        a = ffi.new("int *[10]", [None, None, n, n, None])
+        a = ffi.new("int *[10]", [ffi.NULL, ffi.NULL, n, n, ffi.NULL])
         for i in range(10):
             if i not in (2, 3):
-                assert a[i] is None
+                assert a[i] == ffi.NULL
         assert a[2] == a[3] == n
 
     def test_cannot_cast(self):
@@ -180,8 +180,8 @@ class BackendTests:
         assert p is not None
         assert bool(p) is False
         assert p == ffi.cast("int*", 0)
-        assert p == ffi.cast("int*", None)
-        assert p == None == p
+        assert p != None
+        assert repr(p) == "<cdata 'int *' NULL>"
         a = ffi.new("int[]", [123, 456])
         p = ffi.cast("int*", a)
         assert bool(p) is True
@@ -195,10 +195,10 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { short a, b, c; };")
         p = ffi.cast("unsigned short int", 0)
-        assert repr(p) == "<cdata 'unsigned short'>"
+        assert repr(p) == "<cdata 'unsigned short' 0>"
         assert repr(ffi.typeof(p)) == typerepr % "unsigned short"
         p = ffi.cast("int*", 0)
-        assert repr(p) == "<cdata 'int *'>"
+        assert repr(p) == "<cdata 'int *' NULL>"
         assert repr(ffi.typeof(p)) == typerepr % "int *"
         #
         p = ffi.new("int")
@@ -220,22 +220,23 @@ class BackendTests:
         assert repr(ffi.typeof(p)) == typerepr % "struct foo *"
         #
         q = ffi.cast("short", -123)
-        assert repr(q) == "<cdata 'short'>"
+        assert repr(q) == "<cdata 'short' -123>"
         assert repr(ffi.typeof(q)) == typerepr % "short"
         p = ffi.new("int")
         q = ffi.cast("short*", p)
-        assert repr(q) == "<cdata 'short *'>"
+        assert repr(q).startswith("<cdata 'short *' 0x")
         assert repr(ffi.typeof(q)) == typerepr % "short *"
         p = ffi.new("int [2]")
         q = ffi.cast("int*", p)
-        assert repr(q) == "<cdata 'int *'>"
+        assert repr(q).startswith("<cdata 'int *' 0x")
         assert repr(ffi.typeof(q)) == typerepr % "int *"
         p = ffi.new("struct foo")
         q = ffi.cast("struct foo *", p)
-        assert repr(q) == "<cdata 'struct foo *'>"
+        assert repr(q).startswith("<cdata 'struct foo *' 0x")
         assert repr(ffi.typeof(q)) == typerepr % "struct foo *"
+        prevrepr = repr(q)
         q = q[0]
-        assert repr(q) == "<cdata 'struct foo'>"
+        assert repr(q) == prevrepr.replace(' *', '')
         assert repr(ffi.typeof(q)) == typerepr % "struct foo"
 
     def test_new_array_of_array(self):
@@ -258,7 +259,7 @@ class BackendTests:
         p = ffi.new("int*[4]")
         p[3] = n
         a = p[3]
-        assert repr(a) == "<cdata 'int *'>"
+        assert repr(a).startswith("<cdata 'int *' 0x")
         assert a[0] == 99
 
     def test_new_array_of_pointer_2(self):
@@ -267,7 +268,7 @@ class BackendTests:
         p = ffi.new("int*[4]")
         p[3] = n
         a = p[3]
-        assert repr(a) == "<cdata 'int *'>"
+        assert repr(a).startswith("<cdata 'int *' 0x")
         assert a[0] == 99
 
     def test_char(self):
@@ -348,16 +349,20 @@ class BackendTests:
         assert [p[i] for i in range(2)] == [u'a', u'b']
         py.test.raises(IndexError, ffi.new, "wchar_t[2]", u"abc")
 
-    def test_none_as_null(self):
+    def test_none_as_null_doesnt_work(self):
         ffi = FFI(backend=self.Backend())
         p = ffi.new("int*[1]")
-        assert p[0] is None
+        assert p[0] is not None
+        assert p[0] != None
+        assert p[0] == ffi.NULL
+        assert repr(p[0]) == "<cdata 'int *' NULL>"
         #
         n = ffi.new("int", 99)
         p = ffi.new("int*[]", [n])
         assert p[0][0] == 99
-        p[0] = None
-        assert p[0] is None
+        py.test.raises(TypeError, "p[0] = None")
+        p[0] = ffi.NULL
+        assert p[0] == ffi.NULL
 
     def test_float(self):
         ffi = FFI(backend=self.Backend())
@@ -426,7 +431,7 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         py.test.raises(TypeError, ffi.new, "struct baz")
         p = ffi.new("struct baz *")    # this works
-        assert p[0] is None
+        assert p[0] == ffi.NULL
 
     def test_pointer_to_struct(self):
         ffi = FFI(backend=self.Backend())
@@ -491,7 +496,7 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         py.test.raises(TypeError, ffi.new, "union baz")
         u = ffi.new("union baz *")   # this works
-        assert u[0] is None
+        assert u[0] == ffi.NULL
 
     def test_sizeof_type(self):
         ffi = FFI(backend=self.Backend())
@@ -573,8 +578,9 @@ class BackendTests:
         s = ffi.new("struct foo", [t])
         assert type(s.name) is not str
         assert str(s.name) == "testing"
-        s.name = None
-        assert s.name is None
+        py.test.raises(TypeError, "s.name = None")
+        s.name = ffi.NULL
+        assert s.name == ffi.NULL
 
     def test_fetch_const_wchar_p_field(self):
         # 'const' is ignored so far
@@ -591,7 +597,7 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         py.test.raises(TypeError, ffi.new, "void")
         p = ffi.new("void *")
-        assert p[0] is None
+        assert p[0] == ffi.NULL
         a = ffi.new("int[]", [10, 11, 12])
         p = ffi.new("void *", a)
         vp = p[0]
@@ -629,7 +635,7 @@ class BackendTests:
         res = q[0](43)
         assert res == 44
         q = ffi.cast("int(*)(int)", p)
-        assert repr(q) == "<cdata 'int(*)(int)'>"
+        assert repr(q).startswith("<cdata 'int(*)(int)' 0x")
         res = q(45)
         assert res == 46
 
@@ -641,40 +647,40 @@ class BackendTests:
     def test_functionptr_voidptr_return(self):
         ffi = FFI(backend=self.Backend())
         def cb():
-            return None
+            return ffi.NULL
         p = ffi.callback("void*(*)()", cb)
         res = p()
-        assert res is None
+        assert res is not None
+        assert res == ffi.NULL
         int_ptr = ffi.new('int')
         void_ptr = ffi.cast('void*', int_ptr)
         def cb():
             return void_ptr
         p = ffi.callback("void*(*)()", cb)
         res = p()
-        assert repr(res) == "<cdata 'void *'>"
-        assert ffi.cast("long", res) != 0
+        assert res == void_ptr
 
     def test_functionptr_intptr_return(self):
         ffi = FFI(backend=self.Backend())
         def cb():
-            return None
+            return ffi.NULL
         p = ffi.callback("int*(*)()", cb)
         res = p()
-        assert res is None
+        assert res == ffi.NULL
         int_ptr = ffi.new('int')
         def cb():
             return int_ptr
         p = ffi.callback("int*(*)()", cb)
         res = p()
-        assert repr(res) == "<cdata 'int *'>"
-        assert ffi.cast("long", res) != 0
+        assert repr(res).startswith("<cdata 'int *' 0x")
+        assert res == int_ptr
         int_array_ptr = ffi.new('int[1]')
         def cb():
             return int_array_ptr
         p = ffi.callback("int*(*)()", cb)
         res = p()
-        assert repr(res) == "<cdata 'int *'>"
-        assert ffi.cast("long", res) != 0
+        assert repr(res).startswith("<cdata 'int *' 0x")
+        assert res == int_array_ptr
 
     def test_functionptr_void_return(self):
         ffi = FFI(backend=self.Backend())
@@ -734,7 +740,7 @@ class BackendTests:
         q = ffi.cast("short*", l1)
         assert q == ffi.cast("short*", int(l1))
         assert q[0] == 0x1234
-        assert int(ffi.cast("intptr_t", None)) == 0
+        assert int(ffi.cast("intptr_t", ffi.NULL)) == 0
 
     def test_cast_functionptr_and_int(self):
         ffi = FFI(backend=self.Backend())
@@ -747,6 +753,14 @@ class BackendTests:
         assert b(41) == 42
         assert a == b
         assert hash(a) == hash(b)
+
+    def test_callback_crash(self):
+        ffi = FFI(backend=self.Backend())
+        def cb(n):
+            raise Exception
+        a = ffi.callback("int(*)(int)", cb, error=42)
+        res = a(1)    # and the error reported to stderr
+        assert res == 42
 
     def test_cast_float(self):
         ffi = FFI(backend=self.Backend())
@@ -787,7 +801,7 @@ class BackendTests:
         assert ffi.cast("enum bar", "B") != ffi.cast("enum bar", "B")
         assert ffi.cast("enum foo", "A") != ffi.cast("enum bar", "A")
         assert ffi.cast("enum bar", "A") != ffi.cast("int", 0)
-        assert repr(ffi.cast("enum bar", "CC")) == "<cdata 'enum bar'>"
+        assert repr(ffi.cast("enum bar", "CC")) == "<cdata 'enum bar' 'CC'>"
 
     def test_enum_in_struct(self):
         ffi = FFI(backend=self.Backend())
@@ -1063,3 +1077,22 @@ class BackendTests:
         assert ffi.getctype("int[5]", '*') == "int(*)[5]"
         assert ffi.getctype("int[5]", '*foo') == "int(*foo)[5]"
         assert ffi.getctype("int[5]", ' ** foo ') == "int(** foo)[5]"
+
+    def test_array_of_func_ptr(self):
+        ffi = FFI(backend=self.Backend())
+        f = ffi.cast("int(*)(int)", 42)
+        assert f != ffi.NULL
+        py.test.raises(CDefError, ffi.cast, "int(int)", 42)
+        py.test.raises(CDefError, ffi.new, "int([5])(int)")
+        a = ffi.new("int(*[5])(int)", [f])
+        assert ffi.getctype(ffi.typeof(a)) == "int(*[5])(int)"
+        assert len(a) == 5
+        assert a[0] == f
+        assert a[1] == ffi.NULL
+        py.test.raises(TypeError, ffi.cast, "int(*)(int)[5]", 0)
+        #
+        def cb(n):
+            return n + 1
+        f = ffi.callback("int(*)(int)", cb)
+        a = ffi.new("int(*[5])(int)", [f, f])
+        assert a[1](42) == 43

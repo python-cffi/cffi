@@ -42,7 +42,7 @@ def walk(basefd, path):
         if ffi.C.readdir_r(dir, dirent, result):
             # error in readdir_r()
             break
-        if result[0] is None:
+        if result[0] == ffi.NULL:
             break
         name = str(dirent.d_name)
         print '%3d %s' % (dirent.d_type, name)

@@ -20,9 +20,16 @@ if COMPILE_LIBFFI:
         "into the top-level directory.")
     include_dirs.append(COMPILE_LIBFFI)
     libraries.remove('ffi')
+    _filenames = [filename.lower() for filename in os.listdir(COMPILE_LIBFFI)]
+    _filenames = [filename for filename in _filenames
+                           if filename.endswith('.c') or
+                              filename.endswith('.asm')]
+    if sys.maxsize <= 2**32:
+        _filenames.remove('win64.asm')
+    else:
+        _filenames.remove('win32.c')
     sources.extend(os.path.join(COMPILE_LIBFFI, filename)
-                   for filename in os.listdir(COMPILE_LIBFFI)
-                   if filename.lower().endswith('.c'))
+                   for filename in _filenames)
 else:
     try:
         p = subprocess.Popen(['pkg-config', '--cflags-only-I', 'libffi'],

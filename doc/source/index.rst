@@ -62,11 +62,9 @@ Requirements:
 
 * CPython 2.6 or 2.7 (you need ``python-dev``)
 
-* pycparser 2.06: http://code.google.com/p/pycparser/
+* pycparser 2.06 or 2.07: http://code.google.com/p/pycparser/
 
-* libffi (you need ``libffi-dev``); or, on Windows, you need to
-  copy the directory ``Modules\_ctypes\libffi_msvc`` from the
-  CPython sources (2.6 or 2.7) into the top-level directory.
+* libffi (you need ``libffi-dev``); on Windows, it is included already.
 
 Download and Installation:
 
@@ -194,7 +192,7 @@ from this library.
 
 The ``verify()`` line in the second example is an alternative: instead
 of doing a ``dlopen``, it generates and compiles a piece of C code.
-When using ``verify()`` you have the advantage that you can use ``...``
+When using ``verify()`` you have the advantage that you can use "``...``"
 at various places in the ``cdef()``, and the missing information will
 be completed with the help of the C compiler.  It also does checking,
 to verify that your declarations are correct.  If the C compiler gives
@@ -244,7 +242,7 @@ can assume to exist are the standard types:
   size_t, ssize_t
 
 As we will see on `the verification step`_ below, the declarations can
-also contain ``...`` at various places; there are placeholders that will
+also contain "``...``" at various places; there are placeholders that will
 be completed by a call to ``verify()``.
 
 
@@ -323,13 +321,13 @@ On the plus side, this solution gives more "C-like" flexibility:
 *  other arguments are checked: you get a compilation warning or error
    if you pass a ``int *`` argument to a function expecting a ``long *``.
 
-Moreover, you can use ``...`` in the following places in the ``cdef()``
+Moreover, you can use "``...``" in the following places in the ``cdef()``
 for leaving details unspecified (filled in by the C compiler):
 
 *  structure declarations: any ``struct`` that ends with "``...;``" is
    partial.  It will be completed by the compiler.  (But note that you
    can only access fields that you declared.)  Any ``struct``
-   declaration without ``...;`` is assumed to be exact, and this is
+   declaration without "``...;``" is assumed to be exact, and this is
    checked: you get a ``VerificationError`` if it is not.
 
 *  unknown types: the syntax "``typedef ... foo_t;``" declares the type
@@ -339,10 +337,13 @@ for leaving details unspecified (filled in by the C compiler):
    unspecified length, as in "``int n[];``".  The length is completed
    by the C compiler.
 
-*  enums: in "``enum foo { A, B, C, ... };``" (with a trailing ``...``),
+   .. versionadded:: 0.2
+      You can also specify it as "``int n[...];``".
+
+*  enums: in "``enum foo { A, B, C, ... };``" (with a trailing "``...``"),
    the enumerated values are not necessarily in order; the C compiler
    will reorder them as needed and skip any unmentioned value.  Like
-   with structs, an ``enum`` that does not end in ``...`` is assumed to
+   with structs, an ``enum`` that does not end in "``...``" is assumed to
    be exact, and this is checked.
 
 *  integer macros: you can write in the ``cdef`` the line
@@ -366,7 +367,8 @@ map to small integers, use either ``signed char`` or ``unsigned char``.)
 
 Pointers, structures and arrays are more complex: they don't have an
 obvious Python equivalent.  Thus, they correspond to objects of type
-``cdata``, which are printed for example as ``<cdata 'struct foo_s *'>``.
+``cdata``, which are printed for example as
+``<cdata 'struct foo_s *' 0xa3290d8>``.
 
 ``ffi.new(ctype, [initializer])``: this function builds a new cdata
 object of the given ``ctype``.  The ctype is usually some constant
@@ -396,8 +398,14 @@ read or write from pointers, arrays and structures.  Dereferencing a
 pointer is done usually in C with the syntax ``*p``, which is not valid
 Python, so instead you have to use the alternative syntax ``p[0]``
 (which is also valid C).  Additionally, the ``p.x`` and ``p->x``
-syntaxes in C both become ``p.x`` in Python.  And instead of ``NULL``
-you use None.
+syntaxes in C both become ``p.x`` in Python.
+
+.. versionchanged:: 0.2
+   You will find ``ffi.NULL`` to use in the same places as the C ``NULL``.
+   Like the latter, it is actually defined to be ``ffi.cast("void *", 0)``.
+   In version 0.1, reading a NULL pointer used to return None;
+   now it returns a regular ``<cdata 'type *' NULL>``, which you can
+   check for e.g. by comparing it with ``ffi.NULL``.
 
 There is no equivalent to the ``&`` operator in C (because it would not
 fit nicely in the model, and it does not seem to be needed here).
@@ -423,12 +431,9 @@ is the only way to get cdata objects of integer or floating-point type::
 
     >>> x = ffi.cast("int", 42)
     >>> x
-    <cdata 'int'>
+    <cdata 'int' 42>
     >>> int(x)
     42
-
-Similarly, this is the only way to get cdata objects for ``NULL``
-pointers, which are normally returned as None.
 
 The initializer given as the optional second argument to ``ffi.new()``
 can be mostly anything that you would use as an initializer for C code,
@@ -485,9 +490,8 @@ Variadic function calls
 
 Variadic functions in C (which end with "``...``" as their last
 argument) can be declared and called normally, with the exception that
-all the arguments passed in the variable part *must* be cdata objects,
-or possibly None for ``NULL``.  This is because it would not be possible
-to guess, if you wrote this::
+all the arguments passed in the variable part *must* be cdata objects.
+This is because it would not be possible to guess, if you wrote this::
 
     C.printf("hello, %d\n", 42)
 
@@ -532,8 +536,16 @@ automatically inferred by the C backend.)
 Be careful when writing the Python callback function: if it returns an
 object of the wrong type, or more generally raises an exception, then
 the exception cannot be propagated.  Instead, it is printed to stderr
-and the C-level callback is made to return a null value (this is a
-random choice).
+and the C-level callback is made to return a default value.
+
+.. versionadded:: 0.2
+   The returned value in case of errors is null by default, but can be
+   specified with the ``error`` keyword argument to ``ffi.callback()``::
+
+       >>> ffi.callback("int(*)(int, int)", myfunc, error=42)
+
+   In all cases the exception is printed to stderr, so this should be
+   used only as a last-resort solution.
 
 
 Miscellaneous

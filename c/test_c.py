@@ -48,11 +48,11 @@ def test_new_primitive_type():
 def test_cast_to_signed_char():
     p = new_primitive_type("signed char")
     x = cast(p, -65 + 17*256)
-    assert repr(x) == "<cdata 'signed char'>"
+    assert repr(x) == "<cdata 'signed char' -65>"
     assert repr(type(x)) == "<type '_ffi_backend.CData'>"
     assert int(x) == -65
     x = cast(p, -66 + (1<<199)*256)
-    assert repr(x) == "<cdata 'signed char'>"
+    assert repr(x) == "<cdata 'signed char' -66>"
     assert int(x) == -66
     assert (x == cast(p, -66)) is False
     assert (x != cast(p, -66)) is True
@@ -75,6 +75,7 @@ def test_integer_types():
         assert int(cast(p, max)) == max
         assert int(cast(p, min - 1)) == max
         assert int(cast(p, max + 1)) == min
+        py.test.raises(TypeError, cast, p, None)
         assert long(cast(p, min - 1)) == max
     for name in ['char', 'short', 'int', 'long', 'long long']:
         p = new_primitive_type('unsigned ' + name)
@@ -117,7 +118,7 @@ def test_float_types():
         assert repr(float(cast(p, -0.0))) == '-0.0'
         assert float(cast(p, '\x09')) == 9.0
         assert float(cast(p, True)) == 1.0
-        assert float(cast(p, None)) == 0.0
+        py.test.raises(TypeError, cast, p, None)
 
 def test_character_type():
     p = new_primitive_type("char")
@@ -128,6 +129,9 @@ def test_character_type():
     assert type(int(cast(p, 'A'))) is int
     assert type(long(cast(p, 'A'))) is long
     assert str(cast(p, 'A')) == 'A'
+    assert repr(cast(p, 'A')) == "<cdata 'char' 'A'>"
+    assert repr(cast(p, 255)) == r"<cdata 'char' '\xff'>"
+    assert repr(cast(p, 0)) == r"<cdata 'char' '\x00'>"
 
 def test_pointer_type():
     p = new_primitive_type("int")
@@ -141,16 +145,27 @@ def test_pointer_type():
 
 def test_pointer_to_int():
     BInt = new_primitive_type("int")
+    py.test.raises(TypeError, newp, BInt)
     py.test.raises(TypeError, newp, BInt, None)
     BPtr = new_pointer_type(BInt)
+    p = newp(BPtr)
+    assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
     p = newp(BPtr, None)
     assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
     p = newp(BPtr, 5000)
     assert repr(p) == "<cdata 'int *' owning %d bytes>" % size_of_int()
     q = cast(BPtr, p)
-    assert repr(q) == "<cdata 'int *'>"
+    assert repr(q).startswith("<cdata 'int *' 0x")
     assert p == q
     assert hash(p) == hash(q)
+
+def test_pointer_bool():
+    BInt = new_primitive_type("int")
+    BPtr = new_pointer_type(BInt)
+    p = cast(BPtr, 0)
+    assert bool(p) is False
+    p = cast(BPtr, 42)
+    assert bool(p) is True
 
 def test_pointer_to_pointer():
     BInt = new_primitive_type("int")
@@ -187,6 +202,27 @@ def test_cast_float_to_int():
         assert int(cast(p, 4.2)) == 4
         py.test.raises(TypeError, newp, new_pointer_type(p), 4.2)
 
+def test_newp_integer_types():
+    for name in ['signed char', 'short', 'int', 'long', 'long long']:
+        p = new_primitive_type(name)
+        pp = new_pointer_type(p)
+        size = sizeof(p)
+        min = -(1 << (8*size-1))
+        max = (1 << (8*size-1)) - 1
+        assert newp(pp, min)[0] == min
+        assert newp(pp, max)[0] == max
+        py.test.raises(OverflowError, newp, pp, min - 1)
+        py.test.raises(OverflowError, newp, pp, max + 1)
+    for name in ['char', 'short', 'int', 'long', 'long long']:
+        p = new_primitive_type('unsigned ' + name)
+        pp = new_pointer_type(p)
+        size = sizeof(p)
+        max = (1 << (8*size)) - 1
+        assert newp(pp, 0)[0] == 0
+        assert newp(pp, max)[0] == max
+        py.test.raises(OverflowError, newp, pp, -1)
+        py.test.raises(OverflowError, newp, pp, max + 1)
+
 def test_reading_pointer_to_char():
     BChar = new_primitive_type("char")
     py.test.raises(TypeError, newp, BChar, None)
@@ -197,14 +233,88 @@ def test_reading_pointer_to_char():
     assert p[0] == 'A'
     py.test.raises(TypeError, newp, BPtr, 65)
     py.test.raises(TypeError, newp, BPtr, "foo")
+    assert str(cast(BChar, 'A')) == 'A'
+    py.test.raises(TypeError, cast, BChar, 'foo')
+
+def test_reading_pointer_to_pointer():
+    BVoidP = new_pointer_type(new_void_type())
+    BCharP = new_pointer_type(new_primitive_type("char"))
+    BInt = new_primitive_type("int")
+    BIntPtr = new_pointer_type(BInt)
+    BIntPtrPtr = new_pointer_type(BIntPtr)
+    q = newp(BIntPtr, 42)
+    assert q[0] == 42
+    p = newp(BIntPtrPtr, None)
+    assert p[0] is not None
+    assert p[0] == cast(BVoidP, 0)
+    assert p[0] == cast(BCharP, 0)
+    assert p[0] != None
+    assert repr(p[0]) == "<cdata 'int *' NULL>"
+    p[0] = q
+    assert p[0] != cast(BVoidP, 0)
+    assert p[0] != cast(BCharP, 0)
+    assert p[0][0] == 42
+    q[0] += 1
+    assert p[0][0] == 43
+    p = newp(BIntPtrPtr, q)
+    assert p[0][0] == 43
 
 def test_hash_differences():
     BChar = new_primitive_type("char")
     BInt = new_primitive_type("int")
     BFloat = new_primitive_type("float")
-    assert (hash(cast(BChar, 'A')) !=
-            hash(cast(BInt, 65)))
-    assert hash(cast(BFloat, 65)) != hash(65.0)
+    for i in range(1, 20):
+        if (hash(cast(BChar, chr(i))) !=
+            hash(cast(BInt, i))):
+            break
+    else:
+        raise AssertionError("hashes are equal")
+    for i in range(1, 20):
+        if hash(cast(BFloat, i)) != hash(float(i)):
+            break
+    else:
+        raise AssertionError("hashes are equal")
+
+def test_no_len_on_nonarray():
+    p = new_primitive_type("int")
+    py.test.raises(TypeError, len, cast(p, 42))
+
+def test_cmp_none():
+    p = new_primitive_type("int")
+    x = cast(p, 42)
+    assert (x == None) is False
+    assert (x != None) is True
+    assert (x == ["hello"]) is False
+    assert (x != ["hello"]) is True
+
+def test_invalid_indexing():
+    p = new_primitive_type("int")
+    x = cast(p, 42)
+    py.test.raises(TypeError, "p[0]")
+
+def test_default_str():
+    p = new_primitive_type("int")
+    x = cast(p, 42)
+    assert str(x) == repr(x)
+
+def test_cast_from_cdataint():
+    BInt = new_primitive_type("int")
+    x = cast(BInt, 0)
+    y = cast(new_pointer_type(BInt), x)
+    assert bool(y) is False
+    #
+    x = cast(BInt, 42)
+    y = cast(BInt, x)
+    assert int(y) == 42
+    y = cast(new_primitive_type("char"), x)
+    assert str(y) == chr(42)
+    y = cast(new_primitive_type("float"), x)
+    assert float(y) == 42.0
+    #
+    z = cast(BInt, 42.5)
+    assert int(z) == 42
+    z = cast(BInt, y)
+    assert int(z) == 42
 
 def test_array_type():
     p = new_primitive_type("int")
@@ -229,7 +339,7 @@ def test_array_type():
                    new_array_type, new_pointer_type(p), sys.maxint // 3)
 
 def test_array_instance():
-    LENGTH = 14242
+    LENGTH = 1423
     p = new_primitive_type("int")
     p1 = new_array_type(new_pointer_type(p), LENGTH)
     a = newp(p1, None)
@@ -246,6 +356,7 @@ def test_array_instance():
         assert a[i] == i * i + 1
     e = py.test.raises(IndexError, "a[LENGTH+100] = 500")
     assert ('(expected %d < %d)' % (LENGTH+100, LENGTH)) in str(e.value)
+    py.test.raises(TypeError, int, a)
 
 def test_array_of_unknown_length_instance():
     p = new_primitive_type("int")
@@ -291,12 +402,28 @@ def test_array_add():
     a = newp(p2, [range(n, n+5) for n in [100, 200, 300]])
     assert repr(a) == "<cdata 'int[3][5]' owning %d bytes>" % (
         3*5*size_of_int(),)
-    assert repr(a + 0) == "<cdata 'int(*)[5]'>"
-    assert repr(a[0]) == "<cdata 'int[5]'>"
-    assert repr((a + 0)[0]) == "<cdata 'int[5]'>"
-    assert repr(a[0] + 0) == "<cdata 'int *'>"
+    assert repr(a + 0).startswith("<cdata 'int(*)[5]' 0x")
+    assert repr(a[0]).startswith("<cdata 'int[5]' 0x")
+    assert repr((a + 0)[0]).startswith("<cdata 'int[5]' 0x")
+    assert repr(a[0] + 0).startswith("<cdata 'int *' 0x")
     assert type(a[0][0]) is int
     assert type((a[0] + 0)[0]) is int
+
+def test_array_sub():
+    BInt = new_primitive_type("int")
+    BArray = new_array_type(new_pointer_type(BInt), 5)   # int[5]
+    a = newp(BArray, None)
+    p = a + 1
+    assert p - a == 1
+    assert p - (a+0) == 1
+    assert a == (p - 1)
+    BPtr = new_pointer_type(new_primitive_type("short"))
+    q = newp(BPtr, None)
+    py.test.raises(TypeError, "p - q")
+    py.test.raises(TypeError, "q - p")
+    py.test.raises(TypeError, "a - q")
+    e = py.test.raises(TypeError, "q - a")
+    assert str(e.value) == "cannot subtract cdata 'short *' and cdata 'int *'"
 
 def test_cast_primitive_from_cdata():
     p = new_primitive_type("int")
@@ -359,12 +486,11 @@ def test_cast_between_pointers():
     f = cast(BIntP, int(d))
     assert f[3] == 43
     #
-    for null in [0, None]:
-        b = cast(BShortP, null)
-        assert not b
-        c = cast(BIntP, b)
-        assert not c
-        assert int(cast(BLongLong, c)) == 0
+    b = cast(BShortP, 0)
+    assert not b
+    c = cast(BIntP, b)
+    assert not c
+    assert int(cast(BLongLong, c)) == 0
 
 def test_alignof():
     BInt = new_primitive_type("int")
@@ -379,6 +505,7 @@ def test_new_struct_type():
     assert repr(BStruct) == "<ctype 'struct foo'>"
     BPtr = new_pointer_type(BStruct)
     assert repr(BPtr) == "<ctype 'struct foo *'>"
+    py.test.raises(TypeError, alignof, BStruct)
 
 def test_new_union_type():
     BUnion = new_union_type("foo")
@@ -437,7 +564,7 @@ def test_struct_instance():
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo")
     BStructPtr = new_pointer_type(BStruct)
-    p = cast(BStructPtr, None)
+    p = cast(BStructPtr, 0)
     py.test.raises(AttributeError, "p.a1")    # opaque
     complete_struct_or_union(BStruct, [('a1', BInt, -1),
                                        ('a2', BInt, -1)])
@@ -452,6 +579,15 @@ def test_struct_instance():
     py.test.raises(AttributeError, "p.foobar")
     py.test.raises(AttributeError, "s.foobar")
 
+def test_union_instance():
+    BInt = new_primitive_type("int")
+    BUInt = new_primitive_type("unsigned int")
+    BUnion = new_union_type("bar")
+    complete_struct_or_union(BUnion, [('a1', BInt, -1), ('a2', BUInt, -1)])
+    p = newp(new_pointer_type(BUnion), -42)
+    assert p.a1 == -42
+    assert p.a2 == -42 + (1 << (8*size_of_int()))
+
 def test_struct_pointer():
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo")
@@ -465,16 +601,37 @@ def test_struct_pointer():
     assert p.a2 == 123
 
 def test_struct_init_list():
+    BVoidP = new_pointer_type(new_void_type())
     BInt = new_primitive_type("int")
+    BIntPtr = new_pointer_type(BInt)
     BStruct = new_struct_type("foo")
     BStructPtr = new_pointer_type(BStruct)
     complete_struct_or_union(BStruct, [('a1', BInt, -1),
                                        ('a2', BInt, -1),
-                                       ('a3', BInt, -1)])
+                                       ('a3', BInt, -1),
+                                       ('p4', BIntPtr, -1)])
     s = newp(BStructPtr, [123, 456])
     assert s.a1 == 123
     assert s.a2 == 456
     assert s.a3 == 0
+    assert s.p4 == cast(BVoidP, 0)
+    #
+    s = newp(BStructPtr, {'a2': 41122, 'a3': -123})
+    assert s.a1 == 0
+    assert s.a2 == 41122
+    assert s.a3 == -123
+    assert s.p4 == cast(BVoidP, 0)
+    #
+    py.test.raises(KeyError, newp, BStructPtr, {'foobar': 0})
+    #
+    p = newp(BIntPtr, 14141)
+    s = newp(BStructPtr, [12, 34, 56, p])
+    assert s.p4 == p
+    #
+    s = newp(BStructPtr, [12, 34, 56, cast(BVoidP, 0)])
+    assert s.p4 == cast(BVoidP, 0)
+    #
+    py.test.raises(TypeError, newp, BStructPtr, [12, 34, 56, None])
 
 def test_array_in_struct():
     BInt = new_primitive_type("int")
@@ -483,7 +640,7 @@ def test_array_in_struct():
     complete_struct_or_union(BStruct, [('a1', BArrayInt5, -1)])
     s = newp(new_pointer_type(BStruct), [[20, 24, 27, 29, 30]])
     assert s.a1[2] == 27
-    assert repr(s.a1) == "<cdata 'int[5]'>"
+    assert repr(s.a1).startswith("<cdata 'int[5]' 0x")
 
 def test_offsetof():
     BInt = new_primitive_type("int")
@@ -616,6 +773,7 @@ def test_call_function_9():
     assert f(1, cast(BInt, 42)) == 42
     assert f(2, cast(BInt, 40), cast(BInt, 2)) == 42
     py.test.raises(TypeError, f, 1, 42)
+    py.test.raises(TypeError, f, 2, None)
 
 def test_new_charp():
     BChar = new_primitive_type("char")
@@ -652,8 +810,9 @@ def test_write_variable():
     BVoidP = new_pointer_type(new_void_type())
     ll = find_and_load_library('c')
     stderr = ll.read_variable(BVoidP, "stderr")
-    ll.write_variable(BVoidP, "stderr", None)
-    assert ll.read_variable(BVoidP, "stderr") is None
+    ll.write_variable(BVoidP, "stderr", cast(BVoidP, 0))
+    assert ll.read_variable(BVoidP, "stderr") is not None
+    assert not ll.read_variable(BVoidP, "stderr")
     ll.write_variable(BVoidP, "stderr", stderr)
     assert ll.read_variable(BVoidP, "stderr") == stderr
 
@@ -663,9 +822,29 @@ def test_callback():
         def cb(n):
             return n + 1
         BFunc = new_function_type((BInt,), BInt, False)
-        return callback(BFunc, cb)    # 'cb' and 'BFunc' go out of scope
+        return callback(BFunc, cb, 42)    # 'cb' and 'BFunc' go out of scope
     f = make_callback()
     assert f(-142) == -141
+
+def test_callback_return_type():
+    for rettype in ["signed char", "short", "int", "long", "long long",
+                    "unsigned char", "unsigned short", "unsigned int",
+                    "unsigned long", "unsigned long long"]:
+        BRet = new_primitive_type(rettype)
+        def cb(n):
+            return n + 1
+        BFunc = new_function_type((BRet,), BRet)
+        f = callback(BFunc, cb, 42)
+        assert f(41) == 42
+        if rettype.startswith("unsigned "):
+            min = 0
+            max = (1 << (8*sizeof(BRet))) - 1
+        else:
+            min = -(1 << (8*sizeof(BRet)-1))
+            max = (1 << (8*sizeof(BRet)-1)) - 1
+        assert f(min) == min + 1
+        assert f(max - 1) == max
+        assert f(max) == 42
 
 def test_a_lot_of_callbacks():
     BInt = new_primitive_type("int")
@@ -673,7 +852,7 @@ def test_a_lot_of_callbacks():
         def cb(n):
             return n + m
         BFunc = new_function_type((BInt,), BInt, False)
-        return callback(BFunc, cb)    # 'cb' and 'BFunc' go out of scope
+        return callback(BFunc, cb, 42)    # 'cb' and 'BFunc' go out of scope
     #
     flist = [make_callback(i) for i in range(10000)]
     for i, f in enumerate(flist):
@@ -690,7 +869,7 @@ def test_enum_type():
 def test_cast_to_enum():
     BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
     e = cast(BEnum, 0)
-    assert repr(e) == "<cdata 'enum foo'>"
+    assert repr(e) == "<cdata 'enum foo' 'def'>"
     assert str(e) == 'def'
     assert str(cast(BEnum, -20)) == 'ab'
     assert str(cast(BEnum, 'c')) == 'c'
@@ -699,6 +878,8 @@ def test_cast_to_enum():
     assert int(cast(BEnum, -242 + 2**128)) == -242
     assert str(cast(BEnum, -242 + 2**128)) == '#-242'
     assert str(cast(BEnum, '#-20')) == 'ab'
+    assert repr(cast(BEnum, '#-20')) == "<cdata 'enum foo' 'ab'>"
+    assert repr(cast(BEnum, '#-21')) == "<cdata 'enum foo' '#-21'>"
 
 def test_enum_in_struct():
     BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
@@ -769,17 +950,197 @@ def test_bitfield_instance_init():
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo")
     complete_struct_or_union(BStruct, [('a1', BInt, 1)])
-    py.test.raises(NotImplementedError, newp, new_pointer_type(BStruct), [-1])
+    p = newp(new_pointer_type(BStruct), [-1])
+    assert p.a1 == -1
+    p = newp(new_pointer_type(BStruct), {'a1': -1})
+    assert p.a1 == -1
+    #
+    BUnion = new_union_type("bar")
+    complete_struct_or_union(BUnion, [('a1', BInt, 1)])
+    p = newp(new_pointer_type(BUnion), -1)
+    assert p.a1 == -1
 
-def test_gc():
-    from gc import collect
+def test_weakref():
+    import weakref
     BInt = new_primitive_type("int")
-    n = cast(BInt, 123)
-    py.test.raises(TypeError, gc, n, 5)
-    destroyed = []
-    m = gc(n, destroyed.append)
-    assert repr(m) == "<cdata 'int' with destructor>"
-    assert destroyed == []
-    del m; collect()
-    assert len(destroyed) == 1
-    assert int(destroyed[0]) == 123
+    BPtr = new_pointer_type(BInt)
+    weakref.ref(BInt)
+    weakref.ref(newp(BPtr, 42))
+    py.test.raises(TypeError, weakref.ref, cast(BPtr, 42))
+    py.test.raises(TypeError, weakref.ref, cast(BInt, 42))
+
+def test_no_inheritance():
+    BInt = new_primitive_type("int")
+    try:
+        class foo(type(BInt)): pass
+    except TypeError:
+        pass
+    else:
+        raise AssertionError
+    x = cast(BInt, 42)
+    try:
+        class foo(type(x)): pass
+    except TypeError:
+        pass
+    else:
+        raise AssertionError
+
+def test_assign_string():
+    BChar = new_primitive_type("char")
+    BArray1 = new_array_type(new_pointer_type(BChar), 5)
+    BArray2 = new_array_type(new_pointer_type(BArray1), 5)
+    a = newp(BArray2, ["abc", "de", "ghij"])
+    assert str(a[2]) == "ghij"
+    a[2] = "."
+    assert str(a[2]) == "."
+    a[2] = "12345"
+    assert str(a[2]) == "12345"
+    e = py.test.raises(IndexError, 'a[2] = "123456"')
+    assert 'char[5]' in str(e.value)
+    assert 'got 6 characters' in str(e.value)
+
+def test_add_error():
+    x = cast(new_primitive_type("int"), 42)
+    py.test.raises(TypeError, "x + 1")
+    py.test.raises(TypeError, "x - 1")
+
+def test_void_errors():
+    py.test.raises(TypeError, alignof, new_void_type())
+    py.test.raises(TypeError, newp, new_pointer_type(new_void_type()), None)
+    x = cast(new_pointer_type(new_void_type()), 42)
+    py.test.raises(TypeError, "x + 1")
+    py.test.raises(TypeError, "x - 1")
+
+def test_too_many_items():
+    BChar = new_primitive_type("char")
+    BArray = new_array_type(new_pointer_type(BChar), 5)
+    py.test.raises(IndexError, newp, BArray, ('1', '2', '3', '4', '5', '6'))
+    py.test.raises(IndexError, newp, BArray, ['1', '2', '3', '4', '5', '6'])
+    py.test.raises(IndexError, newp, BArray, '123456')
+    BStruct = new_struct_type("foo")
+    complete_struct_or_union(BStruct, [])
+    py.test.raises(TypeError, newp, new_pointer_type(BStruct), '')
+    py.test.raises(ValueError, newp, new_pointer_type(BStruct), ['1'])
+
+def test_more_type_errors():
+    BInt = new_primitive_type("int")
+    BChar = new_primitive_type("char")
+    BArray = new_array_type(new_pointer_type(BChar), 5)
+    py.test.raises(TypeError, newp, BArray, 12.34)
+    BArray = new_array_type(new_pointer_type(BInt), 5)
+    py.test.raises(TypeError, newp, BArray, 12.34)
+    BFloat = new_primitive_type("float")
+    py.test.raises(TypeError, cast, BFloat, newp(BArray, None))
+
+def test_more_overflow_errors():
+    BUInt = new_primitive_type("unsigned int")
+    py.test.raises(OverflowError, newp, new_pointer_type(BUInt), -1)
+    py.test.raises(OverflowError, newp, new_pointer_type(BUInt), 2**32)
+
+def test_newp_copying():
+    """Test that we can do newp(<type>, <cdata of the given type>) for most
+    types, with the exception of arrays, like in C.
+    """
+    BInt = new_primitive_type("int")
+    p = newp(new_pointer_type(BInt), cast(BInt, 42))
+    assert p[0] == 42
+    #
+    BUInt = new_primitive_type("unsigned int")
+    p = newp(new_pointer_type(BUInt), cast(BUInt, 42))
+    assert p[0] == 42
+    #
+    BChar = new_primitive_type("char")
+    p = newp(new_pointer_type(BChar), cast(BChar, '!'))
+    assert p[0] == '!'
+    #
+    BFloat = new_primitive_type("float")
+    p = newp(new_pointer_type(BFloat), cast(BFloat, 12.25))
+    assert p[0] == 12.25
+    #
+    BStruct = new_struct_type("foo_s")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BInt, -1)])
+    s1 = newp(BStructPtr, [42])
+    p1 = newp(new_pointer_type(BStructPtr), s1)
+    assert p1[0] == s1
+    #
+    BArray = new_array_type(new_pointer_type(BInt), None)
+    a1 = newp(BArray, [1, 2, 3, 4])
+    py.test.raises(TypeError, newp, BArray, a1)
+    BArray6 = new_array_type(new_pointer_type(BInt), 6)
+    a1 = newp(BArray6, None)
+    py.test.raises(TypeError, newp, BArray6, a1)
+    #
+    s1 = newp(BStructPtr, [42])
+    s2 = newp(BStructPtr, s1[0])
+    assert s2.a1 == 42
+    #
+    BUnion = new_union_type("foo_u")
+    BUnionPtr = new_pointer_type(BUnion)
+    complete_struct_or_union(BUnion, [('a1', BInt, -1)])
+    u1 = newp(BUnionPtr, 42)
+    u2 = newp(BUnionPtr, u1[0])
+    assert u2.a1 == 42
+    #
+    BFunc = new_function_type((BInt,), BUInt)
+    p1 = cast(BFunc, 42)
+    p2 = newp(new_pointer_type(BFunc), p1)
+    assert p2[0] == p1
+
+def test_str():
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BArray = new_array_type(BCharP, 10)
+    a = newp(BArray, "hello")
+    assert len(a) == 10
+    assert str(a) == "hello"
+    p = a + 2
+    assert str(p) == "llo"
+    py.test.raises(RuntimeError, str, cast(BCharP, 0))
+
+def test_bug_convert_to_ptr():
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BDouble = new_primitive_type("double")
+    x = cast(BDouble, 42)
+    py.test.raises(TypeError, newp, new_pointer_type(BCharP), x)
+
+def test_set_struct_fields():
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BCharArray10 = new_array_type(BCharP, 10)
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BCharArray10, -1)])
+    p = newp(BStructPtr, None)
+    assert str(p.a1) == ''
+    p.a1 = 'foo'
+    assert str(p.a1) == 'foo'
+    assert list(p.a1) == ['f', 'o', 'o'] + ['\x00'] * 7
+    p.a1 = ['x', 'y']
+    assert str(p.a1) == 'xyo'
+
+def test_no_struct_return_in_func():
+    BFunc = new_function_type((), new_void_type())
+    BArray = new_array_type(new_pointer_type(BFunc), 5)        # works
+    new_function_type((), BFunc)    # works
+    new_function_type((), new_primitive_type("int"))
+    new_function_type((), new_pointer_type(BFunc))
+    py.test.raises(NotImplementedError, new_function_type, (),
+                   new_struct_type("foo_s"))
+    py.test.raises(NotImplementedError, new_function_type, (),
+                   new_union_type("foo_u"))
+    py.test.raises(TypeError, new_function_type, (), BArray)
+
+def test_cast_with_functionptr():
+    BFunc = new_function_type((), new_void_type())
+    BFunc2 = new_function_type((), new_primitive_type("short"))
+    BCharP = new_pointer_type(new_primitive_type("char"))
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BFunc, -1)])
+    newp(BStructPtr, [cast(BFunc, 0)])
+    newp(BStructPtr, [cast(BCharP, 0)])
+    py.test.raises(TypeError, newp, BStructPtr, [cast(BIntP, 0)])
+    py.test.raises(TypeError, newp, BStructPtr, [cast(BFunc2, 0)])
