@@ -1063,8 +1063,19 @@ static PyObject *cdata_str(CDataObject *cd)
             if (end != NULL)
                 length = end - start;
         }
-        else
+        else {
+            if (cd->c_data == NULL) {
+                PyObject *s = cdata_repr(cd);
+                if (s != NULL) {
+                    PyErr_Format(PyExc_RuntimeError,
+                                 "cannot use str() on %s",
+                                 PyString_AS_STRING(s));
+                    Py_DECREF(s);
+                }
+                return NULL;
+            }
             length = strlen(cd->c_data);
+        }
 
         return PyString_FromStringAndSize(cd->c_data, length);
     }

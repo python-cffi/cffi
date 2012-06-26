@@ -1075,6 +1075,7 @@ def test_str():
     assert str(a) == "hello"
     p = a + 2
     assert str(p) == "llo"
+    py.test.raises(RuntimeError, str, cast(BCharP, 0))
 
 def test_bug_convert_to_ptr():
     BChar = new_primitive_type("char")
