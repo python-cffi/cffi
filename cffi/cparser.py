@@ -7,6 +7,7 @@ _r_define  = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z_0-9]*)\s+(.*?)$",
                         re.MULTILINE)
 _r_partial_enum = re.compile(r"\.\.\.\s*\}")
 _r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
+_r_partial_array = re.compile(r"\[\s*\.\.\.\s*\]")
 _parser_cache = None
 
 def _get_parser():
@@ -25,6 +26,8 @@ def _preprocess(csource):
         macroname, macrovalue = match.groups()
         macros[macroname] = macrovalue
     csource = _r_define.sub('', csource)
+    # Replace "[...]" with "[__dotdotdotarray__]"
+    csource = _r_partial_array.sub('[__dotdotdotarray__]', csource)
     # Replace "...}" with "__dotdotdotNUM__}".  This construction should
     # occur only at the end of enums; at the end of structs we have "...;}"
     # and at the end of vararg functions "...);"
@@ -141,7 +144,7 @@ class Parser(object):
         return model.PointerType(type)
 
     def _get_type(self, typenode, convert_array_to_pointer=False,
-                  force_pointer=False, name=None):
+                  force_pointer=False, name=None, partial_length_ok=False):
         # first, dereference typedefs, if we have it already parsed, we're good
         if (isinstance(typenode, pycparser.c_ast.TypeDecl) and
             isinstance(typenode.type, pycparser.c_ast.IdentifierType) and
@@ -163,7 +166,8 @@ class Parser(object):
             if typenode.dim is None:
                 length = None
             else:
-                length = self._parse_constant(typenode.dim)
+                length = self._parse_constant(
+                    typenode.dim, partial_length_ok=partial_length_ok)
             return model.ArrayType(self._get_type(typenode.type), length)
         #
         if force_pointer:
@@ -317,23 +321,26 @@ class Parser(object):
                 # of strings, but is sometimes just one string.  Use
                 # str.join() as a way to cope with both.
                 tp.partial = True
-                if not tp.has_c_name():
-                    raise api.CDefError("%s is partial but has no C name"
-                                        % (tp,))
                 continue
             if decl.bitsize is None:
                 bitsize = -1
             else:
                 bitsize = self._parse_constant(decl.bitsize)
+            self._partial_length = False
+            type = self._get_type(decl.type, partial_length_ok=True)
+            if self._partial_length:
+                tp.partial = True
             fldnames.append(decl.name)
-            fldtypes.append(self._get_type(decl.type))
+            fldtypes.append(type)
             fldbitsize.append(bitsize)
+        if tp.partial and not tp.has_c_name():
+            raise api.CDefError("%s is partial but has no C name" % (tp,))
         tp.fldnames = tuple(fldnames)
         tp.fldtypes = tuple(fldtypes)
         tp.fldbitsize = tuple(fldbitsize)
         return tp
 
-    def _parse_constant(self, exprnode):
+    def _parse_constant(self, exprnode, partial_length_ok=False):
         # for now, limited to expressions that are an immediate number
         # or negative number
         if isinstance(exprnode, pycparser.c_ast.Constant):
@@ -342,6 +349,12 @@ class Parser(object):
         if (isinstance(exprnode, pycparser.c_ast.UnaryOp) and
                 exprnode.op == '-'):
             return -self._parse_constant(exprnode.expr)
+        #
+        if partial_length_ok:
+            if (isinstance(exprnode, pycparser.c_ast.ID) and
+                    exprnode.name == '__dotdotdotarray__'):
+                self._partial_length = True
+                return None
         #
         raise api.FFIError("unsupported non-constant or "
                            "not immediately constant expression")
