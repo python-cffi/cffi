@@ -320,7 +320,7 @@ class Parser(object):
                 # XXX pycparser is inconsistent: 'names' should be a list
                 # of strings, but is sometimes just one string.  Use
                 # str.join() as a way to cope with both.
-                tp.partial = True
+                self._make_partial(tp)
                 continue
             if decl.bitsize is None:
                 bitsize = -1
@@ -329,16 +329,21 @@ class Parser(object):
             self._partial_length = False
             type = self._get_type(decl.type, partial_length_ok=True)
             if self._partial_length:
-                tp.partial = True
+                self._make_partial(tp)
             fldnames.append(decl.name)
             fldtypes.append(type)
             fldbitsize.append(bitsize)
-        if tp.partial and not tp.has_c_name():
-            raise api.CDefError("%s is partial but has no C name" % (tp,))
         tp.fldnames = tuple(fldnames)
         tp.fldtypes = tuple(fldtypes)
         tp.fldbitsize = tuple(fldbitsize)
         return tp
+
+    def _make_partial(self, tp):
+        if not isinstance(tp, model.StructType):
+            raise api.CDefError("%s cannot be partial" % (tp,))
+        if not tp.has_c_name():
+            raise api.CDefError("%s is partial but has no C name" % (tp,))
+        tp.partial = True
 
     def _parse_constant(self, exprnode, partial_length_ok=False):
         # for now, limited to expressions that are an immediate number
