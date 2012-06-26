@@ -757,12 +757,21 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         if (!CData_Check(init))
             goto cannot_convert;
         ctinit = ((CDataObject *)init)->c_type;
-        if (!(ctinit->ct_flags & (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)))
-            goto cannot_convert;
-        if (ctinit->ct_itemdescr != ct->ct_itemdescr &&
-            !(ct->ct_itemdescr->ct_flags & CT_CAST_ANYTHING) &&
-            !(ctinit->ct_itemdescr->ct_flags & CT_CAST_ANYTHING))
-            goto cannot_convert;
+        if (!(ctinit->ct_flags & (CT_POINTER|CT_FUNCTIONPTR))) {
+            if (ctinit->ct_flags & CT_ARRAY)
+                ctinit = (CTypeDescrObject *)ctinit->ct_stuff;
+            else
+                goto cannot_convert;
+        }
+        if (ctinit != ct) {
+            if (((ct->ct_flags & CT_POINTER) &&
+                 (ct->ct_itemdescr->ct_flags & CT_CAST_ANYTHING)) ||
+                ((ctinit->ct_flags & CT_POINTER) &&
+                 (ctinit->ct_itemdescr->ct_flags & CT_CAST_ANYTHING)))
+                ;   /* accept void* or char* as either source or target */
+            else
+                goto cannot_convert;
+        }
         ptrdata = ((CDataObject *)init)->c_data;
 
         *(char **)data = ptrdata;
