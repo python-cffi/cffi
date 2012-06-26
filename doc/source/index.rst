@@ -338,7 +338,7 @@ for leaving details unspecified (filled in by the C compiler):
    by the C compiler.
 
    .. versionadded:: 0.2
-   You can also specify it as ``int n[...];``.
+      You can also specify it as ``int n[...];``.
 
 *  enums: in "``enum foo { A, B, C, ... };``" (with a trailing ``...``),
    the enumerated values are not necessarily in order; the C compiler
