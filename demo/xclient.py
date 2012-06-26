@@ -28,7 +28,7 @@ class XError(Exception):
 
 def main():
     display = XOpenDisplay(None)
-    if display is None:
+    if display == ffi.NULL:
         raise XError("cannot open display")
     w = XCreateSimpleWindow(display, DefaultRootWindow(display),
                             10, 10, 500, 350, 0, 0, 0)
