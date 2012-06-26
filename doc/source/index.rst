@@ -337,6 +337,9 @@ for leaving details unspecified (filled in by the C compiler):
    unspecified length, as in "``int n[];``".  The length is completed
    by the C compiler.
 
+   .. versionadded:: 0.2
+   You can also specify it as ``int n[...];``.
+
 *  enums: in "``enum foo { A, B, C, ... };``" (with a trailing ``...``),
    the enumerated values are not necessarily in order; the C compiler
    will reorder them as needed and skip any unmentioned value.  Like
@@ -394,8 +397,14 @@ read or write from pointers, arrays and structures.  Dereferencing a
 pointer is done usually in C with the syntax ``*p``, which is not valid
 Python, so instead you have to use the alternative syntax ``p[0]``
 (which is also valid C).  Additionally, the ``p.x`` and ``p->x``
-syntaxes in C both become ``p.x`` in Python.  And instead of ``NULL``
-you use None.
+syntaxes in C both become ``p.x`` in Python.
+
+.. versionchanged:: 0.2
+   You will find ``ffi.NULL`` to use in the same places as the C ``NULL``.
+   Like the latter, it is actually defined to be ``ffi.cast("void *", 0)``.
+   In version 0.1, reading a NULL pointer used to return None;
+   now it returns a regular ``<cdata 'type *' NULL>``, which you can
+   check for e.g. by comparing it with ``ffi.NULL``.
 
 There is no equivalent to the ``&`` operator in C (because it would not
 fit nicely in the model, and it does not seem to be needed here).
@@ -424,9 +433,6 @@ is the only way to get cdata objects of integer or floating-point type::
     <cdata 'int'>
     >>> int(x)
     42
-
-Similarly, this is the only way to get cdata objects for ``NULL``
-pointers, which are normally returned as None.
 
 The initializer given as the optional second argument to ``ffi.new()``
 can be mostly anything that you would use as an initializer for C code,
@@ -483,9 +489,8 @@ Variadic function calls
 
 Variadic functions in C (which end with "``...``" as their last
 argument) can be declared and called normally, with the exception that
-all the arguments passed in the variable part *must* be cdata objects,
-or possibly None for ``NULL``.  This is because it would not be possible
-to guess, if you wrote this::
+all the arguments passed in the variable part *must* be cdata objects.
+This is because it would not be possible to guess, if you wrote this::
 
     C.printf("hello, %d\n", 42)
 
