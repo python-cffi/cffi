@@ -1083,3 +1083,18 @@ def test_bug_convert_to_ptr():
     BDouble = new_primitive_type("double")
     x = cast(BDouble, 42)
     py.test.raises(TypeError, newp, new_pointer_type(BCharP), x)
+
+def test_set_struct_fields():
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BCharArray10 = new_array_type(BCharP, 10)
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BCharArray10, -1)])
+    p = newp(BStructPtr, None)
+    assert str(p.a1) == ''
+    p.a1 = 'foo'
+    assert str(p.a1) == 'foo'
+    assert list(p.a1) == ['f', 'o', 'o'] + ['\x00'] * 7
+    p.a1 = ['x', 'y']
+    assert str(p.a1) == 'xyo'
