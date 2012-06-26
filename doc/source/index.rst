@@ -192,7 +192,7 @@ from this library.
 
 The ``verify()`` line in the second example is an alternative: instead
 of doing a ``dlopen``, it generates and compiles a piece of C code.
-When using ``verify()`` you have the advantage that you can use ``...``
+When using ``verify()`` you have the advantage that you can use "``...``"
 at various places in the ``cdef()``, and the missing information will
 be completed with the help of the C compiler.  It also does checking,
 to verify that your declarations are correct.  If the C compiler gives
@@ -242,7 +242,7 @@ can assume to exist are the standard types:
   size_t, ssize_t
 
 As we will see on `the verification step`_ below, the declarations can
-also contain ``...`` at various places; there are placeholders that will
+also contain "``...``" at various places; there are placeholders that will
 be completed by a call to ``verify()``.
 
 
@@ -321,13 +321,13 @@ On the plus side, this solution gives more "C-like" flexibility:
 *  other arguments are checked: you get a compilation warning or error
    if you pass a ``int *`` argument to a function expecting a ``long *``.
 
-Moreover, you can use ``...`` in the following places in the ``cdef()``
+Moreover, you can use "``...``" in the following places in the ``cdef()``
 for leaving details unspecified (filled in by the C compiler):
 
 *  structure declarations: any ``struct`` that ends with "``...;``" is
    partial.  It will be completed by the compiler.  (But note that you
    can only access fields that you declared.)  Any ``struct``
-   declaration without ``...;`` is assumed to be exact, and this is
+   declaration without "``...;``" is assumed to be exact, and this is
    checked: you get a ``VerificationError`` if it is not.
 
 *  unknown types: the syntax "``typedef ... foo_t;``" declares the type
@@ -338,12 +338,12 @@ for leaving details unspecified (filled in by the C compiler):
    by the C compiler.
 
    .. versionadded:: 0.2
-      You can also specify it as ``int n[...];``.
+      You can also specify it as "``int n[...];``".
 
-*  enums: in "``enum foo { A, B, C, ... };``" (with a trailing ``...``),
+*  enums: in "``enum foo { A, B, C, ... };``" (with a trailing "``...``"),
    the enumerated values are not necessarily in order; the C compiler
    will reorder them as needed and skip any unmentioned value.  Like
-   with structs, an ``enum`` that does not end in ``...`` is assumed to
+   with structs, an ``enum`` that does not end in "``...``" is assumed to
    be exact, and this is checked.
 
 *  integer macros: you can write in the ``cdef`` the line
