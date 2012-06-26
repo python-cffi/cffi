@@ -168,7 +168,7 @@ class TestFunction(object):
         fptr = ffi.C.puts
         assert ffi.typeof(fptr) == ffi.typeof("int(*)(const char*)")
         if self.Backend is CTypesBackend:
-            assert repr(fptr) == "<cdata 'int puts(char *)'>"
+            assert repr(fptr).startswith("<cdata 'int puts(char *)' 0x")
 
     def test_function_pointer(self):
         ffi = FFI(backend=self.Backend())

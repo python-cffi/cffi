@@ -12,19 +12,25 @@ class CTypesData(object):
         raise TypeError
 
     @classmethod
-    def _arg_to_ctypes(cls, value):
+    def _arg_to_ctypes(cls, *value):
         try:
             ctype = cls._ctype
         except AttributeError:
             raise TypeError("cannot create an instance of %r" % (cls,))
-        res = cls._to_ctypes(value)
-        if not isinstance(res, ctype):
-            res = cls._ctype(res)
+        if value:
+            res = cls._to_ctypes(*value)
+            if not isinstance(res, ctype):
+                res = cls._ctype(res)
+        else:
+            res = cls._ctype()
         return res
 
     @classmethod
     def _create_ctype_obj(cls, init):
-        return cls._arg_to_ctypes(init)
+        if init is None:
+            return cls._arg_to_ctypes()
+        else:
+            return cls._arg_to_ctypes(init)
 
     @staticmethod
     def _from_ctypes(ctypes_value):
@@ -40,11 +46,19 @@ class CTypesData(object):
         cls.__module__ = 'ffi'
 
     def _get_own_repr(self):
-        return ''
+        raise NotImplementedError
+
+    def _addr_repr(self, address):
+        if address == 0:
+            return 'NULL'
+        else:
+            if address < 0:
+                address += 1 << (8*ctypes.sizeof(ctypes.c_void_p))
+            return '0x%x' % address
 
     def __repr__(self, c_name=None):
         own = self._get_own_repr()
-        return '<cdata %r%s>' % (c_name or self._get_c_name(), own)
+        return '<cdata %r %s>' % (c_name or self._get_c_name(), own)
 
     def _convert_to_address(self, BClass):
         if BClass is None:
@@ -82,8 +96,6 @@ class CTypesData(object):
             if isinstance(other, CTypesData):
                 return cmpfunc(self._convert_to_address(None),
                                other._convert_to_address(None))
-            elif other is None:
-                return cmpfunc(self._convert_to_address(None), 0)
             else:
                 return NotImplemented
         cmp.func_name = name
@@ -112,6 +124,9 @@ class CTypesGenericPrimitive(CTypesData):
     def __hash__(self):
         return object.__hash__(self)
 
+    def _get_own_repr(self):
+        return repr(self._from_ctypes(self._value))
+
 
 class CTypesGenericArray(CTypesData):
     __slots__ = []
@@ -119,6 +134,9 @@ class CTypesGenericArray(CTypesData):
     def __iter__(self):
         for i in xrange(len(self)):
             yield self[i]
+
+    def _get_own_repr(self):
+        return self._addr_repr(ctypes.addressof(self._blob))
 
 
 class CTypesGenericPtr(CTypesData):
@@ -145,6 +163,9 @@ class CTypesGenericPtr(CTypesData):
         self._as_ctype_ptr = ctypes.cast(address, cls._ctype)
         return self
 
+    def _get_own_repr(self):
+        return self._addr_repr(self._address)
+
     def _cast_to_integer(self):
         return self._address
 
@@ -153,26 +174,24 @@ class CTypesGenericPtr(CTypesData):
 
     @classmethod
     def _to_ctypes(cls, value):
-        if value is None:
-            address = 0
-        else:
-            address = value._convert_to_address(cls)
+        if not isinstance(value, CTypesData):
+            raise TypeError("unexpected %s object" % type(value).__name__)
+        address = value._convert_to_address(cls)
         return ctypes.cast(address, cls._ctype)
 
     @classmethod
     def _from_ctypes(cls, ctypes_ptr):
-        if not ctypes_ptr:
-            return None
         address = ctypes.cast(ctypes_ptr, ctypes.c_void_p).value or 0
         return cls._new_pointer_at(address)
 
     @classmethod
     def _initialize(cls, ctypes_ptr, value):
-        if value is not None:
+        if value:
             ctypes_ptr.contents = cls._to_ctypes(value).contents
 
     def _convert_to_address(self, BClass):
-        if BClass in (self.__class__, None) or BClass._automatic_casts:
+        if (BClass in (self.__class__, None) or BClass._automatic_casts
+            or self._automatic_casts):
             return self._address
         else:
             return CTypesData._convert_to_address(self, BClass)
@@ -185,6 +204,9 @@ class CTypesBaseStructOrUnion(CTypesData):
     def _create_ctype_obj(cls, init):
         # may be overridden
         raise TypeError("cannot instantiate opaque type %s" % (cls,))
+
+    def _get_own_repr(self):
+        return self._addr_repr(ctypes.addressof(self._blob))
 
     @classmethod
     def _offsetof(cls, fieldname):
@@ -453,9 +475,9 @@ class CTypesBackend(object):
 
             def _get_own_repr(self):
                 if getattr(self, '_own', False):
-                    return ' owning %d bytes' % (
+                    return 'owning %d bytes' % (
                         ctypes.sizeof(self._as_ctype_ptr.contents),)
-                return ''
+                return super(CTypesPtr, self)._get_own_repr()
         #
         if (BItem is self.ffi._get_cached_btype(model.void_type) or
             BItem is self.ffi._get_cached_btype(model.PrimitiveType('char'))):
@@ -534,8 +556,8 @@ class CTypesBackend(object):
 
             def _get_own_repr(self):
                 if getattr(self, '_own', False):
-                    return ' owning %d bytes' % (ctypes.sizeof(self._blob),)
-                return ''
+                    return 'owning %d bytes' % (ctypes.sizeof(self._blob),)
+                return super(CTypesPtr, self)._get_own_repr()
 
             def _convert_to_address(self, BClass):
                 if BClass in (CTypesPtr, None) or BClass._automatic_casts:
@@ -725,8 +747,8 @@ class CTypesBackend(object):
 
             def _get_own_repr(self):
                 if getattr(self, '_own_callback', None) is not None:
-                    return ' calling %r' % (self._own_callback,)
-                return ''
+                    return 'calling %r' % (self._own_callback,)
+                return super(CTypesFunction, self)._get_own_repr()
 
             def __call__(self, *args):
                 if has_varargs:

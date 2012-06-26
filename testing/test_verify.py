@@ -78,7 +78,7 @@ def test_all_integer_and_float_types():
         assert lib.foo(42) == 43
         assert lib.foo(44L) == 45
         assert lib.foo(ffi.cast(typename, 46)) == 47
-        py.test.raises(TypeError, lib.foo, None)
+        py.test.raises(TypeError, lib.foo, ffi.NULL)
         #
         # check for overflow cases
         if typename in all_float_types:
@@ -120,7 +120,7 @@ def test_ptr():
     ffi = FFI()
     ffi.cdef("int *foo(int *);")
     lib = ffi.verify("int *foo(int *a) { return a; }")
-    assert lib.foo(None) is None
+    assert lib.foo(ffi.NULL) == ffi.NULL
     p = ffi.new("int", 42)
     q = ffi.new("int", 42)
     assert lib.foo(p) == p
@@ -151,7 +151,7 @@ def test_nondecl_struct():
     ffi.cdef("typedef struct foo_s foo_t; int bar(foo_t *);")
     lib = ffi.verify("typedef struct foo_s foo_t;\n"
                      "int bar(foo_t *f) { return 42; }\n")
-    assert lib.bar(None) == 42
+    assert lib.bar(ffi.NULL) == 42
 
 def test_ffi_full_struct():
     ffi = FFI()
@@ -477,7 +477,7 @@ def test_unknown_type():
     tk = ffi.cast("token_t *", tkmem)
     results = [lib.foo(tk) for i in range(6)]
     assert results == [1, 3, 4, 6, 8, 9]
-    assert lib.foo(None) == -42
+    assert lib.foo(ffi.NULL) == -42
 
 def test_unknown_type_2():
     ffi = FFI()
