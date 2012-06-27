@@ -632,32 +632,31 @@ class CTypesBackend(object):
             return result
         CTypesStructOrUnion._create_ctype_obj = _create_ctype_obj
         #
-        if CTypesStructOrUnion._kind == 'struct':
-            def initialize(blob, init):
-                if not isinstance(init, dict):
-                    init = tuple(init)
-                    if len(init) > len(fnames):
-                        raise ValueError("too many values for %s initializer" %
-                                         CTypesStructOrUnion._get_c_name())
-                    init = dict(zip(fnames, init))
-                addr = ctypes.addressof(blob)
-                for fname, value in init.items():
-                    BField, bitsize = name2fieldtype[fname]
-                    assert bitsize < 0, \
-                           "not implemented: initializer with bit fields"
-                    offset = CTypesStructOrUnion._offsetof(fname)
-                    PTR = ctypes.POINTER(BField._ctype)
-                    p = ctypes.cast(addr + offset, PTR)
-                    BField._initialize(p.contents, value)
-            name2fieldtype = dict(zip(fnames, zip(btypes, bitfields)))
-        #
-        if CTypesStructOrUnion._kind == 'union':
-            def initialize(blob, init):
-                addr = ctypes.addressof(blob)
-                #fname = fnames[0]
-                BField = btypes[0]
+        def initialize(blob, init):
+            if is_union:
+                if len(init) > 1:
+                    raise ValueError("union initializer: %d items given, but "
+                                    "only one supported (use a dict if needed)"
+                                     % (len(init),))
+            if not isinstance(init, dict):
+                if isinstance(init, str):
+                    raise TypeError("union initializer: got a str")
+                init = tuple(init)
+                if len(init) > len(fnames):
+                    raise ValueError("too many values for %s initializer" %
+                                     CTypesStructOrUnion._get_c_name())
+                init = dict(zip(fnames, init))
+            addr = ctypes.addressof(blob)
+            for fname, value in init.items():
+                BField, bitsize = name2fieldtype[fname]
+                assert bitsize < 0, \
+                       "not implemented: initializer with bit fields"
+                offset = CTypesStructOrUnion._offsetof(fname)
                 PTR = ctypes.POINTER(BField._ctype)
-                BField._initialize(ctypes.cast(addr, PTR).contents, init)
+                p = ctypes.cast(addr + offset, PTR)
+                BField._initialize(p.contents, value)
+        is_union = CTypesStructOrUnion._kind == 'union'
+        name2fieldtype = dict(zip(fnames, zip(btypes, bitfields)))
         #
         for fname, BField, bitsize in fields:
             if hasattr(CTypesStructOrUnion, fname):

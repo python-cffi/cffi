@@ -828,12 +828,24 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         data[0] = res;
         return 0;
     }
-    if (ct->ct_flags & CT_STRUCT) {
+    if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
 
         if (CData_Check(init)) {
             if (((CDataObject *)init)->c_type == ct && ct->ct_size >= 0) {
                 memcpy(data, ((CDataObject *)init)->c_data, ct->ct_size);
                 return 0;
+            }
+        }
+        if (ct->ct_flags & CT_UNION) {
+            Py_ssize_t n = PyObject_Size(init);
+            if (n < 0)
+                return -1;
+            if (n > 1) {
+                PyErr_Format(PyExc_ValueError,
+                             "initializer for '%s': %zd items given, but "
+                             "only one supported (use a dict if needed)",
+                             ct->ct_name, n);
+                return -1;
             }
         }
         if (PyList_Check(init) || PyTuple_Check(init)) {
@@ -874,21 +886,6 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         }
         expected = "list or tuple or dict or struct-cdata";
         goto cannot_convert;
-    }
-    if (ct->ct_flags & CT_UNION) {
-
-        if (CData_Check(init)) {
-            if (((CDataObject *)init)->c_type == ct && ct->ct_size >= 0) {
-                memcpy(data, ((CDataObject *)init)->c_data, ct->ct_size);
-                return 0;
-            }
-        }
-        CFieldObject *cf = (CFieldObject *)ct->ct_extra;   /* first field */
-        if (cf == NULL) {
-            PyErr_SetString(PyExc_ValueError, "empty union");
-            return -1;
-        }
-        return convert_field_from_object(data, cf, init);
     }
     PyErr_Format(PyExc_SystemError,
                  "convert_from_object: '%s'", ct->ct_name);

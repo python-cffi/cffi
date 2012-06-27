@@ -435,7 +435,7 @@ class BackendTests:
         assert u.a != 0
         py.test.raises(OverflowError, "u.b = 32768")
         #
-        u = ffi.new("union foo", -2)
+        u = ffi.new("union foo", [-2])
         assert u.a == -2
         py.test.raises((AttributeError, TypeError), "del u.a")
         assert repr(u) == "<cdata 'union foo *' owning %d bytes>" % SIZE_OF_INT
@@ -445,6 +445,21 @@ class BackendTests:
         py.test.raises(TypeError, ffi.new, "union baz")
         u = ffi.new("union baz *")   # this works
         assert u[0] == ffi.NULL
+
+    def test_union_initializer(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("union foo { char a; int b; };")
+        py.test.raises(TypeError, ffi.new, "union foo", 'A')
+        py.test.raises(TypeError, ffi.new, "union foo", 5)
+        py.test.raises(ValueError, ffi.new, "union foo", ['A', 5])
+        u = ffi.new("union foo", ['A'])
+        assert u.a == 'A'
+        py.test.raises(TypeError, ffi.new, "union foo", [5])
+        u = ffi.new("union foo", {'b': 12345})
+        assert u.b == 12345
+        u = ffi.new("union foo", [])
+        assert u.a == '\x00'
+        assert u.b == 0
 
     def test_sizeof_type(self):
         ffi = FFI(backend=self.Backend())

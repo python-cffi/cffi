@@ -584,9 +584,17 @@ def test_union_instance():
     BUInt = new_primitive_type("unsigned int")
     BUnion = new_union_type("bar")
     complete_struct_or_union(BUnion, [('a1', BInt, -1), ('a2', BUInt, -1)])
-    p = newp(new_pointer_type(BUnion), -42)
+    p = newp(new_pointer_type(BUnion), [-42])
+    bigval = -42 + (1 << (8*size_of_int()))
     assert p.a1 == -42
-    assert p.a2 == -42 + (1 << (8*size_of_int()))
+    assert p.a2 == bigval
+    p = newp(new_pointer_type(BUnion), {'a2': bigval})
+    assert p.a1 == -42
+    assert p.a2 == bigval
+    py.test.raises(OverflowError, newp, new_pointer_type(BUnion),
+                   {'a1': bigval})
+    p = newp(new_pointer_type(BUnion), [])
+    assert p.a1 == p.a2 == 0
 
 def test_struct_pointer():
     BInt = new_primitive_type("int")
@@ -957,7 +965,7 @@ def test_bitfield_instance_init():
     #
     BUnion = new_union_type("bar")
     complete_struct_or_union(BUnion, [('a1', BInt, 1)])
-    p = newp(new_pointer_type(BUnion), -1)
+    p = newp(new_pointer_type(BUnion), [-1])
     assert p.a1 == -1
 
 def test_weakref():
@@ -1078,7 +1086,7 @@ def test_newp_copying():
     BUnion = new_union_type("foo_u")
     BUnionPtr = new_pointer_type(BUnion)
     complete_struct_or_union(BUnion, [('a1', BInt, -1)])
-    u1 = newp(BUnionPtr, 42)
+    u1 = newp(BUnionPtr, [42])
     u2 = newp(BUnionPtr, u1[0])
     assert u2.a1 == 42
     #
