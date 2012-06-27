@@ -206,7 +206,7 @@ class Window(object):
 initscr = Window
 
 
-def setupterm(term=None, fd=-1):
+def setupterm(term=ffi.NULL, fd=-1):
     if fd < 0:
         import sys
         fd = sys.stdout.fileno()

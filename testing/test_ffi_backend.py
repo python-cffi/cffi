@@ -6,7 +6,7 @@ if '__pypy__' in sys.modules:
     py.test.skip("C backend tests are CPython only")
 
 from testing import backend_tests, test_function, test_ownlib
-import _ffi_backend
+import _cffi_backend
 
 
 class TestFFI(backend_tests.BackendTests,
@@ -16,4 +16,4 @@ class TestFFI(backend_tests.BackendTests,
 
     @staticmethod
     def Backend():
-        return _ffi_backend
+        return _cffi_backend

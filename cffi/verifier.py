@@ -24,10 +24,10 @@ class Verifier(object):
         an instance.  Finally, we copy all the API elements from
         the module to the class or the instance as needed.
         """
-        import _ffi_backend
-        if self.ffi._backend is not _ffi_backend:
+        import _cffi_backend
+        if self.ffi._backend is not _cffi_backend:
             raise NotImplementedError(
-                "verify() is only available for the _ffi_backend")
+                "verify() is only available for the _cffi_backend")
 
         modname = ffiplatform.undercffi_module_name()
         tmpdir = ffiplatform.tmpdir()
@@ -639,7 +639,7 @@ static PyObject *_cffi_setup(PyObject *self, PyObject *args)
 
 static void _cffi_init(void)
 {
-    PyObject *module = PyImport_ImportModule("_ffi_backend");
+    PyObject *module = PyImport_ImportModule("_cffi_backend");
     PyObject *c_api_object;
 
     if (module == NULL)
