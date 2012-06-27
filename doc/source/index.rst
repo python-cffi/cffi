@@ -600,11 +600,13 @@ of the C type "pointer to the same type than x".
 Comments and bugs
 =================
 
-Please report to the `issue tracker`_ any bugs.  Feel free to discuss
-matters in the `mailing list`_.  As a general rule, when there is a
-design issue to resolve, we pick the solution that is the "most C-like".
-We hope that this module has got everything you need to access C code
-and nothing more.
+The best way to contact us is on the IRC ``#pypy`` channel of
+``irc.freenode.net``.  Feel free to discuss matters either there or in
+the `mailing list`_.  Please report to the `issue tracker`_ any bugs.
+
+As a general rule, when there is a design issue to resolve, we pick the
+solution that is the "most C-like".  We hope that this module has got
+everything you need to access C code and nothing more.
 
 --- the authors, Armin Rigo and Maciej Fijalkowski
 
