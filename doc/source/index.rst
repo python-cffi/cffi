@@ -73,7 +73,7 @@ Download and Installation:
 * ``python setup.py install`` or ``python setup_base.py install``
 
 * or you can directly import and use ``cffi``, but if you don't
-  compile the ``_ffi_backend`` extension module, it will fall back
+  compile the ``_cffi_backend`` extension module, it will fall back
   to using internally ``ctypes`` (slower and does not support
   ``verify()``).
 
