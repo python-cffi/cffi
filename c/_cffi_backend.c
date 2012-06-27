@@ -2270,7 +2270,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
  bad_ffi_type:
     PyErr_Format(PyExc_NotImplementedError,
                  "primitive type '%s' with a non-standard size %d",
-                 name, ptypes->size);
+                 name, (int)ptypes->size);
     return NULL;
 }
 
