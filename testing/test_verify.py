@@ -558,3 +558,21 @@ def test_autofilled_struct_as_argument():
     """)
     s = ffi.new("struct foo_s", ['B', 1])
     assert lib.foo(s[0]) == ord('A')
+
+def test_autofilled_struct_as_argument_dynamic():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { char a; int b; ...; };\n"
+             "int (**foo)(struct foo_s);")
+    lib = ffi.verify("""
+        struct foo_s {
+            int pad1, b, pad2, pad3;
+            char a;
+        };
+        int foo1(struct foo_s s) {
+            return s.a - s.b;
+        }
+        int (*foo2)(struct foo_s s) = &foo1;
+        int (**foo)(struct foo_s s) = &foo2;
+    """)
+    s = ffi.new("struct foo_s", ['B', 1])
+    assert lib.foo[0](s[0]) == ord('A')

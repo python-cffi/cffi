@@ -144,7 +144,8 @@ class Parser(object):
         self._declarations[name] = obj
 
     def _get_type_pointer(self, type, const=False):
-        if isinstance(type, model.RawFunctionType):
+        if (isinstance(type, model.RawFunctionType) and
+                not isinstance(type, model.FunctionPtrType)):
             return model.FunctionPtrType(type.args, type.result, type.ellipsis)
         if const:
             return model.ConstPointerType(type)
