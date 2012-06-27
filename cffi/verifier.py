@@ -145,21 +145,27 @@ class Verifier(object):
 
     # ----------
 
-    def convert_to_c(self, tp, fromvar, tovar, errcode, is_funcarg=False):
+    def convert_funcarg_to_c(self, tp, fromvar, tovar, errcode):
         extraarg = ''
         if isinstance(tp, model.PrimitiveType):
             converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
             errvalue = '-1'
         #
         elif isinstance(tp, model.PointerType):
-            if (is_funcarg and
-                    isinstance(tp.totype, model.PrimitiveType) and
+            if (isinstance(tp.totype, model.PrimitiveType) and
                     tp.totype.name == 'char'):
                 converter = '_cffi_to_c_char_p'
             else:
                 converter = '(%s)_cffi_to_c_pointer' % tp.get_c_name('')
                 extraarg = ', _cffi_type(%d)' % self.gettypenum(tp)
             errvalue = 'NULL'
+        #
+        elif isinstance(tp, model.StructType):
+            # a struct (not a struct pointer) as a function argument
+            self.prnt('  if (_cffi_to_c((char*)&%s, _cffi_type(%d), %s) < 0)'
+                      % (tovar, self.gettypenum(tp), fromvar))
+            self.prnt('    %s;' % errcode)
+            return
         #
         else:
             raise NotImplementedError(tp)
@@ -231,8 +237,8 @@ class Verifier(object):
         prnt()
         #
         for i, type in enumerate(tp.args):
-            self.convert_to_c(type, 'arg%d' % i, 'x%d' % i, 'return NULL',
-                              is_funcarg=True)
+            self.convert_funcarg_to_c(type, 'arg%d' % i, 'x%d' % i,
+                                      'return NULL')
             prnt()
         #
         prnt('  _cffi_restore_errno();')
@@ -606,7 +612,9 @@ cffimod_header = r'''
     ((PyObject *(*)(char))_cffi_exports[15])
 #define _cffi_from_c_deref                                               \
     ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[16])
-#define _CFFI_NUM_EXPORTS 17
+#define _cffi_to_c                                                       \
+    ((int(*)(char *, CTypeDescrObject *, PyObject *))_cffi_exports[17])
+#define _CFFI_NUM_EXPORTS 18
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 #  define _cffi_to_c_long_long PyLong_AsLongLong

@@ -50,6 +50,12 @@ def test_strlen_approximate():
     lib = ffi.verify("#include <string.h>")
     assert lib.strlen("hi there!") == 9
 
+def test_strlen_array_of_char():
+    ffi = FFI()
+    ffi.cdef("int strlen(char[]);")
+    lib = ffi.verify("#include <string.h>")
+    assert lib.strlen("hello") == 5
+
 
 all_integer_types = ['short', 'int', 'long', 'long long',
                      'signed char', 'unsigned char',
@@ -537,3 +543,18 @@ def test_varargs_struct():
     """)
     s = ffi.new("struct foo_s", ['B', 1])
     assert lib.foo(50, s[0]) == ord('A')
+
+def test_autofilled_struct_as_argument():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { char a; int b; ...; }; int foo(struct foo_s);")
+    lib = ffi.verify("""
+        struct foo_s {
+            int pad1, b, pad2, pad3;
+            char a;
+        };
+        int foo(struct foo_s s) {
+            return s.a - s.b;
+        }
+    """)
+    s = ffi.new("struct foo_s", ['B', 1])
+    assert lib.foo(s[0]) == ord('A')
