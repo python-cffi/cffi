@@ -2665,6 +2665,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
         Py_ssize_t i, n;
         CFieldObject *cf;
 
+        /* XXX check if the field positions match; if necessary,
+           insert dummy fields */
         n = PyDict_Size(ct->ct_stuff);
         elements = fb_alloc(fb, (n + 1) * sizeof(ffi_type*));
         cf = (CFieldObject *)ct->ct_extra;
