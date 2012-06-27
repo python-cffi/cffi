@@ -37,7 +37,7 @@ class FFI(object):
         from . import cparser
         if backend is None:
             try:
-                import _ffi_backend as backend
+                import _cffi_backend as backend
             except ImportError, e:
                 import warnings
                 warnings.warn("ImportError: %s\n"

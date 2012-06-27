@@ -231,7 +231,7 @@ ctypedescr_clear(CTypeDescrObject *ct)
 
 static PyTypeObject CTypeDescr_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_ffi_backend.CTypeDescr",
+    "_cffi_backend.CTypeDescr",
     offsetof(CTypeDescrObject, ct_name),
     sizeof(char),
     (destructor)ctypedescr_dealloc,             /* tp_dealloc */
@@ -299,7 +299,7 @@ static PyMemberDef cfield_members[] = {
 
 static PyTypeObject CField_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_ffi_backend.CField",
+    "_cffi_backend.CField",
     sizeof(CFieldObject),
     0,
     (destructor)cfield_dealloc,                 /* tp_dealloc */
@@ -1607,7 +1607,7 @@ static PyMappingMethods CData_as_mapping = {
 
 static PyTypeObject CData_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_ffi_backend.CData",
+    "_cffi_backend.CData",
     sizeof(CDataObject),
     0,
     (destructor)cdata_dealloc,                  /* tp_dealloc */
@@ -1636,7 +1636,7 @@ static PyTypeObject CData_Type = {
 
 static PyTypeObject CDataOwning_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_ffi_backend.CDataOwn",
+    "_cffi_backend.CDataOwn",
     sizeof(CDataObject_own_base),
     0,
     (destructor)cdataowning_dealloc,            /* tp_dealloc */
@@ -1697,7 +1697,7 @@ cdataiter_dealloc(CDataIterObject *it)
 
 static PyTypeObject CDataIter_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_ffi_backend.CDataIter",               /* tp_name */
+    "_cffi_backend.CDataIter",              /* tp_name */
     sizeof(CDataIterObject),                /* tp_basicsize */
     0,                                      /* tp_itemsize */
     /* methods */
@@ -2065,7 +2065,7 @@ static PyMethodDef dl_methods[] = {
 
 static PyTypeObject dl_type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_ffi_backend.Library",             /* tp_name */
+    "_cffi_backend.Library",            /* tp_name */
     sizeof(DynLibObject),               /* tp_basicsize */
     0,                                  /* tp_itemsize */
     /* methods */
@@ -3578,7 +3578,7 @@ static void *cffi_exports[] = {
 
 /************************************************************/
 
-void init_ffi_backend(void)
+void init_cffi_backend(void)
 {
     PyObject *m, *v;
 
@@ -3591,7 +3591,7 @@ void init_ffi_backend(void)
         return;
     }
 
-    m = Py_InitModule("_ffi_backend", FFIBackendMethods);
+    m = Py_InitModule("_cffi_backend", FFIBackendMethods);
     if (m == NULL)
         return;
     if (PyType_Ready(&dl_type) < 0)

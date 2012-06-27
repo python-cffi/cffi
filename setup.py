@@ -3,7 +3,7 @@ import subprocess
 import errno
 
 
-sources = ['c/_ffi_backend.c']
+sources = ['c/_cffi_backend.c']
 libraries = ['ffi']
 include_dirs = []
 
@@ -63,7 +63,7 @@ if __name__ == '__main__':
             "fast c backend for cpython",
             standard='__pypy__' not in sys.modules,
             ext_modules=[
-                Extension(name='_ffi_backend',
+                Extension(name='_cffi_backend',
                           include_dirs=include_dirs,
                           sources=sources,
                           libraries=libraries),
