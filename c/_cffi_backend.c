@@ -2754,13 +2754,11 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
         farg = (CTypeDescrObject *)PyTuple_GET_ITEM(fargs, i);
 
         /* ffi buffer: fill in the ffi for the i'th argument */
-        if (farg == NULL)    /* stands for a NULL pointer in the varargs */
-            atype = &ffi_type_pointer;
-        else {
-            atype = fb_fill_type(fb, farg);
-            if (PyErr_Occurred())
-                return -1;
-        }
+        assert(farg != NULL);
+        atype = fb_fill_type(fb, farg);
+        if (PyErr_Occurred())
+            return -1;
+
         if (fb->atypes != NULL) {
             fb->atypes[i] = atype;
             /* exchange data size */
