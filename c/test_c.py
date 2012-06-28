@@ -1140,7 +1140,7 @@ def test_set_struct_fields():
     p.a1 = ['x', 'y']
     assert str(p.a1) == 'xyo'
 
-def test_struct_return_in_func():
+def test_invalid_function_result_types():
     BFunc = new_function_type((), new_void_type())
     BArray = new_array_type(new_pointer_type(BFunc), 5)        # works
     new_function_type((), BFunc)    # works
@@ -1150,6 +1150,7 @@ def test_struct_return_in_func():
                    (), new_union_type("foo_u"))
     py.test.raises(TypeError, new_function_type, (), BArray)
 
+def test_struct_return_in_func():
     if sys.platform == 'win32':
         py.test.skip("function returning struct")
     BChar = new_primitive_type("char")
