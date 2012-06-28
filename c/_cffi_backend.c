@@ -41,6 +41,7 @@
 #define CT_PRIMITIVE_FITS_LONG   2048
 #define CT_IS_OPAQUE             4096
 #define CT_IS_ENUM               8192
+#define CT_CUSTOM_FIELD_POS     16384
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -2467,12 +2468,16 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         if (alignment < falign)
             alignment = falign;
 
-        if (foffset < 0) {
-            /* align this field to its own 'falign' by inserting padding */
-            offset = (offset + falign - 1) & ~(falign-1);
-        }
-        else
+        /* align this field to its own 'falign' by inserting padding */
+        offset = (offset + falign - 1) & ~(falign-1);
+
+        if (foffset >= 0) {
+            /* a forced field position: ignore the offset just computed,
+               except to know if we must set CT_CUSTOM_FIELD_POS */
+            if (offset != foffset)
+                ct->ct_flags |= CT_CUSTOM_FIELD_POS;
             offset = foffset;
+        }
 
         if (fbitsize < 0 || (fbitsize == 8 * ftype->ct_size &&
                              !(ftype->ct_flags & CT_PRIMITIVE_CHAR))) {
@@ -2665,8 +2670,21 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
         Py_ssize_t i, n;
         CFieldObject *cf;
 
-        /* XXX check if the field positions match; if necessary,
-           insert dummy fields */
+        /* We can't pass a struct that was completed by verify().
+           Issue: assume verify() is given "struct { long b; ...; }".
+           Then it will complete it in the same way whether it is actually
+           "struct { long a, b; }" or "struct { double a; long b; }".
+           But on 64-bit UNIX, these two structs are passed by value
+           differently: e.g. on x86-64, "b" ends up in "rsi" in the
+           first case and "rdi" on the second case.
+        */
+        if (ct->ct_flags & CT_CUSTOM_FIELD_POS) {
+            PyErr_SetString(PyExc_TypeError,
+                "cannot pass as a argument a struct that was completed "
+                "with verify() (see _cffi_backend.c for details of why)");
+            return NULL;
+        }
+
         n = PyDict_Size(ct->ct_stuff);
         elements = fb_alloc(fb, (n + 1) * sizeof(ffi_type*));
         cf = (CFieldObject *)ct->ct_extra;
@@ -3420,6 +3438,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 7: f = &_testfunc7; break;
     case 8: f = stderr; break;
     case 9: f = &_testfunc9; break;
+    case 10: f = &_testfunc10; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;
