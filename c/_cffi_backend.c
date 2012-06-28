@@ -3438,7 +3438,6 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 7: f = &_testfunc7; break;
     case 8: f = stderr; break;
     case 9: f = &_testfunc9; break;
-    case 10: f = &_testfunc10; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;
