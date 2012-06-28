@@ -75,10 +75,7 @@ class PrimitiveType(BaseType):
         return ffi._backend.new_primitive_type(self.name)
 
 
-class RawFunctionType(BaseType):
-    # Corresponds to a C type like 'int(int)', which is the C type of
-    # a function, but not a pointer-to-function.  The backend has no
-    # notion of such a type; it's used temporarily by parsing.
+class BaseFunctionType(BaseType):
     _attrs_ = ('args', 'result', 'ellipsis')
 
     def __init__(self, args, result, ellipsis):
@@ -94,16 +91,22 @@ class RawFunctionType(BaseType):
         replace_with = '(%s)(%s)' % (replace_with, ', '.join(reprargs))
         return self.result._get_c_name(replace_with)
 
+
+class RawFunctionType(BaseFunctionType):
+    # Corresponds to a C type like 'int(int)', which is the C type of
+    # a function, but not a pointer-to-function.  The backend has no
+    # notion of such a type; it's used temporarily by parsing.
+
     def prepare_backend_type(self, ffi):
         from . import api
         raise api.CDefError("cannot render the type %r: it is a function "
                             "type, not a pointer-to-function type" % (self,))
 
 
-class FunctionPtrType(RawFunctionType):
+class FunctionPtrType(BaseFunctionType):
 
     def _get_c_name(self, replace_with):
-        return RawFunctionType._get_c_name(self, '*'+replace_with)
+        return BaseFunctionType._get_c_name(self, '*'+replace_with)
 
     def prepare_backend_type(self, ffi):
         args = [ffi._get_cached_btype(self.result)]
