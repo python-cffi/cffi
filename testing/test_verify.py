@@ -546,33 +546,33 @@ def test_varargs_struct():
 
 def test_autofilled_struct_as_argument():
     ffi = FFI()
-    ffi.cdef("struct foo_s { char a; int b; ...; }; int foo(struct foo_s);")
+    ffi.cdef("struct foo_s { long a; double b; ...; };\n"
+             "int foo(struct foo_s);")
     lib = ffi.verify("""
         struct foo_s {
-            int pad1, b, pad2, pad3;
-            char a;
+            double b;
+            long a;
         };
         int foo(struct foo_s s) {
-            return s.a - s.b;
+            return s.a - (int)s.b;
         }
     """)
-    s = ffi.new("struct foo_s", ['B', 1])
-    assert lib.foo(s[0]) == ord('A')
+    s = ffi.new("struct foo_s", [100, 1])
+    assert lib.foo(s[0]) == 99
 
 def test_autofilled_struct_as_argument_dynamic():
     ffi = FFI()
-    ffi.cdef("struct foo_s { char a; int b; ...; };\n"
-             "int (**foo)(struct foo_s);")
+    ffi.cdef("struct foo_s { long a; double b; ...; };\n"
+             "int (*foo)(struct foo_s);")
     lib = ffi.verify("""
         struct foo_s {
-            int pad1, b, pad2, pad3;
-            char a;
+            double b;
+            long a;
         };
         int foo1(struct foo_s s) {
-            return s.a - s.b;
+            return s.a - (int)s.b;
         }
-        int (*foo2)(struct foo_s s) = &foo1;
-        int (**foo)(struct foo_s s) = &foo2;
+        int (*foo)(struct foo_s s) = &foo1;
     """)
-    s = ffi.new("struct foo_s", ['B', 1])
-    assert lib.foo[0](s[0]) == ord('A')
+    s = ffi.new("struct foo_s", [100, 1.9])
+    assert lib.foo(s[0]) == 99
