@@ -2675,8 +2675,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
            Then it will complete it in the same way whether it is actually
            "struct { long a, b; }" or "struct { double a; long b; }".
            But on 64-bit UNIX, these two structs are passed by value
-           differently: e.g. on x86-64, "b" ends up in "rsi" in the
-           first case and "rdi" on the second case.
+           differently: e.g. on x86-64, "b" ends up in register "rsi" in
+           the first case and "rdi" in the second case.
         */
         if (ct->ct_flags & CT_CUSTOM_FIELD_POS) {
             PyErr_SetString(PyExc_TypeError,
