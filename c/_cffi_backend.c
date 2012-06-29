@@ -3523,6 +3523,33 @@ static struct _testfunc7_s _testfunc10(int n)
     return result;
 }
 
+struct _testfunc11_s { int a1, a2; };
+static struct _testfunc11_s _testfunc11(int n)
+{
+    struct _testfunc11_s result;
+    result.a1 = n;
+    result.a2 = n * n;
+    return result;
+}
+
+struct _testfunc12_s { double a1; };
+static struct _testfunc12_s _testfunc12(int n)
+{
+    struct _testfunc12_s result;
+    result.a1 = n;
+    return result;
+}
+
+struct _testfunc13_s { int a1, a2, a3; };
+static struct _testfunc13_s _testfunc13(int n)
+{
+    struct _testfunc13_s result;
+    result.a1 = n;
+    result.a2 = n * n;
+    result.a3 = n * n * n;
+    return result;
+}
+
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
     /* for testing only */
@@ -3542,6 +3569,9 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 8: f = stderr; break;
     case 9: f = &_testfunc9; break;
     case 10: f = &_testfunc10; break;
+    case 11: f = &_testfunc11; break;
+    case 12: f = &_testfunc12; break;
+    case 13: f = &_testfunc13; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;

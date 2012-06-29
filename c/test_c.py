@@ -1171,6 +1171,7 @@ def test_invalid_function_result_types():
 def test_struct_return_in_func():
     BChar = new_primitive_type("char")
     BShort = new_primitive_type("short")
+    BDouble = new_primitive_type("double")
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo_s")
     complete_struct_or_union(BStruct, [('a1', BChar, -1),
@@ -1181,6 +1182,37 @@ def test_struct_return_in_func():
     assert repr(s) == "<cdata 'struct foo_s' owning 4 bytes>"
     assert s.a1 == chr(40)
     assert s.a2 == 40 * 40
+    #
+    BStruct11 = new_struct_type("test11")
+    complete_struct_or_union(BStruct11, [('a1', BInt, -1),
+                                         ('a2', BInt, -1)])
+    BFunc11 = new_function_type((BInt,), BStruct11)
+    f = cast(BFunc11, _testfunc(11))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test11' owning 8 bytes>"
+    assert s.a1 == 40
+    assert s.a2 == 40 * 40
+    #
+    BStruct12 = new_struct_type("test12")
+    complete_struct_or_union(BStruct12, [('a1', BDouble, -1),
+                                         ])
+    BFunc12 = new_function_type((BInt,), BStruct12)
+    f = cast(BFunc12, _testfunc(12))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test12' owning 8 bytes>"
+    assert s.a1 == 40.0
+    #
+    BStruct13 = new_struct_type("test13")
+    complete_struct_or_union(BStruct13, [('a1', BInt, -1),
+                                         ('a2', BInt, -1),
+                                         ('a3', BInt, -1)])
+    BFunc13 = new_function_type((BInt,), BStruct13)
+    f = cast(BFunc13, _testfunc(13))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test13' owning 12 bytes>"
+    assert s.a1 == 40
+    assert s.a2 == 40 * 40
+    assert s.a3 == 40 * 40 * 40
 
 def test_cast_with_functionptr():
     BFunc = new_function_type((), new_void_type())
