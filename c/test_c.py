@@ -1140,31 +1140,17 @@ def test_set_struct_fields():
     p.a1 = ['x', 'y']
     assert str(p.a1) == 'xyo'
 
-def test_invalid_function_result_types():
+def test_no_struct_return_in_func():
     BFunc = new_function_type((), new_void_type())
     BArray = new_array_type(new_pointer_type(BFunc), 5)        # works
     new_function_type((), BFunc)    # works
     new_function_type((), new_primitive_type("int"))
     new_function_type((), new_pointer_type(BFunc))
-    py.test.raises(NotImplementedError, new_function_type,
-                   (), new_union_type("foo_u"))
+    py.test.raises(NotImplementedError, new_function_type, (),
+                   new_struct_type("foo_s"))
+    py.test.raises(NotImplementedError, new_function_type, (),
+                   new_union_type("foo_u"))
     py.test.raises(TypeError, new_function_type, (), BArray)
-
-def test_struct_return_in_func():
-    if sys.platform == 'win32':
-        py.test.skip("function returning struct")
-    BChar = new_primitive_type("char")
-    BShort = new_primitive_type("short")
-    BInt = new_primitive_type("int")
-    BStruct = new_struct_type("foo_s")
-    complete_struct_or_union(BStruct, [('a1', BChar, -1),
-                                       ('a2', BShort, -1)])
-    BFunc10 = new_function_type((BInt,), BStruct)
-    f = cast(BFunc10, _testfunc(10))
-    s = f(40)
-    assert repr(s) == "<cdata 'struct foo_s' owning 4 bytes>"
-    assert s.a1 == chr(40)
-    assert s.a2 == 40 * 40
 
 def test_cast_with_functionptr():
     BFunc = new_function_type((), new_void_type())

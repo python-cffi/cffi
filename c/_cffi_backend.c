@@ -22,11 +22,6 @@
 # define USE__THREAD
 #endif
 
-/* Define CAN_RETURN_STRUCTS if the C compiler supports returning structs */
-#if !defined(MS_WIN32)
-# define CAN_RETURN_STRUCTS
-#endif
-
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
@@ -1425,9 +1420,6 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
     return PyObject_GenericSetAttr((PyObject *)cd, attr, value);
 }
 
-static PyObject *
-convert_struct_to_owning_object(char *data, CTypeDescrObject *ct); /*forward*/
-
 static cif_description_t *
 fb_prepare_cif(PyObject *fargs, CTypeDescrObject *fresult);    /* forward */
 
@@ -1549,9 +1541,6 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     if (fresult->ct_flags & CT_VOID) {
         res = Py_None;
         Py_INCREF(res);
-    }
-    else if (fresult->ct_flags & CT_STRUCT) {
-        res = convert_struct_to_owning_object(resultdata, fresult);
     }
     else {
         res = convert_to_object(resultdata, fresult);
@@ -1760,46 +1749,10 @@ cdata_iter(CDataObject *cd)
 
 /************************************************************/
 
-static CDataObject *allocate_owning_object(Py_ssize_t dataoffset,
-                                           Py_ssize_t datasize,
-                                           CTypeDescrObject *ct)
-{
-    CDataObject_own_base *cdb;
-    cdb = (CDataObject_own_base *)PyObject_Malloc(dataoffset + datasize);
-    if (PyObject_Init((PyObject *)cdb, &CDataOwning_Type) == NULL)
-        return NULL;
-
-    Py_INCREF(ct);
-    cdb->head.c_type = ct;
-    cdb->head.c_data = ((char *)cdb) + dataoffset;
-    cdb->weakreflist = NULL;
-    return &cdb->head;
-}
-
-static PyObject *
-convert_struct_to_owning_object(char *data, CTypeDescrObject *ct)
-{
-    CDataObject *cd;
-    Py_ssize_t dataoffset = offsetof(CDataObject_own_nolength, alignment);
-    Py_ssize_t datasize = ct->ct_size;
-
-    if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) != CT_STRUCT) {
-        PyErr_SetString(PyExc_TypeError,
-                        "return type is not a struct or is opaque");
-        return NULL;
-    }
-    cd = allocate_owning_object(dataoffset, datasize, ct);
-    if (cd == NULL)
-        return NULL;
-
-    memcpy(cd->c_data, data, datasize);
-    return (PyObject *)cd;
-}
-
 static PyObject *b_newp(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct, *ctitem;
-    CDataObject *cd;
+    CDataObject_own_base *cdb;
     PyObject *init = Py_None;
     Py_ssize_t dataoffset, datasize, explicitlength;
     if (!PyArg_ParseTuple(args, "O!|O:newp", &CTypeDescr_Type, &ct, &init))
@@ -1856,21 +1809,26 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    cd = allocate_owning_object(dataoffset, datasize, ct);
-    if (cd == NULL)
+    cdb = (CDataObject_own_base *)PyObject_Malloc(dataoffset + datasize);
+    if (PyObject_Init((PyObject *)cdb, &CDataOwning_Type) == NULL)
         return NULL;
-    if (explicitlength >= 0)
-        ((CDataObject_own_length*)cd)->length = explicitlength;
 
-    memset(cd->c_data, 0, datasize);
+    Py_INCREF(ct);
+    cdb->head.c_type = ct;
+    cdb->head.c_data = ((char *)cdb) + dataoffset;
+    cdb->weakreflist = NULL;
+    if (explicitlength >= 0)
+        ((CDataObject_own_length*)cdb)->length = explicitlength;
+
+    memset(cdb->head.c_data, 0, datasize);
     if (init != Py_None) {
-        if (convert_from_object(cd->c_data,
+        if (convert_from_object(cdb->head.c_data,
               (ct->ct_flags & CT_POINTER) ? ct->ct_itemdescr : ct, init) < 0) {
-            Py_DECREF(cd);
+            Py_DECREF(cdb);
             return NULL;
         }
     }
-    return (PyObject *)cd;
+    return (PyObject *)cdb;
 }
 
 static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
@@ -2785,14 +2743,11 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
     if (PyErr_Occurred())
         return -1;
     if (cif_descr != NULL) {
-#ifndef CAN_RETURN_STRUCTS
         if (fb->rtype->type == FFI_TYPE_STRUCT) {
             PyErr_SetString(PyExc_NotImplementedError,
-                            "functions returning structs are not supported "
-                            "on this platform");
+                            "functions returning structs are not supported");
             return -1;
         }
-#endif
         /* exchange data size */
         /* first, enough room for an array of 'nargs' pointers */
         exchange_offset = nargs * sizeof(void*);
@@ -2990,9 +2945,9 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
                           &ellipsis))
         return NULL;
 
-    if (fresult->ct_flags & CT_UNION) {
+    if (fresult->ct_flags & (CT_STRUCT|CT_UNION)) {
         PyErr_SetString(PyExc_NotImplementedError,
-                        "functions returning a union");
+                        "functions returning a struct or a union");
         return NULL;
     }
     if ((fresult->ct_size < 0 && !(fresult->ct_flags & CT_VOID)) ||
@@ -3465,16 +3420,6 @@ static int _testfunc9(int num, ...)
     return total;
 }
 
-#ifdef CAN_RETURN_STRUCTS
-static struct _testfunc7_s _testfunc10(int n)
-{
-    struct _testfunc7_s result;
-    result.a1 = n;
-    result.a2 = n * n;
-    return result;
-}
-#endif
-
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
     /* for testing only */
@@ -3493,9 +3438,6 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 7: f = &_testfunc7; break;
     case 8: f = stderr; break;
     case 9: f = &_testfunc9; break;
-#ifdef CAN_RETURN_STRUCTS
-    case 10: f = &_testfunc10; break;
-#endif
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;
@@ -3648,7 +3590,6 @@ static void *cffi_exports[] = {
     _cffi_from_c_char,
     convert_to_object,
     convert_from_object,
-    convert_struct_to_owning_object,
 };
 
 /************************************************************/

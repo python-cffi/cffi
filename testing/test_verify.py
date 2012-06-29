@@ -576,27 +576,3 @@ def test_autofilled_struct_as_argument_dynamic():
     """)
     msg = 'cannot pass as a argument a struct that was completed with verify()'
     assert msg in str(e.value)
-
-def test_func_returns_struct():
-    # only supported via verify(), when GCC is the compiler; and only for
-    # regular functions.
-    ffi = FFI()
-    ffi.cdef("""
-        struct foo_s { int aa, bb; };
-        struct foo_s foo(int a, int b);
-    """)
-    lib = ffi.verify("""
-        struct foo_s { int aa, bb; };
-        struct foo_s foo(int a, int b) {
-            struct foo_s r;
-            r.aa = a*a;
-            r.bb = b*b;
-            return r;
-        }
-    """)
-    s = lib.foo(6, 7)
-    # It's the only way to have a 'struct foo_s' that owns its memory.
-    # With ffi.new() we always get a 'struct foo_s *' that owns the memory.
-    assert repr(s) == "<cdata 'struct foo_s' owning 8 bytes>"
-    assert s.aa == 36
-    assert s.bb == 49

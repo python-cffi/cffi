@@ -184,9 +184,6 @@ class Verifier(object):
         elif isinstance(tp, model.ArrayType):
             return '_cffi_from_c_deref((char *)%s, _cffi_type(%d))' % (
                 var, self.gettypenum(tp))
-        elif isinstance(tp, model.StructType):
-            return '_cffi_from_c_struct((char *)&%s, _cffi_type(%d))' % (
-                var, self.gettypenum(tp))
         else:
             raise NotImplementedError(tp)
 
@@ -617,9 +614,7 @@ cffimod_header = r'''
     ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[16])
 #define _cffi_to_c                                                       \
     ((int(*)(char *, CTypeDescrObject *, PyObject *))_cffi_exports[17])
-#define _cffi_from_c_struct                                              \
-    ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[18])
-#define _CFFI_NUM_EXPORTS 19
+#define _CFFI_NUM_EXPORTS 18
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 #  define _cffi_to_c_long_long PyLong_AsLongLong
