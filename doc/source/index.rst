@@ -493,6 +493,50 @@ things like ``ffi.new("int[%d]"%x)``.  Indeed, this is not recommended:
 it all the time.
 
 
+Function calls
+--------------
+
+When calling C functions, passing arguments follows mostly the same
+rules as assigning to structure fields, and the return value follows the
+same rules as reading a structure field.  For example::
+
+    ffi.cdef("""
+        int foo(int a, int b);
+    """)
+    lib = ffi.verify("#include <foo.h>")
+
+    n = lib.foo(2, 3)     # returns a normal integer
+
+As an extension, you can pass to ``char *`` arguments a normal Python
+string (but don't pass a normal Python string to functions that take a
+``char *`` argument and may mutate it!)::
+
+    ffi.cdef("""
+        size_t strlen(const char *);
+    """)
+    C = ffi.dlopen(None)
+
+    assert C.strlen("hello") == 5
+
+CFFI supports passing and returning structs to functions and callbacks.
+Example (sketch)::
+
+    >>> ffi.cdef("""
+    ...     struct foo_s { int a, b; };
+    ...     struct foo_s function_returning_a_struct(void);
+    ... """)
+    >>> lib = ffi.verify("#include <somewhere.h>")
+    >>> lib.function_returning_a_struct()
+    <cdata 'struct foo_s' owning 8 bytes>
+
+There are a few "obscure-case" limitations to the argument types and
+return type.  You cannot pass directly as argument a union, nor a struct
+which uses bitfields (note that passing a *pointer* to anything is
+fine).  If you pass a struct, the struct type cannot have been declared
+with "``...;``" and completed with ``verify()``; you need to declare it
+completely in ``cdef()``.
+
+
 Variadic function calls
 -----------------------
 
