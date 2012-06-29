@@ -536,6 +536,9 @@ fine).  If you pass a struct, the struct type cannot have been declared
 with "``...;``" and completed with ``verify()``; you need to declare it
 completely in ``cdef()``.
 
+.. versionadded:: 0.2
+   Aside from these limitations, functions and callbacks can return structs.
+
 
 Variadic function calls
 -----------------------
