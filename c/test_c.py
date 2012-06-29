@@ -878,6 +878,24 @@ def test_a_lot_of_callbacks():
     for i, f in enumerate(flist):
         assert f(-142) == -142 + i
 
+def test_callback_returning_struct():
+    BSChar = new_primitive_type("signed char")
+    BInt = new_primitive_type("int")
+    BDouble = new_primitive_type("double")
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a', BSChar, -1),
+                                       ('b', BDouble, -1)])
+    def cb(n):
+        return newp(BStructPtr, [-n, 1E-42])[0]
+    BFunc = new_function_type((BInt,), BStruct)
+    f = callback(BFunc, cb)
+    s = f(10)
+    assert typeof(s) is BStruct
+    assert repr(s).startswith("<cdata 'struct foo' owning ")
+    assert s.a == -10
+    assert s.b == 1E-42
+
 def test_enum_type():
     BEnum = new_enum_type("foo", (), ())
     assert repr(BEnum) == "<ctype 'enum foo'>"
