@@ -1164,3 +1164,33 @@ def test_cast_with_functionptr():
     newp(BStructPtr, [cast(BCharP, 0)])
     py.test.raises(TypeError, newp, BStructPtr, [cast(BIntP, 0)])
     py.test.raises(TypeError, newp, BStructPtr, [cast(BFunc2, 0)])
+
+def test_keepalive_struct():
+    # exception to the no-keepalive rule: p=newp(BStructPtr) returns a
+    # pointer owning the memory, and p[0] returns a pointer to the
+    # struct that *also* owns the memory
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', new_primitive_type("int"), -1)])
+    p = newp(BStructPtr)
+    assert repr(p) == "<cdata 'struct foo *' owning 4 bytes>"
+    q = p[0]
+    assert repr(q) == "<cdata 'struct foo' owning 4 bytes>"
+    q.a1 = 123456
+    assert p.a1 == 123456
+    del p
+    import gc; gc.collect()
+    assert q.a1 == 123456
+    assert repr(q) == "<cdata 'struct foo' owning 4 bytes>"
+    assert q.a1 == 123456
+
+def test_nokeepalive_struct():
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    BStructPtrPtr = new_pointer_type(BStructPtr)
+    complete_struct_or_union(BStruct, [('a1', new_primitive_type("int"), -1)])
+    p = newp(BStructPtr)
+    pp = newp(BStructPtrPtr)
+    pp[0] = p
+    s = pp[0][0]
+    assert repr(s).startswith("<cdata 'struct foo' 0x")

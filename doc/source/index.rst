@@ -393,6 +393,14 @@ pointer to a pointer of a different type: only the original object has
 ownership, so you must keep it alive.  As soon as you forget it, then
 the casted pointer will point to garbage.)
 
+.. versionchanged:: 0.2
+   Allocating a new struct also returns an owning pointer object.
+   But --- as an exception to the above rule --- dereferencing this
+   particular pointer object also returns an *owning* struct object.
+   This is done for cases where you really want to have a struct
+   object but don't have any convenient place to keep the original
+   pointer object alive.
+
 The cdata objects support mostly the same operations as in C: you can
 read or write from pointers, arrays and structures.  Dereferencing a
 pointer is done usually in C with the syntax ``*p``, which is not valid

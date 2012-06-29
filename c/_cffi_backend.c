@@ -41,7 +41,8 @@
 #define CT_PRIMITIVE_FITS_LONG   2048
 #define CT_IS_OPAQUE             4096
 #define CT_IS_ENUM               8192
-#define CT_CUSTOM_FIELD_POS     16384
+#define CT_IS_PTR_TO_OWNED      16384
+#define CT_CUSTOM_FIELD_POS     32768
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -124,6 +125,11 @@ typedef struct {
     Py_ssize_t length;
     union_alignment alignment;
 } CDataObject_own_length;
+
+typedef struct {
+    CDataObject_own_base head;
+    PyObject *structobj;
+} CDataObject_own_structptr;
 
 typedef struct {
     ffi_cif cif;
@@ -1007,7 +1013,10 @@ static void cdataowning_dealloc(CDataObject_own_base *cdb)
     if (cdb->weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *) cdb);
 
-    if (cdb->head.c_type->ct_flags & CT_FUNCTIONPTR) {
+    if (cdb->head.c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
+        Py_DECREF(((CDataObject_own_structptr *)cdb)->structobj);
+    }
+    else if (cdb->head.c_type->ct_flags & CT_FUNCTIONPTR) {
         /* a callback */
         ffi_closure *closure = (ffi_closure *)cdb->head.c_data;
         PyObject *args = (PyObject *)(closure->user_data);
@@ -1275,15 +1284,33 @@ _cdata_get_indexed_ptr(CDataObject *cd, PyObject *key)
 }
 
 static PyObject *
-cdata_subscript(CDataObject *cd, PyObject *key)
+cdataowning_subscript(CDataObject *cd, PyObject *key)
 {
     char *c = _cdata_get_indexed_ptr(cd, key);
-    CTypeDescrObject *ctitem = cd->c_type->ct_itemdescr;
     /* use 'mp_subscript' instead of 'sq_item' because we don't want
        negative indexes to be corrected automatically */
     if (c == NULL)
         return NULL;
-    return convert_to_object(c, ctitem);
+
+    if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
+        PyObject *res = ((CDataObject_own_structptr *)cd)->structobj;
+        Py_INCREF(res);
+        return res;
+    }
+    else {
+        return convert_to_object(c, cd->c_type->ct_itemdescr);
+    }
+}
+
+static PyObject *
+cdata_subscript(CDataObject *cd, PyObject *key)
+{
+    char *c = _cdata_get_indexed_ptr(cd, key);
+    /* use 'mp_subscript' instead of 'sq_item' because we don't want
+       negative indexes to be corrected automatically */
+    if (c == NULL)
+        return NULL;
+    return convert_to_object(c, cd->c_type->ct_itemdescr);
 }
 
 static int
@@ -1603,6 +1630,12 @@ static PyMappingMethods CData_as_mapping = {
     (objobjargproc)cdata_ass_sub, /*mp_ass_subscript*/
 };
 
+static PyMappingMethods CDataOwn_as_mapping = {
+    (lenfunc)cdata_length, /*mp_length*/
+    (binaryfunc)cdataowning_subscript, /*mp_subscript*/
+    (objobjargproc)cdata_ass_sub, /*mp_ass_subscript*/
+};
+
 static PyTypeObject CData_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "_cffi_backend.CData",
@@ -1645,7 +1678,7 @@ static PyTypeObject CDataOwning_Type = {
     (reprfunc)cdataowning_repr,                 /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
+    &CDataOwn_as_mapping,                       /* tp_as_mapping */
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
@@ -1752,6 +1785,7 @@ cdata_iter(CDataObject *cd)
 static PyObject *b_newp(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct, *ctitem;
+    CDataObject *cd;
     CDataObject_own_base *cdb;
     PyObject *init = Py_None;
     Py_ssize_t dataoffset, datasize, explicitlength;
@@ -1812,23 +1846,48 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
     cdb = (CDataObject_own_base *)PyObject_Malloc(dataoffset + datasize);
     if (PyObject_Init((PyObject *)cdb, &CDataOwning_Type) == NULL)
         return NULL;
-
-    Py_INCREF(ct);
-    cdb->head.c_type = ct;
-    cdb->head.c_data = ((char *)cdb) + dataoffset;
     cdb->weakreflist = NULL;
+    cdb->head.c_data = ((char *)cdb) + dataoffset;
     if (explicitlength >= 0)
         ((CDataObject_own_length*)cdb)->length = explicitlength;
 
-    memset(cdb->head.c_data, 0, datasize);
-    if (init != Py_None) {
-        if (convert_from_object(cdb->head.c_data,
-              (ct->ct_flags & CT_POINTER) ? ct->ct_itemdescr : ct, init) < 0) {
+    if (ct->ct_flags & CT_IS_PTR_TO_OWNED) {
+        /* common case of ptr-to-struct (or ptr-to-union): for this case
+           we build two objects instead of one, with the memory-owning
+           one being really the struct (or union) and the returned one
+           having a strong reference to it */
+        CDataObject_own_structptr *cdp;
+
+        ctitem = ct->ct_itemdescr;
+        Py_INCREF(ctitem);
+        cdb->head.c_type = ctitem;
+
+        cdp = (CDataObject_own_structptr *)
+            PyObject_Malloc(sizeof(CDataObject_own_structptr));
+        if (PyObject_Init((PyObject *)cdp, &CDataOwning_Type) == NULL) {
             Py_DECREF(cdb);
             return NULL;
         }
+        cdp->head.weakreflist = NULL;
+        cdp->head.head.c_data = cdb->head.c_data;
+        cdp->structobj = (PyObject *)cdb;   /* store away the only reference */
+        cd = &cdp->head.head;
     }
-    return (PyObject *)cdb;
+    else {
+        cd = &cdb->head;
+    }
+    Py_INCREF(ct);
+    cd->c_type = ct;
+
+    memset(cd->c_data, 0, datasize);
+    if (init != Py_None) {
+        if (convert_from_object(cd->c_data,
+              (ct->ct_flags & CT_POINTER) ? ct->ct_itemdescr : ct, init) < 0) {
+            Py_DECREF(cd);
+            return NULL;
+        }
+    }
+    return (PyObject *)cd;
 }
 
 static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
@@ -2294,6 +2353,8 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
 
     td->ct_size = sizeof(void *);
     td->ct_flags = CT_POINTER;
+    if (ctitem->ct_flags & (CT_STRUCT|CT_UNION))
+        td->ct_flags |= CT_IS_PTR_TO_OWNED;
     return (PyObject *)td;
 }
 
