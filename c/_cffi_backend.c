@@ -3694,6 +3694,7 @@ static void *cffi_exports[] = {
     _cffi_from_c_char,
     convert_to_object,
     convert_from_object,
+    convert_struct_to_owning_object,
 };
 
 /************************************************************/

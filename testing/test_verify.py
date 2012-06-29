@@ -576,3 +576,23 @@ def test_autofilled_struct_as_argument_dynamic():
     """)
     msg = 'cannot pass as a argument a struct that was completed with verify()'
     assert msg in str(e.value)
+
+def test_func_returns_struct():
+    ffi = FFI()
+    ffi.cdef("""
+        struct foo_s { int aa, bb; };
+        struct foo_s foo(int a, int b);
+    """)
+    lib = ffi.verify("""
+        struct foo_s { int aa, bb; };
+        struct foo_s foo(int a, int b) {
+            struct foo_s r;
+            r.aa = a*a;
+            r.bb = b*b;
+            return r;
+        }
+    """)
+    s = lib.foo(6, 7)
+    assert repr(s) == "<cdata 'struct foo_s' owning 8 bytes>"
+    assert s.aa == 36
+    assert s.bb == 49
