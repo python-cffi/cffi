@@ -173,6 +173,9 @@ Note that the above example works independently of the exact layout of
 ``struct passwd``, but so far require a C compiler at runtime.  (We plan
 to improve with caching and a way to distribute the compiled code.)
 
+You will find a number of larger examples using ``verify()`` in the
+`demo`_ directory.
+
 Struct/Array Example
 --------------------
 
