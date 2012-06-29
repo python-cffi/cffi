@@ -71,6 +71,8 @@ Download and Installation:
 * https://bitbucket.org/cffi/cffi/downloads
 
 * ``python setup.py install`` or ``python setup_base.py install``
+  (should work out of the box on Ubuntu or Windows; see below for
+  `MacOS 10.6`_)
 
 * or you can directly import and use ``cffi``, but if you don't
   compile the ``_cffi_backend`` extension module, it will fall back
@@ -90,6 +92,41 @@ Demos:
 .. _`testing/backend_tests.py`: https://bitbucket.org/cffi/cffi/src/default/testing/backend_tests.py
 .. _`testing/test_verify.py`: https://bitbucket.org/cffi/cffi/src/default/testing/test_verify.py
 
+
+Platform-specific instructions
+------------------------------
+
+``libffi`` is notoriously messy to install and use --- to the point that
+CPython includes its own copy to avoid relying on external packages.
+CFFI did the same for Windows, but (so far) not for other platforms.
+Ubuntu Linux seems to work out of the box.  Here are some
+(user-supplied) instructions for other platforms.
+
+
+MacOS 10.6
+++++++++++
+
+(Thanks Juraj Sukop for this)
+
+For building libffi you can use the default install path, but then, in
+``setup.py`` you need to change::
+
+    include_dirs = []
+
+to::
+
+    include_dirs = ['/usr/local/lib/libffi-3.0.11/include']
+
+Then running ``python setup.py build`` complains about "fatal error: error writing to -: Broken pipe", which can be fixed by running::
+
+    ARCHFLAGS="-arch i386 -arch x86_64" python setup.py build
+
+as described here_.
+
+.. _here: http://superuser.com/questions/259278/python-2-6-1-pycrypto-2-3-pypi-package-broken-pipe-during-build
+
+
+=======================================================
 
 Examples
 =======================================================
