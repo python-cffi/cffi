@@ -2747,7 +2747,8 @@ static void *fb_alloc(struct funcbuilder_s *fb, Py_ssize_t size)
     }
 }
 
-static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
+static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
+                              int is_result_type)
 {
     if (ct->ct_flags & CT_PRIMITIVE_ANY) {
         return (ffi_type *)ct->ct_extra;
@@ -2785,6 +2786,19 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
             return NULL;
         }
 
+#ifdef USE_C_LIBFFI_MSVC
+        /* MSVC returns small structures in registers.  Pretend int32 or
+           int64 return type.  This is needed as a workaround for what
+           is really a bug of libffi_msvc seen as an independent library
+           (ctypes has a similar workaround). */
+        if (is_result_type) {
+            if (ct->ct_size <= 4)
+                return &ffi_type_sint32;
+            if (ct->ct_size <= 8)
+                return &ffi_type_sint64;
+        }
+#endif
+
         n = PyDict_Size(ct->ct_stuff);
         elements = fb_alloc(fb, (n + 1) * sizeof(ffi_type*));
         cf = (CFieldObject *)ct->ct_extra;
@@ -2796,7 +2810,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
                     "cannot pass as argument a struct with bit fields");
                 return NULL;
             }
-            ffifield = fb_fill_type(fb, cf->cf_type);
+            ffifield = fb_fill_type(fb, cf->cf_type, 0);
             if (elements != NULL)
                 elements[i] = ffifield;
             cf = cf->cf_next;
@@ -2839,7 +2853,7 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
     fb->nargs = nargs;
 
     /* ffi buffer: next comes the result type */
-    fb->rtype = fb_fill_type(fb, fresult);
+    fb->rtype = fb_fill_type(fb, fresult, 1);
     if (PyErr_Occurred())
         return -1;
     if (cif_descr != NULL) {
@@ -2867,7 +2881,7 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
 
         /* ffi buffer: fill in the ffi for the i'th argument */
         assert(farg != NULL);
-        atype = fb_fill_type(fb, farg);
+        atype = fb_fill_type(fb, farg, 0);
         if (PyErr_Occurred())
             return -1;
 
@@ -3550,6 +3564,41 @@ static struct _testfunc13_s _testfunc13(int n)
     return result;
 }
 
+struct _testfunc14_s { float a1; };
+static struct _testfunc14_s _testfunc14(int n)
+{
+    struct _testfunc14_s result;
+    result.a1 = (float)n;
+    return result;
+}
+
+struct _testfunc15_s { float a1; int a2; };
+static struct _testfunc15_s _testfunc15(int n)
+{
+    struct _testfunc15_s result;
+    result.a1 = (float)n;
+    result.a2 = n * n;
+    return result;
+}
+
+struct _testfunc16_s { float a1, a2; };
+static struct _testfunc16_s _testfunc16(int n)
+{
+    struct _testfunc16_s result;
+    result.a1 = (float)n;
+    result.a2 = -(float)n;
+    return result;
+}
+
+struct _testfunc17_s { int a1; float a2; };
+static struct _testfunc17_s _testfunc17(int n)
+{
+    struct _testfunc17_s result;
+    result.a1 = n;
+    result.a2 = (float)n * (float)n;
+    return result;
+}
+
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
     /* for testing only */
@@ -3572,6 +3621,10 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 11: f = &_testfunc11; break;
     case 12: f = &_testfunc12; break;
     case 13: f = &_testfunc13; break;
+    case 14: f = &_testfunc14; break;
+    case 15: f = &_testfunc15; break;
+    case 16: f = &_testfunc16; break;
+    case 17: f = &_testfunc17; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;

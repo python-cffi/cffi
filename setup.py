@@ -6,6 +6,7 @@ import errno
 sources = ['c/_cffi_backend.c']
 libraries = ['ffi']
 include_dirs = []
+define_macros = []
 
 
 if sys.platform == 'win32':
@@ -30,6 +31,7 @@ if COMPILE_LIBFFI:
         _filenames.remove('win32.c')
     sources.extend(os.path.join(COMPILE_LIBFFI, filename)
                    for filename in _filenames)
+    define_macros.append(('USE_C_LIBFFI_MSVC', '1'))
 else:
     try:
         p = subprocess.Popen(['pkg-config', '--cflags-only-I', 'libffi'],
@@ -66,7 +68,8 @@ if __name__ == '__main__':
                 Extension(name='_cffi_backend',
                           include_dirs=include_dirs,
                           sources=sources,
-                          libraries=libraries),
+                          libraries=libraries,
+                          define_macros=define_macros),
             ],
         ),
     },

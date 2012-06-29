@@ -1171,6 +1171,7 @@ def test_invalid_function_result_types():
 def test_struct_return_in_func():
     BChar = new_primitive_type("char")
     BShort = new_primitive_type("short")
+    BFloat = new_primitive_type("float")
     BDouble = new_primitive_type("double")
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo_s")
@@ -1213,6 +1214,45 @@ def test_struct_return_in_func():
     assert s.a1 == 40
     assert s.a2 == 40 * 40
     assert s.a3 == 40 * 40 * 40
+    #
+    BStruct14 = new_struct_type("test14")
+    complete_struct_or_union(BStruct14, [('a1', BFloat, -1),
+                                         ])
+    BFunc14 = new_function_type((BInt,), BStruct14)
+    f = cast(BFunc14, _testfunc(14))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test14' owning 4 bytes>"
+    assert s.a1 == 40.0
+    #
+    BStruct15 = new_struct_type("test15")
+    complete_struct_or_union(BStruct15, [('a1', BFloat, -1),
+                                         ('a2', BInt, -1)])
+    BFunc15 = new_function_type((BInt,), BStruct15)
+    f = cast(BFunc15, _testfunc(15))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test15' owning 8 bytes>"
+    assert s.a1 == 40.0
+    assert s.a2 == 40 * 40
+    #
+    BStruct16 = new_struct_type("test16")
+    complete_struct_or_union(BStruct16, [('a1', BFloat, -1),
+                                         ('a2', BFloat, -1)])
+    BFunc16 = new_function_type((BInt,), BStruct16)
+    f = cast(BFunc16, _testfunc(16))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test16' owning 8 bytes>"
+    assert s.a1 == 40.0
+    assert s.a2 == -40.0
+    #
+    BStruct17 = new_struct_type("test17")
+    complete_struct_or_union(BStruct17, [('a1', BInt, -1),
+                                         ('a2', BFloat, -1)])
+    BFunc17 = new_function_type((BInt,), BStruct17)
+    f = cast(BFunc17, _testfunc(17))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test17' owning 8 bytes>"
+    assert s.a1 == 40
+    assert s.a2 == 40.0 * 40.0
 
 def test_cast_with_functionptr():
     BFunc = new_function_type((), new_void_type())
