@@ -243,9 +243,7 @@ with zeroes initially, unless the optional second argument is used.
 If specified, this argument gives an "initializer", like you can use
 with C code to initialize global variables.
 
-The actual function calls should be obvious.  It's like C.  Did you even
-notice that we accidentally left a trailing semicolon?  That's fine
-because it is valid Python syntax as well ``:-)``
+The actual function calls should be obvious.  It's like C.
 
 
 =======================================================
