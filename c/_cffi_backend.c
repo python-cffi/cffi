@@ -3509,7 +3509,7 @@ static int *_testfunc6(int *x)
     y = *x - 1000;
     return &y;
 }
-struct _testfunc7_s { char a1; short a2; };
+struct _testfunc7_s { unsigned char a1; short a2; };
 static short _testfunc7(struct _testfunc7_s inlined)
 {
     return inlined.a1 + inlined.a2;
