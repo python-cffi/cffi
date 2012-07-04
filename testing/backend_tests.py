@@ -1031,3 +1031,14 @@ class BackendTests:
             return callback('A', chr(1))
         g = ffi.callback("char g(char cb(char, char))", g)
         assert g(f) == 'B'
+
+    def test_vararg_callback(self):
+        py.test.skip("callback with '...'")
+        ffi = FFI(backend=self.Backend())
+        def cb(i, va_list):
+            j = ffi.va_arg(va_list, "int")
+            k = ffi.va_arg(va_list, "long long")
+            return i * 2 + j * 3 + k * 5
+        f = ffi.callback("long long cb(long i, ...)", cb)
+        res = f(10, ffi.cast("int", 100), ffi.cast("long long", 1000))
+        assert res == 20 + 300 + 5000
