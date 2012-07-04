@@ -63,7 +63,7 @@ def _build(modname, kwds):
         dist.run_command('build_ext')
     except (distutils.errors.CompileError,
             distutils.errors.LinkError), e:
-        raise VerificationError(str(e))
+        raise VerificationError('%s: %s' % (e.__class__.__name__, e))
     #
     cmd_obj = dist.get_command_obj('build_ext')
     [soname] = cmd_obj.get_outputs()
