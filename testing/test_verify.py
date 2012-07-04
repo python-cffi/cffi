@@ -574,7 +574,7 @@ def test_autofilled_struct_as_argument_dynamic():
         }
         int (*foo)(struct foo_s s) = &foo1;
     """)
-    msg = 'cannot pass as a argument a struct that was completed with verify()'
+    msg ='cannot pass as an argument a struct that was completed with verify()'
     assert msg in str(e.value)
 
 def test_func_returns_struct():
