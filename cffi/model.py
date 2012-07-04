@@ -102,6 +102,9 @@ class RawFunctionType(BaseFunctionType):
         raise api.CDefError("cannot render the type %r: it is a function "
                             "type, not a pointer-to-function type" % (self,))
 
+    def as_function_pointer(self):
+        return FunctionPtrType(self.args, self.result, self.ellipsis)
+
 
 class FunctionPtrType(BaseFunctionType):
 
@@ -111,6 +114,8 @@ class FunctionPtrType(BaseFunctionType):
     def prepare_backend_type(self, ffi):
         args = [ffi._get_cached_btype(self.result)]
         for tp in self.args:
+            if isinstance(tp, RawFunctionType):
+                tp = tp.as_function_pointer()
             args.append(ffi._get_cached_btype(tp))
         return args
 

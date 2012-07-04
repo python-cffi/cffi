@@ -1018,3 +1018,16 @@ class BackendTests:
         f = ffi.callback("int(*)(int)", cb)
         a = ffi.new("int(*[5])(int)", [f, f])
         assert a[1](42) == 43
+
+    def test_callback_as_function_argument(self):
+        # In C, function arguments can be declared with a function type,
+        # which is automatically replaced with the ptr-to-function type.
+        ffi = FFI(backend=self.Backend())
+        def cb(a, b):
+            return chr(ord(a) + ord(b))
+        f = ffi.callback("char cb(char, char)", cb)
+        assert f('A', chr(1)) == 'B'
+        def g(callback):
+            return callback('A', chr(1))
+        g = ffi.callback("char g(char cb(char, char))", g)
+        assert g(f) == 'B'
