@@ -284,6 +284,9 @@ class CTypesBackend(object):
                 return None
             @staticmethod
             def _to_ctypes(novalue):
+                if novalue is not None:
+                    raise TypeError("None expected, got %s object" %
+                                    (type(novalue).__name__,))
                 return None
         CTypesVoid._fix_class()
         return CTypesVoid
@@ -734,7 +737,7 @@ class CTypesBackend(object):
                                 # .value: http://bugs.python.org/issue1574593
                         else:
                             res2 = None
-                    print repr(res2)
+                    #print repr(res2)
                     return res2
                 if issubclass(BResult, CTypesGenericPtr):
                     # The only pointers callbacks can return are void*s:

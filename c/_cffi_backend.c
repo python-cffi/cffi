@@ -3141,9 +3141,15 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     if (py_res == NULL)
         goto error;
 
-    if (SIGNATURE(0)->ct_size > 0)
+    if (SIGNATURE(0)->ct_size > 0) {
         if (convert_from_object(result, SIGNATURE(0), py_res) < 0)
             goto error;
+    }
+    else if (py_res != Py_None) {
+        PyErr_SetString(PyExc_TypeError, "callback with the return type 'void'"
+                                         " must return None");
+        goto error;
+    }
  done:
     Py_XDECREF(py_args);
     Py_XDECREF(py_res);

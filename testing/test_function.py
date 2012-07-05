@@ -1,6 +1,6 @@
 import py
 from cffi import FFI
-import math, os, sys
+import math, os, sys, StringIO
 from cffi.backend_ctypes import CTypesBackend
 
 
@@ -194,6 +194,25 @@ class TestFunction(object):
             ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
         assert res == 'world\n'
+
+    def test_callback_returning_void(self):
+        ffi = FFI(backend=self.Backend())
+        for returnvalue in [None, 42]:
+            def cb():
+                return returnvalue
+            fptr = ffi.callback("void(*)(void)", cb)
+            old_stderr = sys.stderr
+            try:
+                sys.stderr = StringIO.StringIO()
+                returned = fptr()
+                printed = sys.stderr.getvalue()
+            finally:
+                sys.stderr = old_stderr
+            assert returned is None
+            if returnvalue is None:
+                assert printed == ''
+            else:
+                assert "None" in printed
 
     def test_passing_array(self):
         ffi = FFI(backend=self.Backend())
