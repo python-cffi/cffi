@@ -1289,7 +1289,7 @@ cdataowning_subscript(CDataObject *cd, PyObject *key)
     char *c = _cdata_get_indexed_ptr(cd, key);
     /* use 'mp_subscript' instead of 'sq_item' because we don't want
        negative indexes to be corrected automatically */
-    if (c == NULL)
+    if (c == NULL && PyErr_Occurred())
         return NULL;
 
     if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
@@ -1308,7 +1308,7 @@ cdata_subscript(CDataObject *cd, PyObject *key)
     char *c = _cdata_get_indexed_ptr(cd, key);
     /* use 'mp_subscript' instead of 'sq_item' because we don't want
        negative indexes to be corrected automatically */
-    if (c == NULL)
+    if (c == NULL && PyErr_Occurred())
         return NULL;
     return convert_to_object(c, cd->c_type->ct_itemdescr);
 }
@@ -1320,7 +1320,7 @@ cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
     CTypeDescrObject *ctitem = cd->c_type->ct_itemdescr;
     /* use 'mp_ass_subscript' instead of 'sq_ass_item' because we don't want
        negative indexes to be corrected automatically */
-    if (c == NULL)
+    if (c == NULL && PyErr_Occurred())
         return -1;
     return convert_from_object(c, ctitem, v);
 }

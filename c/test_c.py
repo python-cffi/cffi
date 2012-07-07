@@ -1310,3 +1310,10 @@ def test_owning_repr():
     p = newp(BArray, 7)
     assert repr(p) == "<cdata 'int[]' owning 28 bytes>"
     assert sizeof(p) == 28
+
+def test_cannot_dereference_void():
+    BVoidP = new_pointer_type(new_void_type())
+    p = cast(BVoidP, 123456)
+    py.test.raises(TypeError, "p[0]")
+    p = cast(BVoidP, 0)
+    py.test.raises(TypeError, "p[0]")
