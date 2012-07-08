@@ -596,3 +596,16 @@ def test_func_returns_struct():
     assert repr(s) == "<cdata 'struct foo_s' owning 8 bytes>"
     assert s.aa == 36
     assert s.bb == 49
+
+def test_func_as_funcptr():
+    ffi = FFI()
+    ffi.cdef("int *(*const fooptr)(void);")
+    lib = ffi.verify("""
+        int *foo(void) {
+            return (int*)"foobar";
+        }
+        int *(*fooptr)(void) = foo;
+    """)
+    foochar = ffi.cast("char *(*)(void)", lib.fooptr)
+    s = foochar()
+    assert str(s) == "foobar"
