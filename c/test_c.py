@@ -1285,9 +1285,10 @@ def test_wchar():
     complete_struct_or_union(BStruct, [('a1', BWChar, -1),
                                        ('a2', BWCharP, -1)])
     s = newp(BStructPtr)
-    s.a1 = '\x00'
+    s.a1 = u'\x00'
     assert s.a1 == u'\x00'
-    py.test.raises(UnicodeDecodeError, "s.a1 = '\xFF'")
+    py.test.raises(TypeError, "s.a1 = 'a'")
+    py.test.raises(TypeError, "s.a1 = '\xFF'")
     s.a1 = u'\u1234'
     assert s.a1 == u'\u1234'
     if pyuni4:
