@@ -4,6 +4,8 @@ syntax: glob
 .*.swp
 testing/__pycache__
 demo/__pycache__
+__pycache__
+_cffi_backend.so
 doc/build
 build
 dist
