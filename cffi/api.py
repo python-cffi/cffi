@@ -211,11 +211,9 @@ class FFI(object):
         try:
             BType = self._cached_btypes[type]
         except KeyError:
-            args = type.prepare_backend_type(self)
-            if args is None:
-                args = ()
-            BType = type.finish_backend_type(self, *args)
-            self._cached_btypes[type] = BType
+            BType = type.finish_backend_type(self)
+            BType2 = self._cached_btypes.setdefault(type, BType)
+            assert BType2 is BType
         return BType
 
     def verify(self, source='', **kwargs):
