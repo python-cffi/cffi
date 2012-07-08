@@ -1,3 +1,4 @@
+import weakref
 
 class BaseType(object):
 
@@ -46,7 +47,7 @@ class VoidType(BaseType):
         return 'void' + replace_with
 
     def new_backend_type(self, ffi):
-        return ffi._backend.new_void_type()
+        return global_cache(ffi, 'new_void_type')
 
 void_type = VoidType()
 
@@ -72,7 +73,7 @@ class PrimitiveType(BaseType):
         return self.name in ('double', 'float')
 
     def new_backend_type(self, ffi):
-        return ffi._backend.new_primitive_type(self.name)
+        return global_cache(ffi, 'new_primitive_type', self.name)
 
 
 class BaseFunctionType(BaseType):
@@ -120,7 +121,8 @@ class FunctionPtrType(BaseFunctionType):
         return args
 
     def new_backend_type(self, ffi, result, *args):
-        return ffi._backend.new_function_type(args, result, self.ellipsis)
+        return global_cache(ffi, 'new_function_type',
+                            args, result, self.ellipsis)
 
 
 class PointerType(BaseType):
@@ -136,7 +138,7 @@ class PointerType(BaseType):
         return (ffi._get_cached_btype(self.totype),)
 
     def new_backend_type(self, ffi, BItem):
-        return ffi._backend.new_pointer_type(BItem)
+        return global_cache(ffi, 'new_pointer_type', BItem)
 
 
 class ConstPointerType(PointerType):
@@ -172,7 +174,7 @@ class ArrayType(BaseType):
         return (ffi._get_cached_btype(PointerType(self.item)),)
 
     def new_backend_type(self, ffi, BPtrItem):
-        return ffi._backend.new_array_type(BPtrItem, self.length)
+        return global_cache(ffi, 'new_array_type', BPtrItem, self.length)
 
 
 class StructOrUnion(BaseType):
@@ -293,3 +295,21 @@ def unknown_type(name):
     tp = StructType('$%s' % name, None, None, None)
     tp.forcename = name
     return tp
+
+def global_cache(ffi, funcname, *args):
+    try:
+        return ffi._backend.__typecache[args]
+    except KeyError:
+        pass
+    except AttributeError:
+        # initialize the __typecache attribute, either at the module level
+        # if ffi._backend is a module, or at the class level if ffi._backend
+        # is some instance.
+        ModuleType = type(weakref)
+        if isinstance(ffi._backend, ModuleType):
+            ffi._backend.__typecache = weakref.WeakValueDictionary()
+        else:
+            type(ffi._backend).__typecache = weakref.WeakValueDictionary()
+    res = getattr(ffi._backend, funcname)(*args)
+    ffi._backend.__typecache[args] = res
+    return res
