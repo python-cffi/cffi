@@ -487,7 +487,7 @@ class BackendTests:
         assert u.a != 0
         py.test.raises(OverflowError, "u.b = 32768")
         #
-        u = ffi.new("union foo", -2)
+        u = ffi.new("union foo", [-2])
         assert u.a == -2
         py.test.raises((AttributeError, TypeError), "del u.a")
         assert repr(u) == "<cdata 'union foo *' owning %d bytes>" % SIZE_OF_INT
@@ -497,6 +497,21 @@ class BackendTests:
         py.test.raises(TypeError, ffi.new, "union baz")
         u = ffi.new("union baz *")   # this works
         assert u[0] == ffi.NULL
+
+    def test_union_initializer(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("union foo { char a; int b; };")
+        py.test.raises(TypeError, ffi.new, "union foo", 'A')
+        py.test.raises(TypeError, ffi.new, "union foo", 5)
+        py.test.raises(ValueError, ffi.new, "union foo", ['A', 5])
+        u = ffi.new("union foo", ['A'])
+        assert u.a == 'A'
+        py.test.raises(TypeError, ffi.new, "union foo", [5])
+        u = ffi.new("union foo", {'b': 12345})
+        assert u.b == 12345
+        u = ffi.new("union foo", [])
+        assert u.a == '\x00'
+        assert u.b == 0
 
     def test_sizeof_type(self):
         ffi = FFI(backend=self.Backend())
@@ -1096,3 +1111,46 @@ class BackendTests:
         f = ffi.callback("int(*)(int)", cb)
         a = ffi.new("int(*[5])(int)", [f, f])
         assert a[1](42) == 43
+
+    def test_callback_as_function_argument(self):
+        # In C, function arguments can be declared with a function type,
+        # which is automatically replaced with the ptr-to-function type.
+        ffi = FFI(backend=self.Backend())
+        def cb(a, b):
+            return chr(ord(a) + ord(b))
+        f = ffi.callback("char cb(char, char)", cb)
+        assert f('A', chr(1)) == 'B'
+        def g(callback):
+            return callback('A', chr(1))
+        g = ffi.callback("char g(char cb(char, char))", g)
+        assert g(f) == 'B'
+
+    def test_vararg_callback(self):
+        py.test.skip("callback with '...'")
+        ffi = FFI(backend=self.Backend())
+        def cb(i, va_list):
+            j = ffi.va_arg(va_list, "int")
+            k = ffi.va_arg(va_list, "long long")
+            return i * 2 + j * 3 + k * 5
+        f = ffi.callback("long long cb(long i, ...)", cb)
+        res = f(10, ffi.cast("int", 100), ffi.cast("long long", 1000))
+        assert res == 20 + 300 + 5000
+
+    def test_unique_types(self):
+        ffi1 = FFI(backend=self.Backend())
+        ffi2 = FFI(backend=self.Backend())
+        assert ffi1.typeof("char") is ffi2.typeof("char ")
+        assert ffi1.typeof("long") is ffi2.typeof("signed long int")
+        assert ffi1.typeof("double *") is ffi2.typeof("double*")
+        assert ffi1.typeof("int ***") is ffi2.typeof(" int * * *")
+        assert ffi1.typeof("int[]") is ffi2.typeof("signed int[]")
+        assert ffi1.typeof("signed int*[17]") is ffi2.typeof("int *[17]")
+        assert ffi1.typeof("void") is ffi2.typeof("void")
+        assert ffi1.typeof("int(*)(int,int)") is ffi2.typeof("int(*)(int,int)")
+        #
+        # these depend on user-defined data, so should not be shared
+        assert ffi1.typeof("struct foo") is not ffi2.typeof("struct foo")
+        assert ffi1.typeof("union foo *") is not ffi2.typeof("union foo*")
+        assert ffi1.typeof("enum foo") is not ffi2.typeof("enum foo")
+        # sanity check: twice 'ffi1'
+        assert ffi1.typeof("struct foo*") is ffi1.typeof("struct foo *")

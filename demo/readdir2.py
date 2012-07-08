@@ -1,6 +1,10 @@
 # A Linux-only demo, using verify() instead of hard-coding the exact layouts
 #
+import sys
 from cffi import FFI
+
+if not sys.platform.startswith('linux'):
+    raise Exception("Linux-only demo")
 
 
 ffi = FFI()

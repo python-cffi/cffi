@@ -1,3 +1,4 @@
+import weakref
 
 class BaseType(object):
 
@@ -29,15 +30,6 @@ class BaseType(object):
     def __hash__(self):
         return hash((self.__class__, tuple(self._get_items())))
 
-    def prepare_backend_type(self, ffi):
-        pass
-
-    def finish_backend_type(self, ffi, *args):
-        try:
-            return ffi._cached_btypes[self]
-        except KeyError:
-            return self.new_backend_type(ffi, *args)
-
 
 class VoidType(BaseType):
     _attrs_ = ()
@@ -45,8 +37,8 @@ class VoidType(BaseType):
     def _get_c_name(self, replace_with):
         return 'void' + replace_with
 
-    def new_backend_type(self, ffi):
-        return ffi._backend.new_void_type()
+    def finish_backend_type(self, ffi):
+        return global_cache(ffi, 'new_void_type')
 
 void_type = VoidType()
 
@@ -71,14 +63,11 @@ class PrimitiveType(BaseType):
     def is_float_type(self):
         return self.name in ('double', 'float')
 
-    def new_backend_type(self, ffi):
-        return ffi._backend.new_primitive_type(self.name)
+    def finish_backend_type(self, ffi):
+        return global_cache(ffi, 'new_primitive_type', self.name)
 
 
-class RawFunctionType(BaseType):
-    # Corresponds to a C type like 'int(int)', which is the C type of
-    # a function, but not a pointer-to-function.  The backend has no
-    # notion of such a type; it's used temporarily by parsing.
+class BaseFunctionType(BaseType):
     _attrs_ = ('args', 'result', 'ellipsis')
 
     def __init__(self, args, result, ellipsis):
@@ -94,25 +83,35 @@ class RawFunctionType(BaseType):
         replace_with = '(%s)(%s)' % (replace_with, ', '.join(reprargs))
         return self.result._get_c_name(replace_with)
 
-    def prepare_backend_type(self, ffi):
+
+class RawFunctionType(BaseFunctionType):
+    # Corresponds to a C type like 'int(int)', which is the C type of
+    # a function, but not a pointer-to-function.  The backend has no
+    # notion of such a type; it's used temporarily by parsing.
+
+    def finish_backend_type(self, ffi):
         from . import api
         raise api.CDefError("cannot render the type %r: it is a function "
                             "type, not a pointer-to-function type" % (self,))
 
+    def as_function_pointer(self):
+        return FunctionPtrType(self.args, self.result, self.ellipsis)
 
-class FunctionPtrType(RawFunctionType):
+
+class FunctionPtrType(BaseFunctionType):
 
     def _get_c_name(self, replace_with):
-        return RawFunctionType._get_c_name(self, '*'+replace_with)
+        return BaseFunctionType._get_c_name(self, '*'+replace_with)
 
-    def prepare_backend_type(self, ffi):
-        args = [ffi._get_cached_btype(self.result)]
+    def finish_backend_type(self, ffi):
+        result = ffi._get_cached_btype(self.result)
+        args = []
         for tp in self.args:
+            if isinstance(tp, RawFunctionType):
+                tp = tp.as_function_pointer()
             args.append(ffi._get_cached_btype(tp))
-        return args
-
-    def new_backend_type(self, ffi, result, *args):
-        return ffi._backend.new_function_type(args, result, self.ellipsis)
+        return global_cache(ffi, 'new_function_type',
+                            tuple(args), result, self.ellipsis)
 
 
 class PointerType(BaseType):
@@ -124,11 +123,9 @@ class PointerType(BaseType):
     def _get_c_name(self, replace_with):
         return self.totype._get_c_name('* ' + replace_with)
 
-    def prepare_backend_type(self, ffi):
-        return (ffi._get_cached_btype(self.totype),)
-
-    def new_backend_type(self, ffi, BItem):
-        return ffi._backend.new_pointer_type(BItem)
+    def finish_backend_type(self, ffi):
+        BItem = ffi._get_cached_btype(self.totype)
+        return global_cache(ffi, 'new_pointer_type', BItem)
 
 
 class ConstPointerType(PointerType):
@@ -136,10 +133,8 @@ class ConstPointerType(PointerType):
     def _get_c_name(self, replace_with):
         return self.totype._get_c_name(' const * ' + replace_with)
 
-    def prepare_backend_type(self, ffi):
-        return (ffi._get_cached_btype(PointerType(self.totype)),)
-
-    def new_backend_type(self, ffi, BPtr):
+    def finish_backend_type(self, ffi):
+        BPtr = ffi._get_cached_btype(PointerType(self.totype))
         return BPtr
 
 
@@ -160,11 +155,9 @@ class ArrayType(BaseType):
             brackets = '[%d]' % self.length
         return self.item._get_c_name(replace_with + brackets)
 
-    def prepare_backend_type(self, ffi):
-        return (ffi._get_cached_btype(PointerType(self.item)),)
-
-    def new_backend_type(self, ffi, BPtrItem):
-        return ffi._backend.new_array_type(BPtrItem, self.length)
+    def finish_backend_type(self, ffi):
+        BPtrItem = ffi._get_cached_btype(PointerType(self.item))
+        return global_cache(ffi, 'new_array_type', BPtrItem, self.length)
 
 
 class StructOrUnion(BaseType):
@@ -182,18 +175,13 @@ class StructOrUnion(BaseType):
         name = self.forcename or '%s %s' % (self.kind, self.name)
         return name + replace_with
 
-    def prepare_backend_type(self, ffi):
-        BType = self.get_btype(ffi)
+    def finish_backend_type(self, ffi):
+        BType = self.new_btype(ffi)
         ffi._cached_btypes[self] = BType
-        args = [BType]
-        if self.fldtypes is not None:
-            for tp in self.fldtypes:
-                args.append(ffi._get_cached_btype(tp))
-        return args
-
-    def finish_backend_type(self, ffi, BType, *fldtypes):
-        if self.fldnames is None:
-            return BType   # not completing it: it's an opaque struct
+        if self.fldtypes is None:
+            return BType    # not completing it: it's an opaque struct
+        #
+        fldtypes = tuple(ffi._get_cached_btype(tp) for tp in self.fldtypes)
         #
         if self.fixedlayout is None:
             lst = zip(self.fldnames, fldtypes, self.fldbitsize)
@@ -246,7 +234,7 @@ class StructType(StructOrUnion):
             from . import ffiplatform
             raise ffiplatform.VerificationMissing(self._get_c_name(''))
 
-    def get_btype(self, ffi):
+    def new_btype(self, ffi):
         self.check_not_partial()
         return ffi._backend.new_struct_type(self.name)
 
@@ -254,7 +242,7 @@ class StructType(StructOrUnion):
 class UnionType(StructOrUnion):
     kind = 'union'
 
-    def get_btype(self, ffi):
+    def new_btype(self, ffi):
         return ffi._backend.new_union_type(self.name)
 
 
@@ -275,7 +263,7 @@ class EnumType(BaseType):
             from . import ffiplatform
             raise ffiplatform.VerificationMissing(self._get_c_name(''))
 
-    def new_backend_type(self, ffi):
+    def finish_backend_type(self, ffi):
         self.check_not_partial()
         return ffi._backend.new_enum_type(self.name, self.enumerators,
                                           self.enumvalues)
@@ -285,3 +273,21 @@ def unknown_type(name):
     tp = StructType('$%s' % name, None, None, None)
     tp.forcename = name
     return tp
+
+def global_cache(ffi, funcname, *args):
+    try:
+        return ffi._backend.__typecache[args]
+    except KeyError:
+        pass
+    except AttributeError:
+        # initialize the __typecache attribute, either at the module level
+        # if ffi._backend is a module, or at the class level if ffi._backend
+        # is some instance.
+        ModuleType = type(weakref)
+        if isinstance(ffi._backend, ModuleType):
+            ffi._backend.__typecache = weakref.WeakValueDictionary()
+        else:
+            type(ffi._backend).__typecache = weakref.WeakValueDictionary()
+    res = getattr(ffi._backend, funcname)(*args)
+    ffi._backend.__typecache[args] = res
+    return res

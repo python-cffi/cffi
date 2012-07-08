@@ -71,9 +71,11 @@ Download and Installation:
 * https://bitbucket.org/cffi/cffi/downloads
 
 * ``python setup.py install`` or ``python setup_base.py install``
+  (should work out of the box on Ubuntu or Windows; see below for
+  `MacOS 10.6`_)
 
 * or you can directly import and use ``cffi``, but if you don't
-  compile the ``_ffi_backend`` extension module, it will fall back
+  compile the ``_cffi_backend`` extension module, it will fall back
   to using internally ``ctypes`` (slower and does not support
   ``verify()``).
 
@@ -91,6 +93,41 @@ Demos:
 .. _`testing/test_verify.py`: https://bitbucket.org/cffi/cffi/src/default/testing/test_verify.py
 
 
+Platform-specific instructions
+------------------------------
+
+``libffi`` is notoriously messy to install and use --- to the point that
+CPython includes its own copy to avoid relying on external packages.
+CFFI did the same for Windows, but (so far) not for other platforms.
+Ubuntu Linux seems to work out of the box.  Here are some
+(user-supplied) instructions for other platforms.
+
+
+MacOS 10.6
+++++++++++
+
+(Thanks Juraj Sukop for this)
+
+For building libffi you can use the default install path, but then, in
+``setup.py`` you need to change::
+
+    include_dirs = []
+
+to::
+
+    include_dirs = ['/usr/local/lib/libffi-3.0.11/include']
+
+Then running ``python setup.py build`` complains about "fatal error: error writing to -: Broken pipe", which can be fixed by running::
+
+    ARCHFLAGS="-arch i386 -arch x86_64" python setup.py build
+
+as described here_.
+
+.. _here: http://superuser.com/questions/259278/python-2-6-1-pycrypto-2-3-pypi-package-broken-pipe-during-build
+
+
+=======================================================
+
 Examples
 =======================================================
 
@@ -107,7 +144,7 @@ Simple example (ABI level)
     ... """)                                  
     >>> C = ffi.dlopen(None)                     # loads the entire C namespace
     >>> arg = ffi.new("char[]", "world")         # equivalent to C code: char arg[] = "world";
-    >>> C.printf("hi there, %s!\n", arg);        # call printf
+    >>> C.printf("hi there, %s!\n", arg)         # call printf
     hi there, world!
 
 
@@ -135,6 +172,9 @@ Real example (API level)
 Note that the above example works independently of the exact layout of
 ``struct passwd``, but so far require a C compiler at runtime.  (We plan
 to improve with caching and a way to distribute the compiled code.)
+
+You will find a number of larger examples using ``verify()`` in the
+`demo`_ directory.
 
 Struct/Array Example
 --------------------
@@ -203,9 +243,7 @@ with zeroes initially, unless the optional second argument is used.
 If specified, this argument gives an "initializer", like you can use
 with C code to initialize global variables.
 
-The actual function calls should be obvious.  It's like C.  Did you even
-notice that we accidentally left a trailing semicolon?  That's fine
-because it is valid Python syntax as well ``:-)``
+The actual function calls should be obvious.  It's like C.
 
 
 =======================================================
@@ -242,7 +280,7 @@ can assume to exist are the standard types:
   size_t, ssize_t
 
 As we will see on `the verification step`_ below, the declarations can
-also contain "``...``" at various places; there are placeholders that will
+also contain "``...``" at various places; these are placeholders that will
 be completed by a call to ``verify()``.
 
 
@@ -250,11 +288,14 @@ Loading libraries
 -----------------
 
 ``ffi.dlopen(libpath)``: this function opens a shared library and
-returns a module-like library object.  You can use the library object to
-call the functions previously declared by ``ffi.cdef()``, and to read or
-write global variables.  Note that you can use a single ``cdef()`` to
-declare functions from multiple libraries, as long as you load each of
-them with ``dlopen()`` and access the functions from the correct one.
+returns a module-like library object.  You need to use *either*
+``ffi.dlopen()`` *or* ``ffi.verify()``, documented below_.
+
+You can use the library object to call the functions previously declared
+by ``ffi.cdef()``, and to read or write global variables.  Note that you
+can use a single ``cdef()`` to declare functions from multiple
+libraries, as long as you load each of them with ``dlopen()`` and access
+the functions from the correct one.
 
 The ``libpath`` is the file name of the shared library, which can
 contain a full path or not (in which case it is searched in standard
@@ -274,6 +315,8 @@ particular library, as long as you ``#include`` their headers; but you
 cannot call functions from a library without linking it in your program,
 as ``dlopen()`` does dynamically in C.
 
+.. _below:
+
 
 The verification step
 ---------------------
@@ -281,12 +324,15 @@ The verification step
 ``ffi.verify(source, **kwargs)``: verifies that the current ffi signatures
 compile on this machine, and return a dynamic library object.  The
 dynamic library can be used to call functions and access global
-variables declared by a previous ``ffi.cdef()``.  The library is compiled
-by the C compiler: it gives you C-level API compatibility (including
-calling macros, as long as you declared them as functions in
-``ffi.cdef()``).  This differs from ``ffi.dlopen()``, which requires
-ABI-level compatibility and must be called several times to open several
-shared libraries.
+variables declared by a previous ``ffi.cdef()``.  You don't need to use
+``ffi.dlopen()`` in this case.
+
+The returned library is a custom one, compiled just-in-time by the C
+compiler: it gives you C-level API compatibility (including calling
+macros, as long as you declared them as functions in ``ffi.cdef()``).
+This differs from ``ffi.dlopen()``, which requires ABI-level
+compatibility and must be called several times to open several shared
+libraries.
 
 On top of CPython, the new library is actually a CPython C extension
 module.  This solution constrains you to have a C compiler (future work
@@ -322,16 +368,19 @@ On the plus side, this solution gives more "C-like" flexibility:
    if you pass a ``int *`` argument to a function expecting a ``long *``.
 
 Moreover, you can use "``...``" in the following places in the ``cdef()``
-for leaving details unspecified (filled in by the C compiler):
+for leaving details unspecified, which are then completed by the C
+compiler during ``verify()``:
 
 *  structure declarations: any ``struct`` that ends with "``...;``" is
-   partial.  It will be completed by the compiler.  (But note that you
-   can only access fields that you declared.)  Any ``struct``
-   declaration without "``...;``" is assumed to be exact, and this is
+   partial: it may be missing fields and/or have them declared out of order.
+   This declaration will be corrected by the compiler.  (But note that you
+   can only access fields that you declared, not others.)  Any ``struct``
+   declaration which doesn't use "``...``" is assumed to be exact, but this is
    checked: you get a ``VerificationError`` if it is not.
 
 *  unknown types: the syntax "``typedef ... foo_t;``" declares the type
-   ``foo_t`` as opaque.
+   ``foo_t`` as opaque.  Useful mainly for when the API takes and returns
+   ``foo_t *`` without you needing to looking inside the ``foo_t``.
 
 *  array lengths: when used as structure fields, arrays can have an
    unspecified length, as in "``int n[];``".  The length is completed
@@ -355,6 +404,14 @@ for leaving details unspecified (filled in by the C compiler):
    supports other types than integer types (note: the syntax is then
    to write the ``const`` together with the variable name, as in
    ``static char *const FOO;``).
+
+Currently, finding automatically the size of an integer type is not
+supported.  You need to declare them with ``typedef int myint;`` or
+``typedef long myint;`` or ``typedef long long myint;`` or their
+unsigned equivalent.  Depending on the usage, the C compiler might give
+warnings if you misdeclare ``myint`` as the wrong type even if it is
+equivalent on this platform (e.g. using ``long`` instead of ``long
+long`` or vice-versa on 64-bit Linux).
 
 
 Working with pointers, structures and arrays
@@ -411,9 +468,18 @@ There is no equivalent to the ``&`` operator in C (because it would not
 fit nicely in the model, and it does not seem to be needed here).
 
 Any operation that would in C return a pointer or array or struct type
-gives you a new cdata object.  Unlike the "original" one, these new
+gives you a fresh cdata object.  Unlike the "original" one, these fresh
 cdata objects don't have ownership: they are merely references to
 existing memory.
+
+.. versionchanged:: 0.2
+   As an exception the above rule, dereferencing a pointer that owns a
+   *struct* or *union* object returns a cdata struct or union object
+   that "co-owns" the same memory.  Thus in this case there are two
+   objects that can keep the memory alive.  This is done for cases where
+   you really want to have a struct object but don't have any convenient
+   place to keep alive the original pointer object (returned by
+   ``ffi.new()``).
 
 Example::
 
@@ -445,7 +511,7 @@ Example::
     foo_t v = { 1, 2 };            // C syntax
     v = ffi.new("foo_t", [1, 2])   # CFFI equivalent
 
-    foo_t v = { .y=1, .x=2 };               // C syntax
+    foo_t v = { .y=1, .x=2 };               // C99 syntax
     v = ffi.new("foo_t", {'y': 1, 'x': 2})  # CFFI equivalent
 
 Like C, arrays of chars can also be initialized from a string, in
@@ -479,10 +545,59 @@ the length (in case you just want zero-initialization)::
     array = ffi.new("int[1000]")      # CFFI 1st equivalent
     array = ffi.new("int[]", 1000)    # CFFI 2nd equivalent
 
-This is useful if the length is not actually a constant, to avoid doing
-things like ``ffi.new("int[%d]"%x)``.  Indeed, this is not recommended:
+This is useful if the length is not actually a constant, to avoid things
+like ``ffi.new("int[%d]" % x)``.  Indeed, this is not recommended:
 ``ffi`` normally caches the string ``"int[]"`` to not need to re-parse
 it all the time.
+
+
+Function calls
+--------------
+
+When calling C functions, passing arguments follows mostly the same
+rules as assigning to structure fields, and the return value follows the
+same rules as reading a structure field.  For example::
+
+    ffi.cdef("""
+        int foo(short a, int b);
+    """)
+    lib = ffi.verify("#include <foo.h>")
+
+    n = lib.foo(2, 3)     # returns a normal integer
+    lib.foo(40000, 3)     # raises OverflowError
+
+As an extension, you can pass to ``char *`` arguments a normal Python
+string (but don't pass a normal Python string to functions that take a
+``char *`` argument and may mutate it!)::
+
+    ffi.cdef("""
+        size_t strlen(const char *);
+    """)
+    C = ffi.dlopen(None)
+
+    assert C.strlen("hello") == 5
+
+CFFI supports passing and returning structs to functions and callbacks.
+Example (sketch)::
+
+    >>> ffi.cdef("""
+    ...     struct foo_s { int a, b; };
+    ...     struct foo_s function_returning_a_struct(void);
+    ... """)
+    >>> lib = ffi.verify("#include <somewhere.h>")
+    >>> lib.function_returning_a_struct()
+    <cdata 'struct foo_s' owning 8 bytes>
+
+There are a few (obscure) limitations to the argument types and
+return type.  You cannot pass directly as argument a union, nor a struct
+which uses bitfields (note that passing a *pointer* to anything is
+fine).  If you pass a struct, the struct type cannot have been declared
+with "``...;``" and completed with ``verify()``; you need to declare it
+completely in ``cdef()``.
+
+.. versionadded:: 0.2
+   Aside from these limitations, functions and callbacks can now return
+   structs.
 
 
 Variadic function calls
@@ -503,6 +618,7 @@ if necessary with ``ffi.cast()``::
     C.printf("hello, %d\n", ffi.cast("int", 42))
     C.printf("hello, %ld\n", ffi.cast("long", 42))
     C.printf("hello, %f\n", ffi.cast("double", 42))
+    C.printf("hello, %s\n", ffi.new("char[]", "world"))
 
 
 Callbacks
@@ -592,7 +708,7 @@ the struct of the given field.  Corresponds to ``offsetof()`` in C.
 representation of the given C type.  If non-empty, the "extra" string is
 appended (or inserted at the right place in more complicated cases); it
 can be the name of a variable to declare, or an extra part of the type
-like ``"*"`` or ``"[5]"``, so that for example
+like ``"*"`` or ``"[5]"``.  For example
 ``ffi.getcname(ffi.typeof(x), "*")`` returns the string representation
 of the C type "pointer to the same type than x".
 
@@ -600,11 +716,13 @@ of the C type "pointer to the same type than x".
 Comments and bugs
 =================
 
-Please report to the `issue tracker`_ any bugs.  Feel free to discuss
-matters in the `mailing list`_.  As a general rule, when there is a
-design issue to resolve, we pick the solution that is the "most C-like".
-We hope that this module has got everything you need to access C code
-and nothing more.
+The best way to contact us is on the IRC ``#pypy`` channel of
+``irc.freenode.net``.  Feel free to discuss matters either there or in
+the `mailing list`_.  Please report to the `issue tracker`_ any bugs.
+
+As a general rule, when there is a design issue to resolve, we pick the
+solution that is the "most C-like".  We hope that this module has got
+everything you need to access C code and nothing more.
 
 --- the authors, Armin Rigo and Maciej Fijalkowski
 

@@ -50,6 +50,12 @@ def test_strlen_approximate():
     lib = ffi.verify("#include <string.h>")
     assert lib.strlen("hi there!") == 9
 
+def test_strlen_array_of_char():
+    ffi = FFI()
+    ffi.cdef("int strlen(char[]);")
+    lib = ffi.verify("#include <string.h>")
+    assert lib.strlen("hello") == 5
+
 
 all_integer_types = ['short', 'int', 'long', 'long long',
                      'signed char', 'unsigned char',
@@ -537,3 +543,69 @@ def test_varargs_struct():
     """)
     s = ffi.new("struct foo_s", ['B', 1])
     assert lib.foo(50, s[0]) == ord('A')
+
+def test_autofilled_struct_as_argument():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { long a; double b; ...; };\n"
+             "int foo(struct foo_s);")
+    lib = ffi.verify("""
+        struct foo_s {
+            double b;
+            long a;
+        };
+        int foo(struct foo_s s) {
+            return s.a - (int)s.b;
+        }
+    """)
+    s = ffi.new("struct foo_s", [100, 1])
+    assert lib.foo(s[0]) == 99
+
+def test_autofilled_struct_as_argument_dynamic():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { long a; ...; };\n"
+             "int (*foo)(struct foo_s);")
+    e = py.test.raises(TypeError, ffi.verify, """
+        struct foo_s {
+            double b;
+            long a;
+        };
+        int foo1(struct foo_s s) {
+            return s.a - (int)s.b;
+        }
+        int (*foo)(struct foo_s s) = &foo1;
+    """)
+    msg ='cannot pass as an argument a struct that was completed with verify()'
+    assert msg in str(e.value)
+
+def test_func_returns_struct():
+    ffi = FFI()
+    ffi.cdef("""
+        struct foo_s { int aa, bb; };
+        struct foo_s foo(int a, int b);
+    """)
+    lib = ffi.verify("""
+        struct foo_s { int aa, bb; };
+        struct foo_s foo(int a, int b) {
+            struct foo_s r;
+            r.aa = a*a;
+            r.bb = b*b;
+            return r;
+        }
+    """)
+    s = lib.foo(6, 7)
+    assert repr(s) == "<cdata 'struct foo_s' owning 8 bytes>"
+    assert s.aa == 36
+    assert s.bb == 49
+
+def test_func_as_funcptr():
+    ffi = FFI()
+    ffi.cdef("int *(*const fooptr)(void);")
+    lib = ffi.verify("""
+        int *foo(void) {
+            return (int*)"foobar";
+        }
+        int *(*fooptr)(void) = foo;
+    """)
+    foochar = ffi.cast("char *(*)(void)", lib.fooptr)
+    s = foochar()
+    assert str(s) == "foobar"

@@ -1,4 +1,4 @@
 recursive-include cffi *.py
 recursive-include c *.c *.h *.asm
 recursive-include testing *.py
-recursive-include doc *.py *.rst Makefile *.bat
+recursive-include doc *.py *.rst Makefile *.bat LICENSE

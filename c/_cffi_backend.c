@@ -41,6 +41,8 @@
 #define CT_PRIMITIVE_FITS_LONG   2048
 #define CT_IS_OPAQUE             4096
 #define CT_IS_ENUM               8192
+#define CT_IS_PTR_TO_OWNED      16384
+#define CT_CUSTOM_FIELD_POS     32768
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -123,6 +125,11 @@ typedef struct {
     Py_ssize_t length;
     union_alignment alignment;
 } CDataObject_own_length;
+
+typedef struct {
+    CDataObject_own_base head;
+    PyObject *structobj;
+} CDataObject_own_structptr;
 
 typedef struct {
     ffi_cif cif;
@@ -828,12 +835,24 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         data[0] = res;
         return 0;
     }
-    if (ct->ct_flags & CT_STRUCT) {
+    if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
 
         if (CData_Check(init)) {
             if (((CDataObject *)init)->c_type == ct && ct->ct_size >= 0) {
                 memcpy(data, ((CDataObject *)init)->c_data, ct->ct_size);
                 return 0;
+            }
+        }
+        if (ct->ct_flags & CT_UNION) {
+            Py_ssize_t n = PyObject_Size(init);
+            if (n < 0)
+                return -1;
+            if (n > 1) {
+                PyErr_Format(PyExc_ValueError,
+                             "initializer for '%s': %zd items given, but "
+                             "only one supported (use a dict if needed)",
+                             ct->ct_name, n);
+                return -1;
             }
         }
         if (PyList_Check(init) || PyTuple_Check(init)) {
@@ -874,21 +893,6 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         }
         expected = "list or tuple or dict or struct-cdata";
         goto cannot_convert;
-    }
-    if (ct->ct_flags & CT_UNION) {
-
-        if (CData_Check(init)) {
-            if (((CDataObject *)init)->c_type == ct && ct->ct_size >= 0) {
-                memcpy(data, ((CDataObject *)init)->c_data, ct->ct_size);
-                return 0;
-            }
-        }
-        CFieldObject *cf = (CFieldObject *)ct->ct_extra;   /* first field */
-        if (cf == NULL) {
-            PyErr_SetString(PyExc_ValueError, "empty union");
-            return -1;
-        }
-        return convert_field_from_object(data, cf, init);
     }
     PyErr_Format(PyExc_SystemError,
                  "convert_from_object: '%s'", ct->ct_name);
@@ -1009,7 +1013,10 @@ static void cdataowning_dealloc(CDataObject_own_base *cdb)
     if (cdb->weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *) cdb);
 
-    if (cdb->head.c_type->ct_flags & CT_FUNCTIONPTR) {
+    if (cdb->head.c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
+        Py_DECREF(((CDataObject_own_structptr *)cdb)->structobj);
+    }
+    else if (cdb->head.c_type->ct_flags & CT_FUNCTIONPTR) {
         /* a callback */
         ffi_closure *closure = (ffi_closure *)cdb->head.c_data;
         PyObject *args = (PyObject *)(closure->user_data);
@@ -1277,15 +1284,33 @@ _cdata_get_indexed_ptr(CDataObject *cd, PyObject *key)
 }
 
 static PyObject *
+cdataowning_subscript(CDataObject *cd, PyObject *key)
+{
+    char *c = _cdata_get_indexed_ptr(cd, key);
+    /* use 'mp_subscript' instead of 'sq_item' because we don't want
+       negative indexes to be corrected automatically */
+    if (c == NULL && PyErr_Occurred())
+        return NULL;
+
+    if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
+        PyObject *res = ((CDataObject_own_structptr *)cd)->structobj;
+        Py_INCREF(res);
+        return res;
+    }
+    else {
+        return convert_to_object(c, cd->c_type->ct_itemdescr);
+    }
+}
+
+static PyObject *
 cdata_subscript(CDataObject *cd, PyObject *key)
 {
     char *c = _cdata_get_indexed_ptr(cd, key);
-    CTypeDescrObject *ctitem = cd->c_type->ct_itemdescr;
     /* use 'mp_subscript' instead of 'sq_item' because we don't want
        negative indexes to be corrected automatically */
-    if (c == NULL)
+    if (c == NULL && PyErr_Occurred())
         return NULL;
-    return convert_to_object(c, ctitem);
+    return convert_to_object(c, cd->c_type->ct_itemdescr);
 }
 
 static int
@@ -1295,7 +1320,7 @@ cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
     CTypeDescrObject *ctitem = cd->c_type->ct_itemdescr;
     /* use 'mp_ass_subscript' instead of 'sq_ass_item' because we don't want
        negative indexes to be corrected automatically */
-    if (c == NULL)
+    if (c == NULL && PyErr_Occurred())
         return -1;
     return convert_from_object(c, ctitem, v);
 }
@@ -1422,6 +1447,9 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
     return PyObject_GenericSetAttr((PyObject *)cd, attr, value);
 }
 
+static PyObject *
+convert_struct_to_owning_object(char *data, CTypeDescrObject *ct); /*forward*/
+
 static cif_description_t *
 fb_prepare_cif(PyObject *fargs, CTypeDescrObject *fresult);    /* forward */
 
@@ -1544,6 +1572,9 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         res = Py_None;
         Py_INCREF(res);
     }
+    else if (fresult->ct_flags & CT_STRUCT) {
+        res = convert_struct_to_owning_object(resultdata, fresult);
+    }
     else {
         res = convert_to_object(resultdata, fresult);
     }
@@ -1605,6 +1636,12 @@ static PyMappingMethods CData_as_mapping = {
     (objobjargproc)cdata_ass_sub, /*mp_ass_subscript*/
 };
 
+static PyMappingMethods CDataOwn_as_mapping = {
+    (lenfunc)cdata_length, /*mp_length*/
+    (binaryfunc)cdataowning_subscript, /*mp_subscript*/
+    (objobjargproc)cdata_ass_sub, /*mp_ass_subscript*/
+};
+
 static PyTypeObject CData_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "_cffi_backend.CData",
@@ -1647,7 +1684,7 @@ static PyTypeObject CDataOwning_Type = {
     (reprfunc)cdataowning_repr,                 /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
+    &CDataOwn_as_mapping,                       /* tp_as_mapping */
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
@@ -1751,9 +1788,45 @@ cdata_iter(CDataObject *cd)
 
 /************************************************************/
 
+static CDataObject_own_base *allocate_owning_object(Py_ssize_t size,
+                                                    CTypeDescrObject *ct)
+{
+    CDataObject_own_base *cdb;
+    cdb = (CDataObject_own_base *)PyObject_Malloc(size);
+    if (PyObject_Init((PyObject *)cdb, &CDataOwning_Type) == NULL)
+        return NULL;
+
+    Py_INCREF(ct);
+    cdb->head.c_type = ct;
+    cdb->weakreflist = NULL;
+    return cdb;
+}
+
+static PyObject *
+convert_struct_to_owning_object(char *data, CTypeDescrObject *ct)
+{
+    CDataObject_own_base *cdb;
+    Py_ssize_t dataoffset = offsetof(CDataObject_own_nolength, alignment);
+    Py_ssize_t datasize = ct->ct_size;
+
+    if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) != CT_STRUCT) {
+        PyErr_SetString(PyExc_TypeError,
+                        "return type is not a struct or is opaque");
+        return NULL;
+    }
+    cdb = allocate_owning_object(dataoffset + datasize, ct);
+    if (cdb == NULL)
+        return NULL;
+    cdb->head.c_data = ((char *)cdb) + dataoffset;
+
+    memcpy(cdb->head.c_data, data, datasize);
+    return (PyObject *)cdb;
+}
+
 static PyObject *b_newp(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct, *ctitem;
+    CDataObject *cd;
     CDataObject_own_base *cdb;
     PyObject *init = Py_None;
     Py_ssize_t dataoffset, datasize, explicitlength;
@@ -1811,26 +1884,49 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    cdb = (CDataObject_own_base *)PyObject_Malloc(dataoffset + datasize);
-    if (PyObject_Init((PyObject *)cdb, &CDataOwning_Type) == NULL)
-        return NULL;
+    if (ct->ct_flags & CT_IS_PTR_TO_OWNED) {
+        /* common case of ptr-to-struct (or ptr-to-union): for this case
+           we build two objects instead of one, with the memory-owning
+           one being really the struct (or union) and the returned one
+           having a strong reference to it */
+        CDataObject_own_base *cdp;
 
-    Py_INCREF(ct);
-    cdb->head.c_type = ct;
-    cdb->head.c_data = ((char *)cdb) + dataoffset;
-    cdb->weakreflist = NULL;
-    if (explicitlength >= 0)
-        ((CDataObject_own_length*)cdb)->length = explicitlength;
+        cdb = allocate_owning_object(dataoffset + datasize, ct->ct_itemdescr);
+        if (cdb == NULL)
+            return NULL;
 
-    memset(cdb->head.c_data, 0, datasize);
-    if (init != Py_None) {
-        if (convert_from_object(cdb->head.c_data,
-              (ct->ct_flags & CT_POINTER) ? ct->ct_itemdescr : ct, init) < 0) {
+        cdp = allocate_owning_object(sizeof(CDataObject_own_structptr), ct);
+        if (cdp == NULL) {
             Py_DECREF(cdb);
             return NULL;
         }
+        /* store the only reference to cdb into cdp */
+        ((CDataObject_own_structptr *)cdp)->structobj = (PyObject *)cdb;
+        assert(explicitlength < 0);
+
+        cdb->head.c_data = cdp->head.c_data = ((char *)cdb) + dataoffset;
+        cd = &cdp->head;
     }
-    return (PyObject *)cdb;
+    else {
+        cdb = allocate_owning_object(dataoffset + datasize, ct);
+        if (cdb == NULL)
+            return NULL;
+
+        cdb->head.c_data = ((char *)cdb) + dataoffset;
+        if (explicitlength >= 0)
+            ((CDataObject_own_length*)cdb)->length = explicitlength;
+        cd = &cdb->head;
+    }
+
+    memset(cd->c_data, 0, datasize);
+    if (init != Py_None) {
+        if (convert_from_object(cd->c_data,
+              (ct->ct_flags & CT_POINTER) ? ct->ct_itemdescr : ct, init) < 0) {
+            Py_DECREF(cd);
+            return NULL;
+        }
+    }
+    return (PyObject *)cd;
 }
 
 static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
@@ -2274,7 +2370,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
  bad_ffi_type:
     PyErr_Format(PyExc_NotImplementedError,
                  "primitive type '%s' with a non-standard size %d",
-                 name, ptypes->size);
+                 name, (int)ptypes->size);
     return NULL;
 }
 
@@ -2297,6 +2393,8 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
 
     td->ct_size = sizeof(void *);
     td->ct_flags = CT_POINTER;
+    if (ctitem->ct_flags & (CT_STRUCT|CT_UNION))
+        td->ct_flags |= CT_IS_PTR_TO_OWNED;
     return (PyObject *)td;
 }
 
@@ -2471,12 +2569,16 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         if (alignment < falign)
             alignment = falign;
 
-        if (foffset < 0) {
-            /* align this field to its own 'falign' by inserting padding */
-            offset = (offset + falign - 1) & ~(falign-1);
-        }
-        else
+        /* align this field to its own 'falign' by inserting padding */
+        offset = (offset + falign - 1) & ~(falign-1);
+
+        if (foffset >= 0) {
+            /* a forced field position: ignore the offset just computed,
+               except to know if we must set CT_CUSTOM_FIELD_POS */
+            if (offset != foffset)
+                ct->ct_flags |= CT_CUSTOM_FIELD_POS;
             offset = foffset;
+        }
 
         if (fbitsize < 0 || (fbitsize == 8 * ftype->ct_size &&
                              !(ftype->ct_flags & CT_PRIMITIVE_CHAR))) {
@@ -2646,7 +2748,8 @@ static void *fb_alloc(struct funcbuilder_s *fb, Py_ssize_t size)
     }
 }
 
-static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
+static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
+                              int is_result_type)
 {
     if (ct->ct_flags & CT_PRIMITIVE_ANY) {
         return (ffi_type *)ct->ct_extra;
@@ -2669,6 +2772,34 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
         Py_ssize_t i, n;
         CFieldObject *cf;
 
+        /* We can't pass a struct that was completed by verify().
+           Issue: assume verify() is given "struct { long b; ...; }".
+           Then it will complete it in the same way whether it is actually
+           "struct { long a, b; }" or "struct { double a; long b; }".
+           But on 64-bit UNIX, these two structs are passed by value
+           differently: e.g. on x86-64, "b" ends up in register "rsi" in
+           the first case and "rdi" in the second case.
+        */
+        if (ct->ct_flags & CT_CUSTOM_FIELD_POS) {
+            PyErr_SetString(PyExc_TypeError,
+                "cannot pass as an argument a struct that was completed "
+                "with verify() (see _cffi_backend.c for details of why)");
+            return NULL;
+        }
+
+#ifdef USE_C_LIBFFI_MSVC
+        /* MSVC returns small structures in registers.  Pretend int32 or
+           int64 return type.  This is needed as a workaround for what
+           is really a bug of libffi_msvc seen as an independent library
+           (ctypes has a similar workaround). */
+        if (is_result_type) {
+            if (ct->ct_size <= 4)
+                return &ffi_type_sint32;
+            if (ct->ct_size <= 8)
+                return &ffi_type_sint64;
+        }
+#endif
+
         n = PyDict_Size(ct->ct_stuff);
         elements = fb_alloc(fb, (n + 1) * sizeof(ffi_type*));
         cf = (CFieldObject *)ct->ct_extra;
@@ -2680,7 +2811,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct)
                     "cannot pass as argument a struct with bit fields");
                 return NULL;
             }
-            ffifield = fb_fill_type(fb, cf->cf_type);
+            ffifield = fb_fill_type(fb, cf->cf_type, 0);
             if (elements != NULL)
                 elements[i] = ffifield;
             cf = cf->cf_next;
@@ -2723,15 +2854,10 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
     fb->nargs = nargs;
 
     /* ffi buffer: next comes the result type */
-    fb->rtype = fb_fill_type(fb, fresult);
+    fb->rtype = fb_fill_type(fb, fresult, 1);
     if (PyErr_Occurred())
         return -1;
     if (cif_descr != NULL) {
-        if (fb->rtype->type == FFI_TYPE_STRUCT) {
-            PyErr_SetString(PyExc_NotImplementedError,
-                            "functions returning structs are not supported");
-            return -1;
-        }
         /* exchange data size */
         /* first, enough room for an array of 'nargs' pointers */
         exchange_offset = nargs * sizeof(void*);
@@ -2755,13 +2881,11 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
         farg = (CTypeDescrObject *)PyTuple_GET_ITEM(fargs, i);
 
         /* ffi buffer: fill in the ffi for the i'th argument */
-        if (farg == NULL)    /* stands for a NULL pointer in the varargs */
-            atype = &ffi_type_pointer;
-        else {
-            atype = fb_fill_type(fb, farg);
-            if (PyErr_Occurred())
-                return -1;
-        }
+        assert(farg != NULL);
+        atype = fb_fill_type(fb, farg, 0);
+        if (PyErr_Occurred())
+            return -1;
+
         if (fb->atypes != NULL) {
             fb->atypes[i] = atype;
             /* exchange data size */
@@ -2931,9 +3055,9 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
                           &ellipsis))
         return NULL;
 
-    if (fresult->ct_flags & (CT_STRUCT|CT_UNION)) {
+    if (fresult->ct_flags & CT_UNION) {
         PyErr_SetString(PyExc_NotImplementedError,
-                        "functions returning a struct or a union");
+                        "function returning a union");
         return NULL;
     }
     if ((fresult->ct_size < 0 && !(fresult->ct_flags & CT_VOID)) ||
@@ -3018,9 +3142,15 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     if (py_res == NULL)
         goto error;
 
-    if (SIGNATURE(0)->ct_size > 0)
+    if (SIGNATURE(0)->ct_size > 0) {
         if (convert_from_object(result, SIGNATURE(0), py_res) < 0)
             goto error;
+    }
+    else if (py_res != Py_None) {
+        PyErr_SetString(PyExc_TypeError, "callback with the return type 'void'"
+                                         " must return None");
+        goto error;
+    }
  done:
     Py_XDECREF(py_args);
     Py_XDECREF(py_res);
@@ -3379,6 +3509,7 @@ static float _testfunc4(float a, double b)
 }
 static void _testfunc5(void)
 {
+    errno = errno + 15;
 }
 static int *_testfunc6(int *x)
 {
@@ -3386,7 +3517,7 @@ static int *_testfunc6(int *x)
     y = *x - 1000;
     return &y;
 }
-struct _testfunc7_s { char a1; short a2; };
+struct _testfunc7_s { unsigned char a1; short a2; };
 static short _testfunc7(struct _testfunc7_s inlined)
 {
     return inlined.a1 + inlined.a2;
@@ -3404,6 +3535,76 @@ static int _testfunc9(int num, ...)
     }
     va_end(vargs);
     return total;
+}
+
+static struct _testfunc7_s _testfunc10(int n)
+{
+    struct _testfunc7_s result;
+    result.a1 = n;
+    result.a2 = n * n;
+    return result;
+}
+
+struct _testfunc11_s { int a1, a2; };
+static struct _testfunc11_s _testfunc11(int n)
+{
+    struct _testfunc11_s result;
+    result.a1 = n;
+    result.a2 = n * n;
+    return result;
+}
+
+struct _testfunc12_s { double a1; };
+static struct _testfunc12_s _testfunc12(int n)
+{
+    struct _testfunc12_s result;
+    result.a1 = n;
+    return result;
+}
+
+struct _testfunc13_s { int a1, a2, a3; };
+static struct _testfunc13_s _testfunc13(int n)
+{
+    struct _testfunc13_s result;
+    result.a1 = n;
+    result.a2 = n * n;
+    result.a3 = n * n * n;
+    return result;
+}
+
+struct _testfunc14_s { float a1; };
+static struct _testfunc14_s _testfunc14(int n)
+{
+    struct _testfunc14_s result;
+    result.a1 = (float)n;
+    return result;
+}
+
+struct _testfunc15_s { float a1; int a2; };
+static struct _testfunc15_s _testfunc15(int n)
+{
+    struct _testfunc15_s result;
+    result.a1 = (float)n;
+    result.a2 = n * n;
+    return result;
+}
+
+struct _testfunc16_s { float a1, a2; };
+static struct _testfunc16_s _testfunc16(int n)
+{
+    struct _testfunc16_s result;
+    result.a1 = (float)n;
+    result.a2 = -(float)n;
+    return result;
+}
+
+struct _testfunc17_s { int a1; float a2; };
+static struct _testfunc17_s _testfunc17(int n)
+{
+    struct _testfunc17_s result;
+    result.a1 = n;
+    result.a2 = (float)n * (float)n;
+    return result;
 }
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
@@ -3424,6 +3625,14 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 7: f = &_testfunc7; break;
     case 8: f = stderr; break;
     case 9: f = &_testfunc9; break;
+    case 10: f = &_testfunc10; break;
+    case 11: f = &_testfunc11; break;
+    case 12: f = &_testfunc12; break;
+    case 13: f = &_testfunc13; break;
+    case 14: f = &_testfunc14; break;
+    case 15: f = &_testfunc15; break;
+    case 16: f = &_testfunc16; break;
+    case 17: f = &_testfunc17; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;
@@ -3575,6 +3784,8 @@ static void *cffi_exports[] = {
     save_errno,
     _cffi_from_c_char,
     convert_to_object,
+    convert_from_object,
+    convert_struct_to_owning_object,
 };
 
 /************************************************************/
@@ -3610,6 +3821,10 @@ void init_cffi_backend(void)
 
     v = PyCObject_FromVoidPtr((void *)cffi_exports, NULL);
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
+        return;
+
+    v = PyString_FromString("0.2");
+    if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
         return;
 
     init_errno();

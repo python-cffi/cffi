@@ -1,7 +1,7 @@
 import sys, os
 
 
-from setup import include_dirs, sources, libraries
+from setup import include_dirs, sources, libraries, define_macros
 
 
 if __name__ == '__main__':
@@ -11,4 +11,5 @@ if __name__ == '__main__':
                                  include_dirs=include_dirs,
                                  sources=sources,
                                  libraries=libraries,
+                                 define_macros=define_macros,
                                  )])

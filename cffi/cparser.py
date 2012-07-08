@@ -46,6 +46,7 @@ class Parser(object):
         self._declarations = {}
         self._anonymous_counter = 0
         self._structnode2type = weakref.WeakKeyDictionary()
+        self._override = False
 
     def _parse(self, csource):
         # XXX: for more efficiency we would need to poke into the
@@ -63,7 +64,15 @@ class Parser(object):
         ast = _get_parser().parse(csource)
         return ast, macros
 
-    def parse(self, csource):
+    def parse(self, csource, override=False):
+        prev_override = self._override
+        try:
+            self._override = override
+            self._internal_parse(csource)
+        finally:
+            self._override = prev_override
+
+    def _internal_parse(self, csource):
         ast, macros = self._parse(csource)
         # add the macros
         for key, value in macros.items():
@@ -139,13 +148,16 @@ class Parser(object):
         if name in self._declarations:
             if self._declarations[name] is obj:
                 return
-            raise api.FFIError("multiple declarations of %s" % (name,))
+            if not self._override:
+                raise api.FFIError(
+                    "multiple declarations of %s (for interactive usage, "
+                    "try cdef(xx, override=True))" % (name,))
         assert name != '__dotdotdot__'
         self._declarations[name] = obj
 
     def _get_type_pointer(self, type, const=False):
         if isinstance(type, model.RawFunctionType):
-            return model.FunctionPtrType(type.args, type.result, type.ellipsis)
+            return type.as_function_pointer()
         if const:
             return model.ConstPointerType(type)
         return model.PointerType(type)

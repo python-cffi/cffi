@@ -584,9 +584,17 @@ def test_union_instance():
     BUInt = new_primitive_type("unsigned int")
     BUnion = new_union_type("bar")
     complete_struct_or_union(BUnion, [('a1', BInt, -1), ('a2', BUInt, -1)])
-    p = newp(new_pointer_type(BUnion), -42)
+    p = newp(new_pointer_type(BUnion), [-42])
+    bigval = -42 + (1 << (8*size_of_int()))
     assert p.a1 == -42
-    assert p.a2 == -42 + (1 << (8*size_of_int()))
+    assert p.a2 == bigval
+    p = newp(new_pointer_type(BUnion), {'a2': bigval})
+    assert p.a1 == -42
+    assert p.a2 == bigval
+    py.test.raises(OverflowError, newp, new_pointer_type(BUnion),
+                   {'a1': bigval})
+    p = newp(new_pointer_type(BUnion), [])
+    assert p.a1 == p.a2 == 0
 
 def test_struct_pointer():
     BInt = new_primitive_type("int")
@@ -775,6 +783,18 @@ def test_call_function_9():
     py.test.raises(TypeError, f, 1, 42)
     py.test.raises(TypeError, f, 2, None)
 
+def test_cannot_call_with_a_autocompleted_struct():
+    BSChar = new_primitive_type("signed char")
+    BDouble = new_primitive_type("double")
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('c', BDouble, -1, 8),
+                                       ('a', BSChar, -1, 2),
+                                       ('b', BSChar, -1, 0)])
+    e = py.test.raises(TypeError, new_function_type, (BStruct,), BDouble)
+    msg ='cannot pass as an argument a struct that was completed with verify()'
+    assert msg in str(e.value)
+
 def test_new_charp():
     BChar = new_primitive_type("char")
     BCharP = new_pointer_type(BChar)
@@ -825,6 +845,8 @@ def test_callback():
         return callback(BFunc, cb, 42)    # 'cb' and 'BFunc' go out of scope
     f = make_callback()
     assert f(-142) == -141
+    assert repr(f).startswith(
+        "<cdata 'int(*)(int)' calling <function cb at 0x")
 
 def test_callback_return_type():
     for rettype in ["signed char", "short", "int", "long", "long long",
@@ -847,16 +869,38 @@ def test_callback_return_type():
         assert f(max) == 42
 
 def test_a_lot_of_callbacks():
+    BIGNUM = 10000
+    if 'PY_DOT_PY' in globals(): BIGNUM = 100   # tests on py.py
+    #
     BInt = new_primitive_type("int")
+    BFunc = new_function_type((BInt,), BInt, False)
     def make_callback(m):
         def cb(n):
             return n + m
-        BFunc = new_function_type((BInt,), BInt, False)
         return callback(BFunc, cb, 42)    # 'cb' and 'BFunc' go out of scope
     #
-    flist = [make_callback(i) for i in range(10000)]
+    flist = [make_callback(i) for i in range(BIGNUM)]
     for i, f in enumerate(flist):
         assert f(-142) == -142 + i
+
+def test_callback_returning_struct():
+    BSChar = new_primitive_type("signed char")
+    BInt = new_primitive_type("int")
+    BDouble = new_primitive_type("double")
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a', BSChar, -1),
+                                       ('b', BDouble, -1)])
+    def cb(n):
+        return newp(BStructPtr, [-n, 1E-42])[0]
+    BFunc = new_function_type((BInt,), BStruct)
+    f = callback(BFunc, cb)
+    s = f(10)
+    assert typeof(s) is BStruct
+    assert repr(s) in ["<cdata 'struct foo' owning 12 bytes>",
+                       "<cdata 'struct foo' owning 16 bytes>"]
+    assert s.a == -10
+    assert s.b == 1E-42
 
 def test_enum_type():
     BEnum = new_enum_type("foo", (), ())
@@ -957,7 +1001,7 @@ def test_bitfield_instance_init():
     #
     BUnion = new_union_type("bar")
     complete_struct_or_union(BUnion, [('a1', BInt, 1)])
-    p = newp(new_pointer_type(BUnion), -1)
+    p = newp(new_pointer_type(BUnion), [-1])
     assert p.a1 == -1
 
 def test_weakref():
@@ -1078,7 +1122,7 @@ def test_newp_copying():
     BUnion = new_union_type("foo_u")
     BUnionPtr = new_pointer_type(BUnion)
     complete_struct_or_union(BUnion, [('a1', BInt, -1)])
-    u1 = newp(BUnionPtr, 42)
+    u1 = newp(BUnionPtr, [42])
     u2 = newp(BUnionPtr, u1[0])
     assert u2.a1 == 42
     #
@@ -1120,17 +1164,102 @@ def test_set_struct_fields():
     p.a1 = ['x', 'y']
     assert str(p.a1) == 'xyo'
 
-def test_no_struct_return_in_func():
+def test_invalid_function_result_types():
     BFunc = new_function_type((), new_void_type())
     BArray = new_array_type(new_pointer_type(BFunc), 5)        # works
     new_function_type((), BFunc)    # works
     new_function_type((), new_primitive_type("int"))
     new_function_type((), new_pointer_type(BFunc))
-    py.test.raises(NotImplementedError, new_function_type, (),
-                   new_struct_type("foo_s"))
-    py.test.raises(NotImplementedError, new_function_type, (),
-                   new_union_type("foo_u"))
+    BUnion = new_union_type("foo_u")
+    complete_struct_or_union(BUnion, [])
+    py.test.raises(NotImplementedError, new_function_type, (), BUnion)
     py.test.raises(TypeError, new_function_type, (), BArray)
+
+def test_struct_return_in_func():
+    BChar = new_primitive_type("char")
+    BShort = new_primitive_type("short")
+    BFloat = new_primitive_type("float")
+    BDouble = new_primitive_type("double")
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("foo_s")
+    complete_struct_or_union(BStruct, [('a1', BChar, -1),
+                                       ('a2', BShort, -1)])
+    BFunc10 = new_function_type((BInt,), BStruct)
+    f = cast(BFunc10, _testfunc(10))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct foo_s' owning 4 bytes>"
+    assert s.a1 == chr(40)
+    assert s.a2 == 40 * 40
+    #
+    BStruct11 = new_struct_type("test11")
+    complete_struct_or_union(BStruct11, [('a1', BInt, -1),
+                                         ('a2', BInt, -1)])
+    BFunc11 = new_function_type((BInt,), BStruct11)
+    f = cast(BFunc11, _testfunc(11))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test11' owning 8 bytes>"
+    assert s.a1 == 40
+    assert s.a2 == 40 * 40
+    #
+    BStruct12 = new_struct_type("test12")
+    complete_struct_or_union(BStruct12, [('a1', BDouble, -1),
+                                         ])
+    BFunc12 = new_function_type((BInt,), BStruct12)
+    f = cast(BFunc12, _testfunc(12))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test12' owning 8 bytes>"
+    assert s.a1 == 40.0
+    #
+    BStruct13 = new_struct_type("test13")
+    complete_struct_or_union(BStruct13, [('a1', BInt, -1),
+                                         ('a2', BInt, -1),
+                                         ('a3', BInt, -1)])
+    BFunc13 = new_function_type((BInt,), BStruct13)
+    f = cast(BFunc13, _testfunc(13))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test13' owning 12 bytes>"
+    assert s.a1 == 40
+    assert s.a2 == 40 * 40
+    assert s.a3 == 40 * 40 * 40
+    #
+    BStruct14 = new_struct_type("test14")
+    complete_struct_or_union(BStruct14, [('a1', BFloat, -1),
+                                         ])
+    BFunc14 = new_function_type((BInt,), BStruct14)
+    f = cast(BFunc14, _testfunc(14))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test14' owning 4 bytes>"
+    assert s.a1 == 40.0
+    #
+    BStruct15 = new_struct_type("test15")
+    complete_struct_or_union(BStruct15, [('a1', BFloat, -1),
+                                         ('a2', BInt, -1)])
+    BFunc15 = new_function_type((BInt,), BStruct15)
+    f = cast(BFunc15, _testfunc(15))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test15' owning 8 bytes>"
+    assert s.a1 == 40.0
+    assert s.a2 == 40 * 40
+    #
+    BStruct16 = new_struct_type("test16")
+    complete_struct_or_union(BStruct16, [('a1', BFloat, -1),
+                                         ('a2', BFloat, -1)])
+    BFunc16 = new_function_type((BInt,), BStruct16)
+    f = cast(BFunc16, _testfunc(16))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test16' owning 8 bytes>"
+    assert s.a1 == 40.0
+    assert s.a2 == -40.0
+    #
+    BStruct17 = new_struct_type("test17")
+    complete_struct_or_union(BStruct17, [('a1', BInt, -1),
+                                         ('a2', BFloat, -1)])
+    BFunc17 = new_function_type((BInt,), BStruct17)
+    f = cast(BFunc17, _testfunc(17))
+    s = f(40)
+    assert repr(s) == "<cdata 'struct test17' owning 8 bytes>"
+    assert s.a1 == 40
+    assert s.a2 == 40.0 * 40.0
 
 def test_cast_with_functionptr():
     BFunc = new_function_type((), new_void_type())
@@ -1215,3 +1344,137 @@ def test_wchar():
     BFunc = new_function_type((BWCharP,), BInt, False)
     f = callback(BFunc, cb, -42)
     assert f(u'a\u1234b') == 3
+
+def test_keepalive_struct():
+    # exception to the no-keepalive rule: p=newp(BStructPtr) returns a
+    # pointer owning the memory, and p[0] returns a pointer to the
+    # struct that *also* owns the memory
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', new_primitive_type("int"), -1),
+                                       ('a2', new_primitive_type("int"), -1),
+                                       ('a3', new_primitive_type("int"), -1)])
+    p = newp(BStructPtr)
+    assert repr(p) == "<cdata 'struct foo *' owning 12 bytes>"
+    q = p[0]
+    assert repr(q) == "<cdata 'struct foo' owning 12 bytes>"
+    q.a1 = 123456
+    assert p.a1 == 123456
+    del p
+    import gc; gc.collect()
+    assert q.a1 == 123456
+    assert repr(q) == "<cdata 'struct foo' owning 12 bytes>"
+    assert q.a1 == 123456
+
+def test_nokeepalive_struct():
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    BStructPtrPtr = new_pointer_type(BStructPtr)
+    complete_struct_or_union(BStruct, [('a1', new_primitive_type("int"), -1)])
+    p = newp(BStructPtr)
+    pp = newp(BStructPtrPtr)
+    pp[0] = p
+    s = pp[0][0]
+    assert repr(s).startswith("<cdata 'struct foo' 0x")
+
+def test_owning_repr():
+    BInt = new_primitive_type("int")
+    BArray = new_array_type(new_pointer_type(BInt), None)   # int[]
+    p = newp(BArray, 7)
+    assert repr(p) == "<cdata 'int[]' owning 28 bytes>"
+    assert sizeof(p) == 28
+
+def test_cannot_dereference_void():
+    BVoidP = new_pointer_type(new_void_type())
+    p = cast(BVoidP, 123456)
+    py.test.raises(TypeError, "p[0]")
+    p = cast(BVoidP, 0)
+    if 'PY_DOT_PY' in globals(): py.test.skip("NULL crashes early on py.py")
+    py.test.raises(TypeError, "p[0]")
+
+def test_iter():
+    BInt = new_primitive_type("int")
+    BIntP = new_pointer_type(BInt)
+    BArray = new_array_type(BIntP, None)   # int[]
+    p = newp(BArray, 7)
+    assert list(p) == list(iter(p)) == [0] * 7
+    #
+    py.test.raises(TypeError, iter, cast(BInt, 5))
+    py.test.raises(TypeError, iter, cast(BIntP, 123456))
+
+def test_cmp():
+    BInt = new_primitive_type("int")
+    BIntP = new_pointer_type(BInt)
+    BVoidP = new_pointer_type(new_void_type())
+    p = newp(BIntP, 123)
+    q = cast(BInt, 124)
+    py.test.raises(TypeError, "p < q")
+    py.test.raises(TypeError, "p <= q")
+    assert (p == q) is False
+    assert (p != q) is True
+    py.test.raises(TypeError, "p > q")
+    py.test.raises(TypeError, "p >= q")
+    r = cast(BVoidP, p)
+    assert (p <  r) is False
+    assert (p <= r) is True
+    assert (p == r) is True
+    assert (p != r) is False
+    assert (p >  r) is False
+    assert (p >= r) is True
+    s = newp(BIntP, 125)
+    assert (p == s) is False
+    assert (p != s) is True
+    assert (p < s) is (p <= s) is (s > p) is (s >= p)
+    assert (p > s) is (p >= s) is (s < p) is (s <= p)
+    assert (p < s) ^ (p > s)
+
+def test_buffer():
+    BShort = new_primitive_type("short")
+    s = newp(new_pointer_type(BShort), 100)
+    assert sizeof(s) == size_of_ptr()
+    assert sizeof(BShort) == 2
+    assert len(str(buffer(s))) == 2
+    #
+    BChar = new_primitive_type("char")
+    BCharArray = new_array_type(new_pointer_type(BChar), None)
+    c = newp(BCharArray, "hi there")
+    buf = buffer(c)
+    assert str(buf) == "hi there\x00"
+    assert len(buf) == len("hi there\x00")
+    assert buf[0] == 'h'
+    assert buf[2] == ' '
+    assert list(buf) == ['h', 'i', ' ', 't', 'h', 'e', 'r', 'e', '\x00']
+    buf[2] = '-'
+    assert c[2] == '-'
+    assert str(buf) == "hi-there\x00"
+    buf[:2] = 'HI'
+    assert str(c) == 'HI-there'
+    assert buf[:4:2] == 'H-'
+    if '__pypy__' not in sys.builtin_module_names:
+        # XXX pypy doesn't support the following assignment so far
+        buf[:4:2] = 'XY'
+        assert str(c) == 'XIYthere'
+
+def test_getcname():
+    BUChar = new_primitive_type("unsigned char")
+    BArray = new_array_type(new_pointer_type(BUChar), 123)
+    assert getcname(BArray, "<-->") == "unsigned char<-->[123]"
+
+def test_errno():
+    BVoid = new_void_type()
+    BFunc5 = new_function_type((), BVoid)
+    f = cast(BFunc5, _testfunc(5))
+    set_errno(50)
+    f()
+    assert get_errno() == 65
+    f(); f()
+    assert get_errno() == 95
+    #
+    def cb():
+        e = get_errno()
+        set_errno(e - 6)
+    f = callback(BFunc5, cb)
+    f()
+    assert get_errno() == 89
+    f(); f()
+    assert get_errno() == 77
