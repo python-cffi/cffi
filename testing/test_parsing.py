@@ -1,5 +1,5 @@
 import py, sys
-from cffi import FFI, CDefError, VerificationError
+from cffi import FFI, FFIError, CDefError, VerificationError
 
 class FakeBackend(object):
 
@@ -168,3 +168,12 @@ def test_unnamed_struct():
     assert repr(type_bar) == "<struct $1>"
     py.test.raises(VerificationError, type_bar.get_c_name)
     assert type_foo.get_c_name() == "foo_t"
+
+def test_override():
+    ffi = FFI(backend=FakeBackend())
+    C = ffi.dlopen(None)
+    ffi.cdef("int foo(void);")
+    py.test.raises(FFIError, ffi.cdef, "long foo(void);")
+    assert C.foo.BType == '<func (), <int>, False>'
+    ffi.cdef("long foo(void);", override=True)
+    assert C.foo.BType == '<func (), <long>, False>'

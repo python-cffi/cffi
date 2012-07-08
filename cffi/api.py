@@ -49,6 +49,7 @@ class FFI(object):
         self._cached_btypes = {}
         self._parsed_types = new.module('parsed_types').__dict__
         self._new_types = new.module('new_types').__dict__
+        self._function_caches = []
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
         #
@@ -67,13 +68,16 @@ class FFI(object):
         #
         self.NULL = self.cast("void *", 0)
 
-    def cdef(self, csource):
+    def cdef(self, csource, override=False):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
         then be accessed via either 'ffi.dlopen()' or 'ffi.verify()'.
         The types can be used in 'ffi.new()' and other functions.
         """
-        self._parser.parse(csource)
+        self._parser.parse(csource, override=override)
+        if override:
+            for cache in self._function_caches:
+                cache.clear()
 
     def dlopen(self, name):
         """Load and return a dynamic library identified by 'name'.
@@ -83,7 +87,9 @@ class FFI(object):
         library we only look for the actual (untyped) symbols.
         """
         assert isinstance(name, str) or name is None
-        return _make_ffi_library(self, name)
+        lib, function_cache = _make_ffi_library(self, name)
+        self._function_caches.append(function_cache)
+        return lib
 
     def typeof(self, cdecl, consider_function_as_funcptr=False):
         """Parse the C type given as a string and return the
@@ -282,4 +288,4 @@ def _make_ffi_library(ffi, libname):
     #
     if libname is not None:
         FFILibrary.__name__ = 'FFILibrary_%s' % libname
-    return FFILibrary()
+    return FFILibrary(), function_cache
