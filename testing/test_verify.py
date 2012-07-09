@@ -68,9 +68,9 @@ all_unsigned_integer_types = [_typename for _typename in all_integer_types
 all_float_types = ['float', 'double']
 
 def test_primitive_category():
-    for typename in all_integer_types + all_float_types + ['char']:
+    for typename in all_integer_types + all_float_types + ['char', 'wchar_t']:
         tp = model.PrimitiveType(typename)
-        assert tp.is_char_type() == (typename == 'char')
+        assert tp.is_char_type() == (typename in ('char', 'wchar_t'))
         assert tp.is_signed_type() == (typename in all_signed_integer_types)
         assert tp.is_unsigned_type()== (typename in all_unsigned_integer_types)
         assert tp.is_integer_type() == (typename in all_integer_types)
@@ -103,6 +103,19 @@ def test_char_type():
     lib = ffi.verify("char foo(char x) { return x+1; }")
     assert lib.foo("A") == "B"
     py.test.raises(TypeError, lib.foo, "bar")
+
+def test_wchar_type():
+    ffi = FFI()
+    if ffi.sizeof('wchar_t') == 2:
+        uniexample1 = u'\u1234'
+        uniexample2 = u'\u1235'
+    else:
+        uniexample1 = u'\U00012345'
+        uniexample2 = u'\U00012346'
+    #
+    ffi.cdef("wchar_t foo(wchar_t);")
+    lib = ffi.verify("wchar_t foo(wchar_t x) { return x+1; }")
+    assert lib.foo(uniexample1) == uniexample2
 
 def test_no_argument():
     ffi = FFI()

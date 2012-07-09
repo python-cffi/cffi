@@ -267,8 +267,6 @@ class CTypesBackend(object):
             if size == ctypes.sizeof(ctypes.c_size_t):
                 result['size_t'] = size | UNSIGNED
                 result['ssize_t'] = size
-            #if size == ctypes.sizeof(ctypes.c_wchar):
-            #    result['wchar_t'] = size | UNSIGNED
         return result
 
     def load_library(self, path):
@@ -292,6 +290,8 @@ class CTypesBackend(object):
         return CTypesVoid
 
     def new_primitive_type(self, name):
+        if name == 'wchar_t':
+            raise NotImplementedError(name)
         ctype = self.PRIMITIVE_TYPES[name]
         if name == 'char':
             kind = 'char'

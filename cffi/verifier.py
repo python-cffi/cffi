@@ -619,7 +619,11 @@ cffimod_header = r'''
     ((int(*)(char *, CTypeDescrObject *, PyObject *))_cffi_exports[17])
 #define _cffi_from_c_struct                                              \
     ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[18])
-#define _CFFI_NUM_EXPORTS 19
+#define _cffi_to_c_wchar_t                                               \
+                 ((wchar_t(*)(PyObject *))_cffi_exports[19])
+#define _cffi_from_c_wchar_t                                             \
+    ((PyObject *(*)(wchar_t))_cffi_exports[20])
+#define _CFFI_NUM_EXPORTS 21
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 #  define _cffi_to_c_long_long PyLong_AsLongLong
