@@ -1162,7 +1162,7 @@ static PyObject *cdata_str(CDataObject *cd)
     else if (cd->c_type->ct_flags & CT_IS_ENUM)
         return convert_to_object(cd->c_data, cd->c_type);
     else
-        return cdata_repr(cd);
+        return Py_TYPE(cd)->tp_repr((PyObject *)cd);
 }
 
 #ifdef HAVE_WCHAR_H
@@ -1694,9 +1694,12 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 
  bad_number_of_arguments:
     {
-        PyObject *s = cdata_repr(cd);
-        PyErr_Format(PyExc_TypeError, errormsg,
-                     PyString_AsString(s), nargs_declared, nargs);
+        PyObject *s = Py_TYPE(cd)->tp_repr((PyObject *)cd);
+        if (s != NULL) {
+            PyErr_Format(PyExc_TypeError, errormsg,
+                         PyString_AS_STRING(s), nargs_declared, nargs);
+            Py_DECREF(s);
+        }
         goto error;
     }
 
