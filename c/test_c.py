@@ -293,8 +293,11 @@ def test_invalid_indexing():
     py.test.raises(TypeError, "p[0]")
 
 def test_default_str():
-    p = new_primitive_type("int")
-    x = cast(p, 42)
+    BInt = new_primitive_type("int")
+    x = cast(BInt, 42)
+    assert str(x) == repr(x)
+    BArray = new_array_type(new_pointer_type(BInt), 10)
+    x = newp(BArray, None)
     assert str(x) == repr(x)
 
 def test_cast_from_cdataint():
@@ -847,6 +850,8 @@ def test_callback():
     assert f(-142) == -141
     assert repr(f).startswith(
         "<cdata 'int(*)(int)' calling <function cb at 0x")
+    e = py.test.raises(TypeError, f)
+    assert str(e.value) == "%r expects 1 arguments, got 0" % (f,)
 
 def test_callback_return_type():
     for rettype in ["signed char", "short", "int", "long", "long long",
