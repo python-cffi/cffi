@@ -2111,6 +2111,18 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
             value = (unsigned char)PyString_AS_STRING(ob)[0];
         }
     }
+#ifdef HAVE_WCHAR_H
+    else if (PyUnicode_Check(ob)) {
+        wchar_t ordinal;
+        if (_my_PyUnicode_AsSingleWideChar(ob, &ordinal) < 0) {
+            PyErr_Format(PyExc_TypeError,
+                         "cannot cast unicode of length %zd to ctype '%s'",
+                         PyUnicode_GET_SIZE(ob), ct->ct_name);
+            return NULL;
+        }
+        value = (long)ordinal;
+    }
+#endif
     else {
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
@@ -2504,11 +2516,11 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     td->ct_length = ptypes->align;
     td->ct_extra = ffitype;
     td->ct_flags = ptypes->flags;
-    if (td->ct_flags & CT_PRIMITIVE_SIGNED) {
+    if (td->ct_flags & (CT_PRIMITIVE_SIGNED | CT_PRIMITIVE_CHAR)) {
         if (td->ct_size <= sizeof(long))
             td->ct_flags |= CT_PRIMITIVE_FITS_LONG;
     }
-    else if (td->ct_flags & (CT_PRIMITIVE_UNSIGNED | CT_PRIMITIVE_CHAR)) {
+    else if (td->ct_flags & CT_PRIMITIVE_UNSIGNED) {
         if (td->ct_size < sizeof(long))
             td->ct_flags |= CT_PRIMITIVE_FITS_LONG;
     }
@@ -2738,8 +2750,10 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             if (!(ftype->ct_flags & (CT_PRIMITIVE_SIGNED |
                                      CT_PRIMITIVE_UNSIGNED |
                                      CT_PRIMITIVE_CHAR)) ||
+#ifdef HAVE_WCHAR_H
                     ((ftype->ct_flags & CT_PRIMITIVE_CHAR)
-                         && ftype->ct_size > sizeof(char)) ||
+                         && ftype->ct_size == sizeof(wchar_t)) ||
+#endif
                     fbitsize == 0 ||
                     fbitsize > 8 * ftype->ct_size) {
                 PyErr_Format(PyExc_TypeError, "invalid bit field '%s'",

@@ -1281,6 +1281,7 @@ def test_cast_with_functionptr():
 
 def test_wchar():
     BWChar = new_primitive_type("wchar_t")
+    BInt = new_primitive_type("int")
     pyuni4 = {1: True, 2: False}[len(u'\U00012345')]
     wchar4 = {2: False, 4: True}[sizeof(BWChar)]
     assert str(cast(BWChar, 0x45)) == "<cdata 'wchar_t' u'E'>"
@@ -1350,6 +1351,24 @@ def test_wchar():
     assert str(w) == repr(w)
     assert unicode(w) == u'\u1234'
     assert int(w) == 0x1234
+    w = cast(BWChar, u'\u1234')
+    assert repr(w) == "<cdata 'wchar_t' u'\u1234'>"
+    assert str(w) == repr(w)
+    assert unicode(w) == u'\u1234'
+    assert int(w) == 0x1234
+    w = cast(BInt, u'\u1234')
+    assert repr(w) == "<cdata 'int' 4660>"
+    if wchar4:
+        w = cast(BWChar, u'\U00012345')
+        assert repr(w) == "<cdata 'wchar_t' u'\U00012345'>"
+        assert str(w) == repr(w)
+        assert unicode(w) == u'\U00012345'
+        assert int(w) == 0x12345
+        w = cast(BInt, u'\U00012345')
+        assert repr(w) == "<cdata 'int' 74565>"
+    py.test.raises(TypeError, cast, BInt, u'')
+    py.test.raises(TypeError, cast, BInt, u'XX')
+    assert int(cast(BInt, u'a')) == ord('a')
     #
     a = newp(BWCharArray, u'hello - world')
     p = cast(BWCharP, a)
@@ -1367,7 +1386,6 @@ def test_wchar():
     assert str(q) == repr(q)
     py.test.raises(RuntimeError, unicode, q)
     #
-    BInt = new_primitive_type("int")
     def cb(p):
         assert repr(p).startswith("<cdata 'wchar_t *' 0x")
         return len(unicode(p))
