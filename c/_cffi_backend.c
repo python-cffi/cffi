@@ -762,24 +762,46 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             return 0;
         }
         else if (ctitem->ct_flags & CT_PRIMITIVE_CHAR) {
-            char *srcdata;
-            Py_ssize_t n;
-            if (!PyString_Check(init)) {
-                expected = "str or list or tuple";
-                goto cannot_convert;
+            if (ctitem->ct_size == sizeof(char)) {
+                char *srcdata;
+                Py_ssize_t n;
+                if (!PyString_Check(init)) {
+                    expected = "str or list or tuple";
+                    goto cannot_convert;
+                }
+                n = PyString_GET_SIZE(init);
+                if (ct->ct_length >= 0 && n > ct->ct_length) {
+                    PyErr_Format(PyExc_IndexError,
+                                 "initializer string is too long for '%s' "
+                                 "(got %zd characters)", ct->ct_name, n);
+                    return -1;
+                }
+                if (n != ct->ct_length)
+                    n++;
+                srcdata = PyString_AS_STRING(init);
+                memcpy(data, srcdata, n);
+                return 0;
             }
-            n = PyString_GET_SIZE(init);
-            if (ct->ct_length >= 0 && n > ct->ct_length) {
-                PyErr_Format(PyExc_IndexError,
-                             "initializer string is too long for '%s' "
-                             "(got %zd characters)", ct->ct_name, n);
-                return -1;
+#ifdef HAVE_WCHAR_H
+            else {
+                Py_ssize_t n;
+                if (!PyUnicode_Check(init)) {
+                    expected = "unicode or list or tuple";
+                    goto cannot_convert;
+                }
+                n = _my_PyUnicode_SizeAsWideChar(init);
+                if (ct->ct_length >= 0 && n > ct->ct_length) {
+                    PyErr_Format(PyExc_IndexError,
+                                 "initializer unicode is too long for '%s' "
+                                 "(got %zd characters)", ct->ct_name, n);
+                    return -1;
+                }
+                if (n != ct->ct_length)
+                    n++;
+                _my_PyUnicode_AsWideChar(init, (wchar_t *)data, n);
+                return 0;
             }
-            if (n != ct->ct_length)
-                n++;
-            srcdata = PyString_AS_STRING(init);
-            memcpy(data, srcdata, n);
-            return 0;
+#endif
         }
         else {
             expected = "list or tuple";
@@ -1153,18 +1175,17 @@ static PyObject *cdata_unicode(CDataObject *cd)
     else if (cd->c_type->ct_itemdescr != NULL &&
              cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR &&
              cd->c_type->ct_itemdescr->ct_size > sizeof(char)) {
-        abort();
         Py_ssize_t length;
 
         if (cd->c_type->ct_flags & CT_ARRAY) {
-            const char *start = cd->c_data;
-            const char *end;
-            length = get_array_length(cd);
-            end = (const char *)memchr(start, 0, length);
-            if (end != NULL)
-                length = end - start;
+            const wchar_t *start = (wchar_t *)cd->c_data;
+            const Py_ssize_t lenmax = get_array_length(cd);
+            length = 0;
+            while (length < lenmax && start[length])
+                length++;
         }
         else {
+            abort();
             if (cd->c_data == NULL) {
                 PyObject *s = cdata_repr(cd);
                 if (s != NULL) {
@@ -1178,7 +1199,7 @@ static PyObject *cdata_unicode(CDataObject *cd)
             length = strlen(cd->c_data);
         }
 
-        return PyString_FromStringAndSize(cd->c_data, length);
+        return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, length);
     }
     else
         return cdata_repr(cd);
@@ -1948,6 +1969,10 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
             else if (PyString_Check(init)) {
                 /* from a string, we add the null terminator */
                 explicitlength = PyString_GET_SIZE(init) + 1;
+            }
+            else if (PyUnicode_Check(init)) {
+                /* from a unicode, we add the null terminator */
+                explicitlength = PyUnicode_GET_SIZE(init) + 1;
             }
             else {
                 explicitlength = PyNumber_AsSsize_t(init, PyExc_OverflowError);

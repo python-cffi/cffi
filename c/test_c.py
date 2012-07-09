@@ -1311,13 +1311,28 @@ def test_wchar():
     else:
         py.test.raises(ValueError, "s.a1 = u'\U00012345'")
     #
-    a = new_array_type(BWCharP, u'hello \u1234 world')
+    BWCharArray = new_array_type(BWCharP, None)
+    a = newp(BWCharArray, u'hello \u1234 world')
     assert len(a) == 14   # including the final null
     assert unicode(a) == u'hello \u1234 world'
-    py.test.raises(UnicodeEncodeError, str, a)
+    a[13] = u'!'
+    assert unicode(a) == u'hello \u1234 world!'
+    assert str(a) == repr(a)
     assert a[6] == u'\u1234'
     a[6] = '-'
     assert str(a) == 'hello - world'
+    #
+    if wchar4:
+        u = u'\U00012345\U00012346\U00012347'
+        a = newp(BWCharArray, u)
+        assert len(a) == 4
+        assert unicode(a) == u
+        assert len(list(a)) == 4
+        expected = [u'\U00012345', u'\U00012346', u'\U00012347', unichr(0)]
+        assert list(a) == expected
+        got = [a[i] for i in range(4)]
+        assert got == expected
+        py.test.raises(IndexError, 'a[4]')
     #
     w = cast(BWChar, 'a')
     assert repr(w) == "<cdata 'wchar_t' u'a'>"
@@ -1325,7 +1340,7 @@ def test_wchar():
     assert unicode(w) == u'a'
     w = cast(BWChar, 0x1234)
     assert repr(w) == "<cdata 'wchar_t' u'\u1234'>"
-    py.test.raises(UnicodeEncodeError, str, w)
+    py.test.raises(xxUnicodeEncodeError, str, w)
     assert unicode(w) == u'\u1234'
     assert int(w) == 0x1234
     #
@@ -1333,13 +1348,13 @@ def test_wchar():
     assert str(p) == 'hello - world'
     assert unicode(p) == u'hello - world'
     p[6] = u'\u2345'
-    py.test.raises(UnicodeEncodeError, str, p)
+    py.test.raises(xxUnicodeEncodeError, str, p)
     assert unicode(p) == u'hello \u2345 world'
     #
     s = newp(BStructPtr, [u'\u1234', p])
     assert s.a1 == u'\u1234'
     assert s.a2 == p
-    py.test.raises(UnicodeEncodeError, str, s.a2)
+    py.test.raises(xxUnicodeEncodeError, str, s.a2)
     assert unicode(s.a2) == u'hello \u2345 world'
     #
     q = cast(BWCharP, 0)
