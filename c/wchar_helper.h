@@ -50,7 +50,7 @@ _my_PyUnicode_FromWideChar(register const wchar_t *w,
                 if (((unsigned int)*w) > 0x10FFFF) {
                     PyErr_Format(PyExc_ValueError,
                                  "wchar_t out of range for "
-                                 "convertion to unicode: 0x%x", (int)*w);
+                                 "conversion to unicode: 0x%x", (int)*w);
                     Py_DECREF(unicode);
                     return NULL;
                 }
