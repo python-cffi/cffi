@@ -54,7 +54,7 @@ typedef struct _ctypedescr {
     struct _ctypedescr *ct_itemdescr;  /* ptrs and arrays: the item type */
     PyObject *ct_stuff;                /* structs: dict of the fields
                                           arrays: ctypedescr of the ptr type
-                                          function: tuple(ctres, ctargs...)
+                                          function: tuple(abi, ctres, ctargs..)
                                           enum: pair {"name":x},{x:"name"} */
     void *ct_extra;                    /* structs: first field (not a ref!)
                                           function types: cif_description
@@ -1563,7 +1563,7 @@ static PyObject *
 convert_struct_to_owning_object(char *data, CTypeDescrObject *ct); /*forward*/
 
 static cif_description_t *
-fb_prepare_cif(PyObject *fargs, CTypeDescrObject *fresult);    /* forward */
+fb_prepare_cif(PyObject *fargs, CTypeDescrObject *, ffi_abi);      /*forward*/
 
 static PyObject*
 cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
@@ -1591,8 +1591,8 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     nargs = PyTuple_Size(args);
     if (nargs < 0)
         return NULL;
-    nargs_declared = PyTuple_GET_SIZE(signature) - 1;
-    fresult = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 0);
+    nargs_declared = PyTuple_GET_SIZE(signature) - 2;
+    fresult = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 1);
     fvarargs = NULL;
     buffer = NULL;
 
@@ -1607,6 +1607,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     }
     else {
         /* call of a variadic function */
+        ffi_abi fabi;
         if (nargs < nargs_declared) {
             errormsg = "%s expects at least %zd arguments, got %zd";
             goto bad_number_of_arguments;
@@ -1615,7 +1616,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         if (fvarargs == NULL)
             goto error;
         for (i = 0; i < nargs_declared; i++) {
-            PyObject *o = PyTuple_GET_ITEM(signature, 1 + i);
+            PyObject *o = PyTuple_GET_ITEM(signature, 2 + i);
             Py_INCREF(o);
             PyTuple_SET_ITEM(fvarargs, i, o);
         }
@@ -1638,7 +1639,8 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             }
             PyTuple_SET_ITEM(fvarargs, i, (PyObject *)ct);
         }
-        cif_descr = fb_prepare_cif(fvarargs, fresult);
+        fabi = PyInt_AS_LONG(PyTuple_GET_ITEM(signature, 0));
+        cif_descr = fb_prepare_cif(fvarargs, fresult, fabi);
         if (cif_descr == NULL)
             goto error;
     }
@@ -1659,7 +1661,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         buffer_array[i] = data;
 
         if (i < nargs_declared)
-            argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 1 + i);
+            argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 2 + i);
         else
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(fvarargs, i);
 
@@ -3169,7 +3171,8 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
 }
 
 static cif_description_t *fb_prepare_cif(PyObject *fargs,
-                                         CTypeDescrObject *fresult)
+                                         CTypeDescrObject *fresult,
+                                         ffi_abi fabi)
 {
     char *buffer;
     cif_description_t *cif_descr;
@@ -3196,7 +3199,7 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     assert(funcbuffer.bufferp == buffer + funcbuffer.nb_bytes);
 
     cif_descr = (cif_description_t *)buffer;
-    if (ffi_prep_cif(&cif_descr->cif, FFI_DEFAULT_ABI, funcbuffer.nargs,
+    if (ffi_prep_cif(&cif_descr->cif, fabi, funcbuffer.nargs,
                      funcbuffer.rtype, funcbuffer.atypes) != FFI_OK) {
         PyErr_SetString(PyExc_SystemError,
                         "libffi failed to build this function type");
@@ -3211,17 +3214,18 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
 
 static PyObject *b_new_function_type(PyObject *self, PyObject *args)
 {
-    PyObject *fargs;
+    PyObject *fargs, *fabiobj;
     CTypeDescrObject *fresult;
     CTypeDescrObject *fct;
-    int ellipsis = 0;
+    int ellipsis = 0, fabi = FFI_DEFAULT_ABI;
     struct funcbuilder_s funcbuilder;
     Py_ssize_t i;
 
-    if (!PyArg_ParseTuple(args, "O!O!|i:new_function_type",
+    if (!PyArg_ParseTuple(args, "O!O!|ii:new_function_type",
                           &PyTuple_Type, &fargs,
                           &CTypeDescr_Type, &fresult,
-                          &ellipsis))
+                          &ellipsis,
+                          &fabi))
         return NULL;
 
     if (fresult->ct_flags & CT_UNION) {
@@ -3247,7 +3251,7 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
            is computed here. */
         cif_description_t *cif_descr;
 
-        cif_descr = fb_prepare_cif(fargs, fresult);
+        cif_descr = fb_prepare_cif(fargs, fresult, fabi);
         if (cif_descr == NULL)
             goto error;
 
@@ -3255,18 +3259,23 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     }
 
     /* build the signature, given by a tuple of ctype objects */
-    fct->ct_stuff = PyTuple_New(1 + funcbuilder.nargs);
+    fct->ct_stuff = PyTuple_New(2 + funcbuilder.nargs);
     if (fct->ct_stuff == NULL)
         goto error;
+    fabiobj = PyInt_FromLong(fabi);
+    if (fabiobj == NULL)
+        goto error;
+    PyTuple_SET_ITEM(fct->ct_stuff, 0, fabiobj);
+
     Py_INCREF(fresult);
-    PyTuple_SET_ITEM(fct->ct_stuff, 0, (PyObject *)fresult);
+    PyTuple_SET_ITEM(fct->ct_stuff, 1, (PyObject *)fresult);
     for (i=0; i<funcbuilder.nargs; i++) {
         PyObject *o = PyTuple_GET_ITEM(fargs, i);
         /* convert arrays into pointers */
         if (((CTypeDescrObject *)o)->ct_flags & CT_ARRAY)
             o = ((CTypeDescrObject *)o)->ct_stuff;
         Py_INCREF(o);
-        PyTuple_SET_ITEM(fct->ct_stuff, 1 + i, o);
+        PyTuple_SET_ITEM(fct->ct_stuff, 2 + i, o);
     }
     fct->ct_size = sizeof(void(*)(void));
     fct->ct_flags = CT_FUNCTIONPTR;
@@ -3295,13 +3304,13 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
 
     Py_INCREF(cb_args);
 
-    n = PyTuple_GET_SIZE(signature) - 1;
+    n = PyTuple_GET_SIZE(signature) - 2;
     py_args = PyTuple_New(n);
     if (py_args == NULL)
         goto error;
 
     for (i=0; i<n; i++) {
-        PyObject *a = convert_to_object(args[i], SIGNATURE(i + 1));
+        PyObject *a = convert_to_object(args[i], SIGNATURE(2 + i));
         if (a == NULL)
             goto error;
         PyTuple_SET_ITEM(py_args, i, a);
@@ -3311,8 +3320,8 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     if (py_res == NULL)
         goto error;
 
-    if (SIGNATURE(0)->ct_size > 0) {
-        if (convert_from_object(result, SIGNATURE(0), py_res) < 0)
+    if (SIGNATURE(1)->ct_size > 0) {
+        if (convert_from_object(result, SIGNATURE(1), py_res) < 0)
             goto error;
     }
     else if (py_res != Py_None) {
@@ -3329,9 +3338,9 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
 
  error:
     PyErr_WriteUnraisable(py_ob);
-    if (SIGNATURE(0)->ct_size > 0) {
+    if (SIGNATURE(1)->ct_size > 0) {
         py_rawerr = PyTuple_GET_ITEM(cb_args, 2);
-        memcpy(result, PyString_AS_STRING(py_rawerr), SIGNATURE(0)->ct_size);
+        memcpy(result, PyString_AS_STRING(py_rawerr), SIGNATURE(1)->ct_size);
     }
     goto done;
     }
@@ -3365,7 +3374,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    ctresult = (CTypeDescrObject *)PyTuple_GET_ITEM(ct->ct_stuff, 0);
+    ctresult = (CTypeDescrObject *)PyTuple_GET_ITEM(ct->ct_stuff, 1);
     size = ctresult->ct_size;
     if (size < 0)
         size = 0;
