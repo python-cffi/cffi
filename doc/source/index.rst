@@ -279,6 +279,8 @@ can assume to exist are the standard types:
 * intN_t, uintN_t (for N=8,16,32,64), intptr_t, uintptr_t, ptrdiff_t,
   size_t, ssize_t
 
+* wchar_t (if supported by the backend)
+
 As we will see on `the verification step`_ below, the declarations can
 also contain "``...``" at various places; these are placeholders that will
 be completed by a call to ``verify()``.
@@ -419,8 +421,17 @@ Working with pointers, structures and arrays
 
 The C code's integers and floating-point values are mapped to Python's
 regular ``int``, ``long`` and ``float``.  Moreover, the C type ``char``
-correspond to single-character strings in Python.  (If you want it to
+corresponds to single-character strings in Python.  (If you want it to
 map to small integers, use either ``signed char`` or ``unsigned char``.)
+
+Similarly, the C type ``wchar_t`` corresponds to single-character
+unicode strings, if supported by the backend.  Note that in some
+situations (a narrow Python build with an underlying 4-bytes wchar_t
+type), a single wchar_t character may correspond to a pair of
+surrogates, which is represented as a unicode string of length 2.  If
+you need to convert a wchar_t to an integer, do not use ``ord(x)``,
+because it doesn't accept such unicode strings; use instead
+``int(ffi.cast('int', x))``, which does.
 
 Pointers, structures and arrays are more complex: they don't have an
 obvious Python equivalent.  Thus, they correspond to objects of type
@@ -528,6 +539,11 @@ which case a terminating null character is appended implicitly::
     >>> str(x)        # interpret 'x' as a regular null-terminated string
     'Hello'
 
+Similarly, arrays of wchar_t can be initialized from a unicode string,
+and calling ``unicode()`` on the cdata object returns the current unicode
+string stored in the wchar_t array (encoding and decoding surrogates as
+needed if necessary).
+
 Note that unlike Python lists or tuples, but like C, you *cannot* index in
 a C array from the end using negative numbers.
 
@@ -576,6 +592,12 @@ string (but don't pass a normal Python string to functions that take a
     C = ffi.dlopen(None)
 
     assert C.strlen("hello") == 5
+
+So far passing unicode strings as ``wchar_t *`` arguments is not
+implemented.  You need to write e.g.::
+  
+    >>> C.wcslen(ffi.new("wchar_t[]", u"foo"))
+    3
 
 CFFI supports passing and returning structs to functions and callbacks.
 Example (sketch)::
