@@ -4018,5 +4018,14 @@ void init_cffi_backend(void)
     if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
         return;
 
+#if defined(MS_WIN32) && !defined(_WIN64)
+    v = PyInt_FromLong(FFI_STDCALL);
+    if (v == NULL || PyModule_AddObject(m, "FFI_STDCALL", v) < 0)
+        return;
+#endif
+    v = PyInt_FromLong(FFI_DEFAULT_ABI);
+    if (v == NULL || PyModule_AddObject(m, "FFI_DEFAULT_ABI", v) < 0)
+        return;
+
     init_errno();
 }

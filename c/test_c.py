@@ -1534,3 +1534,6 @@ def test_errno():
     assert get_errno() == 89
     f(); f()
     assert get_errno() == 77
+
+def test_abi():
+    assert isinstance(FFI_DEFAULT_ABI, int)
