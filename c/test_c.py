@@ -1278,6 +1278,14 @@ def test_wchar():
     BWChar = new_primitive_type("wchar_t")
     pyuni4 = {1: True, 2: False}[len(u'\U00012345')]
     wchar4 = {2: False, 4: True}[sizeof(BWChar)]
+    assert str(cast(BWChar, 0x45)) == "<cdata 'wchar_t' u'E'>"
+    assert str(cast(BWChar, 0x1234)) == "<cdata 'wchar_t' u'\u1234'>"
+    if wchar4:
+        x = cast(BWChar, 0x12345)
+        assert str(x) == "<cdata 'wchar_t' u'\U00012345'>"
+        assert unicode(x) == u'\U00012345'
+    else:
+        assert not pyuni4
     #
     BWCharP = new_pointer_type(BWChar)
     BStruct = new_struct_type("foo_s")
