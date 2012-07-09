@@ -7,7 +7,8 @@ from setup import include_dirs, sources, libraries, define_macros
 if __name__ == '__main__':
     from distutils.core import setup
     from distutils.extension import Extension
-    setup(ext_modules=[Extension(name = '_cffi_backend',
+    setup(packages=['cffi'],
+          ext_modules=[Extension(name = '_cffi_backend',
                                  include_dirs=include_dirs,
                                  sources=sources,
                                  libraries=libraries,
