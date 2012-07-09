@@ -290,6 +290,8 @@ class CTypesBackend(object):
         return CTypesVoid
 
     def new_primitive_type(self, name):
+        if name == 'wchar_t':
+            raise NotImplementedError(name)
         ctype = self.PRIMITIVE_TYPES[name]
         if name == 'char':
             kind = 'char'

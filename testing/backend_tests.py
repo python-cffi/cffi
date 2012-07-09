@@ -297,8 +297,15 @@ class BackendTests:
         assert [p[i] for i in range(2)] == ['a', 'b']
         py.test.raises(IndexError, ffi.new, "char[2]", "abc")
 
+    def check_wchar_t(self, ffi):
+        try:
+            ffi.cast("wchar_t", 0)
+        except NotImplementedError:
+            py.test.skip("NotImplementedError: wchar_t")
+
     def test_wchar_t(self):
         ffi = FFI(backend=self.Backend())
+        self.check_wchar_t(ffi)
         assert ffi.new("wchar_t", u'x')[0] == u'x'
         assert ffi.new("wchar_t", unichr(1234))[0] == unichr(1234)
         if SIZE_OF_WCHAR > 2:
@@ -541,7 +548,10 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         assert str(ffi.new("char", "x")) == "x"
         assert str(ffi.new("char", "\x00")) == ""
-        #
+
+    def test_unicode_from_wchar_pointer(self):
+        ffi = FFI(backend=self.Backend())
+        self.check_wchar_t(ffi)
         assert unicode(ffi.new("wchar_t", u"x")) == u"x"
         assert unicode(ffi.new("wchar_t", u"\x00")) == u""
         x = ffi.new("wchar_t", u"\x00")
@@ -566,6 +576,7 @@ class BackendTests:
 
     def test_string_from_wchar_array(self):
         ffi = FFI(backend=self.Backend())
+        self.check_wchar_t(ffi)
         assert unicode(ffi.cast("wchar_t", "x")) == u"x"
         assert unicode(ffi.cast("wchar_t", u"x")) == u"x"
         x = ffi.cast("wchar_t", "x")
@@ -600,6 +611,7 @@ class BackendTests:
     def test_fetch_const_wchar_p_field(self):
         # 'const' is ignored so far
         ffi = FFI(backend=self.Backend())
+        self.check_wchar_t(ffi)
         ffi.cdef("struct foo { const wchar_t *name; };")
         t = ffi.new("const wchar_t[]", u"testing")
         s = ffi.new("struct foo", [t])
@@ -716,6 +728,10 @@ class BackendTests:
         assert int(p) == 0x80     # "char" is considered unsigned in this case
         p = ffi.cast("int", "\x81")
         assert int(p) == 0x81
+
+    def test_wchar_cast(self):
+        ffi = FFI(backend=self.Backend())
+        self.check_wchar_t(ffi)
         p = ffi.cast("int", ffi.cast("wchar_t", unichr(1234)))
         assert int(p) == 1234
         p = ffi.cast("long long", ffi.cast("wchar_t", -1))
