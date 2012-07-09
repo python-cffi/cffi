@@ -886,6 +886,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             if (res < 0)
                 return -1;
             data[0] = res;
+            return 0;
         }
 #ifdef HAVE_WCHAR_H
         else {
@@ -893,9 +894,9 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             if (res == (wchar_t)-1 && PyErr_Occurred())
                 return -1;
             *(wchar_t *)data = res;
+            return 0;
         }
 #endif
-        return 0;
     }
     if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
 
@@ -1169,34 +1170,35 @@ static PyObject *cdata_str(CDataObject *cd)
 static PyObject *cdata_unicode(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR &&
-        cd->c_type->ct_size > sizeof(char)) {
+        cd->c_type->ct_size == sizeof(wchar_t)) {
         return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, 1);
     }
     else if (cd->c_type->ct_itemdescr != NULL &&
              cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR &&
-             cd->c_type->ct_itemdescr->ct_size > sizeof(char)) {
+             cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t)) {
         Py_ssize_t length;
+        const wchar_t *start = (wchar_t *)cd->c_data;
 
         if (cd->c_type->ct_flags & CT_ARRAY) {
-            const wchar_t *start = (wchar_t *)cd->c_data;
             const Py_ssize_t lenmax = get_array_length(cd);
             length = 0;
             while (length < lenmax && start[length])
                 length++;
         }
         else {
-            abort();
             if (cd->c_data == NULL) {
                 PyObject *s = cdata_repr(cd);
                 if (s != NULL) {
                     PyErr_Format(PyExc_RuntimeError,
-                                 "cannot use str() on %s",
+                                 "cannot use unicode() on %s",
                                  PyString_AS_STRING(s));
                     Py_DECREF(s);
                 }
                 return NULL;
             }
-            length = strlen(cd->c_data);
+            length = 0;
+            while (start[length])
+                length++;
         }
 
         return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, length);
@@ -1257,7 +1259,12 @@ static PyObject *cdata_int(CDataObject *cd)
         return convert_to_object(cd->c_data, cd->c_type);
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
-        return PyInt_FromLong((unsigned char)cd->c_data[0]);
+        if (cd->c_type->ct_size == sizeof(char))
+            return PyInt_FromLong((unsigned char)cd->c_data[0]);
+#ifdef HAVE_WCHAR_H
+        else
+            return PyInt_FromLong((long)*(wchar_t *)cd->c_data);
+#endif
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
         PyObject *o = convert_to_object(cd->c_data, cd->c_type);
@@ -1657,12 +1664,27 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(fvarargs, i);
 
         if ((argtype->ct_flags & CT_POINTER) &&
-            (argtype->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) &&
-            PyString_Check(obj)) {
-            /* special case: Python string -> cdata 'char *' */
-            *(char **)data = PyString_AS_STRING(obj);
+            (argtype->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR)) {
+            if (argtype->ct_itemdescr->ct_size == sizeof(char)) {
+                if (PyString_Check(obj)) {
+                    /* special case: Python string -> cdata 'char *' */
+                    *(char **)data = PyString_AS_STRING(obj);
+                    continue;
+                }
+            }
+#ifdef HAVE_WCHAR_H
+            else {
+                if (PyUnicode_Check(obj)) {
+                    /* Python Unicode string -> cdata 'wchar_t *':
+                       not supported yet */
+                    PyErr_SetString(PyExc_NotImplementedError,
+                        "automatic unicode-to-'wchar_t *' conversion");
+                    goto error;
+                }
+            }
+#endif
         }
-        else if (convert_from_object(data, argtype, obj) < 0)
+        if (convert_from_object(data, argtype, obj) < 0)
             goto error;
     }
 
@@ -1975,7 +1997,7 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
             }
             else if (PyUnicode_Check(init)) {
                 /* from a unicode, we add the null terminator */
-                explicitlength = PyUnicode_GET_SIZE(init) + 1;
+                explicitlength = _my_PyUnicode_SizeAsWideChar(init) + 1;
             }
             else {
                 explicitlength = PyNumber_AsSsize_t(init, PyExc_OverflowError);

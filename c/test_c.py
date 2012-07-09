@@ -1324,8 +1324,9 @@ def test_wchar():
     assert unicode(a) == u'hello \u1234 world!'
     assert str(a) == repr(a)
     assert a[6] == u'\u1234'
-    a[6] = '-'
-    assert str(a) == 'hello - world'
+    a[6] = u'-'
+    assert unicode(a) == 'hello - world!'
+    assert str(a) == repr(a)
     #
     if wchar4:
         u = u'\U00012345\U00012346\U00012347'
@@ -1341,29 +1342,29 @@ def test_wchar():
     #
     w = cast(BWChar, 'a')
     assert repr(w) == "<cdata 'wchar_t' u'a'>"
-    assert str(w) == 'a'
+    assert str(w) == repr(w)
     assert unicode(w) == u'a'
+    assert int(w) == ord('a')
     w = cast(BWChar, 0x1234)
     assert repr(w) == "<cdata 'wchar_t' u'\u1234'>"
-    py.test.raises(xxUnicodeEncodeError, str, w)
+    assert str(w) == repr(w)
     assert unicode(w) == u'\u1234'
     assert int(w) == 0x1234
     #
+    a = newp(BWCharArray, u'hello - world')
     p = cast(BWCharP, a)
-    assert str(p) == 'hello - world'
     assert unicode(p) == u'hello - world'
     p[6] = u'\u2345'
-    py.test.raises(xxUnicodeEncodeError, str, p)
     assert unicode(p) == u'hello \u2345 world'
     #
     s = newp(BStructPtr, [u'\u1234', p])
     assert s.a1 == u'\u1234'
     assert s.a2 == p
-    py.test.raises(xxUnicodeEncodeError, str, s.a2)
+    assert str(s.a2) == repr(s.a2)
     assert unicode(s.a2) == u'hello \u2345 world'
     #
     q = cast(BWCharP, 0)
-    py.test.raises(RuntimeError, str, q)
+    assert str(q) == repr(q)
     py.test.raises(RuntimeError, unicode, q)
     #
     BInt = new_primitive_type("int")
@@ -1372,7 +1373,8 @@ def test_wchar():
         return len(unicode(p))
     BFunc = new_function_type((BWCharP,), BInt, False)
     f = callback(BFunc, cb, -42)
-    assert f(u'a\u1234b') == 3
+    #assert f(u'a\u1234b') == 3    -- not implemented
+    py.test.raises(NotImplementedError, f, u'a\u1234b')
 
 def test_keepalive_struct():
     # exception to the no-keepalive rule: p=newp(BStructPtr) returns a
