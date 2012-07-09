@@ -2472,6 +2472,11 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 
     for (ptypes=types; ; ptypes++) {
         if (ptypes->name == NULL) {
+#ifndef HAVE_WCHAR_H
+            if (strcmp(name, "wchar_t"))
+                PyErr_SetString(PyExc_NotImplementedError, name);
+            else
+#endif
             PyErr_SetString(PyExc_KeyError, name);
             return NULL;
         }

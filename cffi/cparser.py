@@ -53,7 +53,7 @@ class Parser(object):
         # internals of CParser...  the following registers the
         # typedefs, because their presence or absence influences the
         # parsing itself (but what they are typedef'ed to plays no role)
-        csourcelines = []
+        csourcelines = ['typedef int wchar_t;']
         for name in sorted(self._declarations):
             if name.startswith('typedef '):
                 csourcelines.append('typedef int %s;' % (name[8:],))

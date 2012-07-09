@@ -8,8 +8,6 @@ SIZE_OF_SHORT = ctypes.sizeof(ctypes.c_short)
 SIZE_OF_PTR   = ctypes.sizeof(ctypes.c_void_p)
 SIZE_OF_WCHAR = ctypes.sizeof(ctypes.c_wchar)
 
-WCHAR_IS_UNSIGNED = (SIZE_OF_WCHAR < 4)
-
 
 class BackendTests:
 
@@ -43,7 +41,6 @@ class BackendTests:
         self._test_int_type(ffi, 'ptrdiff_t', SIZE_OF_PTR, False)
         self._test_int_type(ffi, 'size_t', SIZE_OF_PTR, True)
         self._test_int_type(ffi, 'ssize_t', SIZE_OF_PTR, False)
-        self._test_int_type(ffi, 'wchar_t', SIZE_OF_WCHAR, WCHAR_IS_UNSIGNED)
 
     def _test_int_type(self, ffi, c_decl, size, unsigned):
         if unsigned:
@@ -302,7 +299,7 @@ class BackendTests:
 
     def test_wchar_t(self):
         ffi = FFI(backend=self.Backend())
-        assert ffi.new("wchar_t", 'x')[0] == u'x'
+        assert ffi.new("wchar_t", u'x')[0] == u'x'
         assert ffi.new("wchar_t", unichr(1234))[0] == unichr(1234)
         if SIZE_OF_WCHAR > 2:
             assert ffi.new("wchar_t", u'\U00012345')[0] == u'\U00012345'
@@ -314,16 +311,16 @@ class BackendTests:
         py.test.raises(TypeError, ffi.new, "wchar_t", 32)
         py.test.raises(TypeError, ffi.new, "wchar_t", "foo")
         #
-        p = ffi.new("wchar_t[]", [u'a', 'b', unichr(1234)])
+        p = ffi.new("wchar_t[]", [u'a', u'b', unichr(1234)])
         assert len(p) == 3
         assert p[0] == u'a'
         assert p[1] == u'b' and type(p[1]) is unicode
         assert p[2] == unichr(1234)
-        p[0] = 'x'
+        p[0] = u'x'
         assert p[0] == u'x' and type(p[0]) is unicode
         p[1] = unichr(1357)
         assert p[1] == unichr(1357)
-        p = ffi.new("wchar_t[]", "abcd")
+        p = ffi.new("wchar_t[]", u"abcd")
         assert len(p) == 5
         assert p[4] == u'\x00'
         p = ffi.new("wchar_t[]", u"a\u1234b")
@@ -331,14 +328,15 @@ class BackendTests:
         assert p[1] == unichr(0x1234)
         #
         p = ffi.new("wchar_t[]", u'\U00023456')
-        if SIZE_OF_WCHAR == 2 or sys.maxunicode == 0xffff:
+        if SIZE_OF_WCHAR == 2:
+            assert sys.maxunicode == 0xffff
             assert len(p) == 3
             assert p[0] == u'\ud84d'
             assert p[1] == u'\udc56'
             assert p[2] == u'\x00'
         else:
             assert len(p) == 2
-            assert p[0] == unichr(0x23456)
+            assert p[0] == u'\U00023456'
             assert p[1] == u'\x00'
         #
         p = ffi.new("wchar_t[4]", u"ab")
@@ -544,9 +542,10 @@ class BackendTests:
         assert str(ffi.new("char", "x")) == "x"
         assert str(ffi.new("char", "\x00")) == ""
         #
-        assert unicode(ffi.new("wchar_t", "x")) == u"x"
+        assert unicode(ffi.new("wchar_t", u"x")) == u"x"
         assert unicode(ffi.new("wchar_t", u"\x00")) == u""
-        py.test.raises(TypeError, str, ffi.new("wchar_t", u"\x00"))
+        x = ffi.new("wchar_t", u"\x00")
+        assert str(x) == repr(x)
 
     def test_string_from_char_array(self):
         ffi = FFI(backend=self.Backend())
@@ -569,16 +568,17 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         assert unicode(ffi.cast("wchar_t", "x")) == u"x"
         assert unicode(ffi.cast("wchar_t", u"x")) == u"x"
-        py.test.raises(TypeError, str, ffi.cast("wchar_t", "x"))
+        x = ffi.cast("wchar_t", "x")
+        assert str(x) == repr(x)
         #
-        p = ffi.new("wchar_t[]", "hello.")
-        p[5] = '!'
+        p = ffi.new("wchar_t[]", u"hello.")
+        p[5] = u'!'
         assert unicode(p) == u"hello!"
         p[6] = unichr(1234)
         assert unicode(p) == u"hello!\u04d2"
-        p[3] = '\x00'
+        p[3] = u'\x00'
         assert unicode(p) == u"hel"
-        py.test.raises(IndexError, "p[7] = 'X'")
+        py.test.raises(IndexError, "p[7] = u'X'")
         #
         a = ffi.new("wchar_t[]", u"hello\x00world")
         assert len(a) == 12
@@ -601,12 +601,12 @@ class BackendTests:
         # 'const' is ignored so far
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { const wchar_t *name; };")
-        t = ffi.new("const wchar_t[]", "testing")
+        t = ffi.new("const wchar_t[]", u"testing")
         s = ffi.new("struct foo", [t])
         assert type(s.name) not in (str, unicode)
         assert unicode(s.name) == u"testing"
-        s.name = None
-        assert s.name is None
+        s.name = ffi.NULL
+        assert s.name == ffi.NULL
 
     def test_voidp(self):
         ffi = FFI(backend=self.Backend())
@@ -718,8 +718,11 @@ class BackendTests:
         assert int(p) == 0x81
         p = ffi.cast("int", ffi.cast("wchar_t", unichr(1234)))
         assert int(p) == 1234
-        p = ffi.cast("long long", ffi.cast("wchar_t", -1)) # wchar_t->unsigned
-        assert int(p) == (256 ** SIZE_OF_WCHAR) - 1
+        p = ffi.cast("long long", ffi.cast("wchar_t", -1))
+        if SIZE_OF_WCHAR == 2:      # 2 bytes, unsigned
+            assert int(p) == 0xffff
+        else:                       # 4 bytes, signed
+            assert int(p) == -1
         p = ffi.cast("int", unichr(1234))
         assert int(p) == 1234
 

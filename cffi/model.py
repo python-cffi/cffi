@@ -53,7 +53,7 @@ class PrimitiveType(BaseType):
         return self.name + replace_with
 
     def is_char_type(self):
-        return self.name == 'char'
+        return self.name in ('char', 'wchar_t')
     def is_signed_type(self):
         return self.is_integer_type() and not self.is_unsigned_type()
     def is_unsigned_type(self):
