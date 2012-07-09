@@ -115,7 +115,7 @@ def test_wchar_type():
     #
     ffi.cdef("wchar_t foo(wchar_t);")
     lib = ffi.verify("wchar_t foo(wchar_t x) { return x+1; }")
-    assert lib.foo(ffi.new("wchar_t[]", uniexample1)) == uniexample2
+    assert lib.foo(uniexample1) == uniexample2
 
 def test_no_argument():
     ffi = FFI()

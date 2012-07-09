@@ -3930,6 +3930,12 @@ static PyObject *_cffi_from_c_char(char x) {
     return PyString_FromStringAndSize(&x, 1);
 }
 
+#ifdef HAVE_WCHAR_H
+static PyObject *_cffi_from_c_wchar_t(wchar_t x) {
+    return _my_PyUnicode_FromWideChar(&x, 1);
+}
+#endif
+
 static void *cffi_exports[] = {
     _cffi_to_c_char_p,
     _cffi_to_c_signed_char,
@@ -3955,6 +3961,13 @@ static void *cffi_exports[] = {
     convert_to_object,
     convert_from_object,
     convert_struct_to_owning_object,
+#ifdef HAVE_WCHAR_H
+    _convert_to_wchar_t,
+    _cffi_from_c_wchar_t,
+#else
+    0,
+    0,
+#endif
 };
 
 /************************************************************/
