@@ -1393,6 +1393,13 @@ def test_wchar():
     f = callback(BFunc, cb, -42)
     #assert f(u'a\u1234b') == 3    -- not implemented
     py.test.raises(NotImplementedError, f, u'a\u1234b')
+    #
+    if wchar4:
+        # try out-of-range wchar_t values
+        x = cast(BWChar, 1114112)
+        py.test.raises(ValueError, unicode, x)
+        x = cast(BWChar, -1)
+        py.test.raises(ValueError, unicode, x)
 
 def test_keepalive_struct():
     # exception to the no-keepalive rule: p=newp(BStructPtr) returns a

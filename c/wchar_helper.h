@@ -7,10 +7,12 @@
 #endif
 
 
-#if PY_VERSION_HEX < 0x02070000 && defined(CONVERT_WCHAR_TO_SURROGATES)
+#ifdef CONVERT_WCHAR_TO_SURROGATES
 
 /* Before Python 2.7, PyUnicode_FromWideChar is not able to convert
    wchar_t values greater than 65535 into two-unicode-characters surrogates.
+   But even the Python 2.7 version doesn't detect wchar_t values that are
+   out of range(1114112), and just returns nonsense.
 */
 static PyObject *
 _my_PyUnicode_FromWideChar(register const wchar_t *w,
@@ -43,8 +45,16 @@ _my_PyUnicode_FromWideChar(register const wchar_t *w,
         register Py_UNICODE *u;
         u = PyUnicode_AS_UNICODE(unicode);
         for (i = size; i > 0; i--) {
-            if (*w > 0xFFFF) {
-                wchar_t ordinal = *w++;
+            if (((unsigned int)*w) > 0xFFFF) {
+                wchar_t ordinal;
+                if (((unsigned int)*w) > 0x10FFFF) {
+                    PyErr_Format(PyExc_ValueError,
+                                 "wchar_t out of range for "
+                                 "convertion to unicode: 0x%x", (int)*w);
+                    Py_DECREF(unicode);
+                    return NULL;
+                }
+                ordinal = *w++;
                 ordinal -= 0x10000;
                 *u++ = 0xD800 | (ordinal >> 10);
                 *u++ = 0xDC00 | (ordinal & 0x3FF);
