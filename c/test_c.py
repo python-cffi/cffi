@@ -1548,3 +1548,11 @@ def test_errno():
 
 def test_abi():
     assert isinstance(FFI_DEFAULT_ABI, int)
+
+def test_cast_to_array():
+    # not valid in C!  extension to get a non-owning <cdata 'int[3]'>
+    BInt = new_primitive_type("int")
+    BIntP = new_pointer_type(BInt)
+    BArray = new_array_type(BIntP, 3)
+    x = cast(BArray, 0)
+    assert repr(x) == "<cdata 'int[3]' NULL>"

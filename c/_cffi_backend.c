@@ -2144,8 +2144,12 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!O:cast", &CTypeDescr_Type, &ct, &ob))
         return NULL;
 
-    if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
-        /* cast to a pointer or to a funcptr */
+    if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY) &&
+        ct->ct_size >= 0) {
+        /* cast to a pointer, to a funcptr, or to an array.
+           Note that casting to an array is an extension to the C language,
+           which seems to be necessary in order to sanely get a
+           <cdata 'int[3]'> at some address. */
         unsigned PY_LONG_LONG value;
 
         if (CData_Check(ob)) {
