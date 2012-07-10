@@ -24,13 +24,15 @@ def size_of_ptr():
     return sizeof(BPtr)
 
 
-def find_and_load_library(name):
+def find_and_load_library(name, is_global=0):
     import ctypes.util
     path = ctypes.util.find_library(name)
-    return load_library(path)
+    return load_library(path, is_global)
 
 def test_load_library():
     x = find_and_load_library('c')
+    assert repr(x).startswith("<clibrary '")
+    x = find_and_load_library('c', 1)
     assert repr(x).startswith("<clibrary '")
 
 def test_nonstandard_integer_types():
@@ -818,6 +820,10 @@ def test_load_and_call_function():
     assert strlen(input) == 6
     #
     assert strlen("foobarbaz") == 9
+    #
+    BVoidP = new_pointer_type(new_void_type())
+    strlenaddr = ll.load_function(BVoidP, "strlen")
+    assert strlenaddr == cast(BVoidP, strlen)
 
 def test_read_variable():
     if sys.platform == 'win32':

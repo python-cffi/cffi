@@ -60,7 +60,9 @@ static void restore_errno(void)
 /************************************************************/
 /* Emulate dlopen()&co. from the Windows API */
 
-#define RTLD_LAZY  0
+#define RTLD_LAZY   0
+#define RTLD_GLOBAL 0
+#define RTLD_LOCAL  0
 
 static void *dlopen(const char *filename, int flag)
 {

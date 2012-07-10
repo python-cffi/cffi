@@ -2245,12 +2245,18 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
     CTypeDescrObject *ct;
     char *funcname;
     void *funcptr;
+    int ok;
 
     if (!PyArg_ParseTuple(args, "O!s:load_function",
                           &CTypeDescr_Type, &ct, &funcname))
         return NULL;
 
-    if (!(ct->ct_flags & CT_FUNCTIONPTR)) {
+    ok = 0;
+    if (ct->ct_flags & CT_FUNCTIONPTR)
+        ok = 1;
+    if ((ct->ct_flags & CT_POINTER) && (ct->ct_itemdescr->ct_flags & CT_VOID))
+        ok = 1;
+    if (!ok) {
         PyErr_Format(PyExc_TypeError, "function cdata expected, got '%s'",
                      ct->ct_name);
         return NULL;
@@ -2351,12 +2357,14 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
     char *filename;
     void *handle;
     DynLibObject *dlobj;
+    int is_global = 0;
 
-    if (!PyArg_ParseTuple(args, "et:load_library",
-                          Py_FileSystemDefaultEncoding, &filename))
+    if (!PyArg_ParseTuple(args, "et|i:load_library",
+                          Py_FileSystemDefaultEncoding, &filename,
+                          &is_global))
         return NULL;
 
-    handle = dlopen(filename, RTLD_LAZY);
+    handle = dlopen(filename, RTLD_LAZY | (is_global?RTLD_GLOBAL:RTLD_LOCAL));
     if (handle == NULL) {
         PyErr_Format(PyExc_OSError, "cannot load library: %s", filename);
         return NULL;
