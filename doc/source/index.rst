@@ -382,7 +382,7 @@ compiler during ``verify()``:
 
 *  unknown types: the syntax "``typedef ... foo_t;``" declares the type
    ``foo_t`` as opaque.  Useful mainly for when the API takes and returns
-   ``foo_t *`` without you needing to looking inside the ``foo_t``.
+   ``foo_t *`` without you needing to look inside the ``foo_t``.
 
 *  array lengths: when used as structure fields, arrays can have an
    unspecified length, as in "``int n[];``".  The length is completed
