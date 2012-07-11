@@ -2946,8 +2946,10 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
         return &ffi_type_void;
     }
 
-    if (ct->ct_size < 0) {
-        PyErr_Format(PyExc_TypeError, "ctype '%s' has incomplete type",
+    if (ct->ct_size <= 0) {
+        PyErr_Format(PyExc_TypeError,
+                     ct->ct_size < 0 ? "ctype '%s' has incomplete type"
+                                     : "ctype '%s' has size 0",
                      ct->ct_name);
         return NULL;
     }
