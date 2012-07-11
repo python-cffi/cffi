@@ -2710,7 +2710,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    maxsize = 1;
+    maxsize = 0;
     alignment = 1;
     offset = 0;
     nb_fields = PyList_GET_SIZE(fields);
@@ -2839,12 +2839,14 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         offset = maxsize;
     }
     else {
-        if (offset == 0)
-            offset = 1;
         offset = (offset + alignment - 1) & ~(alignment-1);
     }
-    if (totalsize < 0)
-        totalsize = offset;
+    /* Like C, if the size of this structure would be zero, we compute it
+       as 1 instead.  But for ctypes support, we allow the manually-
+       specified totalsize to be zero in this case. */
+    if (totalsize < 0) {
+        totalsize = (offset == 0 ? 1 : offset);
+    }
     else if (totalsize < offset) {
         PyErr_Format(PyExc_TypeError,
                      "%s cannot be of size %zd: there are fields at least "
