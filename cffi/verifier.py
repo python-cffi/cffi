@@ -167,9 +167,7 @@ class Verifier(object):
             self.prnt('    %s;' % errcode)
             return
         #
-        elif isinstance(tp, model.BaseFunctionType):
-            if isinstance(tp, model.RawFunctionType):
-                tp = tp.as_function_pointer()
+        elif isinstance(tp, model.FunctionPtrType):
             converter = '(%s)_cffi_to_c_pointer' % tp.get_c_name('')
             extraarg = ', _cffi_type(%d)' % self.gettypenum(tp)
             errvalue = 'NULL'
@@ -233,8 +231,6 @@ class Verifier(object):
         prnt('{')
         #
         for i, type in enumerate(tp.args):
-            if isinstance(type, model.RawFunctionType):
-                type = type.as_function_pointer()
             prnt('  %s;' % type.get_c_name(' x%d' % i))
         if not isinstance(tp.result, model.VoidType):
             result_code = 'result = '

@@ -107,8 +107,6 @@ class FunctionPtrType(BaseFunctionType):
         result = ffi._get_cached_btype(self.result)
         args = []
         for tp in self.args:
-            if isinstance(tp, RawFunctionType):
-                tp = tp.as_function_pointer()
             args.append(ffi._get_cached_btype(tp))
         return global_cache(ffi, 'new_function_type',
                             tuple(args), result, self.ellipsis)

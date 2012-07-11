@@ -138,11 +138,8 @@ class Parser(object):
         ast, macros = self._parse('void __dummy(%s);' % cdecl)
         assert not macros
         typenode = ast.ext[-1].type.args.params[0].type
-        type = self._get_type(typenode, force_pointer=force_pointer)
-        if consider_function_as_funcptr:
-            if isinstance(type, model.RawFunctionType):
-                type = self._get_type_pointer(type)
-        return type
+        return self._get_type(typenode, force_pointer=force_pointer,
+                     consider_function_as_funcptr=consider_function_as_funcptr)
 
     def _declare(self, name, obj):
         if name in self._declarations:
@@ -163,7 +160,8 @@ class Parser(object):
         return model.PointerType(type)
 
     def _get_type(self, typenode, convert_array_to_pointer=False,
-                  force_pointer=False, name=None, partial_length_ok=False):
+                  force_pointer=False, name=None, partial_length_ok=False,
+                  consider_function_as_funcptr=False):
         # first, dereference typedefs, if we have it already parsed, we're good
         if (isinstance(typenode, pycparser.c_ast.TypeDecl) and
             isinstance(typenode.type, pycparser.c_ast.IdentifierType) and
@@ -176,6 +174,9 @@ class Parser(object):
             else:
                 if force_pointer:
                     return self._get_type_pointer(type)
+                if (consider_function_as_funcptr and
+                        isinstance(type, model.RawFunctionType)):
+                    return type.as_function_pointer()
             return type
         #
         if isinstance(typenode, pycparser.c_ast.ArrayDecl):
@@ -190,7 +191,7 @@ class Parser(object):
             return model.ArrayType(self._get_type(typenode.type), length)
         #
         if force_pointer:
-            return model.PointerType(self._get_type(typenode))
+            return self._get_type_pointer(self._get_type(typenode))
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
             # pointer type
@@ -232,7 +233,10 @@ class Parser(object):
         #
         if isinstance(typenode, pycparser.c_ast.FuncDecl):
             # a function type
-            return self._parse_function_type(typenode, name)
+            result = self._parse_function_type(typenode, name)
+            if consider_function_as_funcptr:
+                result = result.as_function_pointer()
+            return result
         #
         raise api.FFIError("bad or unsupported type declaration")
 
@@ -252,7 +256,8 @@ class Parser(object):
                 and list(params[0].type.type.names) == ['void']):
             del params[0]
         args = [self._get_type(argdeclnode.type,
-                               convert_array_to_pointer=True)
+                               convert_array_to_pointer=True,
+                               consider_function_as_funcptr=True)
                 for argdeclnode in params]
         result = self._get_type(typenode.type)
         return model.RawFunctionType(tuple(args), result, ellipsis)
