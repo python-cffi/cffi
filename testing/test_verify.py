@@ -638,3 +638,22 @@ def test_func_as_argument():
             int compar(const void *, const void *));
     """)
     ffi.verify("#include <stdlib.h>")
+
+def test_array_as_argument():
+    ffi = FFI()
+    ffi.cdef("""
+        int strlen(char string[]);
+    """)
+    ffi.verify("#include <string.h>")
+
+def test_enum_as_argument():
+    ffi = FFI()
+    ffi.cdef("""
+        enum foo_e { AA, BB, ... };
+        int foo_func(enum foo_e);
+    """)
+    lib = ffi.verify("""
+        enum foo_e { AA, CC, BB };
+        int foo_func(enum foo_e e) { return e; }
+    """)
+    assert lib.foo_func(lib.BB) == 2

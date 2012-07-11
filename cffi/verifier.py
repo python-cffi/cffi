@@ -174,6 +174,10 @@ class Verifier(object):
             extraarg = ', _cffi_type(%d)' % self.gettypenum(tp)
             errvalue = 'NULL'
         #
+        elif isinstance(tp, model.EnumType):
+            converter = '_cffi_to_c_int'
+            errvalue = '-1'
+        #
         else:
             raise NotImplementedError(tp)
         #
