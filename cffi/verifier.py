@@ -151,9 +151,8 @@ class Verifier(object):
             converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
             errvalue = '-1'
         #
-        elif isinstance(tp, (model.PointerType, model.FunctionPtrType)):
-            if (isinstance(tp, model.PointerType) and
-                    isinstance(tp.totype, model.PrimitiveType) and
+        elif isinstance(tp, model.PointerType):
+            if (isinstance(tp.totype, model.PrimitiveType) and
                     tp.totype.name == 'char'):
                 converter = '_cffi_to_c_char_p'
             else:
@@ -167,6 +166,13 @@ class Verifier(object):
                       % (tovar, self.gettypenum(tp), fromvar))
             self.prnt('    %s;' % errcode)
             return
+        #
+        elif isinstance(tp, model.BaseFunctionType):
+            if isinstance(tp, model.RawFunctionType):
+                tp = tp.as_function_pointer()
+            converter = '(%s)_cffi_to_c_pointer' % tp.get_c_name('')
+            extraarg = ', _cffi_type(%d)' % self.gettypenum(tp)
+            errvalue = 'NULL'
         #
         else:
             raise NotImplementedError(tp)
@@ -223,6 +229,8 @@ class Verifier(object):
         prnt('{')
         #
         for i, type in enumerate(tp.args):
+            if isinstance(type, model.RawFunctionType):
+                type = type.as_function_pointer()
             prnt('  %s;' % type.get_c_name(' x%d' % i))
         if not isinstance(tp.result, model.VoidType):
             result_code = 'result = '

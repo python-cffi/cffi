@@ -630,3 +630,11 @@ def test_funcptr_as_argument():
             int (*compar)(const void *, const void *));
     """)
     ffi.verify("#include <stdlib.h>")
+
+def test_func_as_argument():
+    ffi = FFI()
+    ffi.cdef("""
+        void qsort(void *base, size_t nel, size_t width,
+            int compar(const void *, const void *));
+    """)
+    ffi.verify("#include <stdlib.h>")
