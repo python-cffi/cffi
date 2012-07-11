@@ -151,8 +151,9 @@ class Verifier(object):
             converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
             errvalue = '-1'
         #
-        elif isinstance(tp, model.PointerType):
-            if (isinstance(tp.totype, model.PrimitiveType) and
+        elif isinstance(tp, (model.PointerType, model.FunctionPtrType)):
+            if (isinstance(tp, model.PointerType) and
+                    isinstance(tp.totype, model.PrimitiveType) and
                     tp.totype.name == 'char'):
                 converter = '_cffi_to_c_char_p'
             else:
@@ -160,7 +161,7 @@ class Verifier(object):
                 extraarg = ', _cffi_type(%d)' % self.gettypenum(tp)
             errvalue = 'NULL'
         #
-        elif isinstance(tp, model.StructType):
+        elif isinstance(tp, model.StructOrUnion):
             # a struct (not a struct pointer) as a function argument
             self.prnt('  if (_cffi_to_c((char*)&%s, _cffi_type(%d), %s) < 0)'
                       % (tovar, self.gettypenum(tp), fromvar))
