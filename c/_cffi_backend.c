@@ -1097,7 +1097,7 @@ static int cdata_traverse(CDataObject *cd, visitproc visit, void *arg)
 
 static PyObject *cdata_repr(CDataObject *cd)
 {
-    char *p;
+    char *p, *extra;
     PyObject *result, *s = NULL;
 
     if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
@@ -1120,7 +1120,15 @@ static PyObject *cdata_repr(CDataObject *cd)
         else
             p = "NULL";
     }
-    result = PyString_FromFormat("<cdata '%s' %s>", cd->c_type->ct_name, p);
+    /* it's slightly confusing to get "<cdata 'struct foo' 0x...>" because the
+       struct foo is not owned.  Trying to make it clearer, write in this
+       case "<cdata 'struct foo &' 0x...>". */
+    if (cd->c_type->ct_flags & (CT_STRUCT|CT_UNION))
+        extra = " &";
+    else
+        extra = "";
+    result = PyString_FromFormat("<cdata '%s%s' %s>",
+                                 cd->c_type->ct_name, extra, p);
     Py_XDECREF(s);
     return result;
 }

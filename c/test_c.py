@@ -1422,6 +1422,8 @@ def test_keepalive_struct():
     assert repr(q) == "<cdata 'struct foo' owning 12 bytes>"
     q.a1 = 123456
     assert p.a1 == 123456
+    r = cast(BStructPtr, p)
+    assert repr(r[0]).startswith("<cdata 'struct foo &' 0x")
     del p
     import gc; gc.collect()
     assert q.a1 == 123456
@@ -1437,7 +1439,7 @@ def test_nokeepalive_struct():
     pp = newp(BStructPtrPtr)
     pp[0] = p
     s = pp[0][0]
-    assert repr(s).startswith("<cdata 'struct foo' 0x")
+    assert repr(s).startswith("<cdata 'struct foo &' 0x")
 
 def test_owning_repr():
     BInt = new_primitive_type("int")
