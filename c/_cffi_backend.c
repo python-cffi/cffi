@@ -37,7 +37,7 @@
 #define CT_VOID             512    /* void */
 
 /* other flags that may also be set in addition to the base flag: */
-#define CT_CAST_ANYTHING         1024    /* 'char' and 'void' only */
+#define CT_CAST_ANYTHING         1024    /* 'char *' and 'void *' only */
 #define CT_PRIMITIVE_FITS_LONG   2048
 #define CT_IS_OPAQUE             4096
 #define CT_IS_ENUM               8192
@@ -823,10 +823,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                 goto cannot_convert;
         }
         if (ctinit != ct) {
-            if (((ct->ct_flags & CT_POINTER) &&
-                 (ct->ct_itemdescr->ct_flags & CT_CAST_ANYTHING)) ||
-                ((ctinit->ct_flags & CT_POINTER) &&
-                 (ctinit->ct_itemdescr->ct_flags & CT_CAST_ANYTHING)))
+            if ((ct->ct_flags & CT_CAST_ANYTHING) ||
+                (ctinit->ct_flags & CT_CAST_ANYTHING))
                 ;   /* accept void* or char* as either source or target */
             else
                 goto cannot_convert;
@@ -2444,7 +2442,7 @@ static PyObject *b_nonstandard_integer_types(PyObject *self, PyObject *noarg)
 static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 {
 #define ENUM_PRIMITIVE_TYPES                                    \
-       EPTYPE(c, char, CT_PRIMITIVE_CHAR | CT_CAST_ANYTHING)    \
+       EPTYPE(c, char, CT_PRIMITIVE_CHAR)                       \
        EPTYPE(s, short, CT_PRIMITIVE_SIGNED )                   \
        EPTYPE(i, int, CT_PRIMITIVE_SIGNED )                     \
        EPTYPE(l, long, CT_PRIMITIVE_SIGNED )                    \
@@ -2584,6 +2582,10 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
     td->ct_flags = CT_POINTER;
     if (ctitem->ct_flags & (CT_STRUCT|CT_UNION))
         td->ct_flags |= CT_IS_PTR_TO_OWNED;
+    if ((ctitem->ct_flags & CT_VOID) ||
+        ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
+         ctitem->ct_size == sizeof(char)))
+        td->ct_flags |= CT_CAST_ANYTHING;   /* 'void *' or 'char *' only */
     return (PyObject *)td;
 }
 
@@ -2650,7 +2652,7 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *args)
 
     memcpy(td->ct_name, "void", name_size);
     td->ct_size = -1;
-    td->ct_flags = CT_VOID | CT_IS_OPAQUE | CT_CAST_ANYTHING;
+    td->ct_flags = CT_VOID | CT_IS_OPAQUE;
     td->ct_name_position = strlen("void");
     return (PyObject *)td;
 }
