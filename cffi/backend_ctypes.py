@@ -231,6 +231,9 @@ class CTypesBaseStructOrUnion(CTypesData):
     def _to_ctypes(cls, value):
         return value._blob
 
+    def __repr__(self, c_name=None):
+        return CTypesData.__repr__(self, c_name or self._get_c_name(' &'))
+
 
 class CTypesBackend(object):
 

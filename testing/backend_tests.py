@@ -233,7 +233,7 @@ class BackendTests:
         assert repr(ffi.typeof(q)) == typerepr % "struct foo *"
         prevrepr = repr(q)
         q = q[0]
-        assert repr(q) == prevrepr.replace(' *', '')
+        assert repr(q) == prevrepr.replace(' *', ' &')
         assert repr(ffi.typeof(q)) == typerepr % "struct foo"
 
     def test_new_array_of_array(self):
