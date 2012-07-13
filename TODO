@@ -1,17 +1,12 @@
 
-Current status
---------------
-
-* works as a ctypes replacement
-* can use internally either ctypes or a C extension module
-
 
 Next steps
 ----------
 
-the verify() step, which is missing:
+verify() handles "typedef ... some_integer_type", but this creates
+an opaque type that works like a struct (so we can't get the value
+out of it).
 
-* typedef ... some_integer_type;
+need to save and cache '_cffi_N.c'
 
-
-_ffi backend for PyPy
+_cffi backend for PyPy
