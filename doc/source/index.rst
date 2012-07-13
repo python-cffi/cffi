@@ -765,8 +765,8 @@ allowed.
 |  ``float``,   | a float or anything on | a Python float   | float(), int() |
 |  ``double``   | which float() works    |                  |                |
 +---------------+------------------------+------------------+----------------+
-|  pointers     | another <cdata> with   | a <cdata>        | ``+``, ``-``   |
-|               | a compatible type (i.e.|                  |                |
+|  pointers     | another <cdata> with   | a <cdata>        | ``[]``, ``+``, |
+|               | a compatible type (i.e.|                  | ``-``          |
 |               | same type or ``char*`` |                  |                |
 |               | or ``void*``, or as an |                  |                |
 |               | array instead)         |                  |                |
@@ -775,33 +775,36 @@ allowed.
 |               | any pointer or array   |                  |                |
 |               | type                   |                  |                |
 +---------------+------------------------+                  +----------------+
-|  ``char *``   | another <cdata> with   |                  | ``+``, ``-``,  |
-|               | any pointer or array   |                  | str()          |
-|               | type, or               |                  |                |
+|  ``char *``   | another <cdata> with   |                  | ``[]``,        |
+|               | any pointer or array   |                  | ``+``, ``-``,  |
+|               | type, or               |                  | str()          |
 |               | a Python string when   |                  |                |
 |               | passed as func argument|                  |                |
 +---------------+------------------------+                  +----------------+
-| ``wchar_t *`` | same as pointers       |                  | ``+``, ``-``,  |
-|               | (passing a unicode as  |                  | unicode()      |
-|               | func argument is not   |                  |                |
+| ``wchar_t *`` | same as pointers       |                  | ``[]``,        |
+|               | (passing a unicode as  |                  | ``+``, ``-``,  |
+|               | func argument is not   |                  | unicode()      |
 |               | implemented)           |                  |                |
 +---------------+------------------------+                  +----------------+
-|  pointers to  | same as pointers       |                  | ``+``, ``-``,  |
-|  structure or |                        |                  | and read/write |
-|  union        |                        |                  | struct fields  |
+|  pointers to  | same as pointers       |                  | ``[]``,        |
+|  structure or |                        |                  | ``+``, ``-``,  |
+|  union        |                        |                  | and read/write |
+|               |                        |                  | struct fields  |
 +---------------+                        |                  +----------------+
 | function      |                        |                  | call           |
 | pointers      |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
 |  arrays       | a list or tuple of     | a <cdata>        | len(), iter(), |
-|               | items                  |                  | ``+``, ``-``   |
+|               | items                  |                  | ``[]``,        |
+|               |                        |                  | ``+``, ``-``   |
 +---------------+------------------------+                  +----------------+
 |  ``char[]``   | same as arrays, or a   |                  | len(), iter(), |
-|               | Python string          |                  | ``+``, ``-``,  |
-|               |                        |                  | str()          |
+|               | Python string          |                  | ``[]``, ``+``, |
+|               |                        |                  | ``-``, str()   |
 +---------------+------------------------+                  +----------------+
 | ``wchar_t[]`` | same as arrays, or a   |                  | len(), iter(), |
-|               | Python unicode         |                  | ``+``, ``-``,  |
+|               | Python unicode         |                  | ``[]``,        |
+|               |                        |                  | ``+``, ``-``,  |
 |               |                        |                  | unicode()      |
 +---------------+------------------------+------------------+----------------+
 | structure     | a list or tuple or     | a <cdata>        | read/write     |
