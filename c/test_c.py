@@ -1558,3 +1558,8 @@ def test_cast_to_array():
     BArray = new_array_type(BIntP, 3)
     x = cast(BArray, 0)
     assert repr(x) == "<cdata 'int[3]' NULL>"
+
+def test_bug_float_convertion():
+    BDouble = new_primitive_type("double")
+    BDoubleP = new_pointer_type(BDouble)
+    py.test.raises(TypeError, newp, BDoubleP, "foobar")

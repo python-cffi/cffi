@@ -877,6 +877,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     }
     if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
         double value = PyFloat_AsDouble(init);
+        if (value == -1.0 && PyErr_Occurred())
+            return -1;
         write_raw_float_data(data, value, ct->ct_size);
         return 0;
     }
