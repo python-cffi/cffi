@@ -6,11 +6,16 @@ class Verifier(object):
     def __init__(self, ffi):
         self.ffi = ffi
         self.typesdict = {}
+        self.need_size = set()
+        self.need_size_order = []
 
     def prnt(self, what=''):
         print >> self.f, what
 
-    def gettypenum(self, type):
+    def gettypenum(self, type, need_size=False):
+        if need_size and type not in self.need_size:
+            self.need_size.add(type)
+            self.need_size_order.append(type)
         try:
             return self.typesdict[type]
         except KeyError:
@@ -55,11 +60,9 @@ class Verifier(object):
             # ffi._parser._declarations.  This generates all the functions.
             self.generate("decl")
             #
-            # implement this function as calling the head of the chained list.
-            self.prnt('static int _cffi_setup_custom(PyObject *lib)')
-            self.prnt('{')
-            self.prnt('  return %s;' % self.chained_list_constants)
-            self.prnt('}')
+            # implement the function _cffi_setup_custom() as calling the
+            # head of the chained list.
+            self.generate_setup_custom()
             self.prnt()
             #
             # produce the method table, including the entries for the
@@ -111,7 +114,21 @@ class Verifier(object):
         class FFILibrary(object):
             pass
         library = FFILibrary()
-        module._cffi_setup(lst, ffiplatform.VerificationError, library)
+        sz = module._cffi_setup(lst, ffiplatform.VerificationError, library)
+        #
+        # adjust the size of some structs based on what 'sz' returns
+        if self.need_size_order:
+            assert len(sz) == 2 * len(self.need_size_order)
+            for i, tp in enumerate(self.need_size_order):
+                size, alignment = sz[i*2], sz[i*2+1]
+                BType = self.ffi._get_cached_btype(tp)
+                if tp.fldtypes is None:
+                    # an opaque struct: give it now a size and alignment
+                    self.ffi._backend.complete_struct_or_union(BType, [], None,
+                                                               size, alignment)
+                else:
+                    assert size == self.ffi.sizeof(BType)
+                    assert alignment == self.ffi.alignof(BType)
         #
         # finally, call the loaded_cpy_xxx() functions.  This will perform
         # the final adjustments, like copying the Python->C wrapper
@@ -163,7 +180,7 @@ class Verifier(object):
         elif isinstance(tp, model.StructOrUnion):
             # a struct (not a struct pointer) as a function argument
             self.prnt('  if (_cffi_to_c((char*)&%s, _cffi_type(%d), %s) < 0)'
-                      % (tovar, self.gettypenum(tp), fromvar))
+                      % (tovar, self.gettypenum(tp, need_size=True), fromvar))
             self.prnt('    %s;' % errcode)
             return
         #
@@ -195,7 +212,7 @@ class Verifier(object):
                 var, self.gettypenum(tp))
         elif isinstance(tp, model.StructType):
             return '_cffi_from_c_struct((char *)&%s, _cffi_type(%d))' % (
-                var, self.gettypenum(tp))
+                var, self.gettypenum(tp, need_size=True))
         else:
             raise NotImplementedError(tp)
 
@@ -552,6 +569,45 @@ class Verifier(object):
 
     # ----------
 
+    def generate_setup_custom(self):
+        self.prnt('static PyObject *_cffi_setup_custom(PyObject *lib)')
+        self.prnt('{')
+        self.prnt('  if (%s < 0)' % self.chained_list_constants)
+        self.prnt('    return NULL;')
+        # produce the size of the opaque structures that need it.
+        # So far, limited to the structures used as function arguments
+        # or results.  (These might not be real structures at all, but
+        # instead just some integer handles; but it works anyway)
+        if self.need_size_order:
+            N = len(self.need_size_order)
+            self.prnt('  else {')
+            for i, tp in enumerate(self.need_size_order):
+                self.prnt('    struct _cffi_aligncheck%d { char x; %s; };' % (
+                    i, tp.get_c_name(' y')))
+            self.prnt('    static Py_ssize_t content[] = {')
+            for i, tp in enumerate(self.need_size_order):
+                self.prnt('      sizeof(%s),' % tp.get_c_name())
+                self.prnt('      offsetof(struct _cffi_aligncheck%d, y),' % i)
+            self.prnt('    };')
+            self.prnt('    int i;')
+            self.prnt('    PyObject *o, *lst = PyList_New(%d);' % (2*N,))
+            self.prnt('    if (lst == NULL)')
+            self.prnt('      return NULL;')
+            self.prnt('    for (i=0; i<%d; i++) {' % (2*N,))
+            self.prnt('      o = PyInt_FromSsize_t(content[i]);')
+            self.prnt('      if (o == NULL) {')
+            self.prnt('        Py_DECREF(lst);')
+            self.prnt('        return NULL;')
+            self.prnt('      }')
+            self.prnt('      PyList_SET_ITEM(lst, i, o);')
+            self.prnt('    }')
+            self.prnt('    return lst;')
+            self.prnt('  }')
+        else:
+            self.prnt('  Py_INCREF(Py_None);')
+            self.prnt('  return Py_None;')
+        self.prnt('}')
+
 cffimod_header = r'''
 #include <Python.h>
 #include <stddef.h>
@@ -645,7 +701,7 @@ typedef struct _ctypedescr CTypeDescrObject;
 static void *_cffi_exports[_CFFI_NUM_EXPORTS];
 static PyObject *_cffi_types, *_cffi_VerificationError;
 
-static int _cffi_setup_custom(PyObject *lib);   /* forward */
+static PyObject *_cffi_setup_custom(PyObject *lib);   /* forward */
 
 static PyObject *_cffi_setup(PyObject *self, PyObject *args)
 {
@@ -653,14 +709,9 @@ static PyObject *_cffi_setup(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOO", &_cffi_types, &_cffi_VerificationError,
                                        &library))
         return NULL;
-
-    if (_cffi_setup_custom(library) < 0)
-        return NULL;
     Py_INCREF(_cffi_types);
     Py_INCREF(_cffi_VerificationError);
-
-    Py_INCREF(Py_None);
-    return Py_None;
+    return _cffi_setup_custom(library);
 }
 
 static void _cffi_init(void)
