@@ -15,14 +15,10 @@ ffi = cffi.FFI()
 
 ffi.cdef("""
     #define BTRFS_IOC_SNAP_CREATE_V2 ...
-    // needed for some fields
-    typedef unsigned long long __u64;
     struct btrfs_ioctl_vol_args_v2 {
         int64_t fd;
-        __u64 transid;
-        __u64 flags;
-        __u64 unused[4];
-        char name[]; ...;
+        char name[];
+        ...;
     };
 """)
 
