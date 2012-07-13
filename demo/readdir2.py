@@ -15,7 +15,7 @@ ffi.cdef("""
     struct dirent {
         unsigned char  d_type;      /* type of file; not supported
                                        by all file system types */
-        char           d_name[256]; /* filename */
+        char           d_name[...]; /* filename */
         ...;
     };
 
