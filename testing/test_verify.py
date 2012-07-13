@@ -657,3 +657,16 @@ def test_enum_as_argument():
         int foo_func(enum foo_e e) { return e; }
     """)
     assert lib.foo_func(lib.BB) == 2
+
+def test_opaque_integer_as_function_result():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef ... handle_t;
+        handle_t foo(void);
+    """)
+    lib = ffi.verify("""
+        typedef short handle_t;
+        handle_t foo(void) { return 42; }
+    """)
+    h = lib.foo()
+    assert ffi.sizeof(h) == ffi.sizeof("short")
