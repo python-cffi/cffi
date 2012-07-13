@@ -737,6 +737,89 @@ like ``"*"`` or ``"[5]"``.  For example
 of the C type "pointer to the same type than x".
 
 
+Reference: conversions
+----------------------
+
+This section documents all the conversions that are allowed when
+*writing into* a C data structure (or passing arguments to a function
+call), and *reading from* a C data structure (or getting the result of a
+function call).  The last column gives the type-specific operations
+allowed.
+
++---------------+------------------------+------------------+----------------+
+|    C type     |   writing into         | reading from     |other operations|
++===============+========================+==================+================+
+|   integers    | an integer or anything | a Python int or  | int()          |
+|               | on which int() works   | long, depending  |                |
+|               | (but not a float!).    | on the type      |                |
+|               | Must be within range.  |                  |                |
++---------------+------------------------+------------------+----------------+
+|   ``char``    | a string of length 1   | a string of      | str(), int()   |
+|               | or another <cdata char>| length 1         |                |
++---------------+------------------------+------------------+----------------+
+|  ``wchar_t``  | a unicode of length 1  | a unicode of     | unicode(),     |
+|               | (or maybe 2 if         | length 1         | int()          |
+|               | surrogates) or         | (or maybe 2 if   |                |
+|               | another <cdata wchar_t>| surrogates)      |                |
++---------------+------------------------+------------------+----------------+
+|  ``float``,   | a float or anything on | a Python float   | float(), int() |
+|  ``double``   | which float() works    |                  |                |
++---------------+------------------------+------------------+----------------+
+|  pointers     | another <cdata> with   | a <cdata>        | ``+``, ``-``   |
+|               | a compatible type (i.e.|                  |                |
+|               | same type or ``char*`` |                  |                |
+|               | or ``void*``, or as an |                  |                |
+|               | array instead)         |                  |                |
++---------------+------------------------+                  +----------------+
+|  ``void *``   | another <cdata> with   |                  |                |
+|               | any pointer or array   |                  |                |
+|               | type                   |                  |                |
++---------------+------------------------+                  +----------------+
+|  ``char *``   | another <cdata> with   |                  | ``+``, ``-``,  |
+|               | any pointer or array   |                  | str()          |
+|               | type, or               |                  |                |
+|               | a Python string when   |                  |                |
+|               | passed as func argument|                  |                |
++---------------+------------------------+                  +----------------+
+| ``wchar_t *`` | same as pointers       |                  | ``+``, ``-``,  |
+|               | (passing a unicode as  |                  | unicode()      |
+|               | func argument is not   |                  |                |
+|               | implemented)           |                  |                |
++---------------+------------------------+                  +----------------+
+|  pointers to  | same as pointers       |                  | ``+``, ``-``,  |
+|  structure or |                        |                  | and read/write |
+|  union        |                        |                  | struct fields  |
++---------------+                        |                  +----------------+
+| function      |                        |                  | call           |
+| pointers      |                        |                  |                |
++---------------+------------------------+------------------+----------------+
+|  arrays       | a list or tuple of     | a <cdata>        | len(), iter(), |
+|               | items                  |                  | ``+``, ``-``   |
++---------------+------------------------+                  +----------------+
+|  ``char[]``   | same as arrays, or a   |                  | len(), iter(), |
+|               | Python string          |                  | ``+``, ``-``,  |
+|               |                        |                  | str()          |
++---------------+------------------------+                  +----------------+
+| ``wchar_t[]`` | same as arrays, or a   |                  | len(), iter(), |
+|               | Python unicode         |                  | ``+``, ``-``,  |
+|               |                        |                  | unicode()      |
++---------------+------------------------+------------------+----------------+
+| structure     | a list or tuple or     | a <cdata>        | read/write     |
+|               | dict of the field      |                  | fields         |
+|               | values, or a same-type |                  |                |
+|               | <cdata>                |                  |                |
++---------------+------------------------+                  +----------------+
+| union         | same as struct, but    |                  | read/write     |
+|               | with at most one field |                  | fields         |
++---------------+------------------------+------------------+----------------+
+| enum          | an integer, or the enum| the enum value   | int(), str()   |
+|               | value as a string or   | as a string, or  |                |
+|               | as ``"#NUMBER"``       | ``"#NUMBER"``    |                |
+|               |                        | if out of range  |                |
++---------------+------------------------+------------------+----------------+
+
+
+
 Comments and bugs
 =================
 
