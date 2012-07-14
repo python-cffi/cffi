@@ -1442,6 +1442,11 @@ cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
        negative indexes to be corrected automatically */
     if (c == NULL && PyErr_Occurred())
         return -1;
+    if (v == NULL) {
+        PyErr_SetString(PyExc_TypeError,
+                        "'del x[n]' not supported for cdata objects");
+        return -1;
+    }
     return convert_from_object(c, ctitem, v);
 }
 

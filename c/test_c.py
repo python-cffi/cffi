@@ -1563,3 +1563,9 @@ def test_bug_float_convertion():
     BDouble = new_primitive_type("double")
     BDoubleP = new_pointer_type(BDouble)
     py.test.raises(TypeError, newp, BDoubleP, "foobar")
+
+def test_bug_delitem():
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    x = newp(BCharP)
+    py.test.raises(TypeError, "del x[0]")
