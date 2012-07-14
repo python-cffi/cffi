@@ -1569,3 +1569,10 @@ def test_bug_delitem():
     BCharP = new_pointer_type(BChar)
     x = newp(BCharP)
     py.test.raises(TypeError, "del x[0]")
+
+def test_bug_delattr():
+    BLong = new_primitive_type("long")
+    BStruct = new_struct_type("foo")
+    complete_struct_or_union(BStruct, [('a1', BLong, -1)])
+    x = newp(new_pointer_type(BStruct))
+    py.test.raises(AttributeError, "del x.a1")
