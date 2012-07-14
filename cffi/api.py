@@ -226,7 +226,7 @@ class FFI(object):
         which requires binary compatibility in the signatures.
         """
         from .verifier import Verifier
-        return Verifier(self).verify(source, **kwargs)
+        return Verifier(self, source, **kwargs).verify()
 
     def _get_errno(self):
         return self._backend.get_errno()
