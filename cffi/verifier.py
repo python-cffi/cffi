@@ -14,9 +14,6 @@ class Verifier(object):
         self.ffi = ffi
         self.preamble = preamble
         self.kwds = kwds
-        self._typesdict = {}
-        self._need_size = set()
-        self._need_size_order = []
         #
         m = md5.md5('\x00'.join([sys.version[:3], __version__, preamble] +
                                 ffi._cdefsources))
@@ -80,21 +77,31 @@ class Verifier(object):
         if f is not None:
             f.close()
         self.modulefilename = filename
+        self._collect_types()
         self._status = 'module'
 
     def _prnt(self, what=''):
         print >> self._f, what
 
-    def _gettypenum(self, type, need_size=False):
-        if need_size and type not in self._need_size:
-            self._need_size.add(type)
-            self._need_size_order.append(type)
-        try:
-            return self._typesdict[type]
-        except KeyError:
+    def _gettypenum(self, type):
+        # a KeyError here is a bug.  please report it! :-)
+        return self._typesdict[type]
+
+    def _collect_types(self):
+        self._typesdict = {}
+        self._need_size = []
+        self._generate("collecttype")
+
+    def _do_collect_type(self, tp):
+        if (isinstance(tp, (model.PointerType,
+                            model.StructOrUnion,
+                            model.ArrayType,
+                            model.FunctionPtrType)) and
+                (tp not in self._typesdict)):
             num = len(self._typesdict)
-            self._typesdict[type] = num
-            return num
+            self._typesdict[tp] = num
+            if isinstance(tp, model.StructOrUnion):
+                self._need_size.append(tp)
 
     def _write_source(self, file=None):
         must_close = (file is None)
@@ -110,6 +117,7 @@ class Verifier(object):
         self._status = 'source'
 
     def _write_source_to_f(self):
+        self._collect_types()
         # The new module will have a _cffi_setup() function that receives
         # objects from the ffi world, and that calls some setup code in
         # the module.  This setup code is split in several independent
@@ -201,9 +209,9 @@ class Verifier(object):
         sz = module._cffi_setup(lst, ffiplatform.VerificationError, library)
         #
         # adjust the size of some structs based on what 'sz' returns
-        if self._need_size_order:
-            assert len(sz) == 2 * len(self._need_size_order)
-            for i, tp in enumerate(self._need_size_order):
+        if self._need_size:
+            assert len(sz) == 2 * len(self._need_size)
+            for i, tp in enumerate(self._need_size):
                 size, alignment = sz[i*2], sz[i*2+1]
                 BType = self.ffi._get_cached_btype(tp)
                 if tp.fldtypes is None:
@@ -264,7 +272,7 @@ class Verifier(object):
         elif isinstance(tp, model.StructOrUnion):
             # a struct (not a struct pointer) as a function argument
             self._prnt('  if (_cffi_to_c((char*)&%s, _cffi_type(%d), %s) < 0)'
-                      % (tovar, self._gettypenum(tp, need_size=True), fromvar))
+                      % (tovar, self._gettypenum(tp), fromvar))
             self._prnt('    %s;' % errcode)
             return
         #
@@ -296,13 +304,14 @@ class Verifier(object):
                 var, self._gettypenum(tp))
         elif isinstance(tp, model.StructType):
             return '_cffi_from_c_struct((char *)&%s, _cffi_type(%d))' % (
-                var, self._gettypenum(tp, need_size=True))
+                var, self._gettypenum(tp))
         else:
             raise NotImplementedError(tp)
 
     # ----------
     # typedefs: generates no code so far
 
+    _generate_cpy_typedef_collecttype = _generate_nothing
     _generate_cpy_typedef_decl   = _generate_nothing
     _generate_cpy_typedef_method = _generate_nothing
     _loading_cpy_typedef         = _loaded_noop
@@ -310,6 +319,15 @@ class Verifier(object):
 
     # ----------
     # function declarations
+
+    def _generate_cpy_function_collecttype(self, tp, name):
+        assert isinstance(tp, model.FunctionPtrType)
+        if tp.ellipsis:
+            self._do_collect_type(tp)
+        else:
+            for type in tp.args:
+                self._do_collect_type(type)
+            self._do_collect_type(tp.result)
 
     def _generate_cpy_function_decl(self, tp, name):
         assert isinstance(tp, model.FunctionPtrType)
@@ -391,6 +409,8 @@ class Verifier(object):
 
     # ----------
     # named structs
+
+    _generate_cpy_struct_collecttype = _generate_nothing
 
     def _generate_cpy_struct_decl(self, tp, name):
         assert name == tp.name
@@ -511,6 +531,8 @@ class Verifier(object):
     # 'anonymous' declarations.  These are produced for anonymous structs
     # or unions; the 'name' is obtained by a typedef.
 
+    _generate_cpy_anonymous_collecttype = _generate_nothing
+
     def _generate_cpy_anonymous_decl(self, tp, name):
         self._generate_struct_or_union_decl(tp, '', name)
 
@@ -565,6 +587,11 @@ class Verifier(object):
         prnt('}')
         prnt()
 
+    def _generate_cpy_constant_collecttype(self, tp, name):
+        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
+        if not is_int:
+            self._do_collect_type(tp)
+
     def _generate_cpy_constant_decl(self, tp, name):
         is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
         self._generate_cpy_const(is_int, name, tp)
@@ -600,6 +627,7 @@ class Verifier(object):
         prnt('}')
         prnt()
 
+    _generate_cpy_enum_collecttype = _generate_nothing
     _generate_cpy_enum_method = _generate_nothing
     _loading_cpy_enum = _loaded_noop
 
@@ -620,12 +648,20 @@ class Verifier(object):
         assert tp == '...'
         self._generate_cpy_const(True, name)
 
+    _generate_cpy_macro_collecttype = _generate_nothing
     _generate_cpy_macro_method = _generate_nothing
     _loading_cpy_macro = _loaded_noop
     _loaded_cpy_macro  = _loaded_noop
 
     # ----------
     # global variables
+
+    def _generate_cpy_variable_collecttype(self, tp, name):
+        if isinstance(tp, model.ArrayType):
+            self._do_collect_type(tp)
+        else:
+            tp_ptr = model.PointerType(tp)
+            self._do_collect_type(tp_ptr)
 
     def _generate_cpy_variable_decl(self, tp, name):
         if isinstance(tp, model.ArrayType):
@@ -663,14 +699,14 @@ class Verifier(object):
         # So far, limited to the structures used as function arguments
         # or results.  (These might not be real structures at all, but
         # instead just some integer handles; but it works anyway)
-        if self._need_size_order:
-            N = len(self._need_size_order)
+        if self._need_size:
+            N = len(self._need_size)
             prnt('  else {')
-            for i, tp in enumerate(self._need_size_order):
+            for i, tp in enumerate(self._need_size):
                 prnt('    struct _cffi_aligncheck%d { char x; %s; };' % (
                     i, tp.get_c_name(' y')))
             prnt('    static Py_ssize_t content[] = {')
-            for i, tp in enumerate(self._need_size_order):
+            for i, tp in enumerate(self._need_size):
                 prnt('      sizeof(%s),' % tp.get_c_name())
                 prnt('      offsetof(struct _cffi_aligncheck%d, y),' % i)
             prnt('    };')
