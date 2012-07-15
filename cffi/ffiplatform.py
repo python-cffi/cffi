@@ -10,14 +10,7 @@ class VerificationMissing(Exception):
     cdef, but no verification has been done
     """
 
-_file_counter = 0
 _tmpdir = None
-
-def undercffi_module_name():
-    global _file_counter
-    modname = '_cffi_%d' % _file_counter
-    _file_counter += 1
-    return modname
 
 def tmpdir():
     # for now, living in the __pycache__ subdirectory
@@ -31,14 +24,14 @@ def tmpdir():
     return _tmpdir
 
 
-def compile(tmpdir, modname, **kwds):
+def compile(tmpdir, srcfilename, modname, **kwds):
     """Compile a C extension module using distutils."""
 
     saved_environ = os.environ.copy()
     saved_path = os.getcwd()
     try:
         os.chdir(tmpdir)
-        outputfilename = _build(modname, kwds)
+        outputfilename = _build(srcfilename, modname, kwds)
         outputfilename = os.path.abspath(outputfilename)
     finally:
         os.chdir(saved_path)
@@ -49,12 +42,12 @@ def compile(tmpdir, modname, **kwds):
                 os.environ[key] = value
     return outputfilename
 
-def _build(modname, kwds):
+def _build(srcfilename, modname, kwds):
     # XXX compact but horrible :-(
     from distutils.core import Distribution, Extension
     import distutils.errors
     #
-    ext = Extension(name=modname, sources=[modname + '.c'], **kwds)
+    ext = Extension(name=modname, sources=[srcfilename], **kwds)
     dist = Distribution({'ext_modules': [ext]})
     options = dist.get_option_dict('build_ext')
     options['force'] = ('ffiplatform', True)

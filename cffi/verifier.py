@@ -1,15 +1,86 @@
-import os
+import sys, os, md5, imp, shutil
 from . import model, ffiplatform
+from . import __version__
 
 class Verifier(object):
+    _status = '?'
 
     def __init__(self, ffi, preamble, **kwds):
+        import _cffi_backend
+        if ffi._backend is not _cffi_backend:
+            raise NotImplementedError(
+                "verify() is only available for the _cffi_backend")
+        #
         self.ffi = ffi
         self.preamble = preamble
         self.kwds = kwds
         self._typesdict = {}
         self._need_size = set()
         self._need_size_order = []
+        #
+        m = md5.md5('\x00'.join([sys.version[:3], __version__, preamble] +
+                                ffi._cdefsources))
+        modulename = '_cffi_%s' % m.hexdigest()
+        suffix = self._get_so_suffix()
+        self.modulefilename = os.path.join('__pycache__', modulename + suffix)
+        self.sourcefilename = os.path.join('__pycache__', m.hexdigest() + '.c')
+        self._status = 'init'
+
+    def write_source(self, file=None):
+        """Write the C source code.  It is produced in 'self.sourcefilename',
+        which can be tweaked beforehand."""
+        if self._status == 'init':
+            self._write_source(file)
+        else:
+            raise ffiplatform.VerificationError("source code already written")
+
+    def compile_module(self):
+        """Write the C source code (if not done already) and compile it.
+        This produces a dynamic link library in 'self.modulefilename'."""
+        if self._status == 'init':
+            self._write_source()
+        if self._status == 'source':
+            self._compile_module()
+        else:
+            raise ffiplatform.VerificationError("module already compiled")
+
+    def load_library(self):
+        """Get a C module from this Verifier instance.
+        Returns an instance of a FFILibrary class that behaves like the
+        objects returned by ffi.dlopen(), but that delegates all
+        operations to the C module.  If necessary, the C code is written
+        and compiled first.
+        """
+        if self._status == 'init':       # source code not written yet
+            self._locate_module()
+        if self._status == 'init':
+            self._write_source()
+        if self._status == 'source':
+            self._compile_module()
+        assert self._status == 'module'
+        return self._load_library()
+
+    def getmodulename(self):
+        return os.path.splitext(os.path.basename(self.modulefilename))[0]
+
+    # ----------
+
+    @staticmethod
+    def _get_so_suffix():
+        for suffix, mode, type in imp.get_suffixes():
+            if type == imp.C_EXTENSION:
+                return suffix
+        raise ffiplatform.VerificationError("no C_EXTENSION available")
+
+    def _locate_module(self):
+        try:
+            f, filename, descr = imp.find_module(self.getmodulename())
+        except ImportError:
+            return
+        if f is not None:
+            f.close()
+        self.modulefilename = filename
+        self._status = 'module'
 
     def _prnt(self, what=''):
         print >> self._f, what
@@ -25,21 +96,20 @@ class Verifier(object):
             self._typesdict[type] = num
             return num
 
-    def verify(self):
-        """Produce an extension module, compile it and import it.
-        Then make a fresh FFILibrary class, of which we will return
-        an instance.  Finally, we copy all the API elements from
-        the module to the class or the instance as needed.
-        """
-        import _cffi_backend
-        if self.ffi._backend is not _cffi_backend:
-            raise NotImplementedError(
-                "verify() is only available for the _cffi_backend")
+    def _write_source(self, file=None):
+        must_close = (file is None)
+        if must_close:
+            file = open(self.sourcefilename, 'w')
+        self._f = file
+        try:
+            self._write_source_to_f()
+        finally:
+            del self._f
+            if must_close:
+                file.close()
+        self._status = 'source'
 
-        modname = ffiplatform.undercffi_module_name()
-        tmpdir = ffiplatform.tmpdir()
-        filebase = os.path.join(tmpdir, modname)
-
+    def _write_source_to_f(self):
         # The new module will have a _cffi_setup() function that receives
         # objects from the ffi world, and that calls some setup code in
         # the module.  This setup code is split in several independent
@@ -48,55 +118,66 @@ class Verifier(object):
         # 'chained_list_constants' attribute contains the head of this
         # chained list, as a string that gives the call to do, if any.
         self._chained_list_constants = '0'
-
-        with open(filebase + '.c', 'w') as f:
-            self._f = f
-            prnt = self._prnt
-            # first paste some standard set of lines that are mostly '#define'
-            prnt(cffimod_header)
-            prnt()
-            # then paste the C source given by the user, verbatim.
-            prnt(self.preamble)
-            prnt()
-            #
-            # call generate_cpy_xxx_decl(), for every xxx found from
-            # ffi._parser._declarations.  This generates all the functions.
-            self._generate("decl")
-            #
-            # implement the function _cffi_setup_custom() as calling the
-            # head of the chained list.
-            self._generate_setup_custom()
-            prnt()
-            #
-            # produce the method table, including the entries for the
-            # generated Python->C function wrappers, which are done
-            # by generate_cpy_function_method().
-            prnt('static PyMethodDef _cffi_methods[] = {')
-            self._generate("method")
-            prnt('  {"_cffi_setup", _cffi_setup, METH_VARARGS},')
-            prnt('  {NULL, NULL}    /* Sentinel */')
-            prnt('};')
-            prnt()
-            #
-            # standard init.
-            prnt('PyMODINIT_FUNC')
-            prnt('init%s(void)' % modname)
-            prnt('{')
-            prnt('  Py_InitModule("%s", _cffi_methods);' % modname)
-            prnt('  _cffi_init();')
-            prnt('}')
-            #
-            del self._f
-
-        # compile this C source
-        outputfilename = ffiplatform.compile(tmpdir, modname, **self.kwds)
         #
-        # import it as a new extension module
-        import imp
+        prnt = self._prnt
+        # first paste some standard set of lines that are mostly '#define'
+        prnt(cffimod_header)
+        prnt()
+        # then paste the C source given by the user, verbatim.
+        prnt(self.preamble)
+        prnt()
+        #
+        # call generate_cpy_xxx_decl(), for every xxx found from
+        # ffi._parser._declarations.  This generates all the functions.
+        self._generate("decl")
+        #
+        # implement the function _cffi_setup_custom() as calling the
+        # head of the chained list.
+        self._generate_setup_custom()
+        prnt()
+        #
+        # produce the method table, including the entries for the
+        # generated Python->C function wrappers, which are done
+        # by generate_cpy_function_method().
+        prnt('static PyMethodDef _cffi_methods[] = {')
+        self._generate("method")
+        prnt('  {"_cffi_setup", _cffi_setup, METH_VARARGS},')
+        prnt('  {NULL, NULL}    /* Sentinel */')
+        prnt('};')
+        prnt()
+        #
+        # standard init.
+        modname = self.getmodulename()
+        prnt('PyMODINIT_FUNC')
+        prnt('init%s(void)' % modname)
+        prnt('{')
+        prnt('  Py_InitModule("%s", _cffi_methods);' % modname)
+        prnt('  _cffi_init();')
+        prnt('}')
+
+    def _compile_module(self):
+        # compile this C source
+        tmpdir = os.path.dirname(self.sourcefilename)
+        sourcename = os.path.basename(self.sourcefilename)
+        modname = self.getmodulename()
+        outputfilename = ffiplatform.compile(tmpdir, sourcename,
+                                             modname, **self.kwds)
         try:
-            module = imp.load_dynamic(modname, outputfilename)
+            same = os.path.samefile(outputfilename, self.modulefilename)
+        except OSError:
+            same = False
+        if not same:
+            shutil.move(outputfilename, self.modulefilename)
+        self._status = 'module'
+
+    def _load_library(self):
+        # XXX review all usages of 'self' here!
+        # import it as a new extension module
+        try:
+            module = imp.load_dynamic(self.getmodulename(), self.modulefilename)
         except ImportError, e:
-            raise ffiplatform.VerificationError(str(e))
+            error = "importing %r: %s" % (self.modulefilename, e)
+            raise ffiplatform.VerificationError(error)
         #
         # call loading_cpy_struct() to get the struct layout inferred by
         # the C compiler

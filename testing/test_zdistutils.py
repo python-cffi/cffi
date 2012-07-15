@@ -42,8 +42,8 @@ def test_compile_module():
     csrc = '/*hi there!*/\n#include <math.h>\n'
     v = Verifier(ffi, csrc)
     v.compile_module()
-    assert v.modulename.startswith('_cffi_')
-    mod = imp.load_dynamic(v.modulename, v.modulefilename)
+    assert v.getmodulename().startswith('_cffi_')
+    mod = imp.load_dynamic(v.getmodulename(), v.modulefilename)
     assert hasattr(mod, '_cffi_setup')
 
 def test_compile_module_explicit_filename():
@@ -51,11 +51,11 @@ def test_compile_module_explicit_filename():
     ffi.cdef("double sin(double x);")
     csrc = '/*hi there!2*/\n#include <math.h>\n'
     v = Verifier(ffi, csrc)
-    v.modulefilename = filename = str(udir.join('compile_module.so'))
+    v.modulefilename = filename = str(udir.join('test_compile_module.so'))
     v.compile_module()
     assert filename == v.modulefilename
-    assert v.modulename.startswith('_cffi_')
-    mod = imp.load_dynamic(v.modulename, v.modulefilename)
+    assert v.getmodulename() == 'test_compile_module'
+    mod = imp.load_dynamic(v.getmodulename(), v.modulefilename)
     assert hasattr(mod, '_cffi_setup')
 
 def test_name_from_md5_of_cdef():
@@ -64,7 +64,7 @@ def test_name_from_md5_of_cdef():
         ffi = FFI()
         ffi.cdef("%s sin(double x);" % csrc)
         v = Verifier(ffi, "#include <math.h>")
-        names.append(v.modulename)
+        names.append(v.getmodulename())
     assert names[0] == names[1] != names[2]
 
 def test_name_from_md5_of_csrc():
@@ -73,7 +73,7 @@ def test_name_from_md5_of_csrc():
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         v = Verifier(ffi, csrc)
-        names.append(v.modulename)
+        names.append(v.getmodulename())
     assert names[0] == names[1] != names[2]
 
 def test_load_library():
@@ -119,5 +119,5 @@ def test_extension_object():
     ext = v.get_extension()
     assert str(ext.__class__) == 'distutils.extension.Extension'
     assert ext.sources == [v.sourcefilename]
-    assert ext.name == v.modulename
+    assert ext.name == v.getmodulename()
     assert ext.define_macros == [('TEST_EXTENSION_OBJECT', '1')]

@@ -50,6 +50,7 @@ class FFI(object):
         self._parsed_types = new.module('parsed_types').__dict__
         self._new_types = new.module('new_types').__dict__
         self._function_caches = []
+        self._cdefsources = []
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
         #
@@ -65,6 +66,7 @@ class FFI(object):
                 equiv = 'signed %s'
             lines.append('typedef %s %s;' % (equiv % by_size[size], name))
         self.cdef('\n'.join(lines))
+        del self._cdefsources[:]
         #
         self.NULL = self.cast("void *", 0)
 
@@ -75,6 +77,7 @@ class FFI(object):
         The types can be used in 'ffi.new()' and other functions.
         """
         self._parser.parse(csource, override=override)
+        self._cdefsources.append(csource)
         if override:
             for cache in self._function_caches:
                 cache.clear()
@@ -226,7 +229,8 @@ class FFI(object):
         which requires binary compatibility in the signatures.
         """
         from .verifier import Verifier
-        return Verifier(self, source, **kwargs).verify()
+        self.verifier = Verifier(self, source, **kwargs)
+        return self.verifier.load_library()
 
     def _get_errno(self):
         return self._backend.get_errno()
