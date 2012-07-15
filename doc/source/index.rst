@@ -247,8 +247,10 @@ with C code to initialize global variables.
 The actual function calls should be obvious.  It's like C.
 
 
+=======================================================
+
 Distributing modules using CFFI
--------------------------------
+=======================================================
 
 If you use CFFI and ``verify()`` in a project that you plan to
 distribute, other users will install it on machines that may not have a
