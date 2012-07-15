@@ -24,14 +24,18 @@ def tmpdir():
     return _tmpdir
 
 
-def compile(tmpdir, srcfilename, modname, **kwds):
+def get_extension(srcfilename, modname, **kwds):
+    from distutils.core import Extension
+    return Extension(name=modname, sources=[srcfilename], **kwds)
+
+def compile(tmpdir, ext):
     """Compile a C extension module using distutils."""
 
     saved_environ = os.environ.copy()
     saved_path = os.getcwd()
     try:
         os.chdir(tmpdir)
-        outputfilename = _build(srcfilename, modname, kwds)
+        outputfilename = _build(ext)
         outputfilename = os.path.abspath(outputfilename)
     finally:
         os.chdir(saved_path)
@@ -42,12 +46,11 @@ def compile(tmpdir, srcfilename, modname, **kwds):
                 os.environ[key] = value
     return outputfilename
 
-def _build(srcfilename, modname, kwds):
+def _build(ext):
     # XXX compact but horrible :-(
-    from distutils.core import Distribution, Extension
+    from distutils.core import Distribution
     import distutils.errors
     #
-    ext = Extension(name=modname, sources=[srcfilename], **kwds)
     dist = Distribution({'ext_modules': [ext]})
     options = dist.get_option_dict('build_ext')
     options['force'] = ('ffiplatform', True)

@@ -57,8 +57,13 @@ class Verifier(object):
         assert self._status == 'module'
         return self._load_library()
 
-    def getmodulename(self):
+    def get_module_name(self):
         return os.path.splitext(os.path.basename(self.modulefilename))[0]
+
+    def get_extension(self):
+        sourcename = os.path.abspath(self.sourcefilename)
+        modname = self.get_module_name()
+        return ffiplatform.get_extension(sourcename, modname, **self.kwds)
 
     # ----------
 
@@ -71,7 +76,7 @@ class Verifier(object):
 
     def _locate_module(self):
         try:
-            f, filename, descr = imp.find_module(self.getmodulename())
+            f, filename, descr = imp.find_module(self.get_module_name())
         except ImportError:
             return
         if f is not None:
@@ -161,7 +166,7 @@ class Verifier(object):
         prnt()
         #
         # standard init.
-        modname = self.getmodulename()
+        modname = self.get_module_name()
         prnt('PyMODINIT_FUNC')
         prnt('init%s(void)' % modname)
         prnt('{')
@@ -176,10 +181,7 @@ class Verifier(object):
     def _compile_module(self):
         # compile this C source
         tmpdir = os.path.dirname(self.sourcefilename)
-        sourcename = os.path.basename(self.sourcefilename)
-        modname = self.getmodulename()
-        outputfilename = ffiplatform.compile(tmpdir, sourcename,
-                                             modname, **self.kwds)
+        outputfilename = ffiplatform.compile(tmpdir, self.get_extension())
         try:
             same = os.path.samefile(outputfilename, self.modulefilename)
         except OSError:
@@ -192,7 +194,8 @@ class Verifier(object):
         # XXX review all usages of 'self' here!
         # import it as a new extension module
         try:
-            module = imp.load_dynamic(self.getmodulename(), self.modulefilename)
+            module = imp.load_dynamic(self.get_module_name(),
+                                      self.modulefilename)
         except ImportError, e:
             error = "importing %r: %s" % (self.modulefilename, e)
             raise ffiplatform.VerificationError(error)

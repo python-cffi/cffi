@@ -1,4 +1,4 @@
-import imp, math, StringIO
+import os, imp, math, StringIO
 import py
 from cffi import FFI, FFIError
 from cffi.verifier import Verifier
@@ -42,8 +42,8 @@ def test_compile_module():
     csrc = '/*hi there!*/\n#include <math.h>\n'
     v = Verifier(ffi, csrc)
     v.compile_module()
-    assert v.getmodulename().startswith('_cffi_')
-    mod = imp.load_dynamic(v.getmodulename(), v.modulefilename)
+    assert v.get_module_name().startswith('_cffi_')
+    mod = imp.load_dynamic(v.get_module_name(), v.modulefilename)
     assert hasattr(mod, '_cffi_setup')
 
 def test_compile_module_explicit_filename():
@@ -54,8 +54,8 @@ def test_compile_module_explicit_filename():
     v.modulefilename = filename = str(udir.join('test_compile_module.so'))
     v.compile_module()
     assert filename == v.modulefilename
-    assert v.getmodulename() == 'test_compile_module'
-    mod = imp.load_dynamic(v.getmodulename(), v.modulefilename)
+    assert v.get_module_name() == 'test_compile_module'
+    mod = imp.load_dynamic(v.get_module_name(), v.modulefilename)
     assert hasattr(mod, '_cffi_setup')
 
 def test_name_from_md5_of_cdef():
@@ -64,7 +64,7 @@ def test_name_from_md5_of_cdef():
         ffi = FFI()
         ffi.cdef("%s sin(double x);" % csrc)
         v = Verifier(ffi, "#include <math.h>")
-        names.append(v.getmodulename())
+        names.append(v.get_module_name())
     assert names[0] == names[1] != names[2]
 
 def test_name_from_md5_of_csrc():
@@ -73,7 +73,7 @@ def test_name_from_md5_of_csrc():
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         v = Verifier(ffi, csrc)
-        names.append(v.getmodulename())
+        names.append(v.get_module_name())
     assert names[0] == names[1] != names[2]
 
 def test_load_library():
@@ -118,6 +118,6 @@ def test_extension_object():
     v = ffi.verifier
     ext = v.get_extension()
     assert str(ext.__class__) == 'distutils.extension.Extension'
-    assert ext.sources == [v.sourcefilename]
-    assert ext.name == v.getmodulename()
+    assert ext.sources == [os.path.abspath(v.sourcefilename)]
+    assert ext.name == v.get_module_name()
     assert ext.define_macros == [('TEST_EXTENSION_OBJECT', '1')]
