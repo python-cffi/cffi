@@ -170,8 +170,9 @@ Real example (API level)
     assert str(p.pw_name) == 'root'
 
 Note that the above example works independently of the exact layout of
-``struct passwd``, but so far require a C compiler at runtime.  (We plan
-to improve with caching and a way to distribute the compiled code.)
+``struct passwd``.  It requires a C compiler the first time you run it,
+unless the module is distributed and installed according to the
+`Distributing modules using CFFI`_ intructions below.
 
 You will find a number of larger examples using ``verify()`` in the
 `demo`_ directory.
@@ -244,6 +245,32 @@ If specified, this argument gives an "initializer", like you can use
 with C code to initialize global variables.
 
 The actual function calls should be obvious.  It's like C.
+
+
+Distributing modules using CFFI
+-------------------------------
+
+If you use CFFI and ``verify()`` in a project that you plan to
+distribute, other users will install it on machines that may not have a
+C compiler.  Here is how to write a ``setup.py`` script using
+``distutils`` in such a way that the extension modules are listed too.
+This lets normal ``setup.py`` commands compile and package the C
+extension modules too.
+
+Example::
+  
+  from distutils.core import setup
+  from distutils.extension import Extension
+
+  # you must import at least the module(s) that define the ffi's
+  # that you use in your application
+  import yourmodule
+
+  setup(...
+        ext_modules=[yourmodule.ffi.verifier.get_extension()])
+
+XXX add a more complete reference of ``ffi.verifier``
+
 
 
 =======================================================
@@ -337,9 +364,7 @@ compatibility and must be called several times to open several shared
 libraries.
 
 On top of CPython, the new library is actually a CPython C extension
-module.  This solution constrains you to have a C compiler (future work
-will cache the compiled C code and let you distribute it to other
-systems which don't have a C compiler).
+module.
 
 The arguments to ``ffi.verify()`` are:
 
