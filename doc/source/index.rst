@@ -271,7 +271,8 @@ Example::
   setup(...
         ext_modules=[yourmodule.ffi.verifier.get_extension()])
 
-XXX add a more complete reference of ``ffi.verifier``
+Usually that's all you need, but see the `Reference: verifier`_ section
+for more details about the ``verifier`` object.
 
 
 
@@ -848,6 +849,50 @@ allowed.
 |               |                        | if out of range  |                |
 +---------------+------------------------+------------------+----------------+
 
+
+Reference: verifier
+-------------------
+
+For advanced use cases, the ``Verifier`` class from ``cffi.verifier``
+can be instantiated directly.  It is normally instantiated for you by
+``ffi.verify()``, and the instance is attached as ``ffi.verifier``.
+
+- ``Verifier(ffi, preamble, **kwds)``: instantiate the class with an
+  FFI object and a preamble, which is C text that will be pasted into
+  the generated C source.  The keyword arguments are passed directly
+  to `distutils when building the Extension object.`__
+
+.. __: http://docs.python.org/distutils/setupscript.html#describing-extension-module
+
+``Verifier`` objects have the following public attributes and methods:
+
+- ``sourcefilename``: name of a C file.  Defaults to
+  ``__pycache__/_cffi_MD5HASH.c``, with the ``MD5HASH`` part computed
+  from the strings you passed to cdef() and verify() as well as the
+  version numbers of Python and CFFI.  Can be changed before calling
+  ``write_source()`` if you want to write the source somewhere else.
+
+- ``modulefilename``: name of the ``.so`` file (or ``.pyd`` on Windows).
+  Defaults to ``__pycache__/_cffi_MD5HASH.so``.  Can be changed before
+  calling ``compile_module()``.
+
+- ``get_module_name()``: extract the module name from ``modulefilename``.
+
+- ``write_source(file=None)``: produces the C source of the extension
+  module.  If ``file`` is specified, write it in that file (or file-like)
+  object rather than to ``sourcefilename``.
+
+- ``compile_module()``: writes the C source code (if not done already)
+  and compiles it.  This produces a dynamic link library whose file is
+  given by ``modulefilename``.
+
+- ``load_library()``: loads the C module (if necessary, making it
+  first).  Returns an instance of a FFILibrary class that behaves like
+  the objects returned by ffi.dlopen(), but that delegates all
+  operations to the C module.  This is what is returned by
+  ``ffi.verify()``.
+
+- ``get_extension)``: returns a distutils-compatible ``Extension`` instance.
 
 
 Comments and bugs
