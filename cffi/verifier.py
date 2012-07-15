@@ -61,6 +61,8 @@ class Verifier(object):
         return os.path.splitext(os.path.basename(self.modulefilename))[0]
 
     def get_extension(self):
+        if self._status == 'init':
+            self._write_source()
         sourcename = os.path.abspath(self.sourcefilename)
         modname = self.get_module_name()
         return ffiplatform.get_extension(sourcename, modname, **self.kwds)

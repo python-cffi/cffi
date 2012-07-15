@@ -1,4 +1,4 @@
-import os, imp, math, StringIO
+import os, imp, math, StringIO, random
 import py
 from cffi import FFI, FFIError
 from cffi.verifier import Verifier
@@ -121,3 +121,12 @@ def test_extension_object():
     assert ext.sources == [os.path.abspath(v.sourcefilename)]
     assert ext.name == v.get_module_name()
     assert ext.define_macros == [('TEST_EXTENSION_OBJECT', '1')]
+
+def test_extension_forces_write_source():
+    ffi = FFI()
+    ffi.cdef("double sin(double x);")
+    csrc = '/*hi there!%r*/\n#include <math.h>\n' % random.random()
+    v = Verifier(ffi, csrc)
+    assert not os.path.exists(v.sourcefilename)
+    v.get_extension()
+    assert os.path.exists(v.sourcefilename)
