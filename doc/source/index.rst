@@ -413,11 +413,8 @@ compiler during ``verify()``:
    ``foo_t *`` without you needing to look inside the ``foo_t``.
 
 *  array lengths: when used as structure fields, arrays can have an
-   unspecified length, as in "``int n[];``".  The length is completed
-   by the C compiler.
-
-   .. versionadded:: 0.2
-      You can also specify it as "``int n[...];``".
+   unspecified length, as in "``int n[];``" or "``int n[...];``.
+   The length is completed by the C compiler.
 
 *  enums: in "``enum foo { A, B, C, ... };``" (with a trailing "``...``"),
    the enumerated values are not necessarily in order; the C compiler
@@ -511,14 +508,13 @@ gives you a fresh cdata object.  Unlike the "original" one, these fresh
 cdata objects don't have ownership: they are merely references to
 existing memory.
 
-.. versionchanged:: 0.2
-   As an exception the above rule, dereferencing a pointer that owns a
-   *struct* or *union* object returns a cdata struct or union object
-   that "co-owns" the same memory.  Thus in this case there are two
-   objects that can keep the memory alive.  This is done for cases where
-   you really want to have a struct object but don't have any convenient
-   place to keep alive the original pointer object (returned by
-   ``ffi.new()``).
+As an exception the above rule, dereferencing a pointer that owns a
+*struct* or *union* object returns a cdata struct or union object
+that "co-owns" the same memory.  Thus in this case there are two
+objects that can keep the same memory alive.  This is done for cases where
+you really want to have a struct object but don't have any convenient
+place to keep alive the original pointer object (returned by
+``ffi.new()``).
 
 Example::
 
@@ -645,9 +641,7 @@ fine).  If you pass a struct, the struct type cannot have been declared
 with "``...;``" and completed with ``verify()``; you need to declare it
 completely in ``cdef()``.
 
-.. versionadded:: 0.2
-   Aside from these limitations, functions and callbacks can now return
-   structs.
+Aside from these limitations, functions and callbacks can return structs.
 
 
 Variadic function calls
@@ -704,14 +698,13 @@ object of the wrong type, or more generally raises an exception, then
 the exception cannot be propagated.  Instead, it is printed to stderr
 and the C-level callback is made to return a default value.
 
-.. versionadded:: 0.2
-   The returned value in case of errors is null by default, but can be
-   specified with the ``error`` keyword argument to ``ffi.callback()``::
+The returned value in case of errors is null by default, but can be
+specified with the ``error`` keyword argument to ``ffi.callback()``::
 
-       >>> ffi.callback("int(*)(int, int)", myfunc, error=42)
+    >>> ffi.callback("int(*)(int, int)", myfunc, error=42)
 
-   In all cases the exception is printed to stderr, so this should be
-   used only as a last-resort solution.
+In all cases the exception is printed to stderr, so this should be
+used only as a last-resort solution.
 
 
 Miscellaneous
