@@ -657,6 +657,19 @@ def test_enum_as_argument():
         int foo_func(enum foo_e e) { return e; }
     """)
     assert lib.foo_func(lib.BB) == 2
+    assert lib.foo_func("BB") == 2
+
+def test_enum_as_function_result():
+    ffi = FFI()
+    ffi.cdef("""
+        enum foo_e { AA, BB, ... };
+        enum foo_e foo_func(int x);
+    """)
+    lib = ffi.verify("""
+        enum foo_e { AA, CC, BB };
+        enum foo_e foo_func(int x) { return x; }
+    """)
+    assert lib.foo_func(lib.BB) == "BB"
 
 def test_opaque_integer_as_function_result():
     ffi = FFI()
