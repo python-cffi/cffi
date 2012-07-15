@@ -1576,3 +1576,43 @@ def test_bug_delattr():
     complete_struct_or_union(BStruct, [('a1', BLong, -1)])
     x = newp(new_pointer_type(BStruct))
     py.test.raises(AttributeError, "del x.a1")
+
+def test_variable_length_struct():
+    py.test.skip("later")
+    BLong = new_primitive_type("long")
+    BArray = new_array_type(new_pointer_type(BLong), None)
+    BStruct = new_struct_type("foo")
+    BStructP = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BLong, -1),
+                                       ('a2', BArray, -1)])
+    assert sizeof(BStruct) == size_of_long()
+    assert alignof(BStruct) == alignof(BLong)
+    #
+    py.test.raises(TypeError, newp, BStructP, None)
+    x = newp(BStructP, 5)
+    assert sizeof(x) == 6 * size_of_long()
+    x[4] = 123
+    assert x[4] == 123
+    py.test.raises(IndexError, "x[5]")
+    assert len(x.a2) == 5
+    #
+    py.test.raises(TypeError, newp, BStructP, [123])
+    x = newp(BStructP, [123, 5])
+    assert x.a1 == 123
+    assert len(x.a2) == 5
+    assert list(x.a2) == [0] * 5
+    #
+    x = newp(BStructP, {'a2': 5})
+    assert x.a1 == 0
+    assert len(x.a2) == 5
+    assert list(x.a2) == [0] * 5
+    #
+    x = newp(BStructP, [123, (4, 5)])
+    assert x.a1 == 123
+    assert len(x.a2) == 2
+    assert list(x.a2) == [4, 5]
+    #
+    x = newp(BStructP, {'a2': (4, 5)})
+    assert x.a1 == 0
+    assert len(x.a2) == 2
+    assert list(x.a2) == [4, 5]
