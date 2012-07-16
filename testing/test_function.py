@@ -265,7 +265,7 @@ class TestFunction(object):
             char *inet_ntoa(struct in_addr in);
         """)
         ffi.C = ffi.dlopen(None)
-        ina = ffi.new("struct in_addr", [0x04040404])
+        ina = ffi.new("struct in_addr *", [0x04040404])
         a = ffi.C.inet_ntoa(ina[0])
         assert str(a) == '4.4.4.4'
 

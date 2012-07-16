@@ -7,6 +7,11 @@ class CTypesData(object):
     def __init__(self, *args):
         raise TypeError("cannot instantiate %r" % (self.__class__,))
 
+    @classmethod
+    def _newp(cls, init):
+        raise TypeError("expected a pointer or array ctype, got '%s'"
+                        % (cls._get_c_name(),))
+
     @staticmethod
     def _to_ctypes(value):
         raise TypeError
@@ -131,6 +136,10 @@ class CTypesGenericPrimitive(CTypesData):
 class CTypesGenericArray(CTypesData):
     __slots__ = []
 
+    @classmethod
+    def _newp(cls, init):
+        return cls(init)
+
     def __iter__(self):
         for i in xrange(len(self)):
             yield self[i]
@@ -142,6 +151,10 @@ class CTypesGenericArray(CTypesData):
 class CTypesGenericPtr(CTypesData):
     __slots__ = ['_address', '_as_ctype_ptr']
     _automatic_casts = False
+
+    @classmethod
+    def _newp(cls, init):
+        return cls(init)
 
     @classmethod
     def _cast_from(cls, source):
@@ -890,7 +903,7 @@ class CTypesBackend(object):
         return BType._offsetof(fieldname)
 
     def newp(self, BType, source):
-        return BType(source)
+        return BType._newp(source)
 
     def cast(self, BType, source):
         return BType._cast_from(source)

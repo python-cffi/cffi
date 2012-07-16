@@ -133,12 +133,11 @@ class Parser(object):
                 else:
                     self._declare('variable ' + decl.name, tp)
 
-    def parse_type(self, cdecl, force_pointer=False,
-                   consider_function_as_funcptr=False):
+    def parse_type(self, cdecl, consider_function_as_funcptr=False):
         ast, macros = self._parse('void __dummy(%s);' % cdecl)
         assert not macros
         typenode = ast.ext[-1].type.args.params[0].type
-        return self._get_type(typenode, force_pointer=force_pointer,
+        return self._get_type(typenode,
                      consider_function_as_funcptr=consider_function_as_funcptr)
 
     def _declare(self, name, obj):
@@ -160,7 +159,7 @@ class Parser(object):
         return model.PointerType(type)
 
     def _get_type(self, typenode, convert_array_to_pointer=False,
-                  force_pointer=False, name=None, partial_length_ok=False,
+                  name=None, partial_length_ok=False,
                   consider_function_as_funcptr=False):
         # first, dereference typedefs, if we have it already parsed, we're good
         if (isinstance(typenode, pycparser.c_ast.TypeDecl) and
@@ -172,8 +171,6 @@ class Parser(object):
                 if convert_array_to_pointer:
                     return type.item
             else:
-                if force_pointer:
-                    return self._get_type_pointer(type)
                 if (consider_function_as_funcptr and
                         isinstance(type, model.RawFunctionType)):
                     return type.as_function_pointer()
@@ -189,9 +186,6 @@ class Parser(object):
                 length = self._parse_constant(
                     typenode.dim, partial_length_ok=partial_length_ok)
             return model.ArrayType(self._get_type(typenode.type), length)
-        #
-        if force_pointer:
-            return self._get_type_pointer(self._get_type(typenode))
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
             # pointer type

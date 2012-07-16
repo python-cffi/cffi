@@ -141,30 +141,29 @@ class FFI(object):
         return self._backend.offsetof(cdecl, fieldname)
 
     def new(self, cdecl, init=None):
-        """Allocate an instance 'x' of the named C type, and return a
-        <cdata 'cdecl *'> object representing '&x'.  Such an object
-        behaves like a pointer to the allocated memory.  When the
-        <cdata> object goes out of scope, the memory is freed.
+        """Allocate an instance according to the specified C type and
+        return a pointer to it.  The specified C type must be either a
+        pointer or an array: ``new('X *')`` allocates an X and returns
+        a pointer to it, whereas ``new('X[n]')`` allocates an array of
+        n X'es and returns an array referencing it (which works
+        mostly like a pointer, like in C).  You can also use
+        ``new('X[]', n)`` to allocate an array of a non-constant
+        length n.
 
         The memory is initialized following the rules of declaring a
         global variable in C: by default it is zero-initialized, but
         an explicit initializer can be given which can be used to
         fill all or part of the memory.
 
-        The returned <cdata> object has ownership of the value of
-        type 'cdecl' that it points to.  This means that the raw data
-        can be used as long as this object is kept alive, but must
-        not be used for a longer time.  Be careful about that when
-        copying the pointer to the memory somewhere else, e.g. into
-        another structure.
+        When the returned <cdata> object goes out of scope, the memory
+        is freed.  In other words the returned <cdata> object has
+        ownership of the value of type 'cdecl' that it points to.  This
+        means that the raw data can be used as long as this object is
+        kept alive, but must not be used for a longer time.  Be careful
+        about that when copying the pointer to the memory somewhere
+        else, e.g. into another structure.
         """
-        try:
-            BType = self._new_types[cdecl]
-        except KeyError:
-            type = self._parser.parse_type(cdecl, force_pointer=True)
-            BType = self._get_cached_btype(type)
-            self._new_types[cdecl] = BType
-        #
+        BType = self.typeof(cdecl)
         return self._backend.newp(BType, init)
 
     def cast(self, cdecl, source):

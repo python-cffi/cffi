@@ -144,8 +144,8 @@ def test_ptr():
     ffi.cdef("int *foo(int *);")
     lib = ffi.verify("int *foo(int *a) { return a; }")
     assert lib.foo(ffi.NULL) == ffi.NULL
-    p = ffi.new("int", 42)
-    q = ffi.new("int", 42)
+    p = ffi.new("int *", 42)
+    q = ffi.new("int *", 42)
     assert lib.foo(p) == p
     assert lib.foo(q) != p
 
@@ -153,7 +153,7 @@ def test_bogus_ptr():
     ffi = FFI()
     ffi.cdef("int *foo(int *);")
     lib = ffi.verify("int *foo(int *a) { return a; }")
-    py.test.raises(TypeError, lib.foo, ffi.new("short", 42))
+    py.test.raises(TypeError, lib.foo, ffi.new("short *", 42))
 
 
 def test_verify_typedefs():
@@ -207,7 +207,7 @@ def test_ffi_nonfull_struct():
     """)
     py.test.raises(VerificationMissing, ffi.sizeof, 'struct foo_s')
     py.test.raises(VerificationMissing, ffi.offsetof, 'struct foo_s', 'x')
-    py.test.raises(VerificationMissing, ffi.new, 'struct foo_s')
+    py.test.raises(VerificationMissing, ffi.new, 'struct foo_s *')
     ffi.verify("""
     struct foo_s {
        int a, b, x, c, d, e;
@@ -268,7 +268,7 @@ def test_struct_array_field():
     ffi.cdef("struct foo_s { int a[17]; ...; };")
     ffi.verify("struct foo_s { int x; int a[17]; int y; };")
     assert ffi.sizeof('struct foo_s') == 19 * ffi.sizeof('int')
-    s = ffi.new("struct foo_s")
+    s = ffi.new("struct foo_s *")
     assert ffi.sizeof(s.a) == 17 * ffi.sizeof('int')
 
 def test_struct_array_guess_length():
@@ -276,7 +276,7 @@ def test_struct_array_guess_length():
     ffi.cdef("struct foo_s { int a[]; ...; };")    # <= no declared length
     ffi.verify("struct foo_s { int x; int a[17]; int y; };")
     assert ffi.sizeof('struct foo_s') == 19 * ffi.sizeof('int')
-    s = ffi.new("struct foo_s")
+    s = ffi.new("struct foo_s *")
     assert ffi.sizeof(s.a) == 17 * ffi.sizeof('int')
 
 def test_struct_array_guess_length_2():
@@ -286,7 +286,7 @@ def test_struct_array_guess_length_2():
     lib = ffi.verify("struct foo_s { int x; int a[17]; int y; };\n"
                      "int bar(struct foo_s *f) { return f->a[14]; }\n")
     assert ffi.sizeof('struct foo_s') == 19 * ffi.sizeof('int')
-    s = ffi.new("struct foo_s")
+    s = ffi.new("struct foo_s *")
     s.a[14] = 4242
     assert lib.bar(s) == 4242
 
@@ -295,7 +295,7 @@ def test_struct_array_guess_length_3():
     ffi.cdef("struct foo_s { int a[...]; };")
     ffi.verify("struct foo_s { int x; int a[17]; int y; };")
     assert ffi.sizeof('struct foo_s') == 19 * ffi.sizeof('int')
-    s = ffi.new("struct foo_s")
+    s = ffi.new("struct foo_s *")
     assert ffi.sizeof(s.a) == 17 * ffi.sizeof('int')
 
 def test_global_constants():
@@ -487,7 +487,7 @@ def test_call_with_struct_ptr():
         typedef struct { int y, x; } foo_t;
         static int foo(foo_t *f) { return f->x * 7; }
     """)
-    f = ffi.new("foo_t")
+    f = ffi.new("foo_t *")
     f.x = 6
     assert lib.foo(f) == 42
 
@@ -508,7 +508,7 @@ def test_unknown_type():
         }
         #define TOKEN_SIZE sizeof(token_t)
     """)
-    # we cannot let ffi.new("token_t") work, because we don't know ahead of
+    # we cannot let ffi.new("token_t *") work, because we don't know ahead of
     # time if it's ok to ask 'sizeof(token_t)' in the C code or not.
     # See test_unknown_type_2.  Workaround.
     tkmem = ffi.new("char[]", lib.TOKEN_SIZE)    # zero-initialized
@@ -565,7 +565,7 @@ def test_varargs_struct():
             return s.a - s.b;
         }
     """)
-    s = ffi.new("struct foo_s", ['B', 1])
+    s = ffi.new("struct foo_s *", ['B', 1])
     assert lib.foo(50, s[0]) == ord('A')
 
 def test_autofilled_struct_as_argument():
@@ -581,7 +581,7 @@ def test_autofilled_struct_as_argument():
             return s.a - (int)s.b;
         }
     """)
-    s = ffi.new("struct foo_s", [100, 1])
+    s = ffi.new("struct foo_s *", [100, 1])
     assert lib.foo(s[0]) == 99
 
 def test_autofilled_struct_as_argument_dynamic():

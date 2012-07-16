@@ -2036,7 +2036,9 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
         }
     }
     else {
-        PyErr_SetString(PyExc_TypeError, "expected a pointer or array ctype");
+        PyErr_Format(PyExc_TypeError,
+                     "expected a pointer or array ctype, got '%s'",
+                     ct->ct_name);
         return NULL;
     }
 

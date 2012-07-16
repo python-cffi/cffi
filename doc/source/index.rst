@@ -64,7 +64,7 @@ Requirements:
 
 * pycparser 2.06 or 2.07: http://code.google.com/p/pycparser/
 
-* libffi (you need ``libffi-dev``); on Windows, it is included already.
+* libffi (you need ``libffi-dev``); the Windows version is included with CFFI.
 
 Download and Installation:
 
@@ -279,13 +279,14 @@ for more details about the ``verifier`` object.
 Cleaning up the __pycache__ directory
 -------------------------------------
 
-During development, every time you call ``verify()`` with different
-strings of C source code (either the ``cdef()`` strings or the string
-passed to ```verify()`` itself), then it will create a new module file
-name, based on the MD5 hash of these strings.  This creates more files
-in the ``__pycache__`` directory.  It is recommended that you clean it
-up from time to time.  A nice way to do that is to add, in your test
-suite, a call to ``cffi.verifier.cleanup_tmpdir()``.
+During development, every time you change the C sources that you pass to
+``cdef()`` or ``verify()``, then the latter will create a new module
+file name, based on the MD5 hash of these strings.  This creates more
+and more files in the ``__pycache__`` directory.  It is recommended that
+you clean it up from time to time.  A nice way to do that is to add, in
+your test suite, a call to ``cffi.verifier.cleanup_tmpdir()``.
+Alternatively, you can just completely remove the ``__pycache__``
+directory.
 
 
 
@@ -477,19 +478,29 @@ obvious Python equivalent.  Thus, they correspond to objects of type
 ``cdata``, which are printed for example as
 ``<cdata 'struct foo_s *' 0xa3290d8>``.
 
-``ffi.new(ctype, [initializer])``: this function builds a new cdata
-object of the given ``ctype``.  The ctype is usually some constant
-string describing the C type.  This is similar to a malloc: it allocates
-the memory needed to store an object of the given C type, and returns a
-pointer to it.  The memory is initially filled with zeros.  An
-initializer can be given too, as described later.
+``ffi.new(ctype, [initializer])``: this function builds and returns a
+new cdata object of the given ``ctype``.  The ctype is usually some
+constant string describing the C type.  It must be a pointer or array
+type.  If it is a pointer, e.g. ``"int *"`` or ``struct foo *``, then
+it allocates the memory for one ``int`` or ``struct foo``.  If it is
+an array, e.g. ``int[10]``, then it allocates the memory for ten
+``int``.  In both cases the returned cdata is of type ``ctype``.
+
+The memory is initially filled with zeros.  An initializer can be given
+too, as described later.
 
 Example::
 
-    >>> ffi.new("int")
+    >>> ffi.new("char *")
+    <cdata 'char *' owning 1 bytes>
+    >>> ffi.new("int *")
     <cdata 'int *' owning 4 bytes>
     >>> ffi.new("int[10]")
     <cdata 'int[10]' owning 40 bytes>
+
+.. versionchanged:: 0.2
+   Note that this changed from CFFI version 0.1: what used to be
+   ``ffi.new("int")`` is now ``ffi.new("int *")``.
 
 Unlike C, the returned pointer object has *ownership* on the allocated
 memory: when this exact object is garbage-collected, then the memory is
@@ -535,7 +546,7 @@ Example::
     ffi.cdef("void somefunction(int *);")
     lib = ffi.verify("#include <foo.h>")
 
-    x = ffi.new("int")        # allocate one int, and return a pointer to it
+    x = ffi.new("int *")      # allocate one int, and return a pointer to it
     x[0] = 42                 # fill it
     lib.somefunction(x)       # call the C function
     print x[0]                # read the possibly-changed value
@@ -558,10 +569,10 @@ Example::
     typedef struct { int x, y; } foo_t;
 
     foo_t v = { 1, 2 };            // C syntax
-    v = ffi.new("foo_t", [1, 2])   # CFFI equivalent
+    v = ffi.new("foo_t *", [1, 2]) # CFFI equivalent
 
-    foo_t v = { .y=1, .x=2 };               // C99 syntax
-    v = ffi.new("foo_t", {'y': 1, 'x': 2})  # CFFI equivalent
+    foo_t v = { .y=1, .x=2 };                // C99 syntax
+    v = ffi.new("foo_t *", {'y': 1, 'x': 2}) # CFFI equivalent
 
 Like C, arrays of chars can also be initialized from a string, in
 which case a terminating null character is appended implicitly::
@@ -907,8 +918,8 @@ The following are global functions in the ``cffi.verifier`` module:
   ``__pycache__``.
   
 - ``cleanup_tmpdir()``: cleans up the temporary directory by removing all
-  files in it called ``_cffi_*.{c,so}`` as well as the ``build``
-  subdirectory.
+  files in it called ``_cffi_*.{c,so}`` as well as all files in the
+  ``build`` subdirectory.
 
 
 
