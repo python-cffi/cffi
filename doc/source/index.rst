@@ -714,9 +714,14 @@ variable somewhere.)
 
 Note that callbacks of a variadic function type are not supported.
 
-Windows: you can't yet specify the calling convention of callbacks.
-(For regular calls, the correct calling convention should be
-automatically inferred by the C backend.)
+Windows: for regular calls, the correct calling convention should be
+automatically inferred by the C backend, but that doesn't work for
+callbacks.  The default calling convention is "cdecl", like in C;
+if needed, you must force the calling convention with the keyword
+argument ``conv``::
+
+    ffi.callback("int(*)(int, int)", myfunc, conv="stdcall")
+    ffi.callback("int(*)(int, int)", myfunc, conv="cdecl")  # default
 
 Be careful when writing the Python callback function: if it returns an
 object of the wrong type, or more generally raises an exception, then
@@ -737,7 +742,9 @@ Miscellaneous
 
 ``ffi.errno``: the value of ``errno`` received from the most recent C call
 in this thread, and passed to the following C call, is available via
-reads and writes of the property ``ffi.errno``.
+reads and writes of the property ``ffi.errno``.  On Windows we also save
+and restore the ``GetLastError()`` value, but to access it you need to
+declare and call the ``GetLastError()`` function as usual.
 
 ``ffi.buffer(pointer, [size])``: return a read-write buffer object that
 references the raw C data pointed to by the given 'cdata', of 'size'

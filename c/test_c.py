@@ -681,6 +681,19 @@ def test_function_type_taking_struct():
     BFunc = new_function_type((BStruct,), BShort, False)
     assert repr(BFunc) == "<ctype 'short(*)(struct foo)'>"
 
+def test_get_function_type_args():
+    BChar = new_primitive_type("char")
+    BShort = new_primitive_type("short")
+    BStruct = new_struct_type("foo")
+    complete_struct_or_union(BStruct, [('a1', BChar, -1),
+                                       ('a2', BShort, -1)])
+    BFunc = new_function_type((BStruct,), BShort, False)
+    a, b, c, d = get_function_type_args(BFunc)
+    assert a == (BStruct,)
+    assert b == BShort
+    assert c == False
+    assert d == FFI_DEFAULT_ABI
+
 def test_function_void_result():
     BVoid = new_void_type()
     BInt = new_primitive_type("int")
