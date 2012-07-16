@@ -18,6 +18,15 @@ def get_extension(srcfilename, modname, **kwds):
 def compile(tmpdir, ext):
     """Compile a C extension module using distutils."""
 
+    # Turn the 'ext.sources' into absolute paths, because we're going to
+    # do chdir().  In the common case where the path is precisely where
+    # we're going to chdir(), then replace it with a pathless copy.
+    for i, src in enumerate(ext.sources):
+        src = os.path.abspath(src)
+        if os.path.samefile(os.path.dirname(src), tmpdir):
+            src = os.path.basename(src)
+        ext.sources[i] = src
+
     saved_environ = os.environ.copy()
     saved_path = os.getcwd()
     try:

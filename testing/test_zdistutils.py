@@ -118,7 +118,7 @@ def test_extension_object():
     v = ffi.verifier
     ext = v.get_extension()
     assert str(ext.__class__) == 'distutils.extension.Extension'
-    assert ext.sources == [os.path.abspath(v.sourcefilename)]
+    assert ext.sources == [v.sourcefilename]
     assert ext.name == v.get_module_name()
     assert ext.define_macros == [('TEST_EXTENSION_OBJECT', '1')]
 
