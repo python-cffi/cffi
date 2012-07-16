@@ -10,6 +10,10 @@ if sys.platform != 'win32':
             return super(FFI, self).verify(
                 *args, extra_compile_args=['-Werror'], **kwds)
 
+def setup_module():
+    import cffi.verifier
+    cffi.verifier.cleanup_tmpdir()
+
 
 def test_missing_function():
     ffi = FFI()
@@ -394,6 +398,7 @@ def test_access_variable():
     lib.somenumber = -6
     assert lib.foo() == -42
     assert lib.somenumber == -6
+    lib.somenumber = 2   # reset for the next run, if any
 
 def test_access_address_of_variable():
     # access the address of 'somenumber': need a trick
@@ -406,6 +411,7 @@ def test_access_address_of_variable():
     assert lib.somenumber == 2
     lib.somenumberptr[0] = 42
     assert lib.somenumber == 42
+    lib.somenumber = 2    # reset for the next run, if any
 
 def test_access_array_variable():
     ffi = FFI()
@@ -423,6 +429,7 @@ def test_access_array_variable():
     assert lib.foo(3) == -42
     assert lib.somenumber[3] == -6
     assert lib.somenumber[4] == 5
+    lib.somenumber[3] = 4    # reset for the next run, if any
 
 def test_access_struct_variable():
     ffi = FFI()
@@ -448,16 +455,20 @@ def test_access_struct_variable():
     lib.stuff.x = -6
     assert lib.foo(0) == -42
     assert lib.foo(1) == 35
+    lib.stuff.x = 2      # reset for the next run, if any
 
 def test_access_callback():
     ffi = FFI()
     ffi.cdef("int (*cb)(int);\n"
-             "int foo(int);")
+             "int foo(int);\n"
+             "void reset_cb(void);")
     lib = ffi.verify("""
         static int g(int x) { return x * 7; }
-        static int (*cb)(int) = g;
+        static int (*cb)(int);
         static int foo(int i) { return cb(i) - 1; }
+        static void reset_cb(void) { cb = g; }
     """)
+    lib.reset_cb()
     assert lib.foo(6) == 41
     my_callback = ffi.callback("int(*)(int)", lambda n: n * 222)
     lib.cb = my_callback

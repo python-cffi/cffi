@@ -172,7 +172,8 @@ Real example (API level)
 Note that the above example works independently of the exact layout of
 ``struct passwd``.  It requires a C compiler the first time you run it,
 unless the module is distributed and installed according to the
-`Distributing modules using CFFI`_ intructions below.
+`Distributing modules using CFFI`_ intructions below.  See also the
+note about `Cleaning up the __pycache__ directory`_.
 
 You will find a number of larger examples using ``verify()`` in the
 `demo`_ directory.
@@ -273,6 +274,19 @@ Example::
 
 Usually that's all you need, but see the `Reference: verifier`_ section
 for more details about the ``verifier`` object.
+
+
+Cleaning up the __pycache__ directory
+-------------------------------------
+
+During development, every time you call ``verify()`` with different
+strings of C source code (either the ``cdef()`` strings or the string
+passed to ```verify()`` itself), then it will create a new module file
+name, based on the MD5 hash of these strings.  This creates more files
+in the ``__pycache__`` directory.  It is recommended that you clean it
+up from time to time.  A nice way to do that is to add, in your test
+suite, a call to ``cffi.verifier.cleanup_tmpdir()``.
+
 
 
 
@@ -887,6 +901,19 @@ can be instantiated directly.  It is normally instantiated for you by
 
 - ``get_extension)``: returns a distutils-compatible ``Extension`` instance.
 
+The following are global functions in the ``cffi.verifier`` module:
+
+- ``set_tmpdir(dirname)``: sets the temporary directory to use instead of
+  ``__pycache__``.
+  
+- ``cleanup_tmpdir()``: cleans up the temporary directory by removing all
+  files in it called ``_cffi_*.{c,so}`` as well as the ``build``
+  subdirectory.
+
+
+
+
+=================
 
 Comments and bugs
 =================

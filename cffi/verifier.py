@@ -2,6 +2,48 @@ import sys, os, hashlib, imp, shutil
 from . import model, ffiplatform
 from . import __version__
 
+
+_TMPDIR = '__pycache__'
+
+def set_tmpdir(dirname):
+    """Set the temporary directory to use instead of __pycache__."""
+    global _TMPDIR
+    _TMPDIR = dirname
+
+def cleanup_tmpdir(keep_so=False):
+    """Clean up the temporary directory by removing all files in it
+    called `_cffi_*.{c,so}` as well as the `build` subdirectory."""
+    try:
+        filelist = os.listdir(_TMPDIR)
+    except OSError:
+        return
+    if keep_so:
+        suffix = '.c'   # only remove .c files
+    else:
+        suffix = _get_so_suffix().lower()
+    for fn in filelist:
+        if fn.lower().startswith('_cffi_') and (
+                fn.lower().endswith(suffix) or fn.lower().endswith('.c')):
+            try:
+                os.unlink(os.path.join(_TMPDIR, fn))
+            except OSError:
+                pass
+    shutil.rmtree(os.path.join(_TMPDIR, 'build'), ignore_errors=True)
+
+def _get_so_suffix():
+    for suffix, mode, type in imp.get_suffixes():
+        if type == imp.C_EXTENSION:
+            return suffix
+    raise ffiplatform.VerificationError("no C_EXTENSION available")
+
+def _ensure_dir(filename):
+    try:
+        os.makedirs(os.path.dirname(filename))
+    except OSError:
+        pass
+
+# ____________________________________________________________
+
 class Verifier(object):
     _status = '?'
 
@@ -18,9 +60,9 @@ class Verifier(object):
         m = hashlib.md5('\x00'.join([sys.version[:3], __version__, preamble] +
                                     ffi._cdefsources))
         modulename = '_cffi_%s' % m.hexdigest()
-        suffix = self._get_so_suffix()
-        self.modulefilename = os.path.join('__pycache__', modulename + suffix)
-        self.sourcefilename = os.path.join('__pycache__', modulename + '.c')
+        suffix = _get_so_suffix()
+        self.sourcefilename = os.path.join(_TMPDIR, modulename + '.c')
+        self.modulefilename = os.path.join(_TMPDIR, modulename + suffix)
         self._status = 'init'
 
     def write_source(self, file=None):
@@ -69,21 +111,15 @@ class Verifier(object):
 
     # ----------
 
-    @staticmethod
-    def _get_so_suffix():
-        for suffix, mode, type in imp.get_suffixes():
-            if type == imp.C_EXTENSION:
-                return suffix
-        raise ffiplatform.VerificationError("no C_EXTENSION available")
-
     def _locate_module(self):
-        try:
-            f, filename, descr = imp.find_module(self.get_module_name())
-        except ImportError:
-            return
-        if f is not None:
-            f.close()
-        self.modulefilename = filename
+        if not os.path.isfile(self.modulefilename):
+            try:
+                f, filename, descr = imp.find_module(self.get_module_name())
+            except ImportError:
+                return
+            if f is not None:
+                f.close()
+            self.modulefilename = filename
         self._collect_types()
         self._status = 'module'
 
@@ -110,6 +146,7 @@ class Verifier(object):
     def _write_source(self, file=None):
         must_close = (file is None)
         if must_close:
+            _ensure_dir(self.sourcefilename)
             file = open(self.sourcefilename, 'w')
         self._f = file
         try:
@@ -189,6 +226,7 @@ class Verifier(object):
         except OSError:
             same = False
         if not same:
+            _ensure_dir(self.modulefilename)
             shutil.move(outputfilename, self.modulefilename)
         self._status = 'module'
 
