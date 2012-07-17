@@ -1578,6 +1578,22 @@ convert_struct_to_owning_object(char *data, CTypeDescrObject *ct); /*forward*/
 static cif_description_t *
 fb_prepare_cif(PyObject *fargs, CTypeDescrObject *, ffi_abi);      /*forward*/
 
+static PyObject *
+b_new_primitive_type(PyObject *self, PyObject *args);              /*forward*/
+
+static CTypeDescrObject *_get_ct_int(void)
+{
+    static CTypeDescrObject *ct_int = NULL;
+    if (ct_int == NULL) {
+        PyObject *args = Py_BuildValue("(s)", "int");
+        if (args == NULL)
+            return NULL;
+        ct_int = (CTypeDescrObject *)b_new_primitive_type(NULL, args);
+        Py_DECREF(args);
+    }
+    return ct_int;
+}
+
 static PyObject*
 cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 {
@@ -1639,8 +1655,17 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 
             if (CData_Check(obj)) {
                 ct = ((CDataObject *)obj)->c_type;
-                if (ct->ct_flags & CT_ARRAY)
+                if (ct->ct_flags & (CT_PRIMITIVE_CHAR|CT_PRIMITIVE_UNSIGNED|
+                                    CT_PRIMITIVE_SIGNED)) {
+                    if (ct->ct_size < sizeof(int)) {
+                        ct = _get_ct_int();
+                        if (ct == NULL)
+                            goto error;
+                    }
+                }
+                else if (ct->ct_flags & CT_ARRAY) {
                     ct = (CTypeDescrObject *)ct->ct_stuff;
+                }
                 Py_INCREF(ct);
             }
             else {

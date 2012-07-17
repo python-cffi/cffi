@@ -800,6 +800,11 @@ def test_call_function_9():
     assert f(2, cast(BInt, 40), cast(BInt, 2)) == 42
     py.test.raises(TypeError, f, 1, 42)
     py.test.raises(TypeError, f, 2, None)
+    # promotion of chars and shorts to ints
+    BSChar = new_primitive_type("signed char")
+    BUChar = new_primitive_type("unsigned char")
+    BSShort = new_primitive_type("short")
+    assert f(3, cast(BSChar, -3), cast(BUChar, 200), cast(BSShort, -5)) == 192
 
 def test_cannot_call_with_a_autocompleted_struct():
     BSChar = new_primitive_type("signed char")
