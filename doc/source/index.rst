@@ -425,7 +425,11 @@ compiler during ``verify()``:
 
 *  unknown types: the syntax "``typedef ... foo_t;``" declares the type
    ``foo_t`` as opaque.  Useful mainly for when the API takes and returns
-   ``foo_t *`` without you needing to look inside the ``foo_t``.
+   ``foo_t *`` without you needing to look inside the ``foo_t``.  Note that
+   such an opaque struct has no known size, which prevents some operations
+   from working (mostly like in C).  In some cases you need to say that
+   ``foo_t`` is not opaque, but you just don't know any field in it; then
+   you would use "``typedef struct { ...; } foo_t;``".
 
 *  array lengths: when used as structure fields, arrays can have an
    unspecified length, as in "``int n[];``" or "``int n[...];``.

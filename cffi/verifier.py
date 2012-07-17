@@ -91,7 +91,6 @@ class Verifier(object):
 
     def _collect_types(self):
         self._typesdict = {}
-        self._need_size = []
         self._generate("collecttype")
 
     def _do_collect_type(self, tp):
@@ -99,8 +98,6 @@ class Verifier(object):
                 tp not in self._typesdict):
             num = len(self._typesdict)
             self._typesdict[tp] = num
-            if isinstance(tp, model.StructOrUnion):
-                self._need_size.append(tp)
 
     def _write_source(self, file=None):
         must_close = (file is None)
@@ -219,20 +216,6 @@ class Verifier(object):
             pass
         library = FFILibrary()
         sz = module._cffi_setup(lst, ffiplatform.VerificationError, library)
-        #
-        # adjust the size of some structs based on what 'sz' returns
-        if self._need_size:
-            assert len(sz) == 2 * len(self._need_size)
-            for i, tp in enumerate(self._need_size):
-                size, alignment = sz[i*2], sz[i*2+1]
-                BType = self.ffi._get_cached_btype(tp)
-                if tp.fldtypes is None:
-                    # an opaque struct: give it now a size and alignment
-                    self.ffi._backend.complete_struct_or_union(BType, [], None,
-                                                               size, alignment)
-                else:
-                    assert size == self.ffi.sizeof(BType)
-                    assert alignment == self.ffi.alignof(BType)
         #
         # finally, call the loaded_cpy_xxx() functions.  This will perform
         # the final adjustments, like copying the Python->C wrapper
@@ -708,38 +691,8 @@ class Verifier(object):
         prnt('{')
         prnt('  if (%s < 0)' % self._chained_list_constants[True])
         prnt('    return NULL;')
-        # produce the size of the opaque structures that need it.
-        # So far, limited to the structures used as function arguments
-        # or results.  (These might not be real structures at all, but
-        # instead just some integer handles; but it works anyway)
-        if self._need_size:
-            N = len(self._need_size)
-            prnt('  else {')
-            for i, tp in enumerate(self._need_size):
-                prnt('    struct _cffi_aligncheck%d { char x; %s; };' % (
-                    i, tp.get_c_name(' y')))
-            prnt('    static Py_ssize_t content[] = {')
-            for i, tp in enumerate(self._need_size):
-                prnt('      sizeof(%s),' % tp.get_c_name())
-                prnt('      offsetof(struct _cffi_aligncheck%d, y),' % i)
-            prnt('    };')
-            prnt('    int i;')
-            prnt('    PyObject *o, *lst = PyList_New(%d);' % (2*N,))
-            prnt('    if (lst == NULL)')
-            prnt('      return NULL;')
-            prnt('    for (i=0; i<%d; i++) {' % (2*N,))
-            prnt('      o = PyInt_FromSsize_t(content[i]);')
-            prnt('      if (o == NULL) {')
-            prnt('        Py_DECREF(lst);')
-            prnt('        return NULL;')
-            prnt('      }')
-            prnt('      PyList_SET_ITEM(lst, i, o);')
-            prnt('    }')
-            prnt('    return lst;')
-            prnt('  }')
-        else:
-            prnt('  Py_INCREF(Py_None);')
-            prnt('  return Py_None;')
+        prnt('  Py_INCREF(Py_None);')
+        prnt('  return Py_None;')
         prnt('}')
 
 cffimod_header = r'''

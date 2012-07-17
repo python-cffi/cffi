@@ -683,9 +683,11 @@ def test_enum_as_function_result():
     assert lib.foo_func(lib.BB) == "BB"
 
 def test_opaque_integer_as_function_result():
+    # XXX bad abuse of "struct { ...; }".  It only works a bit by chance
+    # anyway.  XXX think about something better :-(
     ffi = FFI()
     ffi.cdef("""
-        typedef ... handle_t;
+        typedef struct { ...; } handle_t;
         handle_t foo(void);
     """)
     lib = ffi.verify("""
