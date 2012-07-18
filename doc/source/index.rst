@@ -732,7 +732,7 @@ object of the wrong type, or more generally raises an exception, then
 the exception cannot be propagated.  Instead, it is printed to stderr
 and the C-level callback is made to return a default value.
 
-The returned value in case of errors is null by default, but can be
+The returned value in case of errors is 0 or null by default, but can be
 specified with the ``error`` keyword argument to ``ffi.callback()``::
 
     >>> ffi.callback("int(*)(int, int)", myfunc, error=42)
