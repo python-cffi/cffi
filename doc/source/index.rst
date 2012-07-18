@@ -98,7 +98,7 @@ Platform-specific instructions
 
 ``libffi`` is notoriously messy to install and use --- to the point that
 CPython includes its own copy to avoid relying on external packages.
-CFFI did the same for Windows, but (so far) not for other platforms.
+CFFI does the same for Windows, but (so far) not for other platforms.
 Ubuntu Linux seems to work out of the box.  Here are some
 (user-supplied) instructions for other platforms.
 
