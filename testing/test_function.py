@@ -268,6 +268,3 @@ class TestFunction(object):
         ina = ffi.new("struct in_addr *", [0x04040404])
         a = ffi.C.inet_ntoa(ina[0])
         assert str(a) == '4.4.4.4'
-
-    def test_function_with_struct_return(self):
-        py.test.skip("this is a GNU C extension")
