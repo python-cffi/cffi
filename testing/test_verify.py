@@ -682,6 +682,25 @@ def test_enum_as_function_result():
     """)
     assert lib.foo_func(lib.BB) == "BB"
 
+def test_callback_calling_convention():
+    py.test.skip("later")
+    if sys.platform != 'win32':
+        py.test.skip("Windows only")
+    ffi = FFI()
+    ffi.cdef("""
+        int call1(int(*__cdecl cb)(int));
+        int call2(int(*__stdcall cb)(int));
+    """)
+    lib = ffi.verify("""
+        int call1(int(*__cdecl cb)(int)) {
+            return cb(42) + 1;
+        }
+        int call2(int(*__stdcall cb)(int)) {
+            return cb(-42) - 6;
+        }
+    """)
+    xxx
+
 def test_opaque_integer_as_function_result():
     # XXX bad abuse of "struct { ...; }".  It only works a bit by chance
     # anyway.  XXX think about something better :-(
