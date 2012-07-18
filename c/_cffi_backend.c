@@ -3346,40 +3346,6 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     return NULL;
 }
 
-static PyObject *b_get_function_type_args(PyObject *self, PyObject *arg)
-{
-    CTypeDescrObject *fct = (CTypeDescrObject *)arg;
-    PyObject *x, *args, *res, *ellipsis, *conv;
-    Py_ssize_t end;
-
-    if (!CTypeDescr_Check(arg) || !(fct->ct_flags & CT_FUNCTIONPTR)) {
-        PyErr_SetString(PyExc_TypeError, "expected a 'ctype' funcptr object");
-        return NULL;
-    }
-
-    args = NULL;
-    ellipsis = NULL;
-    conv = NULL;
-    x = NULL;
-
-    end = PyTuple_GET_SIZE(fct->ct_stuff);
-    args = PyTuple_GetSlice(fct->ct_stuff, 2, end);
-    if (args == NULL)
-        goto error;
-    res = PyTuple_GET_ITEM(fct->ct_stuff, 1);
-    ellipsis = PyInt_FromLong(fct->ct_extra == NULL);
-    if (ellipsis == NULL)
-        goto error;
-    conv = PyTuple_GET_ITEM(fct->ct_stuff, 0);
-    x = PyTuple_Pack(4, args, res, ellipsis, conv);
-    /* fall-through */
- error:
-    Py_XDECREF(args);
-    Py_XDECREF(ellipsis);
-    Py_XDECREF(conv);
-    return x;
-}
-
 static void invoke_callback(ffi_cif *cif, void *result, void **args,
                             void *userdata)
 {
@@ -3451,10 +3417,9 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     cif_description_t *cif_descr;
     ffi_closure *closure;
     Py_ssize_t size;
-    long fabi = FFI_DEFAULT_ABI;
 
-    if (!PyArg_ParseTuple(args, "O!O|Ol:callback", &CTypeDescr_Type, &ct, &ob,
-                          &error_ob, &fabi))
+    if (!PyArg_ParseTuple(args, "O!O|O:callback", &CTypeDescr_Type, &ct, &ob,
+                          &error_ob))
         return NULL;
 
     if (!(ct->ct_flags & CT_FUNCTIONPTR)) {
@@ -3924,7 +3889,6 @@ static PyMethodDef FFIBackendMethods[] = {
     {"new_union_type", b_new_union_type, METH_VARARGS},
     {"complete_struct_or_union", b_complete_struct_or_union, METH_VARARGS},
     {"new_function_type", b_new_function_type, METH_VARARGS},
-    {"get_function_type_args", b_get_function_type_args, METH_O},
     {"new_enum_type", b_new_enum_type, METH_VARARGS},
     {"_getfields", b__getfields, METH_O},
     {"newp", b_newp, METH_VARARGS},
@@ -4123,7 +4087,7 @@ void init_cffi_backend(void)
     if (v == NULL || PyModule_AddObject(m, "FFI_DEFAULT_ABI", v) < 0)
         return;
     Py_INCREF(v);
-    if (PyModule_AddObject(m, "FFI_CDECL", v) < 0)  /*win32 name*/
+    if (PyModule_AddObject(m, "FFI_CDECL", v) < 0)  /* win32 name */
         return;
 
     init_errno();

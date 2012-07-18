@@ -182,7 +182,7 @@ class FFI(object):
         """
         return self._backend.buffer(cdata, size)
 
-    def callback(self, cdecl, python_callable, error=None, conv=None):
+    def callback(self, cdecl, python_callable, error=None):
         """Return a callback object.  'cdecl' must name a C function pointer
         type.  The callback invokes the specified 'python_callable'.
         Important: the callback object must be manually kept alive for as
@@ -191,31 +191,7 @@ class FFI(object):
         if not callable(python_callable):
             raise TypeError("the 'python_callable' argument is not callable")
         BFunc = self.typeof(cdecl, consider_function_as_funcptr=True)
-        if conv is not None:
-            BFunc = self._functype_with_conv(BFunc, conv)
         return self._backend.callback(BFunc, python_callable, error)
-
-    def _functype_with_conv(self, BFunc, conv):
-        abiname = '%s' % (conv.upper(),)
-        try:
-            abi = getattr(self._backend, 'FFI_' + abiname)
-        except AttributeError:
-            raise ValueError("the calling convention %r is unknown to "
-                             "the backend" % (abiname,))
-        if abi == self._backend.FFI_DEFAULT_ABI:
-            return BFunc
-        # xxx only for _cffi_backend.c so far
-        try:
-            bfunc_abi_cache = self._bfunc_abi_cache
-            return bfunc_abi_cache[BFunc, abi]
-        except AttributeError:
-            bfunc_abi_cache = self._bfunc_abi_cache = {}
-        except KeyError:
-            pass
-        args, res, ellipsis, _ = self._backend.get_function_type_args(BFunc)
-        result = self._backend.new_function_type(args, res, ellipsis, abi)
-        bfunc_abi_cache[BFunc, abi] = result
-        return result
 
     def getctype(self, cdecl, replace_with=''):
         """Return a string giving the C type 'cdecl', which may be itself

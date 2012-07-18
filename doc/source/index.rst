@@ -718,14 +718,9 @@ variable somewhere.)
 
 Note that callbacks of a variadic function type are not supported.
 
-Windows: for regular calls, the correct calling convention should be
-automatically inferred by the C backend, but that doesn't work for
-callbacks.  The default calling convention is "cdecl", like in C;
-if needed, you must force the calling convention with the keyword
-argument ``conv``::
-
-    ffi.callback("int(*)(int, int)", myfunc, conv="stdcall")
-    ffi.callback("int(*)(int, int)", myfunc, conv="cdecl")  # default
+Windows: you can't yet specify the calling convention of callbacks.
+(For regular calls, the correct calling convention should be
+automatically inferred by the C backend.)
 
 Be careful when writing the Python callback function: if it returns an
 object of the wrong type, or more generally raises an exception, then
