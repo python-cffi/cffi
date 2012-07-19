@@ -40,7 +40,7 @@ class FFI(object):
                 import _cffi_backend as backend
             except ImportError, e:
                 import warnings
-                warnings.warn("ImportError: %s\n"
+                warnings.warn("import _cffi_backend: %s\n"
                               "Falling back to the ctypes backend." % (e,))
                 from . import backend_ctypes
                 backend = backend_ctypes.CTypesBackend()
