@@ -2,6 +2,7 @@ import sys, os
 
 
 from setup import include_dirs, sources, libraries, define_macros
+from setup import library_dirs, extra_compile_args, extra_link_args
 
 
 if __name__ == '__main__':
@@ -14,4 +15,7 @@ if __name__ == '__main__':
                                  sources=sources,
                                  libraries=libraries,
                                  define_macros=define_macros,
+                                 library_dirs=library_dirs,
+                                 extra_compile_args=extra_compile_args,
+                                 extra_link_args=extra_link_args,
                                  )])

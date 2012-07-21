@@ -7,6 +7,36 @@ sources = ['c/_cffi_backend.c']
 libraries = ['ffi']
 include_dirs = []
 define_macros = []
+library_dirs = []
+extra_compile_args = []
+extra_link_args = []
+
+
+def _ask_pkg_config(option, result_prefix=''):
+    try:
+        p = subprocess.Popen(['pkg-config', option, 'libffi'],
+                             stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
+    except OSError, e:
+        if e.errno != errno.ENOENT:
+            raise
+    else:
+        t = p.stdout.read().strip()
+        if p.wait() == 0:
+            res = t.split()
+            # '-I/usr/...' -> '/usr/...'
+            for x in res:
+                assert x.startswith(result_prefix)
+            res = [x[len(result_prefix):] for x in res]
+            #print 'PKG_CONFIG:', option, res
+            return res
+    return []
+
+def use_pkg_config():
+    include_dirs      .extend(_ask_pkg_config('--cflags-only-I', '-I'))
+    extra_compile_args.extend(_ask_pkg_config('--cflags-only-other'))
+    library_dirs      .extend(_ask_pkg_config('--libs-only-L', '-L'))
+    extra_link_args   .extend(_ask_pkg_config('--libs-only-other'))
+    libraries[:] = _ask_pkg_config('--libs-only-l', '-l') or libraries
 
 
 if sys.platform == 'win32':
@@ -33,17 +63,7 @@ if COMPILE_LIBFFI:
                    for filename in _filenames)
     define_macros.append(('USE_C_LIBFFI_MSVC', '1'))
 else:
-    try:
-        p = subprocess.Popen(['pkg-config', '--cflags-only-I', 'libffi'],
-                             stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
-    except OSError, e:
-        if e.errno != errno.ENOENT:
-            raise
-    else:
-        t = p.stdout.read().strip()
-        if p.wait() == 0 and t:
-            # '-I/usr/...' -> '/usr/...'
-            include_dirs.append(t[2:])
+    use_pkg_config()
 
 
 if __name__ == '__main__':
