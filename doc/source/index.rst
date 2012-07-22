@@ -71,7 +71,7 @@ Download and Installation:
 * https://bitbucket.org/cffi/cffi/downloads
 
 * ``python setup.py install`` or ``python setup_base.py install``
-  (should work out of the box on Ubuntu or Windows; see below for
+  (should work out of the box on Linux or Windows; see below for
   `MacOS 10.6`_)
 
 * or you can directly import and use ``cffi``, but if you don't
@@ -99,7 +99,7 @@ Platform-specific instructions
 ``libffi`` is notoriously messy to install and use --- to the point that
 CPython includes its own copy to avoid relying on external packages.
 CFFI does the same for Windows, but (so far) not for other platforms.
-Ubuntu Linux seems to work out of the box.  Here are some
+Modern Linuxes work out of the box thanks to ``pkg-config``.  Here are some
 (user-supplied) instructions for other platforms.
 
 
