@@ -247,7 +247,6 @@ with C code to initialize global variables.
 
 The actual function calls should be obvious.  It's like C.
 
-
 =======================================================
 
 Distributing modules using CFFI
@@ -619,6 +618,44 @@ like ``ffi.new("int[%d]" % x)``.  Indeed, this is not recommended:
 ``ffi`` normally caches the string ``"int[]"`` to not need to re-parse
 it all the time.
 
+
+An example of calling a main-like thing
+---------------------------------------
+
+Imagine we have something like this:
+
+.. code-block:: python
+
+   from cffi import FFI
+   ffi = FFI()
+   ffi.cdef("""
+      int main_like(int argv, char *argv[]);
+   """)
+
+Now, everything is simple, except, how do we create ``char**`` argument here?
+The first idea:
+
+.. code-block:: python
+
+   argv = ffi.new("char *[]", ["arg0", "arg1"])
+
+Does not work, because the initializer receives python ``str`` instead of
+``char*``. Now, the following would work:
+
+.. code-block:: python
+
+   argv = ffi.new("char *[]", [ffi.new("char[]", "xyz")])
+
+However, the "xyz" string will not be automatically kept alive. Instead
+we need to make sure that the list is stored somewhere for long enough.
+For example:
+
+.. code-block:: python
+
+   argv_keepalive = [ffi.new("char[]", "xyz")]
+   argv = ffi.new("char *[]", argv_keepalive)
+
+would work.
 
 Function calls
 --------------
