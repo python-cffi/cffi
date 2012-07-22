@@ -812,9 +812,11 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         char *ptrdata;
         CTypeDescrObject *ctinit;
 
-        expected = "compatible pointer";
-        if (!CData_Check(init))
+        if (!CData_Check(init)) {
+            expected = "cdata pointer";
             goto cannot_convert;
+        }
+        expected = "compatible pointer";
         ctinit = ((CDataObject *)init)->c_type;
         if (!(ctinit->ct_flags & (CT_POINTER|CT_FUNCTIONPTR))) {
             if (ctinit->ct_flags & CT_ARRAY)
