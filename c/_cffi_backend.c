@@ -816,20 +816,23 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             expected = "cdata pointer";
             goto cannot_convert;
         }
-        expected = "compatible pointer";
         ctinit = ((CDataObject *)init)->c_type;
         if (!(ctinit->ct_flags & (CT_POINTER|CT_FUNCTIONPTR))) {
             if (ctinit->ct_flags & CT_ARRAY)
                 ctinit = (CTypeDescrObject *)ctinit->ct_stuff;
-            else
+            else {
+                expected = "pointer or array";
                 goto cannot_convert;
+            }
         }
         if (ctinit != ct) {
             if ((ct->ct_flags & CT_CAST_ANYTHING) ||
                 (ctinit->ct_flags & CT_CAST_ANYTHING))
                 ;   /* accept void* or char* as either source or target */
-            else
+            else {
+                expected = "pointer to same type";
                 goto cannot_convert;
+            }
         }
         ptrdata = ((CDataObject *)init)->c_data;
 

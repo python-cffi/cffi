@@ -632,7 +632,8 @@ Imagine we have something like this:
       int main_like(int argv, char *argv[]);
    """)
 
-Now, everything is simple, except, how do we create ``char**`` argument here?
+Now, everything is simple, except, how do we create the ``char**`` argument
+here?
 The first idea:
 
 .. code-block:: python
@@ -640,22 +641,25 @@ The first idea:
    argv = ffi.new("char *[]", ["arg0", "arg1"])
 
 Does not work, because the initializer receives python ``str`` instead of
-``char*``. Now, the following would work:
+``char*``. Now, the following would almost work:
 
 .. code-block:: python
 
-   argv = ffi.new("char *[]", [ffi.new("char[]", "xyz")])
+   argv = ffi.new("char *[]", [ffi.new("char[]", "arg0"),
+                               ffi.new("char[]", "arg1")])
 
-However, the "xyz" string will not be automatically kept alive. Instead
-we need to make sure that the list is stored somewhere for long enough.
+However, the two ``char[]`` objects will not be automatically kept alive.
+To keep them alive, one solution is to make sure that the list is stored
+somewhere for long enough.
 For example:
 
 .. code-block:: python
 
-   argv_keepalive = [ffi.new("char[]", "xyz")]
+   argv_keepalive = [ffi.new("char[]", "arg0"),
+                     ffi.new("char[]", "arg1")]
    argv = ffi.new("char *[]", argv_keepalive)
 
-would work.
+will work.
 
 Function calls
 --------------
@@ -817,7 +821,7 @@ Corresponds to the ``__alignof__`` operator in GCC.
 ``ffi.offsetof("C struct type", "fieldname")``: return the offset within
 the struct of the given field.  Corresponds to ``offsetof()`` in C.
 
-``ffi.getcname("C type" or <ctype>, ["extra"])``: return the string
+``ffi.getcname("C type" or <ctype>, extra="")``: return the string
 representation of the given C type.  If non-empty, the "extra" string is
 appended (or inserted at the right place in more complicated cases); it
 can be the name of a variable to declare, or an extra part of the type
