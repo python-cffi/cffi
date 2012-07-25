@@ -1398,11 +1398,11 @@ def test_wchar():
     assert str(w) == repr(w)
     assert unicode(w) == u'\u1234'
     assert int(w) == 0x1234
-    w = cast(BWChar, u'\u1234')
-    assert repr(w) == "<cdata 'wchar_t' u'\u1234'>"
+    w = cast(BWChar, u'\u8234')
+    assert repr(w) == "<cdata 'wchar_t' u'\u8234'>"
     assert str(w) == repr(w)
-    assert unicode(w) == u'\u1234'
-    assert int(w) == 0x1234
+    assert unicode(w) == u'\u8234'
+    assert int(w) == 0x8234
     w = cast(BInt, u'\u1234')
     assert repr(w) == "<cdata 'int' 4660>"
     if wchar4:
