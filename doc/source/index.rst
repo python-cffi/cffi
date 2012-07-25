@@ -66,6 +66,9 @@ Requirements:
 
 * libffi (you need ``libffi-dev``); the Windows version is included with CFFI.
 
+* a C compiler is required to use CFFI during development, but not to run
+  correctly-installed programs that use CFFI.
+
 Download and Installation:
 
 * https://bitbucket.org/cffi/cffi/downloads
@@ -76,8 +79,8 @@ Download and Installation:
 
 * or you can directly import and use ``cffi``, but if you don't
   compile the ``_cffi_backend`` extension module, it will fall back
-  to using internally ``ctypes`` (slower and does not support
-  ``verify()``).
+  to using internally ``ctypes`` (much slower and does not support
+  ``verify()``; we recommend not to use it).
 
 Demos:
 
