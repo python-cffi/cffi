@@ -1599,6 +1599,19 @@ static CTypeDescrObject *_get_ct_int(void)
     return ct_int;
 }
 
+static CTypeDescrObject *_get_ct_long(void)
+{
+    static CTypeDescrObject *ct_long = NULL;
+    if (ct_long == NULL) {
+        PyObject *args = Py_BuildValue("(s)", "long");
+        if (args == NULL)
+            return NULL;
+        ct_long = (CTypeDescrObject *)b_new_primitive_type(NULL, args);
+        Py_DECREF(args);
+    }
+    return ct_long;
+}
+
 static PyObject*
 cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 {
@@ -1660,7 +1673,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 
             if (CData_Check(obj)) {
                 ct = ((CDataObject *)obj)->c_type;
-                if (ct->ct_flags & (CT_PRIMITIVE_CHAR|CT_PRIMITIVE_UNSIGNED|
+                if (ct->ct_flags & (CT_PRIMITIVE_CHAR | CT_PRIMITIVE_UNSIGNED |
                                     CT_PRIMITIVE_SIGNED)) {
                     if (ct->ct_size < sizeof(int)) {
                         ct = _get_ct_int();
@@ -1740,7 +1753,18 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
              resultdata, buffer_array);
     save_errno();
 
-    if (fresult->ct_flags & CT_VOID) {
+    if (fresult->ct_flags & (CT_PRIMITIVE_CHAR | CT_PRIMITIVE_SIGNED |
+                             CT_PRIMITIVE_UNSIGNED)) {
+#ifdef WORDS_BIGENDIAN
+        /* For results of precisely these types, libffi has a strange
+           rule that they will be returned as a whole 'ffi_arg' if they
+           are smaller.  The difference only matters on big-endian. */
+        if (fresult->ct_size < sizeof(ffi_arg))
+            resultdata += (sizeof(ffi_arg) - fresult->ct_size);
+#endif
+        res = convert_to_object(resultdata, fresult);
+    }
+    else if (fresult->ct_flags & CT_VOID) {
         res = Py_None;
         Py_INCREF(res);
     }
@@ -3351,6 +3375,47 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     return NULL;
 }
 
+static int convert_from_object_fficallback(char *result,
+                                           CTypeDescrObject *ctype,
+                                           PyObject *pyobj)
+{
+    /* work work work around a libffi irregularity: for integer return
+       types we have to fill at least a complete 'ffi_arg'-sized result
+       buffer. */
+    if (ctype->ct_size < sizeof(ffi_arg)) {
+        if ((ctype->ct_flags & (CT_PRIMITIVE_SIGNED | CT_IS_ENUM))
+                == CT_PRIMITIVE_SIGNED) {
+            /* It's probably fine to always zero-extend, but you never
+               know: maybe some code somewhere expects a negative
+               'short' result to be returned into EAX as a 32-bit
+               negative number.  Better safe than sorry.  This code
+               is about that case.  Let's ignore this for enums.
+            */
+            /* do a first conversion only to detect overflows.  This
+               conversion produces stuff that is otherwise ignored. */
+            if (convert_from_object(result, ctype, pyobj) < 0)
+                return -1;
+            /* sign-extend the result to a whole 'ffi_arg' (which has the
+               size of a long).  This ensures that we write it in the whole
+               '*result' buffer independently of endianness. */
+            ctype = _get_ct_long();
+            if (ctype == NULL)
+                return -1;
+            assert(ctype->ct_size == sizeof(ffi_arg));
+        }
+        else if (ctype->ct_flags & (CT_PRIMITIVE_CHAR | CT_PRIMITIVE_SIGNED |
+                                    CT_PRIMITIVE_UNSIGNED)) {
+            /* zero extension: fill the '*result' with zeros, and (on big-
+               endian machines) correct the 'result' pointer to write to */
+            memset(result, 0, sizeof(ffi_arg));
+#ifdef WORDS_BIGENDIAN
+            result += (sizeof(ffi_arg) - ctype->ct_size);
+#endif
+        }
+    }
+    return convert_from_object(result, ctype, pyobj);
+}
+
 static void invoke_callback(ffi_cif *cif, void *result, void **args,
                             void *userdata)
 {
@@ -3386,7 +3451,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
         goto error;
 
     if (SIGNATURE(1)->ct_size > 0) {
-        if (convert_from_object(result, SIGNATURE(1), py_res) < 0)
+        if (convert_from_object_fficallback(result, SIGNATURE(1), py_res) < 0)
             goto error;
     }
     else if (py_res != Py_None) {
@@ -3405,7 +3470,8 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     PyErr_WriteUnraisable(py_ob);
     if (SIGNATURE(1)->ct_size > 0) {
         py_rawerr = PyTuple_GET_ITEM(cb_args, 2);
-        memcpy(result, PyString_AS_STRING(py_rawerr), SIGNATURE(1)->ct_size);
+        memcpy(result, PyString_AS_STRING(py_rawerr),
+                       PyString_GET_SIZE(py_rawerr));
     }
     goto done;
     }
@@ -3441,15 +3507,21 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
 
     ctresult = (CTypeDescrObject *)PyTuple_GET_ITEM(ct->ct_stuff, 1);
     size = ctresult->ct_size;
-    if (size < 0)
+    if (ctresult->ct_flags & (CT_PRIMITIVE_CHAR | CT_PRIMITIVE_SIGNED |
+                              CT_PRIMITIVE_UNSIGNED)) {
+        if (size < sizeof(ffi_arg))
+            size = sizeof(ffi_arg);
+    }
+    else if (size < 0) {
         size = 0;
+    }
     py_rawerr = PyString_FromStringAndSize(NULL, size);
     if (py_rawerr == NULL)
         return NULL;
     memset(PyString_AS_STRING(py_rawerr), 0, size);
     if (error_ob != Py_None) {
-        if (convert_from_object(PyString_AS_STRING(py_rawerr),
-                                ctresult, error_ob) < 0) {
+        if (convert_from_object_fficallback(
+                PyString_AS_STRING(py_rawerr), ctresult, error_ob) < 0) {
             Py_DECREF(py_rawerr);
             return NULL;
         }

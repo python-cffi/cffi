@@ -953,6 +953,42 @@ def test_enum_in_struct():
     e = py.test.raises(TypeError, newp, BStructPtr, [None])
     assert "must be a str or int, not NoneType" in str(e.value)
 
+def test_callback_returning_enum():
+    BInt = new_primitive_type("int")
+    BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
+    def cb(n):
+        return '#%d' % n
+    BFunc = new_function_type((BInt,), BEnum)
+    f = callback(BFunc, cb)
+    assert f(0) == 'def'
+    assert f(1) == 'c'
+    assert f(-20) == 'ab'
+    assert f(20) == '#20'
+
+def test_callback_returning_char():
+    BInt = new_primitive_type("int")
+    BChar = new_primitive_type("char")
+    def cb(n):
+        return chr(n)
+    BFunc = new_function_type((BInt,), BChar)
+    f = callback(BFunc, cb)
+    assert f(0) == '\x00'
+    assert f(255) == '\xFF'
+
+def test_callback_returning_wchar_t():
+    BInt = new_primitive_type("int")
+    BWChar = new_primitive_type("wchar_t")
+    def cb(n):
+        if n < 0:
+            return u'\U00012345'
+        return unichr(n)
+    BFunc = new_function_type((BInt,), BWChar)
+    f = callback(BFunc, cb)
+    assert f(0) == unichr(0)
+    assert f(255) == unichr(255)
+    assert f(0x1234) == u'\u1234'
+    assert f(-1) == u'\U00012345'
+
 def test_struct_with_bitfields():
     BLong = new_primitive_type("long")
     BStruct = new_struct_type("foo")
