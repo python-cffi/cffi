@@ -1,5 +1,6 @@
 # Based on http://cocoawithlove.com/2010/09/minimalist-cocoa-programming.html
-# by Juraj Sukop
+# by Juraj Sukop.  This demo was eventually expanded into a more complete
+# Cocoa library available at https://bitbucket.org/sukop/nspython .
 
 from cffi import FFI
 
