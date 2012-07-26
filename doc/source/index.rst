@@ -960,7 +960,7 @@ can be instantiated directly.  It is normally instantiated for you by
   operations to the C module.  This is what is returned by
   ``ffi.verify()``.
 
-- ``get_extension)``: returns a distutils-compatible ``Extension`` instance.
+- ``get_extension()``: returns a distutils-compatible ``Extension`` instance.
 
 The following are global functions in the ``cffi.verifier`` module:
 
