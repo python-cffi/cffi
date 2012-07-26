@@ -1599,19 +1599,6 @@ static CTypeDescrObject *_get_ct_int(void)
     return ct_int;
 }
 
-static CTypeDescrObject *_get_ct_long(void)
-{
-    static CTypeDescrObject *ct_long = NULL;
-    if (ct_long == NULL) {
-        PyObject *args = Py_BuildValue("(s)", "long");
-        if (args == NULL)
-            return NULL;
-        ct_long = (CTypeDescrObject *)b_new_primitive_type(NULL, args);
-        Py_DECREF(args);
-    }
-    return ct_long;
-}
-
 static PyObject*
 cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 {
@@ -3377,6 +3364,7 @@ static int convert_from_object_fficallback(char *result,
     if (ctype->ct_size < sizeof(ffi_arg)) {
         if ((ctype->ct_flags & (CT_PRIMITIVE_SIGNED | CT_IS_ENUM))
                 == CT_PRIMITIVE_SIGNED) {
+            PY_LONG_LONG value;
             /* It's probably fine to always zero-extend, but you never
                know: maybe some code somewhere expects a negative
                'short' result to be returned into EAX as a 32-bit
@@ -3387,13 +3375,13 @@ static int convert_from_object_fficallback(char *result,
                conversion produces stuff that is otherwise ignored. */
             if (convert_from_object(result, ctype, pyobj) < 0)
                 return -1;
-            /* sign-extend the result to a whole 'ffi_arg' (which has the
-               size of a long).  This ensures that we write it in the whole
-               '*result' buffer independently of endianness. */
-            ctype = _get_ct_long();
-            if (ctype == NULL)
+            /* manual inlining and tweaking of convert_from_object()
+               in order to write a whole 'ffi_arg'. */
+            value = _my_PyLong_AsLongLong(pyobj);
+            if (value == -1 && PyErr_Occurred())
                 return -1;
-            assert(ctype->ct_size == sizeof(ffi_arg));
+            write_raw_integer_data(result, value, sizeof(ffi_arg));
+            return 0;
         }
         else if (ctype->ct_flags & (CT_PRIMITIVE_CHAR | CT_PRIMITIVE_SIGNED |
                                     CT_PRIMITIVE_UNSIGNED)) {
