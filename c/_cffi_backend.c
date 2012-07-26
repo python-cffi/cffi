@@ -1648,7 +1648,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     if (cif_descr != NULL) {
         /* regular case: this function does not take '...' arguments */
         if (nargs != nargs_declared) {
-            errormsg = "%s expects %zd arguments, got %zd";
+            errormsg = "'%s' expects %zd arguments, got %zd";
             goto bad_number_of_arguments;
         }
     }
@@ -1656,7 +1656,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         /* call of a variadic function */
         ffi_abi fabi;
         if (nargs < nargs_declared) {
-            errormsg = "%s expects at least %zd arguments, got %zd";
+            errormsg = "'%s' expects at least %zd arguments, got %zd";
             goto bad_number_of_arguments;
         }
         fvarargs = PyTuple_New(nargs);
@@ -1784,16 +1784,8 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     return res;
 
  bad_number_of_arguments:
-    {
-        PyObject *s = Py_TYPE(cd)->tp_repr((PyObject *)cd);
-        if (s != NULL) {
-            PyErr_Format(PyExc_TypeError, errormsg,
-                         PyString_AS_STRING(s), nargs_declared, nargs);
-            Py_DECREF(s);
-        }
-        goto error;
-    }
-
+    PyErr_Format(PyExc_TypeError, errormsg,
+                 cd->c_type->ct_name, nargs_declared, nargs);
  error:
     if (buffer)
         PyObject_Free(buffer);
