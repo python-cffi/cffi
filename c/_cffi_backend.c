@@ -1217,7 +1217,7 @@ static PyObject *cdata_unicode(CDataObject *cd)
         return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, length);
     }
     else
-        return cdata_repr(cd);
+        return Py_TYPE(cd)->tp_repr((PyObject *)cd);
 }
 #endif
 
