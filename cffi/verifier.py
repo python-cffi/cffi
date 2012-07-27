@@ -386,11 +386,11 @@ class Verifier(object):
                 prnt('  { %s = &p->%s; (void)tmp; }' % (
                     ftype.get_c_name('(*tmp)'), fname))
         prnt('}')
-        prnt('ssize_t %s(void)' % (layoutfuncname,))
+        prnt('ssize_t %s(ssize_t i)' % (layoutfuncname,))
         prnt('{')
         prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
         if tp.partial:
-            prnt('  static Py_ssize_t nums[] = {')
+            prnt('  static ssize_t nums[] = {')
             prnt('    sizeof(%s),' % cname)
             prnt('    offsetof(struct _cffi_aligncheck, y),')
             for fname in tp.fldnames:
@@ -398,7 +398,8 @@ class Verifier(object):
                 prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
             prnt('    -1')
             prnt('  };')
-            prnt('  return _cffi_get_struct_layout(nums);')
+            prnt('  if (i < 0) return 1;')
+            prnt('  return nums[i];')
         else:
             ffi = self.ffi
             BStruct = ffi._get_cached_btype(tp)
@@ -440,15 +441,20 @@ class Verifier(object):
         layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
         cname = ('%s %s' % (prefix, name)).strip()
         #
-        BFunc = self.ffi.typeof("ssize_t(*)(void)")
+        BFunc = self.ffi.typeof("ssize_t(*)(ssize_t)")
         function = module.load_function(BFunc, layoutfuncname)
-        layout = function()
+        layout = function(-1)
         if layout < 0:
             raise ffiplatform.VerificationError(
                 "incompatible layout for %s" % cname)
         elif layout == 0:
             assert not tp.partial
         else:
+            layout = []
+            while True:
+                x = function(len(layout))
+                if x < 0: break
+                layout.append(x)
             totalsize = layout[0]
             totalalignment = layout[1]
             fieldofs = layout[2::2]
