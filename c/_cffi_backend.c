@@ -3105,7 +3105,7 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
         /* then enough room for the result --- which means at least
            sizeof(ffi_arg), according to the ffi docs */
         i = fb->rtype->size;
-        if (i < sizeof(ffi_arg))
+        if (i < (Py_ssize_t)sizeof(ffi_arg))
             i = sizeof(ffi_arg);
         exchange_offset += i;
     }
@@ -3361,7 +3361,17 @@ static int convert_from_object_fficallback(char *result,
     /* work work work around a libffi irregularity: for integer return
        types we have to fill at least a complete 'ffi_arg'-sized result
        buffer. */
-    if (ctype->ct_size < sizeof(ffi_arg)) {
+    if (ctype->ct_size < (Py_ssize_t)sizeof(ffi_arg)) {
+        if (ctype->ct_flags & CT_VOID) {
+            if (pyobj == Py_None) {
+                return 0;
+            }
+            else {
+                PyErr_SetString(PyExc_TypeError,
+                    "callback with the return type 'void' must return None");
+                return -1;
+            }
+        }
         if ((ctype->ct_flags & (CT_PRIMITIVE_SIGNED | CT_IS_ENUM))
                 == CT_PRIMITIVE_SIGNED) {
             PY_LONG_LONG value;
@@ -3429,16 +3439,8 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     py_res = PyEval_CallObject(py_ob, py_args);
     if (py_res == NULL)
         goto error;
-
-    if (SIGNATURE(1)->ct_size > 0) {
-        if (convert_from_object_fficallback(result, SIGNATURE(1), py_res) < 0)
-            goto error;
-    }
-    else if (py_res != Py_None) {
-        PyErr_SetString(PyExc_TypeError, "callback with the return type 'void'"
-                                         " must return None");
+    if (convert_from_object_fficallback(result, SIGNATURE(1), py_res) < 0)
         goto error;
-    }
  done:
     Py_XDECREF(py_args);
     Py_XDECREF(py_res);
@@ -3487,14 +3489,8 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
 
     ctresult = (CTypeDescrObject *)PyTuple_GET_ITEM(ct->ct_stuff, 1);
     size = ctresult->ct_size;
-    if (ctresult->ct_flags & (CT_PRIMITIVE_CHAR | CT_PRIMITIVE_SIGNED |
-                              CT_PRIMITIVE_UNSIGNED)) {
-        if (size < sizeof(ffi_arg))
-            size = sizeof(ffi_arg);
-    }
-    else if (size < 0) {
-        size = 0;
-    }
+    if (size < (Py_ssize_t)sizeof(ffi_arg))
+        size = sizeof(ffi_arg);
     py_rawerr = PyString_FromStringAndSize(NULL, size);
     if (py_rawerr == NULL)
         return NULL;

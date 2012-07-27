@@ -383,11 +383,27 @@ class Parser(object):
                            "not immediately constant expression")
 
     def _get_enum_type(self, type):
+        # See _get_struct_or_union_type() for the reason of the
+        # complicated logic here.  This is still a simplified version,
+        # assuming that it's ok to assume the more complicated cases
+        # don't occur...
+        try:
+            return self._structnode2type[type]
+        except KeyError:
+            pass
         name = type.name
+        if name is None:
+            self._anonymous_counter += 1
+            explicit_name = '$%d' % self._anonymous_counter
+            key = None
+        else:
+            explicit_name = name
+            key = 'enum %s' % (name,)
+            tp = self._declarations.get(key, None)
+            if tp is not None:
+                return tp
+        #
         decls = type.values
-        key = 'enum %s' % (name,)
-        if key in self._declarations:
-            return self._declarations[key]
         if decls is not None:
             enumerators = [enum.name for enum in decls.enumerators]
             partial = False
@@ -403,11 +419,13 @@ class Parser(object):
                 enumvalues.append(nextenumvalue)
                 nextenumvalue += 1
             enumvalues = tuple(enumvalues) 
-            tp = model.EnumType(name, enumerators, enumvalues)
+            tp = model.EnumType(explicit_name, enumerators, enumvalues)
             tp.partial = partial
-            self._declare(key, tp)
+            if key is not None:
+                self._declare(key, tp)
         else:   # opaque enum
             enumerators = ()
             enumvalues = ()
-            tp = model.EnumType(name, (), ())
+            tp = model.EnumType(explicit_name, (), ())
+        self._structnode2type[type] = tp
         return tp
