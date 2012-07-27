@@ -199,8 +199,14 @@ class Verifier(object):
             return
         prnt = self._prnt
         numargs = len(tp.args)
-        arglist = [type.get_c_name(' x%d' % i)
-                   for i, type in enumerate(tp.args)]
+        argnames = []
+        for i, type in enumerate(tp.args):
+            indirection = ''
+            if isinstance(type, model.StructOrUnion):
+                indirection = '*'
+            argnames.append('%sx%d' % (indirection, i))
+        arglist = [type.get_c_name(' %s' % arg)
+                   for type, arg in zip(tp.args, argnames)]
         arglist = ', '.join(arglist) or 'void'
         funcdecl = ' _cffi_f_%s(%s)' % (name, arglist)
         prnt(tp.result.get_c_name(funcdecl))
@@ -210,18 +216,25 @@ class Verifier(object):
             result_code = 'return '
         else:
             result_code = ''
-        prnt('  %s%s(%s);' % (
-            result_code, name,
-            ', '.join(['x%d' % i for i in range(len(tp.args))])))
+        prnt('  %s%s(%s);' % (result_code, name, ', '.join(argnames)))
         prnt('}')
         prnt()
 
     _loading_cpy_function = _loaded_noop
 
     def _loaded_cpy_function(self, tp, name, module, library):
+        assert isinstance(tp, model.FunctionPtrType)
         if tp.ellipsis:
             newfunction = self._load_constant(False, tp, name, module)
         else:
+            if any(isinstance(type, model.StructOrUnion) for type in tp.args):
+                indirect_args = []
+                for i, type in enumerate(tp.args):
+                    if isinstance(type, model.StructOrUnion):
+                        type = model.PointerType(type)
+                    indirect_args.append(type)
+                tp = model.FunctionPtrType(tuple(indirect_args),
+                                           tp.result, tp.ellipsis)
             BFunc = self.ffi._get_cached_btype(tp)
             wrappername = '_cffi_f_%s' % name
             newfunction = module.load_function(BFunc, wrappername)

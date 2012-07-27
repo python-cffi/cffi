@@ -1729,8 +1729,18 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             }
 #endif
         }
-        if (convert_from_object(data, argtype, obj) < 0)
+        if (convert_from_object(data, argtype, obj) < 0) {
+            if (CData_Check(obj) && argtype->ct_flags & CT_POINTER &&
+                   argtype->ct_itemdescr == ((CDataObject *)obj)->c_type) {
+                /* special case to make the life of verifier.py easier:
+                   if the formal argument type is 'struct foo *' but
+                   we pass a 'struct foo', then get a pointer to it */
+                PyErr_Clear();
+                ((char **)data)[0] = ((CDataObject *)obj)->c_data;
+                continue;
+            }
             goto error;
+        }
     }
 
     resultdata = buffer + cif_descr->exchange_offset_arg[0];
