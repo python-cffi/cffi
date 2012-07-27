@@ -148,30 +148,6 @@ class Verifier(object):
         # implement the function _cffi_setup_custom() as calling the
         # head of the chained list.
         self._generate_setup_custom()
-        prnt()
-        #
-        # produce the method table, including the entries for the
-        # generated Python->C function wrappers, which are done
-        # by generate_cpy_function_method().
-        prnt('static PyMethodDef _cffi_methods[] = {')
-        self._generate("method")
-        prnt('  {"_cffi_setup", _cffi_setup, METH_VARARGS},')
-        prnt('  {NULL, NULL}    /* Sentinel */')
-        prnt('};')
-        prnt()
-        #
-        # standard init.
-        modname = self.get_module_name()
-        prnt('PyMODINIT_FUNC')
-        prnt('init%s(void)' % modname)
-        prnt('{')
-        prnt('  PyObject *lib;')
-        prnt('  lib = Py_InitModule("%s", _cffi_methods);' % modname)
-        prnt('  if (lib == NULL || %s < 0)' % (
-            self._chained_list_constants[False],))
-        prnt('    return;')
-        prnt('  _cffi_init();')
-        prnt('}')
 
     def _compile_module(self):
         # compile this C source
@@ -188,13 +164,9 @@ class Verifier(object):
 
     def _load_library(self):
         # XXX review all usages of 'self' here!
-        # import it as a new extension module
-        try:
-            module = imp.load_dynamic(self.get_module_name(),
-                                      self.modulefilename)
-        except ImportError, e:
-            error = "importing %r: %s" % (self.modulefilename, e)
-            raise ffiplatform.VerificationError(error)
+        # import it with the CFFI backend
+        backend = self.ffi._backend
+        module = backend.load_library(self.modulefilename)
         #
         # call loading_cpy_struct() to get the struct layout inferred by
         # the C compiler
@@ -202,10 +174,10 @@ class Verifier(object):
         #
         # the C code will need the <ctype> objects.  Collect them in
         # order in a list.
-        revmapping = dict([(value, key)
-                           for (key, value) in self._typesdict.items()])
-        lst = [revmapping[i] for i in range(len(revmapping))]
-        lst = map(self.ffi._get_cached_btype, lst)
+        #revmapping = dict([(value, key)
+        #                   for (key, value) in self._typesdict.items()])
+        #lst = [revmapping[i] for i in range(len(revmapping))]
+        #lst = map(self.ffi._get_cached_btype, lst)
         #
         # build the FFILibrary class and instance and call _cffi_setup().
         # this will set up some fields like '_cffi_types', and only then
@@ -213,9 +185,9 @@ class Verifier(object):
         # build (notably) the constant objects, as <cdata> if they are
         # pointers, and store them as attributes on the 'library' object.
         class FFILibrary(object):
-            pass
+            _cffi_module = module
         library = FFILibrary()
-        sz = module._cffi_setup(lst, ffiplatform.VerificationError, library)
+        #module._cffi_setup(lst, ffiplatform.VerificationError, library)
         #
         # finally, call the loaded_cpy_xxx() functions.  This will perform
         # the final adjustments, like copying the Python->C wrapper
@@ -333,52 +305,20 @@ class Verifier(object):
             return
         prnt = self._prnt
         numargs = len(tp.args)
-        if numargs == 0:
-            argname = 'no_arg'
-        elif numargs == 1:
-            argname = 'arg0'
-        else:
-            argname = 'args'
-        prnt('static PyObject *')
-        prnt('_cffi_f_%s(PyObject *self, PyObject *%s)' % (name, argname))
+        arglist = [type.get_c_name(' x%d' % i)
+                   for i, type in enumerate(tp.args)]
+        arglist = ', '.join(arglist) or 'void'
+        funcdecl = ' _cffi_f_%s(%s)' % (name, arglist)
+        prnt(tp.result.get_c_name(funcdecl))
         prnt('{')
         #
-        for i, type in enumerate(tp.args):
-            prnt('  %s;' % type.get_c_name(' x%d' % i))
         if not isinstance(tp.result, model.VoidType):
-            result_code = 'result = '
-            prnt('  %s;' % tp.result.get_c_name(' result'))
+            result_code = 'return '
         else:
             result_code = ''
-        #
-        if len(tp.args) > 1:
-            rng = range(len(tp.args))
-            for i in rng:
-                prnt('  PyObject *arg%d;' % i)
-            prnt()
-            prnt('  if (!PyArg_ParseTuple(args, "%s:%s", %s))' % (
-                'O' * numargs, name, ', '.join(['&arg%d' % i for i in rng])))
-            prnt('    return NULL;')
-        prnt()
-        #
-        for i, type in enumerate(tp.args):
-            self._convert_funcarg_to_c(type, 'arg%d' % i, 'x%d' % i,
-                                       'return NULL')
-            prnt()
-        #
-        prnt('  _cffi_restore_errno();')
-        prnt('  { %s%s(%s); }' % (
+        prnt('  %s%s(%s);' % (
             result_code, name,
             ', '.join(['x%d' % i for i in range(len(tp.args))])))
-        prnt('  _cffi_save_errno();')
-        prnt()
-        #
-        if result_code:
-            prnt('  return %s;' %
-                 self._convert_expr_from_c(tp.result, 'result'))
-        else:
-            prnt('  Py_INCREF(Py_None);')
-            prnt('  return Py_None;')
         prnt('}')
         prnt()
 
@@ -399,7 +339,9 @@ class Verifier(object):
     def _loaded_cpy_function(self, tp, name, module, library):
         if tp.ellipsis:
             return
-        setattr(library, name, getattr(module, name))
+        BFunc = self.ffi._get_cached_btype(tp)
+        wrappername = '_cffi_f_%s' % name
+        setattr(library, name, module.load_function(BFunc, wrappername))
 
     # ----------
     # named structs
@@ -686,6 +628,7 @@ class Verifier(object):
     # ----------
 
     def _generate_setup_custom(self):
+        return #XXX
         prnt = self._prnt
         prnt('static PyObject *_cffi_setup_custom(PyObject *lib)')
         prnt('{')
@@ -696,131 +639,7 @@ class Verifier(object):
         prnt('}')
 
 cffimod_header = r'''
-#include <Python.h>
 #include <stddef.h>
-
-#define _cffi_from_c_double PyFloat_FromDouble
-#define _cffi_from_c_float PyFloat_FromDouble
-#define _cffi_from_c_signed_char PyInt_FromLong
-#define _cffi_from_c_short PyInt_FromLong
-#define _cffi_from_c_int PyInt_FromLong
-#define _cffi_from_c_long PyInt_FromLong
-#define _cffi_from_c_unsigned_char PyInt_FromLong
-#define _cffi_from_c_unsigned_short PyInt_FromLong
-#define _cffi_from_c_unsigned_long PyLong_FromUnsignedLong
-#define _cffi_from_c_unsigned_long_long PyLong_FromUnsignedLongLong
-
-#if SIZEOF_INT < SIZEOF_LONG
-#  define _cffi_from_c_unsigned_int PyInt_FromLong
-#else
-#  define _cffi_from_c_unsigned_int PyLong_FromUnsignedLong
-#endif
-
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-#  define _cffi_from_c_long_long PyLong_FromLongLong
-#else
-#  define _cffi_from_c_long_long PyInt_FromLong
-#endif
-
-#define _cffi_to_c_long PyInt_AsLong
-#define _cffi_to_c_double PyFloat_AsDouble
-#define _cffi_to_c_float PyFloat_AsDouble
-
-#define _cffi_to_c_char_p                                                \
-                 ((char *(*)(PyObject *))_cffi_exports[0])
-#define _cffi_to_c_signed_char                                           \
-                 ((signed char(*)(PyObject *))_cffi_exports[1])
-#define _cffi_to_c_unsigned_char                                         \
-                 ((unsigned char(*)(PyObject *))_cffi_exports[2])
-#define _cffi_to_c_short                                                 \
-                 ((short(*)(PyObject *))_cffi_exports[3])
-#define _cffi_to_c_unsigned_short                                        \
-                 ((unsigned short(*)(PyObject *))_cffi_exports[4])
-
-#if SIZEOF_INT < SIZEOF_LONG
-#  define _cffi_to_c_int                                                 \
-                   ((int(*)(PyObject *))_cffi_exports[5])
-#  define _cffi_to_c_unsigned_int                                        \
-                   ((unsigned int(*)(PyObject *))_cffi_exports[6])
-#else
-#  define _cffi_to_c_int          _cffi_to_c_long
-#  define _cffi_to_c_unsigned_int _cffi_to_c_unsigned_long
-#endif
-
-#define _cffi_to_c_unsigned_long                                         \
-                 ((unsigned long(*)(PyObject *))_cffi_exports[7])
-#define _cffi_to_c_unsigned_long_long                                    \
-                 ((unsigned long long(*)(PyObject *))_cffi_exports[8])
-#define _cffi_to_c_char                                                  \
-                 ((char(*)(PyObject *))_cffi_exports[9])
-#define _cffi_from_c_pointer                                             \
-    ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[10])
-#define _cffi_to_c_pointer                                               \
-    ((char *(*)(PyObject *, CTypeDescrObject *))_cffi_exports[11])
-#define _cffi_get_struct_layout                                          \
-    ((PyObject *(*)(Py_ssize_t[]))_cffi_exports[12])
-#define _cffi_restore_errno                                              \
-    ((void(*)(void))_cffi_exports[13])
-#define _cffi_save_errno                                                 \
-    ((void(*)(void))_cffi_exports[14])
-#define _cffi_from_c_char                                                \
-    ((PyObject *(*)(char))_cffi_exports[15])
-#define _cffi_from_c_deref                                               \
-    ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[16])
-#define _cffi_to_c                                                       \
-    ((int(*)(char *, CTypeDescrObject *, PyObject *))_cffi_exports[17])
-#define _cffi_from_c_struct                                              \
-    ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[18])
-#define _cffi_to_c_wchar_t                                               \
-                 ((wchar_t(*)(PyObject *))_cffi_exports[19])
-#define _cffi_from_c_wchar_t                                             \
-    ((PyObject *(*)(wchar_t))_cffi_exports[20])
-#define _CFFI_NUM_EXPORTS 21
-
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-#  define _cffi_to_c_long_long PyLong_AsLongLong
-#else
-#  define _cffi_to_c_long_long _cffi_to_c_long
-#endif
-
-typedef struct _ctypedescr CTypeDescrObject;
-
-static void *_cffi_exports[_CFFI_NUM_EXPORTS];
-static PyObject *_cffi_types, *_cffi_VerificationError;
-
-static PyObject *_cffi_setup_custom(PyObject *lib);   /* forward */
-
-static PyObject *_cffi_setup(PyObject *self, PyObject *args)
-{
-    PyObject *library;
-    if (!PyArg_ParseTuple(args, "OOO", &_cffi_types, &_cffi_VerificationError,
-                                       &library))
-        return NULL;
-    Py_INCREF(_cffi_types);
-    Py_INCREF(_cffi_VerificationError);
-    return _cffi_setup_custom(library);
-}
-
-static void _cffi_init(void)
-{
-    PyObject *module = PyImport_ImportModule("_cffi_backend");
-    PyObject *c_api_object;
-
-    if (module == NULL)
-        return;
-
-    c_api_object = PyObject_GetAttrString(module, "_C_API");
-    if (c_api_object == NULL)
-        return;
-    if (!PyCObject_Check(c_api_object)) {
-        PyErr_SetNone(PyExc_ImportError);
-        return;
-    }
-    memcpy(_cffi_exports, PyCObject_AsVoidPtr(c_api_object),
-           _CFFI_NUM_EXPORTS * sizeof(void *));
-}
-
-#define _cffi_type(num) ((CTypeDescrObject *)PyList_GET_ITEM(_cffi_types, num))
 
 /**********/
 '''
