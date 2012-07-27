@@ -617,7 +617,7 @@ class Verifier(object):
     def _generate_cpy_variable_decl(self, tp, name):
         if isinstance(tp, model.ArrayType):
             tp_ptr = model.PointerType(tp.item)
-            self._generate_cpy_const(False, name, tp, vartp=tp_ptr)
+            self._generate_cpy_const(False, name, tp_ptr)
         else:
             tp_ptr = model.PointerType(tp)
             self._generate_cpy_const(False, name, tp_ptr, category='var')
@@ -627,7 +627,11 @@ class Verifier(object):
 
     def _loaded_cpy_variable(self, tp, name, module, library):
         if isinstance(tp, model.ArrayType):   # int a[5] is "constant" in the
-            return                            # sense that "a=..." is forbidden
+                                              # sense that "a=..." is forbidden
+            tp_ptr = model.PointerType(tp.item)
+            value = self._load_constant(False, tp_ptr, name, module)
+            setattr(library, name, value)
+            return
         # remove ptr=<cdata 'int *'> from the library instance, and replace
         # it by a property on the class, which reads/writes into ptr[0].
         funcname = '_cffi_var_%s' % name
