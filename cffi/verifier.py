@@ -597,7 +597,10 @@ class Verifier(object):
     _generate_cpy_macro_collecttype = _generate_nothing
     _generate_cpy_macro_method = _generate_nothing
     _loading_cpy_macro = _loaded_noop
-    _loaded_cpy_macro  = _loaded_noop
+
+    def _loaded_cpy_macro(self, tp, name, module, library):
+        value = self._load_constant(True, tp, name, module)
+        setattr(library, name, value)
 
     # ----------
     # global variables
