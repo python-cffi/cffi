@@ -79,25 +79,10 @@ class Verifier(object):
             if f is not None:
                 f.close()
             self.modulefilename = filename
-        self._collect_types()
         self._status = 'module'
 
     def _prnt(self, what=''):
         print >> self._f, what
-
-    def _gettypenum(self, type):
-        # a KeyError here is a bug.  please report it! :-)
-        return self._typesdict[type]
-
-    def _collect_types(self):
-        self._typesdict = {}
-        self._generate("collecttype")
-
-    def _do_collect_type(self, tp):
-        if (not isinstance(tp, model.PrimitiveType) and
-                tp not in self._typesdict):
-            num = len(self._typesdict)
-            self._typesdict[tp] = num
 
     def _write_source(self, file=None):
         must_close = (file is None)
@@ -114,7 +99,6 @@ class Verifier(object):
         self._status = 'source'
 
     def _write_source_to_f(self):
-        self._collect_types()
         #
         # The new module will have a _cffi_setup() function that receives
         # objects from the ffi world, and that calls some setup code in
@@ -219,80 +203,14 @@ class Verifier(object):
         pass
 
     # ----------
-
-    def _convert_funcarg_to_c(self, tp, fromvar, tovar, errcode):
-        extraarg = ''
-        if isinstance(tp, model.PrimitiveType):
-            converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
-            errvalue = '-1'
-        #
-        elif isinstance(tp, model.PointerType):
-            if (isinstance(tp.totype, model.PrimitiveType) and
-                    tp.totype.name == 'char'):
-                converter = '_cffi_to_c_char_p'
-            else:
-                converter = '(%s)_cffi_to_c_pointer' % tp.get_c_name('')
-                extraarg = ', _cffi_type(%d)' % self._gettypenum(tp)
-            errvalue = 'NULL'
-        #
-        elif isinstance(tp, (model.StructOrUnion, model.EnumType)):
-            # a struct (not a struct pointer) as a function argument
-            self._prnt('  if (_cffi_to_c((char *)&%s, _cffi_type(%d), %s) < 0)'
-                      % (tovar, self._gettypenum(tp), fromvar))
-            self._prnt('    %s;' % errcode)
-            return
-        #
-        elif isinstance(tp, model.FunctionPtrType):
-            converter = '(%s)_cffi_to_c_pointer' % tp.get_c_name('')
-            extraarg = ', _cffi_type(%d)' % self._gettypenum(tp)
-            errvalue = 'NULL'
-        #
-        else:
-            raise NotImplementedError(tp)
-        #
-        self._prnt('  %s = %s(%s%s);' % (tovar, converter, fromvar, extraarg))
-        self._prnt('  if (%s == (%s)%s && PyErr_Occurred())' % (
-            tovar, tp.get_c_name(''), errvalue))
-        self._prnt('    %s;' % errcode)
-
-    def _convert_expr_from_c(self, tp, var):
-        if isinstance(tp, model.PrimitiveType):
-            return '_cffi_from_c_%s(%s)' % (tp.name.replace(' ', '_'), var)
-        elif isinstance(tp, (model.PointerType, model.FunctionPtrType)):
-            return '_cffi_from_c_pointer((char *)%s, _cffi_type(%d))' % (
-                var, self._gettypenum(tp))
-        elif isinstance(tp, model.ArrayType):
-            return '_cffi_from_c_deref((char *)%s, _cffi_type(%d))' % (
-                var, self._gettypenum(tp))
-        elif isinstance(tp, model.StructType):
-            return '_cffi_from_c_struct((char *)&%s, _cffi_type(%d))' % (
-                var, self._gettypenum(tp))
-        elif isinstance(tp, model.EnumType):
-            return '_cffi_from_c_deref((char *)&%s, _cffi_type(%d))' % (
-                var, self._gettypenum(tp))
-        else:
-            raise NotImplementedError(tp)
-
-    # ----------
     # typedefs: generates no code so far
 
-    _generate_cpy_typedef_collecttype = _generate_nothing
     _generate_cpy_typedef_decl   = _generate_nothing
-    _generate_cpy_typedef_method = _generate_nothing
     _loading_cpy_typedef         = _loaded_noop
     _loaded_cpy_typedef          = _loaded_noop
 
     # ----------
     # function declarations
-
-    def _generate_cpy_function_collecttype(self, tp, name):
-        assert isinstance(tp, model.FunctionPtrType)
-        if tp.ellipsis:
-            self._do_collect_type(tp)
-        else:
-            for type in tp.args:
-                self._do_collect_type(type)
-            self._do_collect_type(tp.result)
 
     def _generate_cpy_function_decl(self, tp, name):
         assert isinstance(tp, model.FunctionPtrType)
@@ -321,18 +239,6 @@ class Verifier(object):
         prnt('}')
         prnt()
 
-    def _generate_cpy_function_method(self, tp, name):
-        if tp.ellipsis:
-            return
-        numargs = len(tp.args)
-        if numargs == 0:
-            meth = 'METH_NOARGS'
-        elif numargs == 1:
-            meth = 'METH_O'
-        else:
-            meth = 'METH_VARARGS'
-        self._prnt('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
-
     _loading_cpy_function = _loaded_noop
 
     def _loaded_cpy_function(self, tp, name, module, library):
@@ -347,14 +253,9 @@ class Verifier(object):
     # ----------
     # named structs
 
-    _generate_cpy_struct_collecttype = _generate_nothing
-
     def _generate_cpy_struct_decl(self, tp, name):
         assert name == tp.name
         self._generate_struct_or_union_decl(tp, 'struct', name)
-
-    def _generate_cpy_struct_method(self, tp, name):
-        self._generate_struct_or_union_method(tp, 'struct', name)
 
     def _loading_cpy_struct(self, tp, name, module):
         self._loading_struct_or_union(tp, 'struct', name, module)
@@ -429,13 +330,6 @@ class Verifier(object):
         prnt('}')
         prnt()
 
-    def _generate_struct_or_union_method(self, tp, prefix, name):
-        if tp.fldnames is None:
-            return     # nothing to do with opaque structs
-        layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
-        self._prnt('  {"%s", %s, METH_NOARGS},' % (layoutfuncname,
-                                                   layoutfuncname))
-
     def _loading_struct_or_union(self, tp, prefix, name, module):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
@@ -472,13 +366,8 @@ class Verifier(object):
     # 'anonymous' declarations.  These are produced for anonymous structs
     # or unions; the 'name' is obtained by a typedef.
 
-    _generate_cpy_anonymous_collecttype = _generate_nothing
-
     def _generate_cpy_anonymous_decl(self, tp, name):
         self._generate_struct_or_union_decl(tp, '', name)
-
-    def _generate_cpy_anonymous_method(self, tp, name):
-        self._generate_struct_or_union_method(tp, '', name)
 
     def _loading_cpy_anonymous(self, tp, name, module):
         self._loading_struct_or_union(tp, '', name, module)
@@ -511,16 +400,10 @@ class Verifier(object):
             prnt('}')
         prnt()
 
-    def _generate_cpy_constant_collecttype(self, tp, name):
-        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
-        if not is_int:
-            self._do_collect_type(tp)
-
     def _generate_cpy_constant_decl(self, tp, name):
         is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
         self._generate_cpy_const(is_int, name, tp)
 
-    _generate_cpy_constant_method = _generate_nothing
     _loading_cpy_constant = _loaded_noop
 
     def _load_constant(self, is_int, tp, name, module):
@@ -569,8 +452,6 @@ class Verifier(object):
         prnt('}')
         prnt()
 
-    _generate_cpy_enum_collecttype = _generate_nothing
-    _generate_cpy_enum_method = _generate_nothing
     _loading_cpy_enum = _loaded_noop
 
     def _loading_cpy_enum(self, tp, name, module):
@@ -598,8 +479,6 @@ class Verifier(object):
         assert tp == '...'
         self._generate_cpy_const(True, name)
 
-    _generate_cpy_macro_collecttype = _generate_nothing
-    _generate_cpy_macro_method = _generate_nothing
     _loading_cpy_macro = _loaded_noop
 
     def _loaded_cpy_macro(self, tp, name, module, library):
@@ -609,13 +488,6 @@ class Verifier(object):
     # ----------
     # global variables
 
-    def _generate_cpy_variable_collecttype(self, tp, name):
-        if isinstance(tp, model.ArrayType):
-            self._do_collect_type(tp)
-        else:
-            tp_ptr = model.PointerType(tp)
-            self._do_collect_type(tp_ptr)
-
     def _generate_cpy_variable_decl(self, tp, name):
         if isinstance(tp, model.ArrayType):
             tp_ptr = model.PointerType(tp.item)
@@ -624,7 +496,6 @@ class Verifier(object):
             tp_ptr = model.PointerType(tp)
             self._generate_cpy_const(False, name, tp_ptr, category='var')
 
-    _generate_cpy_variable_method = _generate_nothing
     _loading_cpy_variable = _loaded_noop
 
     def _loaded_cpy_variable(self, tp, name, module, library):
