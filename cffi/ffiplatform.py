@@ -23,7 +23,7 @@ def compile(tmpdir, ext):
     # we're going to chdir(), then replace it with a pathless copy.
     for i, src in enumerate(ext.sources):
         src = os.path.abspath(src)
-        if os.path.samefile(os.path.dirname(src), tmpdir):
+        if samefile(os.path.dirname(src), tmpdir):
             src = os.path.basename(src)
         ext.sources[i] = src
 
@@ -60,3 +60,9 @@ def _build(ext):
     cmd_obj = dist.get_command_obj('build_ext')
     [soname] = cmd_obj.get_outputs()
     return soname
+
+try:
+    from os.path import samefile
+except ImportError:
+    def samefile(f1, f2):
+        return os.path.abspath(f1) == os.path.abspath(f2)
