@@ -227,18 +227,30 @@ class Verifier(object):
         if tp.ellipsis:
             newfunction = self._load_constant(False, tp, name, module)
         else:
+            indirections = []
             if any(isinstance(type, model.StructOrUnion) for type in tp.args):
                 indirect_args = []
                 for i, type in enumerate(tp.args):
                     if isinstance(type, model.StructOrUnion):
                         type = model.PointerType(type)
+                        indirections.append((i, type))
                     indirect_args.append(type)
                 tp = model.FunctionPtrType(tuple(indirect_args),
                                            tp.result, tp.ellipsis)
             BFunc = self.ffi._get_cached_btype(tp)
             wrappername = '_cffi_f_%s' % name
             newfunction = module.load_function(BFunc, wrappername)
+            for i, type in indirections:
+                newfunction = self._make_struct_wrapper(newfunction, i, type)
         setattr(library, name, newfunction)
+
+    def _make_struct_wrapper(self, oldfunc, i, tp):
+        backend = self.ffi._backend
+        BType = self.ffi._get_cached_btype(tp)
+        def newfunc(*args):
+            args = args[:i] + (backend.newp(BType, args[i]),) + args[i+1:]
+            return oldfunc(*args)
+        return newfunc
 
     # ----------
     # named structs

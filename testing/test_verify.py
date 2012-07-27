@@ -583,6 +583,7 @@ def test_autofilled_struct_as_argument():
     """)
     s = ffi.new("struct foo_s *", [100, 1])
     assert lib.foo(s[0]) == 99
+    assert lib.foo([100, 1]) == 99
 
 def test_autofilled_struct_as_argument_dynamic():
     ffi = FFI()
