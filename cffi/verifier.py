@@ -99,38 +99,15 @@ class Verifier(object):
         self._status = 'source'
 
     def _write_source_to_f(self):
-        #
-        # The new module will have a _cffi_setup() function that receives
-        # objects from the ffi world, and that calls some setup code in
-        # the module.  This setup code is split in several independent
-        # functions, e.g. one per constant.  The functions are "chained"
-        # by ending in a tail call to each other.
-        #
-        # This is further split in two chained lists, depending on if we
-        # can do it at import-time or if we must wait for _cffi_setup() to
-        # provide us with the <ctype> objects.  This is needed because we
-        # need the values of the enum constants in order to build the
-        # <ctype 'enum'> that we may have to pass to _cffi_setup().
-        #
-        # The following two 'chained_list_constants' items contains
-        # the head of these two chained lists, as a string that gives the
-        # call to do, if any.
-        ##self._chained_list_constants = ['0', '0']
-        #
         prnt = self._prnt
-        # first paste some standard set of lines that are mostly '#define'
+        # first paste some standard set of lines that are mostly '#include'
         prnt(cffimod_header)
-        prnt()
         # then paste the C source given by the user, verbatim.
         prnt(self.preamble)
         #
         # call generate_cpy_xxx_decl(), for every xxx found from
         # ffi._parser._declarations.  This generates all the functions.
         self._generate("decl")
-        #
-        # implement the function _cffi_setup_custom() as calling the
-        # head of the chained list.
-        self._generate_setup_custom()
 
     def _compile_module(self):
         # compile this C source
@@ -217,7 +194,7 @@ class Verifier(object):
         if tp.ellipsis:
             # cannot support vararg functions better than this: check for its
             # exact type (including the fixed arguments), and build it as a
-            # constant function pointer (no CPython wrapper)
+            # constant function pointer (no _cffi_f_%s wrapper)
             self._generate_cpy_const(False, name, tp)
             return
         prnt = self._prnt
@@ -293,14 +270,13 @@ class Verifier(object):
         prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
         if tp.partial:
             prnt('  static ssize_t nums[] = {')
-            prnt('    sizeof(%s),' % cname)
+            prnt('    1, sizeof(%s),' % cname)
             prnt('    offsetof(struct _cffi_aligncheck, y),')
             for fname in tp.fldnames:
                 prnt('    offsetof(%s, %s),' % (cname, fname))
                 prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
             prnt('    -1')
             prnt('  };')
-            prnt('  if (i < 0) return 1;')
             prnt('  return nums[i];')
         else:
             ffi = self.ffi
@@ -338,22 +314,24 @@ class Verifier(object):
         #
         BFunc = self.ffi.typeof("ssize_t(*)(ssize_t)")
         function = module.load_function(BFunc, layoutfuncname)
-        layout = function(-1)
+        layout = function(0)
         if layout < 0:
             raise ffiplatform.VerificationError(
                 "incompatible layout for %s" % cname)
         elif layout == 0:
             assert not tp.partial
         else:
-            layout = []
+            totalsize = function(1)
+            totalalignment = function(2)
+            fieldofs = []
+            fieldsize = []
+            num = 3
             while True:
-                x = function(len(layout))
+                x = function(num)
                 if x < 0: break
-                layout.append(x)
-            totalsize = layout[0]
-            totalalignment = layout[1]
-            fieldofs = layout[2::2]
-            fieldsize = layout[3::2]
+                fieldofs.append(x)
+                fieldsize.append(function(num+1))
+                num += 2
             assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
             tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
 
@@ -465,7 +443,7 @@ class Verifier(object):
             funcname = '_cffi_enum_%s' % name
             function = module.load_function(BFunc, funcname)
             p = self.ffi.new("char[]", 256)
-            if function(p):
+            if function(p) < 0:
                 raise ffiplatform.VerificationError(str(p))
 
     def _loaded_cpy_enum(self, tp, name, module, library):
@@ -517,19 +495,6 @@ class Verifier(object):
             ptr[0] = value
         setattr(library.__class__, name, property(getter, setter))
 
-    # ----------
-
-    def _generate_setup_custom(self):
-        return #XXX
-        prnt = self._prnt
-        prnt('static PyObject *_cffi_setup_custom(PyObject *lib)')
-        prnt('{')
-        prnt('  if (%s < 0)' % self._chained_list_constants[True])
-        prnt('    return NULL;')
-        prnt('  Py_INCREF(Py_None);')
-        prnt('  return Py_None;')
-        prnt('}')
-
 cffimod_header = r'''
 #include <stdio.h>
 #include <stddef.h>
@@ -537,8 +502,6 @@ cffimod_header = r'''
 #include <stdarg.h>
 #include <errno.h>
 #include <sys/types.h>   /* XXX for ssize_t */
-
-/**********/
 '''
 
 # ____________________________________________________________
