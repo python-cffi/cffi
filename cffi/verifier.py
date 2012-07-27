@@ -551,19 +551,17 @@ class Verifier(object):
         #
         funcname = '_cffi_enum_%s' % name
         prnt = self._prnt
-        prnt('static int %s(PyObject *lib)' % funcname)
+        prnt('int %s(char *out_error)' % funcname)
         prnt('{')
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
             prnt('  if (%s != %d) {' % (enumerator, enumvalue))
-            prnt('    PyErr_Format(_cffi_VerificationError,')
-            prnt('                 "in enum %s: %s has the real value %d, '
-                 'not %d",')
-            prnt('                 "%s", "%s", (int)%s, %d);' % (
+            prnt('    snprintf(out_error, 255, "in enum %s: '
+                             '%s has the real value %d, not %d",')
+            prnt('            "%s", "%s", (int)%s, %d);' % (
                 name, enumerator, enumerator, enumvalue))
             prnt('    return -1;')
             prnt('  }')
-        prnt('  return %s;' % self._chained_list_constants[True])
-        self._chained_list_constants[True] = funcname + '(lib)'
+        prnt('  return 0;')
         prnt('}')
         prnt()
 
@@ -577,6 +575,13 @@ class Verifier(object):
                           for enumerator in tp.enumerators]
             tp.enumvalues = tuple(enumvalues)
             tp.partial = False
+        else:
+            BFunc = self.ffi.typeof("int(*)(char*)")
+            funcname = '_cffi_enum_%s' % name
+            function = module.load_function(BFunc, funcname)
+            p = self.ffi.new("char[]", 256)
+            if function(p):
+                raise ffiplatform.VerificationError(str(p))
 
     def _loaded_cpy_enum(self, tp, name, module, library):
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
@@ -642,6 +647,7 @@ class Verifier(object):
         prnt('}')
 
 cffimod_header = r'''
+#include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>   /* XXX for ssize_t */
