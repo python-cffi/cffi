@@ -15,3 +15,7 @@ def test_doc_version():
     v = cffi.__version__
     assert ("version = '%s'\n" % v) in content
     assert ("release = '%s'\n" % v) in content
+    #
+    p = os.path.join(parent, 'doc', 'source', 'index.rst')
+    content = file(p).read()
+    assert ("release-%s.tar.bz2" % v) in content
