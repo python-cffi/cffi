@@ -487,29 +487,21 @@ class Verifier(object):
     # ----------
     # constants, likely declared with '#define'
 
-    def _generate_cpy_const(self, is_int, name, tp=None, category='const',
-                            vartp=None):
+    def _generate_cpy_const(self, is_int, name, tp=None):
         prnt = self._prnt
-        funcname = '_cffi_%s_%s' % (category, name)
-        prnt('int %s(long long *out_value)' % funcname)
-        prnt('{')
-        if not is_int:
-            prnt('  %s;' % (vartp or tp).get_c_name(' i'))
-        else:
-            assert category == 'const'
-        #
-        if not is_int:
-            xxxxxxxxxxxx
-            if category == 'var':
-                realexpr = '&' + name
-            else:
-                realexpr = name
-            prnt('  i = (%s);' % (realexpr,))
-            prnt('  o = %s;' % (self._convert_expr_from_c(tp, 'i'),))
-        else:
+        funcname = '_cffi_const_%s' % name
+        if is_int:
+            prnt('int %s(long long *out_value)' % funcname)
+            prnt('{')
             prnt('  *out_value = (long long)(%s);' % (name,))
             prnt('  return (%s) <= 0;' % (name,))
-        prnt('}')
+            prnt('}')
+        else:
+            assert tp is not None
+            prnt('void %s(%s)' % (funcname, tp.get_c_name('(*out_value)')))
+            prnt('{')
+            prnt('  *out_value = (%s);' % (name,))
+            prnt('}')
         prnt()
 
     def _generate_cpy_constant_collecttype(self, tp, name):
@@ -525,13 +517,23 @@ class Verifier(object):
     _loading_cpy_constant = _loaded_noop
 
     def _loaded_cpy_constant(self, tp, name, module, library):
-        BFunc = self.ffi.typeof("int(*)(long long*)")
-        function = module.load_function(BFunc, '_cffi_const_%s' % name)
-        p = self.ffi.new("long long*")
-        negative = function(p)
-        value = int(p[0])
-        if value < 0 and not negative:
-            value += (1 << (8*self.ffi.sizeof("long long")))
+        funcname = '_cffi_const_%s' % name
+        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
+        if is_int:
+            BFunc = self.ffi.typeof("int(*)(long long*)")
+            function = module.load_function(BFunc, funcname)
+            p = self.ffi.new("long long*")
+            negative = function(p)
+            value = int(p[0])
+            if value < 0 and not negative:
+                value += (1 << (8*self.ffi.sizeof("long long")))
+        else:
+            tppname = tp.get_c_name('*')
+            BFunc = self.ffi.typeof("int(*)(%s)" % (tppname,))
+            function = module.load_function(BFunc, funcname)
+            p = self.ffi.new(tppname)
+            function(p)
+            value = p[0]
         setattr(library, name, value)
 
     # ----------
