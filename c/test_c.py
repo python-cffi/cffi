@@ -926,6 +926,17 @@ def test_callback_returning_struct():
     assert s.a == -10
     assert s.b == 1E-42
 
+def test_callback_returning_void():
+    BVoid = new_void_type()
+    BFunc = new_function_type((), BVoid, False)
+    def cb():
+        seen.append(42)
+    f = callback(BFunc, cb)
+    seen = []
+    f()
+    assert seen == [42]
+    py.test.raises(TypeError, callback, BFunc, cb, -42)
+
 def test_enum_type():
     BEnum = new_enum_type("foo", (), ())
     assert repr(BEnum) == "<ctype 'enum foo'>"
