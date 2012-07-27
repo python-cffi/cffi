@@ -337,10 +337,12 @@ class Verifier(object):
 
     def _loaded_cpy_function(self, tp, name, module, library):
         if tp.ellipsis:
-            return
-        BFunc = self.ffi._get_cached_btype(tp)
-        wrappername = '_cffi_f_%s' % name
-        setattr(library, name, module.load_function(BFunc, wrappername))
+            newfunction = self._load_constant(False, tp, name, module)
+        else:
+            BFunc = self.ffi._get_cached_btype(tp)
+            wrappername = '_cffi_f_%s' % name
+            newfunction = module.load_function(BFunc, wrappername)
+        setattr(library, name, newfunction)
 
     # ----------
     # named structs
@@ -661,6 +663,7 @@ cffimod_header = r'''
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <errno.h>
 #include <sys/types.h>   /* XXX for ssize_t */
 
