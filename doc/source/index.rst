@@ -79,6 +79,10 @@ Requirements:
 * a C compiler is required to use CFFI during development, but not to run
   correctly-installed programs that use CFFI.
 
+* `py.test`_ is needed to run the tests of CFFI.
+
+.. _`py.test`: http://pypi.python.org/pypi/pytest
+
 Download and Installation:
 
 * https://bitbucket.org/cffi/cffi/downloads
