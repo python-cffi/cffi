@@ -83,6 +83,11 @@ Download and Installation:
 
 * https://bitbucket.org/cffi/cffi/downloads
 
+  - https://bitbucket.org/cffi/cffi/get/release-0.2.1.tar.bz2 has
+    a MD5 of xxx and SHA of xxx
+
+  - or get it via ``hg clone https://bitbucket.org/cffi/cffi``
+
 * ``python setup.py install`` or ``python setup_base.py install``
   (should work out of the box on Linux or Windows; see below for
   `MacOS 10.6`_)
@@ -91,6 +96,10 @@ Download and Installation:
   compile the ``_cffi_backend`` extension module, it will fall back
   to using internally ``ctypes`` (much slower and does not support
   ``verify()``; we recommend not to use it).
+
+* running the tests: ``py.test c/ testing/ -x`` (if you didn't
+  install cffi yet, you may need ``python setup_base.py build``
+  and ``PYTHONPATH=build/lib.xyz.../``)
 
 Demos:
 
