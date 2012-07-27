@@ -49,6 +49,16 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
 Installation and Status
 =======================================================
 
+Quick installation:
+
+* ``pip install cffi``
+
+* or get the source code via the `Python Package Index`__.
+
+.. __: http://pypi.python.org/pypi/cffi
+
+In more details:
+
 This code has been developed on Linux but should work on any POSIX
 platform as well as on Win32.  There are some Windows-specific issues
 left.
@@ -64,7 +74,7 @@ Requirements:
 
 * pycparser 2.06 or 2.07: http://code.google.com/p/pycparser/
 
-* libffi (you need ``libffi-dev``); the Windows version is included with CFFI.
+* libffi (you need ``libffi-dev``); for Windows, it is included with CFFI.
 
 * a C compiler is required to use CFFI during development, but not to run
   correctly-installed programs that use CFFI.
