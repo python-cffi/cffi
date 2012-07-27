@@ -84,7 +84,8 @@ Download and Installation:
 * https://bitbucket.org/cffi/cffi/downloads
 
   - https://bitbucket.org/cffi/cffi/get/release-0.2.1.tar.bz2 has
-    a MD5 of xxx and SHA of xxx
+    a MD5 of c4de415fda3e14209c8a997671a12b83 and SHA of
+    790f8bd96713713bbc3030eb698a85cdf43e44ab
 
   - or get it via ``hg clone https://bitbucket.org/cffi/cffi``
 
