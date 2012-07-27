@@ -1187,3 +1187,10 @@ class BackendTests:
         assert ffi.getctype("e*") == 'enum $1 *'
         assert ffi.getctype("pe") == 'enum $1 *'
         assert ffi.getctype("e1*") == 'enum $2 *'
+
+    def test_new_ctype(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int *")
+        py.test.raises(TypeError, ffi.new, p)
+        p = ffi.new(ffi.typeof("int *"), 42)
+        assert p[0] == 42
