@@ -1194,3 +1194,9 @@ class BackendTests:
         py.test.raises(TypeError, ffi.new, p)
         p = ffi.new(ffi.typeof("int *"), 42)
         assert p[0] == 42
+
+    def test_enum_with_non_injective_mapping(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("enum e { AA=0, BB=0, CC=0, DD=0 };")
+        e = ffi.cast("enum e", 'CC')
+        assert str(e) == "AA"     # pick the first one arbitrarily
