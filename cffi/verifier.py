@@ -215,7 +215,7 @@ class Verifier(object):
         class FFILibrary(object):
             pass
         library = FFILibrary()
-        sz = module._cffi_setup(lst, ffiplatform.VerificationError, library)
+        module._cffi_setup(lst, ffiplatform.VerificationError, library)
         #
         # finally, call the loaded_cpy_xxx() functions.  This will perform
         # the final adjustments, like copying the Python->C wrapper
