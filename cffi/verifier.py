@@ -131,7 +131,7 @@ class Verifier(object):
         # The following two 'chained_list_constants' items contains
         # the head of these two chained lists, as a string that gives the
         # call to do, if any.
-        self._chained_list_constants = ['0', '0']
+        ##self._chained_list_constants = ['0', '0']
         #
         prnt = self._prnt
         # first paste some standard set of lines that are mostly '#define'
@@ -139,7 +139,6 @@ class Verifier(object):
         prnt()
         # then paste the C source given by the user, verbatim.
         prnt(self.preamble)
-        prnt()
         #
         # call generate_cpy_xxx_decl(), for every xxx found from
         # ffi._parser._declarations.  This generates all the functions.
@@ -489,42 +488,27 @@ class Verifier(object):
     # constants, likely declared with '#define'
 
     def _generate_cpy_const(self, is_int, name, tp=None, category='const',
-                            vartp=None, delayed=True):
+                            vartp=None):
         prnt = self._prnt
         funcname = '_cffi_%s_%s' % (category, name)
-        prnt('static int %s(PyObject *lib)' % funcname)
+        prnt('int %s(long long *out_value)' % funcname)
         prnt('{')
-        prnt('  PyObject *o;')
-        prnt('  int res;')
         if not is_int:
             prnt('  %s;' % (vartp or tp).get_c_name(' i'))
         else:
             assert category == 'const'
         #
         if not is_int:
+            xxxxxxxxxxxx
             if category == 'var':
                 realexpr = '&' + name
             else:
                 realexpr = name
             prnt('  i = (%s);' % (realexpr,))
             prnt('  o = %s;' % (self._convert_expr_from_c(tp, 'i'),))
-            assert delayed
         else:
-            prnt('  if (LONG_MIN <= (%s) && (%s) <= LONG_MAX)' % (name, name))
-            prnt('    o = PyInt_FromLong((long)(%s));' % (name,))
-            prnt('  else if ((%s) <= 0)' % (name,))
-            prnt('    o = PyLong_FromLongLong((long long)(%s));' % (name,))
-            prnt('  else')
-            prnt('    o = PyLong_FromUnsignedLongLong('
-                 '(unsigned long long)(%s));' % (name,))
-        prnt('  if (o == NULL)')
-        prnt('    return -1;')
-        prnt('  res = PyObject_SetAttrString(lib, "%s", o);' % name)
-        prnt('  Py_DECREF(o);')
-        prnt('  if (res < 0)')
-        prnt('    return -1;')
-        prnt('  return %s;' % self._chained_list_constants[delayed])
-        self._chained_list_constants[delayed] = funcname + '(lib)'
+            prnt('  *out_value = (long long)(%s);' % (name,))
+            prnt('  return (%s) <= 0;' % (name,))
         prnt('}')
         prnt()
 
@@ -539,7 +523,16 @@ class Verifier(object):
 
     _generate_cpy_constant_method = _generate_nothing
     _loading_cpy_constant = _loaded_noop
-    _loaded_cpy_constant  = _loaded_noop
+
+    def _loaded_cpy_constant(self, tp, name, module, library):
+        BFunc = self.ffi.typeof("int(*)(long long*)")
+        function = module.load_function(BFunc, '_cffi_const_%s' % name)
+        p = self.ffi.new("long long*")
+        negative = function(p)
+        value = int(p[0])
+        if value < 0 and not negative:
+            value += (1 << (8*self.ffi.sizeof("long long")))
+        setattr(library, name, value)
 
     # ----------
     # enums
