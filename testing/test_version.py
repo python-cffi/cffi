@@ -3,7 +3,8 @@ import cffi, _cffi_backend
 
 def test_version():
     v = cffi.__version__
-    assert v == '%s.%s' % cffi.__version_info__
+    version_info = '.'.join(str(i) for i in cffi.__version_info__)
+    assert v == version_info
     assert v == _cffi_backend.__version__
 
 def test_doc_version():
