@@ -817,6 +817,7 @@ class CTypesBackend(object):
         return CTypesFunctionPtr
 
     def new_enum_type(self, name, enumerators, enumvalues):
+        assert isinstance(name, str)
         mapping = dict(zip(enumerators, enumvalues))
         reverse_mapping = dict(reversed(zip(enumvalues, enumerators)))
         CTypesInt = self.ffi._get_cached_btype(model.PrimitiveType('int'))
