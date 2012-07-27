@@ -516,9 +516,8 @@ class Verifier(object):
     _generate_cpy_constant_method = _generate_nothing
     _loading_cpy_constant = _loaded_noop
 
-    def _loaded_cpy_constant(self, tp, name, module, library):
+    def _load_constant(self, is_int, tp, name, module):
         funcname = '_cffi_const_%s' % name
-        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
         if is_int:
             BFunc = self.ffi.typeof("int(*)(long long*)")
             function = module.load_function(BFunc, funcname)
@@ -534,6 +533,11 @@ class Verifier(object):
             p = self.ffi.new(tppname)
             function(p)
             value = p[0]
+        return value
+
+    def _loaded_cpy_constant(self, tp, name, module, library):
+        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
+        value = self._load_constant(is_int, tp, name, module)
         setattr(library, name, value)
 
     # ----------
@@ -542,7 +546,7 @@ class Verifier(object):
     def _generate_cpy_enum_decl(self, tp, name):
         if tp.partial:
             for enumerator in tp.enumerators:
-                self._generate_cpy_const(True, enumerator, delayed=False)
+                self._generate_cpy_const(True, enumerator)
             return
         #
         funcname = '_cffi_enum_%s' % name
@@ -569,7 +573,7 @@ class Verifier(object):
 
     def _loading_cpy_enum(self, tp, name, module):
         if tp.partial:
-            enumvalues = [getattr(module, enumerator)
+            enumvalues = [self._load_constant(True, tp, enumerator, module)
                           for enumerator in tp.enumerators]
             tp.enumvalues = tuple(enumvalues)
             tp.partial = False
