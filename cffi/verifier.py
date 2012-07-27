@@ -178,7 +178,7 @@ class Verifier(object):
         tmpdir = os.path.dirname(self.sourcefilename)
         outputfilename = ffiplatform.compile(tmpdir, self.get_extension())
         try:
-            same = os.path.samefile(outputfilename, self.modulefilename)
+            same = ffiplatform.samefile(outputfilename, self.modulefilename)
         except OSError:
             same = False
         if not same:
