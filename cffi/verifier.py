@@ -16,8 +16,8 @@ class Verifier(object):
         self.preamble = preamble
         self.kwds = kwds
         #
-        m = hashlib.md5('\x00'.join([sys.version[:3], __version__, preamble] +
-                                    ffi._cdefsources))
+        m = hashlib.md5('\x00'.join([sys.version[:3], __version__, 'pypy',
+                                     preamble] + ffi._cdefsources))
         modulename = '_cffi_%s' % m.hexdigest()
         suffix = _get_so_suffix()
         self.sourcefilename = os.path.join(_TMPDIR, modulename + '.c')
@@ -487,10 +487,11 @@ class Verifier(object):
     # ----------
     # constants, likely declared with '#define'
 
-    def _generate_cpy_const(self, is_int, name, tp=None):
+    def _generate_cpy_const(self, is_int, name, tp=None, category='const'):
         prnt = self._prnt
-        funcname = '_cffi_const_%s' % name
+        funcname = '_cffi_%s_%s' % (category, name)
         if is_int:
+            assert category == 'const'
             prnt('int %s(long long *out_value)' % funcname)
             prnt('{')
             prnt('  *out_value = (long long)(%s);' % (name,))
@@ -498,9 +499,13 @@ class Verifier(object):
             prnt('}')
         else:
             assert tp is not None
-            prnt('void %s(%s)' % (funcname, tp.get_c_name('(*out_value)')))
+            prnt(tp.get_c_name(' %s(void)' % funcname),)
             prnt('{')
-            prnt('  *out_value = (%s);' % (name,))
+            if category == 'var':
+                ampersand = '&'
+            else:
+                ampersand = ''
+            prnt('  return (%s%s);' % (ampersand, name))
             prnt('}')
         prnt()
 
@@ -527,12 +532,9 @@ class Verifier(object):
             if value < 0 and not negative:
                 value += (1 << (8*self.ffi.sizeof("long long")))
         else:
-            tppname = tp.get_c_name('*')
-            BFunc = self.ffi.typeof("int(*)(%s)" % (tppname,))
+            BFunc = self.ffi.typeof(tp.get_c_name('(*)(void)'))
             function = module.load_function(BFunc, funcname)
-            p = self.ffi.new(tppname)
-            function(p)
-            value = p[0]
+            value = function()
         return value
 
     def _loaded_cpy_constant(self, tp, name, module, library):
@@ -628,8 +630,10 @@ class Verifier(object):
             return                            # sense that "a=..." is forbidden
         # remove ptr=<cdata 'int *'> from the library instance, and replace
         # it by a property on the class, which reads/writes into ptr[0].
-        ptr = getattr(library, name)
-        delattr(library, name)
+        funcname = '_cffi_var_%s' % name
+        BFunc = self.ffi.typeof(tp.get_c_name('*(*)(void)'))
+        function = module.load_function(BFunc, funcname)
+        ptr = function()
         def getter(library):
             return ptr[0]
         def setter(library, value):
