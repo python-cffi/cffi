@@ -650,6 +650,7 @@ cffimod_header = r'''
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <errno.h>
 #include <sys/types.h>   /* XXX for ssize_t */
 
 /**********/
