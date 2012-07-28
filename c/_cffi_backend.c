@@ -22,6 +22,41 @@
 # define USE__THREAD
 #endif
 
+#if PY_MAJOR_VERSION >= 3
+# define PyText_Type PyUnicode_Type
+# define PyText_Check PyUnicode_Check
+# define PyText_FromFormat PyUnicode_FromFormat
+# define PyText_AsUTF8 PyUnicode_AsUTF8
+# define PyText_GetSize PyUnicode_GetSize
+# define PyText_FromString PyUnicode_FromString
+# define PyText_FromStringAndSize PyUnicode_FromStringAndSize
+# define PyText_InternInPlace PyUnicode_InternInPlace
+#else
+# define PyText_Type PyString_Type
+# define PyText_Check PyString_Check
+# define PyText_FromFormat PyString_FromFormat
+# define PyText_AsUTF8 PyString_AsString
+# define PyText_GetSize PyString_GetSize
+# define PyText_FromString PyString_FromString
+# define PyText_FromStringAndSize PyString_FromStringAndSize
+# define PyText_InternInPlace PyString_InternInPlace
+#endif 
+
+#if PY_MAJOR_VERSION >= 3
+# define PyInt_FromLong PyLong_FromLong
+# define PyInt_FromSsize_t PyLong_FromSsize_t
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+/* This is the default on Python3 and constant has been removed. */
+# define Py_TPFLAGS_CHECKTYPES 0
+#endif
+
+#if PY_MAJOR_VERSION < 3
+#define PyCapsule_New(pointer, name, destructor)        \
+    (PyCObject_FromVoidPtr(pointer, destructor))
+#endif
+
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
@@ -208,7 +243,7 @@ ctypedescr_new_on_top(CTypeDescrObject *ct_base, const char *extra_text,
 static PyObject *
 ctypedescr_repr(CTypeDescrObject *ct)
 {
-    return PyString_FromFormat("<ctype '%s'>", ct->ct_name);
+    return PyText_FromFormat("<ctype '%s'>", ct->ct_name);
 }
 
 static void
@@ -277,7 +312,7 @@ get_field_name(CTypeDescrObject *ct, CFieldObject *cf)
     PyObject *d_key, *d_value;
     while (PyDict_Next(ct->ct_stuff, &i, &d_key, &d_value)) {
         if (d_value == (PyObject *)cf)
-            return PyString_AsString(d_key);
+            return PyText_AsUTF8(d_key);
     }
     return NULL;
 }
@@ -300,10 +335,10 @@ cfield_traverse(CFieldObject *cf, visitproc visit, void *arg)
 #define OFF(x) offsetof(CFieldObject, x)
 
 static PyMemberDef cfield_members[] = {
-    {"type", T_OBJECT, OFF(cf_type), RO},
-    {"offset", T_PYSSIZET, OFF(cf_offset), RO},
-    {"bitshift", T_SHORT, OFF(cf_bitshift), RO},
-    {"bitsize", T_SHORT, OFF(cf_bitsize), RO},
+    {"type", T_OBJECT, OFF(cf_type), READONLY},
+    {"offset", T_PYSSIZET, OFF(cf_offset), READONLY},
+    {"bitshift", T_SHORT, OFF(cf_bitshift), READONLY},
+    {"bitsize", T_SHORT, OFF(cf_bitsize), READONLY},
     {NULL}      /* Sentinel */
 };
 #undef OFF
@@ -349,10 +384,13 @@ _my_PyLong_AsLongLong(PyObject *ob)
        Like PyLong_AsLongLong(), this version accepts a Python int too, and
        does convertions from other types of objects.  The difference is that
        this version refuses floats. */
+#if PY_MAJOR_VERSION < 3
     if (PyInt_Check(ob)) {
         return PyInt_AS_LONG(ob);
     }
-    else if (PyLong_Check(ob)) {
+    else 
+#endif
+    if (PyLong_Check(ob)) {
         return PyLong_AsLongLong(ob);
     }
     else {
@@ -369,7 +407,11 @@ _my_PyLong_AsLongLong(PyObject *ob)
         if (io == NULL)
             return -1;
 
+#if PY_MAJOR_VERSION < 3
         if (PyInt_Check(io) || PyLong_Check(io)) {
+#else
+        if (PyLong_Check(io)) {
+#endif
             res = _my_PyLong_AsLongLong(io);
         }
         else {
@@ -389,13 +431,16 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int strict)
        does convertions from other types of objects.  If 'strict', complains
        with OverflowError and refuses floats.  If '!strict', rounds floats
        and masks the result. */
+#if PY_MAJOR_VERSION < 3
     if (PyInt_Check(ob)) {
         long value1 = PyInt_AS_LONG(ob);
         if (strict && value1 < 0)
             goto negative;
         return (unsigned PY_LONG_LONG)(PY_LONG_LONG)value1;
     }
-    else if (PyLong_Check(ob)) {
+    else
+#endif
+    if (PyLong_Check(ob)) {
         if (strict) {
             if (_PyLong_Sign(ob) < 0)
                 goto negative;
@@ -419,7 +464,11 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int strict)
         if (io == NULL)
             return (unsigned PY_LONG_LONG)-1;
 
+#if PY_MAJOR_VERSION < 3
         if (PyInt_Check(io) || PyLong_Check(io)) {
+#else
+        if (PyLong_Check(io)) {
+#endif
             res = _my_PyLong_AsUnsignedLongLong(io, strict);
         }
         else {
@@ -531,9 +580,9 @@ static PyObject *convert_enum_string_to_int(CTypeDescrObject *ct, PyObject *ob)
 {
     PyObject *d_value;
 
-    if (PyString_AS_STRING(ob)[0] == '#') {
-        char *number = PyString_AS_STRING(ob) + 1;   /* strip initial '#' */
-        PyObject *ob2 = PyString_FromString(number);
+    if (PyText_AsUTF8(ob)[0] == '#') {
+        char *number = PyText_AsUTF8(ob) + 1;   /* strip initial '#' */
+        PyObject *ob2 = PyText_FromString(number);
         if (ob2 == NULL)
             return NULL;
 
@@ -544,9 +593,8 @@ static PyObject *convert_enum_string_to_int(CTypeDescrObject *ct, PyObject *ob)
         d_value = PyDict_GetItem(PyTuple_GET_ITEM(ct->ct_stuff, 0), ob);
         if (d_value == NULL) {
             PyErr_Format(PyExc_ValueError,
-                         "'%s' is not an enumerator for %s",
-                         PyString_AS_STRING(ob),
-                         ct->ct_name);
+                         "%R is not an enumerator for %s",
+                         ob, ct->ct_name);
             return NULL;
         }
         Py_INCREF(d_value);
@@ -585,7 +633,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
             if (d_value != NULL)
                 Py_INCREF(d_value);
             else
-                d_value = PyString_FromFormat("#%d", (int)value);
+                d_value = PyText_FromFormat("#%d", (int)value);
             return d_value;
         }
         else if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
@@ -607,7 +655,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
     }
     else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
         if (ct->ct_size == sizeof(char))
-            return PyString_FromStringAndSize(data, 1);
+            return PyBytes_FromStringAndSize(data, 1);
 #ifdef HAVE_WCHAR_H
         else
             return _my_PyUnicode_FromWideChar((wchar_t *)data, 1);
@@ -661,24 +709,32 @@ static int _convert_overflow(PyObject *init, const char *ct_name)
     s = PyObject_Str(init);
     if (s == NULL)
         return -1;
-    PyErr_Format(PyExc_OverflowError, "integer %s does not fit '%s'",
-                 PyString_AS_STRING(s), ct_name);
+    PyErr_Format(PyExc_OverflowError, "integer %S does not fit '%s'",
+                 s, ct_name);
     Py_DECREF(s);
     return -1;
 }
 
 static int _convert_to_char(PyObject *init)
 {
-    if (PyString_Check(init) && PyString_GET_SIZE(init) == 1) {
-        return (unsigned char)(PyString_AS_STRING(init)[0]);
+    if (PyBytes_Check(init) && PyBytes_GET_SIZE(init) == 1) {
+        return (unsigned char)(PyBytes_AS_STRING(init)[0]);
     }
+#if PY_MAJOR_VERSION >= 3
+    if (PyLong_Check(init)) {
+        long value = PyLong_AsLong(init);
+        if (value >= 0 && value < 256) {
+            return (unsigned char)value;
+        }
+    }
+#endif
     if (CData_Check(init) &&
            (((CDataObject *)init)->c_type->ct_flags & CT_PRIMITIVE_CHAR) &&
            (((CDataObject *)init)->c_type->ct_size == sizeof(char))) {
         return *(unsigned char *)((CDataObject *)init)->c_data;
     }
     PyErr_Format(PyExc_TypeError,
-                 "initializer for ctype 'char' must be a string of length 1, "
+                 "initializer for ctype 'char' must be a bytes string of length 1, "
                  "not %.200s", Py_TYPE(init)->tp_name);
     return -1;
 }
@@ -765,11 +821,11 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             if (ctitem->ct_size == sizeof(char)) {
                 char *srcdata;
                 Py_ssize_t n;
-                if (!PyString_Check(init)) {
-                    expected = "str or list or tuple";
+                if (!PyBytes_Check(init)) {
+                    expected = "bytes or list or tuple";
                     goto cannot_convert;
                 }
-                n = PyString_GET_SIZE(init);
+                n = PyBytes_GET_SIZE(init);
                 if (ct->ct_length >= 0 && n > ct->ct_length) {
                     PyErr_Format(PyExc_IndexError,
                                  "initializer string is too long for '%s' "
@@ -778,7 +834,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                 }
                 if (n != ct->ct_length)
                     n++;
-                srcdata = PyString_AS_STRING(init);
+                srcdata = PyBytes_AS_STRING(init);
                 memcpy(data, srcdata, n);
                 return 0;
             }
@@ -848,7 +904,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             else {
                 PyObject *ob;
                 PyErr_Clear();
-                if (!PyString_Check(init)) {
+                if (!PyText_Check(init)) {
                     expected = "str or int";
                     goto cannot_convert;
                 }
@@ -1007,11 +1063,9 @@ convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init)
         sfmax = PyObject_Str(lfmax);
         if (sfmax == NULL) goto skip;
         PyErr_Format(PyExc_OverflowError,
-                     "value %s outside the range allowed by the "
-                     "bit field width: %s <= x <= %s",
-                     PyString_AS_STRING(svalue),
-                     PyString_AS_STRING(sfmin),
-                     PyString_AS_STRING(sfmax));
+                     "value %S outside the range allowed by the "
+                     "bit field width: %S <= x <= %S",
+                     svalue, sfmin, sfmax);
        skip:
         Py_XDECREF(svalue);
         Py_XDECREF(sfmin);
@@ -1113,14 +1167,14 @@ static PyObject *cdata_repr(CDataObject *cd)
         Py_DECREF(o);
         if (s == NULL)
             return NULL;
-        p = PyString_AS_STRING(s);
+        p = PyText_AsUTF8(s);
     }
     else {
         if (cd->c_data != NULL) {
-            s = PyString_FromFormat("%p", cd->c_data);
+            s = PyText_FromFormat("%p", cd->c_data);
             if (s == NULL)
                 return NULL;
-            p = PyString_AS_STRING(s);
+            p = PyText_AsUTF8(s);
         }
         else
             p = "NULL";
@@ -1132,17 +1186,17 @@ static PyObject *cdata_repr(CDataObject *cd)
         extra = " &";
     else
         extra = "";
-    result = PyString_FromFormat("<cdata '%s%s' %s>",
-                                 cd->c_type->ct_name, extra, p);
+    result = PyText_FromFormat("<cdata '%s%s' %s>",
+                               cd->c_type->ct_name, extra, p);
     Py_XDECREF(s);
     return result;
 }
 
-static PyObject *cdata_str(CDataObject *cd)
+static PyObject *cdata_get_value(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR &&
         cd->c_type->ct_size == sizeof(char)) {
-        return PyString_FromStringAndSize(cd->c_data, 1);
+        return PyBytes_FromStringAndSize(cd->c_data, 1);
     }
     else if (cd->c_type->ct_itemdescr != NULL &&
              cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR &&
@@ -1162,8 +1216,7 @@ static PyObject *cdata_str(CDataObject *cd)
                 PyObject *s = cdata_repr(cd);
                 if (s != NULL) {
                     PyErr_Format(PyExc_RuntimeError,
-                                 "cannot use str() on %s",
-                                 PyString_AS_STRING(s));
+                                 "cannot use str() on %S", s);
                     Py_DECREF(s);
                 }
                 return NULL;
@@ -1171,18 +1224,10 @@ static PyObject *cdata_str(CDataObject *cd)
             length = strlen(cd->c_data);
         }
 
-        return PyString_FromStringAndSize(cd->c_data, length);
+        return PyBytes_FromStringAndSize(cd->c_data, length);
     }
-    else if (cd->c_type->ct_flags & CT_IS_ENUM)
-        return convert_to_object(cd->c_data, cd->c_type);
-    else
-        return Py_TYPE(cd)->tp_repr((PyObject *)cd);
-}
-
 #ifdef HAVE_WCHAR_H
-static PyObject *cdata_unicode(CDataObject *cd)
-{
-    if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR &&
+    else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR &&
         cd->c_type->ct_size == sizeof(wchar_t)) {
         return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, 1);
     }
@@ -1203,8 +1248,7 @@ static PyObject *cdata_unicode(CDataObject *cd)
                 PyObject *s = cdata_repr(cd);
                 if (s != NULL) {
                     PyErr_Format(PyExc_RuntimeError,
-                                 "cannot use unicode() on %s",
-                                 PyString_AS_STRING(s));
+                                 "cannot use unicode() on %S", s);
                     Py_DECREF(s);
                 }
                 return NULL;
@@ -1216,10 +1260,20 @@ static PyObject *cdata_unicode(CDataObject *cd)
 
         return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, length);
     }
+#endif
+    else {
+        Py_INCREF(cd);
+        return (PyObject *)cd;
+    }
+}
+
+static PyObject *cdata_str(CDataObject *cd)
+{
+    if (cd->c_type->ct_flags & CT_IS_ENUM)
+        return convert_to_object(cd->c_data, cd->c_type);
     else
         return Py_TYPE(cd)->tp_repr((PyObject *)cd);
 }
-#endif
 
 static PyObject *cdataowning_repr(CDataObject *cd)
 {
@@ -1233,8 +1287,8 @@ static PyObject *cdataowning_repr(CDataObject *cd)
     else
         size = cd->c_type->ct_size;
 
-    return PyString_FromFormat("<cdata '%s' owning %zd bytes>",
-                               cd->c_type->ct_name, size);
+    return PyText_FromFormat("<cdata '%s' owning %zd bytes>",
+                             cd->c_type->ct_name, size);
 
  callback_repr:
     {
@@ -1246,8 +1300,8 @@ static PyObject *cdataowning_repr(CDataObject *cd)
         s = PyObject_Repr(PyTuple_GET_ITEM(args, 1));
         if (s == NULL)
             return NULL;
-        res = PyString_FromFormat("<cdata '%s' calling %s>",
-                                  cd->c_type->ct_name, PyString_AsString(s));
+        res = PyText_FromFormat("<cdata '%s' calling %s>",
+                                cd->c_type->ct_name, PyText_AsUTF8(s));
         Py_DECREF(s);
         return res;
     }
@@ -1281,7 +1335,11 @@ static PyObject *cdata_int(CDataObject *cd)
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
         PyObject *o = convert_to_object(cd->c_data, cd->c_type);
+#if PY_MAJOR_VERSION < 3
         PyObject *r = o ? PyNumber_Int(o) : NULL;
+#else
+        PyObject *r = o ? PyNumber_Long(o) : NULL;
+#endif
         Py_XDECREF(o);
         return r;
     }
@@ -1290,6 +1348,7 @@ static PyObject *cdata_int(CDataObject *cd)
     return NULL;
 }
 
+#if PY_MAJOR_VERSION < 3
 static PyObject *cdata_long(CDataObject *cd)
 {
     PyObject *res = cdata_int(cd);
@@ -1300,6 +1359,7 @@ static PyObject *cdata_long(CDataObject *cd)
     }
     return res;
 }
+#endif
 
 static PyObject *cdata_float(CDataObject *cd)
 {
@@ -1521,7 +1581,11 @@ cdata_sub(PyObject *v, PyObject *w)
             return NULL;
         }
         diff = (cdv->c_data - cdw->c_data) / ct->ct_itemdescr->ct_size;
+#if PY_MAJOR_VERSION < 3
         return PyInt_FromSsize_t(diff);
+#else
+        return PyLong_FromSsize_t(diff);
+#endif
     }
 
     return _cdata_add_or_sub(v, w, -1);
@@ -1682,7 +1746,11 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             }
             PyTuple_SET_ITEM(fvarargs, i, (PyObject *)ct);
         }
+#if PY_MAJOR_VERSION < 3
         fabi = PyInt_AS_LONG(PyTuple_GET_ITEM(signature, 0));
+#else
+        fabi = PyLong_AS_LONG(PyTuple_GET_ITEM(signature, 0));
+#endif
         cif_descr = fb_prepare_cif(fvarargs, fresult, fabi);
         if (cif_descr == NULL)
             goto error;
@@ -1711,9 +1779,9 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         if ((argtype->ct_flags & CT_POINTER) &&
             (argtype->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR)) {
             if (argtype->ct_itemdescr->ct_size == sizeof(char)) {
-                if (PyString_Check(obj)) {
+                if (PyText_Check(obj)) {
                     /* special case: Python string -> cdata 'char *' */
-                    *(char **)data = PyString_AS_STRING(obj);
+                    *(char **)data = PyText_AsUTF8(obj);
                     continue;
                 }
             }
@@ -1786,7 +1854,9 @@ static PyNumberMethods CData_as_number = {
     (binaryfunc)cdata_add,      /*nb_add*/
     (binaryfunc)cdata_sub,      /*nb_subtract*/
     0,                          /*nb_multiply*/
+#if PY_MAJOR_VERSION < 3
     0,                          /*nb_divide*/
+#endif
     0,                          /*nb_remainder*/
     0,                          /*nb_divmod*/
     0,                          /*nb_power*/
@@ -1800,12 +1870,14 @@ static PyNumberMethods CData_as_number = {
     0,                          /*nb_and*/
     0,                          /*nb_xor*/
     0,                          /*nb_or*/
+#if PY_MAJOR_VERSION < 3
     0,                          /*nb_coerce*/
-    (unaryfunc)cdata_int,       /*nb_int*/
     (unaryfunc)cdata_long,      /*nb_long*/
+#else
+    (unaryfunc)cdata_int,       /*nb_int*/
+    0,                          /*nb_reserved*/
+#endif
     (unaryfunc)cdata_float,     /*nb_float*/
-    0,                          /*nb_oct*/
-    0,                          /*nb_hex*/
 };
 
 static PyMappingMethods CData_as_mapping = {
@@ -1821,8 +1893,12 @@ static PyMappingMethods CDataOwn_as_mapping = {
 };
 
 static PyMethodDef CData_methods[] = {
-    {"__unicode__",     (PyCFunction)cdata_unicode,  METH_NOARGS},
     {NULL,              NULL}           /* sentinel */
+};
+
+static PyGetSetDef CData_getset[] = {
+    {"value", (getter)cdata_get_value, NULL, NULL},
+    {0}
 };
 
 static PyTypeObject CData_Type = {
@@ -1854,6 +1930,8 @@ static PyTypeObject CData_Type = {
     (getiterfunc)cdata_iter,                    /* tp_iter */
     0,                                          /* tp_iternext */
     CData_methods,                              /* tp_methods */
+    0,                                          /* tp_members */
+    CData_getset,                               /* tp_getset */
 };
 
 static PyTypeObject CDataOwning_Type = {
@@ -2039,9 +2117,9 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
             if (PyList_Check(init) || PyTuple_Check(init)) {
                 explicitlength = PySequence_Fast_GET_SIZE(init);
             }
-            else if (PyString_Check(init)) {
+            else if (PyBytes_Check(init)) {
                 /* from a string, we add the null terminator */
-                explicitlength = PyString_GET_SIZE(init) + 1;
+                explicitlength = PyBytes_GET_SIZE(init) + 1;
             }
             else if (PyUnicode_Check(init)) {
                 /* from a unicode, we add the null terminator */
@@ -2142,7 +2220,7 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
                                  (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)) {
         value = (Py_intptr_t)((CDataObject *)ob)->c_data;
     }
-    else if (PyString_Check(ob)) {
+    else if (PyText_Check(ob)) {
         if (ct->ct_flags & CT_IS_ENUM) {
             ob = convert_enum_string_to_int(ct, ob);
             if (ob == NULL)
@@ -2152,13 +2230,24 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
             return cd;
         }
         else {
-            if (PyString_GET_SIZE(ob) != 1) {
+#if PY_MAJOR_VERSION < 3
+            if (PyString_GetSize(ob) != 1) {
                 PyErr_Format(PyExc_TypeError,
                       "cannot cast string of length %zd to ctype '%s'",
-                             PyString_GET_SIZE(ob), ct->ct_name);
+                             PyString_GetSize(ob), ct->ct_name);
                 return NULL;
             }
-            value = (unsigned char)PyString_AS_STRING(ob)[0];
+            value = (unsigned char)PyString_AsString(ob)[0];
+#else
+            wchar_t ordinal;
+            if (_my_PyUnicode_AsSingleWideChar(ob, &ordinal) < 0) {
+                PyErr_Format(PyExc_TypeError,
+                             "cannot cast unicode of length %zd to ctype '%s'",
+                             PyUnicode_GET_SIZE(ob), ct->ct_name);
+                return NULL;
+            }
+            value = (long)ordinal;
+#endif
         }
     }
 #ifdef HAVE_WCHAR_H
@@ -2173,6 +2262,9 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
         value = (long)ordinal;
     }
 #endif
+    else if (PyBytes_Check(ob)) {
+      value = (unsigned char)_convert_to_char(ob);
+    }
     else {
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
@@ -2236,12 +2328,12 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
             Py_INCREF(io);
         }
 
-        if (PyString_Check(io)) {
-            if (PyString_GET_SIZE(io) != 1) {
+        if (PyBytes_Check(io)) {
+            if (PyBytes_GET_SIZE(io) != 1) {
                 Py_DECREF(io);
                 goto cannot_cast;
             }
-            value = (unsigned char)PyString_AS_STRING(io)[0];
+            value = (unsigned char)PyBytes_AS_STRING(io)[0];
         }
         else {
             value = PyFloat_AsDouble(io);
@@ -2289,7 +2381,7 @@ static void dl_dealloc(DynLibObject *dlobj)
 
 static PyObject *dl_repr(DynLibObject *dlobj)
 {
-    return PyString_FromFormat("<clibrary '%s'>", dlobj->dl_name);
+    return PyText_FromFormat("<clibrary '%s'>", dlobj->dl_name);
 }
 
 static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
@@ -2781,15 +2873,15 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         CFieldObject *cf;
 
         if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!|ii:list item",
-                              &PyString_Type, &fname,
+                              &PyText_Type, &fname,
                               &CTypeDescr_Type, &ftype,
                               &fbitsize, &foffset))
             goto error;
 
         if (ftype->ct_size < 0) {
             PyErr_Format(PyExc_TypeError,
-                         "field '%s.%s' has ctype '%s' of unknown size",
-                         ct->ct_name, PyString_AS_STRING(fname),
+                         "field '%s.%S' has ctype '%s' of unknown size",
+                         ct->ct_name, fname,
                          ftype->ct_name);
             goto error;
         }
@@ -2827,8 +2919,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 #endif
                     fbitsize == 0 ||
                     fbitsize > 8 * ftype->ct_size) {
-                PyErr_Format(PyExc_TypeError, "invalid bit field '%s'",
-                             PyString_AS_STRING(fname));
+                PyErr_Format(PyExc_TypeError, "invalid bit field %R",
+                             fname);
                 goto error;
             }
             if (prev_bit_position > 0) {
@@ -2862,7 +2954,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         cf->cf_bitsize = fbitsize;
 
         Py_INCREF(fname);
-        PyString_InternInPlace(&fname);
+        PyText_InternInPlace(&fname);
         err = PyDict_SetItem(interned_fields, fname, (PyObject *)cf);
         Py_DECREF(fname);
         Py_DECREF(cf);
@@ -2870,8 +2962,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             goto error;
 
         if (PyDict_Size(interned_fields) != i + 1) {
-            PyErr_Format(PyExc_KeyError, "duplicate field name '%s'",
-                         PyString_AS_STRING(fname));
+            PyErr_Format(PyExc_KeyError, "duplicate field name %R",
+                         fname);
             goto error;
         }
 
@@ -3452,8 +3544,8 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     PyErr_WriteUnraisable(py_ob);
     if (SIGNATURE(1)->ct_size > 0) {
         py_rawerr = PyTuple_GET_ITEM(cb_args, 2);
-        memcpy(result, PyString_AS_STRING(py_rawerr),
-                       PyString_GET_SIZE(py_rawerr));
+        memcpy(result, PyBytes_AS_STRING(py_rawerr),
+                       PyBytes_GET_SIZE(py_rawerr));
     }
     goto done;
     }
@@ -3491,13 +3583,12 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     size = ctresult->ct_size;
     if (size < (Py_ssize_t)sizeof(ffi_arg))
         size = sizeof(ffi_arg);
-    py_rawerr = PyString_FromStringAndSize(NULL, size);
+    py_rawerr = PyBytes_FromStringAndSize(NULL, size);
     if (py_rawerr == NULL)
         return NULL;
-    memset(PyString_AS_STRING(py_rawerr), 0, size);
     if (error_ob != Py_None) {
         if (convert_from_object_fficallback(
-                PyString_AS_STRING(py_rawerr), ctresult, error_ob) < 0) {
+                PyBytes_AS_STRING(py_rawerr), ctresult, error_ob) < 0) {
             Py_DECREF(py_rawerr);
             return NULL;
         }
@@ -3699,8 +3790,7 @@ static PyObject *b_offsetof(PyObject *self, PyObject *args)
 static PyObject *b_getcname(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
-    char *replace_with, *p;
-    PyObject *s;
+    char *replace_with, *p, *s;
     Py_ssize_t namelen, replacelen;
 
     if (!PyArg_ParseTuple(args, "O!s:getcname",
@@ -3709,11 +3799,7 @@ static PyObject *b_getcname(PyObject *self, PyObject *args)
 
     namelen = strlen(ct->ct_name);
     replacelen = strlen(replace_with);
-    s = PyString_FromStringAndSize(NULL, namelen + replacelen);
-    if (s == NULL)
-        return NULL;
-
-    p = PyString_AS_STRING(s);
+    s = p = alloca(namelen + replacelen + 1);
     memcpy(p, ct->ct_name, ct->ct_name_position);
     p += ct->ct_name_position;
     memcpy(p, replace_with, replacelen);
@@ -3721,7 +3807,7 @@ static PyObject *b_getcname(PyObject *self, PyObject *args)
     memcpy(p, ct->ct_name + ct->ct_name_position,
            namelen - ct->ct_name_position);
 
-    return s;
+    return PyText_FromStringAndSize(s, namelen + replacelen);
 }
 
 static PyObject *b_buffer(PyObject *self, PyObject *args)
@@ -3752,7 +3838,17 @@ static PyObject *b_buffer(PyObject *self, PyObject *args)
                      cd->c_type->ct_name);
         return NULL;
     }
+#if PY_MAJOR_VERSION < 3
     return PyBuffer_FromReadWriteMemory(cd->c_data, size);
+#else
+    {
+      Py_buffer view;
+      if (PyBuffer_FillInfo(&view, NULL, cd->c_data, size,
+                            /*readonly=*/0, PyBUF_WRITABLE) < 0)
+        return NULL;
+      return PyMemoryView_FromBuffer(&view);
+    }
+#endif
 }
 
 static PyObject *b_get_errno(PyObject *self, PyObject *noarg)
@@ -3956,7 +4052,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_VARARGS},
     {"_testfunc", b__testfunc, METH_VARARGS},
-    {NULL,     NULL}	/* Sentinel */
+    {NULL,     NULL}    /* Sentinel */
 };
 
 /************************************************************/
@@ -3964,8 +4060,8 @@ static PyMethodDef FFIBackendMethods[] = {
 
 static char *_cffi_to_c_char_p(PyObject *obj)
 {
-    if (PyString_Check(obj)) {
-        return PyString_AS_STRING(obj);
+    if (PyBytes_Check(obj)) {
+        return PyBytes_AS_STRING(obj);
     }
     if (CData_Check(obj)) {
         return ((CDataObject *)obj)->c_data;
@@ -3974,9 +4070,15 @@ static char *_cffi_to_c_char_p(PyObject *obj)
     return NULL;
 }
 
+#if PY_MAJOR_VERSION < 3
+# define PyCffiInt_AsLong PyInt_AsLong
+#else
+# define PyCffiInt_AsLong PyLong_AsLong
+#endif
+
 #define _cffi_to_c_PRIMITIVE(TARGETNAME, TARGET)        \
 static TARGET _cffi_to_c_##TARGETNAME(PyObject *obj) {  \
-    long tmp = PyInt_AsLong(obj);                       \
+    long tmp = PyCffiInt_AsLong(obj);                   \
     if (tmp != (TARGET)tmp)                             \
         return (TARGET)_convert_overflow(obj, #TARGET); \
     return (TARGET)tmp;                                 \
@@ -4049,7 +4151,7 @@ static PyObject *_cffi_get_struct_layout(Py_ssize_t nums[])
 }
 
 static PyObject *_cffi_from_c_char(char x) {
-    return PyString_FromStringAndSize(&x, 1);
+    return PyBytes_FromStringAndSize(&x, 1);
 }
 
 #ifdef HAVE_WCHAR_H
@@ -4094,54 +4196,80 @@ static void *cffi_exports[] = {
 
 /************************************************************/
 
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef FFIBackendModuleDef = {
+  PyModuleDef_HEAD_INIT,
+  "_cffi_backend",
+  NULL,
+  -1,
+  FFIBackendMethods,
+  NULL, NULL, NULL, NULL
+};
+#define INITERROR return NULL
+
+PyObject *
+PyInit__cffi_backend(void)
+#else
+#define INITERROR return
+
 void init_cffi_backend(void)
+#endif
 {
     PyObject *m, *v;
 
     v = PySys_GetObject("version");
-    if (v == NULL || !PyString_Check(v) ||
-            strncmp(PyString_AS_STRING(v), PY_VERSION, 3) != 0) {
+    if (v == NULL || !PyText_Check(v) ||
+            strncmp(PyText_AsUTF8(v), PY_VERSION, 3) != 0) {
         PyErr_Format(PyExc_ImportError,
                      "this module was compiled for Python %c%c%c",
                      PY_VERSION[0], PY_VERSION[1], PY_VERSION[2]);
-        return;
+        INITERROR;
     }
 
+#if PY_MAJOR_VERSION >= 3
+    m = PyModule_Create(&FFIBackendModuleDef);
+#else
     m = Py_InitModule("_cffi_backend", FFIBackendMethods);
+#endif
+
     if (m == NULL)
-        return;
+        INITERROR;
     if (PyType_Ready(&dl_type) < 0)
-        return;
+        INITERROR;
     if (PyType_Ready(&CTypeDescr_Type) < 0)
-        return;
+        INITERROR;
     if (PyType_Ready(&CField_Type) < 0)
-        return;
+        INITERROR;
     if (PyType_Ready(&CData_Type) < 0)
-        return;
+        INITERROR;
     if (PyType_Ready(&CDataOwning_Type) < 0)
-        return;
+        INITERROR;
     if (PyType_Ready(&CDataIter_Type) < 0)
-        return;
+        INITERROR;
 
-    v = PyCObject_FromVoidPtr((void *)cffi_exports, NULL);
+    v = PyCapsule_New((void *)cffi_exports, "cffi", NULL);
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
-        return;
+        INITERROR;
 
-    v = PyString_FromString("0.2.1");
+    v = PyText_FromString("0.2.1");
     if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
-        return;
+        INITERROR;
 
 #if defined(MS_WIN32) && !defined(_WIN64)
     v = PyInt_FromLong(FFI_STDCALL);
     if (v == NULL || PyModule_AddObject(m, "FFI_STDCALL", v) < 0)
-        return;
+        INITERROR;
 #endif
     v = PyInt_FromLong(FFI_DEFAULT_ABI);
     if (v == NULL || PyModule_AddObject(m, "FFI_DEFAULT_ABI", v) < 0)
-        return;
+        INITERROR;
     Py_INCREF(v);
     if (PyModule_AddObject(m, "FFI_CDECL", v) < 0)  /* win32 name */
-        return;
+        INITERROR;
 
     init_errno();
+
+#if PY_MAJOR_VERSION >= 3
+    return m;
+#endif
 }

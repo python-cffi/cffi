@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys, os, hashlib, imp, shutil
 from . import model, ffiplatform
 from . import __version__
@@ -17,7 +18,7 @@ class Verifier(object):
         self.kwds = kwds
         #
         m = hashlib.md5('\x00'.join([sys.version[:3], __version__, preamble] +
-                                    ffi._cdefsources))
+                                    ffi._cdefsources).encode())
         modulename = '_cffi_%s' % m.hexdigest()
         suffix = _get_so_suffix()
         self.sourcefilename = os.path.join(_TMPDIR, modulename + '.c')
@@ -59,7 +60,7 @@ class Verifier(object):
         return self._load_library()
 
     def get_module_name(self):
-        return os.path.splitext(os.path.basename(self.modulefilename))[0]
+        return os.path.basename(self.modulefilename).split('.', 1)[0]
 
     def get_extension(self):
         if self._status == 'init':
@@ -82,8 +83,8 @@ class Verifier(object):
         self._collect_types()
         self._status = 'module'
 
-    def _prnt(self, what=''):
-        print >> self._f, what
+    def print(self, what=''):
+        print(what, file=self._f)
 
     def _gettypenum(self, type):
         # a KeyError here is a bug.  please report it! :-)
@@ -133,13 +134,13 @@ class Verifier(object):
         # call to do, if any.
         self._chained_list_constants = ['0', '0']
         #
-        prnt = self._prnt
+        print = self.print
         # first paste some standard set of lines that are mostly '#define'
-        prnt(cffimod_header)
-        prnt()
+        print(cffimod_header)
+        print()
         # then paste the C source given by the user, verbatim.
-        prnt(self.preamble)
-        prnt()
+        print(self.preamble)
+        print()
         #
         # call generate_cpy_xxx_decl(), for every xxx found from
         # ffi._parser._declarations.  This generates all the functions.
@@ -148,30 +149,52 @@ class Verifier(object):
         # implement the function _cffi_setup_custom() as calling the
         # head of the chained list.
         self._generate_setup_custom()
-        prnt()
+        print()
         #
         # produce the method table, including the entries for the
         # generated Python->C function wrappers, which are done
         # by generate_cpy_function_method().
-        prnt('static PyMethodDef _cffi_methods[] = {')
+        print('static PyMethodDef _cffi_methods[] = {')
         self._generate("method")
-        prnt('  {"_cffi_setup", _cffi_setup, METH_VARARGS},')
-        prnt('  {NULL, NULL}    /* Sentinel */')
-        prnt('};')
-        prnt()
+        print('  {"_cffi_setup", _cffi_setup, METH_VARARGS},')
+        print('  {NULL, NULL}    /* Sentinel */')
+        print('};')
+        print()
         #
         # standard init.
         modname = self.get_module_name()
-        prnt('PyMODINIT_FUNC')
-        prnt('init%s(void)' % modname)
-        prnt('{')
-        prnt('  PyObject *lib;')
-        prnt('  lib = Py_InitModule("%s", _cffi_methods);' % modname)
-        prnt('  if (lib == NULL || %s < 0)' % (
-            self._chained_list_constants[False],))
-        prnt('    return;')
-        prnt('  _cffi_init();')
-        prnt('}')
+        if sys.version < '3':
+            print('PyMODINIT_FUNC')
+            print('init%s(void)' % modname)
+            print('{')
+            print('  PyObject *lib;')
+            print('  lib = Py_InitModule("%s", _cffi_methods);' % modname)
+            print('  if (lib == NULL || %s < 0)' % (
+                    self._chained_list_constants[False],))
+            print('    return;')
+            print('  _cffi_init();')
+            print('}')
+        else:
+            print('static struct PyModuleDef _cffi_module_def = {')
+            print('  PyModuleDef_HEAD_INIT,')
+            print('  "%s",' % modname)
+            print('  NULL,')
+            print('  -1,')
+            print('  _cffi_methods,')
+            print('  NULL, NULL, NULL, NULL')
+            print('};')
+            print('')
+            print('PyMODINIT_FUNC')
+            print('PyInit_%s(void)' % modname)
+            print('{')
+            print('  PyObject *lib;')
+            print('  lib = PyModule_Create(&_cffi_module_def);')
+            print('  if (lib == NULL || %s < 0)' % (
+                    self._chained_list_constants[False],))
+            print('    return NULL;')
+            print('  _cffi_init();')
+            print('  return lib;')
+            print('}')
 
     def _compile_module(self):
         # compile this C source
@@ -192,7 +215,7 @@ class Verifier(object):
         try:
             module = imp.load_dynamic(self.get_module_name(),
                                       self.modulefilename)
-        except ImportError, e:
+        except ImportError as e:
             error = "importing %r: %s" % (self.modulefilename, e)
             raise ffiplatform.VerificationError(error)
         #
@@ -205,7 +228,7 @@ class Verifier(object):
         revmapping = dict([(value, key)
                            for (key, value) in self._typesdict.items()])
         lst = [revmapping[i] for i in range(len(revmapping))]
-        lst = map(self.ffi._get_cached_btype, lst)
+        lst = list(map(self.ffi._get_cached_btype, lst))
         #
         # build the FFILibrary class and instance and call _cffi_setup().
         # this will set up some fields like '_cffi_types', and only then
@@ -225,7 +248,7 @@ class Verifier(object):
         return library
 
     def _generate(self, step_name):
-        for name, tp in self.ffi._parser._declarations.iteritems():
+        for name, tp in self.ffi._parser._declarations.items():
             kind, realname = name.split(' ', 1)
             try:
                 method = getattr(self, '_generate_cpy_%s_%s' % (kind,
@@ -236,7 +259,7 @@ class Verifier(object):
             method(tp, realname)
 
     def _load(self, module, step_name, **kwds):
-        for name, tp in self.ffi._parser._declarations.iteritems():
+        for name, tp in self.ffi._parser._declarations.items():
             kind, realname = name.split(' ', 1)
             method = getattr(self, '_%s_cpy_%s' % (step_name, kind))
             method(tp, realname, module, **kwds)
@@ -266,9 +289,9 @@ class Verifier(object):
         #
         elif isinstance(tp, (model.StructOrUnion, model.EnumType)):
             # a struct (not a struct pointer) as a function argument
-            self._prnt('  if (_cffi_to_c((char *)&%s, _cffi_type(%d), %s) < 0)'
+            self.print('  if (_cffi_to_c((char *)&%s, _cffi_type(%d), %s) < 0)'
                       % (tovar, self._gettypenum(tp), fromvar))
-            self._prnt('    %s;' % errcode)
+            self.print('    %s;' % errcode)
             return
         #
         elif isinstance(tp, model.FunctionPtrType):
@@ -279,10 +302,10 @@ class Verifier(object):
         else:
             raise NotImplementedError(tp)
         #
-        self._prnt('  %s = %s(%s%s);' % (tovar, converter, fromvar, extraarg))
-        self._prnt('  if (%s == (%s)%s && PyErr_Occurred())' % (
+        self.print('  %s = %s(%s%s);' % (tovar, converter, fromvar, extraarg))
+        self.print('  if (%s == (%s)%s && PyErr_Occurred())' % (
             tovar, tp.get_c_name(''), errvalue))
-        self._prnt('    %s;' % errcode)
+        self.print('    %s;' % errcode)
 
     def _convert_expr_from_c(self, tp, var):
         if isinstance(tp, model.PrimitiveType):
@@ -331,7 +354,7 @@ class Verifier(object):
             # constant function pointer (no CPython wrapper)
             self._generate_cpy_const(False, name, tp)
             return
-        prnt = self._prnt
+        print = self.print
         numargs = len(tp.args)
         if numargs == 0:
             argname = 'no_arg'
@@ -339,48 +362,48 @@ class Verifier(object):
             argname = 'arg0'
         else:
             argname = 'args'
-        prnt('static PyObject *')
-        prnt('_cffi_f_%s(PyObject *self, PyObject *%s)' % (name, argname))
-        prnt('{')
+        print('static PyObject *')
+        print('_cffi_f_%s(PyObject *self, PyObject *%s)' % (name, argname))
+        print('{')
         #
         for i, type in enumerate(tp.args):
-            prnt('  %s;' % type.get_c_name(' x%d' % i))
+            print('  %s;' % type.get_c_name(' x%d' % i))
         if not isinstance(tp.result, model.VoidType):
             result_code = 'result = '
-            prnt('  %s;' % tp.result.get_c_name(' result'))
+            print('  %s;' % tp.result.get_c_name(' result'))
         else:
             result_code = ''
         #
         if len(tp.args) > 1:
             rng = range(len(tp.args))
             for i in rng:
-                prnt('  PyObject *arg%d;' % i)
-            prnt()
-            prnt('  if (!PyArg_ParseTuple(args, "%s:%s", %s))' % (
+                print('  PyObject *arg%d;' % i)
+            print()
+            print('  if (!PyArg_ParseTuple(args, "%s:%s", %s))' % (
                 'O' * numargs, name, ', '.join(['&arg%d' % i for i in rng])))
-            prnt('    return NULL;')
-        prnt()
+            print('    return NULL;')
+        print()
         #
         for i, type in enumerate(tp.args):
             self._convert_funcarg_to_c(type, 'arg%d' % i, 'x%d' % i,
                                        'return NULL')
-            prnt()
+            print()
         #
-        prnt('  _cffi_restore_errno();')
-        prnt('  { %s%s(%s); }' % (
+        print('  _cffi_restore_errno();')
+        print('  { %s%s(%s); }' % (
             result_code, name,
             ', '.join(['x%d' % i for i in range(len(tp.args))])))
-        prnt('  _cffi_save_errno();')
-        prnt()
+        print('  _cffi_save_errno();')
+        print()
         #
         if result_code:
-            prnt('  return %s;' %
+            print('  return %s;' %
                  self._convert_expr_from_c(tp.result, 'result'))
         else:
-            prnt('  Py_INCREF(Py_None);')
-            prnt('  return Py_None;')
-        prnt('}')
-        prnt()
+            print('  Py_INCREF(Py_None);')
+            print('  return Py_None;')
+        print('}')
+        print()
 
     def _generate_cpy_function_method(self, tp, name):
         if tp.ellipsis:
@@ -392,7 +415,7 @@ class Verifier(object):
             meth = 'METH_O'
         else:
             meth = 'METH_VARARGS'
-        self._prnt('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
+        self.print('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
 
     _loading_cpy_function = _loaded_noop
 
@@ -426,38 +449,38 @@ class Verifier(object):
         layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
         cname = ('%s %s' % (prefix, name)).strip()
         #
-        prnt = self._prnt
-        prnt('static void %s(%s *p)' % (checkfuncname, cname))
-        prnt('{')
-        prnt('  /* only to generate compile-time warnings or errors */')
+        print = self.print
+        print('static void %s(%s *p)' % (checkfuncname, cname))
+        print('{')
+        print('  /* only to generate compile-time warnings or errors */')
         for i in range(len(tp.fldnames)):
             fname = tp.fldnames[i]
             ftype = tp.fldtypes[i]
             if (isinstance(ftype, model.PrimitiveType)
                 and ftype.is_integer_type()):
                 # accept all integers, but complain on float or double
-                prnt('  (void)((p->%s) << 1);' % fname)
+                print('  (void)((p->%s) << 1);' % fname)
             else:
                 # only accept exactly the type declared.  Note the parentheses
                 # around the '*tmp' below.  In most cases they are not needed
                 # but don't hurt --- except test_struct_array_field.
-                prnt('  { %s = &p->%s; (void)tmp; }' % (
+                print('  { %s = &p->%s; (void)tmp; }' % (
                     ftype.get_c_name('(*tmp)'), fname))
-        prnt('}')
-        prnt('static PyObject *')
-        prnt('%s(PyObject *self, PyObject *noarg)' % (layoutfuncname,))
-        prnt('{')
-        prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
+        print('}')
+        print('static PyObject *')
+        print('%s(PyObject *self, PyObject *noarg)' % (layoutfuncname,))
+        print('{')
+        print('  struct _cffi_aligncheck { char x; %s y; };' % cname)
         if tp.partial:
-            prnt('  static Py_ssize_t nums[] = {')
-            prnt('    sizeof(%s),' % cname)
-            prnt('    offsetof(struct _cffi_aligncheck, y),')
+            print('  static Py_ssize_t nums[] = {')
+            print('    sizeof(%s),' % cname)
+            print('    offsetof(struct _cffi_aligncheck, y),')
             for fname in tp.fldnames:
-                prnt('    offsetof(%s, %s),' % (cname, fname))
-                prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
-            prnt('    -1')
-            prnt('  };')
-            prnt('  return _cffi_get_struct_layout(nums);')
+                print('    offsetof(%s, %s),' % (cname, fname))
+                print('    sizeof(((%s *)0)->%s),' % (cname, fname))
+            print('    -1')
+            print('  };')
+            print('  return _cffi_get_struct_layout(nums);')
         else:
             ffi = self.ffi
             BStruct = ffi._get_cached_btype(tp)
@@ -472,27 +495,27 @@ class Verifier(object):
                         cname, fname, ffi.offsetof(BStruct, fname)),
                     'sizeof(((%s *)0)->%s) != %d' % (
                         cname, fname, ffi.sizeof(BField))]
-            prnt('  if (%s ||' % conditions[0])
+            print('  if (%s ||' % conditions[0])
             for i in range(1, len(conditions)-1):
-                prnt('      %s ||' % conditions[i])
-            prnt('      %s) {' % conditions[-1])
-            prnt('    Py_INCREF(Py_False);')
-            prnt('    return Py_False;')
-            prnt('  }')
-            prnt('  else {')
-            prnt('    Py_INCREF(Py_True);')
-            prnt('    return Py_True;')
-            prnt('  }')
-        prnt('  /* the next line is not executed, but compiled */')
-        prnt('  %s(0);' % (checkfuncname,))
-        prnt('}')
-        prnt()
+                print('      %s ||' % conditions[i])
+            print('      %s) {' % conditions[-1])
+            print('    Py_INCREF(Py_False);')
+            print('    return Py_False;')
+            print('  }')
+            print('  else {')
+            print('    Py_INCREF(Py_True);')
+            print('    return Py_True;')
+            print('  }')
+        print('  /* the next line is not executed, but compiled */')
+        print('  %s(0);' % (checkfuncname,))
+        print('}')
+        print()
 
     def _generate_struct_or_union_method(self, tp, prefix, name):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
         layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
-        self._prnt('  {"%s", %s, METH_NOARGS},' % (layoutfuncname,
+        self.print('  {"%s", %s, METH_NOARGS},' % (layoutfuncname,
                                                    layoutfuncname))
 
     def _loading_struct_or_union(self, tp, prefix, name, module):
@@ -544,14 +567,14 @@ class Verifier(object):
 
     def _generate_cpy_const(self, is_int, name, tp=None, category='const',
                             vartp=None, delayed=True):
-        prnt = self._prnt
+        print = self.print
         funcname = '_cffi_%s_%s' % (category, name)
-        prnt('static int %s(PyObject *lib)' % funcname)
-        prnt('{')
-        prnt('  PyObject *o;')
-        prnt('  int res;')
+        print('static int %s(PyObject *lib)' % funcname)
+        print('{')
+        print('  PyObject *o;')
+        print('  int res;')
         if not is_int:
-            prnt('  %s;' % (vartp or tp).get_c_name(' i'))
+            print('  %s;' % (vartp or tp).get_c_name(' i'))
         else:
             assert category == 'const'
         #
@@ -560,27 +583,27 @@ class Verifier(object):
                 realexpr = '&' + name
             else:
                 realexpr = name
-            prnt('  i = (%s);' % (realexpr,))
-            prnt('  o = %s;' % (self._convert_expr_from_c(tp, 'i'),))
+            print('  i = (%s);' % (realexpr,))
+            print('  o = %s;' % (self._convert_expr_from_c(tp, 'i'),))
             assert delayed
         else:
-            prnt('  if (LONG_MIN <= (%s) && (%s) <= LONG_MAX)' % (name, name))
-            prnt('    o = PyInt_FromLong((long)(%s));' % (name,))
-            prnt('  else if ((%s) <= 0)' % (name,))
-            prnt('    o = PyLong_FromLongLong((long long)(%s));' % (name,))
-            prnt('  else')
-            prnt('    o = PyLong_FromUnsignedLongLong('
+            print('  if (LONG_MIN <= (%s) && (%s) <= LONG_MAX)' % (name, name))
+            print('    o = PyInt_FromLong((long)(%s));' % (name,))
+            print('  else if ((%s) <= 0)' % (name,))
+            print('    o = PyLong_FromLongLong((long long)(%s));' % (name,))
+            print('  else')
+            print('    o = PyLong_FromUnsignedLongLong('
                  '(unsigned long long)(%s));' % (name,))
-        prnt('  if (o == NULL)')
-        prnt('    return -1;')
-        prnt('  res = PyObject_SetAttrString(lib, "%s", o);' % name)
-        prnt('  Py_DECREF(o);')
-        prnt('  if (res < 0)')
-        prnt('    return -1;')
-        prnt('  return %s;' % self._chained_list_constants[delayed])
+        print('  if (o == NULL)')
+        print('    return -1;')
+        print('  res = PyObject_SetAttrString(lib, "%s", o);' % name)
+        print('  Py_DECREF(o);')
+        print('  if (res < 0)')
+        print('    return -1;')
+        print('  return %s;' % self._chained_list_constants[delayed])
         self._chained_list_constants[delayed] = funcname + '(lib)'
-        prnt('}')
-        prnt()
+        print('}')
+        print()
 
     def _generate_cpy_constant_collecttype(self, tp, name):
         is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
@@ -605,22 +628,22 @@ class Verifier(object):
             return
         #
         funcname = '_cffi_enum_%s' % name
-        prnt = self._prnt
-        prnt('static int %s(PyObject *lib)' % funcname)
-        prnt('{')
+        print = self.print
+        print('static int %s(PyObject *lib)' % funcname)
+        print('{')
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
-            prnt('  if (%s != %d) {' % (enumerator, enumvalue))
-            prnt('    PyErr_Format(_cffi_VerificationError,')
-            prnt('                 "in enum %s: %s has the real value %d, '
+            print('  if (%s != %d) {' % (enumerator, enumvalue))
+            print('    PyErr_Format(_cffi_VerificationError,')
+            print('                 "in enum %s: %s has the real value %d, '
                  'not %d",')
-            prnt('                 "%s", "%s", (int)%s, %d);' % (
+            print('                 "%s", "%s", (int)%s, %d);' % (
                 name, enumerator, enumerator, enumvalue))
-            prnt('    return -1;')
-            prnt('  }')
-        prnt('  return %s;' % self._chained_list_constants[True])
+            print('    return -1;')
+            print('  }')
+        print('  return %s;' % self._chained_list_constants[True])
         self._chained_list_constants[True] = funcname + '(lib)'
-        prnt('}')
-        prnt()
+        print('}')
+        print()
 
     _generate_cpy_enum_collecttype = _generate_nothing
     _generate_cpy_enum_method = _generate_nothing
@@ -686,18 +709,29 @@ class Verifier(object):
     # ----------
 
     def _generate_setup_custom(self):
-        prnt = self._prnt
-        prnt('static PyObject *_cffi_setup_custom(PyObject *lib)')
-        prnt('{')
-        prnt('  if (%s < 0)' % self._chained_list_constants[True])
-        prnt('    return NULL;')
-        prnt('  Py_INCREF(Py_None);')
-        prnt('  return Py_None;')
-        prnt('}')
+        print = self.print
+        print('static PyObject *_cffi_setup_custom(PyObject *lib)')
+        print('{')
+        print('  if (%s < 0)' % self._chained_list_constants[True])
+        print('    return NULL;')
+        print('  Py_INCREF(Py_None);')
+        print('  return Py_None;')
+        print('}')
 
 cffimod_header = r'''
 #include <Python.h>
 #include <stddef.h>
+
+#if PY_MAJOR_VERSION < 3
+# define PyCapsule_CheckExact(capsule) (PyCObject_Check(capsule))
+# define PyCapsule_GetPointer(capsule, name) \
+    (PyCObject_AsVoidPtr(capsule))
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+# define PyInt_FromLong PyLong_FromLong
+# define PyInt_AsLong PyLong_AsLong
+#endif
 
 #define _cffi_from_c_double PyFloat_FromDouble
 #define _cffi_from_c_float PyFloat_FromDouble
@@ -812,11 +846,11 @@ static void _cffi_init(void)
     c_api_object = PyObject_GetAttrString(module, "_C_API");
     if (c_api_object == NULL)
         return;
-    if (!PyCObject_Check(c_api_object)) {
+    if (!PyCapsule_CheckExact(c_api_object)) {
         PyErr_SetNone(PyExc_ImportError);
         return;
     }
-    memcpy(_cffi_exports, PyCObject_AsVoidPtr(c_api_object),
+    memcpy(_cffi_exports, PyCapsule_GetPointer(c_api_object, "cffi"),
            _CFFI_NUM_EXPORTS * sizeof(void *));
 }
 

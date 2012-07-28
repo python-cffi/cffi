@@ -1,8 +1,13 @@
-import os, imp, math, StringIO, random
+import os, imp, math, random
 import py
 from cffi import FFI, FFIError
 from cffi.verifier import Verifier
 from testing.udir import udir
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 def test_write_source():
@@ -11,7 +16,7 @@ def test_write_source():
     csrc = '/*hi there!*/\n#include <math.h>\n'
     v = Verifier(ffi, csrc)
     v.write_source()
-    with file(v.sourcefilename, 'r') as f:
+    with open(v.sourcefilename, 'r') as f:
         data = f.read()
     assert csrc in data
 
@@ -23,7 +28,7 @@ def test_write_source_explicit_filename():
     v.sourcefilename = filename = str(udir.join('write_source.c'))
     v.write_source()
     assert filename == v.sourcefilename
-    with file(filename, 'r') as f:
+    with open(filename, 'r') as f:
         data = f.read()
     assert csrc in data
 
@@ -32,7 +37,7 @@ def test_write_source_to_file_obj():
     ffi.cdef("double sin(double x);")
     csrc = '/*hi there!*/\n#include <math.h>\n'
     v = Verifier(ffi, csrc)
-    f = StringIO.StringIO()
+    f = StringIO()
     v.write_source(file=f)
     assert csrc in f.getvalue()
 
@@ -100,7 +105,7 @@ def test_verifier_object_from_ffi():
     lib = ffi.verify(csrc)
     assert lib.sin(12.3) == math.sin(12.3)
     assert isinstance(ffi.verifier, Verifier)
-    with file(ffi.verifier.sourcefilename, 'r') as f:
+    with open(ffi.verifier.sourcefilename, 'r') as f:
         data = f.read()
     assert csrc in data
 

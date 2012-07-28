@@ -57,24 +57,26 @@ class BackendTests:
         assert int(p) == min
         p = ffi.cast(c_decl, max)
         assert int(p) == max
-        p = ffi.cast(c_decl, long(max))
-        assert int(p) == max
         q = ffi.cast(c_decl, min - 1)
         assert ffi.typeof(q) is ffi.typeof(p) and int(q) == max
-        q = ffi.cast(c_decl, long(min - 1))
-        assert ffi.typeof(q) is ffi.typeof(p) and int(q) == max
+        if sys.version < '3':
+            p = ffi.cast(c_decl, long(max))
+            assert int(p) == max
+            q = ffi.cast(c_decl, long(min - 1))
+            assert ffi.typeof(q) is ffi.typeof(p) and int(q) == max
         assert q != p
         assert int(q) == int(p)
         assert hash(q) != hash(p)   # unlikely
         c_decl_ptr = '%s *' % c_decl
         py.test.raises(OverflowError, ffi.new, c_decl_ptr, min - 1)
         py.test.raises(OverflowError, ffi.new, c_decl_ptr, max + 1)
-        py.test.raises(OverflowError, ffi.new, c_decl_ptr, long(min - 1))
-        py.test.raises(OverflowError, ffi.new, c_decl_ptr, long(max + 1))
         assert ffi.new(c_decl_ptr, min)[0] == min
         assert ffi.new(c_decl_ptr, max)[0] == max
-        assert ffi.new(c_decl_ptr, long(min))[0] == min
-        assert ffi.new(c_decl_ptr, long(max))[0] == max
+        if sys.version < '3':
+            py.test.raises(OverflowError, ffi.new, c_decl_ptr, long(min - 1))
+            py.test.raises(OverflowError, ffi.new, c_decl_ptr, long(max + 1))
+            assert ffi.new(c_decl_ptr, long(min))[0] == min
+            assert ffi.new(c_decl_ptr, long(max))[0] == max
 
     def test_new_unsupported_type(self):
         ffi = FFI(backend=self.Backend())
@@ -276,32 +278,35 @@ class BackendTests:
 
     def test_char(self):
         ffi = FFI(backend=self.Backend())
-        assert ffi.new("char*", "\xff")[0] == '\xff'
-        assert ffi.new("char*")[0] == '\x00'
+        assert ffi.new("char*", b"\xff")[0] == b'\xff'
+        assert ffi.new("char*")[0] == b'\x00'
         assert int(ffi.cast("char", 300)) == 300 - 256
         assert bool(ffi.cast("char", 0))
-        py.test.raises(TypeError, ffi.new, "char*", 32)
+        if sys.version < '3':
+            py.test.raises(TypeError, ffi.new, "char*", 32)
+        else:
+            assert ffi.new("char*", 32)[0] == b' '
         py.test.raises(TypeError, ffi.new, "char*", u"x")
         py.test.raises(TypeError, ffi.new, "char*", "foo")
         #
-        p = ffi.new("char[]", ['a', 'b', '\x9c'])
+        p = ffi.new("char[]", [b'a', b'b', b'\x9c'])
         assert len(p) == 3
-        assert p[0] == 'a'
-        assert p[1] == 'b'
-        assert p[2] == '\x9c'
-        p[0] = '\xff'
-        assert p[0] == '\xff'
-        p = ffi.new("char[]", "abcd")
+        assert p[0] == b'a'
+        assert p[1] == b'b'
+        assert p[2] == b'\x9c'
+        p[0] = b'\xff'
+        assert p[0] == b'\xff'
+        p = ffi.new("char[]", b"abcd")
         assert len(p) == 5
-        assert p[4] == '\x00'    # like in C, with:  char[] p = "abcd";
+        assert p[4] == b'\x00'    # like in C, with:  char[] p = "abcd";
         #
-        p = ffi.new("char[4]", "ab")
+        p = ffi.new("char[4]", b"ab")
         assert len(p) == 4
-        assert [p[i] for i in range(4)] == ['a', 'b', '\x00', '\x00']
-        p = ffi.new("char[2]", "ab")
+        assert [p[i] for i in range(4)] == [b'a', b'b', b'\x00', b'\x00']
+        p = ffi.new("char[2]", b"ab")
         assert len(p) == 2
-        assert [p[i] for i in range(2)] == ['a', 'b']
-        py.test.raises(IndexError, ffi.new, "char[2]", "abc")
+        assert [p[i] for i in range(2)] == [b'a', b'b']
+        py.test.raises(IndexError, ffi.new, "char[2]", b"abc")
 
     def check_wchar_t(self, ffi):
         try:
@@ -313,7 +318,7 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         self.check_wchar_t(ffi)
         assert ffi.new("wchar_t*", u'x')[0] == u'x'
-        assert ffi.new("wchar_t*", unichr(1234))[0] == unichr(1234)
+        assert ffi.new("wchar_t*", u'\u1234')[0] == u'\u1234'
         if SIZE_OF_WCHAR > 2:
             assert ffi.new("wchar_t*", u'\U00012345')[0] == u'\U00012345'
         else:
@@ -324,21 +329,21 @@ class BackendTests:
         py.test.raises(TypeError, ffi.new, "wchar_t*", 32)
         py.test.raises(TypeError, ffi.new, "wchar_t*", "foo")
         #
-        p = ffi.new("wchar_t[]", [u'a', u'b', unichr(1234)])
+        p = ffi.new("wchar_t[]", [u'a', u'b', u'\u1234'])
         assert len(p) == 3
         assert p[0] == u'a'
-        assert p[1] == u'b' and type(p[1]) is unicode
-        assert p[2] == unichr(1234)
+        assert p[1] == u'b' and type(p[1]) is type(u'')
+        assert p[2] == u'\u1234'
         p[0] = u'x'
-        assert p[0] == u'x' and type(p[0]) is unicode
-        p[1] = unichr(1357)
-        assert p[1] == unichr(1357)
+        assert p[0] == u'x' and type(p[0]) is type(u'')
+        p[1] = u'\u1357'
+        assert p[1] == u'\u1357'
         p = ffi.new("wchar_t[]", u"abcd")
         assert len(p) == 5
         assert p[4] == u'\x00'
         p = ffi.new("wchar_t[]", u"a\u1234b")
         assert len(p) == 4
-        assert p[1] == unichr(0x1234)
+        assert p[1] == u'\u1234'
         #
         p = ffi.new("wchar_t[]", u'\U00023456')
         if SIZE_OF_WCHAR == 2:
@@ -469,13 +474,13 @@ class BackendTests:
     def test_constructor_struct_of_array(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { int a[2]; char b[3]; };")
-        s = ffi.new("struct foo *", [[10, 11], ['a', 'b', 'c']])
+        s = ffi.new("struct foo *", [[10, 11], [b'a', b'b', b'c']])
         assert s.a[1] == 11
-        assert s.b[2] == 'c'
-        s.b[1] = 'X'
-        assert s.b[0] == 'a'
-        assert s.b[1] == 'X'
-        assert s.b[2] == 'c'
+        assert s.b[2] == b'c'
+        s.b[1] = b'X'
+        assert s.b[0] == b'a'
+        assert s.b[1] == b'X'
+        assert s.b[2] == b'c'
 
     def test_recursive_struct(self):
         ffi = FFI(backend=self.Backend())
@@ -512,16 +517,16 @@ class BackendTests:
     def test_union_initializer(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("union foo { char a; int b; };")
-        py.test.raises(TypeError, ffi.new, "union foo*", 'A')
+        py.test.raises(TypeError, ffi.new, "union foo*", b'A')
         py.test.raises(TypeError, ffi.new, "union foo*", 5)
-        py.test.raises(ValueError, ffi.new, "union foo*", ['A', 5])
-        u = ffi.new("union foo*", ['A'])
-        assert u.a == 'A'
-        py.test.raises(TypeError, ffi.new, "union foo*", [5])
+        py.test.raises(ValueError, ffi.new, "union foo*", [b'A', 5])
+        u = ffi.new("union foo*", [b'A'])
+        assert u.a == b'A'
+        py.test.raises(TypeError, ffi.new, "union foo*", [1005])
         u = ffi.new("union foo*", {'b': 12345})
         assert u.b == 12345
         u = ffi.new("union foo*", [])
-        assert u.a == '\x00'
+        assert u.a == b'\x00'
         assert u.b == 0
 
     def test_sizeof_type(self):
@@ -552,64 +557,64 @@ class BackendTests:
 
     def test_str_from_char_pointer(self):
         ffi = FFI(backend=self.Backend())
-        assert str(ffi.new("char*", "x")) == "x"
-        assert str(ffi.new("char*", "\x00")) == ""
+        assert ffi.new("char*", b"x").value == b"x"
+        assert ffi.new("char*", b"\x00").value == b""
 
     def test_unicode_from_wchar_pointer(self):
         ffi = FFI(backend=self.Backend())
         self.check_wchar_t(ffi)
-        assert unicode(ffi.new("wchar_t*", u"x")) == u"x"
-        assert unicode(ffi.new("wchar_t*", u"\x00")) == u""
+        assert ffi.new("wchar_t*", u"x").value == u"x"
+        assert ffi.new("wchar_t*", u"\x00").value == u""
         x = ffi.new("wchar_t*", u"\x00")
         assert str(x) == repr(x)
 
     def test_string_from_char_array(self):
         ffi = FFI(backend=self.Backend())
-        assert str(ffi.cast("char", "x")) == "x"
-        p = ffi.new("char[]", "hello.")
-        p[5] = '!'
-        assert str(p) == "hello!"
-        p[6] = '?'
-        assert str(p) == "hello!?"
-        p[3] = '\x00'
-        assert str(p) == "hel"
-        py.test.raises(IndexError, "p[7] = 'X'")
+        assert ffi.cast("char", b"x").value == b"x"
+        p = ffi.new("char[]", b"hello.")
+        p[5] = b'!'
+        assert p.value == b"hello!"
+        p[6] = b'?'
+        assert p.value == b"hello!?"
+        p[3] = b'\x00'
+        assert p.value == b"hel"
+        py.test.raises(IndexError, "p[7] = b'X'")
         #
-        a = ffi.new("char[]", "hello\x00world")
+        a = ffi.new("char[]", b"hello\x00world")
         assert len(a) == 12
         p = ffi.cast("char *", a)
-        assert str(p) == 'hello'
+        assert p.value == b'hello'
 
     def test_string_from_wchar_array(self):
         ffi = FFI(backend=self.Backend())
         self.check_wchar_t(ffi)
-        assert unicode(ffi.cast("wchar_t", "x")) == u"x"
-        assert unicode(ffi.cast("wchar_t", u"x")) == u"x"
+        assert ffi.cast("wchar_t", b"x").value == u"x"
+        assert ffi.cast("wchar_t", u"x").value == u"x"
         x = ffi.cast("wchar_t", "x")
         assert str(x) == repr(x)
         #
         p = ffi.new("wchar_t[]", u"hello.")
         p[5] = u'!'
-        assert unicode(p) == u"hello!"
-        p[6] = unichr(1234)
-        assert unicode(p) == u"hello!\u04d2"
+        assert p.value == u"hello!"
+        p[6] = u'\u1234'
+        assert p.value == u"hello!\u1234"
         p[3] = u'\x00'
-        assert unicode(p) == u"hel"
+        assert p.value == u"hel"
         py.test.raises(IndexError, "p[7] = u'X'")
         #
         a = ffi.new("wchar_t[]", u"hello\x00world")
         assert len(a) == 12
         p = ffi.cast("wchar_t *", a)
-        assert unicode(p) == u'hello'
+        assert p.value == u'hello'
 
     def test_fetch_const_char_p_field(self):
         # 'const' is ignored so far
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { const char *name; };")
-        t = ffi.new("const char[]", "testing")
+        t = ffi.new("const char[]", b"testing")
         s = ffi.new("struct foo*", [t])
         assert type(s.name) is not str
-        assert str(s.name) == "testing"
+        assert s.name.value == b"testing"
         py.test.raises(TypeError, "s.name = None")
         s.name = ffi.NULL
         assert s.name == ffi.NULL
@@ -621,8 +626,11 @@ class BackendTests:
         ffi.cdef("struct foo { const wchar_t *name; };")
         t = ffi.new("const wchar_t[]", u"testing")
         s = ffi.new("struct foo*", [t])
-        assert type(s.name) not in (str, unicode)
-        assert unicode(s.name) == u"testing"
+        if sys.version < '3':
+            assert type(s.name) not in (str, unicode)
+        else:
+            assert type(s.name) not in (bytes, str)
+        assert s.name.value == u"testing"
         s.name = ffi.NULL
         assert s.name == ffi.NULL
 
@@ -653,6 +661,7 @@ class BackendTests:
         py.test.raises(TypeError, ffi.callback, "int(*)(int)", 0)
         def cb(n):
             return n + 1
+        cb.__qualname__ = 'cb'
         p = ffi.callback("int(*)(int)", cb)
         res = p(41)     # calling an 'int(*)(int)', i.e. a function pointer
         assert res == 42 and type(res) is int
@@ -725,38 +734,38 @@ class BackendTests:
 
     def test_char_cast(self):
         ffi = FFI(backend=self.Backend())
-        p = ffi.cast("int", '\x01')
+        p = ffi.cast("int", b'\x01')
         assert ffi.typeof(p) is ffi.typeof("int")
         assert int(p) == 1
-        p = ffi.cast("int", ffi.cast("char", "a"))
+        p = ffi.cast("int", ffi.cast("char", b"a"))
         assert int(p) == ord("a")
-        p = ffi.cast("int", ffi.cast("char", "\x80"))
+        p = ffi.cast("int", ffi.cast("char", b"\x80"))
         assert int(p) == 0x80     # "char" is considered unsigned in this case
-        p = ffi.cast("int", "\x81")
+        p = ffi.cast("int", b"\x81")
         assert int(p) == 0x81
 
     def test_wchar_cast(self):
         ffi = FFI(backend=self.Backend())
         self.check_wchar_t(ffi)
-        p = ffi.cast("int", ffi.cast("wchar_t", unichr(1234)))
-        assert int(p) == 1234
+        p = ffi.cast("int", ffi.cast("wchar_t", u'\u1234'))
+        assert int(p) == 0x1234
         p = ffi.cast("long long", ffi.cast("wchar_t", -1))
         if SIZE_OF_WCHAR == 2:      # 2 bytes, unsigned
             assert int(p) == 0xffff
         else:                       # 4 bytes, signed
             assert int(p) == -1
-        p = ffi.cast("int", unichr(1234))
-        assert int(p) == 1234
+        p = ffi.cast("int", u'\u1234')
+        assert int(p) == 0x1234
 
     def test_cast_array_to_charp(self):
         ffi = FFI(backend=self.Backend())
         a = ffi.new("short int[]", [0x1234, 0x5678])
         p = ffi.cast("char*", a)
-        data = ''.join([p[i] for i in range(4)])
+        data = b''.join([p[i] for i in range(4)])
         if sys.byteorder == 'little':
-            assert data == '\x34\x12\x78\x56'
+            assert data == b'\x34\x12\x78\x56'
         else:
-            assert data == '\x12\x34\x56\x78'
+            assert data == b'\x12\x34\x56\x78'
 
     def test_cast_between_pointers(self):
         ffi = FFI(backend=self.Backend())
@@ -764,11 +773,11 @@ class BackendTests:
         p = ffi.cast("short*", a)
         p2 = ffi.cast("int*", p)
         q = ffi.cast("char*", p2)
-        data = ''.join([q[i] for i in range(4)])
+        data = b''.join([q[i] for i in range(4)])
         if sys.byteorder == 'little':
-            assert data == '\x34\x12\x78\x56'
+            assert data == b'\x34\x12\x78\x56'
         else:
-            assert data == '\x12\x34\x56\x78'
+            assert data == b'\x12\x34\x56\x78'
 
     def test_cast_pointer_and_int(self):
         ffi = FFI(backend=self.Backend())
@@ -808,23 +817,23 @@ class BackendTests:
         assert float(a) == 12.0
         a = ffi.cast("float", 12.5)
         assert float(a) == 12.5
-        a = ffi.cast("float", "A")
+        a = ffi.cast("float", b"A")
         assert float(a) == ord("A")
         a = ffi.cast("int", 12.9)
         assert int(a) == 12
         a = ffi.cast("char", 66.9 + 256)
-        assert str(a) == "B"
+        assert a.value == b"B"
         #
         a = ffi.cast("float", ffi.cast("int", 12))
         assert float(a) == 12.0
         a = ffi.cast("float", ffi.cast("double", 12.5))
         assert float(a) == 12.5
-        a = ffi.cast("float", ffi.cast("char", "A"))
+        a = ffi.cast("float", ffi.cast("char", b"A"))
         assert float(a) == ord("A")
         a = ffi.cast("int", ffi.cast("double", 12.9))
         assert int(a) == 12
         a = ffi.cast("char", ffi.cast("double", 66.9 + 256))
-        assert str(a) == "B"
+        assert a.value == b"B"
 
     def test_enum(self):
         ffi = FFI(backend=self.Backend())
@@ -891,9 +900,9 @@ class BackendTests:
 
     def test_iterate_array(self):
         ffi = FFI(backend=self.Backend())
-        a = ffi.new("char[]", "hello")
-        assert list(a) == ["h", "e", "l", "l", "o", chr(0)]
-        assert list(iter(a)) == ["h", "e", "l", "l", "o", chr(0)]
+        a = ffi.new("char[]", b"hello")
+        assert list(a) == [b"h", b"e", b"l", b"l", b"o", b"\0"]
+        assert list(iter(a)) == [b"h", b"e", b"l", b"l", b"o", b"\0"]
         #
         py.test.raises(TypeError, iter, ffi.cast("char *", a))
         py.test.raises(TypeError, list, ffi.cast("char *", a))
@@ -939,10 +948,10 @@ class BackendTests:
         ffi.cdef("typedef struct { int a; } foo_t;")
         ffi.cdef("typedef struct { char b, c; } bar_t;")
         f = ffi.new("foo_t *", [12345])
-        b = ffi.new("bar_t *", ["B", "C"])
+        b = ffi.new("bar_t *", [b"B", b"C"])
         assert f.a == 12345
-        assert b.b == "B"
-        assert b.c == "C"
+        assert b.b == b"B"
+        assert b.c == b"C"
         assert repr(b).startswith("<cdata 'struct $bar_t *'")
 
     def test_struct_with_two_usages(self):
@@ -954,7 +963,7 @@ class BackendTests:
 
     def test_pointer_arithmetic(self):
         ffi = FFI(backend=self.Backend())
-        s = ffi.new("short[]", range(100, 110))
+        s = ffi.new("short[]", list(range(100, 110)))
         p = ffi.cast("short *", s)
         assert p[2] == 102
         assert p+1 == p+1
@@ -968,7 +977,7 @@ class BackendTests:
 
     def test_pointer_comparison(self):
         ffi = FFI(backend=self.Backend())
-        s = ffi.new("short[]", range(100))
+        s = ffi.new("short[]", list(range(100)))
         p = ffi.cast("short *", s)
         assert (p <  s) is False
         assert (p <= s) is True
@@ -1031,57 +1040,75 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         a = ffi.new("short *", 100)
         b = ffi.buffer(a)
-        assert type(b) is buffer
-        assert len(str(b)) == 2
-        if sys.byteorder == 'little':
-            assert str(b) == '\x64\x00'
-            b[0] = '\x65'
+        if sys.version < '3':
+            assert type(b) is buffer
+            content = str(b)
         else:
-            assert str(b) == '\x00\x64'
-            b[1] = '\x65'
+            assert type(b) is memoryview
+            content = b.tobytes()
+        assert len(content) == 2
+        if sys.byteorder == 'little':
+            assert content == b'\x64\x00'
+            b[0] = b'\x65'[0]
+        else:
+            assert content == b'\x00\x64'
+            b[1] = b'\x65'[0]
         assert a[0] == 101
 
     def test_ffi_buffer_array(self):
         ffi = FFI(backend=self.Backend())
-        a = ffi.new("int[]", range(100, 110))
+        a = ffi.new("int[]", list(range(100, 110)))
         b = ffi.buffer(a)
-        assert type(b) is buffer
-        if sys.byteorder == 'little':
-            assert str(b).startswith('\x64\x00\x00\x00\x65\x00\x00\x00')
-            b[4] = '\x45'
+        if sys.version < '3':
+            assert type(b) is buffer
+            content = str(b)
         else:
-            assert str(b).startswith('\x00\x00\x00\x64\x00\x00\x00\x65')
-            b[7] = '\x45'
-        assert len(str(b)) == 4 * 10
+            assert type(b) is memoryview
+            content = b.tobytes()
+        if sys.byteorder == 'little':
+            assert content.startswith(b'\x64\x00\x00\x00\x65\x00\x00\x00')
+            b[4] = b'\x45'[0]
+        else:
+            assert content.startswith('\x00\x00\x00\x64\x00\x00\x00\x65')
+            b[7] = b'\x45'[0]
+        assert len(content) == 4 * 10
         assert a[1] == 0x45
 
     def test_ffi_buffer_ptr_size(self):
         ffi = FFI(backend=self.Backend())
         a = ffi.new("short *", 0x4243)
         b = ffi.buffer(a, 1)
-        assert type(b) is buffer
-        assert len(str(b)) == 1
+        if sys.version < '3':
+            assert type(b) is buffer
+            content = str(b)
+        else:
+            assert type(b) is memoryview
+            content = b.tobytes()
+        assert len(content) == 1
         if sys.byteorder == 'little':
-            assert str(b) == '\x43'
-            b[0] = '\x62'
+            assert content == b'\x43'
+            b[0] = b'\x62'[0]
             assert a[0] == 0x4262
         else:
-            assert str(b) == '\x42'
-            b[0] = '\x63'
+            assert content == b'\x42'
+            b[0] = b'\x63'[0]
             assert a[0] == 0x6343
 
     def test_ffi_buffer_array_size(self):
         ffi = FFI(backend=self.Backend())
-        a1 = ffi.new("int[]", range(100, 110))
-        a2 = ffi.new("int[]", range(100, 115))
-        assert str(ffi.buffer(a1)) == str(ffi.buffer(a2, 4*10))
+        a1 = ffi.new("int[]", list(range(100, 110)))
+        a2 = ffi.new("int[]", list(range(100, 115)))
+        if sys.version < '3':
+            assert str(ffi.buffer(a1)) == str(ffi.buffer(a2, 4*10))
+        else:
+            assert ffi.buffer(a1).tobytes() == ffi.buffer(a2, 4*10).tobytes()
 
     def test_ffi_buffer_with_file(self):
         ffi = FFI(backend=self.Backend())
         import tempfile, os, array
         fd, filename = tempfile.mkstemp()
         f = os.fdopen(fd, 'r+b')
-        a = ffi.new("int[]", range(1005))
+        a = ffi.new("int[]", list(range(1005)))
         f.write(ffi.buffer(a, 1000 * ffi.sizeof("int")))
         f.seek(0)
         assert f.read() == array.array('i', range(1000)).tostring()
@@ -1142,13 +1169,13 @@ class BackendTests:
         # which is automatically replaced with the ptr-to-function type.
         ffi = FFI(backend=self.Backend())
         def cb(a, b):
-            return chr(ord(a) + ord(b))
+            return chr(ord(a) + ord(b)).encode()
         f = ffi.callback("char cb(char, char)", cb)
-        assert f('A', chr(1)) == 'B'
+        assert f(b'A', b'\x01') == b'B'
         def g(callback):
-            return callback('A', chr(1))
+            return callback(b'A', b'\x01')
         g = ffi.callback("char g(char cb(char, char))", g)
-        assert g(f) == 'B'
+        assert g(f) == b'B'
 
     def test_vararg_callback(self):
         py.test.skip("callback with '...'")
