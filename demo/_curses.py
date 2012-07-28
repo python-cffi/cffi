@@ -17,7 +17,7 @@ WINDOW *initscr(void);
 int endwin(void);
 bool isendwin(void);
 
-char *keyname(int c);
+const char *keyname(int c);
 static const int KEY_MIN, KEY_MAX;
 
 int setupterm(char *term, int fildes, int *errret);
