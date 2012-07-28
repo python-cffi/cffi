@@ -1,4 +1,4 @@
-import sys, os, hashlib, imp, shutil
+import sys, os, binascii, imp, shutil
 from . import model, ffiplatform
 from . import __version__
 
@@ -16,9 +16,11 @@ class Verifier(object):
         self.preamble = preamble
         self.kwds = kwds
         #
-        m = hashlib.md5('\x00'.join([sys.version[:3], __version__, preamble] +
-                                    ffi._cdefsources))
-        modulename = '_cffi_%s' % m.hexdigest()
+        key = '\x00'.join([sys.version[:3], __version__, preamble] +
+                          ffi._cdefsources)
+        k1 = hex(binascii.crc32(key[0::2]) & 0xffffffff).lstrip('0').rstrip('L')
+        k2 = hex(binascii.crc32(key[1::2]) & 0xffffffff).lstrip('0').rstrip('L')
+        modulename = '_cffi_%s%s' % (k1, k2)
         suffix = _get_so_suffix()
         self.sourcefilename = os.path.join(_TMPDIR, modulename + '.c')
         self.modulefilename = os.path.join(_TMPDIR, modulename + suffix)
