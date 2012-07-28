@@ -16,7 +16,7 @@ class Verifier(object):
         self.preamble = preamble
         self.kwds = kwds
         #
-        key = '\x00'.join([sys.version[:3], __version__, preamble] +
+        key = '\x00'.join(['1', sys.version[:3], __version__, preamble] +
                           ffi._cdefsources)
         k1 = hex(binascii.crc32(key[0::2]) & 0xffffffff).lstrip('0').rstrip('L')
         k2 = hex(binascii.crc32(key[1::2]) & 0xffffffff).lstrip('0').rstrip('L')
