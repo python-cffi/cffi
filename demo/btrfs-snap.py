@@ -36,7 +36,7 @@ source = os.open(opts.source, os.O_DIRECTORY)
 target = os.open(opts.target, os.O_DIRECTORY)
 
 
-args = ffi.new('struct btrfs_ioctl_vol_args_v2')
+args = ffi.new('struct btrfs_ioctl_vol_args_v2 *')
 args.name = opts.newname
 args.fd = source
 args_buffer = ffi.buffer(args)

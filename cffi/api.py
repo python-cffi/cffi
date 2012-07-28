@@ -94,23 +94,27 @@ class FFI(object):
         self._function_caches.append(function_cache)
         return lib
 
-    def typeof(self, cdecl, consider_function_as_funcptr=False):
+    def _typeof(self, cdecl, consider_function_as_funcptr=False):
+        # string -> ctype object
+        try:
+            btype, cfaf = self._parsed_types[cdecl]
+            if consider_function_as_funcptr and not cfaf:
+                raise KeyError
+        except KeyError:
+            cfaf = consider_function_as_funcptr
+            type = self._parser.parse_type(cdecl,
+                       consider_function_as_funcptr=cfaf)
+            btype = self._get_cached_btype(type)
+            self._parsed_types[cdecl] = btype, cfaf
+        return btype
+
+    def typeof(self, cdecl):
         """Parse the C type given as a string and return the
         corresponding Python type: <class 'ffi.CData<...>'>.
         It can also be used on 'cdata' instance to get its C type.
         """
         if isinstance(cdecl, basestring):
-            try:
-                btype, cfaf = self._parsed_types[cdecl]
-                if consider_function_as_funcptr and not cfaf:
-                    raise KeyError
-            except KeyError:
-                cfaf = consider_function_as_funcptr
-                type = self._parser.parse_type(cdecl,
-                           consider_function_as_funcptr=cfaf)
-                btype = self._get_cached_btype(type)
-                self._parsed_types[cdecl] = btype, cfaf
-            return btype
+            return self._typeof(cdecl)
         else:
             return self._backend.typeof(cdecl)
 
@@ -119,7 +123,7 @@ class FFI(object):
         string naming a C type, or a 'cdata' instance.
         """
         if isinstance(cdecl, basestring):
-            BType = self.typeof(cdecl)
+            BType = self._typeof(cdecl)
             return self._backend.sizeof(BType)
         else:
             return self._backend.sizeof(cdecl)
@@ -129,7 +133,7 @@ class FFI(object):
         given as a string.
         """
         if isinstance(cdecl, basestring):
-            cdecl = self.typeof(cdecl)
+            cdecl = self._typeof(cdecl)
         return self._backend.alignof(cdecl)
 
     def offsetof(self, cdecl, fieldname):
@@ -137,7 +141,7 @@ class FFI(object):
         structure, which must be given as a C type name.
         """
         if isinstance(cdecl, basestring):
-            cdecl = self.typeof(cdecl)
+            cdecl = self._typeof(cdecl)
         return self._backend.offsetof(cdecl, fieldname)
 
     def new(self, cdecl, init=None):
@@ -163,16 +167,18 @@ class FFI(object):
         about that when copying the pointer to the memory somewhere
         else, e.g. into another structure.
         """
-        BType = self.typeof(cdecl)
-        return self._backend.newp(BType, init)
+        if isinstance(cdecl, basestring):
+            cdecl = self._typeof(cdecl)
+        return self._backend.newp(cdecl, init)
 
     def cast(self, cdecl, source):
         """Similar to a C cast: returns an instance of the named C
         type initialized with the given 'source'.  The source is
         casted between integers or pointers of any type.
         """
-        BType = self.typeof(cdecl)
-        return self._backend.cast(BType, source)
+        if isinstance(cdecl, basestring):
+            cdecl = self._typeof(cdecl)
+        return self._backend.cast(cdecl, source)
 
     def buffer(self, cdata, size=-1):
         """Return a read-write buffer object that references the raw C data
@@ -190,8 +196,9 @@ class FFI(object):
         """
         if not callable(python_callable):
             raise TypeError("the 'python_callable' argument is not callable")
-        BFunc = self.typeof(cdecl, consider_function_as_funcptr=True)
-        return self._backend.callback(BFunc, python_callable, error)
+        if isinstance(cdecl, basestring):
+            cdecl = self._typeof(cdecl, consider_function_as_funcptr=True)
+        return self._backend.callback(cdecl, python_callable, error)
 
     def getctype(self, cdecl, replace_with=''):
         """Return a string giving the C type 'cdecl', which may be itself
@@ -200,7 +207,7 @@ class FFI(object):
         a variable name, or '*' to get actually the C type 'pointer-to-cdecl'.
         """
         if isinstance(cdecl, basestring):
-            cdecl = self.typeof(cdecl)
+            cdecl = self._typeof(cdecl)
         replace_with = replace_with.strip()
         if (replace_with.startswith('*')
                 and '&[' in self._backend.getcname(cdecl, '&')):

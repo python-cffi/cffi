@@ -210,7 +210,7 @@ def setupterm(term=ffi.NULL, fd=-1):
     if fd < 0:
         import sys
         fd = sys.stdout.fileno()
-    err = ffi.new("int")
+    err = ffi.new("int *")
     if lib.setupterm(term, fd, err) == ERR:
         if err[0] == 0:
             s = "setupterm: could not find terminal"

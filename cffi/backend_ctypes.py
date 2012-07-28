@@ -904,6 +904,8 @@ class CTypesBackend(object):
         return BType._offsetof(fieldname)
 
     def newp(self, BType, source):
+        if not issubclass(BType, CTypesData):
+            raise TypeError
         return BType._newp(source)
 
     def cast(self, BType, source):
