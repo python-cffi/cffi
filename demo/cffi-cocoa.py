@@ -60,8 +60,8 @@ NSApplicationActivationPolicyRegular = ffi.cast('NSApplicationActivationPolicy',
 NSTitledWindowMask = ffi.cast('NSUInteger', 1)
 NSBackingStoreBuffered = ffi.cast('NSBackingStoreType', 2)
 
-NSMakePoint = lambda x, y: ffi.new('NSPoint', (x, y))[0]
-NSMakeRect = lambda x, y, w, h: ffi.new('NSRect', ((x, y), (w, h)))[0]
+NSMakePoint = lambda x, y: ffi.new('NSPoint *', (x, y))[0]
+NSMakeRect = lambda x, y, w, h: ffi.new('NSRect *', ((x, y), (w, h)))[0]
 
 get, send, sel = objc.objc_getClass, objc.objc_msgSend, objc.sel_registerName
 at = lambda s: send(

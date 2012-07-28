@@ -47,8 +47,8 @@ def walk(basefd, path):
         # error in openat()
         return
     dir = ffi.C.fdopendir(dirfd)
-    dirent = ffi.new("struct dirent")
-    result = ffi.new("struct dirent *")
+    dirent = ffi.new("struct dirent *")
+    result = ffi.new("struct dirent **")
     while True:
         if ffi.C.readdir_r(dir, dirent, result):
             # error in readdir_r()

@@ -4,7 +4,7 @@ ffi = FFI()
 ffi.cdef("""
 
 typedef ... Display;
-typedef ... Window;
+typedef struct { ...; } Window;
 
 typedef struct { int type; ...; } XEvent;
 
@@ -33,7 +33,7 @@ def main():
     w = XCreateSimpleWindow(display, DefaultRootWindow(display),
                             10, 10, 500, 350, 0, 0, 0)
     XMapRaised(display, w)
-    event = ffi.new("XEvent")
+    event = ffi.new("XEvent *")
     XNextEvent(display, event)
 
 if __name__ == '__main__':
