@@ -909,7 +909,7 @@ allowed.
 |               | a compatible type (i.e.|                  | ``-``          |
 |               | same type or ``char*`` |                  |                |
 |               | or ``void*``, or as an |                  |                |
-|               | array instead)         |                  |                |
+|               | array instead) (*)     |                  |                |
 +---------------+------------------------+                  +----------------+
 |  ``void *``   | another <cdata> with   |                  |                |
 |               | any pointer or array   |                  |                |
