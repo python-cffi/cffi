@@ -963,10 +963,11 @@ allowed.
    (*) Note that when calling a function, as per C, a ``item *`` argument
    is identical to a ``item[]`` argument.  So you can pass an argument that
    is accepted by either C type, like for example passing a Python string
-   to a ``char *`` argument or a list of integers to a ``int *`` argument.
-   Note that even if you want to pass a single ``item``, you need to specify
-   it in a list of length 1; for example, a ``struct foo *`` argument might
-   be passed as ``[[field1, field2...]]``.
+   to a ``char *`` argument (because it works for ``char[]`` arguments)
+   or a list of integers to a ``int *`` argument (it works for ``int[]``
+   arguments).  Note that even if you want to pass a single ``item``,
+   you need to specify it in a list of length 1; for example, a ``struct
+   foo *`` argument might be passed as ``[[field1, field2...]]``.
 
 As an optimization, the CPython version of CFFI assumes that a function
 with a ``char *`` argument to which you pass a Python string will not
