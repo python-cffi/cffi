@@ -50,7 +50,6 @@ def walk(basefd, path):
         # error in openat()
         return
     dir = fdopendir(dirfd)
-    print dir
     dirent = DIRENT()
     result = DIRENT_p()
     while True:
