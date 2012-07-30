@@ -658,6 +658,7 @@ Imagine we have something like this:
    ffi.cdef("""
       int main_like(int argv, char *argv[]);
    """)
+   lib = ffi.dlopen("some_library.so")
 
 Now, everything is simple, except, how do we create the ``char**`` argument
 here?
@@ -665,20 +666,34 @@ The first idea:
 
 .. code-block:: python
 
-   argv = ffi.new("char *[]", ["arg0", "arg1"])
+   lib.main_like(2, ["arg0", "arg1"])
 
-Does not work, because the initializer receives python ``str`` instead of
-``char*``. Now, the following would almost work:
+does not work, because the initializer receives two Python ``str`` objects
+where it was expecting ``<cdata 'char *'>`` objects.  You need to use
+``ffi.new()`` explicitly to make these objects:
 
 .. code-block:: python
 
+   lib.main_like(2, [ffi.new("char[]", "arg0"),
+                     ffi.new("char[]", "arg1")])
+
+Note that the two ``<cdata 'char[]'>`` objects are kept alive for the
+duration of the call: they are only freed when the list itself is freed,
+and the list is only freed when the call returns.
+
+If you want instead to build an "argv" variable that you want to reuse,
+then more care is needed:
+
+.. code-block:: python
+
+   # DOES NOT WORK!
    argv = ffi.new("char *[]", [ffi.new("char[]", "arg0"),
                                ffi.new("char[]", "arg1")])
 
-However, the two ``char[]`` objects will not be automatically kept alive.
-To keep them alive, one solution is to make sure that the list is stored
-somewhere for long enough.
-For example:
+In the above example, the inner "arg0" string is deallocated as soon
+as "argv" is built.  You have to make sure that you keep a reference
+to the inner "char[]" objects, either directly or by keeping the list
+alive like this:
 
 .. code-block:: python
 
@@ -686,7 +701,6 @@ For example:
                      ffi.new("char[]", "arg1")]
    argv = ffi.new("char *[]", argv_keepalive)
 
-will work.
 
 Function calls
 --------------
@@ -895,23 +909,21 @@ allowed.
 |               | any pointer or array   |                  |                |
 |               | type                   |                  |                |
 +---------------+------------------------+                  +----------------+
-|  ``char *``   | another <cdata> with   |                  | ``[]``,        |
-|               | any pointer or array   |                  | ``+``, ``-``,  |
-|               | type, or               |                  | str()          |
-|               | a Python string when   |                  |                |
-|               | passed as func argument|                  |                |
+|  ``char *``   | same as pointers (*)   |                  | ``[]``,        |
+|               |                        |                  | ``+``, ``-``,  |
+|               |                        |                  | str()          |
 +---------------+------------------------+                  +----------------+
-| ``wchar_t *`` | same as pointers       |                  | ``[]``,        |
-|               | (passing a unicode as  |                  | ``+``, ``-``,  |
-|               | func argument is not   |                  | unicode()      |
-|               | implemented)           |                  |                |
+| ``wchar_t *`` | same as pointers (*)   |                  | ``[]``,        |
+|               |                        |                  | ``+``, ``-``,  |
+|               |                        |                  | unicode()      |
+|               |                        |                  |                |
 +---------------+------------------------+                  +----------------+
-|  pointers to  | same as pointers       |                  | ``[]``,        |
+|  pointers to  | same as pointers (*)   |                  | ``[]``,        |
 |  structure or |                        |                  | ``+``, ``-``,  |
 |  union        |                        |                  | and read/write |
 |               |                        |                  | struct fields  |
-+---------------+                        |                  +----------------+
-| function      |                        |                  | call           |
++---------------+------------------------+                  +----------------+
+| function      | same as pointers       |                  | call           |
 | pointers      |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
 |  arrays       | a list or tuple of     | a <cdata>        | len(), iter(), |
@@ -940,6 +952,19 @@ allowed.
 |               | as ``"#NUMBER"``       | ``"#NUMBER"``    |                |
 |               |                        | if out of range  |                |
 +---------------+------------------------+------------------+----------------+
+
+(*) Note that when calling a function, as per C, a ``item *`` argument
+is identical to a ``item[]`` argument.  So you can pass an argument that
+is accepted by either C type, like for example passing a Python string
+to a ``char *`` argument or a list of integers to a ``int *`` argument.
+Note that even if you want to pass a single ``item``, you need to specify
+it in a list of length 1; for example, a ``struct foo *`` argument might
+be passed as ``[[field1, field2...]]``.
+
+As an optimization, the CPython version of CFFI assumes that a function
+with a ``char *`` argument to which you pass a Python string will not
+actually modify the array of characters passed in, and so passes directly
+a pointer inside the Python string object.
 
 
 Reference: verifier

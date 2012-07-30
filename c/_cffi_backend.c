@@ -64,7 +64,8 @@ typedef struct _ctypedescr {
 
     Py_ssize_t ct_size;     /* size of instances, or -1 if unknown */
     Py_ssize_t ct_length;   /* length of arrays, or -1 if unknown;
-                               or alignment of primitive and struct types */
+                               or alignment of primitive and struct types;
+                               always -1 for pointers */
     int ct_flags;           /* CT_xxx flags */
 
     int ct_name_position;   /* index in ct_name of where to put a var name */
@@ -735,78 +736,91 @@ convert_field_from_object(char *data, CFieldObject *cf, PyObject *value)
 }
 
 static int
+convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
+{
+    /* used by convert_from_object(), and also to decode lists/tuples/unicodes
+       passed as function arguments.  'ct' is an CT_ARRAY in the first case
+       and a CT_POINTER in the second case. */
+    const char *expected;
+    CTypeDescrObject *ctitem = ct->ct_itemdescr;
+
+    if (PyList_Check(init) || PyTuple_Check(init)) {
+        PyObject **items;
+        Py_ssize_t i, n;
+        n = PySequence_Fast_GET_SIZE(init);
+        if (ct->ct_length >= 0 && n > ct->ct_length) {
+            PyErr_Format(PyExc_IndexError,
+                         "too many initializers for '%s' (got %zd)",
+                         ct->ct_name, n);
+            return -1;
+        }
+        items = PySequence_Fast_ITEMS(init);
+        for (i=0; i<n; i++) {
+            if (convert_from_object(data, ctitem, items[i]) < 0)
+                return -1;
+            data += ctitem->ct_size;
+        }
+        return 0;
+    }
+    else if (ctitem->ct_flags & CT_PRIMITIVE_CHAR) {
+        if (ctitem->ct_size == sizeof(char)) {
+            char *srcdata;
+            Py_ssize_t n;
+            if (!PyString_Check(init)) {
+                expected = "str or list or tuple";
+                goto cannot_convert;
+            }
+            n = PyString_GET_SIZE(init);
+            if (ct->ct_length >= 0 && n > ct->ct_length) {
+                PyErr_Format(PyExc_IndexError,
+                             "initializer string is too long for '%s' "
+                             "(got %zd characters)", ct->ct_name, n);
+                return -1;
+            }
+            if (n != ct->ct_length)
+                n++;
+            srcdata = PyString_AS_STRING(init);
+            memcpy(data, srcdata, n);
+            return 0;
+        }
+#ifdef HAVE_WCHAR_H
+        else {
+            Py_ssize_t n;
+            if (!PyUnicode_Check(init)) {
+                expected = "unicode or list or tuple";
+                goto cannot_convert;
+            }
+            n = _my_PyUnicode_SizeAsWideChar(init);
+            if (ct->ct_length >= 0 && n > ct->ct_length) {
+                PyErr_Format(PyExc_IndexError,
+                             "initializer unicode is too long for '%s' "
+                             "(got %zd characters)", ct->ct_name, n);
+                return -1;
+            }
+            if (n != ct->ct_length)
+                n++;
+            _my_PyUnicode_AsWideChar(init, (wchar_t *)data, n);
+            return 0;
+        }
+#endif
+    }
+    else {
+        expected = "list or tuple";
+        goto cannot_convert;
+    }
+
+ cannot_convert:
+    return _convert_error(init, ct->ct_name, expected);
+}
+
+static int
 convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
     const char *expected;
     char buf[sizeof(PY_LONG_LONG)];
 
     if (ct->ct_flags & CT_ARRAY) {
-        CTypeDescrObject *ctitem = ct->ct_itemdescr;
-
-        if (PyList_Check(init) || PyTuple_Check(init)) {
-            PyObject **items;
-            Py_ssize_t i, n;
-            n = PySequence_Fast_GET_SIZE(init);
-            if (ct->ct_length >= 0 && n > ct->ct_length) {
-                PyErr_Format(PyExc_IndexError,
-                             "too many initializers for '%s' (got %zd)",
-                             ct->ct_name, n);
-                return -1;
-            }
-            items = PySequence_Fast_ITEMS(init);
-            for (i=0; i<n; i++) {
-                if (convert_from_object(data, ctitem, items[i]) < 0)
-                    return -1;
-                data += ctitem->ct_size;
-            }
-            return 0;
-        }
-        else if (ctitem->ct_flags & CT_PRIMITIVE_CHAR) {
-            if (ctitem->ct_size == sizeof(char)) {
-                char *srcdata;
-                Py_ssize_t n;
-                if (!PyString_Check(init)) {
-                    expected = "str or list or tuple";
-                    goto cannot_convert;
-                }
-                n = PyString_GET_SIZE(init);
-                if (ct->ct_length >= 0 && n > ct->ct_length) {
-                    PyErr_Format(PyExc_IndexError,
-                                 "initializer string is too long for '%s' "
-                                 "(got %zd characters)", ct->ct_name, n);
-                    return -1;
-                }
-                if (n != ct->ct_length)
-                    n++;
-                srcdata = PyString_AS_STRING(init);
-                memcpy(data, srcdata, n);
-                return 0;
-            }
-#ifdef HAVE_WCHAR_H
-            else {
-                Py_ssize_t n;
-                if (!PyUnicode_Check(init)) {
-                    expected = "unicode or list or tuple";
-                    goto cannot_convert;
-                }
-                n = _my_PyUnicode_SizeAsWideChar(init);
-                if (ct->ct_length >= 0 && n > ct->ct_length) {
-                    PyErr_Format(PyExc_IndexError,
-                                 "initializer unicode is too long for '%s' "
-                                 "(got %zd characters)", ct->ct_name, n);
-                    return -1;
-                }
-                if (n != ct->ct_length)
-                    n++;
-                _my_PyUnicode_AsWideChar(init, (wchar_t *)data, n);
-                return 0;
-            }
-#endif
-        }
-        else {
-            expected = "list or tuple";
-            goto cannot_convert;
-        }
+        return convert_array_from_object(data, ct, init);
     }
     if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
         char *ptrdata;
@@ -1599,14 +1613,72 @@ static CTypeDescrObject *_get_ct_int(void)
     return ct_int;
 }
 
+static PyObject *
+_prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init)
+{
+    /* 'ctptr' is here a pointer type 'ITEM *'.  Accept as argument an
+       initializer for an array 'ITEM[]'.  This includes the case of
+       passing a Python string to a 'char *' argument. */
+    Py_ssize_t length, datasize;
+    CTypeDescrObject *ctitem = ctptr->ct_itemdescr;
+    PyObject *result;
+    char *data;
+
+    /* XXX some code duplication, how to avoid it? */
+    if (PyString_Check(init)) {
+        /* from a string: just returning the string here is fine.
+           We assume that the C code won't modify the 'char *' data. */
+        if ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
+                (ctitem->ct_size == sizeof(char))) {
+            Py_INCREF(init);
+            return init;
+        }
+        else
+            return Py_None;
+    }
+    else if (PyList_Check(init) || PyTuple_Check(init)) {
+        length = PySequence_Fast_GET_SIZE(init);
+    }
+    else if (PyUnicode_Check(init)) {
+        /* from a unicode, we add the null terminator */
+        length = _my_PyUnicode_SizeAsWideChar(init) + 1;
+    }
+    else {
+        /* refuse to receive just an integer (and interpret it
+           as the array size) */
+        return Py_None;
+    }
+
+    if (ctitem->ct_size <= 0)
+        return Py_None;
+    datasize = length * ctitem->ct_size;
+    if ((datasize / ctitem->ct_size) != length) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "array size would overflow a Py_ssize_t");
+        return NULL;
+    }
+
+    result = PyString_FromStringAndSize(NULL, datasize);
+    if (result == NULL)
+        return NULL;
+
+    data = PyString_AS_STRING(result);
+    memset(data, 0, datasize);
+    if (convert_array_from_object(data, ctptr, init) < 0) {
+        Py_DECREF(result);
+        return NULL;
+    }
+    return result;
+}
+
 static PyObject*
 cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 {
     char *buffer;
     void** buffer_array;
     cif_description_t *cif_descr;
-    Py_ssize_t i, nargs, nargs_declared;
-    PyObject *signature, *res, *fvarargs;
+    Py_ssize_t i, nargs, nargs_declared, free_me_until = 0;
+    PyObject *signature, *res = NULL, *fvarargs;
     CTypeDescrObject *fresult;
     char *resultdata;
     char *errormsg;
@@ -1636,7 +1708,10 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         /* regular case: this function does not take '...' arguments */
         if (nargs != nargs_declared) {
             errormsg = "'%s' expects %zd arguments, got %zd";
-            goto bad_number_of_arguments;
+          bad_number_of_arguments:
+            PyErr_Format(PyExc_TypeError, errormsg,
+                         cd->c_type->ct_name, nargs_declared, nargs);
+            goto error;
         }
     }
     else {
@@ -1708,26 +1783,21 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         else
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(fvarargs, i);
 
-        if ((argtype->ct_flags & CT_POINTER) &&
-            (argtype->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR)) {
-            if (argtype->ct_itemdescr->ct_size == sizeof(char)) {
-                if (PyString_Check(obj)) {
-                    /* special case: Python string -> cdata 'char *' */
-                    *(char **)data = PyString_AS_STRING(obj);
+        if (argtype->ct_flags & CT_POINTER) {
+            PyObject *string;
+            if (!CData_Check(obj)) {
+                string = _prepare_pointer_call_argument(argtype, obj);
+                if (string != Py_None) {
+                    if (string == NULL)
+                        goto error;
+                    ((char **)data)[0] = PyString_AS_STRING(string);
+                    ((char **)data)[1] = (char *)string;
+                    assert(i < nargs_declared); /* otherwise, obj is a CData */
+                    free_me_until = i + 1;
                     continue;
                 }
             }
-#ifdef HAVE_WCHAR_H
-            else {
-                if (PyUnicode_Check(obj)) {
-                    /* Python Unicode string -> cdata 'wchar_t *':
-                       not supported yet */
-                    PyErr_SetString(PyExc_NotImplementedError,
-                        "automatic unicode-to-'wchar_t *' conversion");
-                    goto error;
-                }
-            }
-#endif
+            ((char **)data)[1] = NULL;
         }
         if (convert_from_object(data, argtype, obj) < 0)
             goto error;
@@ -1761,23 +1831,26 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     else {
         res = convert_to_object(resultdata, fresult);
     }
-    PyObject_Free(buffer);
- done:
+    /* fall-through */
+
+ error:
+    for (i=0; i<free_me_until; i++) {
+        CTypeDescrObject *argtype;
+        argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 2 + i);
+        if (argtype->ct_flags & CT_POINTER) {
+            char *data = buffer + cif_descr->exchange_offset_arg[1 + i];
+            PyObject *string_or_null = (PyObject *)(((char **)data)[1]);
+            Py_XDECREF(string_or_null);
+        }
+    }
+    if (buffer)
+        PyObject_Free(buffer);
     if (fvarargs != NULL) {
         Py_DECREF(fvarargs);
         if (cif_descr != NULL)  /* but only if fvarargs != NULL, if variadic */
             PyObject_Free(cif_descr);
     }
     return res;
-
- bad_number_of_arguments:
-    PyErr_Format(PyExc_TypeError, errormsg,
-                 cd->c_type->ct_name, nargs_declared, nargs);
- error:
-    if (buffer)
-        PyObject_Free(buffer);
-    res = NULL;
-    goto done;
 }
 
 static PyObject *cdata_iter(CDataObject *);
@@ -2619,6 +2692,7 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
         return NULL;
 
     td->ct_size = sizeof(void *);
+    td->ct_length = -1;
     td->ct_flags = CT_POINTER;
     if (ctitem->ct_flags & (CT_STRUCT|CT_UNION))
         td->ct_flags |= CT_IS_PTR_TO_OWNED;
@@ -3131,6 +3205,15 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
             exchange_offset = ALIGN_ARG(exchange_offset);
             cif_descr->exchange_offset_arg[1 + i] = exchange_offset;
             exchange_offset += atype->size;
+            /* if 'farg' is a pointer type 'ITEM *', then we might receive
+               as argument to the function call what is an initializer
+               for an array 'ITEM[]'.  This includes the case of passing a
+               Python string to a 'char *' argument.  In this case, we
+               convert the initializer to a cdata 'ITEM[]' that gets
+               temporarily stored here: */
+            if (farg->ct_flags & CT_POINTER) {
+                exchange_offset += sizeof(PyObject *);
+            }
         }
     }
 
@@ -3898,6 +3981,11 @@ static struct _testfunc17_s _testfunc17(int n)
     return result;
 }
 
+static int _testfunc18(struct _testfunc17_s *ptr)
+{
+    return ptr->a1 + (int)ptr->a2;
+}
+
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
     /* for testing only */
@@ -3924,6 +4012,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 15: f = &_testfunc15; break;
     case 16: f = &_testfunc16; break;
     case 17: f = &_testfunc17; break;
+    case 18: f = &_testfunc18; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;

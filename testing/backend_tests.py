@@ -802,6 +802,28 @@ class BackendTests:
         res = a(1)    # and the error reported to stderr
         assert res == 42
 
+    def test_structptr_argument(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo_s { int a, b; };")
+        def cb(p):
+            return p[0].a * 1000 + p[0].b * 100 + p[1].a * 10 + p[1].b
+        a = ffi.callback("int(*)(struct foo_s[])", cb)
+        res = a([[5, 6], {'a': 7, 'b': 8}])
+        assert res == 5678
+        res = a([[5], {'b': 8}])
+        assert res == 5008
+
+    def test_array_argument_as_list(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo_s { int a, b; };")
+        seen = []
+        def cb(argv):
+            seen.append(str(argv[0]))
+            seen.append(str(argv[1]))
+        a = ffi.callback("void(*)(char *[])", cb)
+        a([ffi.new("char[]", "foobar"), ffi.new("char[]", "baz")])
+        assert seen == ["foobar", "baz"]
+
     def test_cast_float(self):
         ffi = FFI(backend=self.Backend())
         a = ffi.cast("float", 12)
