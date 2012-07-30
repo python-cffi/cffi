@@ -703,9 +703,8 @@ alive like this:
 
 
 .. versionchanged:: 0.3
-
    In older versions, passing a list as the ``char *[]`` argument did
-   not work; you needed to make a ``argv_keepalive`` and a ``argv``
+   not work; you needed to make an ``argv_keepalive`` and an ``argv``
    in all cases.
 
 
@@ -961,7 +960,6 @@ allowed.
 +---------------+------------------------+------------------+----------------+
 
 .. versionchanged:: 0.3
-
    (*) Note that when calling a function, as per C, a ``item *`` argument
    is identical to a ``item[]`` argument.  So you can pass an argument that
    is accepted by either C type, like for example passing a Python string
