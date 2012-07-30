@@ -4127,7 +4127,7 @@ void init_cffi_backend(void)
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
         return;
 
-    v = PyString_FromString("0.2.1");
+    v = PyString_FromString("0.3");
     if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
         return;
 
