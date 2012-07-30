@@ -259,41 +259,43 @@ def _make_ffi_library(ffi, libname):
     #
     backend = ffi._backend
     backendlib = backend.load_library(path)
-    function_cache = {}
+    #
+    def make_accessor(name):
+        key = 'function ' + name
+        if key in ffi._parser._declarations:
+            tp = ffi._parser._declarations[key]
+            BType = ffi._get_cached_btype(tp)
+            value = backendlib.load_function(BType, name)
+            library.__dict__[name] = value
+            return
+        #
+        key = 'variable ' + name
+        if key in ffi._parser._declarations:
+            tp = ffi._parser._declarations[key]
+            BType = ffi._get_cached_btype(tp)
+            read_variable = backendlib.read_variable
+            write_variable = backendlib.write_variable
+            setattr(FFILibrary, name, property(
+                lambda self: read_variable(BType, name),
+                lambda self, value: write_variable(BType, name, value)))
+            return
+        #
+        raise AttributeError(name)
     #
     class FFILibrary(object):
-        def __getattribute__(self, name):
-            try:
-                return function_cache[name]
-            except KeyError:
-                pass
-            #
-            key = 'function ' + name
-            if key in ffi._parser._declarations:
-                tp = ffi._parser._declarations[key]
-                BType = ffi._get_cached_btype(tp)
-                value = backendlib.load_function(BType, name)
-                function_cache[name] = value
-                return value
-            #
-            key = 'variable ' + name
-            if key in ffi._parser._declarations:
-                tp = ffi._parser._declarations[key]
-                BType = ffi._get_cached_btype(tp)
-                return backendlib.read_variable(BType, name)
-            #
-            raise AttributeError(name)
-
+        def __getattr__(self, name):
+            make_accessor(name)
+            return getattr(self, name)
         def __setattr__(self, name, value):
-            key = 'variable ' + name
-            if key in ffi._parser._declarations:
-                tp = ffi._parser._declarations[key]
-                BType = ffi._get_cached_btype(tp)
-                backendlib.write_variable(BType, name, value)
-                return
-            #
-            raise AttributeError(name)
+            try:
+                property = getattr(self.__class__, name)
+            except AttributeError:
+                make_accessor(name)
+                setattr(self, name, value)
+            else:
+                property.__set__(self, value)
     #
     if libname is not None:
         FFILibrary.__name__ = 'FFILibrary_%s' % libname
-    return FFILibrary(), function_cache
+    library = FFILibrary()
+    return library, library.__dict__
