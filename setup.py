@@ -5,14 +5,15 @@ import errno
 
 sources = ['c/_cffi_backend.c']
 libraries = ['ffi']
-include_dirs = []
+include_dirs = ['/usr/include/ffi',
+                '/usr/include/libffi']    # may be changed by pkg-config
 define_macros = []
 library_dirs = []
 extra_compile_args = []
 extra_link_args = []
 
 
-def _ask_pkg_config(option, result_prefix=''):
+def _ask_pkg_config(resultlist, option, result_prefix=''):
     try:
         p = subprocess.Popen(['pkg-config', option, 'libffi'],
                              stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
@@ -28,15 +29,14 @@ def _ask_pkg_config(option, result_prefix=''):
                 assert x.startswith(result_prefix)
             res = [x[len(result_prefix):] for x in res]
             #print 'PKG_CONFIG:', option, res
-            return res
-    return []
+            resultlist[:] = res
 
 def use_pkg_config():
-    include_dirs      .extend(_ask_pkg_config('--cflags-only-I', '-I'))
-    extra_compile_args.extend(_ask_pkg_config('--cflags-only-other'))
-    library_dirs      .extend(_ask_pkg_config('--libs-only-L', '-L'))
-    extra_link_args   .extend(_ask_pkg_config('--libs-only-other'))
-    libraries[:] = _ask_pkg_config('--libs-only-l', '-l') or libraries
+    _ask_pkg_config(include_dirs,       '--cflags-only-I', '-I')
+    _ask_pkg_config(extra_compile_args, '--cflags-only-other')
+    _ask_pkg_config(library_dirs,       '--libs-only-L', '-L')
+    _ask_pkg_config(extra_link_args,    '--libs-only-other')
+    _ask_pkg_config(libraries,          '--libs-only-l', '-l')
 
 
 if sys.platform == 'win32':
@@ -49,8 +49,8 @@ if COMPILE_LIBFFI:
         "On Windows, you need to copy the directory "
         "Modules\\_ctypes\\libffi_msvc from the CPython sources (2.6 or 2.7) "
         "into the top-level directory.")
-    include_dirs.append(COMPILE_LIBFFI)
-    libraries.remove('ffi')
+    include_dirs[:] = [COMPILE_LIBFFI]
+    libraries[:] = []
     _filenames = [filename.lower() for filename in os.listdir(COMPILE_LIBFFI)]
     _filenames = [filename for filename in _filenames
                            if filename.endswith('.c') or
