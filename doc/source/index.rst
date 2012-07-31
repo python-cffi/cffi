@@ -929,7 +929,7 @@ allowed.
 |  union        |                        |                  | and read/write |
 |               |                        |                  | struct fields  |
 +---------------+------------------------+                  +----------------+
-| function      | same as pointers       |                  | call           |
+| function      | same as pointers       |                  | call (**)      |
 | pointers      |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
 |  arrays       | a list or tuple of     | a <cdata>        | len(), iter(), |
@@ -973,6 +973,9 @@ As an optimization, the CPython version of CFFI assumes that a function
 with a ``char *`` argument to which you pass a Python string will not
 actually modify the array of characters passed in, and so passes directly
 a pointer inside the Python string object.
+
+.. versionchaned:: 0.3
+   (**) C function calls are now done with the GIL released.
 
 
 Reference: verifier
