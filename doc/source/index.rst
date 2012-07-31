@@ -974,7 +974,7 @@ with a ``char *`` argument to which you pass a Python string will not
 actually modify the array of characters passed in, and so passes directly
 a pointer inside the Python string object.
 
-.. versionchaned:: 0.3
+.. versionchanged:: 0.3
    (**) C function calls are now done with the GIL released.
 
 
