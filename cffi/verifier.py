@@ -368,11 +368,13 @@ class Verifier(object):
                                        'return NULL')
             prnt()
         #
+        prnt('  Py_BEGIN_ALLOW_THREADS')
         prnt('  _cffi_restore_errno();')
         prnt('  { %s%s(%s); }' % (
             result_code, name,
             ', '.join(['x%d' % i for i in range(len(tp.args))])))
         prnt('  _cffi_save_errno();')
+        prnt('  Py_END_ALLOW_THREADS')
         prnt()
         #
         if result_code:

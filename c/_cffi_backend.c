@@ -1805,10 +1805,12 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 
     resultdata = buffer + cif_descr->exchange_offset_arg[0];
 
+    Py_BEGIN_ALLOW_THREADS
     restore_errno();
     ffi_call(&cif_descr->cif, (void (*)(void))(cd->c_data),
              resultdata, buffer_array);
     save_errno();
+    Py_END_ALLOW_THREADS
 
     if (fresult->ct_flags & (CT_PRIMITIVE_CHAR | CT_PRIMITIVE_SIGNED |
                              CT_PRIMITIVE_UNSIGNED)) {
@@ -3494,6 +3496,9 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
 {
     save_errno();
     {
+#ifdef WITH_THREAD
+    PyGILState_STATE state = PyGILState_Ensure();
+#endif
     PyObject *cb_args = (PyObject *)userdata;
     CTypeDescrObject *ct = (CTypeDescrObject *)PyTuple_GET_ITEM(cb_args, 0);
     PyObject *signature = ct->ct_stuff;
@@ -3528,6 +3533,9 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     Py_XDECREF(py_args);
     Py_XDECREF(py_res);
     Py_DECREF(cb_args);
+#ifdef WITH_THREAD
+    PyGILState_Release(state);
+#endif
     restore_errno();
     return;
 
