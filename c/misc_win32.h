@@ -21,7 +21,8 @@ static struct cffi_errno_s *_geterrno_object(void)
     LPVOID p = TlsGetValue(cffi_tls_index);
 
     if (p == NULL) {
-        p = PyMem_Malloc(sizeof(struct cffi_errno_s));
+        /* XXX this malloc() leaks */
+        p = malloc(sizeof(struct cffi_errno_s));
         if (p == NULL)
             return NULL;
         memset(p, 0, sizeof(struct cffi_errno_s));
