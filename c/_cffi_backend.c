@@ -28,7 +28,7 @@
 #define CT_PRIMITIVE_SIGNED   1    /* signed integer */
 #define CT_PRIMITIVE_UNSIGNED 2    /* unsigned integer */
 #define CT_PRIMITIVE_CHAR     4    /* char, wchar_t */
-#define CT_PRIMITIVE_FLOAT    8    /* float, double */
+#define CT_PRIMITIVE_FLOAT    8    /* float, double, long double */
 #define CT_POINTER           16    /* pointer, excluding ptr-to-func */
 #define CT_ARRAY             32    /* array */
 #define CT_STRUCT            64    /* struct */
@@ -43,6 +43,7 @@
 #define CT_IS_ENUM               8192
 #define CT_IS_PTR_TO_OWNED      16384
 #define CT_CUSTOM_FIELD_POS     32768
+#define CT_IS_LONGDOUBLE        65536
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -104,6 +105,7 @@ typedef union {
     unsigned long long m_longlong;
     float m_float;
     double m_double;
+    long double m_longdouble;
 } union_alignment;
 
 typedef struct {
@@ -505,6 +507,12 @@ read_raw_float_data(char *target, int size)
     }
 }
 
+static long double
+read_raw_longdouble_data(char *target)
+{
+    return *((long double*)target);
+}
+
 static void
 write_raw_float_data(char *target, double source, int size)
 {
@@ -514,6 +522,12 @@ write_raw_float_data(char *target, double source, int size)
         *((double*)target) = source;
     else
         Py_FatalError("write_raw_float_data: bad float size");
+}
+
+static void
+write_raw_longdouble_data(char *target, long double source)
+{
+    *((long double*)target) = source;
 }
 
 static PyObject *
@@ -554,6 +568,8 @@ static PyObject *convert_enum_string_to_int(CTypeDescrObject *ct, PyObject *ob)
     }
     return d_value;
 }
+
+static CDataObject *_new_casted_primitive(CTypeDescrObject *ct);  /*forward*/
 
 static PyObject *
 convert_to_object(char *data, CTypeDescrObject *ct)
@@ -603,8 +619,17 @@ convert_to_object(char *data, CTypeDescrObject *ct)
             return PyLong_FromUnsignedLongLong(value);
     }
     else if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
-        double value = read_raw_float_data(data, ct->ct_size);
-        return PyFloat_FromDouble(value);
+        if (!(ct->ct_flags & CT_IS_LONGDOUBLE)) {
+            double value = read_raw_float_data(data, ct->ct_size);
+            return PyFloat_FromDouble(value);
+        }
+        else {
+            long double value = read_raw_longdouble_data(data);
+            CDataObject *cd = _new_casted_primitive(ct);
+            if (cd != NULL)
+                write_raw_longdouble_data(cd->c_data, value);
+            return (PyObject *)cd;
+        }
     }
     else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
         if (ct->ct_size == sizeof(char))
@@ -893,10 +918,22 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
-        double value = PyFloat_AsDouble(init);
+        double value;
+        if ((ct->ct_flags & CT_IS_LONGDOUBLE) &&
+                CData_Check(init) &&
+                (((CDataObject *)init)->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
+            long double lvalue;
+            lvalue = read_raw_longdouble_data(((CDataObject *)init)->c_data);
+            write_raw_longdouble_data(data, lvalue);
+            return 0;
+        }
+        value = PyFloat_AsDouble(init);
         if (value == -1.0 && PyErr_Occurred())
             return -1;
-        write_raw_float_data(data, value, ct->ct_size);
+        if (!(ct->ct_flags & CT_IS_LONGDOUBLE))
+            write_raw_float_data(data, value, ct->ct_size);
+        else
+            write_raw_longdouble_data(data, (long double)value);
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
@@ -1114,20 +1151,32 @@ static int cdata_traverse(CDataObject *cd, visitproc visit, void *arg)
     return 0;
 }
 
+static PyObject *cdata_float(CDataObject *cd);  /*forward*/
+
 static PyObject *cdata_repr(CDataObject *cd)
 {
     char *p, *extra;
     PyObject *result, *s = NULL;
 
     if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
-        PyObject *o = convert_to_object(cd->c_data, cd->c_type);
-        if (o == NULL)
-            return NULL;
-        s = PyObject_Repr(o);
-        Py_DECREF(o);
-        if (s == NULL)
-            return NULL;
-        p = PyString_AS_STRING(s);
+        if (!(cd->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
+            PyObject *o = convert_to_object(cd->c_data, cd->c_type);
+            if (o == NULL)
+                return NULL;
+            s = PyObject_Repr(o);
+            Py_DECREF(o);
+            if (s == NULL)
+                return NULL;
+            p = PyString_AS_STRING(s);
+        }
+        else {
+            long double lvalue = read_raw_longdouble_data(cd->c_data);
+            s = PyString_FromStringAndSize(NULL, 128);   /* big enough */
+            if (s == NULL)
+                return NULL;
+            p = PyString_AS_STRING(s);
+            sprintf(p, "%LE", lvalue);
+        }
     }
     else {
         if (cd->c_data != NULL) {
@@ -1294,7 +1343,7 @@ static PyObject *cdata_int(CDataObject *cd)
 #endif
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
-        PyObject *o = convert_to_object(cd->c_data, cd->c_type);
+        PyObject *o = cdata_float(cd);
         PyObject *r = o ? PyNumber_Int(o) : NULL;
         Py_XDECREF(o);
         return r;
@@ -1318,7 +1367,14 @@ static PyObject *cdata_long(CDataObject *cd)
 static PyObject *cdata_float(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
-        return convert_to_object(cd->c_data, cd->c_type);
+        double value;
+        if (!(cd->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
+            value = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
+        }
+        else {
+            value = (double)read_raw_longdouble_data(cd->c_data);
+        }
+        return PyFloat_FromDouble(value);
     }
     PyErr_Format(PyExc_TypeError, "float() not supported on cdata '%s'",
                  cd->c_type->ct_name);
@@ -2318,6 +2374,16 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
             }
             value = (unsigned char)PyString_AS_STRING(io)[0];
         }
+        else if ((ct->ct_flags & CT_IS_LONGDOUBLE) &&
+                 CData_Check(io) &&
+                 (((CDataObject *)io)->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
+            long double lvalue;
+            lvalue = read_raw_longdouble_data(((CDataObject *)io)->c_data);
+            cd = _new_casted_primitive(ct);
+            if (cd != NULL)
+                write_raw_longdouble_data(cd->c_data, lvalue);
+            return (PyObject *)cd;
+        }
         else {
             value = PyFloat_AsDouble(io);
         }
@@ -2326,8 +2392,12 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
             return NULL;
 
         cd = _new_casted_primitive(ct);
-        if (cd != NULL)
-            write_raw_float_data(cd->c_data, value, ct->ct_size);
+        if (cd != NULL) {
+            if (!(ct->ct_flags & CT_IS_LONGDOUBLE))
+                write_raw_float_data(cd->c_data, value, ct->ct_size);
+            else
+                write_raw_longdouble_data(cd->c_data, (long double)value);
+        }
         return (PyObject *)cd;
     }
     else {
@@ -2569,7 +2639,8 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
        EPTYPE(ul, unsigned long, CT_PRIMITIVE_UNSIGNED )        \
        EPTYPE(ull, unsigned long long, CT_PRIMITIVE_UNSIGNED )  \
        EPTYPE(f, float, CT_PRIMITIVE_FLOAT )                    \
-       EPTYPE(d, double, CT_PRIMITIVE_FLOAT )
+       EPTYPE(d, double, CT_PRIMITIVE_FLOAT )                   \
+       EPTYPE(ld, long double, CT_PRIMITIVE_FLOAT | CT_IS_LONGDOUBLE )
 #ifdef HAVE_WCHAR_H
 # define ENUM_PRIMITIVE_TYPES_WCHAR                             \
        EPTYPE(wc, wchar_t, CT_PRIMITIVE_CHAR )
@@ -2635,6 +2706,8 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
             ffitype = &ffi_type_float;
         else if (strcmp(ptypes->name, "double") == 0)
             ffitype = &ffi_type_double;
+        else if (strcmp(ptypes->name, "long double") == 0)
+            ffitype = &ffi_type_longdouble;
         else
             goto bad_ffi_type;
     }
@@ -3994,6 +4067,11 @@ static int _testfunc18(struct _testfunc17_s *ptr)
     return ptr->a1 + (int)ptr->a2;
 }
 
+static long double _testfunc19(long double x)
+{
+    return x + x;
+}
+
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
     /* for testing only */
@@ -4021,6 +4099,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 16: f = &_testfunc16; break;
     case 17: f = &_testfunc17; break;
     case 18: f = &_testfunc18; break;
+    case 19: f = &_testfunc19; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;

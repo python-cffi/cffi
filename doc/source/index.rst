@@ -345,7 +345,7 @@ can assume to exist are the standard types:
 
 * char, short, int, long, long long (both signed and unsigned)
 
-* float, double
+* float, double, long double
 
 * intN_t, uintN_t (for N=8,16,32,64), intptr_t, uintptr_t, ptrdiff_t,
   size_t, ssize_t
@@ -905,6 +905,11 @@ allowed.
 |  ``float``,   | a float or anything on | a Python float   | float(), int() |
 |  ``double``   | which float() works    |                  |                |
 +---------------+------------------------+------------------+----------------+
+|``long double``| another <cdata> with   | a <cdata>, to    | float(), int() |
+|               | a ``long double``, or  | avoid loosing    |                |
+|               | anything on which      | precision (***)  |                |
+|               | float() works          |                  |                |
++---------------+------------------------+------------------+----------------+
 |  pointers     | another <cdata> with   | a <cdata>        | ``[]``, ``+``, |
 |               | a compatible type (i.e.|                  | ``-``          |
 |               | same type or ``char*`` |                  |                |
@@ -976,6 +981,13 @@ a pointer inside the Python string object.
 
 .. versionchanged:: 0.3
    (**) C function calls are now done with the GIL released.
+
+.. versionadded:: 0.3
+   (***) ``long double`` is passed around in a cdata object to avoid loosing
+   precision, because a normal Python floating-point number only contains
+   enough precision for a ``double``.  If you want to operate on such numbers
+   without any precision loss, you need to define and use a family of C
+   functions like ``long double add(long double a, long double b);``.
 
 
 Reference: verifier
