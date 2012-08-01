@@ -983,7 +983,8 @@ a pointer inside the Python string object.
    (**) C function calls are now done with the GIL released.
 
 .. versionadded:: 0.3
-   (***) ``long double`` is passed around in a cdata object to avoid loosing
+   (***) ``long double`` support.
+   Such numbers are passed around in a cdata object to avoid loosing
    precision, because a normal Python floating-point number only contains
    enough precision for a ``double``.  If you want to operate on such numbers
    without any precision loss, you need to define and use a family of C
