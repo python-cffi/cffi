@@ -984,9 +984,10 @@ a pointer inside the Python string object.
 
 .. versionadded:: 0.3
    (***) ``long double`` support.
-   Such numbers are passed around in a cdata object to avoid loosing
+   Such a number is passed around in a cdata object to avoid loosing
    precision, because a normal Python floating-point number only contains
-   enough precision for a ``double``.  If you want to operate on such numbers
+   enough precision for a ``double``.  To convert it to a regular float,
+   call ``float()``.  If you want to operate on such numbers
    without any precision loss, you need to define and use a family of C
    functions like ``long double add(long double a, long double b);``.
 
