@@ -1762,10 +1762,11 @@ def test_longdouble():
     #
     BFunc19 = new_function_type((BLongDouble,), BLongDouble)
     f = cast(BFunc19, _testfunc(19))
-    start = 1
-    for i in range(2999):
+    start = 8
+    for i in range(107):
         start = f(start)
     if sizeof(BLongDouble) > sizeof(new_primitive_type("double")):
+        if 'PY_DOT_PY' in globals(): py.test.skip('py.py: long double->double')
         assert repr(start).startswith("<cdata 'long double' 6.15")
         assert repr(start).endswith("E+902>")
         #

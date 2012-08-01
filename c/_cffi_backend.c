@@ -4069,7 +4069,10 @@ static int _testfunc18(struct _testfunc17_s *ptr)
 
 static long double _testfunc19(long double x)
 {
-    return x + x;
+    int i;
+    for (i=0; i<28; i++)
+        x += x;
+    return x;
 }
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
