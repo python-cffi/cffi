@@ -836,7 +836,8 @@ declare and call the ``GetLastError()`` function as usual.
 ``ffi.buffer(pointer, [size])``: return a read-write buffer object that
 references the raw C data pointed to by the given 'cdata', of 'size'
 bytes.  The 'cdata' must be a pointer or an array.  To get a copy of it
-in a regular string, call str() on the result.  If unspecified, the
+in a regular string, use ``ffi.buffer(..)[:]``.  To change the content,
+use ``ffi.buffer(..)[:] = new_string``.  If unspecified, the
 default size of the buffer is ``sizeof(*pointer)`` or the whole size of
 the array.  Getting a buffer is useful because you can read from it
 without an extra copy, or write into it to change the original value;
