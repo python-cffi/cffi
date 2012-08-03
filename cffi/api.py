@@ -180,6 +180,24 @@ class FFI(object):
             cdecl = self._typeof(cdecl)
         return self._backend.cast(cdecl, source)
 
+    def string(self, cdata, maxlen=-1):
+        """Return a Python string (or unicode string) from the 'cdata'.
+        If 'cdata' is a pointer or array of characters or bytes, returns
+        the null-terminated string.  The returned string extends until
+        the first null character, or at most 'maxlen' characters.  If
+        'cdata' is an array then 'maxlen' defaults to its length.
+
+        If 'cdata' is a pointer or array of wchar_t, returns a unicode
+        string following the same rules.
+
+        If 'cdata' is a single character or byte or a wchar_t, returns
+        it as a string or unicode string.
+
+        If 'cdata' is an enum, returns the value of the enumerator as a
+        string, or "#value" if the value is out of range.
+        """
+        return self._backend.string(cdata, maxlen)
+
     def buffer(self, cdata, size=-1):
         """Return a read-write buffer object that references the raw C data
         pointed to by the given 'cdata'.  The 'cdata' must be a pointer or

@@ -1201,89 +1201,6 @@ static PyObject *cdata_repr(CDataObject *cd)
     return result;
 }
 
-static PyObject *cdata_str(CDataObject *cd)
-{
-    if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR &&
-        cd->c_type->ct_size == sizeof(char)) {
-        return PyString_FromStringAndSize(cd->c_data, 1);
-    }
-    else if (cd->c_type->ct_itemdescr != NULL &&
-             cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR &&
-             cd->c_type->ct_itemdescr->ct_size == sizeof(char)) {
-        Py_ssize_t length;
-
-        if (cd->c_type->ct_flags & CT_ARRAY) {
-            const char *start = cd->c_data;
-            const char *end;
-            length = get_array_length(cd);
-            end = (const char *)memchr(start, 0, length);
-            if (end != NULL)
-                length = end - start;
-        }
-        else {
-            if (cd->c_data == NULL) {
-                PyObject *s = cdata_repr(cd);
-                if (s != NULL) {
-                    PyErr_Format(PyExc_RuntimeError,
-                                 "cannot use str() on %s",
-                                 PyString_AS_STRING(s));
-                    Py_DECREF(s);
-                }
-                return NULL;
-            }
-            length = strlen(cd->c_data);
-        }
-
-        return PyString_FromStringAndSize(cd->c_data, length);
-    }
-    else if (cd->c_type->ct_flags & CT_IS_ENUM)
-        return convert_to_object(cd->c_data, cd->c_type);
-    else
-        return Py_TYPE(cd)->tp_repr((PyObject *)cd);
-}
-
-#ifdef HAVE_WCHAR_H
-static PyObject *cdata_unicode(CDataObject *cd)
-{
-    if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR &&
-        cd->c_type->ct_size == sizeof(wchar_t)) {
-        return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, 1);
-    }
-    else if (cd->c_type->ct_itemdescr != NULL &&
-             cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR &&
-             cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t)) {
-        Py_ssize_t length;
-        const wchar_t *start = (wchar_t *)cd->c_data;
-
-        if (cd->c_type->ct_flags & CT_ARRAY) {
-            const Py_ssize_t lenmax = get_array_length(cd);
-            length = 0;
-            while (length < lenmax && start[length])
-                length++;
-        }
-        else {
-            if (cd->c_data == NULL) {
-                PyObject *s = cdata_repr(cd);
-                if (s != NULL) {
-                    PyErr_Format(PyExc_RuntimeError,
-                                 "cannot use unicode() on %s",
-                                 PyString_AS_STRING(s));
-                    Py_DECREF(s);
-                }
-                return NULL;
-            }
-            length = 0;
-            while (start[length])
-                length++;
-        }
-
-        return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, length);
-    }
-    else
-        return Py_TYPE(cd)->tp_repr((PyObject *)cd);
-}
-#endif
-
 static PyObject *cdataowning_repr(CDataObject *cd)
 {
     Py_ssize_t size;
@@ -1951,11 +1868,6 @@ static PyMappingMethods CDataOwn_as_mapping = {
     (objobjargproc)cdata_ass_sub, /*mp_ass_subscript*/
 };
 
-static PyMethodDef CData_methods[] = {
-    {"__unicode__",     (PyCFunction)cdata_unicode,  METH_NOARGS},
-    {NULL,              NULL}           /* sentinel */
-};
-
 static PyTypeObject CData_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "_cffi_backend.CData",
@@ -1972,7 +1884,7 @@ static PyTypeObject CData_Type = {
     &CData_as_mapping,                          /* tp_as_mapping */
     (hashfunc)cdata_hash,                       /* tp_hash */
     (ternaryfunc)cdata_call,                    /* tp_call */
-    (reprfunc)cdata_str,                        /* tp_str */
+    0,                                          /* tp_str */
     (getattrofunc)cdata_getattro,               /* tp_getattro */
     (setattrofunc)cdata_setattro,               /* tp_setattro */
     0,                                          /* tp_as_buffer */
@@ -1984,7 +1896,6 @@ static PyTypeObject CData_Type = {
     0,                                          /* tp_weaklistoffset */
     (getiterfunc)cdata_iter,                    /* tp_iter */
     0,                                          /* tp_iternext */
-    CData_methods,                              /* tp_methods */
 };
 
 static PyTypeObject CDataOwning_Type = {
@@ -3888,6 +3799,85 @@ static PyObject *b_getcname(PyObject *self, PyObject *args)
     return s;
 }
 
+static PyObject *b_string(PyObject *self, PyObject *args)
+{
+    CDataObject *cd;
+    Py_ssize_t maxlen = -1;
+    if (!PyArg_ParseTuple(args, "O!|n:string",
+                          &CData_Type, &cd, &maxlen))
+        return NULL;
+
+    if (cd->c_type->ct_itemdescr != NULL &&
+        cd->c_type->ct_itemdescr->ct_flags & (CT_PRIMITIVE_CHAR |
+                                              CT_PRIMITIVE_SIGNED |
+                                              CT_PRIMITIVE_UNSIGNED)) {
+        Py_ssize_t length = maxlen;
+        if (cd->c_data == NULL) {
+            PyObject *s = cdata_repr(cd);
+            if (s != NULL) {
+                PyErr_Format(PyExc_RuntimeError,
+                             "cannot use string() on %s",
+                             PyString_AS_STRING(s));
+                Py_DECREF(s);
+            }
+            return NULL;
+        }
+        if (cd->c_type->ct_itemdescr->ct_size == sizeof(char)) {
+            const char *start = cd->c_data;
+            if (length < 0 && cd->c_type->ct_flags & CT_ARRAY) {
+                length = get_array_length(cd);
+            }
+            if (length < 0)
+                length = strlen(start);
+            else {
+                const char *end;
+                end = (const char *)memchr(start, 0, length);
+                if (end != NULL)
+                    length = end - start;
+            }
+            return PyString_FromStringAndSize(start, length);
+        }
+#ifdef HAVE_WCHAR_H
+        else if (cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t)) {
+            const wchar_t *start = (wchar_t *)cd->c_data;
+            if (length < 0 && cd->c_type->ct_flags & CT_ARRAY) {
+                length = get_array_length(cd);
+            }
+            if (length < 0) {
+                length = 0;
+                while (start[length])
+                    length++;
+            }
+            else {
+                maxlen = length;
+                length = 0;
+                while (length < maxlen && start[length])
+                    length++;
+            }
+            return _my_PyUnicode_FromWideChar(start, length);
+        }
+#endif
+    }
+    else if (cd->c_type->ct_flags & CT_IS_ENUM) {
+        return convert_to_object(cd->c_data, cd->c_type);
+    }
+    else if (cd->c_type->ct_flags & (CT_PRIMITIVE_CHAR |
+                                     CT_PRIMITIVE_SIGNED |
+                                     CT_PRIMITIVE_UNSIGNED)) {
+        if (cd->c_type->ct_size == sizeof(char)) {
+            return PyString_FromStringAndSize(cd->c_data, 1);
+        }
+#ifdef HAVE_WCHAR_H
+        else if (cd->c_type->ct_size == sizeof(wchar_t)) {
+            return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, 1);
+        }
+#endif
+    }
+    PyErr_Format(PyExc_TypeError, "string(): unexpected cdata '%s' argument",
+                 cd->c_type->ct_name);
+    return NULL;
+}
+
 static PyObject *b_buffer(PyObject *self, PyObject *args)
 {
     CDataObject *cd;
@@ -4131,6 +4121,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"typeof", b_typeof, METH_O},
     {"offsetof", b_offsetof, METH_VARARGS},
     {"getcname", b_getcname, METH_VARARGS},
+    {"string", b_string, METH_VARARGS},
     {"buffer", b_buffer, METH_VARARGS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_VARARGS},

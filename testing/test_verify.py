@@ -337,7 +337,7 @@ def test_global_constants_non_int():
     ffi.cdef("static char *const PP;")
     lib = ffi.verify('static char *const PP = "testing!";\n')
     assert ffi.typeof(lib.PP) == ffi.typeof("char *")
-    assert str(lib.PP) == "testing!"
+    assert ffi.string(lib.PP) == "testing!"
 
 def test_nonfull_enum():
     ffi = FFI()
@@ -633,7 +633,7 @@ def test_func_as_funcptr():
     """)
     foochar = ffi.cast("char *(*)(void)", lib.fooptr)
     s = foochar()
-    assert str(s) == "foobar"
+    assert ffi.string(s) == "foobar"
 
 def test_funcptr_as_argument():
     ffi = FFI()

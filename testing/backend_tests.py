@@ -550,57 +550,64 @@ class BackendTests:
         assert len(a) == 5
         assert ffi.sizeof(a) == 5 * SIZE_OF_INT
 
-    def test_str_from_char_pointer(self):
+    def test_string_from_char_pointer(self):
         ffi = FFI(backend=self.Backend())
-        assert str(ffi.new("char*", "x")) == "x"
-        assert str(ffi.new("char*", "\x00")) == ""
+        x = ffi.new("char*", "x")
+        assert str(x) == repr(x)
+        assert ffi.string(x) == "x"
+        assert ffi.string(ffi.new("char*", "\x00")) == ""
 
     def test_unicode_from_wchar_pointer(self):
         ffi = FFI(backend=self.Backend())
         self.check_wchar_t(ffi)
-        assert unicode(ffi.new("wchar_t*", u"x")) == u"x"
-        assert unicode(ffi.new("wchar_t*", u"\x00")) == u""
-        x = ffi.new("wchar_t*", u"\x00")
-        assert str(x) == repr(x)
+        x = ffi.new("wchar_t*", u"x")
+        assert unicode(x) == unicode(repr(x))
+        assert ffi.string(x) == u"x"
+        assert ffi.string(ffi.new("wchar_t*", u"\x00")) == u""
 
     def test_string_from_char_array(self):
         ffi = FFI(backend=self.Backend())
-        assert str(ffi.cast("char", "x")) == "x"
         p = ffi.new("char[]", "hello.")
         p[5] = '!'
-        assert str(p) == "hello!"
+        assert ffi.string(p) == "hello!"
         p[6] = '?'
-        assert str(p) == "hello!?"
+        assert ffi.string(p) == "hello!?"
         p[3] = '\x00'
-        assert str(p) == "hel"
+        assert ffi.string(p) == "hel"
+        assert ffi.string(p, 2) == "he"
         py.test.raises(IndexError, "p[7] = 'X'")
         #
         a = ffi.new("char[]", "hello\x00world")
         assert len(a) == 12
         p = ffi.cast("char *", a)
-        assert str(p) == 'hello'
+        assert ffi.string(p) == 'hello'
 
     def test_string_from_wchar_array(self):
         ffi = FFI(backend=self.Backend())
         self.check_wchar_t(ffi)
-        assert unicode(ffi.cast("wchar_t", "x")) == u"x"
-        assert unicode(ffi.cast("wchar_t", u"x")) == u"x"
+        assert ffi.string(ffi.cast("wchar_t", "x")) == u"x"
+        assert ffi.string(ffi.cast("wchar_t", u"x")) == u"x"
         x = ffi.cast("wchar_t", "x")
         assert str(x) == repr(x)
+        assert ffi.string(x) == u"x"
         #
         p = ffi.new("wchar_t[]", u"hello.")
         p[5] = u'!'
-        assert unicode(p) == u"hello!"
+        assert ffi.string(p) == u"hello!"
         p[6] = unichr(1234)
-        assert unicode(p) == u"hello!\u04d2"
+        assert ffi.string(p) == u"hello!\u04d2"
         p[3] = u'\x00'
-        assert unicode(p) == u"hel"
+        assert ffi.string(p) == u"hel"
+        assert ffi.string(p, 123) == u"hel"
         py.test.raises(IndexError, "p[7] = u'X'")
         #
         a = ffi.new("wchar_t[]", u"hello\x00world")
         assert len(a) == 12
         p = ffi.cast("wchar_t *", a)
-        assert unicode(p) == u'hello'
+        assert ffi.string(p) == u'hello'
+        assert ffi.string(p, 123) == u'hello'
+        assert ffi.string(p, 5) == u'hello'
+        assert ffi.string(p, 2) == u'he'
 
     def test_fetch_const_char_p_field(self):
         # 'const' is ignored so far
@@ -609,7 +616,7 @@ class BackendTests:
         t = ffi.new("const char[]", "testing")
         s = ffi.new("struct foo*", [t])
         assert type(s.name) is not str
-        assert str(s.name) == "testing"
+        assert ffi.string(s.name) == "testing"
         py.test.raises(TypeError, "s.name = None")
         s.name = ffi.NULL
         assert s.name == ffi.NULL
@@ -622,7 +629,7 @@ class BackendTests:
         t = ffi.new("const wchar_t[]", u"testing")
         s = ffi.new("struct foo*", [t])
         assert type(s.name) not in (str, unicode)
-        assert unicode(s.name) == u"testing"
+        assert ffi.string(s.name) == u"testing"
         s.name = ffi.NULL
         assert s.name == ffi.NULL
 
@@ -818,8 +825,8 @@ class BackendTests:
         ffi.cdef("struct foo_s { int a, b; };")
         seen = []
         def cb(argv):
-            seen.append(str(argv[0]))
-            seen.append(str(argv[1]))
+            seen.append(ffi.string(argv[0]))
+            seen.append(ffi.string(argv[1]))
         a = ffi.callback("void(*)(char *[])", cb)
         a([ffi.new("char[]", "foobar"), ffi.new("char[]", "baz")])
         assert seen == ["foobar", "baz"]
@@ -835,7 +842,7 @@ class BackendTests:
         a = ffi.cast("int", 12.9)
         assert int(a) == 12
         a = ffi.cast("char", 66.9 + 256)
-        assert str(a) == "B"
+        assert ffi.string(a) == "B"
         #
         a = ffi.cast("float", ffi.cast("int", 12))
         assert float(a) == 12.0
@@ -846,7 +853,7 @@ class BackendTests:
         a = ffi.cast("int", ffi.cast("double", 12.9))
         assert int(a) == 12
         a = ffi.cast("char", ffi.cast("double", 66.9 + 256))
-        assert str(a) == "B"
+        assert ffi.string(a) == "B"
 
     def test_enum(self):
         ffi = FFI(backend=self.Backend())
@@ -889,12 +896,12 @@ class BackendTests:
         assert int(ffi.cast("enum foo", "A")) == 0
         assert int(ffi.cast("enum foo", "B")) == 42
         assert int(ffi.cast("enum foo", "C")) == 43
-        assert str(ffi.cast("enum foo", 0)) == "A"
-        assert str(ffi.cast("enum foo", 42)) == "B"
-        assert str(ffi.cast("enum foo", 43)) == "C"
+        assert ffi.string(ffi.cast("enum foo", 0)) == "A"
+        assert ffi.string(ffi.cast("enum foo", 42)) == "B"
+        assert ffi.string(ffi.cast("enum foo", 43)) == "C"
         invalid_value = ffi.cast("enum foo", 2)
         assert int(invalid_value) == 2
-        assert str(invalid_value) == "#2"
+        assert ffi.string(invalid_value) == "#2"
 
     def test_array_of_struct(self):
         ffi = FFI(backend=self.Backend())
@@ -1221,4 +1228,4 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         ffi.cdef("enum e { AA=0, BB=0, CC=0, DD=0 };")
         e = ffi.cast("enum e", 'CC')
-        assert str(e) == "AA"     # pick the first one arbitrarily
+        assert ffi.string(e) == "AA"     # pick the first one arbitrarily

@@ -1,4 +1,4 @@
-import ctypes, ctypes.util, operator
+import ctypes, ctypes.util, operator, sys
 from . import model
 
 class CTypesData(object):
@@ -115,6 +115,9 @@ class CTypesData(object):
 
     def __hash__(self):
         return hash(type(self)) ^ hash(self._convert_to_address(None))
+
+    def _to_string(self, maxlen):
+        raise TypeError("string(): %r" % (self,))
 
 
 class CTypesGenericPrimitive(CTypesData):
@@ -314,7 +317,10 @@ class CTypesBackend(object):
         elif name in ('float', 'double'):
             kind = 'float'
         else:
-            kind = 'int'
+            if name in ('signed char', 'unsigned char'):
+                kind = 'byte'
+            else:
+                kind = 'int'
             is_signed = (ctype(-1).value == -1)
         #
         def _cast_source_to_int(source):
@@ -345,7 +351,7 @@ class CTypesBackend(object):
                     return ctype()
                 return ctype(CTypesPrimitive._to_ctypes(init))
 
-            if kind == 'int':
+            if kind == 'int' or kind == 'byte':
                 @classmethod
                 def _cast_from(cls, source):
                     source = _cast_source_to_int(source)
@@ -362,8 +368,6 @@ class CTypesBackend(object):
                     return cls(source)
                 def __int__(self):
                     return ord(self._value)
-                def __str__(self):
-                    return self._value
 
             if kind == 'float':
                 @classmethod
@@ -386,7 +390,7 @@ class CTypesBackend(object):
 
             _cast_to_integer = __int__
 
-            if kind == 'int':
+            if kind == 'int' or kind == 'byte':
                 @staticmethod
                 def _to_ctypes(x):
                     if not isinstance(x, (int, long)):
@@ -428,13 +432,24 @@ class CTypesBackend(object):
             @staticmethod
             def _initialize(blob, init):
                 blob.value = CTypesPrimitive._to_ctypes(init)
+
+            if kind == 'char':
+                def _to_string(self, maxlen):
+                    return self._value
+            if kind == 'byte':
+                def _to_string(self, maxlen):
+                    return chr(self._value & 0xff)
         #
         CTypesPrimitive._fix_class()
         return CTypesPrimitive
 
     def new_pointer_type(self, BItem):
-        if BItem is self.ffi._get_cached_btype(model.PrimitiveType('char')):
+        getbtype = self.ffi._get_cached_btype
+        if BItem is getbtype(model.PrimitiveType('char')):
             kind = 'charp'
+        elif BItem in (getbtype(model.PrimitiveType('signed char')),
+                       getbtype(model.PrimitiveType('unsigned char'))):
+            kind = 'bytep'
         else:
             kind = 'generic'
         #
@@ -483,17 +498,23 @@ class CTypesBackend(object):
                 self._as_ctype_ptr[index] = BItem._to_ctypes(value)
 
             if kind == 'charp':
-                def __str__(self):
-                    n = 0
-                    while self._as_ctype_ptr[n] != '\x00':
-                        n += 1
-                    return ''.join([self._as_ctype_ptr[i] for i in range(n)])
                 @classmethod
                 def _arg_to_ctypes(cls, value):
                     if isinstance(value, str):
                         return ctypes.c_char_p(value)
                     else:
                         return super(CTypesPtr, cls)._arg_to_ctypes(value)
+
+            if kind == 'charp' or kind == 'bytep':
+                def _to_string(self, maxlen):
+                    if maxlen < 0:
+                        maxlen = sys.maxint
+                    p = ctypes.cast(self._as_ctype_ptr,
+                                    ctypes.POINTER(ctypes.c_char))
+                    n = 0
+                    while n < maxlen and p[n] != '\x00':
+                        n += 1
+                    return ''.join([p[i] for i in range(n)])
 
             def _get_own_repr(self):
                 if getattr(self, '_own', False):
@@ -514,8 +535,12 @@ class CTypesBackend(object):
         else:
             brackets = ' &[%d]' % length
         BItem = CTypesPtr._BItem
-        if BItem is self.ffi._get_cached_btype(model.PrimitiveType('char')):
+        getbtype = self.ffi._get_cached_btype
+        if BItem is getbtype(model.PrimitiveType('char')):
             kind = 'char'
+        elif BItem in (getbtype(model.PrimitiveType('signed char')),
+                       getbtype(model.PrimitiveType('unsigned char'))):
+            kind = 'byte'
         else:
             kind = 'generic'
         #
@@ -567,14 +592,16 @@ class CTypesBackend(object):
                     raise IndexError
                 self._blob[index] = BItem._to_ctypes(value)
 
-            if kind == 'char':
-                def __str__(self):
-                    s = ''.join(self._blob)
-                    try:
-                        s = s[:s.index('\x00')]
-                    except ValueError:
-                        pass
-                    return s
+            if kind == 'char' or kind == 'byte':
+                def _to_string(self, maxlen):
+                    if maxlen < 0:
+                        maxlen = len(self._blob)
+                    p = ctypes.cast(self._blob,
+                                    ctypes.POINTER(ctypes.c_char))
+                    n = 0
+                    while n < maxlen and p[n] != '\x00':
+                        n += 1
+                    return ''.join([p[i] for i in range(n)])
 
             def _get_own_repr(self):
                 if getattr(self, '_own', False):
@@ -840,7 +867,7 @@ class CTypesBackend(object):
             __slots__ = []
             _reftypename = 'enum %s &' % name
 
-            def __str__(self):
+            def _to_string(self, maxlen):
                 return str(CTypesEnum._from_ctypes(self._value))
 
             @classmethod
@@ -869,6 +896,9 @@ class CTypesBackend(object):
 
     def set_errno(self, value):
         ctypes.set_errno(value)
+
+    def string(self, b, maxlen=-1):
+        return b._to_string(maxlen)
 
     def buffer(self, bptr, size=-1):
         # haaaaaaaaaaaack
