@@ -194,7 +194,7 @@ Real example (API level)
     #include <pwd.h>
     """)
     p = C.getpwuid(0)
-    assert str(p.pw_name) == 'root'
+    assert ffi.string(p.pw_name) == 'root'
 
 Note that the above example works independently of the exact layout of
 ``struct passwd``.  It requires a C compiler the first time you run it,
@@ -615,11 +615,11 @@ which case a terminating null character is appended implicitly::
     >>> x[5]          # the last item in the array
     '\x00'
     >>> x[0] = 'H'    # change the first item
-    >>> str(x)        # interpret 'x' as a regular null-terminated string
+    >>> ffi.string(x) # interpret 'x' as a regular null-terminated string
     'Hello'
 
 Similarly, arrays of wchar_t can be initialized from a unicode string,
-and calling ``unicode()`` on the cdata object returns the current unicode
+and calling ``ffi.string()`` on the cdata object returns the current unicode
 string stored in the wchar_t array (encoding and decoding surrogates as
 needed if necessary).
 
@@ -734,11 +734,16 @@ string (but don't pass a normal Python string to functions that take a
 
     assert C.strlen("hello") == 5
 
-So far passing unicode strings as ``wchar_t *`` arguments is not
-implemented.  You need to write e.g.::
-  
-    >>> C.wcslen(ffi.new("wchar_t[]", u"foo"))
-    3
+You can also pass unicode strings as ``wchar_t *`` arguments.  Note that
+in general, there is no difference between C argument declarations that
+use ``type *`` or ``type[]``.  For example, ``int *`` is fully
+equivalent to ``int[]`` or ``int[5]``.  So you can pass an ``int *`` as
+a list of integers::
+
+    ffi.cdef("""
+        void do_something_with_array(int *array);
+    """)
+    lib.do_something_with_array([1, 2, 3, 4, 5])
 
 CFFI supports passing and returning structs to functions and callbacks.
 Example (sketch)::
@@ -833,6 +838,24 @@ reads and writes of the property ``ffi.errno``.  On Windows we also save
 and restore the ``GetLastError()`` value, but to access it you need to
 declare and call the ``GetLastError()`` function as usual.
 
+``ffi.string(cdata, [maxlen])``: Return a Python string (or unicode
+string) from the 'cdata'.
+
+- If 'cdata' is a pointer or array of characters or bytes, returns the
+  null-terminated string.  The returned string extends until the first
+  null character, or at most 'maxlen' characters.  If 'cdata' is an
+  array then 'maxlen' defaults to its length.
+
+- If 'cdata' is a pointer or array of wchar_t, returns a unicode string
+  following the same rules.
+
+- If 'cdata' is a single character or byte or a wchar_t, returns it as a
+  string or unicode string.  (Note that in some situation a single
+  wchar_t may require a Python unicode string of length 2.)
+
+- If 'cdata' is an enum, returns the value of the enumerator as a
+  string, or ``#value`` if the value is out of range.
+
 ``ffi.buffer(pointer, [size])``: return a read-write buffer object that
 references the raw C data pointed to by the given 'cdata', of 'size'
 bytes.  The 'cdata' must be a pointer or an array.  To get a copy of it
@@ -895,10 +918,10 @@ allowed.
 |               | (but not a float!).    | on the type      |                |
 |               | Must be within range.  |                  |                |
 +---------------+------------------------+------------------+----------------+
-|   ``char``    | a string of length 1   | a string of      | str(), int()   |
+|   ``char``    | a string of length 1   | a string of      | int()          |
 |               | or another <cdata char>| length 1         |                |
 +---------------+------------------------+------------------+----------------+
-|  ``wchar_t``  | a unicode of length 1  | a unicode of     | unicode(),     |
+|  ``wchar_t``  | a unicode of length 1  | a unicode of     |                |
 |               | (or maybe 2 if         | length 1         | int()          |
 |               | surrogates) or         | (or maybe 2 if   |                |
 |               | another <cdata wchar_t>| surrogates)      |                |
@@ -916,19 +939,10 @@ allowed.
 |               | same type or ``char*`` |                  |                |
 |               | or ``void*``, or as an |                  |                |
 |               | array instead) (*)     |                  |                |
-+---------------+------------------------+                  +----------------+
-|  ``void *``   | another <cdata> with   |                  |                |
-|               | any pointer or array   |                  |                |
++---------------+------------------------+                  |                |
+|  ``void *``,  | another <cdata> with   |                  |                |
+|  ``char *``   | any pointer or array   |                  |                |
 |               | type                   |                  |                |
-+---------------+------------------------+                  +----------------+
-|  ``char *``   | same as pointers (*)   |                  | ``[]``,        |
-|               |                        |                  | ``+``, ``-``,  |
-|               |                        |                  | str()          |
-+---------------+------------------------+                  +----------------+
-| ``wchar_t *`` | same as pointers (*)   |                  | ``[]``,        |
-|               |                        |                  | ``+``, ``-``,  |
-|               |                        |                  | unicode()      |
-|               |                        |                  |                |
 +---------------+------------------------+                  +----------------+
 |  pointers to  | same as pointers (*)   |                  | ``[]``,        |
 |  structure or |                        |                  | ``+``, ``-``,  |
@@ -944,12 +958,12 @@ allowed.
 +---------------+------------------------+                  +----------------+
 |  ``char[]``   | same as arrays, or a   |                  | len(), iter(), |
 |               | Python string          |                  | ``[]``, ``+``, |
-|               |                        |                  | ``-``, str()   |
+|               |                        |                  | ``-``          |
 +---------------+------------------------+                  +----------------+
 | ``wchar_t[]`` | same as arrays, or a   |                  | len(), iter(), |
 |               | Python unicode         |                  | ``[]``,        |
-|               |                        |                  | ``+``, ``-``,  |
-|               |                        |                  | unicode()      |
+|               |                        |                  | ``+``, ``-``   |
+|               |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
 | structure     | a list or tuple or     | a <cdata>        | read/write     |
 |               | dict of the field      |                  | fields         |
@@ -959,7 +973,7 @@ allowed.
 | union         | same as struct, but    |                  | read/write     |
 |               | with at most one field |                  | fields         |
 +---------------+------------------------+------------------+----------------+
-| enum          | an integer, or the enum| the enum value   | int(), str()   |
+| enum          | an integer, or the enum| the enum value   | int()          |
 |               | value as a string or   | as a string, or  |                |
 |               | as ``"#NUMBER"``       | ``"#NUMBER"``    |                |
 |               |                        | if out of range  |                |
