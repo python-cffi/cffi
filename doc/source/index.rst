@@ -838,7 +838,7 @@ reads and writes of the property ``ffi.errno``.  On Windows we also save
 and restore the ``GetLastError()`` value, but to access it you need to
 declare and call the ``GetLastError()`` function as usual.
 
-``ffi.string(cdata, [maxlen])``: Return a Python string (or unicode
+``ffi.string(cdata, [maxlen])``: return a Python string (or unicode
 string) from the 'cdata'.
 
 - If 'cdata' is a pointer or array of characters or bytes, returns the
