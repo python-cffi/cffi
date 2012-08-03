@@ -931,25 +931,25 @@ allowed.
 +---------------+------------------------+------------------+----------------+
 |``long double``| another <cdata> with   | a <cdata>, to    | float(), int() |
 |               | a ``long double``, or  | avoid loosing    |                |
-|               | anything on which      | precision (***)  |                |
+|               | anything on which      | precision `(***)`|                |
 |               | float() works          |                  |                |
 +---------------+------------------------+------------------+----------------+
 |  pointers     | another <cdata> with   | a <cdata>        | ``[]``, ``+``, |
 |               | a compatible type (i.e.|                  | ``-``          |
 |               | same type or ``char*`` |                  |                |
 |               | or ``void*``, or as an |                  |                |
-|               | array instead) (*)     |                  |                |
+|               | array instead) `(*)`   |                  |                |
 +---------------+------------------------+                  |                |
 |  ``void *``,  | another <cdata> with   |                  |                |
 |  ``char *``   | any pointer or array   |                  |                |
 |               | type                   |                  |                |
 +---------------+------------------------+                  +----------------+
-|  pointers to  | same as pointers (*)   |                  | ``[]``,        |
+|  pointers to  | same as pointers `(*)` |                  | ``[]``,        |
 |  structure or |                        |                  | ``+``, ``-``,  |
 |  union        |                        |                  | and read/write |
 |               |                        |                  | struct fields  |
 +---------------+------------------------+                  +----------------+
-| function      | same as pointers       |                  | call (**)      |
+| function      | same as pointers       |                  | call `(**)`    |
 | pointers      |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
 |  arrays       | a list or tuple of     | a <cdata>        | len(), iter(), |
@@ -980,7 +980,7 @@ allowed.
 +---------------+------------------------+------------------+----------------+
 
 .. versionchanged:: 0.3
-   (*) Note that when calling a function, as per C, a ``item *`` argument
+   `(*)` Note that when calling a function, as per C, a ``item *`` argument
    is identical to a ``item[]`` argument.  So you can pass an argument that
    is accepted by either C type, like for example passing a Python string
    to a ``char *`` argument (because it works for ``char[]`` arguments)
@@ -995,10 +995,10 @@ actually modify the array of characters passed in, and so passes directly
 a pointer inside the Python string object.
 
 .. versionchanged:: 0.3
-   (**) C function calls are now done with the GIL released.
+   `(**)` C function calls are now done with the GIL released.
 
 .. versionadded:: 0.3
-   (***) ``long double`` support.
+   `(***)` ``long double`` support.
    Such a number is passed around in a cdata object to avoid loosing
    precision, because a normal Python floating-point number only contains
    enough precision for a ``double``.  To convert it to a regular float,
