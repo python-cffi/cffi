@@ -854,7 +854,7 @@ string) from the 'cdata'.
   wchar_t may require a Python unicode string of length 2.)
 
 - If 'cdata' is an enum, returns the value of the enumerator as a
-  string, or ``#value`` if the value is out of range.
+  string, or ``#NUMBER`` if the value is out of range.
 
 ``ffi.buffer(pointer, [size])``: return a read-write buffer object that
 references the raw C data pointed to by the given 'cdata', of 'size'
