@@ -55,7 +55,7 @@ def walk(basefd, path):
             break
         if result[0] == ffi.NULL:
             break
-        name = str(dirent.d_name)
+        name = ffi.string(dirent.d_name)
         print '%3d %s' % (dirent.d_type, name)
         if dirent.d_type == ffi.C.DT_DIR and name != '.' and name != '..':
             walk(dirfd, name)
