@@ -3838,8 +3838,9 @@ static PyObject *b_string(PyObject *self, PyObject *args)
             return PyString_FromStringAndSize(start, length);
         }
 #ifdef HAVE_WCHAR_H
-        else if (cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t)) {
+        else if (cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) {
             const wchar_t *start = (wchar_t *)cd->c_data;
+            assert(cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t));
             if (length < 0 && cd->c_type->ct_flags & CT_ARRAY) {
                 length = get_array_length(cd);
             }
@@ -3868,7 +3869,8 @@ static PyObject *b_string(PyObject *self, PyObject *args)
             return PyString_FromStringAndSize(cd->c_data, 1);
         }
 #ifdef HAVE_WCHAR_H
-        else if (cd->c_type->ct_size == sizeof(wchar_t)) {
+        else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
+            assert(cd->c_type->ct_size == sizeof(wchar_t));
             return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, 1);
         }
 #endif
