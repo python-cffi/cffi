@@ -58,7 +58,7 @@ def test_compile_module_explicit_filename():
     mod = imp.load_dynamic(v.get_module_name(), v.modulefilename)
     assert hasattr(mod, '_cffi_setup')
 
-def test_name_from_md5_of_cdef():
+def test_name_from_checksum_of_cdef():
     names = []
     for csrc in ['double', 'double', 'float']:
         ffi = FFI()
@@ -67,7 +67,7 @@ def test_name_from_md5_of_cdef():
         names.append(v.get_module_name())
     assert names[0] == names[1] != names[2]
 
-def test_name_from_md5_of_csrc():
+def test_name_from_checksum_of_csrc():
     names = []
     for csrc in ['123', '123', '1234']:
         ffi = FFI()
