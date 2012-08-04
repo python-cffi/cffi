@@ -426,16 +426,26 @@ def test_access_address_of_variable():
     assert lib.somenumber == 42
     lib.somenumber = 2    # reset for the next run, if any
 
-def test_access_array_variable():
+def test_access_array_variable(length=5):
     ffi = FFI()
     ffi.cdef("int foo(int);\n"
-             "int somenumber[5];")
+             "int somenumber[%s];" % (length,))
     lib = ffi.verify("""
         static int somenumber[] = {2, 2, 3, 4, 5};
         static int foo(int i) {
             return somenumber[i] * 7;
         }
     """)
+    if length == '':
+        # a global variable of an unknown array length is implicitly
+        # transformed into a global pointer variable, because we can only
+        # work with array instances whose length we know.  using a pointer
+        # instead of an array gives the correct effects.
+        assert repr(lib.somenumber).startswith("<cdata 'int *' 0x")
+        py.test.raises(TypeError, len, lib.somenumber)
+    else:
+        assert repr(lib.somenumber).startswith("<cdata 'int[%s]' 0x" % length)
+        assert len(lib.somenumber) == 5
     assert lib.somenumber[3] == 4
     assert lib.foo(3) == 28
     lib.somenumber[3] = -6
@@ -443,6 +453,9 @@ def test_access_array_variable():
     assert lib.somenumber[3] == -6
     assert lib.somenumber[4] == 5
     lib.somenumber[3] = 4    # reset for the next run, if any
+
+def test_access_array_variable_length_hidden():
+    test_access_array_variable(length='')
 
 def test_access_struct_variable():
     ffi = FFI()

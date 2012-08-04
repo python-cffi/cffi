@@ -396,6 +396,11 @@ class VGenericEngine(object):
                                               # sense that "a=..." is forbidden
             tp_ptr = model.PointerType(tp.item)
             value = self._load_constant(False, tp_ptr, name, module)
+            # 'value' is a <cdata 'type *'> which we have to replace with
+            # a <cdata 'type[N]'> if the N is actually known
+            if tp.length is not None:
+                BArray = self.ffi._get_cached_btype(tp)
+                value = self.ffi.cast(BArray, value)
             setattr(library, name, value)
             return
         # remove ptr=<cdata 'int *'> from the library instance, and replace

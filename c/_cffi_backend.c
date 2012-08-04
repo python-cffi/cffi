@@ -585,7 +585,16 @@ convert_to_object(char *data, CTypeDescrObject *ct)
                          ct->ct_name);
             return NULL;
         }
-        else if (ct->ct_flags & (CT_ARRAY|CT_STRUCT|CT_UNION)) {
+        else if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
+            return new_simple_cdata(data, ct);
+        }
+        else if (ct->ct_flags & CT_ARRAY) {
+            if (ct->ct_length < 0) {
+                /* we can't return a <cdata 'int[]'> here, because we don't
+                   know the length to give it.  As a compromize, returns
+                   <cdata 'int *'> in this case. */
+                ct = (CTypeDescrObject *)ct->ct_stuff;
+            }
             return new_simple_cdata(data, ct);
         }
     }

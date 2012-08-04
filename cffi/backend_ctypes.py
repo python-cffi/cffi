@@ -968,7 +968,10 @@ class CTypesLibrary(object):
         return funcobj
 
     def read_variable(self, BType, name):
-        ctypes_obj = BType._ctype.in_dll(self.cdll, name)
+        try:
+            ctypes_obj = BType._ctype.in_dll(self.cdll, name)
+        except AttributeError, e:
+            raise NotImplementedError(e)
         return BType._from_ctypes(ctypes_obj)
 
     def write_variable(self, BType, name, value):
