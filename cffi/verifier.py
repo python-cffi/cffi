@@ -471,7 +471,7 @@ class Verifier(object):
             function = module.load_function(BFunc, funcname)
             p = self.ffi.new("char[]", 256)
             if function(p) < 0:
-                raise ffiplatform.VerificationError(str(p))
+                raise ffiplatform.VerificationError(self.ffi.string(p))
 
     def _loaded_cpy_enum(self, tp, name, module, library):
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
