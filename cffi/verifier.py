@@ -70,6 +70,9 @@ class Verifier(object):
         modname = self.get_module_name()
         return ffiplatform.get_extension(sourcename, modname, **self.kwds)
 
+    def generates_python_module(self):
+        return False
+
     # ----------
 
     def _locate_module(self):

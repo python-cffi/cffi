@@ -43,8 +43,9 @@ def test_compile_module():
     v = Verifier(ffi, csrc)
     v.compile_module()
     assert v.get_module_name().startswith('_cffi_')
-    mod = imp.load_dynamic(v.get_module_name(), v.modulefilename)
-    assert hasattr(mod, '_cffi_setup')
+    if v.generates_python_module():
+        mod = imp.load_dynamic(v.get_module_name(), v.modulefilename)
+        assert hasattr(mod, '_cffi_setup')
 
 def test_compile_module_explicit_filename():
     ffi = FFI()
@@ -55,8 +56,9 @@ def test_compile_module_explicit_filename():
     v.compile_module()
     assert filename == v.modulefilename
     assert v.get_module_name() == 'test_compile_module'
-    mod = imp.load_dynamic(v.get_module_name(), v.modulefilename)
-    assert hasattr(mod, '_cffi_setup')
+    if v.generates_python_module():
+        mod = imp.load_dynamic(v.get_module_name(), v.modulefilename)
+        assert hasattr(mod, '_cffi_setup')
 
 def test_name_from_checksum_of_cdef():
     names = []
