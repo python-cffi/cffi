@@ -99,8 +99,7 @@ Download and Installation:
 
 * or you can directly import and use ``cffi``, but if you don't
   compile the ``_cffi_backend`` extension module, it will fall back
-  to using internally ``ctypes`` (much slower and does not support
-  ``verify()``; we recommend not to use it).
+  to using internally ``ctypes`` (much slower; we recommend not to use it).
 
 * running the tests: ``py.test c/ testing/ -x`` (if you didn't
   install cffi yet, you may need ``python setup_base.py build``
