@@ -4061,22 +4061,22 @@ static struct _testfunc17_s _testfunc17(int n)
     return result;
 }
 
-static short _testfunc18(struct _testfunc7_s *ptr)
-{
-    return ptr->a1 + ptr->a2;
-}
-
-static int _testfunc19(struct _testfunc17_s *ptr)
+static int _testfunc18(struct _testfunc17_s *ptr)
 {
     return ptr->a1 + (int)ptr->a2;
 }
 
-static long double _testfunc20(long double x)
+static long double _testfunc19(long double x)
 {
     int i;
     for (i=0; i<28; i++)
         x += x;
     return x;
+}
+
+static short _testfunc20(struct _testfunc7_s *ptr)
+{
+    return ptr->a1 + ptr->a2;
 }
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
