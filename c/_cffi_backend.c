@@ -1772,8 +1772,18 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             }
             ((char **)data)[1] = NULL;
         }
-        if (convert_from_object(data, argtype, obj) < 0)
+        if (convert_from_object(data, argtype, obj) < 0) {
+            if (CData_Check(obj) && (argtype->ct_flags & CT_POINTER) &&
+                   argtype->ct_itemdescr == ((CDataObject *)obj)->c_type) {
+                /* special case to make the life of verifier.py easier:
+                   if the formal argument type is 'struct foo *' but
+                   we pass a 'struct foo', then get a pointer to it */
+                PyErr_Clear();
+                ((char **)data)[0] = ((CDataObject *)obj)->c_data;
+                continue;
+            }
             goto error;
+        }
     }
 
     resultdata = buffer + cif_descr->exchange_offset_arg[0];
@@ -4064,6 +4074,11 @@ static long double _testfunc19(long double x)
     return x;
 }
 
+static short _testfunc20(struct _testfunc7_s *ptr)
+{
+    return ptr->a1 + ptr->a2;
+}
+
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
     /* for testing only */
@@ -4092,6 +4107,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 17: f = &_testfunc17; break;
     case 18: f = &_testfunc18; break;
     case 19: f = &_testfunc19; break;
+    case 20: f = &_testfunc20; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;
