@@ -656,7 +656,12 @@ class CTypesBackend(object):
     def new_union_type(self, name):
         return self._new_struct_or_union('union', name, ctypes.Union)
 
-    def complete_struct_or_union(self, CTypesStructOrUnion, fields, tp):
+    def complete_struct_or_union(self, CTypesStructOrUnion, fields, tp,
+                                 totalsize=-1, totalalignment=-1):
+        if totalsize >= 0 or totalalignment >= 0:
+            raise NotImplementedError("the ctypes backend of CFFI does not support "
+                                      "structures completed by verify(); please "
+                                      "compile and install the _cffi_backend module.")
         struct_or_union = CTypesStructOrUnion._ctype
         fnames = [fname for (fname, BField, bitsize) in fields]
         btypes = [BField for (fname, BField, bitsize) in fields]
