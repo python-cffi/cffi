@@ -839,7 +839,9 @@ and restore the ``GetLastError()`` value, but to access it you need to
 declare and call the ``GetLastError()`` function as usual.
 
 ``ffi.string(cdata, [maxlen])``: return a Python string (or unicode
-string) from the 'cdata'.
+string) from the 'cdata'.  *New in version 0.3.*
+
+.. "versionadded:: 0.3" --- inlined in the previous paragraph
 
 - If 'cdata' is a pointer or array of characters or bytes, returns the
   null-terminated string.  The returned string extends until the first
