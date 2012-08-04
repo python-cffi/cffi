@@ -1773,7 +1773,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             ((char **)data)[1] = NULL;
         }
         if (convert_from_object(data, argtype, obj) < 0) {
-            if (CData_Check(obj) && (argtype->ct_flags & CT_POINTER) &&
+            if (CData_Check(obj) && (argtype->ct_flags & CT_IS_PTR_TO_OWNED) &&
                    argtype->ct_itemdescr == ((CDataObject *)obj)->c_type) {
                 /* special case to make the life of verifier.py easier:
                    if the formal argument type is 'struct foo *' but
