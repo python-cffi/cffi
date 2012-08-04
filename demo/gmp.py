@@ -27,4 +27,4 @@ lib.mpz_init_set_str(b, sys.argv[2], 10)	# Assume decimal integers
 lib.mpz_add(a, a, b)			# a=a+b
 
 s = lib.mpz_get_str(ffi.NULL, 10, a)
-print str(s)
+print ffi.string(s)

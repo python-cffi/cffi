@@ -49,7 +49,7 @@ def opendir(dir):
                 if ffi.errno != 0:
                     raise _posix_error()
                 return
-            name = str(dirent.d_name)
+            name = ffi.string(dirent.d_name)
             if name == '.' or name == '..':
                 continue
             name = dirname + name

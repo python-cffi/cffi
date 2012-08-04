@@ -130,7 +130,7 @@ def test_character_type():
     assert long(cast(p, 'A')) == 65L
     assert type(int(cast(p, 'A'))) is int
     assert type(long(cast(p, 'A'))) is long
-    assert str(cast(p, 'A')) == 'A'
+    assert str(cast(p, 'A')) == repr(cast(p, 'A'))
     assert repr(cast(p, 'A')) == "<cdata 'char' 'A'>"
     assert repr(cast(p, 255)) == r"<cdata 'char' '\xff'>"
     assert repr(cast(p, 0)) == r"<cdata 'char' '\x00'>"
@@ -235,7 +235,9 @@ def test_reading_pointer_to_char():
     assert p[0] == 'A'
     py.test.raises(TypeError, newp, BPtr, 65)
     py.test.raises(TypeError, newp, BPtr, "foo")
-    assert str(cast(BChar, 'A')) == 'A'
+    c = cast(BChar, 'A')
+    assert str(c) == repr(c)
+    assert int(c) == ord('A')
     py.test.raises(TypeError, cast, BChar, 'foo')
 
 def test_reading_pointer_to_pointer():
@@ -295,6 +297,9 @@ def test_invalid_indexing():
     py.test.raises(TypeError, "p[0]")
 
 def test_default_str():
+    BChar = new_primitive_type("char")
+    x = cast(BChar, 42)
+    assert str(x) == repr(x)
     BInt = new_primitive_type("int")
     x = cast(BInt, 42)
     assert str(x) == repr(x)
@@ -320,7 +325,7 @@ def test_cast_from_cdataint():
     y = cast(BInt, x)
     assert int(y) == 42
     y = cast(new_primitive_type("char"), x)
-    assert str(y) == chr(42)
+    assert int(y) == 42
     y = cast(new_primitive_type("float"), x)
     assert float(y) == 42.0
     #
@@ -461,7 +466,7 @@ def test_cast_primitive_from_cdata():
     #
     p = new_primitive_type("char")
     n = cast(p, cast(p, "A"))
-    assert str(n) == "A"
+    assert int(n) == ord("A")
 
 def test_new_primitive_from_cdata():
     p = new_primitive_type("int")
@@ -763,12 +768,22 @@ def test_call_function_6():
     BFunc6bis = new_function_type((BIntArray,), BIntPtr, False)
     f = cast(BFunc6bis, _testfunc(6))
     #
-    py.test.raises(TypeError, f, [142])
+    res = f([142])
+    assert typeof(res) is BIntPtr
+    assert res[0] == 142 - 1000
+    #
+    res = f((143,))
+    assert typeof(res) is BIntPtr
+    assert res[0] == 143 - 1000
     #
     x = newp(BIntArray, [242])
     res = f(x)
     assert typeof(res) is BIntPtr
     assert res[0] == 242 - 1000
+    #
+    py.test.raises(TypeError, f, 123456)
+    py.test.raises(TypeError, f, "foo")
+    py.test.raises(TypeError, f, u"bar")
 
 def test_call_function_7():
     BChar = new_primitive_type("char")
@@ -965,14 +980,14 @@ def test_cast_to_enum():
     BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
     e = cast(BEnum, 0)
     assert repr(e) == "<cdata 'enum foo' 'def'>"
-    assert str(e) == 'def'
-    assert str(cast(BEnum, -20)) == 'ab'
-    assert str(cast(BEnum, 'c')) == 'c'
+    assert string(e) == 'def'
+    assert string(cast(BEnum, -20)) == 'ab'
+    assert string(cast(BEnum, 'c')) == 'c'
     assert int(cast(BEnum, 'c')) == 1
     assert int(cast(BEnum, 'def')) == 0
     assert int(cast(BEnum, -242 + 2**128)) == -242
-    assert str(cast(BEnum, -242 + 2**128)) == '#-242'
-    assert str(cast(BEnum, '#-20')) == 'ab'
+    assert string(cast(BEnum, -242 + 2**128)) == '#-242'
+    assert string(cast(BEnum, '#-20')) == 'ab'
     assert repr(cast(BEnum, '#-20')) == "<cdata 'enum foo' 'ab'>"
     assert repr(cast(BEnum, '#-21')) == "<cdata 'enum foo' '#-21'>"
 
@@ -1122,11 +1137,12 @@ def test_assign_string():
     BArray1 = new_array_type(new_pointer_type(BChar), 5)
     BArray2 = new_array_type(new_pointer_type(BArray1), 5)
     a = newp(BArray2, ["abc", "de", "ghij"])
-    assert str(a[2]) == "ghij"
+    assert string(a[1]) == "de"
+    assert string(a[2]) == "ghij"
     a[2] = "."
-    assert str(a[2]) == "."
+    assert string(a[2]) == "."
     a[2] = "12345"
-    assert str(a[2]) == "12345"
+    assert string(a[2]) == "12345"
     e = py.test.raises(IndexError, 'a[2] = "123456"')
     assert 'char[5]' in str(e.value)
     assert 'got 6 characters' in str(e.value)
@@ -1219,16 +1235,53 @@ def test_newp_copying():
     p2 = newp(new_pointer_type(BFunc), p1)
     assert p2[0] == p1
 
-def test_str():
+def test_string():
     BChar = new_primitive_type("char")
+    assert string(cast(BChar, 42)) == '*'
+    assert string(cast(BChar, 0)) == '\x00'
     BCharP = new_pointer_type(BChar)
     BArray = new_array_type(BCharP, 10)
     a = newp(BArray, "hello")
     assert len(a) == 10
-    assert str(a) == "hello"
+    assert string(a) == "hello"
     p = a + 2
-    assert str(p) == "llo"
-    py.test.raises(RuntimeError, str, cast(BCharP, 0))
+    assert string(p) == "llo"
+    assert string(newp(new_array_type(BCharP, 4), "abcd")) == "abcd"
+    py.test.raises(RuntimeError, string, cast(BCharP, 0))
+    assert string(a, 4) == "hell"
+    assert string(a, 5) == "hello"
+    assert string(a, 6) == "hello"
+
+def test_string_byte():
+    BByte = new_primitive_type("signed char")
+    assert string(cast(BByte, 42)) == '*'
+    assert string(cast(BByte, 0)) == '\x00'
+    BArray = new_array_type(new_pointer_type(BByte), None)
+    a = newp(BArray, [65, 66, 67])
+    assert type(string(a)) is str and string(a) == 'ABC'
+    #
+    BByte = new_primitive_type("unsigned char")
+    assert string(cast(BByte, 42)) == '*'
+    assert string(cast(BByte, 0)) == '\x00'
+    BArray = new_array_type(new_pointer_type(BByte), None)
+    a = newp(BArray, [65, 66, 67])
+    assert type(string(a)) is str and string(a) == 'ABC'
+
+def test_string_wchar():
+    BWChar = new_primitive_type("wchar_t")
+    assert string(cast(BWChar, 42)) == u'*'
+    assert string(cast(BWChar, 0x4253)) == u'\u4253'
+    assert string(cast(BWChar, 0)) == u'\x00'
+    BArray = new_array_type(new_pointer_type(BWChar), None)
+    a = newp(BArray, [u'A', u'B', u'C'])
+    assert type(string(a)) is unicode and string(a) == u'ABC'
+    assert string(a, 10) == u'ABC'
+
+def test_string_typeerror():
+    BShort = new_primitive_type("short")
+    BArray = new_array_type(new_pointer_type(BShort), None)
+    a = newp(BArray, [65, 66, 67])
+    py.test.raises(TypeError, string, a)
 
 def test_bug_convert_to_ptr():
     BChar = new_primitive_type("char")
@@ -1245,12 +1298,12 @@ def test_set_struct_fields():
     BStructPtr = new_pointer_type(BStruct)
     complete_struct_or_union(BStruct, [('a1', BCharArray10, -1)])
     p = newp(BStructPtr, None)
-    assert str(p.a1) == ''
+    assert string(p.a1) == ''
     p.a1 = 'foo'
-    assert str(p.a1) == 'foo'
+    assert string(p.a1) == 'foo'
     assert list(p.a1) == ['f', 'o', 'o'] + ['\x00'] * 7
     p.a1 = ['x', 'y']
-    assert str(p.a1) == 'xyo'
+    assert string(p.a1) == 'xyo'
 
 def test_invalid_function_result_types():
     BFunc = new_function_type((), new_void_type())
@@ -1348,6 +1401,14 @@ def test_struct_return_in_func():
     assert repr(s) == "<cdata 'struct test17' owning 8 bytes>"
     assert s.a1 == 40
     assert s.a2 == 40.0 * 40.0
+    #
+    BStruct17Ptr = new_pointer_type(BStruct17)
+    BFunc18 = new_function_type((BStruct17Ptr,), BInt)
+    f = cast(BFunc18, _testfunc(18))
+    x = f([[40, 2.5]])
+    assert x == 42
+    x = f([{'a2': 43.1}])
+    assert x == 43
 
 def test_cast_with_functionptr():
     BFunc = new_function_type((), new_void_type())
@@ -1372,7 +1433,7 @@ def test_wchar():
     if wchar4:
         x = cast(BWChar, 0x12345)
         assert str(x) == "<cdata 'wchar_t' u'\U00012345'>"
-        assert unicode(x) == u'\U00012345'
+        assert int(x) == 0x12345
     else:
         assert not pyuni4
     #
@@ -1403,20 +1464,20 @@ def test_wchar():
     BWCharArray = new_array_type(BWCharP, None)
     a = newp(BWCharArray, u'hello \u1234 world')
     assert len(a) == 14   # including the final null
-    assert unicode(a) == u'hello \u1234 world'
+    assert string(a) == u'hello \u1234 world'
     a[13] = u'!'
-    assert unicode(a) == u'hello \u1234 world!'
+    assert string(a) == u'hello \u1234 world!'
     assert str(a) == repr(a)
     assert a[6] == u'\u1234'
     a[6] = u'-'
-    assert unicode(a) == 'hello - world!'
+    assert string(a) == u'hello - world!'
     assert str(a) == repr(a)
     #
     if wchar4:
         u = u'\U00012345\U00012346\U00012347'
         a = newp(BWCharArray, u)
         assert len(a) == 4
-        assert unicode(a) == u
+        assert string(a) == u
         assert len(list(a)) == 4
         expected = [u'\U00012345', u'\U00012346', u'\U00012347', unichr(0)]
         assert list(a) == expected
@@ -1427,17 +1488,17 @@ def test_wchar():
     w = cast(BWChar, 'a')
     assert repr(w) == "<cdata 'wchar_t' u'a'>"
     assert str(w) == repr(w)
-    assert unicode(w) == u'a'
+    assert string(w) == u'a'
     assert int(w) == ord('a')
     w = cast(BWChar, 0x1234)
     assert repr(w) == "<cdata 'wchar_t' u'\u1234'>"
     assert str(w) == repr(w)
-    assert unicode(w) == u'\u1234'
+    assert string(w) == u'\u1234'
     assert int(w) == 0x1234
     w = cast(BWChar, u'\u8234')
     assert repr(w) == "<cdata 'wchar_t' u'\u8234'>"
     assert str(w) == repr(w)
-    assert unicode(w) == u'\u8234'
+    assert string(w) == u'\u8234'
     assert int(w) == 0x8234
     w = cast(BInt, u'\u1234')
     assert repr(w) == "<cdata 'int' 4660>"
@@ -1445,7 +1506,7 @@ def test_wchar():
         w = cast(BWChar, u'\U00012345')
         assert repr(w) == "<cdata 'wchar_t' u'\U00012345'>"
         assert str(w) == repr(w)
-        assert unicode(w) == u'\U00012345'
+        assert string(w) == u'\U00012345'
         assert int(w) == 0x12345
         w = cast(BInt, u'\U00012345')
         assert repr(w) == "<cdata 'int' 74565>"
@@ -1455,34 +1516,33 @@ def test_wchar():
     #
     a = newp(BWCharArray, u'hello - world')
     p = cast(BWCharP, a)
-    assert unicode(p) == u'hello - world'
+    assert string(p) == u'hello - world'
     p[6] = u'\u2345'
-    assert unicode(p) == u'hello \u2345 world'
+    assert string(p) == u'hello \u2345 world'
     #
     s = newp(BStructPtr, [u'\u1234', p])
     assert s.a1 == u'\u1234'
     assert s.a2 == p
     assert str(s.a2) == repr(s.a2)
-    assert unicode(s.a2) == u'hello \u2345 world'
+    assert string(s.a2) == u'hello \u2345 world'
     #
     q = cast(BWCharP, 0)
     assert str(q) == repr(q)
-    py.test.raises(RuntimeError, unicode, q)
+    py.test.raises(RuntimeError, string, q)
     #
     def cb(p):
         assert repr(p).startswith("<cdata 'wchar_t *' 0x")
-        return len(unicode(p))
+        return len(string(p))
     BFunc = new_function_type((BWCharP,), BInt, False)
     f = callback(BFunc, cb, -42)
-    #assert f(u'a\u1234b') == 3    -- not implemented
-    py.test.raises(NotImplementedError, f, u'a\u1234b')
+    assert f(u'a\u1234b') == 3
     #
     if wchar4 and not pyuni4:
         # try out-of-range wchar_t values
         x = cast(BWChar, 1114112)
-        py.test.raises(ValueError, unicode, x)
+        py.test.raises(ValueError, string, x)
         x = cast(BWChar, -1)
-        py.test.raises(ValueError, unicode, x)
+        py.test.raises(ValueError, string, x)
 
 def test_keepalive_struct():
     # exception to the no-keepalive rule: p=newp(BStructPtr) returns a
@@ -1594,12 +1654,12 @@ def test_buffer():
     assert c[2] == '-'
     assert str(buf) == "hi-there\x00"
     buf[:2] = 'HI'
-    assert str(c) == 'HI-there'
+    assert string(c) == 'HI-there'
     assert buf[:4:2] == 'H-'
     if '__pypy__' not in sys.builtin_module_names:
         # XXX pypy doesn't support the following assignment so far
         buf[:4:2] = 'XY'
-        assert str(c) == 'XIYthere'
+        assert string(c) == 'XIYthere'
 
 def test_getcname():
     BUChar = new_primitive_type("unsigned char")
@@ -1705,3 +1765,75 @@ def test_variable_length_struct():
     assert x.a1 == 0
     assert len(x.a2) == 2
     assert list(x.a2) == [4, 5]
+
+def test_autocast_int():
+    BInt = new_primitive_type("int")
+    BIntPtr = new_pointer_type(BInt)
+    BLongLong = new_primitive_type("long long")
+    BULongLong = new_primitive_type("unsigned long long")
+    BULongLongPtr = new_pointer_type(BULongLong)
+    x = newp(BIntPtr, cast(BInt, 42))
+    assert x[0] == 42
+    x = newp(BIntPtr, cast(BLongLong, 42))
+    assert x[0] == 42
+    x = newp(BIntPtr, cast(BULongLong, 42))
+    assert x[0] == 42
+    x = newp(BULongLongPtr, cast(BInt, 42))
+    assert x[0] == 42
+    py.test.raises(OverflowError, newp, BULongLongPtr, cast(BInt, -42))
+    x = cast(BInt, cast(BInt, 42))
+    assert int(x) == 42
+    x = cast(BInt, cast(BLongLong, 42))
+    assert int(x) == 42
+    x = cast(BInt, cast(BULongLong, 42))
+    assert int(x) == 42
+    x = cast(BULongLong, cast(BInt, 42))
+    assert int(x) == 42
+    x = cast(BULongLong, cast(BInt, -42))
+    assert int(x) == 2 ** 64 - 42
+    x = cast(BIntPtr, cast(BInt, 42))
+    assert int(cast(BInt, x)) == 42
+
+def test_autocast_float():
+    BFloat = new_primitive_type("float")
+    BDouble = new_primitive_type("float")
+    BFloatPtr = new_pointer_type(BFloat)
+    x = newp(BFloatPtr, cast(BDouble, 12.5))
+    assert x[0] == 12.5
+    x = cast(BFloat, cast(BDouble, 12.5))
+    assert float(x) == 12.5
+
+def test_longdouble():
+    py_py = 'PY_DOT_PY' in globals()
+    BLongDouble = new_primitive_type("long double")
+    BLongDoublePtr = new_pointer_type(BLongDouble)
+    BLongDoubleArray = new_array_type(BLongDoublePtr, None)
+    a = newp(BLongDoubleArray, 1)
+    x = a[0]
+    if not py_py:
+        assert repr(x).startswith("<cdata 'long double' 0.0")
+    assert float(x) == 0.0
+    assert int(x) == 0
+    #
+    b = newp(BLongDoubleArray, [1.23])
+    x = b[0]
+    if not py_py:
+        assert repr(x).startswith("<cdata 'long double' 1.23")
+    assert float(x) == 1.23
+    assert int(x) == 1
+    #
+    BFunc19 = new_function_type((BLongDouble,), BLongDouble)
+    f = cast(BFunc19, _testfunc(19))
+    start = 8
+    for i in range(107):
+        start = f(start)
+    if sizeof(BLongDouble) > sizeof(new_primitive_type("double")):
+        if not py_py:
+            assert repr(start).startswith("<cdata 'long double' 6.15")
+            assert repr(start).endswith("E+902>")
+        #
+        c = newp(BLongDoubleArray, [start])
+        x = c[0]
+        if not py_py:
+            assert repr(x).endswith("E+902>")
+            assert float(x) == float("inf")

@@ -13,3 +13,11 @@ class TestCTypes(backend_tests.BackendTests):
     def test_array_of_func_ptr(self):
         py.test.skip("ctypes backend: not supported: "
                      "initializers for function pointers")
+
+    def test_structptr_argument(self):
+        py.test.skip("ctypes backend: not supported: passing a list "
+                     "for a pointer argument")
+
+    def test_array_argument_as_list(self):
+        py.test.skip("ctypes backend: not supported: passing a list "
+                     "for a pointer argument")

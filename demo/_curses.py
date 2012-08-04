@@ -120,9 +120,9 @@ def _setup():
     globals().update(lib.__dict__)
     for key in range(KEY_MIN, KEY_MAX):
         key_n = keyname(key)
-        if key_n == ffi.NULL or str(key_n) == "UNKNOWN KEY":
+        if key_n == ffi.NULL or ffi.string(key_n) == "UNKNOWN KEY":
             continue
-        key_n = str(key_n).replace('(', '').replace(')', '')
+        key_n = ffi.string(key_n).replace('(', '').replace(')', '')
         globals()[key_n] = key
 
 _setup()

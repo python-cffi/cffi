@@ -254,7 +254,7 @@ class TestFunction(object):
         ffi.C = ffi.dlopen(None)
         p = ffi.new("char[]", "hello world!")
         q = ffi.C.strchr(p, ord('w'))
-        assert str(q) == "world!"
+        assert ffi.string(q) == "world!"
 
     def test_function_with_struct_argument(self):
         if sys.platform == 'win32':
@@ -267,4 +267,4 @@ class TestFunction(object):
         ffi.C = ffi.dlopen(None)
         ina = ffi.new("struct in_addr *", [0x04040404])
         a = ffi.C.inet_ntoa(ina[0])
-        assert str(a) == '4.4.4.4'
+        assert ffi.string(a) == '4.4.4.4'
