@@ -15,6 +15,19 @@ def setup_module():
     cffi.verifier.cleanup_tmpdir()
 
 
+def test_module_type():
+    import cffi.verifier
+    ffi = FFI()
+    lib = ffi.verify()
+    if hasattr(lib, '_cffi_python_module'):
+        print 'verify got a PYTHON module'
+    if hasattr(lib, '_cffi_generic_module'):
+        print 'verify got a GENERIC module'
+    expected_generic = (cffi.verifier._FORCE_GENERIC_ENGINE or
+                        '__pypy__' in sys.builtin_module_names)
+    assert hasattr(lib, '_cffi_python_module') == (not expected_generic)
+    assert hasattr(lib, '_cffi_generic_module') == expected_generic
+
 def test_missing_function():
     ffi = FFI()
     ffi.cdef("void some_completely_unknown_function();")
@@ -474,11 +487,14 @@ def test_access_callback():
     lib.cb = my_callback
     assert lib.foo(4) == 887
 
-def test_cannot_verify_with_ctypes():
+def test_ctypes_backend_forces_generic_engine():
     from cffi.backend_ctypes import CTypesBackend
     ffi = FFI(backend=CTypesBackend())
-    ffi.cdef("int a;")
-    py.test.raises(NotImplementedError, ffi.verify, "int a;")
+    ffi.cdef("int func(int a);")
+    lib = ffi.verify("int func(int a) { return a * 42; }")
+    assert not hasattr(lib, '_cffi_python_module')
+    assert hasattr(lib, '_cffi_generic_module')
+    assert lib.func(100) == 4200
 
 def test_call_with_struct_ptr():
     ffi = FFI()
