@@ -3822,11 +3822,11 @@ static PyObject *b_string(PyObject *self, PyObject *args)
             }
             return NULL;
         }
+        if (length < 0 && cd->c_type->ct_flags & CT_ARRAY) {
+            length = get_array_length(cd);
+        }
         if (cd->c_type->ct_itemdescr->ct_size == sizeof(char)) {
             const char *start = cd->c_data;
-            if (length < 0 && cd->c_type->ct_flags & CT_ARRAY) {
-                length = get_array_length(cd);
-            }
             if (length < 0)
                 length = strlen(start);
             else {
@@ -3841,9 +3841,6 @@ static PyObject *b_string(PyObject *self, PyObject *args)
         else if (cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) {
             const wchar_t *start = (wchar_t *)cd->c_data;
             assert(cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t));
-            if (length < 0 && cd->c_type->ct_flags & CT_ARRAY) {
-                length = get_array_length(cd);
-            }
             if (length < 0) {
                 length = 0;
                 while (start[length])
