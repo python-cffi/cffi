@@ -919,6 +919,11 @@ extensions:
 
 * Thread-local variables (access them via getter/setter functions)
 
+* Variable-length structures, i.e. whose last field is a variable-length
+  array (work around like in C, e.g. by declaring it as an array of
+  length 0, allocating a ``char[]`` of the correct size, and casting
+  it to a struct pointer)
+
 
 Reference: conversions
 ----------------------

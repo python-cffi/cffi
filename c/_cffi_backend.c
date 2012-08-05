@@ -1388,7 +1388,7 @@ _cdata_get_indexed_ptr(CDataObject *cd, PyObject *key)
                             "negative index not supported");
             return NULL;
         }
-        if (i >= get_array_length(cd)) {
+        if (i >= get_array_length(cd) && cd->c_type->ct_length != 0) {
             PyErr_Format(PyExc_IndexError,
                          "index too large for cdata '%s' (expected %zd < %zd)",
                          cd->c_type->ct_name,

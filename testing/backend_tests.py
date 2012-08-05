@@ -144,7 +144,8 @@ class BackendTests:
         assert repr(p) == "<cdata 'int[]' owning %d bytes>" % (2*SIZE_OF_INT)
         #
         p = ffi.new("int[]", 0)
-        py.test.raises(IndexError, "p[0]")
+        #py.test.raises(IndexError, "p[0]") ---
+        #   actually works, for test_struct_containing_array_varsize_workaround
         py.test.raises(ValueError, ffi.new, "int[]", -1)
         assert repr(p) == "<cdata 'int[]' owning 0 bytes>"
 
@@ -1120,6 +1121,16 @@ class BackendTests:
         assert list(a)[:1000] + [0] * (len(a)-1000) == list(b)
         f.close()
         os.unlink(filename)
+
+    def test_struct_containing_array_varsize_workaround(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo_s { int len; short data[0]; };")
+        p = ffi.new("char[]", ffi.sizeof("struct foo_s") + 7 * SIZE_OF_SHORT)
+        q = ffi.cast("struct foo_s *", p)
+        assert q.len == 0
+        assert q.data[6] == 0
+        q.data[6] = 15
+        assert q.data[6] == 15
 
     def test_new_struct_containing_array_varsize(self):
         py.test.skip("later?")

@@ -583,14 +583,22 @@ class CTypesBackend(object):
                 return len(self._blob)
 
             def __getitem__(self, index):
-                if not (0 <= index < len(self._blob)):
+                if 0 <= index < len(self._blob):
+                    x = self._blob[index]
+                elif len(self._blob) == 0:
+                    x = ctypes.cast(self._blob, CTypesPtr._ctype)[index]
+                else:
                     raise IndexError
-                return BItem._from_ctypes(self._blob[index])
+                return BItem._from_ctypes(x)
 
             def __setitem__(self, index, value):
-                if not (0 <= index < len(self._blob)):
+                x = BItem._to_ctypes(value)
+                if 0 <= index < len(self._blob):
+                    self._blob[index] = x
+                elif len(self._blob) == 0:
+                    ctypes.cast(self._blob, CTypesPtr._ctype)[index] = x
+                else:
                     raise IndexError
-                self._blob[index] = BItem._to_ctypes(value)
 
             if kind == 'char' or kind == 'byte':
                 def _to_string(self, maxlen):
