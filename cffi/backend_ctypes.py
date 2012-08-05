@@ -551,6 +551,8 @@ class CTypesBackend(object):
             else:
                 __slots__.append('_ctype')
             _reftypename = BItem._get_c_name(brackets)
+            _declared_length = length
+            _CTPtr = CTypesPtr
 
             def __init__(self, init):
                 if length is None:
@@ -583,22 +585,14 @@ class CTypesBackend(object):
                 return len(self._blob)
 
             def __getitem__(self, index):
-                if 0 <= index < len(self._blob):
-                    x = self._blob[index]
-                elif len(self._blob) == 0:
-                    x = ctypes.cast(self._blob, CTypesPtr._ctype)[index]
-                else:
+                if not (0 <= index < len(self._blob)):
                     raise IndexError
-                return BItem._from_ctypes(x)
+                return BItem._from_ctypes(self._blob[index])
 
             def __setitem__(self, index, value):
-                x = BItem._to_ctypes(value)
-                if 0 <= index < len(self._blob):
-                    self._blob[index] = x
-                elif len(self._blob) == 0:
-                    ctypes.cast(self._blob, CTypesPtr._ctype)[index] = x
-                else:
+                if not (0 <= index < len(self._blob)):
                     raise IndexError
+                self._blob[index] = BItem._to_ctypes(value)
 
             if kind == 'char' or kind == 'byte':
                 def _to_string(self, maxlen):
@@ -614,7 +608,7 @@ class CTypesBackend(object):
             def _get_own_repr(self):
                 if getattr(self, '_own', False):
                     return 'owning %d bytes' % (ctypes.sizeof(self._blob),)
-                return super(CTypesPtr, self)._get_own_repr()
+                return super(CTypesArray, self)._get_own_repr()
 
             def _convert_to_address(self, BClass):
                 if BClass in (CTypesPtr, None) or BClass._automatic_casts:
@@ -639,6 +633,11 @@ class CTypesBackend(object):
                         other * ctypes.sizeof(BItem._ctype))
                 else:
                     return NotImplemented
+
+            @classmethod
+            def _cast_from(cls, source):
+                raise NotImplementedError("casting to %r" % (
+                    cls._get_c_name(),))
         #
         CTypesArray._fix_class()
         return CTypesArray
@@ -730,6 +729,17 @@ class CTypesBackend(object):
                     return BField._from_ctypes(p.contents)
                 def setter(self, value, fname=fname, BField=BField):
                     setattr(self._blob, fname, BField._to_ctypes(value))
+                #
+                if issubclass(BField, CTypesGenericArray):
+                    setter = None
+                    if BField._declared_length == 0:
+                        def getter(self, fname=fname, BFieldPtr=BField._CTPtr,
+                                   offset=CTypesStructOrUnion._offsetof(fname),
+                                   PTR=ctypes.POINTER(BField._ctype)):
+                            addr = ctypes.addressof(self._blob)
+                            p = ctypes.cast(addr + offset, PTR)
+                            return BFieldPtr._from_ctypes(p)
+                #
             else:
                 def getter(self, fname=fname, BField=BField):
                     return BField._from_ctypes(getattr(self._blob, fname))

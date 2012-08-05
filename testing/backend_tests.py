@@ -144,8 +144,7 @@ class BackendTests:
         assert repr(p) == "<cdata 'int[]' owning %d bytes>" % (2*SIZE_OF_INT)
         #
         p = ffi.new("int[]", 0)
-        #py.test.raises(IndexError, "p[0]") ---
-        #   actually works, for test_struct_containing_array_varsize_workaround
+        py.test.raises(IndexError, "p[0]")
         py.test.raises(ValueError, ffi.new, "int[]", -1)
         assert repr(p) == "<cdata 'int[]' owning 0 bytes>"
 
@@ -1122,12 +1121,22 @@ class BackendTests:
         f.close()
         os.unlink(filename)
 
+    def test_array_in_struct(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo_s { int len; short data[5]; };")
+        p = ffi.new("struct foo_s *")
+        p.data[3] = 5
+        assert p.data[3] == 5
+        assert repr(p.data).startswith("<cdata 'short[5]' 0x")
+
     def test_struct_containing_array_varsize_workaround(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo_s { int len; short data[0]; };")
         p = ffi.new("char[]", ffi.sizeof("struct foo_s") + 7 * SIZE_OF_SHORT)
         q = ffi.cast("struct foo_s *", p)
         assert q.len == 0
+        # 'q.data' gets not a 'short[0]', but just a 'short *' instead
+        assert repr(q.data).startswith("<cdata 'short *' 0x")
         assert q.data[6] == 0
         q.data[6] = 15
         assert q.data[6] == 15
@@ -1263,3 +1272,10 @@ class BackendTests:
         assert p.b == 19
         assert p.c == 17
         assert p.d == 17
+
+    def test_cast_to_array_type(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int[4]", [-5])
+        q = ffi.cast("int[3]", p)
+        assert q[0] == -5
+        assert repr(q).startswith("<cdata 'int[3]' 0x")

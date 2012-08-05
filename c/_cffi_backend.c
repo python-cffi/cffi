@@ -83,9 +83,12 @@ typedef struct cfieldobject_s {
     PyObject_HEAD
     CTypeDescrObject *cf_type;
     Py_ssize_t cf_offset;
-    short cf_bitshift, cf_bitsize;
+    short cf_bitshift;   /* >= 0: bitshift; or BS_REGULAR or BS_EMPTY_ARRAY */
+    short cf_bitsize;
     struct cfieldobject_s *cf_next;
 } CFieldObject;
+#define BS_REGULAR     (-1)      /* a regular field, not with bitshift */
+#define BS_EMPTY_ARRAY (-2)      /* a field which is an array 'type[0]' */
 
 static PyTypeObject CTypeDescr_Type;
 static PyTypeObject CField_Type;
@@ -1388,7 +1391,7 @@ _cdata_get_indexed_ptr(CDataObject *cd, PyObject *key)
                             "negative index not supported");
             return NULL;
         }
-        if (i >= get_array_length(cd) && cd->c_type->ct_length != 0) {
+        if (i >= get_array_length(cd)) {
             PyErr_Format(PyExc_IndexError,
                          "index too large for cdata '%s' (expected %zd < %zd)",
                          cd->c_type->ct_name,
@@ -1537,10 +1540,13 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
         if (cf != NULL) {
             /* read the field 'cf' */
             char *data = cd->c_data + cf->cf_offset;
-            if (cf->cf_bitshift >= 0)
-                return convert_to_object_bitfield(data, cf);
-            else
+            if (cf->cf_bitshift == BS_REGULAR)
                 return convert_to_object(data, cf->cf_type);
+            else if (cf->cf_bitshift == BS_EMPTY_ARRAY)
+                return new_simple_cdata(data,
+                    (CTypeDescrObject *)cf->cf_type->ct_stuff);
+            else
+                return convert_to_object_bitfield(data, cf);
         }
     }
     return PyObject_GenericGetAttr((PyObject *)cd, attr);
@@ -2893,7 +2899,10 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         if (fbitsize < 0 || (fbitsize == 8 * ftype->ct_size &&
                              !(ftype->ct_flags & CT_PRIMITIVE_CHAR))) {
             fbitsize = -1;
-            bitshift = -1;
+            if (ftype->ct_flags & CT_ARRAY && ftype->ct_length == 0)
+                bitshift = BS_EMPTY_ARRAY;
+            else
+                bitshift = BS_REGULAR;
             prev_bit_position = 0;
         }
         else {
