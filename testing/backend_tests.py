@@ -1229,3 +1229,26 @@ class BackendTests:
         ffi.cdef("enum e { AA=0, BB=0, CC=0, DD=0 };")
         e = ffi.cast("enum e", 'CC')
         assert ffi.string(e) == "AA"     # pick the first one arbitrarily
+
+    def test_nested_anonymous_struct(self):
+        py.test.skip("later")
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            struct foo_s {
+                struct { int a, b; };
+                union { int c, d; };
+            };
+        """)
+        assert ffi.sizeof("struct foo_s") == 3 * SIZE_OF_INT
+        p = ffi.new("struct foo_s *", [[1], [3]])
+        assert p.a == 1
+        assert p.b == 0
+        assert p.c == 3
+        assert p.d == 3
+        p.d = 17
+        assert p.c == 17
+        p.b = 19
+        assert p.a == 1
+        assert p.b == 19
+        assert p.c == 17
+        assert p.d == 17
