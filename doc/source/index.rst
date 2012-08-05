@@ -902,6 +902,24 @@ like ``"*"`` or ``"[5]"``.  For example
 of the C type "pointer to the same type than x".
 
 
+Unimplemented features
+----------------------
+
+All of the ANSI C declarations should be supported, and some of C99.
+Here are the major known missing features that are GCC or MSVC
+extensions:
+
+* Any ``__attribute__`` or ``#pragma pack(n)``
+
+* Additional types: complex numbers, special-size floating and
+  fixed point types, vector types, etc. (must be declared with
+  ``typedef struct { ...; } typename;`` and cannot be accessed directly)
+
+* Unnamed struct/union fields within struct/union
+
+* Thread-local variables (access them via getter/setter functions)
+
+
 Reference: conversions
 ----------------------
 
