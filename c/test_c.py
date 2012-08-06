@@ -92,6 +92,7 @@ def test_integer_types():
 def test_no_float_on_int_types():
     p = new_primitive_type('long')
     py.test.raises(TypeError, float, cast(p, 42))
+    py.test.raises(TypeError, complex, cast(p, 42))
 
 def test_float_types():
     INF = 1E200 * 1E200
@@ -121,6 +122,39 @@ def test_float_types():
         assert float(cast(p, '\x09')) == 9.0
         assert float(cast(p, True)) == 1.0
         py.test.raises(TypeError, cast, p, None)
+
+def test_complex_types():
+    py.test.skip("later")
+    INF = 1E200 * 1E200
+    for name in ["float", "double"]:
+        p = new_primitive_type("_Complex " + name)
+        assert bool(cast(p, 0))
+        assert bool(cast(p, INF))
+        assert bool(cast(p, -INF))
+        assert bool(cast(p, 0j))
+        assert bool(cast(p, INF*1j))
+        assert bool(cast(p, -INF*1j))
+        py.test.raises(TypeError, int, cast(p, -150))
+        py.test.raises(TypeError, long, cast(p, -150))
+        py.test.raises(TypeError, float, cast(p, -150))
+        assert complex(cast(p, 1.25)) == 1.25
+        assert complex(cast(p, 1.25j)) == 1.25j
+        assert float(cast(p, INF*1j)) == INF*1j
+        assert float(cast(p, -INF)) == -INF
+        if name == "float":
+            assert complex(cast(p, 1.1j)) != 1.1j         # rounding error
+            assert complex(cast(p, 1E200+3j)) == INF+3j   # limited range
+            assert complex(cast(p, 3+1E200j)) == 3+INF*1j # limited range
+
+        assert cast(p, -1.1j) != cast(p, -1.1j)
+        assert repr(complex(cast(p, -0.0)).real) == '-0.0'
+        assert repr(complex(cast(p, -0j))) == '-0j'
+        assert complex(cast(p, '\x09')) == 9.0
+        assert complex(cast(p, True)) == 1.0
+        py.test.raises(TypeError, cast, p, None)
+        #
+        py.test.raises(cast, new_primitive_type(name), 1+2j)
+    py.test.raises(cast, new_primitive_type("int"), 1+2j)
 
 def test_character_type():
     p = new_primitive_type("char")
