@@ -2492,7 +2492,11 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
     DynLibObject *dlobj;
     int is_global = 0;
 
-    if (!PyArg_ParseTuple(args, "et|i:load_library",
+    if (PyTuple_GET_SIZE(args) == 0 || PyTuple_GET_ITEM(args, 0) == Py_None) {
+        filename = NULL;
+        is_global = 1;
+    }
+    else if (!PyArg_ParseTuple(args, "et|i:load_library",
                           Py_FileSystemDefaultEncoding, &filename,
                           &is_global))
         return NULL;
@@ -2509,7 +2513,7 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
         return NULL;
     }
     dlobj->dl_handle = handle;
-    dlobj->dl_name = strdup(filename);
+    dlobj->dl_name = strdup(filename ? filename : "<None>");
     return (PyObject *)dlobj;
 }
 
