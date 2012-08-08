@@ -77,6 +77,7 @@ typedef struct {
     PyObject_HEAD
     CTypeDescrObject *c_type;
     char *c_data;
+    PyObject *c_weakreflist;
 } CDataObject;
 
 typedef struct cfieldobject_s {
@@ -118,22 +119,17 @@ typedef struct {
 
 typedef struct {
     CDataObject head;
-    PyObject *weakreflist;
-} CDataObject_own_base;
-
-typedef struct {
-    CDataObject_own_base head;
     union_alignment alignment;
 } CDataObject_own_nolength;
 
 typedef struct {
-    CDataObject_own_base head;
+    CDataObject head;
     Py_ssize_t length;
     union_alignment alignment;
 } CDataObject_own_length;
 
 typedef struct {
-    CDataObject_own_base head;
+    CDataObject head;
     PyObject *structobj;
 } CDataObject_own_structptr;
 
@@ -542,6 +538,7 @@ new_simple_cdata(char *data, CTypeDescrObject *ct)
     Py_INCREF(ct);
     cd->c_data = data;
     cd->c_type = ct;
+    cd->c_weakreflist = NULL;
     return (PyObject *)cd;
 }
 
@@ -1135,26 +1132,26 @@ get_alignment(CTypeDescrObject *ct)
 
 static void cdata_dealloc(CDataObject *cd)
 {
+    if (cd->c_weakreflist != NULL)
+        PyObject_ClearWeakRefs((PyObject *) cd);
+
     Py_DECREF(cd->c_type);
     PyObject_Del(cd);
 }
 
-static void cdataowning_dealloc(CDataObject_own_base *cdb)
+static void cdataowning_dealloc(CDataObject *cd)
 {
-    if (cdb->weakreflist != NULL)
-        PyObject_ClearWeakRefs((PyObject *) cdb);
-
-    if (cdb->head.c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
-        Py_DECREF(((CDataObject_own_structptr *)cdb)->structobj);
+    if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
+        Py_DECREF(((CDataObject_own_structptr *)cd)->structobj);
     }
-    else if (cdb->head.c_type->ct_flags & CT_FUNCTIONPTR) {
+    else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {
         /* a callback */
-        ffi_closure *closure = (ffi_closure *)cdb->head.c_data;
+        ffi_closure *closure = (ffi_closure *)cd->c_data;
         PyObject *args = (PyObject *)(closure->user_data);
         Py_XDECREF(args);
         cffi_closure_free(closure);
     }
-    cdata_dealloc(&cdb->head);
+    cdata_dealloc(cd);
 }
 
 static int cdata_traverse(CDataObject *cd, visitproc visit, void *arg)
@@ -1918,7 +1915,7 @@ static PyTypeObject CData_Type = {
     (traverseproc)cdata_traverse,               /* tp_traverse */
     0,                                          /* tp_clear */
     cdata_richcompare,                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
+    offsetof(CDataObject, c_weakreflist),       /* tp_weaklistoffset */
     (getiterfunc)cdata_iter,                    /* tp_iter */
     0,                                          /* tp_iternext */
 };
@@ -1926,7 +1923,7 @@ static PyTypeObject CData_Type = {
 static PyTypeObject CDataOwning_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "_cffi_backend.CDataOwn",
-    sizeof(CDataObject_own_base),
+    sizeof(CDataObject),
     0,
     (destructor)cdataowning_dealloc,            /* tp_dealloc */
     0,                                          /* tp_print */
@@ -1948,7 +1945,7 @@ static PyTypeObject CDataOwning_Type = {
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
-    offsetof(CDataObject_own_base, weakreflist),/* tp_weaklistoffset */
+    0,                                          /* tp_weaklistoffset */
     0,                                          /* tp_iter */
     0,                                          /* tp_iternext */
     0,                                          /* tp_methods */
@@ -2040,24 +2037,24 @@ cdata_iter(CDataObject *cd)
 
 /************************************************************/
 
-static CDataObject_own_base *allocate_owning_object(Py_ssize_t size,
-                                                    CTypeDescrObject *ct)
+static CDataObject *allocate_owning_object(Py_ssize_t size,
+                                           CTypeDescrObject *ct)
 {
-    CDataObject_own_base *cdb;
-    cdb = (CDataObject_own_base *)PyObject_Malloc(size);
-    if (PyObject_Init((PyObject *)cdb, &CDataOwning_Type) == NULL)
+    CDataObject *cd;
+    cd = (CDataObject *)PyObject_Malloc(size);
+    if (PyObject_Init((PyObject *)cd, &CDataOwning_Type) == NULL)
         return NULL;
 
     Py_INCREF(ct);
-    cdb->head.c_type = ct;
-    cdb->weakreflist = NULL;
-    return cdb;
+    cd->c_type = ct;
+    cd->c_weakreflist = NULL;
+    return cd;
 }
 
 static PyObject *
 convert_struct_to_owning_object(char *data, CTypeDescrObject *ct)
 {
-    CDataObject_own_base *cdb;
+    CDataObject *cd;
     Py_ssize_t dataoffset = offsetof(CDataObject_own_nolength, alignment);
     Py_ssize_t datasize = ct->ct_size;
 
@@ -2066,20 +2063,19 @@ convert_struct_to_owning_object(char *data, CTypeDescrObject *ct)
                         "return type is not a struct or is opaque");
         return NULL;
     }
-    cdb = allocate_owning_object(dataoffset + datasize, ct);
-    if (cdb == NULL)
+    cd = allocate_owning_object(dataoffset + datasize, ct);
+    if (cd == NULL)
         return NULL;
-    cdb->head.c_data = ((char *)cdb) + dataoffset;
+    cd->c_data = ((char *)cd) + dataoffset;
 
-    memcpy(cdb->head.c_data, data, datasize);
-    return (PyObject *)cdb;
+    memcpy(cd->c_data, data, datasize);
+    return (PyObject *)cd;
 }
 
 static PyObject *b_newp(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct, *ctitem;
     CDataObject *cd;
-    CDataObject_own_base *cdb;
     PyObject *init = Py_None;
     Py_ssize_t dataoffset, datasize, explicitlength;
     if (!PyArg_ParseTuple(args, "O!|O:newp", &CTypeDescr_Type, &ct, &init))
@@ -2147,33 +2143,31 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
            we build two objects instead of one, with the memory-owning
            one being really the struct (or union) and the returned one
            having a strong reference to it */
-        CDataObject_own_base *cdp;
+        CDataObject *cds;
 
-        cdb = allocate_owning_object(dataoffset + datasize, ct->ct_itemdescr);
-        if (cdb == NULL)
+        cds = allocate_owning_object(dataoffset + datasize, ct->ct_itemdescr);
+        if (cds == NULL)
             return NULL;
 
-        cdp = allocate_owning_object(sizeof(CDataObject_own_structptr), ct);
-        if (cdp == NULL) {
-            Py_DECREF(cdb);
+        cd = allocate_owning_object(sizeof(CDataObject_own_structptr), ct);
+        if (cd == NULL) {
+            Py_DECREF(cds);
             return NULL;
         }
-        /* store the only reference to cdb into cdp */
-        ((CDataObject_own_structptr *)cdp)->structobj = (PyObject *)cdb;
+        /* store the only reference to cds into cd */
+        ((CDataObject_own_structptr *)cd)->structobj = (PyObject *)cds;
         assert(explicitlength < 0);
 
-        cdb->head.c_data = cdp->head.c_data = ((char *)cdb) + dataoffset;
-        cd = &cdp->head;
+        cds->c_data = cd->c_data = ((char *)cds) + dataoffset;
     }
     else {
-        cdb = allocate_owning_object(dataoffset + datasize, ct);
-        if (cdb == NULL)
+        cd = allocate_owning_object(dataoffset + datasize, ct);
+        if (cd == NULL)
             return NULL;
 
-        cdb->head.c_data = ((char *)cdb) + dataoffset;
+        cd->c_data = ((char *)cd) + dataoffset;
         if (explicitlength >= 0)
-            ((CDataObject_own_length*)cdb)->length = explicitlength;
-        cd = &cdb->head;
+            ((CDataObject_own_length*)cd)->length = explicitlength;
     }
 
     memset(cd->c_data, 0, datasize);
@@ -2196,6 +2190,7 @@ static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
     Py_INCREF(ct);
     cd->c_type = ct;
     cd->c_data = ((char*)cd) + dataoffset;
+    cd->c_weakreflist = NULL;
     return cd;
 }
 
@@ -3571,7 +3566,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
 static PyObject *b_callback(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct, *ctresult;
-    CDataObject_own_base *cdb;
+    CDataObject *cd;
     PyObject *ob, *error_ob = Py_None;
     PyObject *py_rawerr, *infotuple = NULL;
     cif_description_t *cif_descr;
@@ -3616,13 +3611,13 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
 
     closure = cffi_closure_alloc();
 
-    cdb = PyObject_New(CDataObject_own_base, &CDataOwning_Type);
-    if (cdb == NULL)
+    cd = PyObject_New(CDataObject, &CDataOwning_Type);
+    if (cd == NULL)
         goto error;
     Py_INCREF(ct);
-    cdb->head.c_type = ct;
-    cdb->head.c_data = (char *)closure;
-    cdb->weakreflist = NULL;
+    cd->c_type = ct;
+    cd->c_data = (char *)closure;
+    cd->c_weakreflist = NULL;
 
     cif_descr = (cif_description_t *)ct->ct_extra;
     if (cif_descr == NULL) {
@@ -3637,14 +3632,14 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         goto error;
     }
     assert(closure->user_data == infotuple);
-    return (PyObject *)cdb;
+    return (PyObject *)cd;
 
  error:
     closure->user_data = NULL;
-    if (cdb == NULL)
+    if (cd == NULL)
         cffi_closure_free(closure);
     else
-        Py_DECREF(cdb);
+        Py_DECREF(cd);
     Py_XDECREF(infotuple);
     return NULL;
 }

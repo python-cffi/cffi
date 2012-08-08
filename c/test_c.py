@@ -1147,8 +1147,8 @@ def test_weakref():
     BPtr = new_pointer_type(BInt)
     weakref.ref(BInt)
     weakref.ref(newp(BPtr, 42))
-    py.test.raises(TypeError, weakref.ref, cast(BPtr, 42))
-    py.test.raises(TypeError, weakref.ref, cast(BInt, 42))
+    weakref.ref(cast(BPtr, 42))
+    weakref.ref(cast(BInt, 42))
 
 def test_no_inheritance():
     BInt = new_primitive_type("int")
