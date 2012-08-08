@@ -538,7 +538,20 @@ somewhere else, then make sure you also keep the object alive for as
 long as needed.  (This also applies if you immediately cast the returned
 pointer to a pointer of a different type: only the original object has
 ownership, so you must keep it alive.  As soon as you forget it, then
-the casted pointer will point to garbage.)
+the casted pointer will point to garbage.)  Example::
+
+    global_weakkeydict = weakref.WeakKeyDictionary()
+
+    s1   = ffi.new("struct foo *")
+    fld1 = ffi.new("struct bar *")
+    fld2 = ffi.new("struct bar *")
+    s1.thefield1 = fld1
+    s1.thefield2 = fld2
+    # here the 'fld1' and 'fld2' object must not go away,
+    # otherwise 's1.thefield1/2' will point to garbage!
+    global_weakkeydict[s1] = (fld1, fld2)
+    # now 's1' keeps alive 'fld1' and 'fld2'.  When 's1' goes
+    # away, then the weak dictionary entry will be removed.
 
 The cdata objects support mostly the same operations as in C: you can
 read or write from pointers, arrays and structures.  Dereferencing a
