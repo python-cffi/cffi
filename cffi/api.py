@@ -234,6 +234,18 @@ class FFI(object):
             replace_with = ' ' + replace_with
         return self._backend.getcname(cdecl, replace_with)
 
+    def gc(self, cdata, destructor):
+        """Return a new cdata object that points to the same
+        data.  Later, when this new cdata object is garbage-collected,
+        'destructor(old_cdata_object)' will be called.
+        """
+        try:
+            gc_weakrefs = self.gc_weakrefs
+        except AttributeError:
+            from .gc_weakref import GcWeakrefs
+            gc_weakrefs = self.gc_weakrefs = GcWeakrefs(self)
+        return gc_weakrefs.build(cdata, destructor)
+
     def _get_cached_btype(self, type):
         try:
             BType = self._cached_btypes[type]

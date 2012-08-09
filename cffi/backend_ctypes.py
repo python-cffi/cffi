@@ -2,7 +2,7 @@ import ctypes, ctypes.util, operator, sys
 from . import model
 
 class CTypesData(object):
-    __slots__ = []
+    __slots__ = ['__weakref__']
 
     def __init__(self, *args):
         raise TypeError("cannot instantiate %r" % (self.__class__,))

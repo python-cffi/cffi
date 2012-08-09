@@ -914,6 +914,14 @@ like ``"*"`` or ``"[5]"``.  For example
 ``ffi.getcname(ffi.typeof(x), "*")`` returns the string representation
 of the C type "pointer to the same type than x".
 
+``ffi.gc(cdata, destructor)``: return a new cdata object that points to the
+same data.  Later, when this new cdata object is garbage-collected,
+``destructor(old_cdata_object)`` will be called.  Example of usage:
+``ptr = ffi.gc(lib.malloc(42), lib.free)``.  *New in version 0.3* (together
+with the fact that any cdata object can be weakly referenced).
+
+.. "versionadded:: 0.3" --- inlined in the previous paragraph
+
 
 Unimplemented features
 ----------------------

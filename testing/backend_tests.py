@@ -1279,3 +1279,18 @@ class BackendTests:
         q = ffi.cast("int[3]", p)
         assert q[0] == -5
         assert repr(q).startswith("<cdata 'int[3]' 0x")
+
+    def test_gc(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int *", 123)
+        seen = []
+        def destructor(p1):
+            assert p1 is p
+            assert p1[0] == 123
+            seen.append(1)
+        q = ffi.gc(p, destructor)
+        import gc; gc.collect()
+        assert seen == []
+        del q
+        import gc; gc.collect(); gc.collect(); gc.collect()
+        assert seen == [1]
