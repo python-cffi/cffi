@@ -67,10 +67,11 @@ class DistUtilsTest(object):
         ffi.cdef("double sin(double x);")
         csrc = '/*hi there!2*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic)
-        v.modulefilename = filename = str(udir.join('test_compile_module.so'))
+        basename = self.__class__.__name__ + 'test_compile_module'
+        v.modulefilename = filename = str(udir.join(basename + '.so'))
         v.compile_module()
         assert filename == v.modulefilename
-        assert v.get_module_name() == 'test_compile_module'
+        assert v.get_module_name() == basename
         if v.generates_python_module():
             mod = imp.load_dynamic(v.get_module_name(), v.modulefilename)
             assert hasattr(mod, '_cffi_setup')
