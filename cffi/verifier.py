@@ -9,9 +9,10 @@ class Verifier(object):
     def __init__(self, ffi, preamble, force_generic_engine=False, **kwds):
         self.ffi = ffi
         self.preamble = preamble
-        self.kwds = kwds
         vengine_class = _locate_engine_class(ffi, force_generic_engine)
         self._vengine = vengine_class(self)
+        self._vengine.patch_extension_kwds(kwds)
+        self.kwds = kwds
         #
         key = '\x00'.join(['1', sys.version[:3], __version__, preamble] +
                           ffi._cdefsources)

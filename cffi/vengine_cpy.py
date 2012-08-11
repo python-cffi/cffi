@@ -10,6 +10,9 @@ class VCPythonEngine(object):
         self.verifier = verifier
         self.ffi = verifier.ffi
 
+    def patch_extension_kwds(self, kwds):
+        pass
+
     def collect_types(self):
         self._typesdict = {}
         self._generate("collecttype")

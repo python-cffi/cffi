@@ -9,6 +9,13 @@ class VGenericEngine(object):
     def __init__(self, verifier):
         self.verifier = verifier
         self.ffi = verifier.ffi
+        self.export_symbols = []
+
+    def patch_extension_kwds(self, kwds):
+        # add 'export_symbols' to the dictionary.  Note that we add the
+        # list before filling it.  When we fill it, it will thus also show
+        # up in kwds['export_symbols'].
+        kwds.setdefault('export_symbols', self.export_symbols)
 
     def collect_types(self):
         pass      # not needed in the generic engine
@@ -98,7 +105,9 @@ class VGenericEngine(object):
         arglist = [type.get_c_name(' %s' % arg)
                    for type, arg in zip(tp.args, argnames)]
         arglist = ', '.join(arglist) or 'void'
-        funcdecl = ' _cffi_f_%s(%s)' % (name, arglist)
+        wrappername = '_cffi_f_%s' % name
+        self.export_symbols.append(wrappername)
+        funcdecl = ' %s(%s)' % (wrappername, arglist)
         prnt(tp.result.get_c_name(funcdecl))
         prnt('{')
         #
@@ -180,6 +189,7 @@ class VGenericEngine(object):
                 prnt('  { %s = &p->%s; (void)tmp; }' % (
                     ftype.get_c_name('(*tmp)'), fname))
         prnt('}')
+        self.export_symbols.append(layoutfuncname)
         prnt('ssize_t %s(ssize_t i)' % (layoutfuncname,))
         prnt('{')
         prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
@@ -274,6 +284,7 @@ class VGenericEngine(object):
     def _generate_gen_const(self, is_int, name, tp=None, category='const'):
         prnt = self._prnt
         funcname = '_cffi_%s_%s' % (category, name)
+        self.export_symbols.append(funcname)
         if is_int:
             assert category == 'const'
             prnt('int %s(long long *out_value)' % funcname)
@@ -330,6 +341,7 @@ class VGenericEngine(object):
             return
         #
         funcname = '_cffi_enum_%s' % name
+        self.export_symbols.append(funcname)
         prnt = self._prnt
         prnt('int %s(char *out_error)' % funcname)
         prnt('{')
@@ -418,8 +430,12 @@ class VGenericEngine(object):
 cffimod_header = r'''
 #include <stdio.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdarg.h>
 #include <errno.h>
-#include <sys/types.h>   /* XXX for ssize_t */
+#ifdef _WIN32
+#  include <Windows.h>
+#else
+#  include <stdint.h>
+#  include <sys/types.h>   /* XXX for ssize_t */
+#endif
 '''
