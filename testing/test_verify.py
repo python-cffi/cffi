@@ -750,12 +750,12 @@ def test_opaque_integer_as_function_result():
     # anyway.  XXX think about something better :-(
     ffi = FFI()
     ffi.cdef("""
-        typedef struct { ...; } handle_t;
-        handle_t foo(void);
+        typedef struct { ...; } myhandle_t;
+        myhandle_t foo(void);
     """)
     lib = ffi.verify("""
-        typedef short handle_t;
-        handle_t foo(void) { return 42; }
+        typedef short myhandle_t;
+        myhandle_t foo(void) { return 42; }
     """)
     h = lib.foo()
     assert ffi.sizeof(h) == ffi.sizeof("short")
