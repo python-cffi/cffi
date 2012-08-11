@@ -442,6 +442,7 @@ cffimod_header = r'''
 
 #ifdef _WIN32
 #  include <Windows.h>
+#  define snprintf _snprintf
 typedef __int8 int8_t;
 typedef __int16 int16_t;
 typedef __int32 int32_t;
