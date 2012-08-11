@@ -301,6 +301,9 @@ def test_reading_pointer_to_pointer():
     assert p[0][0] == 43
 
 def test_load_standard_library():
+    if sys.platform == "win32":
+        py.test.raises(OSError, find_and_load_library, None)
+        return
     x = find_and_load_library(None)
     BVoidP = new_pointer_type(new_void_type())
     assert x.load_function(BVoidP, 'strcpy')
