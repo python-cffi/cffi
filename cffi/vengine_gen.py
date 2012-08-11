@@ -33,6 +33,12 @@ class VGenericEngine(object):
         # call generate_gen_xxx_decl(), for every xxx found from
         # ffi._parser._declarations.  This generates all the functions.
         self._generate('decl')
+        #
+        # on Windows, distutils insists on putting init_cffi_xyz in
+        # 'export_symbols', so instead of fighting it, just give up and
+        # give it one
+        if sys.platform == 'win32':
+            prnt("void init%s(void) { }\n" % self.verifier.get_module_name())
 
     def load_library(self):
         # import it with the CFFI backend
