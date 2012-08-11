@@ -2482,23 +2482,26 @@ static PyTypeObject dl_type = {
 
 static PyObject *b_load_library(PyObject *self, PyObject *args)
 {
-    char *filename;
+    char *filename_or_null, *printable_filename;
     void *handle;
     DynLibObject *dlobj;
     int is_global = 0;
 
     if (PyTuple_GET_SIZE(args) == 0 || PyTuple_GET_ITEM(args, 0) == Py_None) {
-        filename = NULL;
+        filename_or_null = NULL;
         is_global = 1;
     }
     else if (!PyArg_ParseTuple(args, "et|i:load_library",
-                          Py_FileSystemDefaultEncoding, &filename,
+                          Py_FileSystemDefaultEncoding, &filename_or_null,
                           &is_global))
         return NULL;
 
-    handle = dlopen(filename, RTLD_LAZY | (is_global?RTLD_GLOBAL:RTLD_LOCAL));
+    printable_filename = filename_or_null ? filename_or_null : "<None>";
+    handle = dlopen(filename_or_null,
+                    RTLD_LAZY | (is_global?RTLD_GLOBAL:RTLD_LOCAL));
     if (handle == NULL) {
-        PyErr_Format(PyExc_OSError, "cannot load library: %s", filename);
+        PyErr_Format(PyExc_OSError, "cannot load library: %s",
+                     printable_filename);
         return NULL;
     }
 
@@ -2508,7 +2511,7 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
         return NULL;
     }
     dlobj->dl_handle = handle;
-    dlobj->dl_name = strdup(filename ? filename : "<None>");
+    dlobj->dl_name = strdup(printable_filename);
     return (PyObject *)dlobj;
 }
 
