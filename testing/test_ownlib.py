@@ -32,11 +32,9 @@ class TestOwnLib(object):
             cwd=str(udir), shell=True)
         cls.module = str(udir.join('testownlib.so'))
 
-    def setup_method(self, meth):
+    def test_getting_errno(self):
         if sys.platform == 'win32':
             py.test.skip("fix the auto-generation of the tiny test lib")
-
-    def test_getting_errno(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int test_getting_errno(void);
@@ -47,6 +45,8 @@ class TestOwnLib(object):
         assert ffi.errno == 123
 
     def test_setting_errno(self):
+        if sys.platform == 'win32':
+            py.test.skip("fix the auto-generation of the tiny test lib")
         if self.Backend is CTypesBackend and '__pypy__' in sys.modules:
             py.test.skip("XXX errno issue with ctypes on pypy?")
         ffi = FFI(backend=self.Backend())
@@ -60,6 +60,8 @@ class TestOwnLib(object):
         assert ffi.errno == 42
 
     def test_my_array_7(self):
+        if sys.platform == 'win32':
+            py.test.skip("fix the auto-generation of the tiny test lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int my_array[7];
@@ -78,6 +80,8 @@ class TestOwnLib(object):
             assert ownlib.my_array[i] == i
 
     def test_my_array_no_length(self):
+        if sys.platform == 'win32':
+            py.test.skip("fix the auto-generation of the tiny test lib")
         if self.Backend is CTypesBackend:
             py.test.skip("not supported by the ctypes backend")
         ffi = FFI(backend=self.Backend())
