@@ -114,6 +114,20 @@ def test_all_integer_and_float_types():
             else:
                 assert lib.foo(value) == value + 1
 
+def test_nonstandard_integer_types():
+    ffi = FFI()
+    lst = ffi._backend.nonstandard_integer_types().items()
+    lst.sort()
+    verify_lines = []
+    for key, value in lst:
+        ffi.cdef("static const int expected_%s;" % key)
+        verify_lines.append("static const int expected_%s =" % key)
+        verify_lines.append("    sizeof(%s) | (((%s)-1) <= 0 ? 0 : 0x1000);"
+                            % (key, key))
+    lib = ffi.verify('\n'.join(verify_lines))
+    for key, value in lst:
+        assert getattr(lib, 'expected_%s' % key) == value
+
 def test_char_type():
     ffi = FFI()
     ffi.cdef("char foo(char);")
