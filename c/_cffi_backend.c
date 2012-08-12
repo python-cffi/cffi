@@ -765,8 +765,8 @@ static int _convert_to_char(PyObject *init)
         return *(unsigned char *)((CDataObject *)init)->c_data;
     }
     PyErr_Format(PyExc_TypeError,
-                 "initializer for ctype 'char' must be a bytes string of length 1, "
-                 "not %.200s", Py_TYPE(init)->tp_name);
+                 "initializer for ctype 'char' must be a "STR_OR_BYTES
+                 " of length 1, not %.200s", Py_TYPE(init)->tp_name);
     return -1;
 }
 
