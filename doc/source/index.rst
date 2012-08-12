@@ -63,14 +63,14 @@ This code has been developed on Linux but should work on any POSIX
 platform as well as on Win32.  There are some Windows-specific issues
 left.
 
-It currently supports CPython 2.x.  Support for CPython 3.x should not
-be too hard.  Support for PyPy is coming soon.  (In fact, the authors of
+It currently supports CPython 2.6, 2.7 and 3.x (tested with 3.3).
+Support for PyPy is coming soon.  (In fact, the authors of
 CFFI are also on the PyPy team; we plan to make it the first (and
 fastest) choice for PyPy.)
 
 Requirements:
 
-* CPython 2.6 or 2.7 (you need ``python-dev``)
+* CPython 2.6 or 2.7 or 3.x (you need ``python-dev``)
 
 * pycparser 2.06 or 2.07: http://code.google.com/p/pycparser/
 
@@ -173,6 +173,10 @@ Simple example (ABI level)
     >>> C.printf("hi there, %s!\n", arg)         # call printf
     hi there, world!
 
+Note that on Python 3 you need to pass byte strings to ``char *``
+arguments.  In the above example it would be ``b"world"`` and ``b"hi
+there, %s!\n"``.  In general it is ``somestring.encode(myencoding)``.
+
 
 Real example (API level)
 ------------------------
@@ -193,7 +197,7 @@ Real example (API level)
     #include <pwd.h>
     """)
     p = C.getpwuid(0)
-    assert ffi.string(p.pw_name) == 'root'
+    assert ffi.string(p.pw_name) == 'root'    # on Python 3: b'root'
 
 Note that the above example works independently of the exact layout of
 ``struct passwd``.  It requires a C compiler the first time you run it,
@@ -659,6 +663,19 @@ like ``ffi.new("int[%d]" % x)``.  Indeed, this is not recommended:
 it all the time.
 
 
+Python 3 support
+----------------
+
+Python 3 is supported, but the main point to note is that the ``char`` C
+type corresponds to the ``bytes`` Python type, and not ``str``.  It is
+your responsibility to encode/decode all Python strings to bytes when
+passing them to or receiving them from CFFI.
+
+This only concerns the ``char`` type and derivative types; other parts
+of the API that accept strings in Python 2 continue to accept strings in
+Python 3.
+
+
 An example of calling a main-like thing
 ---------------------------------------
 
@@ -859,13 +876,14 @@ string) from the 'cdata'.  *New in version 0.3.*
 - If 'cdata' is a pointer or array of characters or bytes, returns the
   null-terminated string.  The returned string extends until the first
   null character, or at most 'maxlen' characters.  If 'cdata' is an
-  array then 'maxlen' defaults to its length.
+  array then 'maxlen' defaults to its length.  *Python 3:* this is
+  always a ``bytes``, not a ``str``.
 
 - If 'cdata' is a pointer or array of wchar_t, returns a unicode string
   following the same rules.
 
 - If 'cdata' is a single character or byte or a wchar_t, returns it as a
-  string or unicode string.  (Note that in some situation a single
+  byte string or unicode string.  (Note that in some situation a single
   wchar_t may require a Python unicode string of length 2.)
 
 - If 'cdata' is an enum, returns the value of the enumerator as a
@@ -874,8 +892,9 @@ string) from the 'cdata'.  *New in version 0.3.*
 ``ffi.buffer(pointer, [size])``: return a read-write buffer object that
 references the raw C data pointed to by the given 'cdata', of 'size'
 bytes.  The 'cdata' must be a pointer or an array.  To get a copy of it
-in a regular string, use ``ffi.buffer(..)[:]``.  To change the content,
-use ``ffi.buffer(..)[:] = new_string``.  If unspecified, the
+in a regular string, use ``ffi.buffer(..)[:]`` in Python 2 and
+``ffi.buffer(..).tobytes()`` in Python 3.  To change the content,
+use ``ffi.buffer(..)[:] = new_string_of_bytes``.  If unspecified, the
 default size of the buffer is ``sizeof(*pointer)`` or the whole size of
 the array.  Getting a buffer is useful because you can read from it
 without an extra copy, or write into it to change the original value;
