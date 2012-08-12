@@ -61,7 +61,7 @@ class Verifier(object):
         return self._load_library()
 
     def get_module_name(self):
-        basename = os.path.basename(self.modulefilename))
+        basename = os.path.basename(self.modulefilename)
         return basename.rsplit('.', 1)[0]
 
     def get_extension(self):

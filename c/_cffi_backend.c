@@ -611,8 +611,9 @@ static PyObject *convert_enum_string_to_int(CTypeDescrObject *ct, PyObject *ob)
         d_value = PyDict_GetItem(PyTuple_GET_ITEM(ct->ct_stuff, 0), ob);
         if (d_value == NULL) {
             PyErr_Format(PyExc_ValueError,
-                         "%R is not an enumerator for %s",
-                         ob, ct->ct_name);
+                         "'%s' is not an enumerator for %s",
+                         PyText_AsUTF8(ob),
+                         ct->ct_name);
             return NULL;
         }
         Py_INCREF(d_value);
@@ -747,8 +748,8 @@ static int _convert_overflow(PyObject *init, const char *ct_name)
     s = PyObject_Str(init);
     if (s == NULL)
         return -1;
-    PyErr_Format(PyExc_OverflowError, "integer %S does not fit '%s'",
-                 s, ct_name);
+    PyErr_Format(PyExc_OverflowError, "integer %s does not fit '%s'",
+                 PyText_AsUTF8(s), ct_name);
     Py_DECREF(s);
     return -1;
 }
@@ -1128,9 +1129,11 @@ convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init)
         sfmax = PyObject_Str(lfmax);
         if (sfmax == NULL) goto skip;
         PyErr_Format(PyExc_OverflowError,
-                     "value %S outside the range allowed by the "
-                     "bit field width: %S <= x <= %S",
-                     svalue, sfmin, sfmax);
+                     "value %s outside the range allowed by the "
+                     "bit field width: %s <= x <= %s",
+                     PyText_AsUTF8(svalue),
+                     PyText_AsUTF8(sfmin),
+                     PyText_AsUTF8(sfmax));
        skip:
         Py_XDECREF(svalue);
         Py_XDECREF(sfmin);
@@ -1257,8 +1260,9 @@ static PyObject *cdata_repr(CDataObject *cd)
         extra = " &";
     else
         extra = "";
-    result = PyText_FromFormat("<cdata '%s%s' %S>",
-                               cd->c_type->ct_name, extra, s);
+    result = PyText_FromFormat("<cdata '%s%s' %s>",
+                               cd->c_type->ct_name, extra,
+                               PyText_AsUTF8(s));
     Py_DECREF(s);
     return result;
 }
@@ -2286,10 +2290,10 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
         }
         else {
 #if PY_MAJOR_VERSION < 3
-            if (PyString_GetSize(ob) != 1) {
+            if (PyString_GET_SIZE(ob) != 1) {
                 PyErr_Format(PyExc_TypeError,
                       "cannot cast string of length %zd to ctype '%s'",
-                             PyString_GetSize(ob), ct->ct_name);
+                             PyString_GET_SIZE(ob), ct->ct_name);
                 return NULL;
             }
             value = (unsigned char)PyString_AsString(ob)[0];
@@ -2960,8 +2964,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 
         if (ftype->ct_size < 0) {
             PyErr_Format(PyExc_TypeError,
-                         "field '%s.%S' has ctype '%s' of unknown size",
-                         ct->ct_name, fname,
+                         "field '%s.%s' has ctype '%s' of unknown size",
+                         ct->ct_name, PyText_AsUTF8(fname),
                          ftype->ct_name);
             goto error;
         }
@@ -3002,8 +3006,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 #endif
                     fbitsize == 0 ||
                     fbitsize > 8 * ftype->ct_size) {
-                PyErr_Format(PyExc_TypeError, "invalid bit field %R",
-                             fname);
+                PyErr_Format(PyExc_TypeError, "invalid bit field '%s'",
+                             PyText_AsUTF8(fname));
                 goto error;
             }
             if (prev_bit_position > 0) {
@@ -3045,8 +3049,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             goto error;
 
         if (PyDict_Size(interned_fields) != i + 1) {
-            PyErr_Format(PyExc_KeyError, "duplicate field name %R",
-                         fname);
+            PyErr_Format(PyExc_KeyError, "duplicate field name '%s'",
+                         PyText_AsUTF8(fname));
             goto error;
         }
 
