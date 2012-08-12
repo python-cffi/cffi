@@ -514,6 +514,24 @@ def test_access_callback():
     lib.cb = my_callback
     assert lib.foo(4) == 887
 
+def test_access_callback_function_typedef():
+    ffi = FFI()
+    ffi.cdef("typedef int mycallback_t(int);\n"
+             "mycallback_t *cb;\n"
+             "int foo(int);\n"
+             "void reset_cb(void);")
+    lib = ffi.verify("""
+        static int g(int x) { return x * 7; }
+        static int (*cb)(int);
+        static int foo(int i) { return cb(i) - 1; }
+        static void reset_cb(void) { cb = g; }
+    """)
+    lib.reset_cb()
+    assert lib.foo(6) == 41
+    my_callback = ffi.callback("int(*)(int)", lambda n: n * 222)
+    lib.cb = my_callback
+    assert lib.foo(4) == 887
+
 def test_ctypes_backend_forces_generic_engine():
     from cffi.backend_ctypes import CTypesBackend
     ffi = FFI(backend=CTypesBackend())

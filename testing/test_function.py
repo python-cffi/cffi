@@ -268,3 +268,14 @@ class TestFunction(object):
         ina = ffi.new("struct in_addr *", [0x04040404])
         a = ffi.C.inet_ntoa(ina[0])
         assert ffi.string(a) == '4.4.4.4'
+
+    def test_function_typedef(self):
+        py.test.skip("using really obscure C syntax")
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            typedef double func_t(double);
+            func_t sin;
+        """)
+        m = ffi.dlopen("m")
+        x = m.sin(1.23)
+        assert x == math.sin(1.23)
