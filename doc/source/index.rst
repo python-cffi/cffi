@@ -28,9 +28,8 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
   but all C89 should be, including macros (and including macro "abuses",
   which you can `manually wrap`_ in saner-looking C functions).
 
-* We attempt to support both PyPy and CPython (although PyPy support is not
-  complete yet) with a reasonable path for other Python implementations like
-  IronPython and Jython.
+* We attempt to support both PyPy and CPython, with a reasonable path
+  for other Python implementations like IronPython and Jython.
 
 * Note that this project is **not** about embedding executable C code in
   Python, unlike `Weave`_.  This is about calling existing C libraries
@@ -63,19 +62,19 @@ This code has been developed on Linux but should work on any POSIX
 platform as well as on Win32.  There are some Windows-specific issues
 left.
 
-It currently supports CPython 2.6, 2.7 and 3.x (tested with 3.3,
-seems to work on 3.2 too).
-Support for PyPy is coming soon.  (In fact, the authors of
-CFFI are also on the PyPy team; we plan to make it the first (and
-fastest) choice for PyPy.)
+It supports CPython 2.6; 2.7; 3.x (tested with 3.3, seems to work on 3.2
+too); and PyPy trunk (not 1.9).  (Its speed is comparable to ctypes on
+CPython, and faster on PyPy.)
 
 Requirements:
 
-* CPython 2.6 or 2.7 or 3.x (you need ``python-dev``)
+* CPython 2.6 or 2.7 or 3.x, or PyPy trunk
+
+* on CPython you need to build the C extension module, so you need
+  ``python-dev`` and ``libffi-dev`` (for Windows, libffi is included
+  with CFFI).
 
 * pycparser 2.06 or 2.07: http://code.google.com/p/pycparser/
-
-* libffi (you need ``libffi-dev``); for Windows, it is included with CFFI.
 
 * a C compiler is required to use CFFI during development, but not to run
   correctly-installed programs that use CFFI.
