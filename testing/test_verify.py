@@ -40,9 +40,9 @@ def test_missing_function(ffi=None):
     else:
         # but depending on compiler and loader details, maybe
         # 'lib' could actually be imported but will fail if we
-        # actually try to call the unknown function...
-        lib.some_completely_unknown_function()
-        # ^^ crashes completely??
+        # actually try to call the unknown function...  Hard
+        # to test anything more.
+        pass
 
 def test_missing_function_import_error():
     # uses the original FFI that just gives a warning during compilation
