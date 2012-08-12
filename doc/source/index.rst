@@ -63,7 +63,8 @@ This code has been developed on Linux but should work on any POSIX
 platform as well as on Win32.  There are some Windows-specific issues
 left.
 
-It currently supports CPython 2.6, 2.7 and 3.x (tested with 3.3).
+It currently supports CPython 2.6, 2.7 and 3.x (tested with 3.3,
+seems to work on 3.2 too).
 Support for PyPy is coming soon.  (In fact, the authors of
 CFFI are also on the PyPy team; we plan to make it the first (and
 fastest) choice for PyPy.)
