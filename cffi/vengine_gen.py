@@ -377,8 +377,10 @@ class VGenericEngine(object):
             function = module.load_function(BFunc, funcname)
             p = self.ffi.new("char[]", 256)
             if function(p) < 0:
-                raise ffiplatform.VerificationError(
-                    str(self.ffi.string(p), 'utf-8'))
+                error = self.ffi.string(p)
+                if sys.version_info >= (3,):
+                    error = str(error, 'utf-8')
+                raise ffiplatform.VerificationError(error)
 
     def _loaded_gen_enum(self, tp, name, module, library):
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
