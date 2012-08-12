@@ -28,8 +28,16 @@ def test_module_type():
     assert hasattr(lib, '_cffi_python_module') == (not expected_generic)
     assert hasattr(lib, '_cffi_generic_module') == expected_generic
 
-def test_missing_function():
+def test_missing_function_compile_error():
+    # uses the FFI hacked above with '-Werror'
     ffi = FFI()
+    ffi.cdef("void some_completely_unknown_function();")
+    py.test.raises(VerificationError, ffi.verify)
+
+def test_missing_function_import_error():
+    # uses the original FFI that just gives a warning during compilation
+    import cffi
+    ffi = cffi.FFI()
     ffi.cdef("void some_completely_unknown_function();")
     py.test.raises(VerificationError, ffi.verify)
 

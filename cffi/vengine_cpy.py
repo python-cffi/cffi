@@ -97,7 +97,7 @@ class VCPythonEngine(object):
             module = imp.load_dynamic(self.verifier.get_module_name(),
                                       self.verifier.modulefilename)
         except ImportError, e:
-            error = "importing %r: %s" % (self.modulefilename, e)
+            error = "importing %r: %s" % (self.verifier.modulefilename, e)
             raise ffiplatform.VerificationError(error)
         #
         # call loading_cpy_struct() to get the struct layout inferred by
