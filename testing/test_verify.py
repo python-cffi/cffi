@@ -35,7 +35,7 @@ def test_missing_function(ffi=None):
     ffi.cdef("void some_completely_unknown_function();")
     try:
         lib = ffi.verify()
-    except VerificationError:
+    except (VerificationError, OSError):
         pass     # expected case: we get a VerificationError
     else:
         # but depending on compiler and loader details, maybe
