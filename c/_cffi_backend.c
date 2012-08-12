@@ -2326,7 +2326,10 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
     }
 #endif
     else if (PyBytes_Check(ob)) {
-      value = (unsigned char)_convert_to_char(ob);
+        int res = _convert_to_char(ob);
+        if (res < 0)
+            return NULL;
+        value = (unsigned char)res;
     }
     else {
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
@@ -3702,6 +3705,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     py_rawerr = PyBytes_FromStringAndSize(NULL, size);
     if (py_rawerr == NULL)
         return NULL;
+    memset(PyBytes_AS_STRING(py_rawerr), 0, size);
     if (error_ob != Py_None) {
         if (convert_from_object_fficallback(
                 PyBytes_AS_STRING(py_rawerr), ctresult, error_ob) < 0) {
