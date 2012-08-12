@@ -1,15 +1,10 @@
-import sys
-
 import py
-
-if '__pypy__' in sys.modules:
-    py.test.skip("C backend in CPython only")
-
 from _cffi_backend import *
 from _cffi_backend import _getfields, _testfunc
 
 # ____________________________________________________________
 
+import sys
 if sys.version_info < (3,):
     type_or_class = "type"
     mandatory_b_prefix = ''
@@ -1098,6 +1093,10 @@ def test_callback_returning_char():
     assert f(0) == b'\x00'
     assert f(255) == b'\xFF'
 
+def _hacked_pypy_uni4():
+    pyuni4 = {1: True, 2: False}[len(u'\U00012345')]
+    return 'PY_DOT_PY' in globals() and not pyuni4
+
 def test_callback_returning_wchar_t():
     BInt = new_primitive_type("int")
     BWChar = new_primitive_type("wchar_t")
@@ -1112,7 +1111,7 @@ def test_callback_returning_wchar_t():
     assert f(0) == unichr(0)
     assert f(255) == unichr(255)
     assert f(0x1234) == u'\u1234'
-    if sizeof(BWChar) == 4:
+    if sizeof(BWChar) == 4 and not _hacked_pypy_uni4():
         assert f(-1) == u'\U00012345'
     assert f(-2) == u'\x00'   # and an exception printed to stderr
 
@@ -1512,10 +1511,11 @@ def test_wchar():
     assert str(cast(BWChar, 0x1234)) == "<cdata 'wchar_t' %s'\u1234'>" % (
         mandatory_u_prefix,)
     if wchar4:
-        x = cast(BWChar, 0x12345)
-        assert str(x) == "<cdata 'wchar_t' %s'\U00012345'>" % (
-            mandatory_u_prefix,)
-        assert int(x) == 0x12345
+        if not _hacked_pypy_uni4():
+            x = cast(BWChar, 0x12345)
+            assert str(x) == "<cdata 'wchar_t' %s'\U00012345'>" % (
+                mandatory_u_prefix,)
+            assert int(x) == 0x12345
     else:
         assert not pyuni4
     #
@@ -1536,10 +1536,11 @@ def test_wchar():
         s.a1 = u'\U00012345'
         assert s.a1 == u'\U00012345'
     elif wchar4:
-        s.a1 = cast(BWChar, 0x12345)
-        assert s.a1 == u'\ud808\udf45'
-        s.a1 = u'\ud807\udf44'
-        assert s.a1 == u'\U00011f44'
+        if not _hacked_pypy_uni4():
+            s.a1 = cast(BWChar, 0x12345)
+            assert s.a1 == u'\ud808\udf45'
+            s.a1 = u'\ud807\udf44'
+            assert s.a1 == u'\U00011f44'
     else:
         py.test.raises(TypeError, "s.a1 = u'\U00012345'")
     #
@@ -1555,7 +1556,7 @@ def test_wchar():
     assert string(a) == u'hello - world!'
     assert str(a) == repr(a)
     #
-    if wchar4:
+    if wchar4 and not _hacked_pypy_uni4():
         u = u'\U00012345\U00012346\U00012347'
         a = newp(BWCharArray, u)
         assert len(a) == 4
@@ -1584,7 +1585,7 @@ def test_wchar():
     assert int(w) == 0x8234
     w = cast(BInt, u'\u1234')
     assert repr(w) == "<cdata 'int' 4660>"
-    if wchar4:
+    if wchar4 and not _hacked_pypy_uni4():
         w = cast(BWChar, u'\U00012345')
         assert repr(w) == "<cdata 'wchar_t' %s'\U00012345'>" % (
             mandatory_u_prefix,)
@@ -1620,7 +1621,7 @@ def test_wchar():
     f = callback(BFunc, cb, -42)
     assert f(u'a\u1234b') == 3
     #
-    if wchar4 and not pyuni4:
+    if wchar4 and not pyuni4 and not _hacked_pypy_uni4():
         # try out-of-range wchar_t values
         x = cast(BWChar, 1114112)
         py.test.raises(ValueError, string, x)
