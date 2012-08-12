@@ -17,11 +17,11 @@ def _ask_pkg_config(resultlist, option, result_prefix=''):
     try:
         p = subprocess.Popen(['pkg-config', option, 'libffi'],
                              stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
-    except OSError, e:
+    except OSError as e:
         if e.errno != errno.ENOENT:
             raise
     else:
-        t = p.stdout.read().strip()
+        t = p.stdout.read().decode().strip()
         if p.wait() == 0:
             res = t.split()
             # '-I/usr/...' -> '/usr/...'

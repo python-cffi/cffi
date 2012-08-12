@@ -1,4 +1,4 @@
-import imp
+import sys, imp
 from . import model, ffiplatform
 
 
@@ -18,7 +18,7 @@ class VCPythonEngine(object):
         self._generate("collecttype")
 
     def _prnt(self, what=''):
-        print >> self._f, what
+        self._f.write(what + '\n')
 
     def _gettypenum(self, type):
         # a KeyError here is a bug.  please report it! :-)
@@ -79,15 +79,35 @@ class VCPythonEngine(object):
         #
         # standard init.
         modname = self.verifier.get_module_name()
+        if sys.version_info >= (3,):
+            prnt('static struct PyModuleDef _cffi_module_def = {')
+            prnt('  PyModuleDef_HEAD_INIT,')
+            prnt('  "%s",' % modname)
+            prnt('  NULL,')
+            prnt('  -1,')
+            prnt('  _cffi_methods,')
+            prnt('  NULL, NULL, NULL, NULL')
+            prnt('};')
+            prnt()
+            initname = 'PyInit_%s' % modname
+            createmod = 'PyModule_Create(&_cffi_module_def)'
+            errorcase = 'return NULL'
+            finalreturn = 'return lib'
+        else:
+            initname = 'init%s' % modname
+            createmod = 'Py_InitModule("%s", _cffi_methods)' % modname
+            errorcase = 'return'
+            finalreturn = 'return'
         prnt('PyMODINIT_FUNC')
-        prnt('init%s(void)' % modname)
+        prnt('%s(void)' % initname)
         prnt('{')
         prnt('  PyObject *lib;')
-        prnt('  lib = Py_InitModule("%s", _cffi_methods);' % modname)
+        prnt('  lib = %s;' % createmod)
         prnt('  if (lib == NULL || %s < 0)' % (
             self._chained_list_constants[False],))
-        prnt('    return;')
+        prnt('    %s;' % errorcase)
         prnt('  _cffi_init();')
+        prnt('  %s;' % finalreturn)
         prnt('}')
 
     def load_library(self):
@@ -96,7 +116,7 @@ class VCPythonEngine(object):
         try:
             module = imp.load_dynamic(self.verifier.get_module_name(),
                                       self.verifier.modulefilename)
-        except ImportError, e:
+        except ImportError as e:
             error = "importing %r: %s" % (self.verifier.modulefilename, e)
             raise ffiplatform.VerificationError(error)
         #
@@ -109,7 +129,7 @@ class VCPythonEngine(object):
         revmapping = dict([(value, key)
                            for (key, value) in self._typesdict.items()])
         lst = [revmapping[i] for i in range(len(revmapping))]
-        lst = map(self.ffi._get_cached_btype, lst)
+        lst = list(map(self.ffi._get_cached_btype, lst))
         #
         # build the FFILibrary class and instance and call _cffi_setup().
         # this will set up some fields like '_cffi_types', and only then
@@ -129,7 +149,7 @@ class VCPythonEngine(object):
         return library
 
     def _generate(self, step_name):
-        for name, tp in self.ffi._parser._declarations.iteritems():
+        for name, tp in self.ffi._parser._declarations.items():
             kind, realname = name.split(' ', 1)
             try:
                 method = getattr(self, '_generate_cpy_%s_%s' % (kind,
@@ -140,7 +160,7 @@ class VCPythonEngine(object):
             method(tp, realname)
 
     def _load(self, module, step_name, **kwds):
-        for name, tp in self.ffi._parser._declarations.iteritems():
+        for name, tp in self.ffi._parser._declarations.items():
             kind, realname = name.split(' ', 1)
             method = getattr(self, '_%s_cpy_%s' % (step_name, kind))
             method(tp, realname, module, **kwds)
@@ -616,6 +636,19 @@ typedef unsigned __int32 uint32_t;
 typedef unsigned __int64 uint64_t;
 #endif
 
+#if PY_MAJOR_VERSION < 3
+# undef PyCapsule_CheckExact
+# undef PyCapsule_GetPointer
+# define PyCapsule_CheckExact(capsule) (PyCObject_Check(capsule))
+# define PyCapsule_GetPointer(capsule, name) \
+    (PyCObject_AsVoidPtr(capsule))
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+# define PyInt_FromLong PyLong_FromLong
+# define PyInt_AsLong PyLong_AsLong
+#endif
+
 #define _cffi_from_c_double PyFloat_FromDouble
 #define _cffi_from_c_float PyFloat_FromDouble
 #define _cffi_from_c_signed_char PyInt_FromLong
@@ -729,11 +762,11 @@ static void _cffi_init(void)
     c_api_object = PyObject_GetAttrString(module, "_C_API");
     if (c_api_object == NULL)
         return;
-    if (!PyCObject_Check(c_api_object)) {
+    if (!PyCapsule_CheckExact(c_api_object)) {
         PyErr_SetNone(PyExc_ImportError);
         return;
     }
-    memcpy(_cffi_exports, PyCObject_AsVoidPtr(c_api_object),
+    memcpy(_cffi_exports, PyCapsule_GetPointer(c_api_object, "cffi"),
            _CFFI_NUM_EXPORTS * sizeof(void *));
 }
 

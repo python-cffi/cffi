@@ -15,7 +15,7 @@ class Verifier(object):
         self.kwds = kwds
         #
         key = '\x00'.join(['1', sys.version[:3], __version__, preamble] +
-                          ffi._cdefsources)
+                          ffi._cdefsources).encode('utf-8')
         k1 = hex(binascii.crc32(key[0::2]) & 0xffffffff)
         k1 = k1.lstrip('0x').rstrip('L')
         k2 = hex(binascii.crc32(key[1::2]) & 0xffffffff)
@@ -61,7 +61,10 @@ class Verifier(object):
         return self._load_library()
 
     def get_module_name(self):
-        return os.path.splitext(os.path.basename(self.modulefilename))[0]
+        basename = os.path.basename(self.modulefilename)
+        # kill both the .so extension and the other .'s, as introduced
+        # by Python 3: 'basename.cpython-33m.so'
+        return basename.split('.', 1)[0]
 
     def get_extension(self):
         if self._status == 'init':

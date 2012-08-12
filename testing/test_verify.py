@@ -20,9 +20,9 @@ def test_module_type():
     ffi = FFI()
     lib = ffi.verify()
     if hasattr(lib, '_cffi_python_module'):
-        print 'verify got a PYTHON module'
+        print('verify got a PYTHON module')
     if hasattr(lib, '_cffi_generic_module'):
-        print 'verify got a GENERIC module'
+        print('verify got a GENERIC module')
     expected_generic = (cffi.verifier._FORCE_GENERIC_ENGINE or
                         '__pypy__' in sys.builtin_module_names)
     assert hasattr(lib, '_cffi_python_module') == (not expected_generic)
@@ -75,19 +75,19 @@ def test_strlen_exact():
     ffi = FFI()
     ffi.cdef("size_t strlen(const char *s);")
     lib = ffi.verify("#include <string.h>")
-    assert lib.strlen("hi there!") == 9
+    assert lib.strlen(b"hi there!") == 9
 
 def test_strlen_approximate():
     ffi = FFI()
     ffi.cdef("int strlen(char *s);")
     lib = ffi.verify("#include <string.h>")
-    assert lib.strlen("hi there!") == 9
+    assert lib.strlen(b"hi there!") == 9
 
 def test_strlen_array_of_char():
     ffi = FFI()
     ffi.cdef("int strlen(char[]);")
     lib = ffi.verify("#include <string.h>")
-    assert lib.strlen("hello") == 5
+    assert lib.strlen(b"hello") == 5
 
 
 all_integer_types = ['short', 'int', 'long', 'long long',
@@ -115,7 +115,8 @@ def test_all_integer_and_float_types():
         ffi.cdef("%s foo(%s);" % (typename, typename))
         lib = ffi.verify("%s foo(%s x) { return x+1; }" % (typename, typename))
         assert lib.foo(42) == 43
-        assert lib.foo(44L) == 45
+        if sys.version < '3':
+            assert lib.foo(long(44)) == 45
         assert lib.foo(ffi.cast(typename, 46)) == 47
         py.test.raises(TypeError, lib.foo, ffi.NULL)
         #
@@ -133,7 +134,7 @@ def test_all_integer_and_float_types():
 def test_nonstandard_integer_types():
     ffi = FFI()
     lst = ffi._backend.nonstandard_integer_types().items()
-    lst.sort()
+    lst = sorted(lst)
     verify_lines = []
     for key, value in lst:
         ffi.cdef("static const int expected_%s;" % key)
@@ -148,7 +149,8 @@ def test_char_type():
     ffi = FFI()
     ffi.cdef("char foo(char);")
     lib = ffi.verify("char foo(char x) { return x+1; }")
-    assert lib.foo("A") == "B"
+    assert lib.foo(b"A") == b"B"
+    py.test.raises(TypeError, lib.foo, b"bar")
     py.test.raises(TypeError, lib.foo, "bar")
 
 def test_wchar_type():
@@ -380,7 +382,7 @@ def test_global_constants_non_int():
     ffi.cdef("static char *const PP;")
     lib = ffi.verify('static char *const PP = "testing!";\n')
     assert ffi.typeof(lib.PP) == ffi.typeof("char *")
-    assert ffi.string(lib.PP) == "testing!"
+    assert ffi.string(lib.PP) == b"testing!"
 
 def test_nonfull_enum():
     ffi = FFI()
@@ -642,7 +644,7 @@ def test_varargs_struct():
             return s.a - s.b;
         }
     """)
-    s = ffi.new("struct foo_s *", ['B', 1])
+    s = ffi.new("struct foo_s *", [b'B', 1])
     assert lib.foo(50, s[0]) == ord('A')
 
 def test_autofilled_struct_as_argument():
@@ -710,7 +712,7 @@ def test_func_as_funcptr():
     """)
     foochar = ffi.cast("char *(*)(void)", lib.fooptr)
     s = foochar()
-    assert ffi.string(s) == "foobar"
+    assert ffi.string(s) == b"foobar"
 
 def test_funcptr_as_argument():
     ffi = FFI()

@@ -72,10 +72,10 @@ class TestOwnLib(object):
         assert len(ownlib.my_array) == 7
         if self.Backend is CTypesBackend:
             py.test.skip("not supported by the ctypes backend")
-        ownlib.my_array = range(10, 17)
+        ownlib.my_array = list(range(10, 17))
         for i in range(7):
             assert ownlib.my_array[i] == 10 + i
-        ownlib.my_array = range(7)
+        ownlib.my_array = list(range(7))
         for i in range(7):
             assert ownlib.my_array[i] == i
 
@@ -92,9 +92,9 @@ class TestOwnLib(object):
         for i in range(7):
             assert ownlib.my_array[i] == i
         py.test.raises(TypeError, len, ownlib.my_array)
-        ownlib.my_array = range(10, 17)
+        ownlib.my_array = list(range(10, 17))
         for i in range(7):
             assert ownlib.my_array[i] == 10 + i
-        ownlib.my_array = range(7)
+        ownlib.my_array = list(range(7))
         for i in range(7):
             assert ownlib.my_array[i] == i

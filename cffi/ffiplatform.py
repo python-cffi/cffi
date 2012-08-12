@@ -54,7 +54,7 @@ def _build(ext):
     try:
         dist.run_command('build_ext')
     except (distutils.errors.CompileError,
-            distutils.errors.LinkError), e:
+            distutils.errors.LinkError) as e:
         raise VerificationError('%s: %s' % (e.__class__.__name__, e))
     #
     cmd_obj = dist.get_command_obj('build_ext')

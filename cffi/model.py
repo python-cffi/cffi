@@ -182,7 +182,7 @@ class StructOrUnion(BaseType):
         fldtypes = tuple(ffi._get_cached_btype(tp) for tp in self.fldtypes)
         #
         if self.fixedlayout is None:
-            lst = zip(self.fldnames, fldtypes, self.fldbitsize)
+            lst = list(zip(self.fldnames, fldtypes, self.fldbitsize))
             ffi._backend.complete_struct_or_union(BType, lst, self)
             #
         else:
@@ -213,7 +213,7 @@ class StructOrUnion(BaseType):
                         "field '%s.%s' is declared as %d bytes, but is "
                         "really %d bytes" % (self.name, self.fldnames[i],
                                              bitemsize, fsize))
-            lst = zip(self.fldnames, fldtypes, self.fldbitsize, fieldofs)
+            lst = list(zip(self.fldnames, fldtypes, self.fldbitsize, fieldofs))
             ffi._backend.complete_struct_or_union(BType, lst, self,
                                                   totalsize, totalalignment)
         return BType

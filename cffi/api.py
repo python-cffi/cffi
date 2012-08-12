@@ -1,4 +1,4 @@
-import new
+import types
 
 class FFIError(Exception):
     pass
@@ -38,7 +38,7 @@ class FFI(object):
         if backend is None:
             try:
                 import _cffi_backend as backend
-            except ImportError, e:
+            except ImportError as e:
                 import warnings
                 warnings.warn("import _cffi_backend: %s\n"
                               "Falling back to the ctypes backend." % (e,))
@@ -47,8 +47,8 @@ class FFI(object):
         self._backend = backend
         self._parser = cparser.Parser()
         self._cached_btypes = {}
-        self._parsed_types = new.module('parsed_types').__dict__
-        self._new_types = new.module('new_types').__dict__
+        self._parsed_types = types.ModuleType('parsed_types').__dict__
+        self._new_types = types.ModuleType('new_types').__dict__
         self._function_caches = []
         self._cdefsources = []
         if hasattr(backend, 'set_ffi'):
@@ -113,7 +113,7 @@ class FFI(object):
         corresponding Python type: <class 'ffi.CData<...>'>.
         It can also be used on 'cdata' instance to get its C type.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             return self._typeof(cdecl)
         else:
             return self._backend.typeof(cdecl)
@@ -122,7 +122,7 @@ class FFI(object):
         """Return the size in bytes of the argument.  It can be a
         string naming a C type, or a 'cdata' instance.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             BType = self._typeof(cdecl)
             return self._backend.sizeof(BType)
         else:
@@ -132,7 +132,7 @@ class FFI(object):
         """Return the natural alignment size in bytes of the C type
         given as a string.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         return self._backend.alignof(cdecl)
 
@@ -140,7 +140,7 @@ class FFI(object):
         """Return the offset of the named field inside the given
         structure, which must be given as a C type name.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         return self._backend.offsetof(cdecl, fieldname)
 
@@ -167,7 +167,7 @@ class FFI(object):
         about that when copying the pointer to the memory somewhere
         else, e.g. into another structure.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         return self._backend.newp(cdecl, init)
 
@@ -176,7 +176,7 @@ class FFI(object):
         type initialized with the given 'source'.  The source is
         casted between integers or pointers of any type.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         return self._backend.cast(cdecl, source)
 
@@ -214,7 +214,7 @@ class FFI(object):
         """
         if not callable(python_callable):
             raise TypeError("the 'python_callable' argument is not callable")
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl, consider_function_as_funcptr=True)
         return self._backend.callback(cdecl, python_callable, error)
 
@@ -224,7 +224,7 @@ class FFI(object):
         extra text to append (or insert for more complicated C types), like
         a variable name, or '*' to get actually the C type 'pointer-to-cdecl'.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         replace_with = replace_with.strip()
         if (replace_with.startswith('*')

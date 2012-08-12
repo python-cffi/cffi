@@ -10,12 +10,12 @@ def test_version():
 def test_doc_version():
     parent = os.path.dirname(os.path.dirname(__file__))
     p = os.path.join(parent, 'doc', 'source', 'conf.py')
-    content = file(p).read()
+    content = open(p).read()
     #
     v = cffi.__version__
     assert ("version = '%s'\n" % v) in content
     assert ("release = '%s'\n" % v) in content
     #
     p = os.path.join(parent, 'doc', 'source', 'index.rst')
-    content = file(p).read()
+    content = open(p).read()
     assert ("release-%s.tar.bz2" % v) in content

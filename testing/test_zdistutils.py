@@ -1,4 +1,4 @@
-import sys, os, imp, math, StringIO, random
+import sys, os, imp, math, random
 import py
 from cffi import FFI, FFIError
 from cffi.verifier import Verifier, _locate_engine_class
@@ -26,7 +26,7 @@ class DistUtilsTest(object):
         csrc = '/*hi there!*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic)
         v.write_source()
-        with file(v.sourcefilename, 'r') as f:
+        with open(v.sourcefilename, 'r') as f:
             data = f.read()
         assert csrc in data
 
@@ -38,7 +38,7 @@ class DistUtilsTest(object):
         v.sourcefilename = filename = str(udir.join('write_source.c'))
         v.write_source()
         assert filename == v.sourcefilename
-        with file(filename, 'r') as f:
+        with open(filename, 'r') as f:
             data = f.read()
         assert csrc in data
 
@@ -47,7 +47,11 @@ class DistUtilsTest(object):
         ffi.cdef("double sin(double x);")
         csrc = '/*hi there!*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic)
-        f = StringIO.StringIO()
+        try:
+            from StringIO import StringIO
+        except ImportError:
+            from io import StringIO
+        f = StringIO()
         v.write_source(file=f)
         assert csrc in f.getvalue()
 
@@ -120,7 +124,7 @@ class DistUtilsTest(object):
         lib = ffi.verify(csrc, force_generic_engine=self.generic)
         assert lib.sin(12.3) == math.sin(12.3)
         assert isinstance(ffi.verifier, Verifier)
-        with file(ffi.verifier.sourcefilename, 'r') as f:
+        with open(ffi.verifier.sourcefilename, 'r') as f:
             data = f.read()
         assert csrc in data
 
@@ -138,7 +142,7 @@ class DistUtilsTest(object):
         assert lib.sin(12.3) == math.sin(12.3)
         v = ffi.verifier
         ext = v.get_extension()
-        assert str(ext.__class__) == 'distutils.extension.Extension'
+        assert 'distutils.extension.Extension' in str(ext.__class__)
         assert ext.sources == [v.sourcefilename]
         assert ext.name == v.get_module_name()
         assert ext.define_macros == [('TEST_EXTENSION_OBJECT', '1')]

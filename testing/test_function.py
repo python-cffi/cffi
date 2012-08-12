@@ -1,7 +1,12 @@
 import py
 from cffi import FFI
-import math, os, sys, StringIO
+import math, os, sys
 from cffi.backend_ctypes import CTypesBackend
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 class FdWriteCapture(object):
@@ -85,11 +90,11 @@ class TestFunction(object):
         ffi.C = ffi.dlopen(None)
         ffi.C.puts   # fetch before capturing, for easier debugging
         with FdWriteCapture() as fd:
-            ffi.C.puts("hello")
-            ffi.C.puts("  world")
+            ffi.C.puts(b"hello")
+            ffi.C.puts(b"  world")
             ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
-        assert res == 'hello\n  world\n'
+        assert res == b'hello\n  world\n'
 
     def test_puts_without_const(self):
         ffi = FFI(backend=self.Backend())
@@ -100,11 +105,11 @@ class TestFunction(object):
         ffi.C = ffi.dlopen(None)
         ffi.C.puts   # fetch before capturing, for easier debugging
         with FdWriteCapture() as fd:
-            ffi.C.puts("hello")
-            ffi.C.puts("  world")
+            ffi.C.puts(b"hello")
+            ffi.C.puts(b"  world")
             ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
-        assert res == 'hello\n  world\n'
+        assert res == b'hello\n  world\n'
 
     def test_fputs(self):
         if not sys.platform.startswith('linux'):
@@ -116,9 +121,9 @@ class TestFunction(object):
         """)
         ffi.C = ffi.dlopen(None)
         with FdWriteCapture(2) as fd:
-            ffi.C.fputs("hello from stderr\n", ffi.C.stderr)
+            ffi.C.fputs(b"hello from stderr\n", ffi.C.stderr)
         res = fd.getvalue()
-        assert res == 'hello from stderr\n'
+        assert res == b'hello from stderr\n'
 
     def test_vararg(self):
         ffi = FFI(backend=self.Backend())
@@ -128,28 +133,28 @@ class TestFunction(object):
         """)
         ffi.C = ffi.dlopen(None)
         with FdWriteCapture() as fd:
-            ffi.C.printf("hello with no arguments\n")
-            ffi.C.printf("hello, %s!\n", ffi.new("char[]", "world"))
-            ffi.C.printf(ffi.new("char[]", "hello, %s!\n"),
-                         ffi.new("char[]", "world2"))
-            ffi.C.printf("hello int %d long %ld long long %lld\n",
+            ffi.C.printf(b"hello with no arguments\n")
+            ffi.C.printf(b"hello, %s!\n", ffi.new("char[]", b"world"))
+            ffi.C.printf(ffi.new("char[]", b"hello, %s!\n"),
+                         ffi.new("char[]", b"world2"))
+            ffi.C.printf(b"hello int %d long %ld long long %lld\n",
                          ffi.cast("int", 42),
                          ffi.cast("long", 84),
                          ffi.cast("long long", 168))
-            ffi.C.printf("hello %p\n", ffi.NULL)
+            ffi.C.printf(b"hello %p\n", ffi.NULL)
             ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
         if sys.platform == 'win32':
-            NIL = "00000000"
+            NIL = b"00000000"
         elif sys.platform.startswith('linux'):
-            NIL = "(nil)"
+            NIL = b"(nil)"
         else:
-            NIL = "0x0"    # OS/X at least
-        assert res == ("hello with no arguments\n"
-                       "hello, world!\n"
-                       "hello, world2!\n"
-                       "hello int 42 long 84 long long 168\n"
-                       "hello " + NIL + "\n")
+            NIL = b"0x0"    # OS/X at least
+        assert res == (b"hello with no arguments\n"
+                       b"hello, world!\n"
+                       b"hello, world2!\n"
+                       b"hello int 42 long 84 long long 168\n"
+                       b"hello " + NIL + b"\n")
 
     def test_must_specify_type_of_vararg(self):
         ffi = FFI(backend=self.Backend())
@@ -157,7 +162,7 @@ class TestFunction(object):
            int printf(const char *format, ...);
         """)
         ffi.C = ffi.dlopen(None)
-        e = py.test.raises(TypeError, ffi.C.printf, "hello %d\n", 42)
+        e = py.test.raises(TypeError, ffi.C.printf, b"hello %d\n", 42)
         assert str(e.value) == ("argument 2 passed in the variadic part "
                                 "needs to be a cdata object (got int)")
 
@@ -180,7 +185,7 @@ class TestFunction(object):
         fptr = ffi.callback("int(*)(const char *txt)", cb)
         assert fptr != ffi.callback("int(*)(const char *)", cb)
         assert repr(fptr) == "<cdata 'int(*)(char *)' calling %r>" % (cb,)
-        res = fptr("Hello")
+        res = fptr(b"Hello")
         assert res == 42
         #
         ffi.cdef("""
@@ -192,10 +197,10 @@ class TestFunction(object):
         assert fptr == ffi.C.puts
         assert repr(fptr).startswith("<cdata 'int(*)(char *)' 0x")
         with FdWriteCapture() as fd:
-            fptr("world")
+            fptr(b"world")
             ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
-        assert res == 'world\n'
+        assert res == b'world\n'
 
     def test_callback_returning_void(self):
         ffi = FFI(backend=self.Backend())
@@ -205,7 +210,7 @@ class TestFunction(object):
             fptr = ffi.callback("void(*)(void)", cb)
             old_stderr = sys.stderr
             try:
-                sys.stderr = StringIO.StringIO()
+                sys.stderr = StringIO()
                 returned = fptr()
                 printed = sys.stderr.getvalue()
             finally:
@@ -222,7 +227,7 @@ class TestFunction(object):
             int strlen(char[]);
         """)
         ffi.C = ffi.dlopen(None)
-        p = ffi.new("char[]", "hello")
+        p = ffi.new("char[]", b"hello")
         res = ffi.C.strlen(p)
         assert res == 5
 
@@ -242,11 +247,11 @@ class TestFunction(object):
         with FdWriteCapture(2) as fd:     # capturing stderr
             ffi.C.stdout = perr
             try:
-                ffi.C.puts("hello!") # goes to stdout, which is equal to stderr now
+                ffi.C.puts(b"hello!") # goes to stdout, which is equal to stderr now
             finally:
                 ffi.C.stdout = pout
         res = fd.getvalue()
-        assert res == "hello!\n"
+        assert res == b"hello!\n"
 
     def test_strchr(self):
         ffi = FFI(backend=self.Backend())
@@ -254,9 +259,9 @@ class TestFunction(object):
             char *strchr(const char *s, int c);
         """)
         ffi.C = ffi.dlopen(None)
-        p = ffi.new("char[]", "hello world!")
+        p = ffi.new("char[]", b"hello world!")
         q = ffi.C.strchr(p, ord('w'))
-        assert ffi.string(q) == "world!"
+        assert ffi.string(q) == b"world!"
 
     def test_function_with_struct_argument(self):
         if sys.platform == 'win32':
@@ -269,7 +274,7 @@ class TestFunction(object):
         ffi.C = ffi.dlopen(None)
         ina = ffi.new("struct in_addr *", [0x04040404])
         a = ffi.C.inet_ntoa(ina[0])
-        assert ffi.string(a) == '4.4.4.4'
+        assert ffi.string(a) == b'4.4.4.4'
 
     def test_function_typedef(self):
         py.test.skip("using really obscure C syntax")

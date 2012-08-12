@@ -21,7 +21,7 @@ class VGenericEngine(object):
         pass      # not needed in the generic engine
 
     def _prnt(self, what=''):
-        print >> self._f, what
+        self._f.write(what + '\n')
 
     def write_source_to_f(self):
         prnt = self._prnt
@@ -60,7 +60,7 @@ class VGenericEngine(object):
         return library
 
     def _generate(self, step_name):
-        for name, tp in self.ffi._parser._declarations.iteritems():
+        for name, tp in self.ffi._parser._declarations.items():
             kind, realname = name.split(' ', 1)
             try:
                 method = getattr(self, '_generate_gen_%s_%s' % (kind,
@@ -71,7 +71,7 @@ class VGenericEngine(object):
             method(tp, realname)
 
     def _load(self, module, step_name, **kwds):
-        for name, tp in self.ffi._parser._declarations.iteritems():
+        for name, tp in self.ffi._parser._declarations.items():
             kind, realname = name.split(' ', 1)
             method = getattr(self, '_%s_gen_%s' % (step_name, kind))
             method(tp, realname, module, **kwds)
@@ -377,7 +377,10 @@ class VGenericEngine(object):
             function = module.load_function(BFunc, funcname)
             p = self.ffi.new("char[]", 256)
             if function(p) < 0:
-                raise ffiplatform.VerificationError(self.ffi.string(p))
+                error = self.ffi.string(p)
+                if sys.version_info >= (3,):
+                    error = str(error, 'utf-8')
+                raise ffiplatform.VerificationError(error)
 
     def _loaded_gen_enum(self, tp, name, module, library):
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
