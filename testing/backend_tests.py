@@ -10,6 +10,7 @@ SIZE_OF_WCHAR = ctypes.sizeof(ctypes.c_wchar)
 
 if sys.version_info >= (3,):
     unicode = str
+    long = int
 
 
 class BackendTests:
@@ -60,26 +61,24 @@ class BackendTests:
         assert int(p) == min
         p = ffi.cast(c_decl, max)
         assert int(p) == max
+        p = ffi.cast(c_decl, long(max))
+        assert int(p) == max
         q = ffi.cast(c_decl, min - 1)
         assert ffi.typeof(q) is ffi.typeof(p) and int(q) == max
-        if sys.version_info < (3,):
-            p = ffi.cast(c_decl, long(max))
-            assert int(p) == max
-            q = ffi.cast(c_decl, long(min - 1))
-            assert ffi.typeof(q) is ffi.typeof(p) and int(q) == max
+        q = ffi.cast(c_decl, long(min - 1))
+        assert ffi.typeof(q) is ffi.typeof(p) and int(q) == max
         assert q != p
         assert int(q) == int(p)
         assert hash(q) != hash(p)   # unlikely
         c_decl_ptr = '%s *' % c_decl
         py.test.raises(OverflowError, ffi.new, c_decl_ptr, min - 1)
         py.test.raises(OverflowError, ffi.new, c_decl_ptr, max + 1)
+        py.test.raises(OverflowError, ffi.new, c_decl_ptr, long(min - 1))
+        py.test.raises(OverflowError, ffi.new, c_decl_ptr, long(max + 1))
         assert ffi.new(c_decl_ptr, min)[0] == min
         assert ffi.new(c_decl_ptr, max)[0] == max
-        if sys.version_info < (3,):
-            py.test.raises(OverflowError, ffi.new, c_decl_ptr, long(min - 1))
-            py.test.raises(OverflowError, ffi.new, c_decl_ptr, long(max + 1))
-            assert ffi.new(c_decl_ptr, long(min))[0] == min
-            assert ffi.new(c_decl_ptr, long(max))[0] == max
+        assert ffi.new(c_decl_ptr, long(min))[0] == min
+        assert ffi.new(c_decl_ptr, long(max))[0] == max
 
     def test_new_unsupported_type(self):
         ffi = FFI(backend=self.Backend())
@@ -285,12 +284,9 @@ class BackendTests:
         assert ffi.new("char*")[0] == b'\x00'
         assert int(ffi.cast("char", 300)) == 300 - 256
         assert bool(ffi.cast("char", 0))
-        if sys.version_info < (3,):
-            py.test.raises(TypeError, ffi.new, "char*", 32)
-        else:
-            assert ffi.new("char*", 32)[0] == b' '
+        py.test.raises(TypeError, ffi.new, "char*", 32)
         py.test.raises(TypeError, ffi.new, "char*", u"x")
-        py.test.raises(TypeError, ffi.new, "char*", "foo")
+        py.test.raises(TypeError, ffi.new, "char*", b"foo")
         #
         p = ffi.new("char[]", [b'a', b'b', b'\x9c'])
         assert len(p) == 3
@@ -563,7 +559,7 @@ class BackendTests:
         x = ffi.new("char*", b"x")
         assert str(x) == repr(x)
         assert ffi.string(x) == b"x"
-        assert ffi.string(ffi.new("char*", b"\x00")) == ""
+        assert ffi.string(ffi.new("char*", b"\x00")) == b""
         py.test.raises(TypeError, ffi.new, "char*", unicode("foo"))
 
     def test_unicode_from_wchar_pointer(self):
@@ -576,15 +572,15 @@ class BackendTests:
 
     def test_string_from_char_array(self):
         ffi = FFI(backend=self.Backend())
-        p = ffi.new("char[]", "hello.")
-        p[5] = '!'
-        assert ffi.string(p) == "hello!"
-        p[6] = '?'
-        assert ffi.string(p) == "hello!?"
-        p[3] = '\x00'
-        assert ffi.string(p) == "hel"
-        assert ffi.string(p, 2) == "he"
-        py.test.raises(IndexError, "p[7] = 'X'")
+        p = ffi.new("char[]", b"hello.")
+        p[5] = b'!'
+        assert ffi.string(p) == b"hello!"
+        p[6] = b'?'
+        assert ffi.string(p) == b"hello!?"
+        p[3] = b'\x00'
+        assert ffi.string(p) == b"hel"
+        assert ffi.string(p, 2) == b"he"
+        py.test.raises(IndexError, "p[7] = b'X'")
         #
         a = ffi.new("char[]", b"hello\x00world")
         assert len(a) == 12
@@ -603,7 +599,7 @@ class BackendTests:
         p = ffi.new("wchar_t[]", u"hello.")
         p[5] = u'!'
         assert ffi.string(p) == u"hello!"
-        p[6] = unichr(1234)
+        p[6] = u'\u04d2'
         assert ffi.string(p) == u"hello!\u04d2"
         p[3] = u'\x00'
         assert ffi.string(p) == u"hel"
@@ -624,8 +620,8 @@ class BackendTests:
         ffi.cdef("struct foo { const char *name; };")
         t = ffi.new("const char[]", b"testing")
         s = ffi.new("struct foo*", [t])
-        assert type(s.name) is not str
-        assert ffi.string(s.name) == "testing"
+        assert type(s.name) not in (bytes, str, unicode)
+        assert ffi.string(s.name) == b"testing"
         py.test.raises(TypeError, "s.name = None")
         s.name = ffi.NULL
         assert s.name == ffi.NULL
@@ -838,8 +834,8 @@ class BackendTests:
             seen.append(ffi.string(argv[0]))
             seen.append(ffi.string(argv[1]))
         a = ffi.callback("void(*)(char *[])", cb)
-        a([ffi.new("char[]", "foobar"), ffi.new("char[]", "baz")])
-        assert seen == ["foobar", "baz"]
+        a([ffi.new("char[]", b"foobar"), ffi.new("char[]", b"baz")])
+        assert seen == [b"foobar", b"baz"]
 
     def test_cast_float(self):
         ffi = FFI(backend=self.Backend())

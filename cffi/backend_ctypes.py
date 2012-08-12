@@ -4,10 +4,10 @@ import sys
 
 if sys.version_info < (3,):
     integer_types = (int, long)
-    bytes = str
     bytechr = chr
 else:
-    integer_types = (int,)
+    unicode = str
+    integer_types = int
     xrange = range
     bytechr = lambda num: bytes([num])
 
@@ -428,8 +428,6 @@ class CTypesBackend(object):
                         return x
                     if isinstance(x, CTypesPrimitive):    # <CData <char>>
                         return x._value
-                    if sys.version_info >= (3,) and isinstance(x, int):
-                        return x
                     raise TypeError("character expected, got %s" %
                                     type(x).__name__)
 
@@ -524,7 +522,7 @@ class CTypesBackend(object):
             if kind == 'charp' or kind == 'bytep':
                 def _to_string(self, maxlen):
                     if maxlen < 0:
-                        maxlen = sys.maxint
+                        maxlen = sys.maxsize
                     p = ctypes.cast(self._as_ctype_ptr,
                                     ctypes.POINTER(ctypes.c_char))
                     n = 0
@@ -575,10 +573,11 @@ class CTypesBackend(object):
                     if isinstance(init, integer_types):
                         len1 = init
                         init = None
+                    elif kind == 'char' and isinstance(init, bytes):
+                        len1 = len(init) + 1    # extra null
                     else:
-                        extra_null = (kind == 'char' and isinstance(init, bytes))
                         init = tuple(init)
-                        len1 = len(init) + extra_null
+                        len1 = len(init)
                     self._ctype = BItem._ctype * len1
                 self._blob = self._ctype()
                 self._own = True
@@ -587,7 +586,10 @@ class CTypesBackend(object):
 
             @staticmethod
             def _initialize(blob, init):
-                init = tuple(init)
+                if isinstance(init, bytes):
+                    init = [init[i:i+1] for i in range(len(init))]
+                else:
+                    init = tuple(init)
                 if len(init) > len(blob):
                     raise IndexError("too many initializers")
                 addr = ctypes.cast(blob, ctypes.c_void_p).value
@@ -713,7 +715,7 @@ class CTypesBackend(object):
                                     "only one supported (use a dict if needed)"
                                      % (len(init),))
             if not isinstance(init, dict):
-                if isinstance(init, (bytes, str)):
+                if isinstance(init, (bytes, unicode)):
                     raise TypeError("union initializer: got a str")
                 init = tuple(init)
                 if len(init) > len(fnames):
@@ -730,7 +732,7 @@ class CTypesBackend(object):
                 p = ctypes.cast(addr + offset, PTR)
                 BField._initialize(p.contents, value)
         is_union = CTypesStructOrUnion._kind == 'union'
-        name2fieldtype = dict(zip(fnames, list(zip(btypes, bitfields))))
+        name2fieldtype = dict(zip(fnames, zip(btypes, bitfields)))
         #
         for fname, BField, bitsize in fields:
             if hasattr(CTypesStructOrUnion, fname):
@@ -951,7 +953,7 @@ class CTypesBackend(object):
                 buf = bptr._blob
                 val = bptr._blob
             else:
-                buf = bptr.XXX
+                raise TypeError(bptr)
             class Hack(ctypes.Union):
                 _fields_ = [('stupid', type(val))]
             ptr = ctypes.cast(buf, ctypes.POINTER(Hack))
@@ -1025,7 +1027,7 @@ class CTypesLibrary(object):
     def read_variable(self, BType, name):
         try:
             ctypes_obj = BType._ctype.in_dll(self.cdll, name)
-        except AttributeError, e:
+        except AttributeError as e:
             raise NotImplementedError(e)
         return BType._from_ctypes(ctypes_obj)
 

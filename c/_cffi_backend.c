@@ -759,16 +759,6 @@ static int _convert_to_char(PyObject *init)
     if (PyBytes_Check(init) && PyBytes_GET_SIZE(init) == 1) {
         return (unsigned char)(PyBytes_AS_STRING(init)[0]);
     }
-#if PY_MAJOR_VERSION >= 3
-/*  XXX?
-    if (PyLong_Check(init)) {
-        long value = PyLong_AsLong(init);
-        if (value >= 0 && value < 256) {
-            return (unsigned char)value;
-        }
-    }
-    */
-#endif
     if (CData_Check(init) &&
            (((CDataObject *)init)->c_type->ct_flags & CT_PRIMITIVE_CHAR) &&
            (((CDataObject *)init)->c_type->ct_size == sizeof(char))) {

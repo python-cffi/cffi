@@ -20,9 +20,9 @@ def test_module_type():
     ffi = FFI()
     lib = ffi.verify()
     if hasattr(lib, '_cffi_python_module'):
-        print 'verify got a PYTHON module'
+        print('verify got a PYTHON module')
     if hasattr(lib, '_cffi_generic_module'):
-        print 'verify got a GENERIC module'
+        print('verify got a GENERIC module')
     expected_generic = (cffi.verifier._FORCE_GENERIC_ENGINE or
                         '__pypy__' in sys.builtin_module_names)
     assert hasattr(lib, '_cffi_python_module') == (not expected_generic)

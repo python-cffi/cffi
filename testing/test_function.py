@@ -145,16 +145,16 @@ class TestFunction(object):
             ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
         if sys.platform == 'win32':
-            NIL = "00000000"
+            NIL = b"00000000"
         elif sys.platform.startswith('linux'):
-            NIL = "(nil)"
+            NIL = b"(nil)"
         else:
-            NIL = "0x0"    # OS/X at least
-        assert res == bytes("hello with no arguments\n"
-                            "hello, world!\n"
-                            "hello, world2!\n"
-                            "hello int 42 long 84 long long 168\n"
-                            "hello " + NIL + "\n")
+            NIL = b"0x0"    # OS/X at least
+        assert res == (b"hello with no arguments\n"
+                       b"hello, world!\n"
+                       b"hello, world2!\n"
+                       b"hello int 42 long 84 long long 168\n"
+                       b"hello " + NIL + b"\n")
 
     def test_must_specify_type_of_vararg(self):
         ffi = FFI(backend=self.Backend())
