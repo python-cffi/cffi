@@ -88,6 +88,8 @@ def test_integer_types():
         assert int(cast(p, max + 1)) == min
         py.test.raises(TypeError, cast, p, None)
         assert long(cast(p, min - 1)) == max
+        assert int(cast(p, b'\x08')) == 8
+        assert int(cast(p, u'\x08')) == 8
     for name in ['char', 'short', 'int', 'long', 'long long']:
         p = new_primitive_type('unsigned ' + name)
         size = sizeof(p)
@@ -97,6 +99,8 @@ def test_integer_types():
         assert int(cast(p, -1)) == max
         assert int(cast(p, max + 1)) == 0
         assert long(cast(p, -1)) == max
+        assert int(cast(p, b'\xFE')) == 254
+        assert int(cast(p, u'\xFE')) == 254
 
 def test_no_float_on_int_types():
     p = new_primitive_type('long')
@@ -128,7 +132,8 @@ def test_float_types():
 
         assert cast(p, -1.1) != cast(p, -1.1)
         assert repr(float(cast(p, -0.0))) == '-0.0'
-        assert float(cast(p, '\x09')) == 9.0
+        assert float(cast(p, b'\x09')) == 9.0
+        assert float(cast(p, u'\x09')) == 9.0
         assert float(cast(p, True)) == 1.0
         py.test.raises(TypeError, cast, p, None)
 

@@ -2398,6 +2398,16 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
             }
             value = (unsigned char)PyBytes_AS_STRING(io)[0];
         }
+#if HAVE_WCHAR_H
+        else if (PyUnicode_Check(io)) {
+            wchar_t ordinal;
+            if (_my_PyUnicode_AsSingleWideChar(io, &ordinal) < 0) {
+                Py_DECREF(io);
+                goto cannot_cast;
+            }
+            value = (long)ordinal;
+        }
+#endif
         else if ((ct->ct_flags & CT_IS_LONGDOUBLE) &&
                  CData_Check(io) &&
                  (((CDataObject *)io)->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
