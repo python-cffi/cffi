@@ -10,6 +10,12 @@ from _cffi_backend import _getfields, _testfunc
 
 # ____________________________________________________________
 
+if sys.version_info < (3,):
+    type_or_class = "type"
+else:
+    type_or_class = "class"
+    long = int
+
 def size_of_int():
     BInt = new_primitive_type("int")
     return sizeof(BInt)
@@ -54,7 +60,7 @@ def test_cast_to_signed_char():
     p = new_primitive_type("signed char")
     x = cast(p, -65 + 17*256)
     assert repr(x) == "<cdata 'signed char' -65>"
-    assert repr(type(x)) == "<type '_cffi_backend.CData'>"
+    assert repr(type(x)) == "<%s '_cffi_backend.CData'>" % type_or_class
     assert int(x) == -65
     x = cast(p, -66 + (1<<199)*256)
     assert repr(x) == "<cdata 'signed char' -66>"
@@ -106,7 +112,7 @@ def test_float_types():
         assert bool(cast(p, -INF))
         assert int(cast(p, -150)) == -150
         assert int(cast(p, 61.91)) == 61
-        assert long(cast(p, 61.91)) == 61L
+        assert long(cast(p, 61.91)) == 61
         assert type(int(cast(p, 61.91))) is int
         assert type(int(cast(p, 1E22))) is long
         assert type(long(cast(p, 61.91))) is long
@@ -164,7 +170,7 @@ def test_character_type():
     assert bool(cast(p, '\x00'))
     assert cast(p, '\x00') != cast(p, -17*256)
     assert int(cast(p, 'A')) == 65
-    assert long(cast(p, 'A')) == 65L
+    assert long(cast(p, 'A')) == 65
     assert type(int(cast(p, 'A'))) is int
     assert type(long(cast(p, 'A'))) is long
     assert str(cast(p, 'A')) == repr(cast(p, 'A'))
