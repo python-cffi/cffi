@@ -23,13 +23,13 @@ def _posix_error():
     raise OSError(ffi.errno, os.strerror(ffi.errno))
 
 _dtype_to_smode = {
-    lib.DT_BLK:  0060000,
-    lib.DT_CHR:  0020000,
-    lib.DT_DIR:  0040000,
-    lib.DT_FIFO: 0010000,
-    lib.DT_LNK:  0120000,
-    lib.DT_REG:  0100000,
-    lib.DT_SOCK: 0140000,
+    lib.DT_BLK:  0o060000,
+    lib.DT_CHR:  0o020000,
+    lib.DT_DIR:  0o040000,
+    lib.DT_FIFO: 0o010000,
+    lib.DT_LNK:  0o120000,
+    lib.DT_REG:  0o100000,
+    lib.DT_SOCK: 0o140000,
 }
 
 def opendir(dir):
