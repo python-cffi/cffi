@@ -469,6 +469,8 @@ class CTypesBackend(object):
         #
         class CTypesPtr(CTypesGenericPtr):
             __slots__ = ['_own']
+            if kind == 'charp':
+                __slots__ += ['__as_strbuf']
             _BItem = BItem
             if hasattr(BItem, '_ctype'):
                 _ctype = ctypes.POINTER(BItem._ctype)
@@ -482,7 +484,13 @@ class CTypesBackend(object):
 
             def __init__(self, init):
                 ctypeobj = BItem._create_ctype_obj(init)
-                self._as_ctype_ptr = ctypes.pointer(ctypeobj)
+                if kind == 'charp':
+                    self.__as_strbuf = ctypes.create_string_buffer(
+                        ctypeobj.value + b'\x00')
+                    self._as_ctype_ptr = ctypes.cast(
+                        self.__as_strbuf, self._ctype)
+                else:
+                    self._as_ctype_ptr = ctypes.pointer(ctypeobj)
                 self._address = ctypes.cast(self._as_ctype_ptr,
                                             ctypes.c_void_p).value
                 self._own = True
@@ -526,9 +534,9 @@ class CTypesBackend(object):
                     p = ctypes.cast(self._as_ctype_ptr,
                                     ctypes.POINTER(ctypes.c_char))
                     n = 0
-                    while n < maxlen and p[n] != '\x00':
+                    while n < maxlen and p[n] != b'\x00':
                         n += 1
-                    return ''.join([p[i] for i in range(n)])
+                    return b''.join([p[i] for i in range(n)])
 
             def _get_own_repr(self):
                 if getattr(self, '_own', False):
@@ -619,9 +627,9 @@ class CTypesBackend(object):
                     p = ctypes.cast(self._blob,
                                     ctypes.POINTER(ctypes.c_char))
                     n = 0
-                    while n < maxlen and p[n] != '\x00':
+                    while n < maxlen and p[n] != b'\x00':
                         n += 1
-                    return ''.join([p[i] for i in range(n)])
+                    return b''.join([p[i] for i in range(n)])
 
             def _get_own_repr(self):
                 if getattr(self, '_own', False):
