@@ -28,6 +28,7 @@
 # define PyText_Check PyUnicode_Check
 # define PyText_FromFormat PyUnicode_FromFormat
 # define PyText_AsUTF8 _PyUnicode_AsString   /* PyUnicode_AsUTF8 in Py3.3 */
+# define PyText_AS_UTF8 _PyUnicode_AsString
 # define PyText_GetSize PyUnicode_GetSize
 # define PyText_FromString PyUnicode_FromString
 # define PyText_FromStringAndSize PyUnicode_FromStringAndSize
@@ -38,6 +39,7 @@
 # define PyText_Check PyString_Check
 # define PyText_FromFormat PyString_FromFormat
 # define PyText_AsUTF8 PyString_AsString
+# define PyText_AS_UTF8 PyString_AS_STRING
 # define PyText_GetSize PyString_GetSize
 # define PyText_FromString PyString_FromString
 # define PyText_FromStringAndSize PyString_FromStringAndSize
@@ -596,7 +598,7 @@ new_simple_cdata(char *data, CTypeDescrObject *ct)
 static PyObject *convert_enum_string_to_int(CTypeDescrObject *ct, PyObject *ob)
 {
     PyObject *d_value;
-    char *p = PyText_AsUTF8(ob);
+    char *p = PyText_AS_UTF8(ob);
 
     if (p[0] == '#') {
         char *number = p + 1;       /* strip initial '#' */
@@ -612,8 +614,7 @@ static PyObject *convert_enum_string_to_int(CTypeDescrObject *ct, PyObject *ob)
         if (d_value == NULL) {
             PyErr_Format(PyExc_ValueError,
                          "'%s' is not an enumerator for %s",
-                         PyText_AsUTF8(ob),
-                         ct->ct_name);
+                         p, ct->ct_name);
             return NULL;
         }
         Py_INCREF(d_value);
@@ -749,7 +750,7 @@ static int _convert_overflow(PyObject *init, const char *ct_name)
     if (s == NULL)
         return -1;
     PyErr_Format(PyExc_OverflowError, "integer %s does not fit '%s'",
-                 PyText_AsUTF8(s), ct_name);
+                 PyText_AS_UTF8(s), ct_name);
     Py_DECREF(s);
     return -1;
 }
@@ -1121,9 +1122,9 @@ convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init)
         PyErr_Format(PyExc_OverflowError,
                      "value %s outside the range allowed by the "
                      "bit field width: %s <= x <= %s",
-                     PyText_AsUTF8(svalue),
-                     PyText_AsUTF8(sfmin),
-                     PyText_AsUTF8(sfmax));
+                     PyText_AS_UTF8(svalue),
+                     PyText_AS_UTF8(sfmin),
+                     PyText_AS_UTF8(sfmax));
        skip:
         Py_XDECREF(svalue);
         Py_XDECREF(sfmin);
@@ -2290,7 +2291,7 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
                              PyString_GET_SIZE(ob), ct->ct_name);
                 return NULL;
             }
-            value = (unsigned char)PyString_AsString(ob)[0];
+            value = (unsigned char)PyString_AS_STRING(ob)[0];
 #else
             wchar_t ordinal;
             if (_my_PyUnicode_AsSingleWideChar(ob, &ordinal) < 0) {
@@ -2972,7 +2973,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         if (ftype->ct_size < 0) {
             PyErr_Format(PyExc_TypeError,
                          "field '%s.%s' has ctype '%s' of unknown size",
-                         ct->ct_name, PyText_AsUTF8(fname),
+                         ct->ct_name, PyText_AS_UTF8(fname),
                          ftype->ct_name);
             goto error;
         }
@@ -3014,7 +3015,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     fbitsize == 0 ||
                     fbitsize > 8 * ftype->ct_size) {
                 PyErr_Format(PyExc_TypeError, "invalid bit field '%s'",
-                             PyText_AsUTF8(fname));
+                             PyText_AS_UTF8(fname));
                 goto error;
             }
             if (prev_bit_position > 0) {
@@ -3057,7 +3058,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 
         if (PyDict_Size(interned_fields) != i + 1) {
             PyErr_Format(PyExc_KeyError, "duplicate field name '%s'",
-                         PyText_AsUTF8(fname));
+                         PyText_AS_UTF8(fname));
             goto error;
         }
 
@@ -3938,7 +3939,7 @@ static PyObject *b_string(PyObject *self, PyObject *args)
             if (s != NULL) {
                 PyErr_Format(PyExc_RuntimeError,
                              "cannot use string() on %s",
-                             PyText_AsUTF8(s));
+                             PyText_AS_UTF8(s));
                 Py_DECREF(s);
             }
             return NULL;
@@ -4430,7 +4431,7 @@ init_cffi_backend(void)
 
     v = PySys_GetObject("version");
     if (v == NULL || !PyText_Check(v) ||
-            strncmp(PyText_AsUTF8(v), PY_VERSION, 3) != 0) {
+            strncmp(PyText_AS_UTF8(v), PY_VERSION, 3) != 0) {
         PyErr_Format(PyExc_ImportError,
                      "this module was compiled for Python %c%c%c",
                      PY_VERSION[0], PY_VERSION[1], PY_VERSION[2]);
