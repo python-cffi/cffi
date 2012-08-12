@@ -306,7 +306,8 @@ Cleaning up the __pycache__ directory
 
 During development, every time you change the C sources that you pass to
 ``cdef()`` or ``verify()``, then the latter will create a new module
-file name, based on the MD5 hash of these strings.  This creates more
+file name, based on two CRC32 hashes computed from these strings.
+This creates more
 and more files in the ``__pycache__`` directory.  It is recommended that
 you clean it up from time to time.  A nice way to do that is to add, in
 your test suite, a call to ``cffi.verifier.cleanup_tmpdir()``.
@@ -1069,13 +1070,13 @@ can be instantiated directly.  It is normally instantiated for you by
 ``Verifier`` objects have the following public attributes and methods:
 
 - ``sourcefilename``: name of a C file.  Defaults to
-  ``__pycache__/_cffi_MD5HASH.c``, with the ``MD5HASH`` part computed
+  ``__pycache__/_cffi_CRCHASH.c``, with the ``CRCHASH`` part computed
   from the strings you passed to cdef() and verify() as well as the
   version numbers of Python and CFFI.  Can be changed before calling
   ``write_source()`` if you want to write the source somewhere else.
 
 - ``modulefilename``: name of the ``.so`` file (or ``.pyd`` on Windows).
-  Defaults to ``__pycache__/_cffi_MD5HASH.so``.  Can be changed before
+  Defaults to ``__pycache__/_cffi_CRCHASH.so``.  Can be changed before
   calling ``compile_module()``.
 
 - ``get_module_name()``: extract the module name from ``modulefilename``.
