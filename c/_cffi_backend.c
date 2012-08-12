@@ -27,7 +27,7 @@
 # define PyText_Type PyUnicode_Type
 # define PyText_Check PyUnicode_Check
 # define PyText_FromFormat PyUnicode_FromFormat
-# define PyText_AsUTF8 PyUnicode_AsUTF8
+# define PyText_AsUTF8 _PyUnicode_AsString   /* PyUnicode_AsUTF8 in Py3.3 */
 # define PyText_GetSize PyUnicode_GetSize
 # define PyText_FromString PyUnicode_FromString
 # define PyText_FromStringAndSize PyUnicode_FromStringAndSize
@@ -866,7 +866,7 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                 expected = STR_OR_BYTES" or list or tuple";
                 goto cannot_convert;
             }
-            n = PyString_GET_SIZE(init);
+            n = PyBytes_GET_SIZE(init);
             if (ct->ct_length >= 0 && n > ct->ct_length) {
                 PyErr_Format(PyExc_IndexError,
                              "initializer "STR_OR_BYTES" is too long for '%s' "
@@ -875,7 +875,7 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             }
             if (n != ct->ct_length)
                 n++;
-            srcdata = PyString_AS_STRING(init);
+            srcdata = PyBytes_AS_STRING(init);
             memcpy(data, srcdata, n);
             return 0;
         }
@@ -1670,14 +1670,14 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init)
 {
     /* 'ctptr' is here a pointer type 'ITEM *'.  Accept as argument an
        initializer for an array 'ITEM[]'.  This includes the case of
-       passing a Python string to a 'char *' argument. */
+       passing a Python byte string to a 'char *' argument. */
     Py_ssize_t length, datasize;
     CTypeDescrObject *ctitem = ctptr->ct_itemdescr;
     PyObject *result;
     char *data;
 
     /* XXX some code duplication, how to avoid it? */
-    if (PyString_Check(init)) {
+    if (PyBytes_Check(init)) {
         /* from a string: just returning the string here is fine.
            We assume that the C code won't modify the 'char *' data. */
         if ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
@@ -1710,11 +1710,11 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init)
         return NULL;
     }
 
-    result = PyString_FromStringAndSize(NULL, datasize);
+    result = PyBytes_FromStringAndSize(NULL, datasize);
     if (result == NULL)
         return NULL;
 
-    data = PyString_AS_STRING(result);
+    data = PyBytes_AS_STRING(result);
     memset(data, 0, datasize);
     if (convert_array_from_object(data, ctptr, init) < 0) {
         Py_DECREF(result);
@@ -1943,14 +1943,18 @@ static PyNumberMethods CData_as_number = {
     0,                          /*nb_and*/
     0,                          /*nb_xor*/
     0,                          /*nb_or*/
+#if PY_MAJOR_VERSION < 3
     0,                          /*nb_coerce*/
+#endif
     (unaryfunc)cdata_int,       /*nb_int*/
 #if PY_MAJOR_VERSION < 3
     (unaryfunc)cdata_long,      /*nb_long*/
 #else
-    0,                          /*nb_reserved*/
+    0,
 #endif
     (unaryfunc)cdata_float,     /*nb_float*/
+    0,                          /*nb_oct*/
+    0,                          /*nb_hex*/
 };
 
 static PyMappingMethods CData_as_mapping = {
@@ -2301,7 +2305,7 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
             wchar_t ordinal;
             if (_my_PyUnicode_AsSingleWideChar(ob, &ordinal) < 0) {
                 PyErr_Format(PyExc_TypeError,
-                             "cannot cast unicode of length %zd to ctype '%s'",
+                             "cannot cast string of length %zd to ctype '%s'",
                              PyUnicode_GET_SIZE(ob), ct->ct_name);
                 return NULL;
             }
@@ -3930,7 +3934,7 @@ static PyObject *b_string(PyObject *self, PyObject *args)
             if (s != NULL) {
                 PyErr_Format(PyExc_RuntimeError,
                              "cannot use string() on %s",
-                             PyString_AS_STRING(s));
+                             PyText_AsUTF8(s));
                 Py_DECREF(s);
             }
             return NULL;
@@ -3948,7 +3952,7 @@ static PyObject *b_string(PyObject *self, PyObject *args)
                 if (end != NULL)
                     length = end - start;
             }
-            return PyString_FromStringAndSize(start, length);
+            return PyBytes_FromStringAndSize(start, length);
         }
 #ifdef HAVE_WCHAR_H
         else if (cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) {
@@ -3976,7 +3980,7 @@ static PyObject *b_string(PyObject *self, PyObject *args)
                                      CT_PRIMITIVE_SIGNED |
                                      CT_PRIMITIVE_UNSIGNED)) {
         if (cd->c_type->ct_size == sizeof(char)) {
-            return PyString_FromStringAndSize(cd->c_data, 1);
+            return PyBytes_FromStringAndSize(cd->c_data, 1);
         }
 #ifdef HAVE_WCHAR_H
         else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
