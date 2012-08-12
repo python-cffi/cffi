@@ -1943,11 +1943,11 @@ static PyNumberMethods CData_as_number = {
     0,                          /*nb_and*/
     0,                          /*nb_xor*/
     0,                          /*nb_or*/
-#if PY_MAJOR_VERSION < 3
     0,                          /*nb_coerce*/
+    (unaryfunc)cdata_int,       /*nb_int*/
+#if PY_MAJOR_VERSION < 3
     (unaryfunc)cdata_long,      /*nb_long*/
 #else
-    (unaryfunc)cdata_int,       /*nb_int*/
     0,                          /*nb_reserved*/
 #endif
     (unaryfunc)cdata_float,     /*nb_float*/

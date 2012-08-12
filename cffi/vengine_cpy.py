@@ -1,4 +1,4 @@
-import imp
+import sys, imp
 from . import model, ffiplatform
 
 

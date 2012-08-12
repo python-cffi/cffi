@@ -5,9 +5,11 @@ import sys
 if sys.version_info < (3,):
     integer_types = (int, long)
     bytes = str
+    bytechr = chr
 else:
     integer_types = (int,)
     xrange = range
+    bytechr = lambda num: bytes([num])
 
 class CTypesData(object):
     __slots__ = ['__weakref__']
@@ -376,7 +378,7 @@ class CTypesBackend(object):
                 @classmethod
                 def _cast_from(cls, source):
                     source = _cast_source_to_int(source)
-                    source = chr(source & 0xFF).encode('latin1')
+                    source = bytechr(source & 0xFF)
                     return cls(source)
                 def __int__(self):
                     return ord(self._value)
