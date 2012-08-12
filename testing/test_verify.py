@@ -89,6 +89,17 @@ def test_strlen_array_of_char():
     lib = ffi.verify("#include <string.h>")
     assert lib.strlen(b"hello") == 5
 
+def test_longdouble():
+    ffi = FFI()
+    ffi.cdef("long double sinl(long double x);")
+    lib = ffi.verify('#include <math.h>')
+    for input in [1.23,
+                  ffi.cast("double", 1.23),
+                  ffi.cast("long double", 1.23)]:
+        x = lib.sinl(input)
+        assert repr(x).startswith("<cdata 'long double'")
+        assert (float(x) - math.sin(1.23)) < 1E-10
+
 
 all_integer_types = ['short', 'int', 'long', 'long long',
                      'signed char', 'unsigned char',

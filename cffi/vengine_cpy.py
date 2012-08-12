@@ -25,8 +25,9 @@ class VCPythonEngine(object):
         return self._typesdict[type]
 
     def _do_collect_type(self, tp):
-        if (not isinstance(tp, model.PrimitiveType) and
-                tp not in self._typesdict):
+        if ((not isinstance(tp, model.PrimitiveType)
+             or tp.name == 'long double')
+                and tp not in self._typesdict):
             num = len(self._typesdict)
             self._typesdict[tp] = num
 
@@ -210,7 +211,11 @@ class VCPythonEngine(object):
 
     def _convert_expr_from_c(self, tp, var):
         if isinstance(tp, model.PrimitiveType):
-            return '_cffi_from_c_%s(%s)' % (tp.name.replace(' ', '_'), var)
+            if tp.name != 'long double':
+                return '_cffi_from_c_%s(%s)' % (tp.name.replace(' ', '_'), var)
+            else:
+                return '_cffi_from_c_deref((char *)&%s, _cffi_type(%d))' % (
+                    var, self._gettypenum(tp))
         elif isinstance(tp, (model.PointerType, model.FunctionPtrType)):
             return '_cffi_from_c_pointer((char *)%s, _cffi_type(%d))' % (
                 var, self._gettypenum(tp))
@@ -722,10 +727,12 @@ typedef unsigned __int64 uint64_t;
 #define _cffi_from_c_struct                                              \
     ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[18])
 #define _cffi_to_c_wchar_t                                               \
-                 ((wchar_t(*)(PyObject *))_cffi_exports[19])
+    ((wchar_t(*)(PyObject *))_cffi_exports[19])
 #define _cffi_from_c_wchar_t                                             \
     ((PyObject *(*)(wchar_t))_cffi_exports[20])
-#define _CFFI_NUM_EXPORTS 21
+#define _cffi_to_c_long_double                                           \
+    ((long double(*)(PyObject *))_cffi_exports[21])
+#define _CFFI_NUM_EXPORTS 22
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 #  define _cffi_to_c_long_long PyLong_AsLongLong

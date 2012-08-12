@@ -4339,6 +4339,15 @@ static char *_cffi_to_c_pointer(PyObject *obj, CTypeDescrObject *ct)
     return result;
 }
 
+static long double _cffi_to_c_long_double(PyObject *obj)
+{
+    if (CData_Check(obj) &&
+            (((CDataObject *)obj)->c_type->ct_flags & CT_IS_LONGDOUBLE))
+        return read_raw_longdouble_data(((CDataObject *)obj)->c_data);
+    else
+        return PyFloat_AsDouble(obj);
+}
+
 static PyObject *_cffi_get_struct_layout(Py_ssize_t nums[])
 {
     PyObject *result;
@@ -4403,6 +4412,7 @@ static void *cffi_exports[] = {
     0,
     0,
 #endif
+    _cffi_to_c_long_double,
 };
 
 /************************************************************/
