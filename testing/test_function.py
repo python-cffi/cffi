@@ -107,8 +107,8 @@ class TestFunction(object):
         assert res == 'hello\n  world\n'
 
     def test_fputs(self):
-        if sys.platform == 'win32':
-            py.test.skip("no 'stderr'")
+        if not sys.platform.startswith('linux'):
+            py.test.skip("probably no symbol 'stdout' in the lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int fputs(const char *, void *);
@@ -141,8 +141,10 @@ class TestFunction(object):
         res = fd.getvalue()
         if sys.platform == 'win32':
             NIL = "00000000"
-        else:
+        elif sys.platform.startswith('linux'):
             NIL = "(nil)"
+        else:
+            NIL = "0x0"    # OS/X at least
         assert res == ("hello with no arguments\n"
                        "hello, world!\n"
                        "hello, world2!\n"
@@ -225,8 +227,8 @@ class TestFunction(object):
         assert res == 5
 
     def test_write_variable(self):
-        if sys.platform == 'win32':
-            py.test.skip("no 'stdout'")
+        if not sys.platform.startswith('linux'):
+            py.test.skip("probably no symbol 'stdout' in the lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int puts(const char *);
