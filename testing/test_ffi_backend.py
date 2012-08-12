@@ -1,10 +1,3 @@
-import sys
-
-import py
-
-if '__pypy__' in sys.modules:
-    py.test.skip("C backend tests are CPython only")
-
 from testing import backend_tests, test_function, test_ownlib
 import _cffi_backend
 
