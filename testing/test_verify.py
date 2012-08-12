@@ -28,18 +28,26 @@ def test_module_type():
     assert hasattr(lib, '_cffi_python_module') == (not expected_generic)
     assert hasattr(lib, '_cffi_generic_module') == expected_generic
 
-def test_missing_function_compile_error():
+def test_missing_function(ffi=None):
     # uses the FFI hacked above with '-Werror'
-    ffi = FFI()
+    if ffi is None:
+        ffi = FFI()
     ffi.cdef("void some_completely_unknown_function();")
-    py.test.raises(VerificationError, ffi.verify)
+    try:
+        lib = ffi.verify()
+    except VerificationError:
+        pass     # expected case: we get a VerificationError
+    else:
+        # but depending on compiler and loader details, maybe
+        # 'lib' could actually be imported but will fail if we
+        # actually try to call the unknown function...
+        lib.some_completely_unknown_function()
+        # ^^ crashes completely??
 
 def test_missing_function_import_error():
     # uses the original FFI that just gives a warning during compilation
     import cffi
-    ffi = cffi.FFI()
-    ffi.cdef("void some_completely_unknown_function();")
-    py.test.raises(VerificationError, ffi.verify)
+    test_missing_function(ffi=cffi.FFI())
 
 def test_simple_case():
     ffi = FFI()
