@@ -87,9 +87,9 @@ Download and Installation:
 
 * https://bitbucket.org/cffi/cffi/downloads
 
-  - https://bitbucket.org/cffi/cffi/get/release-0.2.1.tar.bz2 has
-    a MD5 of c4de415fda3e14209c8a997671a12b83 and SHA of
-    790f8bd96713713bbc3030eb698a85cdf43e44ab
+  - https://bitbucket.org/cffi/cffi/get/release-0.3.tar.bz2
+    has a MD5 of xxx and SHA of
+    xxx
 
   - or get it via ``hg clone https://bitbucket.org/cffi/cffi``
 
@@ -99,8 +99,7 @@ Download and Installation:
 
 * or you can directly import and use ``cffi``, but if you don't
   compile the ``_cffi_backend`` extension module, it will fall back
-  to using internally ``ctypes`` (much slower and does not support
-  ``verify()``; we recommend not to use it).
+  to using internally ``ctypes`` (much slower; we recommend not to use it).
 
 * running the tests: ``py.test c/ testing/ -x`` (if you didn't
   install cffi yet, you may need ``python setup_base.py build``
@@ -194,7 +193,7 @@ Real example (API level)
     #include <pwd.h>
     """)
     p = C.getpwuid(0)
-    assert str(p.pw_name) == 'root'
+    assert ffi.string(p.pw_name) == 'root'
 
 Note that the above example works independently of the exact layout of
 ``struct passwd``.  It requires a C compiler the first time you run it,
@@ -307,7 +306,8 @@ Cleaning up the __pycache__ directory
 
 During development, every time you change the C sources that you pass to
 ``cdef()`` or ``verify()``, then the latter will create a new module
-file name, based on the MD5 hash of these strings.  This creates more
+file name, based on two CRC32 hashes computed from these strings.
+This creates more
 and more files in the ``__pycache__`` directory.  It is recommended that
 you clean it up from time to time.  A nice way to do that is to add, in
 your test suite, a call to ``cffi.verifier.cleanup_tmpdir()``.
@@ -345,7 +345,7 @@ can assume to exist are the standard types:
 
 * char, short, int, long, long long (both signed and unsigned)
 
-* float, double
+* float, double, long double
 
 * intN_t, uintN_t (for N=8,16,32,64), intptr_t, uintptr_t, ptrdiff_t,
   size_t, ssize_t
@@ -539,7 +539,20 @@ somewhere else, then make sure you also keep the object alive for as
 long as needed.  (This also applies if you immediately cast the returned
 pointer to a pointer of a different type: only the original object has
 ownership, so you must keep it alive.  As soon as you forget it, then
-the casted pointer will point to garbage.)
+the casted pointer will point to garbage.)  Example::
+
+    global_weakkeydict = weakref.WeakKeyDictionary()
+
+    s1   = ffi.new("struct foo *")
+    fld1 = ffi.new("struct bar *")
+    fld2 = ffi.new("struct bar *")
+    s1.thefield1 = fld1
+    s1.thefield2 = fld2
+    # here the 'fld1' and 'fld2' object must not go away,
+    # otherwise 's1.thefield1/2' will point to garbage!
+    global_weakkeydict[s1] = (fld1, fld2)
+    # now 's1' keeps alive 'fld1' and 'fld2'.  When 's1' goes
+    # away, then the weak dictionary entry will be removed.
 
 The cdata objects support mostly the same operations as in C: you can
 read or write from pointers, arrays and structures.  Dereferencing a
@@ -615,11 +628,11 @@ which case a terminating null character is appended implicitly::
     >>> x[5]          # the last item in the array
     '\x00'
     >>> x[0] = 'H'    # change the first item
-    >>> str(x)        # interpret 'x' as a regular null-terminated string
+    >>> ffi.string(x) # interpret 'x' as a regular null-terminated string
     'Hello'
 
 Similarly, arrays of wchar_t can be initialized from a unicode string,
-and calling ``unicode()`` on the cdata object returns the current unicode
+and calling ``ffi.string()`` on the cdata object returns the current unicode
 string stored in the wchar_t array (encoding and decoding surrogates as
 needed if necessary).
 
@@ -658,6 +671,7 @@ Imagine we have something like this:
    ffi.cdef("""
       int main_like(int argv, char *argv[]);
    """)
+   lib = ffi.dlopen("some_library.so")
 
 Now, everything is simple, except, how do we create the ``char**`` argument
 here?
@@ -665,20 +679,34 @@ The first idea:
 
 .. code-block:: python
 
-   argv = ffi.new("char *[]", ["arg0", "arg1"])
+   lib.main_like(2, ["arg0", "arg1"])
 
-Does not work, because the initializer receives python ``str`` instead of
-``char*``. Now, the following would almost work:
+does not work, because the initializer receives two Python ``str`` objects
+where it was expecting ``<cdata 'char *'>`` objects.  You need to use
+``ffi.new()`` explicitly to make these objects:
 
 .. code-block:: python
 
+   lib.main_like(2, [ffi.new("char[]", "arg0"),
+                     ffi.new("char[]", "arg1")])
+
+Note that the two ``<cdata 'char[]'>`` objects are kept alive for the
+duration of the call: they are only freed when the list itself is freed,
+and the list is only freed when the call returns.
+
+If you want instead to build an "argv" variable that you want to reuse,
+then more care is needed:
+
+.. code-block:: python
+
+   # DOES NOT WORK!
    argv = ffi.new("char *[]", [ffi.new("char[]", "arg0"),
                                ffi.new("char[]", "arg1")])
 
-However, the two ``char[]`` objects will not be automatically kept alive.
-To keep them alive, one solution is to make sure that the list is stored
-somewhere for long enough.
-For example:
+In the above example, the inner "arg0" string is deallocated as soon
+as "argv" is built.  You have to make sure that you keep a reference
+to the inner "char[]" objects, either directly or by keeping the list
+alive like this:
 
 .. code-block:: python
 
@@ -686,7 +714,12 @@ For example:
                      ffi.new("char[]", "arg1")]
    argv = ffi.new("char *[]", argv_keepalive)
 
-will work.
+
+.. versionchanged:: 0.3
+   In older versions, passing a list as the ``char *[]`` argument did
+   not work; you needed to make an ``argv_keepalive`` and an ``argv``
+   in all cases.
+
 
 Function calls
 --------------
@@ -714,11 +747,16 @@ string (but don't pass a normal Python string to functions that take a
 
     assert C.strlen("hello") == 5
 
-So far passing unicode strings as ``wchar_t *`` arguments is not
-implemented.  You need to write e.g.::
-  
-    >>> C.wcslen(ffi.new("wchar_t[]", u"foo"))
-    3
+You can also pass unicode strings as ``wchar_t *`` arguments.  Note that
+in general, there is no difference between C argument declarations that
+use ``type *`` or ``type[]``.  For example, ``int *`` is fully
+equivalent to ``int[]`` or ``int[5]``.  So you can pass an ``int *`` as
+a list of integers::
+
+    ffi.cdef("""
+        void do_something_with_array(int *array);
+    """)
+    lib.do_something_with_array([1, 2, 3, 4, 5])
 
 CFFI supports passing and returning structs to functions and callbacks.
 Example (sketch)::
@@ -813,10 +851,31 @@ reads and writes of the property ``ffi.errno``.  On Windows we also save
 and restore the ``GetLastError()`` value, but to access it you need to
 declare and call the ``GetLastError()`` function as usual.
 
+``ffi.string(cdata, [maxlen])``: return a Python string (or unicode
+string) from the 'cdata'.  *New in version 0.3.*
+
+.. "versionadded:: 0.3" --- inlined in the previous paragraph
+
+- If 'cdata' is a pointer or array of characters or bytes, returns the
+  null-terminated string.  The returned string extends until the first
+  null character, or at most 'maxlen' characters.  If 'cdata' is an
+  array then 'maxlen' defaults to its length.
+
+- If 'cdata' is a pointer or array of wchar_t, returns a unicode string
+  following the same rules.
+
+- If 'cdata' is a single character or byte or a wchar_t, returns it as a
+  string or unicode string.  (Note that in some situation a single
+  wchar_t may require a Python unicode string of length 2.)
+
+- If 'cdata' is an enum, returns the value of the enumerator as a
+  string, or ``#NUMBER`` if the value is out of range.
+
 ``ffi.buffer(pointer, [size])``: return a read-write buffer object that
 references the raw C data pointed to by the given 'cdata', of 'size'
 bytes.  The 'cdata' must be a pointer or an array.  To get a copy of it
-in a regular string, call str() on the result.  If unspecified, the
+in a regular string, use ``ffi.buffer(..)[:]``.  To change the content,
+use ``ffi.buffer(..)[:] = new_string``.  If unspecified, the
 default size of the buffer is ``sizeof(*pointer)`` or the whole size of
 the array.  Getting a buffer is useful because you can read from it
 without an extra copy, or write into it to change the original value;
@@ -856,6 +915,37 @@ like ``"*"`` or ``"[5]"``.  For example
 ``ffi.getcname(ffi.typeof(x), "*")`` returns the string representation
 of the C type "pointer to the same type than x".
 
+``ffi.gc(cdata, destructor)``: return a new cdata object that points to the
+same data.  Later, when this new cdata object is garbage-collected,
+``destructor(old_cdata_object)`` will be called.  Example of usage:
+``ptr = ffi.gc(lib.malloc(42), lib.free)``.  *New in version 0.3* (together
+with the fact that any cdata object can be weakly referenced).
+
+.. "versionadded:: 0.3" --- inlined in the previous paragraph
+
+
+Unimplemented features
+----------------------
+
+All of the ANSI C declarations should be supported, and some of C99.
+Here are the major known missing features that are GCC or MSVC
+extensions:
+
+* Any ``__attribute__`` or ``#pragma pack(n)``
+
+* Additional types: complex numbers, special-size floating and
+  fixed point types, vector types, etc. (must be declared with
+  ``typedef struct { ...; } typename;`` and cannot be accessed directly)
+
+* Unnamed struct/union fields within struct/union
+
+* Thread-local variables (access them via getter/setter functions)
+
+* Variable-length structures, i.e. whose last field is a variable-length
+  array (work around like in C, e.g. by declaring it as an array of
+  length 0, allocating a ``char[]`` of the correct size, and casting
+  it to a struct pointer)
+
 
 Reference: conversions
 ----------------------
@@ -874,10 +964,10 @@ allowed.
 |               | (but not a float!).    | on the type      |                |
 |               | Must be within range.  |                  |                |
 +---------------+------------------------+------------------+----------------+
-|   ``char``    | a string of length 1   | a string of      | str(), int()   |
+|   ``char``    | a string of length 1   | a string of      | int()          |
 |               | or another <cdata char>| length 1         |                |
 +---------------+------------------------+------------------+----------------+
-|  ``wchar_t``  | a unicode of length 1  | a unicode of     | unicode(),     |
+|  ``wchar_t``  | a unicode of length 1  | a unicode of     |                |
 |               | (or maybe 2 if         | length 1         | int()          |
 |               | surrogates) or         | (or maybe 2 if   |                |
 |               | another <cdata wchar_t>| surrogates)      |                |
@@ -885,33 +975,27 @@ allowed.
 |  ``float``,   | a float or anything on | a Python float   | float(), int() |
 |  ``double``   | which float() works    |                  |                |
 +---------------+------------------------+------------------+----------------+
+|``long double``| another <cdata> with   | a <cdata>, to    | float(), int() |
+|               | a ``long double``, or  | avoid loosing    |                |
+|               | anything on which      | precision `(***)`|                |
+|               | float() works          |                  |                |
++---------------+------------------------+------------------+----------------+
 |  pointers     | another <cdata> with   | a <cdata>        | ``[]``, ``+``, |
 |               | a compatible type (i.e.|                  | ``-``          |
 |               | same type or ``char*`` |                  |                |
 |               | or ``void*``, or as an |                  |                |
-|               | array instead)         |                  |                |
-+---------------+------------------------+                  +----------------+
-|  ``void *``   | another <cdata> with   |                  |                |
-|               | any pointer or array   |                  |                |
+|               | array instead) `(*)`   |                  |                |
++---------------+------------------------+                  |                |
+|  ``void *``,  | another <cdata> with   |                  |                |
+|  ``char *``   | any pointer or array   |                  |                |
 |               | type                   |                  |                |
 +---------------+------------------------+                  +----------------+
-|  ``char *``   | another <cdata> with   |                  | ``[]``,        |
-|               | any pointer or array   |                  | ``+``, ``-``,  |
-|               | type, or               |                  | str()          |
-|               | a Python string when   |                  |                |
-|               | passed as func argument|                  |                |
-+---------------+------------------------+                  +----------------+
-| ``wchar_t *`` | same as pointers       |                  | ``[]``,        |
-|               | (passing a unicode as  |                  | ``+``, ``-``,  |
-|               | func argument is not   |                  | unicode()      |
-|               | implemented)           |                  |                |
-+---------------+------------------------+                  +----------------+
-|  pointers to  | same as pointers       |                  | ``[]``,        |
+|  pointers to  | same as pointers `(*)` |                  | ``[]``,        |
 |  structure or |                        |                  | ``+``, ``-``,  |
 |  union        |                        |                  | and read/write |
 |               |                        |                  | struct fields  |
-+---------------+                        |                  +----------------+
-| function      |                        |                  | call           |
++---------------+------------------------+                  +----------------+
+| function      | same as pointers       |                  | call `(**)`    |
 | pointers      |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
 |  arrays       | a list or tuple of     | a <cdata>        | len(), iter(), |
@@ -920,12 +1004,12 @@ allowed.
 +---------------+------------------------+                  +----------------+
 |  ``char[]``   | same as arrays, or a   |                  | len(), iter(), |
 |               | Python string          |                  | ``[]``, ``+``, |
-|               |                        |                  | ``-``, str()   |
+|               |                        |                  | ``-``          |
 +---------------+------------------------+                  +----------------+
 | ``wchar_t[]`` | same as arrays, or a   |                  | len(), iter(), |
 |               | Python unicode         |                  | ``[]``,        |
-|               |                        |                  | ``+``, ``-``,  |
-|               |                        |                  | unicode()      |
+|               |                        |                  | ``+``, ``-``   |
+|               |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
 | structure     | a list or tuple or     | a <cdata>        | read/write     |
 |               | dict of the field      |                  | fields         |
@@ -935,11 +1019,38 @@ allowed.
 | union         | same as struct, but    |                  | read/write     |
 |               | with at most one field |                  | fields         |
 +---------------+------------------------+------------------+----------------+
-| enum          | an integer, or the enum| the enum value   | int(), str()   |
+| enum          | an integer, or the enum| the enum value   | int()          |
 |               | value as a string or   | as a string, or  |                |
 |               | as ``"#NUMBER"``       | ``"#NUMBER"``    |                |
 |               |                        | if out of range  |                |
 +---------------+------------------------+------------------+----------------+
+
+.. versionchanged:: 0.3
+   `(*)` Note that when calling a function, as per C, a ``item *`` argument
+   is identical to a ``item[]`` argument.  So you can pass an argument that
+   is accepted by either C type, like for example passing a Python string
+   to a ``char *`` argument (because it works for ``char[]`` arguments)
+   or a list of integers to a ``int *`` argument (it works for ``int[]``
+   arguments).  Note that even if you want to pass a single ``item``,
+   you need to specify it in a list of length 1; for example, a ``struct
+   foo *`` argument might be passed as ``[[field1, field2...]]``.
+
+As an optimization, the CPython version of CFFI assumes that a function
+with a ``char *`` argument to which you pass a Python string will not
+actually modify the array of characters passed in, and so passes directly
+a pointer inside the Python string object.
+
+.. versionchanged:: 0.3
+   `(**)` C function calls are now done with the GIL released.
+
+.. versionadded:: 0.3
+   `(***)` ``long double`` support.
+   Such a number is passed around in a cdata object to avoid loosing
+   precision, because a normal Python floating-point number only contains
+   enough precision for a ``double``.  To convert it to a regular float,
+   call ``float()``.  If you want to operate on such numbers
+   without any precision loss, you need to define and use a family of C
+   functions like ``long double add(long double a, long double b);``.
 
 
 Reference: verifier
@@ -959,13 +1070,13 @@ can be instantiated directly.  It is normally instantiated for you by
 ``Verifier`` objects have the following public attributes and methods:
 
 - ``sourcefilename``: name of a C file.  Defaults to
-  ``__pycache__/_cffi_MD5HASH.c``, with the ``MD5HASH`` part computed
+  ``__pycache__/_cffi_CRCHASH.c``, with the ``CRCHASH`` part computed
   from the strings you passed to cdef() and verify() as well as the
   version numbers of Python and CFFI.  Can be changed before calling
   ``write_source()`` if you want to write the source somewhere else.
 
 - ``modulefilename``: name of the ``.so`` file (or ``.pyd`` on Windows).
-  Defaults to ``__pycache__/_cffi_MD5HASH.so``.  Can be changed before
+  Defaults to ``__pycache__/_cffi_CRCHASH.so``.  Can be changed before
   calling ``compile_module()``.
 
 - ``get_module_name()``: extract the module name from ``modulefilename``.

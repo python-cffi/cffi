@@ -15,10 +15,39 @@ def setup_module():
     cffi.verifier.cleanup_tmpdir()
 
 
-def test_missing_function():
+def test_module_type():
+    import cffi.verifier
     ffi = FFI()
+    lib = ffi.verify()
+    if hasattr(lib, '_cffi_python_module'):
+        print 'verify got a PYTHON module'
+    if hasattr(lib, '_cffi_generic_module'):
+        print 'verify got a GENERIC module'
+    expected_generic = (cffi.verifier._FORCE_GENERIC_ENGINE or
+                        '__pypy__' in sys.builtin_module_names)
+    assert hasattr(lib, '_cffi_python_module') == (not expected_generic)
+    assert hasattr(lib, '_cffi_generic_module') == expected_generic
+
+def test_missing_function(ffi=None):
+    # uses the FFI hacked above with '-Werror'
+    if ffi is None:
+        ffi = FFI()
     ffi.cdef("void some_completely_unknown_function();")
-    py.test.raises(VerificationError, ffi.verify)
+    try:
+        lib = ffi.verify()
+    except VerificationError:
+        pass     # expected case: we get a VerificationError
+    else:
+        # but depending on compiler and loader details, maybe
+        # 'lib' could actually be imported but will fail if we
+        # actually try to call the unknown function...  Hard
+        # to test anything more.
+        pass
+
+def test_missing_function_import_error():
+    # uses the original FFI that just gives a warning during compilation
+    import cffi
+    test_missing_function(ffi=cffi.FFI())
 
 def test_simple_case():
     ffi = FFI()
@@ -101,6 +130,20 @@ def test_all_integer_and_float_types():
                 py.test.raises(OverflowError, lib.foo, value)
             else:
                 assert lib.foo(value) == value + 1
+
+def test_nonstandard_integer_types():
+    ffi = FFI()
+    lst = ffi._backend.nonstandard_integer_types().items()
+    lst.sort()
+    verify_lines = []
+    for key, value in lst:
+        ffi.cdef("static const int expected_%s;" % key)
+        verify_lines.append("static const int expected_%s =" % key)
+        verify_lines.append("    sizeof(%s) | (((%s)-1) <= 0 ? 0 : 0x1000);"
+                            % (key, key))
+    lib = ffi.verify('\n'.join(verify_lines))
+    for key, value in lst:
+        assert getattr(lib, 'expected_%s' % key) == value
 
 def test_char_type():
     ffi = FFI()
@@ -339,7 +382,7 @@ def test_global_constants_non_int():
     ffi.cdef("static char *const PP;")
     lib = ffi.verify('static char *const PP = "testing!";\n')
     assert ffi.typeof(lib.PP) == ffi.typeof("char *")
-    assert lib.PP.value == b"testing!"
+    assert ffi.string(lib.PP) == b"testing!"
 
 def test_nonfull_enum():
     ffi = FFI()
@@ -415,16 +458,26 @@ def test_access_address_of_variable():
     assert lib.somenumber == 42
     lib.somenumber = 2    # reset for the next run, if any
 
-def test_access_array_variable():
+def test_access_array_variable(length=5):
     ffi = FFI()
     ffi.cdef("int foo(int);\n"
-             "int somenumber[5];")
+             "int somenumber[%s];" % (length,))
     lib = ffi.verify("""
         static int somenumber[] = {2, 2, 3, 4, 5};
         static int foo(int i) {
             return somenumber[i] * 7;
         }
     """)
+    if length == '':
+        # a global variable of an unknown array length is implicitly
+        # transformed into a global pointer variable, because we can only
+        # work with array instances whose length we know.  using a pointer
+        # instead of an array gives the correct effects.
+        assert repr(lib.somenumber).startswith("<cdata 'int *' 0x")
+        py.test.raises(TypeError, len, lib.somenumber)
+    else:
+        assert repr(lib.somenumber).startswith("<cdata 'int[%s]' 0x" % length)
+        assert len(lib.somenumber) == 5
     assert lib.somenumber[3] == 4
     assert lib.foo(3) == 28
     lib.somenumber[3] = -6
@@ -432,6 +485,9 @@ def test_access_array_variable():
     assert lib.somenumber[3] == -6
     assert lib.somenumber[4] == 5
     lib.somenumber[3] = 4    # reset for the next run, if any
+
+def test_access_array_variable_length_hidden():
+    test_access_array_variable(length='')
 
 def test_access_struct_variable():
     ffi = FFI()
@@ -476,11 +532,32 @@ def test_access_callback():
     lib.cb = my_callback
     assert lib.foo(4) == 887
 
-def test_cannot_verify_with_ctypes():
+def test_access_callback_function_typedef():
+    ffi = FFI()
+    ffi.cdef("typedef int mycallback_t(int);\n"
+             "mycallback_t *cb;\n"
+             "int foo(int);\n"
+             "void reset_cb(void);")
+    lib = ffi.verify("""
+        static int g(int x) { return x * 7; }
+        static int (*cb)(int);
+        static int foo(int i) { return cb(i) - 1; }
+        static void reset_cb(void) { cb = g; }
+    """)
+    lib.reset_cb()
+    assert lib.foo(6) == 41
+    my_callback = ffi.callback("int(*)(int)", lambda n: n * 222)
+    lib.cb = my_callback
+    assert lib.foo(4) == 887
+
+def test_ctypes_backend_forces_generic_engine():
     from cffi.backend_ctypes import CTypesBackend
     ffi = FFI(backend=CTypesBackend())
-    ffi.cdef("int a;")
-    py.test.raises(NotImplementedError, ffi.verify, "int a;")
+    ffi.cdef("int func(int a);")
+    lib = ffi.verify("int func(int a) { return a * 42; }")
+    assert not hasattr(lib, '_cffi_python_module')
+    assert hasattr(lib, '_cffi_generic_module')
+    assert lib.func(100) == 4200
 
 def test_call_with_struct_ptr():
     ffi = FFI()
@@ -635,7 +712,7 @@ def test_func_as_funcptr():
     """)
     foochar = ffi.cast("char *(*)(void)", lib.fooptr)
     s = foochar()
-    assert s.value == b"foobar"
+    assert ffi.string(s) == b"foobar"
 
 def test_funcptr_as_argument():
     ffi = FFI()
@@ -709,12 +786,12 @@ def test_opaque_integer_as_function_result():
     # anyway.  XXX think about something better :-(
     ffi = FFI()
     ffi.cdef("""
-        typedef struct { ...; } handle_t;
-        handle_t foo(void);
+        typedef struct { ...; } myhandle_t;
+        myhandle_t foo(void);
     """)
     lib = ffi.verify("""
-        typedef short handle_t;
-        handle_t foo(void) { return 42; }
+        typedef short myhandle_t;
+        myhandle_t foo(void) { return 42; }
     """)
     h = lib.foo()
     assert ffi.sizeof(h) == ffi.sizeof("short")

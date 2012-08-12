@@ -11,4 +11,4 @@ C = ffi.verify("""   // passed to the real C compiler
 #include <sys/types.h>
 #include <pwd.h>
 """)
-print str(C.getpwuid(0).pw_name)
+print ffi.string(C.getpwuid(0).pw_name)

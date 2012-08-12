@@ -180,6 +180,24 @@ class FFI(object):
             cdecl = self._typeof(cdecl)
         return self._backend.cast(cdecl, source)
 
+    def string(self, cdata, maxlen=-1):
+        """Return a Python string (or unicode string) from the 'cdata'.
+        If 'cdata' is a pointer or array of characters or bytes, returns
+        the null-terminated string.  The returned string extends until
+        the first null character, or at most 'maxlen' characters.  If
+        'cdata' is an array then 'maxlen' defaults to its length.
+
+        If 'cdata' is a pointer or array of wchar_t, returns a unicode
+        string following the same rules.
+
+        If 'cdata' is a single character or byte or a wchar_t, returns
+        it as a string or unicode string.
+
+        If 'cdata' is an enum, returns the value of the enumerator as a
+        string, or "#NUMBER" if the value is out of range.
+        """
+        return self._backend.string(cdata, maxlen)
+
     def buffer(self, cdata, size=-1):
         """Return a read-write buffer object that references the raw C data
         pointed to by the given 'cdata'.  The 'cdata' must be a pointer or
@@ -215,6 +233,18 @@ class FFI(object):
         elif replace_with and not replace_with[0] in '[(':
             replace_with = ' ' + replace_with
         return self._backend.getcname(cdecl, replace_with)
+
+    def gc(self, cdata, destructor):
+        """Return a new cdata object that points to the same
+        data.  Later, when this new cdata object is garbage-collected,
+        'destructor(old_cdata_object)' will be called.
+        """
+        try:
+            gc_weakrefs = self.gc_weakrefs
+        except AttributeError:
+            from .gc_weakref import GcWeakrefs
+            gc_weakrefs = self.gc_weakrefs = GcWeakrefs(self)
+        return gc_weakrefs.build(cdata, destructor)
 
     def _get_cached_btype(self, type):
         try:
@@ -259,41 +289,43 @@ def _make_ffi_library(ffi, libname):
     #
     backend = ffi._backend
     backendlib = backend.load_library(path)
-    function_cache = {}
+    #
+    def make_accessor(name):
+        key = 'function ' + name
+        if key in ffi._parser._declarations:
+            tp = ffi._parser._declarations[key]
+            BType = ffi._get_cached_btype(tp)
+            value = backendlib.load_function(BType, name)
+            library.__dict__[name] = value
+            return
+        #
+        key = 'variable ' + name
+        if key in ffi._parser._declarations:
+            tp = ffi._parser._declarations[key]
+            BType = ffi._get_cached_btype(tp)
+            read_variable = backendlib.read_variable
+            write_variable = backendlib.write_variable
+            setattr(FFILibrary, name, property(
+                lambda self: read_variable(BType, name),
+                lambda self, value: write_variable(BType, name, value)))
+            return
+        #
+        raise AttributeError(name)
     #
     class FFILibrary(object):
-        def __getattribute__(self, name):
-            try:
-                return function_cache[name]
-            except KeyError:
-                pass
-            #
-            key = 'function ' + name
-            if key in ffi._parser._declarations:
-                tp = ffi._parser._declarations[key]
-                BType = ffi._get_cached_btype(tp)
-                value = backendlib.load_function(BType, name)
-                function_cache[name] = value
-                return value
-            #
-            key = 'variable ' + name
-            if key in ffi._parser._declarations:
-                tp = ffi._parser._declarations[key]
-                BType = ffi._get_cached_btype(tp)
-                return backendlib.read_variable(BType, name)
-            #
-            raise AttributeError(name)
-
+        def __getattr__(self, name):
+            make_accessor(name)
+            return getattr(self, name)
         def __setattr__(self, name, value):
-            key = 'variable ' + name
-            if key in ffi._parser._declarations:
-                tp = ffi._parser._declarations[key]
-                BType = ffi._get_cached_btype(tp)
-                backendlib.write_variable(BType, name, value)
-                return
-            #
-            raise AttributeError(name)
+            try:
+                property = getattr(self.__class__, name)
+            except AttributeError:
+                make_accessor(name)
+                setattr(self, name, value)
+            else:
+                property.__set__(self, value)
     #
     if libname is not None:
         FFILibrary.__name__ = 'FFILibrary_%s' % libname
-    return FFILibrary(), function_cache
+    library = FFILibrary()
+    return library, library.__dict__

@@ -112,8 +112,8 @@ class TestFunction(object):
         assert res == b'hello\n  world\n'
 
     def test_fputs(self):
-        if sys.platform == 'win32':
-            py.test.skip("no 'stderr'")
+        if not sys.platform.startswith('linux'):
+            py.test.skip("probably no symbol 'stdout' in the lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int fputs(const char *, void *);
@@ -145,14 +145,16 @@ class TestFunction(object):
             ffi.C.fflush(ffi.NULL)
         res = fd.getvalue()
         if sys.platform == 'win32':
-            NIL = b"00000000"
+            NIL = "00000000"
+        elif sys.platform.startswith('linux'):
+            NIL = "(nil)"
         else:
-            NIL = b"(nil)"
-        assert res == (b"hello with no arguments\n"
-                       b"hello, world!\n"
-                       b"hello, world2!\n"
-                       b"hello int 42 long 84 long long 168\n"
-                       b"hello " + NIL + b"\n")
+            NIL = "0x0"    # OS/X at least
+        assert res == bytes("hello with no arguments\n"
+                            "hello, world!\n"
+                            "hello, world2!\n"
+                            "hello int 42 long 84 long long 168\n"
+                            "hello " + NIL + "\n")
 
     def test_must_specify_type_of_vararg(self):
         ffi = FFI(backend=self.Backend())
@@ -230,8 +232,8 @@ class TestFunction(object):
         assert res == 5
 
     def test_write_variable(self):
-        if sys.platform == 'win32':
-            py.test.skip("no 'stdout'")
+        if not sys.platform.startswith('linux'):
+            py.test.skip("probably no symbol 'stdout' in the lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int puts(const char *);
@@ -259,7 +261,7 @@ class TestFunction(object):
         ffi.C = ffi.dlopen(None)
         p = ffi.new("char[]", b"hello world!")
         q = ffi.C.strchr(p, ord('w'))
-        assert q.value == b"world!"
+        assert ffi.string(q) == b"world!"
 
     def test_function_with_struct_argument(self):
         if sys.platform == 'win32':
@@ -272,4 +274,15 @@ class TestFunction(object):
         ffi.C = ffi.dlopen(None)
         ina = ffi.new("struct in_addr *", [0x04040404])
         a = ffi.C.inet_ntoa(ina[0])
-        assert a.value == b'4.4.4.4'
+        assert ffi.string(a) == b'4.4.4.4'
+
+    def test_function_typedef(self):
+        py.test.skip("using really obscure C syntax")
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            typedef double func_t(double);
+            func_t sin;
+        """)
+        m = ffi.dlopen("m")
+        x = m.sin(1.23)
+        assert x == math.sin(1.23)
