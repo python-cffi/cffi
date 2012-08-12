@@ -142,7 +142,7 @@ class DistUtilsTest(object):
         assert lib.sin(12.3) == math.sin(12.3)
         v = ffi.verifier
         ext = v.get_extension()
-        assert str(ext.__class__) == 'distutils.extension.Extension'
+        assert 'distutils.extension.Extension' in str(ext.__class__)
         assert ext.sources == [v.sourcefilename]
         assert ext.name == v.get_module_name()
         assert ext.define_macros == [('TEST_EXTENSION_OBJECT', '1')]

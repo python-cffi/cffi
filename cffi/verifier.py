@@ -62,7 +62,9 @@ class Verifier(object):
 
     def get_module_name(self):
         basename = os.path.basename(self.modulefilename)
-        return basename.rsplit('.', 1)[0]
+        # kill both the .so extension and the other .'s, as introduced
+        # by Python 3: 'basename.cpython-33m.so'
+        return basename.split('.', 1)[0]
 
     def get_extension(self):
         if self._status == 'init':

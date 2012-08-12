@@ -134,7 +134,7 @@ def test_all_integer_and_float_types():
 def test_nonstandard_integer_types():
     ffi = FFI()
     lst = ffi._backend.nonstandard_integer_types().items()
-    lst.sort()
+    lst = sorted(lst)
     verify_lines = []
     for key, value in lst:
         ffi.cdef("static const int expected_%s;" % key)
