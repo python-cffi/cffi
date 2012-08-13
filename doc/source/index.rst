@@ -63,8 +63,11 @@ platform as well as on Win32.  There are some Windows-specific issues
 left.
 
 It supports CPython 2.6; 2.7; 3.x (tested with 3.3, seems to work on 3.2
-too); and PyPy trunk (not 1.9).  (Its speed is comparable to ctypes on
-CPython, and faster on PyPy.)
+too); and PyPy trunk (not 1.9).
+
+Its speed is comparable to ctypes on CPython (a bit faster but a higher
+warm-up time).  It is already faster on PyPy (1.5x-2x), but not yet
+*much* faster; stay tuned.
 
 Requirements:
 
