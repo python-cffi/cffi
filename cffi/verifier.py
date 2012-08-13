@@ -4,7 +4,6 @@ from . import ffiplatform
 
 
 class Verifier(object):
-    _status = '?'
 
     def __init__(self, ffi, preamble, force_generic_engine=False, **kwds):
         self.ffi = ffi
@@ -24,25 +23,24 @@ class Verifier(object):
         suffix = _get_so_suffix()
         self.sourcefilename = os.path.join(_TMPDIR, modulename + '.c')
         self.modulefilename = os.path.join(_TMPDIR, modulename + suffix)
-        self._status = 'init'
+        self._has_source = False
+        self._has_module = False
 
     def write_source(self, file=None):
         """Write the C source code.  It is produced in 'self.sourcefilename',
         which can be tweaked beforehand."""
-        if self._status == 'init':
-            self._write_source(file)
-        else:
+        if self._has_source and file is None:
             raise ffiplatform.VerificationError("source code already written")
+        self._write_source(file)
 
     def compile_module(self):
         """Write the C source code (if not done already) and compile it.
         This produces a dynamic link library in 'self.modulefilename'."""
-        if self._status == 'init':
-            self._write_source()
-        if self._status == 'source':
-            self._compile_module()
-        else:
+        if self._has_module:
             raise ffiplatform.VerificationError("module already compiled")
+        if not self._has_source:
+            self._write_source()
+        self._compile_module()
 
     def load_library(self):
         """Get a C module from this Verifier instance.
@@ -51,13 +49,10 @@ class Verifier(object):
         operations to the C module.  If necessary, the C code is written
         and compiled first.
         """
-        if self._status == 'init':       # source code not written yet
+        if not self._has_module:
             self._locate_module()
-        if self._status == 'init':
-            self._write_source()
-        if self._status == 'source':
-            self._compile_module()
-        assert self._status == 'module'
+            if not self._has_module:
+                self.compile_module()
         return self._load_library()
 
     def get_module_name(self):
@@ -67,7 +62,7 @@ class Verifier(object):
         return basename.split('.', 1)[0]
 
     def get_extension(self):
-        if self._status == 'init':
+        if not self._has_source:
             self._write_source()
         sourcename = self.sourcefilename
         modname = self.get_module_name()
@@ -88,7 +83,7 @@ class Verifier(object):
                 f.close()
             self.modulefilename = filename
         self._vengine.collect_types()
-        self._status = 'module'
+        self._has_module = True
 
     def _write_source(self, file=None):
         must_close = (file is None)
@@ -102,7 +97,8 @@ class Verifier(object):
             del self._vengine._f
             if must_close:
                 file.close()
-        self._status = 'source'
+        if file is None:
+            self._has_source = True
 
     def _compile_module(self):
         # compile this C source
@@ -115,9 +111,10 @@ class Verifier(object):
         if not same:
             _ensure_dir(self.modulefilename)
             shutil.move(outputfilename, self.modulefilename)
-        self._status = 'module'
+        self._has_module = True
 
     def _load_library(self):
+        assert self._has_module
         return self._vengine.load_library()
 
 # ____________________________________________________________
