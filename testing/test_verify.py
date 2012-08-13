@@ -102,8 +102,7 @@ def test_longdouble():
 
 def test_longdouble_precision():
     # Test that we don't loose any precision of 'long double' when
-    # passing through Python and CFFI.  This test might be too exact,
-    # checking the results that we get on Intel.
+    # passing through Python and CFFI.
     ffi = FFI()
     ffi.cdef("long double step1(long double x);")
     lib = ffi.verify("""
@@ -112,17 +111,26 @@ def test_longdouble_precision():
             return 4*x-x*x;
         }
     """)
-    for cast_to_double in [False, True]:
+    def do(cast_to_double):
         x = 0.9789
-        for i in range(50):
+        for i in range(10000):
             x = lib.step1(x)
             if cast_to_double:
                 x = float(x)
-        if cast_to_double:
-            expected = 3.3061
-        else:
-            expected = 3.2585
-        assert (float(x) - expected) < 0.01
+        return float(x)
+
+    more_precise = do(False)
+    less_precise = do(True)
+    assert abs(more_precise - less_precise) > 0.1
+
+    # Check the particular results on Intel
+    import platform
+    if (platform.machine().startswith('i386') or
+        platform.machine().startswith('x86')):
+        assert abs(more_precise - 0.656769) < 0.001
+        assert abs(less_precise - 3.99091) < 0.001
+    else:
+        py.test.skip("don't know the very exact precision of 'long double'")
 
 
 all_integer_types = ['short', 'int', 'long', 'long long',
