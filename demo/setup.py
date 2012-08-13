@@ -7,5 +7,6 @@ from distutils.core import setup
 from distutils.extension import Extension
 import bsdopendirtype
 
-setup(py_modules=['bsdopendirtype'],
+setup(name='bsdopendirtype',
+      py_modules=['bsdopendirtype'],
       ext_modules=[bsdopendirtype.ffi.verifier.get_extension()])
