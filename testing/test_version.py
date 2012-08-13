@@ -18,7 +18,7 @@ def test_doc_version():
     #
     p = os.path.join(parent, 'doc', 'source', 'index.rst')
     content = open(p).read()
-    assert ("release-%s.tar.bz2" % v) in content
+    assert ("cffi/cffi-%s.tar.gz" % v) in content
 
 def test_setup_version():
     parent = os.path.dirname(os.path.dirname(__file__))
