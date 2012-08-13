@@ -100,6 +100,30 @@ def test_longdouble():
         assert repr(x).startswith("<cdata 'long double'")
         assert (float(x) - math.sin(1.23)) < 1E-10
 
+def test_longdouble_precision():
+    # Test that we don't loose any precision of 'long double' when
+    # passing through Python and CFFI.  This test might be too exact,
+    # checking the results that we get on Intel.
+    ffi = FFI()
+    ffi.cdef("long double step1(long double x);")
+    lib = ffi.verify("""
+        long double step1(long double x)
+        {
+            return 4*x-x*x;
+        }
+    """)
+    for cast_to_double in [False, True]:
+        x = 0.9789
+        for i in range(50):
+            x = lib.step1(x)
+            if cast_to_double:
+                x = float(x)
+        if cast_to_double:
+            expected = 3.3061
+        else:
+            expected = 3.2585
+        assert (float(x) - expected) < 0.01
+
 
 all_integer_types = ['short', 'int', 'long', 'long long',
                      'signed char', 'unsigned char',
