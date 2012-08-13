@@ -71,7 +71,7 @@ if __name__ == '__main__':
   setup(
     name='cffi',
     description='Foreign Function Interface for Python calling C code.',
-    get_version_from_scm=True,
+    version='0.3',
     packages=['cffi'],
 
     url='http://cffi.readthedocs.org',
