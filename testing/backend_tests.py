@@ -1066,7 +1066,10 @@ class BackendTests:
     def test_ffi_buffer_ptr(self):
         ffi = FFI(backend=self.Backend())
         a = ffi.new("short *", 100)
-        b = ffi.buffer(a)
+        try:
+            b = ffi.buffer(a)
+        except NotImplementedError as e:
+            py.test.skip(str(e))
         if sys.version < '3':
             assert type(b) is buffer
             content = str(b)
@@ -1085,7 +1088,10 @@ class BackendTests:
     def test_ffi_buffer_array(self):
         ffi = FFI(backend=self.Backend())
         a = ffi.new("int[]", list(range(100, 110)))
-        b = ffi.buffer(a)
+        try:
+            b = ffi.buffer(a)
+        except NotImplementedError as e:
+            py.test.skip(str(e))
         if sys.version < '3':
             assert type(b) is buffer
             content = str(b)
@@ -1104,7 +1110,10 @@ class BackendTests:
     def test_ffi_buffer_ptr_size(self):
         ffi = FFI(backend=self.Backend())
         a = ffi.new("short *", 0x4243)
-        b = ffi.buffer(a, 1)
+        try:
+            b = ffi.buffer(a, 1)
+        except NotImplementedError as e:
+            py.test.skip(str(e))
         if sys.version < '3':
             assert type(b) is buffer
             content = str(b)
@@ -1125,6 +1134,10 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         a1 = ffi.new("int[]", list(range(100, 110)))
         a2 = ffi.new("int[]", list(range(100, 115)))
+        try:
+            ffi.buffer(a1)
+        except NotImplementedError as e:
+            py.test.skip(str(e))
         if sys.version < '3':
             assert str(ffi.buffer(a1)) == str(ffi.buffer(a2, 4*10))
         else:
@@ -1136,6 +1149,10 @@ class BackendTests:
         fd, filename = tempfile.mkstemp()
         f = os.fdopen(fd, 'r+b')
         a = ffi.new("int[]", list(range(1005)))
+        try:
+            ffi.buffer(a, 512)
+        except NotImplementedError as e:
+            py.test.skip(str(e))
         f.write(ffi.buffer(a, 1000 * ffi.sizeof("int")))
         f.seek(0)
         assert f.read() == array.array('i', range(1000)).tostring()

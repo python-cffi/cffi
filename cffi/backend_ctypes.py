@@ -1,6 +1,5 @@
 import ctypes, ctypes.util, operator, sys
 from . import model
-import sys
 
 if sys.version_info < (3,):
     integer_types = (int, long)
@@ -972,6 +971,8 @@ class CTypesBackend(object):
                 return view.cast('B')
 
         # haaaaaaaaaaaack
+        if '__pypy__' in sys.builtin_module_names:
+            raise NotImplementedError("PyPy: ffi.buffer() with ctypes backend")
         call = ctypes.pythonapi.PyBuffer_FromReadWriteMemory
         call.argtypes = (ctypes.c_void_p, ctypes.c_size_t)
         call.restype = ctypes.py_object
