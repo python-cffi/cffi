@@ -78,6 +78,7 @@ Requirements:
   with CFFI).
 
 * pycparser 2.06 or 2.07: http://code.google.com/p/pycparser/
+  (there is a bug in the distribution of 2.08!)
 
 * a C compiler is required to use CFFI during development, but not to run
   correctly-installed programs that use CFFI.
@@ -88,13 +89,14 @@ Requirements:
 
 Download and Installation:
 
-* https://bitbucket.org/cffi/cffi/downloads
+* http://pypi.python.org/packages/source/c/cffi/cffi-0.3.tar.gz
 
-  - https://bitbucket.org/cffi/cffi/get/release-0.3.tar.bz2
-    has a MD5 of xxx and SHA of
-    xxx
+   - MD5: 25dbc7b6182c64d08adeb6077bfa2743
 
-  - or get it via ``hg clone https://bitbucket.org/cffi/cffi``
+   - SHA: 922680f1aeb4392ab715cbe572fdc071cdbc4a35
+
+* Or get it from the `Bitbucket page`_:
+  ``hg clone https://bitbucket.org/cffi/cffi``
 
 * ``python setup.py install`` or ``python setup_base.py install``
   (should work out of the box on Linux or Windows; see below for
@@ -104,9 +106,11 @@ Download and Installation:
   compile the ``_cffi_backend`` extension module, it will fall back
   to using internally ``ctypes`` (much slower; we recommend not to use it).
 
-* running the tests: ``py.test c/ testing/ -x`` (if you didn't
+* running the tests: ``py.test c/ testing/`` (if you didn't
   install cffi yet, you may need ``python setup_base.py build``
   and ``PYTHONPATH=build/lib.xyz.../``)
+
+.. _`Bitbucket page`: https://bitbucket.org/cffi/cffi
 
 Demos:
 
