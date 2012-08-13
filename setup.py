@@ -98,6 +98,8 @@ if __name__ == '__main__':
         'hgdistver',
     ],
     install_requires=[
-        'pycparser',
+        # pycparser 2.08 no longer contains lextab.py/yacctab.py
+        # out of the box, which looks like a bug
+        'pycparser<=2.07',
     ]
   )
