@@ -510,9 +510,8 @@ unicode strings, if supported by the backend.  Note that in some
 situations (a narrow Python build with an underlying 4-bytes wchar_t
 type), a single wchar_t character may correspond to a pair of
 surrogates, which is represented as a unicode string of length 2.  If
-you need to convert a wchar_t to an integer, do not use ``ord(x)``,
-because it doesn't accept such unicode strings; use instead
-``int(ffi.cast('int', x))``, which does.
+you need to convert such a 2-chars unicode string to an integer,
+``ord(x)`` does not work; use instead ``int(ffi.cast('wchar_t', x))``.
 
 Pointers, structures and arrays are more complex: they don't have an
 obvious Python equivalent.  Thus, they correspond to objects of type
