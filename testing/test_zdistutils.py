@@ -124,6 +124,7 @@ class DistUtilsTest(object):
         lib = ffi.verify(csrc, force_generic_engine=self.generic)
         assert lib.sin(12.3) == math.sin(12.3)
         assert isinstance(ffi.verifier, Verifier)
+        ffi.verifier.write_source()
         with open(ffi.verifier.sourcefilename, 'r') as f:
             data = f.read()
         assert csrc in data
