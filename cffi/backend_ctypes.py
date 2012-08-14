@@ -965,10 +965,14 @@ class CTypesBackend(object):
                 _fields_ = [('stupid', type(val))]
             ptr = ctypes.cast(buf, ctypes.POINTER(Hack))
             view = memoryview(ptr.contents)
+            try:
+                view = view.cast('B')
+            except AttributeError:
+                raise NotImplementedError("buffer() with ctypes backend "
+                                          "in Python < 3.3")
             if size >= 0:
-                return view.cast('B')[:size]
-            else:
-                return view.cast('B')
+                view = view[:size]
+            return view
 
         # haaaaaaaaaaaack
         if '__pypy__' in sys.builtin_module_names:

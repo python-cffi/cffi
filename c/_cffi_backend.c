@@ -4033,7 +4033,7 @@ static PyObject *b_buffer(PyObject *self, PyObject *args)
     {
       Py_buffer view;
       if (PyBuffer_FillInfo(&view, NULL, cd->c_data, size,
-                            /*readonly=*/0, PyBUF_WRITABLE) < 0)
+                            /*readonly=*/0, PyBUF_CONTIG | PyBUF_FORMAT) < 0)
         return NULL;
       return PyMemoryView_FromBuffer(&view);
     }
