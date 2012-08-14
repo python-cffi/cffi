@@ -1,6 +1,7 @@
 import py
 import sys, math
 from cffi import FFI, VerificationError, VerificationMissing, model
+from testing.support import *
 
 
 if sys.platform != 'win32':
@@ -199,11 +200,11 @@ def test_char_type():
 def test_wchar_type():
     ffi = FFI()
     if ffi.sizeof('wchar_t') == 2:
-        uniexample1 = u'\u1234'
-        uniexample2 = u'\u1235'
+        uniexample1 = u+'\u1234'
+        uniexample2 = u+'\u1235'
     else:
-        uniexample1 = u'\U00012345'
-        uniexample2 = u'\U00012346'
+        uniexample1 = u+'\U00012345'
+        uniexample2 = u+'\U00012346'
     #
     ffi.cdef("wchar_t foo(wchar_t);")
     lib = ffi.verify("wchar_t foo(wchar_t x) { return x+1; }")
