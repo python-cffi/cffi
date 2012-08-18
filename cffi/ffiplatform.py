@@ -11,9 +11,11 @@ class VerificationMissing(Exception):
     """
 
 
-def get_extension(srcfilename, modname, **kwds):
+def get_extension(srcfilename, modname, sources=(), **kwds):
     from distutils.core import Extension
-    return Extension(name=modname, sources=[srcfilename], **kwds)
+    allsources = [srcfilename]
+    allsources.extend(sources)
+    return Extension(name=modname, sources=allsources, **kwds)
 
 def compile(tmpdir, ext):
     """Compile a C extension module using distutils."""
