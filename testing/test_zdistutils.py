@@ -157,6 +157,24 @@ class DistUtilsTest(object):
         v.get_extension()
         assert os.path.exists(v.sourcefilename)
 
+    def test_extension_object_extra_sources(self):
+        ffi = FFI()
+        ffi.cdef("double test1eoes(double x);")
+        extra_source = str(udir.join('extension_extra_sources.c'))
+        with open(extra_source, 'w') as f:
+            f.write('double test1eoes(double x) { return x * 6.0; }\n')
+        csrc = '''/*9*/
+        double test1eoes(double x);   /* or #include "extra_sources.h" */
+        '''
+        lib = ffi.verify(csrc, sources=[extra_source],
+                         force_generic_engine=self.generic)
+        assert lib.test1eoes(7.0) == 42.0
+        v = ffi.verifier
+        ext = v.get_extension()
+        assert 'distutils.extension.Extension' in str(ext.__class__)
+        assert ext.sources == [v.sourcefilename, extra_source]
+        assert ext.name == v.get_module_name()
+
 
 class TestDistUtilsCPython(DistUtilsTest):
     generic = False
