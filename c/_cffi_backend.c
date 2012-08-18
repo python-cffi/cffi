@@ -5,6 +5,7 @@
 #ifdef MS_WIN32
 #include <windows.h>
 #include "misc_win32.h"
+#include <malloc.h>   /* for alloca() */
 #else
 #include <stddef.h>
 #include <stdint.h>
