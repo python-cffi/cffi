@@ -496,6 +496,12 @@ warnings if you misdeclare ``myint`` as the wrong type even if it is
 equivalent on this platform (e.g. using ``long`` instead of ``long
 long`` or vice-versa on 64-bit Linux).
 
+Note that ``verify()`` is meant to call C libraries that are *not* using
+``#include <Python.h>``.  The C functions are called without the GIL,
+and afterwards we don't check if they set a Python exception, for
+example.  You may work around it, but mixing CFFI with ``Python.h`` is
+not recommended.
+
 
 Working with pointers, structures and arrays
 --------------------------------------------
