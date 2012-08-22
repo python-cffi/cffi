@@ -1,6 +1,6 @@
 
 from . import api, model
-import pycparser, weakref, re
+import pycparser.c_parser, weakref, re
 
 _r_comment = re.compile(r"/\*.*?\*/|//.*?$", re.DOTALL | re.MULTILINE)
 _r_define  = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z_0-9]*)\s+(.*?)$",
@@ -61,8 +61,29 @@ class Parser(object):
         csource, macros = _preprocess(csource)
         csourcelines.append(csource)
         csource = '\n'.join(csourcelines)
-        ast = _get_parser().parse(csource)
+        try:
+            ast = _get_parser().parse(csource)
+        except pycparser.c_parser.ParseError, e:
+            self.convert_pycparser_error(e, csource)
         return ast, macros
+
+    def convert_pycparser_error(self, e, csource):
+        # xxx look for ":NUM:" at the start of str(e) and try to interpret
+        # it as a line number
+        line = None
+        msg = str(e)
+        if msg.startswith(':') and ':' in msg[1:]:
+            linenum = msg[1:msg.find(':',1)]
+            if linenum.isdigit():
+                linenum = int(linenum, 10)
+                csourcelines = csource.splitlines()
+                if 1 <= linenum <= len(csourcelines):
+                    line = csourcelines[linenum-1]
+        if line:
+            msg = 'cannot parse "%s"\n%s' % (line, msg)
+        else:
+            msg = 'parse error\n%s' % (msg,)
+        raise api.CDefError(msg)
 
     def parse(self, csource, override=False):
         prev_override = self._override
