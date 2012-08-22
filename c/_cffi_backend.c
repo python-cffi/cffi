@@ -197,6 +197,8 @@ static void init_errno(void) { }
 # else
 #  include "misc_thread.h"
 # endif
+# define save_errno_only      save_errno
+# define restore_errno_only   restore_errno
 #endif
 
 #ifdef HAVE_WCHAR_H
@@ -4044,7 +4046,7 @@ static PyObject *b_buffer(PyObject *self, PyObject *args)
 static PyObject *b_get_errno(PyObject *self, PyObject *noarg)
 {
     int err;
-    restore_errno();
+    restore_errno_only();
     err = errno;
     errno = 0;
     return PyInt_FromLong(err);
@@ -4056,7 +4058,7 @@ static PyObject *b_set_errno(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "i:set_errno", &i))
         return NULL;
     errno = i;
-    save_errno();
+    save_errno_only();
     errno = 0;
     Py_INCREF(Py_None);
     return Py_None;

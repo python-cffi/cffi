@@ -45,6 +45,18 @@ static void save_errno(void)
     /* else: cannot report the error */
 }
 
+static void save_errno_only(void)
+{
+    int current_err = errno;
+    struct cffi_errno_s *p;
+
+    p = _geterrno_object();
+    if (p != NULL) {
+        p->saved_errno = current_err;
+    }
+    /* else: cannot report the error */
+}
+
 static void restore_errno(void)
 {
     struct cffi_errno_s *p;
@@ -57,6 +69,16 @@ static void restore_errno(void)
     /* else: cannot report the error */
 }
 
+static void restore_errno_only(void)
+{
+    struct cffi_errno_s *p;
+
+    p = _geterrno_object();
+    if (p != NULL) {
+        errno = p->saved_errno;
+    }
+    /* else: cannot report the error */
+}
 
 /************************************************************/
 /* Emulate dlopen()&co. from the Windows API */
