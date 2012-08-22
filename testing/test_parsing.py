@@ -177,3 +177,10 @@ def test_override():
     assert C.foo.BType == '<func (), <int>, False>'
     ffi.cdef("long foo(void);", override=True)
     assert C.foo.BType == '<func (), <long>, False>'
+
+def test_cannot_have_only_variadic_part():
+    # this checks that we get a sensible error if we try "int foo(...);"
+    ffi = FFI()
+    e = py.test.raises(CDefError, ffi.cdef, "int foo(...);")
+    assert str(e.value) == \
+           "foo: a function with only '(...)' as argument is not correct C"

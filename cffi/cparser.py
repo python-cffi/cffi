@@ -244,7 +244,11 @@ class Parser(object):
             params[-1].type.type.names == ['__dotdotdot__'])
         if ellipsis:
             params.pop()
-        if (len(params) == 1 and
+            if not params:
+                raise api.CDefError(
+                    "%s: a function with only '(...)' as argument"
+                    " is not correct C" % (funcname or 'in expression'))
+        elif (len(params) == 1 and
             isinstance(params[0].type, pycparser.c_ast.TypeDecl) and
             isinstance(params[0].type.type, pycparser.c_ast.IdentifierType)
                 and list(params[0].type.type.names) == ['void']):
