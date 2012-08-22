@@ -773,6 +773,11 @@ def test_function_void_result():
     BFunc = new_function_type((BInt, BInt), BVoid, False)
     assert repr(BFunc) == "<ctype 'void(*)(int, int)'>"
 
+def test_function_void_arg():
+    BVoid = new_void_type()
+    BInt = new_primitive_type("int")
+    py.test.raises(TypeError, new_function_type, (BVoid,), BInt, False)
+
 def test_call_function_0():
     BSignedChar = new_primitive_type("signed char")
     BFunc0 = new_function_type((BSignedChar, BSignedChar), BSignedChar, False)

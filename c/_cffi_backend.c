@@ -3184,7 +3184,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
     else if (ct->ct_flags & (CT_POINTER|CT_ARRAY|CT_FUNCTIONPTR)) {
         return &ffi_type_pointer;
     }
-    else if (ct->ct_flags & CT_VOID) {
+    else if ((ct->ct_flags & CT_VOID) && is_result_type) {
         return &ffi_type_void;
     }
 
