@@ -2,13 +2,13 @@ import weakref
 
 class BaseType(object):
 
-    def get_c_name(self, replace_with=''):
+    def get_c_name(self, replace_with='', context='a C file'):
         result = self._get_c_name(replace_with)
         if '$' in result:
             from .ffiplatform import VerificationError
             raise VerificationError(
-                "cannot generate '%s' in a C file: unknown type name"
-                % (result,))
+                "cannot generate '%s' in %s: unknown type name"
+                % (self._get_c_name(''), context))
         return result
 
     def has_c_name(self):

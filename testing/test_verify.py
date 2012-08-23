@@ -882,3 +882,16 @@ def test_opaque_integer_as_function_result():
     """)
     h = lib.foo()
     assert ffi.sizeof(h) == ffi.sizeof("short")
+
+def test_cannot_name_struct_type():
+    ffi = FFI()
+    ffi.cdef("typedef struct { int x; } *sp; void foo(sp);")
+    e = py.test.raises(VerificationError, ffi.verify,
+                       "typedef struct { int x; } *sp; void foo(sp);")
+    assert 'in argument of foo: unknown type name' in str(e.value)
+
+def test_dont_check_unnamable_fields():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { struct { int x; } someone; };")
+    ffi.verify("struct foo_s { struct { int x; } someone; };")
+    # assert did not crash

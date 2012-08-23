@@ -108,13 +108,15 @@ class VGenericEngine(object):
             if isinstance(type, model.StructOrUnion):
                 indirection = '*'
             argnames.append('%sx%d' % (indirection, i))
-        arglist = [type.get_c_name(' %s' % arg)
+        context = 'argument of %s' % name
+        arglist = [type.get_c_name(' %s' % arg, context)
                    for type, arg in zip(tp.args, argnames)]
         arglist = ', '.join(arglist) or 'void'
         wrappername = '_cffi_f_%s' % name
         self.export_symbols.append(wrappername)
         funcdecl = ' %s(%s)' % (wrappername, arglist)
-        prnt(tp.result.get_c_name(funcdecl))
+        context = 'result of %s' % name
+        prnt(tp.result.get_c_name(funcdecl, context))
         prnt('{')
         #
         if not isinstance(tp.result, model.VoidType):
@@ -192,8 +194,11 @@ class VGenericEngine(object):
                 # only accept exactly the type declared.  Note the parentheses
                 # around the '*tmp' below.  In most cases they are not needed
                 # but don't hurt --- except test_struct_array_field.
-                prnt('  { %s = &p->%s; (void)tmp; }' % (
-                    ftype.get_c_name('(*tmp)'), fname))
+                try:
+                    prnt('  { %s = &p->%s; (void)tmp; }' % (
+                        ftype.get_c_name('(*tmp)', 'field %r'%fname), fname))
+                except ffiplatform.VerificationError, e:
+                    prnt('  /* %s */' % str(e))   # cannot verify it, ignore
         prnt('}')
         self.export_symbols.append(layoutfuncname)
         prnt('ssize_t %s(ssize_t i)' % (layoutfuncname,))
@@ -309,7 +314,7 @@ class VGenericEngine(object):
             prnt('}')
         else:
             assert tp is not None
-            prnt(tp.get_c_name(' %s(void)' % funcname),)
+            prnt(tp.get_c_name(' %s(void)' % funcname, name),)
             prnt('{')
             if category == 'var':
                 ampersand = '&'
@@ -336,7 +341,7 @@ class VGenericEngine(object):
             if value < 0 and not negative:
                 value += (1 << (8*self.ffi.sizeof("long long")))
         else:
-            BFunc = self.ffi.typeof(tp.get_c_name('(*)(void)'))
+            BFunc = self.ffi.typeof(tp.get_c_name('(*)(void)', name))
             function = module.load_function(BFunc, funcname)
             value = function()
         return value
@@ -436,7 +441,7 @@ class VGenericEngine(object):
         # remove ptr=<cdata 'int *'> from the library instance, and replace
         # it by a property on the class, which reads/writes into ptr[0].
         funcname = '_cffi_var_%s' % name
-        BFunc = self.ffi.typeof(tp.get_c_name('*(*)(void)'))
+        BFunc = self.ffi.typeof(tp.get_c_name('*(*)(void)', name))
         function = module.load_function(BFunc, funcname)
         ptr = function()
         def getter(library):

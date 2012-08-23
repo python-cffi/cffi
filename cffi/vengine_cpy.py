@@ -272,11 +272,13 @@ class VCPythonEngine(object):
         prnt('_cffi_f_%s(PyObject *self, PyObject *%s)' % (name, argname))
         prnt('{')
         #
+        context = 'argument of %s' % name
         for i, type in enumerate(tp.args):
-            prnt('  %s;' % type.get_c_name(' x%d' % i))
+            prnt('  %s;' % type.get_c_name(' x%d' % i, context))
         if not isinstance(tp.result, model.VoidType):
             result_code = 'result = '
-            prnt('  %s;' % tp.result.get_c_name(' result'))
+            context = 'result of %s' % name
+            prnt('  %s;' % tp.result.get_c_name(' result', context))
         else:
             result_code = ''
         #
@@ -372,8 +374,11 @@ class VCPythonEngine(object):
                 # only accept exactly the type declared.  Note the parentheses
                 # around the '*tmp' below.  In most cases they are not needed
                 # but don't hurt --- except test_struct_array_field.
-                prnt('  { %s = &p->%s; (void)tmp; }' % (
-                    ftype.get_c_name('(*tmp)'), fname))
+                try:
+                    prnt('  { %s = &p->%s; (void)tmp; }' % (
+                        ftype.get_c_name('(*tmp)', 'field %r'%fname), fname))
+                except ffiplatform.VerificationError, e:
+                    prnt('  /* %s */' % str(e))   # cannot verify it, ignore
         prnt('}')
         prnt('static PyObject *')
         prnt('%s(PyObject *self, PyObject *noarg)' % (layoutfuncname,))
@@ -492,7 +497,7 @@ class VCPythonEngine(object):
         prnt('  PyObject *o;')
         prnt('  int res;')
         if not is_int:
-            prnt('  %s;' % (vartp or tp).get_c_name(' i'))
+            prnt('  %s;' % (vartp or tp).get_c_name(' i', name))
         else:
             assert category == 'const'
         #
