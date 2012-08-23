@@ -1065,6 +1065,31 @@ def test_callback_returning_struct():
     assert s.a == -10
     assert s.b == 1E-42
 
+def test_callback_returning_big_struct():
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a', BInt, -1),
+                                       ('b', BInt, -1),
+                                       ('c', BInt, -1),
+                                       ('d', BInt, -1),
+                                       ('e', BInt, -1),
+                                       ('f', BInt, -1),
+                                       ('g', BInt, -1),
+                                       ('h', BInt, -1),
+                                       ('i', BInt, -1),
+                                       ('j', BInt, -1)])
+    def cb():
+        return newp(BStructPtr, range(13, 3, -1))[0]
+    BFunc = new_function_type((), BStruct)
+    f = callback(BFunc, cb)
+    s = f()
+    assert typeof(s) is BStruct
+    assert repr(s) in ["<cdata 'struct foo' owning 40 bytes>",
+                       "<cdata 'struct foo' owning 80 bytes>"]
+    for i, name in enumerate("abcdefghij"):
+        assert getattr(s, name) == 13 - i
+
 def test_callback_returning_void():
     BVoid = new_void_type()
     BFunc = new_function_type((), BVoid, False)
