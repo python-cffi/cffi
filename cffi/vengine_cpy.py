@@ -388,7 +388,8 @@ class VCPythonEngine(object):
             prnt('  static Py_ssize_t nums[] = {')
             prnt('    sizeof(%s),' % cname)
             prnt('    offsetof(struct _cffi_aligncheck, y),')
-            for fname in tp.fldnames:
+            for fname, fbitsize in zip(tp.fldnames, tp.fldbitsize):
+                assert fbitsize < 0
                 prnt('    offsetof(%s, %s),' % (cname, fname))
                 prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
             prnt('    -1')
@@ -401,7 +402,10 @@ class VCPythonEngine(object):
                 'sizeof(%s) != %d' % (cname, ffi.sizeof(BStruct)),
                 'offsetof(struct _cffi_aligncheck, y) != %d' % (
                     ffi.alignof(BStruct),)]
-            for fname, ftype in zip(tp.fldnames, tp.fldtypes):
+            for fname, ftype, fbitsize in zip(tp.fldnames, tp.fldtypes,
+                                              tp.fldbitsize):
+                if fbitsize >= 0:
+                    continue        # xxx ignore fbitsize for now
                 BField = ffi._get_cached_btype(ftype)
                 conditions += [
                     'offsetof(%s, %s) != %d' % (

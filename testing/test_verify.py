@@ -396,6 +396,11 @@ def test_struct_with_bitfield_exact():
     py.test.raises(OverflowError, "s.b = 4")
     assert s.b == 3
 
+def test_unsupported_struct_with_bitfield_ellipsis():
+    ffi = FFI()
+    py.test.raises(NotImplementedError, ffi.cdef,
+                   "struct foo_s { int a:2, b:3; ...; };")
+
 def test_global_constants():
     ffi = FFI()
     # use 'static const int', as generally documented, although in this
