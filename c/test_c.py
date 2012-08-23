@@ -886,14 +886,33 @@ def test_call_function_20():
     BStructPtr = new_pointer_type(BStruct)
     complete_struct_or_union(BStruct, [('a1', BChar, -1),
                                        ('a2', BShort, -1)])
-    BFunc18 = new_function_type((BStructPtr,), BShort, False)
-    f = cast(BFunc18, _testfunc(20))
+    BFunc20 = new_function_type((BStructPtr,), BShort, False)
+    f = cast(BFunc20, _testfunc(20))
     x = newp(BStructPtr, {'a1': b'A', 'a2': -4042})
     # test the exception that allows us to pass a 'struct foo' where the
     # function really expects a 'struct foo *'.
     res = f(x[0])
     assert res == -4042 + ord(b'A')
     assert res == f(x)
+
+def test_call_function_21():
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("foo")
+    complete_struct_or_union(BStruct, [('a', BInt, -1),
+                                       ('b', BInt, -1),
+                                       ('c', BInt, -1),
+                                       ('d', BInt, -1),
+                                       ('e', BInt, -1),
+                                       ('f', BInt, -1),
+                                       ('g', BInt, -1),
+                                       ('h', BInt, -1),
+                                       ('i', BInt, -1),
+                                       ('j', BInt, -1)])
+    BFunc21 = new_function_type((BStruct,), BInt, False)
+    f = cast(BFunc21, _testfunc(21))
+    res = f(range(13, 3, -1))
+    lst = [(n << i) for (i, n) in enumerate(range(13, 3, -1))]
+    assert res == sum(lst)
 
 def test_call_function_9():
     BInt = new_primitive_type("int")
