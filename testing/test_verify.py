@@ -806,6 +806,37 @@ def test_enum_as_function_result():
     """)
     assert lib.foo_func(lib.BB) == "BB"
 
+def test_enum_values():
+    ffi = FFI()
+    ffi.cdef("enum enum1_e { AA, BB };")
+    lib = ffi.verify("enum enum1_e { AA, BB };")
+    assert lib.AA == 0
+    assert lib.BB == 1
+    assert ffi.string(ffi.cast("enum enum1_e", 1)) == 'BB'
+
+def test_typedef_complete_enum():
+    ffi = FFI()
+    ffi.cdef("typedef enum { AA, BB } enum1_t;")
+    lib = ffi.verify("typedef enum { AA, BB } enum1_t;")
+    assert ffi.string(ffi.cast("enum enum1_e", 1)) == 'BB'
+    assert lib.AA == 0
+    assert lib.BB == 1
+
+def test_typedef_broken_complete_enum():
+    ffi = FFI()
+    ffi.cdef("typedef enum { AA, BB } enum1_t;")
+    py.test.raises(VerificationError, ffi.verify,
+                   "typedef enum { AA, CC, BB } enum1_t;")
+
+def test_typedef_incomplete_enum():
+    ffi = FFI()
+    ffi.cdef("typedef enum { AA, BB, ... } enum1_t;")
+    lib = ffi.verify("typedef enum { AA, CC, BB } enum1_t;")
+    assert ffi.string(ffi.cast("enum enum1_e", 1)) == '#1'
+    assert ffi.string(ffi.cast("enum enum1_e", 2)) == 'BB'
+    assert lib.AA == 0
+    assert lib.BB == 2
+
 def test_callback_calling_convention():
     py.test.skip("later")
     if sys.platform != 'win32':
