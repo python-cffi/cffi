@@ -968,14 +968,16 @@ extensions:
   fixed point types, vector types, etc. (must be declared with
   ``typedef struct { ...; } typename;`` and cannot be accessed directly)
 
-* Unnamed struct/union fields within struct/union
-
 * Thread-local variables (access them via getter/setter functions)
 
 * Variable-length structures, i.e. whose last field is a variable-length
   array (work around like in C, e.g. by declaring it as an array of
   length 0, allocating a ``char[]`` of the correct size, and casting
   it to a struct pointer)
+
+.. versionadded:: 0.4
+   Now supported: the common GCC extension of anonymous nested
+   structs/unions inside structs/unions.
 
 
 Reference: conversions
