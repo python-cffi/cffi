@@ -2010,3 +2010,32 @@ def test_get_array_of_length_zero():
             assert repr(p.a1).startswith("<cdata 'long *' 0x")
         else:
             assert repr(p.a1).startswith("<cdata 'long[%d]' 0x" % length)
+
+def test_nested_anonymous_struct():
+    BInt = new_primitive_type("int")
+    BChar = new_primitive_type("char")
+    BStruct = new_struct_type("foo")
+    BInnerStruct = new_struct_type("foo")
+    complete_struct_or_union(BInnerStruct, [('a1', BInt, -1),
+                                            ('a2', BChar, -1)])
+    complete_struct_or_union(BStruct, [('', BInnerStruct, -1),
+                                       ('a3', BChar, -1)])
+    assert sizeof(BInnerStruct) == sizeof(BInt) * 2   # with alignment
+    assert sizeof(BStruct) == sizeof(BInt) * 3        # 'a3' is placed after
+    d = _getfields(BStruct)
+    assert len(d) == 3
+    assert d[0][0] == 'a1'
+    assert d[0][1].type is BInt
+    assert d[0][1].offset == 0
+    assert d[0][1].bitshift == -1
+    assert d[0][1].bitsize == -1
+    assert d[1][0] == 'a2'
+    assert d[1][1].type is BChar
+    assert d[1][1].offset == sizeof(BInt)
+    assert d[1][1].bitshift == -1
+    assert d[1][1].bitsize == -1
+    assert d[2][0] == 'a3'
+    assert d[2][1].type is BChar
+    assert d[2][1].offset == sizeof(BInt) * 2
+    assert d[2][1].bitshift == -1
+    assert d[2][1].bitsize == -1

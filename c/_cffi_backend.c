@@ -41,7 +41,7 @@
 # define PyText_FromFormat PyString_FromFormat
 # define PyText_AsUTF8 PyString_AsString
 # define PyText_AS_UTF8 PyString_AS_STRING
-# define PyText_GetSize PyString_GetSize
+# define PyText_GetSize PyString_Size
 # define PyText_FromString PyString_FromString
 # define PyText_FromStringAndSize PyString_FromStringAndSize
 # define PyText_InternInPlace PyString_InternInPlace
@@ -314,15 +314,16 @@ static PyTypeObject CTypeDescr_Type = {
 
 /************************************************************/
 
-static char *
+static PyObject *
 get_field_name(CTypeDescrObject *ct, CFieldObject *cf)
 {
     Py_ssize_t i = 0;
     PyObject *d_key, *d_value;
     while (PyDict_Next(ct->ct_stuff, &i, &d_key, &d_value)) {
         if (d_value == (PyObject *)cf)
-            return PyText_AsUTF8(d_key);
+            return d_key;
     }
+    Py_FatalError("_cffi_backend: get_field_name()");
     return NULL;
 }
 
@@ -2919,6 +2920,39 @@ static PyObject *b_new_union_type(PyObject *self, PyObject *args)
     return _b_struct_or_union_type("union", name, CT_UNION);
 }
 
+static CFieldObject *
+_add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
+           Py_ssize_t offset, int bitshift, int fbitsize)
+{
+    int err;
+    Py_ssize_t prev_size;
+    CFieldObject *cf = PyObject_New(CFieldObject, &CField_Type);
+    if (cf == NULL)
+        return NULL;
+
+    Py_INCREF(ftype);
+    cf->cf_type = ftype;
+    cf->cf_offset = offset;
+    cf->cf_bitshift = bitshift;
+    cf->cf_bitsize = fbitsize;
+
+    Py_INCREF(fname);
+    PyText_InternInPlace(&fname);
+    prev_size = PyDict_Size(interned_fields);
+    err = PyDict_SetItem(interned_fields, fname, (PyObject *)cf);
+    Py_DECREF(fname);
+    Py_DECREF(cf);
+    if (err < 0)
+        return NULL;
+
+    if (PyDict_Size(interned_fields) != prev_size + 1) {
+        PyErr_Format(PyExc_KeyError, "duplicate field name '%s'",
+                     PyText_AS_UTF8(fname));
+        return NULL;
+    }
+    return cf;   /* borrowed reference */
+}
+
 static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
@@ -2964,8 +2998,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     for (i=0; i<nb_fields; i++) {
         PyObject *fname;
         CTypeDescrObject *ftype;
-        int fbitsize = -1, falign, err, bitshift, foffset = -1;
-        CFieldObject *cf;
+        int fbitsize = -1, falign, bitshift, foffset = -1;
 
         if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!|ii:list item",
                               &PyText_Type, &fname,
@@ -3042,32 +3075,36 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                 prev_bit_position += fbitsize;
         }
 
-        cf = PyObject_New(CFieldObject, &CField_Type);
-        if (cf == NULL)
-            goto error;
-        Py_INCREF(ftype);
-        cf->cf_type = ftype;
-        cf->cf_offset = offset;
-        cf->cf_bitshift = bitshift;
-        cf->cf_bitsize = fbitsize;
-
-        Py_INCREF(fname);
-        PyText_InternInPlace(&fname);
-        err = PyDict_SetItem(interned_fields, fname, (PyObject *)cf);
-        Py_DECREF(fname);
-        Py_DECREF(cf);
-        if (err < 0)
-            goto error;
-
-        if (PyDict_Size(interned_fields) != i + 1) {
-            PyErr_Format(PyExc_KeyError, "duplicate field name '%s'",
-                         PyText_AS_UTF8(fname));
-            goto error;
+        if (PyText_GetSize(fname) == 0 &&
+                ftype->ct_flags & (CT_STRUCT|CT_UNION)) {
+            /* a nested anonymous struct or union */
+            CFieldObject *cfsrc = (CFieldObject *)ftype->ct_extra;
+            for (; cfsrc != NULL; cfsrc = cfsrc->cf_next) {
+                /* broken complexity in the call to get_field_name(),
+                   but we'll assume you never do that with nested
+                   anonymous structures with thousand of fields */
+                *previous = _add_field(interned_fields,
+                                       get_field_name(ftype, cfsrc),
+                                       cfsrc->cf_type,
+                                       offset + cfsrc->cf_offset,
+                                       cfsrc->cf_bitshift,
+                                       cfsrc->cf_bitsize);
+                if (*previous == NULL)
+                    goto error;
+                previous = &(*previous)->cf_next;
+            }
+            /* always forbid such structures from being passed by value */
+            ct->ct_flags |= CT_CUSTOM_FIELD_POS;
+            prev_field = NULL;
         }
-
-        *previous = cf;
-        previous = &cf->cf_next;
-        prev_field = cf;
+        else {
+            prev_field = _add_field(interned_fields, fname, ftype,
+                                    offset, bitshift, fbitsize);
+            if (prev_field == NULL)
+                goto error;
+            *previous = prev_field;
+            previous = &prev_field->cf_next;
+        }
 
         if (maxsize < ftype->ct_size)
             maxsize = ftype->ct_size;
@@ -3129,8 +3166,8 @@ static PyObject *b__getfields(PyObject *self, PyObject *arg)
             return NULL;
         for (cf = (CFieldObject *)ct->ct_extra; cf != NULL; cf = cf->cf_next) {
             int err;
-            PyObject *o = Py_BuildValue("sO", get_field_name(ct, cf),
-                                        (PyObject *)cf);
+            PyObject *o = PyTuple_Pack(2, get_field_name(ct, cf),
+                                       (PyObject *)cf);
             err = (o != NULL) ? PyList_Append(res, o) : -1;
             Py_XDECREF(o);
             if (err < 0) {
@@ -3208,6 +3245,11 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
            But on 64-bit UNIX, these two structs are passed by value
            differently: e.g. on x86-64, "b" ends up in register "rsi" in
            the first case and "rdi" in the second case.
+
+           Another reason for CT_CUSTOM_FIELD_POS would be anonymous
+           nested structures: we lost the information about having it
+           here, so better safe (and forbid it) than sorry (and maybe
+           crash).
         */
         if (ct->ct_flags & CT_CUSTOM_FIELD_POS) {
             PyErr_SetString(PyExc_TypeError,
