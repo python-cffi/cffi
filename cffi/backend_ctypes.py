@@ -742,6 +742,8 @@ class CTypesBackend(object):
         name2fieldtype = dict(zip(fnames, zip(btypes, bitfields)))
         #
         for fname, BField, bitsize in fields:
+            if fname == '':
+                raise NotImplementedError("nested anonymous structs/unions")
             if hasattr(CTypesStructOrUnion, fname):
                 raise ValueError("the field name %r conflicts in "
                                  "the ctypes backend" % fname)

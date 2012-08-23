@@ -253,6 +253,12 @@ class Parser(object):
                 result = result.as_function_pointer()
             return result
         #
+        # nested anonymous structs or unions end up here
+        if isinstance(typenode, pycparser.c_ast.Struct):
+            return self._get_struct_union_enum_type('struct', typenode, name)
+        if isinstance(typenode, pycparser.c_ast.Union):
+            return self._get_struct_union_enum_type('union', typenode, name)
+        #
         raise api.FFIError("bad or unsupported type declaration")
 
     def _parse_function_type(self, typenode, funcname=None):
@@ -384,7 +390,7 @@ class Parser(object):
             type = self._get_type(decl.type, partial_length_ok=True)
             if self._partial_length:
                 self._make_partial(tp)
-            fldnames.append(decl.name)
+            fldnames.append(decl.name or '')
             fldtypes.append(type)
             fldbitsize.append(bitsize)
         tp.fldnames = tuple(fldnames)

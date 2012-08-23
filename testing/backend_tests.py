@@ -1297,7 +1297,6 @@ class BackendTests:
         assert ffi.string(e) == "AA"     # pick the first one arbitrarily
 
     def test_nested_anonymous_struct(self):
-        py.test.skip("later")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             struct foo_s {
@@ -1306,9 +1305,9 @@ class BackendTests:
             };
         """)
         assert ffi.sizeof("struct foo_s") == 3 * SIZE_OF_INT
-        p = ffi.new("struct foo_s *", [[1], [3]])
+        p = ffi.new("struct foo_s *", [1, 2, 3])
         assert p.a == 1
-        assert p.b == 0
+        assert p.b == 2
         assert p.c == 3
         assert p.d == 3
         p.d = 17
@@ -1318,6 +1317,47 @@ class BackendTests:
         assert p.b == 19
         assert p.c == 17
         assert p.d == 17
+        p = ffi.new("struct foo_s *", {'b': 12, 'd': 14})
+        assert p.a == 0
+        assert p.b == 12
+        assert p.c == 14
+        assert p.d == 14
+
+    def test_nested_anonymous_union(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            union foo_u {
+                struct { int a, b; };
+                union { int c, d; };
+            };
+        """)
+        assert ffi.sizeof("union foo_u") == 2 * SIZE_OF_INT
+        p = ffi.new("union foo_u *", [5])
+        assert p.a == 5
+        assert p.b == 0
+        assert p.c == 5
+        assert p.d == 5
+        p.d = 17
+        assert p.c == 17
+        assert p.a == 17
+        p.b = 19
+        assert p.a == 17
+        assert p.b == 19
+        assert p.c == 17
+        assert p.d == 17
+        p = ffi.new("union foo_u *", {'d': 14})
+        assert p.a == 14
+        assert p.b == 0
+        assert p.c == 14
+        assert p.d == 14
+        p = ffi.new("union foo_u *", {'b': 12})
+        assert p.a == 0
+        assert p.b == 12
+        assert p.c == 0
+        assert p.d == 0
+        # we cannot specify several items in the dict, even though
+        # in theory in this particular case it would make sense
+        # to give both 'a' and 'b'
 
     def test_cast_to_array_type(self):
         ffi = FFI(backend=self.Backend())
