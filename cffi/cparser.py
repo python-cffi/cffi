@@ -396,6 +396,10 @@ class Parser(object):
         tp.fldnames = tuple(fldnames)
         tp.fldtypes = tuple(fldtypes)
         tp.fldbitsize = tuple(fldbitsize)
+        if fldbitsize != [-1] * len(fldbitsize):
+            if isinstance(tp, model.StructType) and tp.partial:
+                raise NotImplementedError("%s: using both bitfields and '...;'"
+                                          % (tp,))
         return tp
 
     def _make_partial(self, tp):
