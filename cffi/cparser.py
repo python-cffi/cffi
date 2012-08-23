@@ -255,9 +255,11 @@ class Parser(object):
         #
         # nested anonymous structs or unions end up here
         if isinstance(typenode, pycparser.c_ast.Struct):
-            return self._get_struct_union_enum_type('struct', typenode, name)
+            return self._get_struct_union_enum_type('struct', typenode, name,
+                                                    nested=True)
         if isinstance(typenode, pycparser.c_ast.Union):
-            return self._get_struct_union_enum_type('union', typenode, name)
+            return self._get_struct_union_enum_type('union', typenode, name,
+                                                    nested=True)
         #
         raise api.FFIError("bad or unsupported type declaration")
 
@@ -297,7 +299,7 @@ class Parser(object):
             return const or 'const' in typenode.quals
         return False
 
-    def _get_struct_union_enum_type(self, kind, type, name=None):
+    def _get_struct_union_enum_type(self, kind, type, name=None, nested=False):
         # First, a level of caching on the exact 'type' node of the AST.
         # This is obscure, but needed because pycparser "unrolls" declarations
         # such as "typedef struct { } foo_t, *foo_p" and we end up with
@@ -380,7 +382,7 @@ class Parser(object):
                 # XXX pycparser is inconsistent: 'names' should be a list
                 # of strings, but is sometimes just one string.  Use
                 # str.join() as a way to cope with both.
-                self._make_partial(tp)
+                self._make_partial(tp, nested)
                 continue
             if decl.bitsize is None:
                 bitsize = -1
@@ -389,7 +391,9 @@ class Parser(object):
             self._partial_length = False
             type = self._get_type(decl.type, partial_length_ok=True)
             if self._partial_length:
-                self._make_partial(tp)
+                self._make_partial(tp, nested)
+            if isinstance(type, model.StructType) and type.partial:
+                self._make_partial(tp, nested)
             fldnames.append(decl.name or '')
             fldtypes.append(type)
             fldbitsize.append(bitsize)
@@ -402,11 +406,11 @@ class Parser(object):
                                           % (tp,))
         return tp
 
-    def _make_partial(self, tp):
+    def _make_partial(self, tp, nested):
         if not isinstance(tp, model.StructType):
             raise api.CDefError("%s cannot be partial" % (tp,))
-        if not tp.has_c_name():
-            raise api.CDefError("%s is partial but has no C name" % (tp,))
+        if not tp.has_c_name() and not nested:
+            raise NotImplementedError("%s is partial but has no C name" %(tp,))
         tp.partial = True
 
     def _parse_constant(self, exprnode, partial_length_ok=False):

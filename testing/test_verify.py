@@ -911,6 +911,8 @@ def test_dont_check_unnamable_fields():
     # assert did not crash
 
 def test_nested_anonymous_struct_exact():
+    if sys.platform == 'win32':
+        py.test.skip("nested anonymous struct/union")
     ffi = FFI()
     ffi.cdef("""
         struct foo_s { struct { int a; char b; }; union { char c, d; }; };
@@ -919,7 +921,7 @@ def test_nested_anonymous_struct_exact():
         struct foo_s { struct { int a; char b; }; union { char c, d; }; };
     """)
     p = ffi.new("struct foo_s *")
-    assert ffi.sizeof(p) == 3 * ffi.sizeof("int")    # with alignment
+    assert ffi.sizeof(p[0]) == 3 * ffi.sizeof("int")    # with alignment
     p.a = 1234567
     p.b = 'X'
     p.c = 'Y'
@@ -929,6 +931,8 @@ def test_nested_anonymous_struct_exact():
     assert p.d == 'Y'
 
 def test_nested_anonymous_struct_exact_error():
+    if sys.platform == 'win32':
+        py.test.skip("nested anonymous struct/union")
     ffi = FFI()
     ffi.cdef("""
         struct foo_s { struct { int a; char b; }; union { char c, d; }; };
@@ -939,3 +943,23 @@ def test_nested_anonymous_struct_exact_error():
     py.test.raises(VerificationError, ffi.verify, """
         struct foo_s { struct { int a; char e, b; }; union { char c, d; }; };
     """)
+
+def test_nested_anonymous_struct_inexact_1():
+    ffi = FFI()
+    ffi.cdef("""
+        struct foo_s { struct { char b; ...; }; union { char c, d; }; };
+    """)
+    ffi.verify("""
+        struct foo_s { int a, padding; char c, d, b; };
+    """)
+    assert ffi.sizeof("struct foo_s") == 3 * ffi.sizeof("int")
+
+def test_nested_anonymous_struct_inexact_2():
+    ffi = FFI()
+    ffi.cdef("""
+        struct foo_s { union { char c, d; }; struct { int a; char b; }; ...; };
+    """)
+    ffi.verify("""
+        struct foo_s { int a, padding; char c, d, b; };
+    """)
+    assert ffi.sizeof("struct foo_s") == 3 * ffi.sizeof("int")

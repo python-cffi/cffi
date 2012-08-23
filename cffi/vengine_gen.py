@@ -269,6 +269,7 @@ class VGenericEngine(object):
                 fieldofs.append(x)
                 fieldsize.append(function(num+1))
                 num += 2
+            tp.force_flatten()
             assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
             tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
 

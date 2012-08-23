@@ -450,6 +450,7 @@ class VCPythonEngine(object):
             totalalignment = layout[1]
             fieldofs = layout[2::2]
             fieldsize = layout[3::2]
+            tp.force_flatten()
             assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
             tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
 

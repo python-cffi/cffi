@@ -186,6 +186,21 @@ class StructOrUnion(StructOrUnionOrEnum):
             else:
                 yield (name, type, bitsize)
 
+    def force_flatten(self):
+        # force the struct or union to have a declaration that lists
+        # directly all fields returned by enumfields(), flattening
+        # nested anonymous structs/unions.
+        names = []
+        types = []
+        bitsizes = []
+        for name, type, bitsize in self.enumfields():
+            names.append(name)
+            types.append(type)
+            bitsizes.append(bitsize)
+        self.fldnames = tuple(names)
+        self.fldtypes = tuple(types)
+        self.fldbitsize = tuple(bitsizes)
+
     def finish_backend_type(self, ffi):
         BType = self.new_btype(ffi)
         ffi._cached_btypes[self] = BType
