@@ -189,3 +189,11 @@ def test_parse_error():
     ffi = FFI()
     e = py.test.raises(CDefError, ffi.cdef, " x y z ")
     assert re.match(r'cannot parse " x y z "\n:\d+:', str(e.value))
+
+def test_cannot_declare_enum_later():
+    ffi = FFI()
+    e = py.test.raises(NotImplementedError, ffi.cdef,
+                       "typedef enum foo_e foo_t; enum foo_e { AA, BB };")
+    assert str(e.value) == (
+           "enum foo_e: the '{}' declaration should appear on the "
+           "first time the enum is mentioned, not later")

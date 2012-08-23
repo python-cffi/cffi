@@ -136,13 +136,13 @@ class Parser(object):
             if isinstance(node, pycparser.c_ast.Struct):
                 # XXX do we need self._declare in any of those?
                 if node.decls is not None:
-                    self._get_struct_or_union_type('struct', node)
+                    self._get_struct_union_enum_type('struct', node)
             elif isinstance(node, pycparser.c_ast.Union):
                 if node.decls is not None:
-                    self._get_struct_or_union_type('union', node)
+                    self._get_struct_union_enum_type('union', node)
             elif isinstance(node, pycparser.c_ast.Enum):
                 if node.values is not None:
-                    self._get_enum_type(node)
+                    self._get_struct_union_enum_type('enum', node)
             elif not decl.name:
                 raise api.CDefError("construct does not declare any variable",
                                     decl)
@@ -236,15 +236,15 @@ class Parser(object):
             #
             if isinstance(type, pycparser.c_ast.Struct):
                 # 'struct foobar'
-                return self._get_struct_or_union_type('struct', type, name)
+                return self._get_struct_union_enum_type('struct', type, name)
             #
             if isinstance(type, pycparser.c_ast.Union):
                 # 'union foobar'
-                return self._get_struct_or_union_type('union', type, name)
+                return self._get_struct_union_enum_type('union', type, name)
             #
             if isinstance(type, pycparser.c_ast.Enum):
                 # 'enum foobar'
-                return self._get_enum_type(type)
+                return self._get_struct_union_enum_type('enum', type, name)
         #
         if isinstance(typenode, pycparser.c_ast.FuncDecl):
             # a function type
@@ -291,7 +291,7 @@ class Parser(object):
             return const or 'const' in typenode.quals
         return False
 
-    def _get_struct_or_union_type(self, kind, type, name=None):
+    def _get_struct_union_enum_type(self, kind, type, name=None):
         # First, a level of caching on the exact 'type' node of the AST.
         # This is obscure, but needed because pycparser "unrolls" declarations
         # such as "typedef struct { } foo_t, *foo_p" and we end up with
@@ -336,15 +336,26 @@ class Parser(object):
                 tp = model.StructType(explicit_name, None, None, None)
             elif kind == 'union':
                 tp = model.UnionType(explicit_name, None, None, None)
+            elif kind == 'enum':
+                tp = self._build_enum_type(explicit_name, type.values)
             else:
                 raise AssertionError("kind = %r" % (kind,))
             if name is not None:
                 self._declare(key, tp)
+        else:
+            if kind == 'enum' and type.values is not None:
+                raise NotImplementedError(
+                    "enum %s: the '{}' declaration should appear on the first "
+                    "time the enum is mentioned, not later" % explicit_name)
         tp.forcename = tp.forcename or force_name
         if tp.forcename and '$' in tp.name:
             self._declare('anonymous %s' % tp.forcename, tp)
         #
         self._structnode2type[type] = tp
+        #
+        # enums: done here
+        if kind == 'enum':
+            return tp
         #
         # is there a 'type.decls'?  If yes, then this is the place in the
         # C sources that declare the fields.  If no, then just return the
@@ -407,28 +418,7 @@ class Parser(object):
         raise api.FFIError("unsupported non-constant or "
                            "not immediately constant expression")
 
-    def _get_enum_type(self, type):
-        # See _get_struct_or_union_type() for the reason of the
-        # complicated logic here.  This is still a simplified version,
-        # assuming that it's ok to assume the more complicated cases
-        # don't occur...
-        try:
-            return self._structnode2type[type]
-        except KeyError:
-            pass
-        name = type.name
-        if name is None:
-            self._anonymous_counter += 1
-            explicit_name = '$%d' % self._anonymous_counter
-            key = None
-        else:
-            explicit_name = name
-            key = 'enum %s' % (name,)
-            tp = self._declarations.get(key, None)
-            if tp is not None:
-                return tp
-        #
-        decls = type.values
+    def _build_enum_type(self, explicit_name, decls):
         if decls is not None:
             enumerators = [enum.name for enum in decls.enumerators]
             partial = False
@@ -446,11 +436,6 @@ class Parser(object):
             enumvalues = tuple(enumvalues) 
             tp = model.EnumType(explicit_name, enumerators, enumvalues)
             tp.partial = partial
-            if key is not None:
-                self._declare(key, tp)
         else:   # opaque enum
-            enumerators = ()
-            enumvalues = ()
             tp = model.EnumType(explicit_name, (), ())
-        self._structnode2type[type] = tp
         return tp

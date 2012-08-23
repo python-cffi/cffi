@@ -158,9 +158,16 @@ class ArrayType(BaseType):
         return global_cache(ffi, 'new_array_type', BPtrItem, self.length)
 
 
-class StructOrUnion(BaseType):
+class StructOrUnionOrEnum(BaseType):
     _attrs_ = ('name',)
     forcename = None
+
+    def _get_c_name(self, replace_with):
+        name = self.forcename or '%s %s' % (self.kind, self.name)
+        return name + replace_with
+
+
+class StructOrUnion(StructOrUnionOrEnum):
     fixedlayout = None
 
     def __init__(self, name, fldnames, fldtypes, fldbitsize):
@@ -168,10 +175,6 @@ class StructOrUnion(BaseType):
         self.fldnames = fldnames
         self.fldtypes = fldtypes
         self.fldbitsize = fldbitsize
-
-    def _get_c_name(self, replace_with):
-        name = self.forcename or '%s %s' % (self.kind, self.name)
-        return name + replace_with
 
     def finish_backend_type(self, ffi):
         BType = self.new_btype(ffi)
@@ -244,17 +247,14 @@ class UnionType(StructOrUnion):
         return ffi._backend.new_union_type(self.name)
 
 
-class EnumType(BaseType):
-    _attrs_ = ('name',)
+class EnumType(StructOrUnionOrEnum):
+    kind = 'enum'
     partial = False
 
     def __init__(self, name, enumerators, enumvalues):
         self.name = name
         self.enumerators = enumerators
         self.enumvalues = enumvalues
-
-    def _get_c_name(self, replace_with):
-        return 'enum %s%s' % (self.name, replace_with)
 
     def check_not_partial(self):
         if self.partial:

@@ -818,7 +818,7 @@ def test_typedef_complete_enum():
     ffi = FFI()
     ffi.cdef("typedef enum { AA, BB } enum1_t;")
     lib = ffi.verify("typedef enum { AA, BB } enum1_t;")
-    assert ffi.string(ffi.cast("enum enum1_e", 1)) == 'BB'
+    assert ffi.string(ffi.cast("enum1_t", 1)) == 'BB'
     assert lib.AA == 0
     assert lib.BB == 1
 
@@ -832,8 +832,8 @@ def test_typedef_incomplete_enum():
     ffi = FFI()
     ffi.cdef("typedef enum { AA, BB, ... } enum1_t;")
     lib = ffi.verify("typedef enum { AA, CC, BB } enum1_t;")
-    assert ffi.string(ffi.cast("enum enum1_e", 1)) == '#1'
-    assert ffi.string(ffi.cast("enum enum1_e", 2)) == 'BB'
+    assert ffi.string(ffi.cast("enum1_t", 1)) == '#1'
+    assert ffi.string(ffi.cast("enum1_t", 2)) == 'BB'
     assert lib.AA == 0
     assert lib.BB == 2
 

@@ -276,13 +276,22 @@ class VGenericEngine(object):
     # or unions; the 'name' is obtained by a typedef.
 
     def _generate_gen_anonymous_decl(self, tp, name):
-        self._generate_struct_or_union_decl(tp, '', name)
+        if isinstance(tp, model.EnumType):
+            self._generate_gen_enum_decl(tp, name, '')
+        else:
+            self._generate_struct_or_union_decl(tp, '', name)
 
     def _loading_gen_anonymous(self, tp, name, module):
-        self._loading_struct_or_union(tp, '', name, module)
+        if isinstance(tp, model.EnumType):
+            self._loading_gen_enum(tp, name, module, '')
+        else:
+            self._loading_struct_or_union(tp, '', name, module)
 
     def _loaded_gen_anonymous(self, tp, name, module, **kwds):
-        self._loaded_struct_or_union(tp)
+        if isinstance(tp, model.EnumType):
+            self._loaded_gen_enum(tp, name, module, **kwds)
+        else:
+            self._loaded_struct_or_union(tp)
 
     # ----------
     # constants, likely declared with '#define'
@@ -340,13 +349,13 @@ class VGenericEngine(object):
     # ----------
     # enums
 
-    def _generate_gen_enum_decl(self, tp, name):
+    def _generate_gen_enum_decl(self, tp, name, prefix='enum'):
         if tp.partial:
             for enumerator in tp.enumerators:
                 self._generate_gen_const(True, enumerator)
             return
         #
-        funcname = '_cffi_enum_%s' % name
+        funcname = '_cffi_e_%s_%s' % (prefix, name)
         self.export_symbols.append(funcname)
         prnt = self._prnt
         prnt('int %s(char *out_error)' % funcname)
@@ -365,7 +374,7 @@ class VGenericEngine(object):
 
     _loading_gen_enum = _loaded_noop
 
-    def _loading_gen_enum(self, tp, name, module):
+    def _loading_gen_enum(self, tp, name, module, prefix='enum'):
         if tp.partial:
             enumvalues = [self._load_constant(True, tp, enumerator, module)
                           for enumerator in tp.enumerators]
@@ -373,7 +382,7 @@ class VGenericEngine(object):
             tp.partial = False
         else:
             BFunc = self.ffi.typeof("int(*)(char*)")
-            funcname = '_cffi_enum_%s' % name
+            funcname = '_cffi_e_%s_%s' % (prefix, name)
             function = module.load_function(BFunc, funcname)
             p = self.ffi.new("char[]", 256)
             if function(p) < 0:

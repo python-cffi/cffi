@@ -1279,9 +1279,9 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         ffi.cdef("typedef enum { Value0 = 0 } e, *pe;\n"
                  "typedef enum { Value1 = 1 } e1;")
-        assert ffi.getctype("e*") == 'enum $1 *'
-        assert ffi.getctype("pe") == 'enum $1 *'
-        assert ffi.getctype("e1*") == 'enum $2 *'
+        assert ffi.getctype("e*") == 'enum $e *'
+        assert ffi.getctype("pe") == 'enum $e *'
+        assert ffi.getctype("e1*") == 'enum $e1 *'
 
     def test_new_ctype(self):
         ffi = FFI(backend=self.Backend())

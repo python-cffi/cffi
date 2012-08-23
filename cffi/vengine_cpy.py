@@ -459,16 +459,26 @@ class VCPythonEngine(object):
     _generate_cpy_anonymous_collecttype = _generate_nothing
 
     def _generate_cpy_anonymous_decl(self, tp, name):
-        self._generate_struct_or_union_decl(tp, '', name)
+        if isinstance(tp, model.EnumType):
+            self._generate_cpy_enum_decl(tp, name, '')
+        else:
+            self._generate_struct_or_union_decl(tp, '', name)
 
     def _generate_cpy_anonymous_method(self, tp, name):
-        self._generate_struct_or_union_method(tp, '', name)
+        if not isinstance(tp, model.EnumType):
+            self._generate_struct_or_union_method(tp, '', name)
 
     def _loading_cpy_anonymous(self, tp, name, module):
-        self._loading_struct_or_union(tp, '', name, module)
+        if isinstance(tp, model.EnumType):
+            self._loading_cpy_enum(tp, name, module)
+        else:
+            self._loading_struct_or_union(tp, '', name, module)
 
     def _loaded_cpy_anonymous(self, tp, name, module, **kwds):
-        self._loaded_struct_or_union(tp)
+        if isinstance(tp, model.EnumType):
+            self._loaded_cpy_enum(tp, name, module, **kwds)
+        else:
+            self._loaded_struct_or_union(tp)
 
     # ----------
     # constants, likely declared with '#define'
@@ -529,13 +539,13 @@ class VCPythonEngine(object):
     # ----------
     # enums
 
-    def _generate_cpy_enum_decl(self, tp, name):
+    def _generate_cpy_enum_decl(self, tp, name, prefix='enum'):
         if tp.partial:
             for enumerator in tp.enumerators:
                 self._generate_cpy_const(True, enumerator, delayed=False)
             return
         #
-        funcname = '_cffi_enum_%s' % name
+        funcname = '_cffi_e_%s_%s' % (prefix, name)
         prnt = self._prnt
         prnt('static int %s(PyObject *lib)' % funcname)
         prnt('{')
@@ -555,7 +565,6 @@ class VCPythonEngine(object):
 
     _generate_cpy_enum_collecttype = _generate_nothing
     _generate_cpy_enum_method = _generate_nothing
-    _loading_cpy_enum = _loaded_noop
 
     def _loading_cpy_enum(self, tp, name, module):
         if tp.partial:
