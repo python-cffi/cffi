@@ -183,9 +183,7 @@ class VGenericEngine(object):
         prnt('static void %s(%s *p)' % (checkfuncname, cname))
         prnt('{')
         prnt('  /* only to generate compile-time warnings or errors */')
-        for i in range(len(tp.fldnames)):
-            fname = tp.fldnames[i]
-            ftype = tp.fldtypes[i]
+        for fname, ftype, _ in tp.enumfields():
             if (isinstance(ftype, model.PrimitiveType)
                 and ftype.is_integer_type()):
                 # accept all integers, but complain on float or double
@@ -208,7 +206,7 @@ class VGenericEngine(object):
             prnt('  static ssize_t nums[] = {')
             prnt('    1, sizeof(%s),' % cname)
             prnt('    offsetof(struct _cffi_aligncheck, y),')
-            for fname, fbitsize in zip(tp.fldnames, tp.fldbitsize):
+            for fname, _, fbitsize in tp.enumfields():
                 assert fbitsize < 0
                 prnt('    offsetof(%s, %s),' % (cname, fname))
                 prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
@@ -222,8 +220,7 @@ class VGenericEngine(object):
                 'sizeof(%s) != %d' % (cname, ffi.sizeof(BStruct)),
                 'offsetof(struct _cffi_aligncheck, y) != %d' % (
                     ffi.alignof(BStruct),)]
-            for fname, ftype, fbitsize in zip(tp.fldnames, tp.fldtypes,
-                                              tp.fldbitsize):
+            for fname, ftype, fbitsize in tp.enumfields():
                 if fbitsize >= 0:
                     continue        # xxx ignore fbitsize for now
                 BField = ffi._get_cached_btype(ftype)
