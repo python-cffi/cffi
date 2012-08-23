@@ -895,3 +895,51 @@ def test_dont_check_unnamable_fields():
     ffi.cdef("struct foo_s { struct { int x; } someone; };")
     ffi.verify("struct foo_s { struct { int x; } someone; };")
     # assert did not crash
+
+def test_nested_anonymous_struct_exact():
+    ffi = FFI()
+    ffi.cdef("""
+        struct foo_s { struct { int a; char b; }; union { char c, d; }; };
+    """)
+    ffi.verify("""
+        struct foo_s { struct { int a; char b; }; union { char c, d; }; };
+    """)
+    p = ffi.new("struct foo_s *")
+    assert ffi.sizeof(p) == 3 * ffi.sizeof("int")    # with alignment
+    p.a = 1234567
+    p.b = 'X'
+    p.c = 'Y'
+    assert p.a == 1234567
+    assert p.b == 'X'
+    assert p.c == 'Y'
+    assert p.d == 'Y'
+
+def test_nested_anonymous_struct_exact():
+    ffi = FFI()
+    ffi.cdef("""
+        struct foo_s { struct { int a; char b; }; union { char c, d; }; };
+    """)
+    ffi.verify("""
+        struct foo_s { struct { int a; char b; }; union { char c, d; }; };
+    """)
+    p = ffi.new("struct foo_s *")
+    assert ffi.sizeof(p[0]) == 3 * ffi.sizeof("int")    # with alignment
+    p.a = 1234567
+    p.b = 'X'
+    p.c = 'Y'
+    assert p.a == 1234567
+    assert p.b == 'X'
+    assert p.c == 'Y'
+    assert p.d == 'Y'
+
+def test_nested_anonymous_struct_exact_error():
+    ffi = FFI()
+    ffi.cdef("""
+        struct foo_s { struct { int a; char b; }; union { char c, d; }; };
+    """)
+    py.test.raises(VerificationError, ffi.verify, """
+        struct foo_s { struct { int a; short b; }; union { char c, d; }; };
+    """)
+    py.test.raises(VerificationError, ffi.verify, """
+        struct foo_s { struct { int a; char e, b; }; union { char c, d; }; };
+    """)

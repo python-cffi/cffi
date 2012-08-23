@@ -363,9 +363,7 @@ class VCPythonEngine(object):
         prnt('static void %s(%s *p)' % (checkfuncname, cname))
         prnt('{')
         prnt('  /* only to generate compile-time warnings or errors */')
-        for i in range(len(tp.fldnames)):
-            fname = tp.fldnames[i]
-            ftype = tp.fldtypes[i]
+        for fname, ftype, _ in tp.enumfields():
             if (isinstance(ftype, model.PrimitiveType)
                 and ftype.is_integer_type()):
                 # accept all integers, but complain on float or double
@@ -388,7 +386,7 @@ class VCPythonEngine(object):
             prnt('  static Py_ssize_t nums[] = {')
             prnt('    sizeof(%s),' % cname)
             prnt('    offsetof(struct _cffi_aligncheck, y),')
-            for fname in tp.fldnames:
+            for fname, _, _ in tp.enumfields():
                 prnt('    offsetof(%s, %s),' % (cname, fname))
                 prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
             prnt('    -1')
@@ -401,7 +399,7 @@ class VCPythonEngine(object):
                 'sizeof(%s) != %d' % (cname, ffi.sizeof(BStruct)),
                 'offsetof(struct _cffi_aligncheck, y) != %d' % (
                     ffi.alignof(BStruct),)]
-            for fname, ftype in zip(tp.fldnames, tp.fldtypes):
+            for fname, ftype, _ in tp.enumfields():
                 BField = ffi._get_cached_btype(ftype)
                 conditions += [
                     'offsetof(%s, %s) != %d' % (

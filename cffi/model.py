@@ -176,6 +176,16 @@ class StructOrUnion(StructOrUnionOrEnum):
         self.fldtypes = fldtypes
         self.fldbitsize = fldbitsize
 
+    def enumfields(self):
+        for name, type, bitsize in zip(self.fldnames, self.fldtypes,
+                                       self.fldbitsize):
+            if name == '' and isinstance(type, StructOrUnion):
+                # nested anonymous struct/union
+                for result in type.enumfields():
+                    yield result
+            else:
+                yield (name, type, bitsize)
+
     def finish_backend_type(self, ffi):
         BType = self.new_btype(ffi)
         ffi._cached_btypes[self] = BType
@@ -201,7 +211,7 @@ class StructOrUnion(StructOrUnionOrEnum):
                     if nrest != 0:
                         self._verification_error(
                             "field '%s.%s' has a bogus size?" % (
-                            self.name, self.fldnames[i]))
+                            self.name, self.fldnames[i] or '{}'))
                     ftype = ftype.resolve_length(nlen)
                     self.fldtypes = (self.fldtypes[:i] + (ftype,) +
                                      self.fldtypes[i+1:])
@@ -214,7 +224,8 @@ class StructOrUnion(StructOrUnionOrEnum):
                 if bitemsize != fsize:
                     self._verification_error(
                         "field '%s.%s' is declared as %d bytes, but is "
-                        "really %d bytes" % (self.name, self.fldnames[i],
+                        "really %d bytes" % (self.name,
+                                             self.fldnames[i] or '{}',
                                              bitemsize, fsize))
             lst = list(zip(self.fldnames, fldtypes, self.fldbitsize, fieldofs))
             ffi._backend.complete_struct_or_union(BType, lst, self,
