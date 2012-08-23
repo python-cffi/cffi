@@ -837,6 +837,18 @@ def test_typedef_incomplete_enum():
     assert lib.AA == 0
     assert lib.BB == 2
 
+def test_typedef_enum_as_function_result():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef enum { AA, BB, ... } foo_t;
+        foo_t foo_func(int x);
+    """)
+    lib = ffi.verify("""
+        typedef enum { AA, CC, BB } foo_t;
+        foo_t foo_func(int x) { return x; }
+    """)
+    assert lib.foo_func(lib.BB) == "BB"
+
 def test_callback_calling_convention():
     py.test.skip("later")
     if sys.platform != 'win32':
