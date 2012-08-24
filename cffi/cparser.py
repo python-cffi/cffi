@@ -417,7 +417,7 @@ class Parser(object):
         # for now, limited to expressions that are an immediate number
         # or negative number
         if isinstance(exprnode, pycparser.c_ast.Constant):
-            return int(exprnode.value)
+            return int(exprnode.value, 0)
         #
         if (isinstance(exprnode, pycparser.c_ast.UnaryOp) and
                 exprnode.op == '-'):

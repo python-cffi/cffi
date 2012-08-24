@@ -880,6 +880,9 @@ class BackendTests:
         assert ffi.cast("enum bar", "A") != ffi.cast("int", 0)
         assert repr(ffi.cast("enum bar", "CC")) == "<cdata 'enum bar' 'CC'>"
         py.test.raises(ValueError, ffi.cast, "enum bar", "UNKNOWN")
+        ffi.cdef("enum baz { A=0x1000, B=0x2000 };")
+        assert int(ffi.cast("enum baz", "A")) == 0x1000
+        assert int(ffi.cast("enum baz", "B")) == 0x2000
 
     def test_enum_in_struct(self):
         ffi = FFI(backend=self.Backend())
