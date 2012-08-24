@@ -13,9 +13,10 @@ extra_compile_args = []
 extra_link_args = []
 
 
-def _ask_pkg_config(resultlist, option, result_prefix=''):
+def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
+    pkg_config = os.environ.get('PKG_CONFIG','pkg-config')
     try:
-        p = subprocess.Popen(['pkg-config', option, 'libffi'],
+        p = subprocess.Popen([pkg_config, option, 'libffi'],
                              stdout=subprocess.PIPE)
     except OSError as e:
         if e.errno != errno.ENOENT:
@@ -29,12 +30,21 @@ def _ask_pkg_config(resultlist, option, result_prefix=''):
                 assert x.startswith(result_prefix)
             res = [x[len(result_prefix):] for x in res]
             #print 'PKG_CONFIG:', option, res
+            #
+            sysroot = sysroot and os.environ.get('PKG_CONFIG_SYSROOT_DIR', '')
+            if sysroot:
+                # old versions of pkg-config don't support this env var,
+                # so here we emulate its effect if needed
+                res = [path if path.startswith(sysroot)
+                            else sysroot + path
+                         for path in res]
+            #
             resultlist[:] = res
 
 def use_pkg_config():
-    _ask_pkg_config(include_dirs,       '--cflags-only-I', '-I')
+    _ask_pkg_config(include_dirs,       '--cflags-only-I', '-I', sysroot=True)
     _ask_pkg_config(extra_compile_args, '--cflags-only-other')
-    _ask_pkg_config(library_dirs,       '--libs-only-L', '-L')
+    _ask_pkg_config(library_dirs,       '--libs-only-L', '-L', sysroot=True)
     _ask_pkg_config(extra_link_args,    '--libs-only-other')
     _ask_pkg_config(libraries,          '--libs-only-l', '-l')
 
