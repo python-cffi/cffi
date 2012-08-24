@@ -16,7 +16,7 @@ extra_link_args = []
 def _ask_pkg_config(resultlist, option, result_prefix=''):
     try:
         p = subprocess.Popen(['pkg-config', option, 'libffi'],
-                             stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
+                             stdout=subprocess.PIPE)
     except OSError as e:
         if e.errno != errno.ENOENT:
             raise
