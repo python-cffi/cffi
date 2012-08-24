@@ -472,9 +472,10 @@ compiler during ``verify()``:
    unspecified length, as in "``int n[];``" or "``int n[...];``.
    The length is completed by the C compiler.
 
-*  enums: in "``enum foo { A, B, C, ... };``" (with a trailing "``...``"),
-   the enumerated values are not necessarily in order; the C compiler
-   will reorder them as needed and skip any unmentioned value.  Like
+*  enums: if you don't know the exact order (or values) of the declared
+   constants, then use this syntax: "``enum foo { A, B, C, ... };``"
+   (with a trailing "``...``").  The C compiler will be used to figure
+   out the exact values of the constants.  Like
    with structs, an ``enum`` that does not end in "``...``" is assumed to
    be exact, and this is checked.
 
