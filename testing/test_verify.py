@@ -463,6 +463,26 @@ def test_full_enum():
     lib = ffi.verify("enum ee { EE1, EE2, EE3, EE4 };")
     assert lib.EE3 == 2
 
+def test_nonfull_enum_syntax2():
+    ffi = FFI()
+    ffi.cdef("enum ee { EE1, EE2=\t..., EE3 };")
+    py.test.raises(VerificationMissing, ffi.cast, 'enum ee', 'EE1')
+    ffi.verify("enum ee { EE1=10, EE2, EE3=-10, EE4 };")
+    assert int(ffi.cast('enum ee', 'EE2')) == 11
+    assert int(ffi.cast('enum ee', 'EE3')) == -10
+    #
+    ffi = FFI()
+    ffi.cdef("enum ee { EE1, EE2=\t... };")
+    py.test.raises(VerificationMissing, ffi.cast, 'enum ee', 'EE1')
+    ffi.verify("enum ee { EE1=10, EE2, EE3=-10, EE4 };")
+    assert int(ffi.cast('enum ee', 'EE2')) == 11
+    #
+    ffi = FFI()
+    ffi.cdef("enum ee2 { EE4=..., EE5=..., ... };")
+    ffi.verify("enum ee2 { EE4=-1234-5, EE5 }; ")
+    assert int(ffi.cast('enum ee2', 'EE4')) == -1239
+    assert int(ffi.cast('enum ee2', 'EE5')) == -1238
+
 def test_get_set_errno():
     ffi = FFI()
     ffi.cdef("int foo(int);")

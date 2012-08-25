@@ -5,7 +5,7 @@ import pycparser.c_parser, weakref, re
 _r_comment = re.compile(r"/\*.*?\*/|//.*?$", re.DOTALL | re.MULTILINE)
 _r_define  = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z_0-9]*)\s+(.*?)$",
                         re.MULTILINE)
-_r_partial_enum = re.compile(r"\.\.\.\s*\}")
+_r_partial_enum = re.compile(r"=\s*\.\.\.\s*[,}]|\.\.\.\s*\}")
 _r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _r_partial_array = re.compile(r"\[\s*\.\.\.\s*\]")
 _parser_cache = None
@@ -30,13 +30,21 @@ def _preprocess(csource):
     csource = _r_partial_array.sub('[__dotdotdotarray__]', csource)
     # Replace "...}" with "__dotdotdotNUM__}".  This construction should
     # occur only at the end of enums; at the end of structs we have "...;}"
-    # and at the end of vararg functions "...);"
+    # and at the end of vararg functions "...);".  Also replace "=...[,}]"
+    # with ",__dotdotdotNUM__[,}]": this occurs in the enums too, when
+    # giving an unknown value.
     matches = list(_r_partial_enum.finditer(csource))
     for number, match in enumerate(reversed(matches)):
         p = match.start()
-        assert csource[p:p+3] == '...'
-        csource = '%s __dotdotdot%d__ %s' % (csource[:p], number,
-                                             csource[p+3:])
+        if csource[p] == '=':
+            p2 = csource.find('...', p, match.end())
+            assert p2 > p
+            csource = '%s,__dotdotdot%d__ %s' % (csource[:p], number,
+                                                 csource[p2+3:])
+        else:
+            assert csource[p:p+3] == '...'
+            csource = '%s __dotdotdot%d__ %s' % (csource[:p], number,
+                                                 csource[p+3:])
     # Replace all remaining "..." with the same name, "__dotdotdot__",
     # which is declared with a typedef for the purpose of C parsing.
     return csource.replace('...', ' __dotdotdot__ '), macros
@@ -434,11 +442,10 @@ class Parser(object):
 
     def _build_enum_type(self, explicit_name, decls):
         if decls is not None:
-            enumerators = [enum.name for enum in decls.enumerators]
-            partial = False
-            if enumerators and _r_enum_dotdotdot.match(enumerators[-1]):
-                enumerators.pop()
-                partial = True
+            enumerators1 = [enum.name for enum in decls.enumerators]
+            enumerators = [s for s in enumerators1
+                             if not _r_enum_dotdotdot.match(s)]
+            partial = len(enumerators) < len(enumerators1)
             enumerators = tuple(enumerators)
             enumvalues = []
             nextenumvalue = 0
