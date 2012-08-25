@@ -475,8 +475,10 @@ compiler during ``verify()``:
 *  enums: if you don't know the exact order (or values) of the declared
    constants, then use this syntax: "``enum foo { A, B, C, ... };``"
    (with a trailing "``...``").  The C compiler will be used to figure
-   out the exact values of the constants.  Like
-   with structs, an ``enum`` that does not end in "``...``" is assumed to
+   out the exact values of the constants.  An alternative syntax is
+   "``enum foo { A=..., B, C };``" or even
+   "``enum foo { A=..., B=..., C=... };``".  Like
+   with structs, an ``enum`` without "``...``" is assumed to
    be exact, and this is checked.
 
 *  integer macros: you can write in the ``cdef`` the line
