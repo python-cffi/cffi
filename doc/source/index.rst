@@ -505,6 +505,9 @@ and afterwards we don't check if they set a Python exception, for
 example.  You may work around it, but mixing CFFI with ``Python.h`` is
 not recommended.
 
+.. versionadded:: 0.4
+   Unions used to crash ``verify()``.  Fixed.
+
 
 Working with pointers, structures and arrays
 --------------------------------------------

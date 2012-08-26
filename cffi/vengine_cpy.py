@@ -338,18 +338,25 @@ class VCPythonEngine(object):
     # named structs
 
     _generate_cpy_struct_collecttype = _generate_nothing
-
     def _generate_cpy_struct_decl(self, tp, name):
         assert name == tp.name
         self._generate_struct_or_union_decl(tp, 'struct', name)
-
     def _generate_cpy_struct_method(self, tp, name):
         self._generate_struct_or_union_method(tp, 'struct', name)
-
     def _loading_cpy_struct(self, tp, name, module):
         self._loading_struct_or_union(tp, 'struct', name, module)
-
     def _loaded_cpy_struct(self, tp, name, module, **kwds):
+        self._loaded_struct_or_union(tp)
+
+    _generate_cpy_union_collecttype = _generate_nothing
+    def _generate_cpy_union_decl(self, tp, name):
+        assert name == tp.name
+        self._generate_struct_or_union_decl(tp, 'union', name)
+    def _generate_cpy_union_method(self, tp, name):
+        self._generate_struct_or_union_method(tp, 'union', name)
+    def _loading_cpy_union(self, tp, name, module):
+        self._loading_struct_or_union(tp, 'union', name, module)
+    def _loaded_cpy_union(self, tp, name, module, **kwds):
         self._loaded_struct_or_union(tp)
 
     def _generate_struct_or_union_decl(self, tp, prefix, name):
@@ -382,7 +389,7 @@ class VCPythonEngine(object):
         prnt('%s(PyObject *self, PyObject *noarg)' % (layoutfuncname,))
         prnt('{')
         prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
-        if tp.partial:
+        if isinstance(tp, model.StructType) and tp.partial:
             prnt('  static Py_ssize_t nums[] = {')
             prnt('    sizeof(%s),' % cname)
             prnt('    offsetof(struct _cffi_aligncheck, y),')
@@ -444,7 +451,7 @@ class VCPythonEngine(object):
             raise ffiplatform.VerificationError(
                 "incompatible layout for %s" % cname)
         elif layout is True:
-            assert not tp.partial
+            assert isinstance(tp, model.UnionType) or not tp.partial
         else:
             totalsize = layout[0]
             totalalignment = layout[1]

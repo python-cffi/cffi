@@ -983,3 +983,8 @@ def test_nested_anonymous_struct_inexact_2():
         struct foo_s { int a, padding; char c, d, b; };
     """)
     assert ffi.sizeof("struct foo_s") == 3 * ffi.sizeof("int")
+
+def test_ffi_union():
+    ffi = FFI()
+    ffi.cdef("union foo_u { char x; long *z; };")
+    ffi.verify("union foo_u { char x; int y; long *z; };")

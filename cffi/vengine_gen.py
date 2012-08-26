@@ -172,6 +172,16 @@ class VGenericEngine(object):
     def _loaded_gen_struct(self, tp, name, module, **kwds):
         self._loaded_struct_or_union(tp)
 
+    def _generate_gen_union_decl(self, tp, name):
+        assert name == tp.name
+        self._generate_struct_or_union_decl(tp, 'union', name)
+
+    def _loading_gen_union(self, tp, name, module):
+        self._loading_struct_or_union(tp, 'union', name, module)
+
+    def _loaded_gen_union(self, tp, name, module, **kwds):
+        self._loaded_struct_or_union(tp)
+
     def _generate_struct_or_union_decl(self, tp, prefix, name):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
@@ -202,7 +212,7 @@ class VGenericEngine(object):
         prnt('ssize_t %s(ssize_t i)' % (layoutfuncname,))
         prnt('{')
         prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
-        if tp.partial:
+        if isinstance(tp, model.StructType) and tp.partial:
             prnt('  static ssize_t nums[] = {')
             prnt('    1, sizeof(%s),' % cname)
             prnt('    offsetof(struct _cffi_aligncheck, y),')
@@ -256,7 +266,7 @@ class VGenericEngine(object):
             raise ffiplatform.VerificationError(
                 "incompatible layout for %s" % cname)
         elif layout == 0:
-            assert not tp.partial
+            assert isinstance(tp, model.UnionType) or not tp.partial
         else:
             totalsize = function(1)
             totalalignment = function(2)
