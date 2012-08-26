@@ -801,11 +801,12 @@ Example (sketch)::
     >>> lib.function_returning_a_struct()
     <cdata 'struct foo_s' owning 8 bytes>
 
-There are a few (obscure) limitations to the argument types and
-return type.  You cannot pass directly as argument a union, nor a struct
-which uses bitfields (note that passing a *pointer* to anything is
-fine).  If you pass a struct, the struct type cannot have been declared
-with "``...;``" and completed with ``verify()``; you need to declare it
+There are a few (obscure) limitations to the argument types and return
+type.  You cannot pass directly as argument a union (but a **pointer**
+to a union is fine), nor a struct which uses bitfields (but a
+**pointer** to such a struct is fine).  If you pass a struct (not a
+**pointer** to a struct), the struct type cannot have been declared with
+"``...;``" and completed with ``verify()``; you need to declare it
 completely in ``cdef()``.
 
 Aside from these limitations, functions and callbacks can return structs.
