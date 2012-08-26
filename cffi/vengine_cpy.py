@@ -389,44 +389,17 @@ class VCPythonEngine(object):
         prnt('%s(PyObject *self, PyObject *noarg)' % (layoutfuncname,))
         prnt('{')
         prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
-        if isinstance(tp, model.StructType) and tp.partial:
-            prnt('  static Py_ssize_t nums[] = {')
-            prnt('    sizeof(%s),' % cname)
-            prnt('    offsetof(struct _cffi_aligncheck, y),')
-            for fname, _, fbitsize in tp.enumfields():
-                assert fbitsize < 0
-                prnt('    offsetof(%s, %s),' % (cname, fname))
-                prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
-            prnt('    -1')
-            prnt('  };')
-            prnt('  return _cffi_get_struct_layout(nums);')
-        else:
-            ffi = self.ffi
-            BStruct = ffi._get_cached_btype(tp)
-            conditions = [
-                'sizeof(%s) != %d' % (cname, ffi.sizeof(BStruct)),
-                'offsetof(struct _cffi_aligncheck, y) != %d' % (
-                    ffi.alignof(BStruct),)]
-            for fname, ftype, fbitsize in tp.enumfields():
-                if fbitsize >= 0:
-                    continue        # xxx ignore fbitsize for now
-                BField = ffi._get_cached_btype(ftype)
-                conditions += [
-                    'offsetof(%s, %s) != %d' % (
-                        cname, fname, ffi.offsetof(BStruct, fname)),
-                    'sizeof(((%s *)0)->%s) != %d' % (
-                        cname, fname, ffi.sizeof(BField))]
-            prnt('  if (%s ||' % conditions[0])
-            for i in range(1, len(conditions)-1):
-                prnt('      %s ||' % conditions[i])
-            prnt('      %s) {' % conditions[-1])
-            prnt('    Py_INCREF(Py_False);')
-            prnt('    return Py_False;')
-            prnt('  }')
-            prnt('  else {')
-            prnt('    Py_INCREF(Py_True);')
-            prnt('    return Py_True;')
-            prnt('  }')
+        prnt('  static Py_ssize_t nums[] = {')
+        prnt('    sizeof(%s),' % cname)
+        prnt('    offsetof(struct _cffi_aligncheck, y),')
+        for fname, _, fbitsize in tp.enumfields():
+            if fbitsize >= 0:
+                continue      # xxx ignore fbitsize for now
+            prnt('    offsetof(%s, %s),' % (cname, fname))
+            prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
+        prnt('    -1')
+        prnt('  };')
+        prnt('  return _cffi_get_struct_layout(nums);')
         prnt('  /* the next line is not executed, but compiled */')
         prnt('  %s(0);' % (checkfuncname,))
         prnt('}')
@@ -447,12 +420,9 @@ class VCPythonEngine(object):
         #
         function = getattr(module, layoutfuncname)
         layout = function()
-        if layout is False:
-            raise ffiplatform.VerificationError(
-                "incompatible layout for %s" % cname)
-        elif layout is True:
-            assert isinstance(tp, model.UnionType) or not tp.partial
-        else:
+        if isinstance(tp, model.StructType) and tp.partial:
+            # use the function()'s sizes and offsets to guide the
+            # layout of the struct
             totalsize = layout[0]
             totalalignment = layout[1]
             fieldofs = layout[2::2]
@@ -460,6 +430,29 @@ class VCPythonEngine(object):
             tp.force_flatten()
             assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
             tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
+        else:
+            # check that the function()'s sizes and offsets match
+            # the real ones
+            def check(realvalue, expectedvalue, msg):
+                if realvalue != expectedvalue:
+                    raise ffiplatform.VerificationError(
+                        "in %s: %s (we have %d, but C compiler says %d)"
+                        % (cname, msg, expectedvalue, realvalue))
+            ffi = self.ffi
+            BStruct = ffi._get_cached_btype(tp)
+            check(layout[0], ffi.sizeof(BStruct), "wrong total size")
+            check(layout[1], ffi.alignof(BStruct), "wrong total alignment")
+            i = 2
+            for fname, ftype, fbitsize in tp.enumfields():
+                if fbitsize >= 0:
+                    continue        # xxx ignore fbitsize for now
+                check(layout[i], ffi.offsetof(BStruct, fname),
+                      "wrong offset for field %r" % (fname,))
+                BField = ffi._get_cached_btype(ftype)
+                check(layout[i+1], ffi.sizeof(BField),
+                      "wrong size for field %r" % (fname,))
+                i += 2
+            assert i == len(layout)
 
     def _loaded_struct_or_union(self, tp):
         if tp.fldnames is None:

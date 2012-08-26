@@ -270,21 +270,37 @@ def test_ffi_full_struct():
     ffi.cdef("struct foo_s { char x; int y; long *z; };")
     ffi.verify("struct foo_s { char x; int y; long *z; };")
     #
-    if sys.platform == 'win32':
-        py.test.skip("XXX fixme: only gives warnings")
-    for real in [
-        "struct foo_s { char x; int y; int *z; };",
-        "struct foo_s { char x; long *z; int y; };",
-        "struct foo_s { int y; long *z; };",
-        "struct foo_s { char x; int y; long *z; char extra; };",
-        ]:
-        py.test.raises(VerificationError, ffi.verify, real)
+    if sys.platform != 'win32':  # XXX fixme: only gives warnings
+        py.test.raises(VerificationError, ffi.verify,
+            "struct foo_s { char x; int y; int *z; };")
+    #
+    py.test.raises(VerificationError, ffi.verify,
+        "struct foo_s { int y; long *z; };")
+    #
+    e = py.test.raises(VerificationError, ffi.verify,
+        "struct foo_s { int y; char x; long *z; };")
+    assert str(e.value) == (
+        "in struct foo_s: wrong offset for field 'x'"
+        " (we have 0, but C compiler says 4)")
+    #
+    e = py.test.raises(VerificationError, ffi.verify,
+        "struct foo_s { char x; int y; long *z; char extra; };")
+    assert str(e.value) == (
+        "in struct foo_s: wrong total size"
+        " (we have %d, but C compiler says %d)" % (
+            ffi.sizeof("struct foo_s"),
+            ffi.sizeof("struct foo_s") + ffi.sizeof("long*")))
     #
     # a corner case that we cannot really detect, but where it has no
     # bad consequences: the size is the same, but there is an extra field
     # that replaces what is just padding in our declaration above
     ffi.verify("struct foo_s { char x, extra; int y; long *z; };")
-
+    #
+    e = py.test.raises(VerificationError, ffi.verify,
+        "struct foo_s { char x; short pad; short y; long *z; };")
+    assert str(e.value) == (
+        "in struct foo_s: wrong size for field 'y'"
+        " (we have 4, but C compiler says 2)")
 
 def test_ffi_nonfull_struct():
     ffi = FFI()
