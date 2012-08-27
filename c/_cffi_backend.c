@@ -3117,9 +3117,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         assert(offset == 0);
         offset = maxsize;
     }
-    else {
-        offset = (offset + alignment - 1) & ~(alignment-1);
-    }
+    offset = (offset + alignment - 1) & ~(alignment-1);
+
     /* Like C, if the size of this structure would be zero, we compute it
        as 1 instead.  But for ctypes support, we allow the manually-
        specified totalsize to be zero in this case. */
