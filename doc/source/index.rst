@@ -202,7 +202,7 @@ Real example (API level)
     C = ffi.verify("""   // passed to the real C compiler
     #include <sys/types.h>
     #include <pwd.h>
-    """)
+    """, libraries=[])   # or a list of libraries to link with
     p = C.getpwuid(0)
     assert ffi.string(p.pw_name) == 'root'    # on Python 3: b'root'
 
@@ -435,7 +435,12 @@ The arguments to ``ffi.verify()`` are:
    ``library_dirs``, ``extra_objects``, ``extra_compile_args``,
    ``extra_link_args`` (keyword arguments): these are used when
    compiling the C code, and are passed directly to distutils_.
+   You typically need at least ``libraries=['foo']`` in order to
+   link with ``libfoo.so`` or ``foo.dll`` on Windows.  See the
+   distutils documentation for `more information about the other
+   arguments`__.
 
+.. __: http://docs.python.org/distutils/setupscript.html#library-options
 .. _distutils: http://docs.python.org/distutils/setupscript.html#describing-extension-modules
 .. _`demo/_curses.py`: https://bitbucket.org/cffi/cffi/src/default/demo/_curses.py
 
