@@ -434,10 +434,10 @@ The arguments to ``ffi.verify()`` are:
 *  ``include_dirs``, ``define_macros``, ``undef_macros``, ``libraries``,
    ``library_dirs``, ``extra_objects``, ``extra_compile_args``,
    ``extra_link_args`` (keyword arguments): these are used when
-   compiling the C code, and are passed directly to distutils_.
-   You typically need at least ``libraries=['foo']`` in order to
-   link with ``libfoo.so`` or ``foo.dll`` on Windows.  See the
-   distutils documentation for `more information about the other
+   compiling the C code, and are passed directly to distutils_.  You
+   typically need at least ``libraries=['foo']`` in order to link with
+   ``libfoo.so`` or ``libfoo.so.X.Y``, or ``foo.dll`` on Windows.  See
+   the distutils documentation for `more information about the other
    arguments`__.
 
 .. __: http://docs.python.org/distutils/setupscript.html#library-options
