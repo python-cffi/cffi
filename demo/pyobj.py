@@ -33,8 +33,13 @@ class Ref(object):
 
 ffi.cdef("""
     typedef int pyobj_t;
-    int sum(pyobj_t oblist, int count);
+    int sum(pyobj_t oblist);
 """)
+
+@ffi.pyexport("int(pyobj_t)")
+def length(oblist):
+    list = referents[oblist]
+    return len(list)
 
 @ffi.pyexport("int(pyobj_t, int)")
 def getitem(oblist, index):
@@ -44,8 +49,9 @@ def getitem(oblist, index):
 lib = ffi.verify("""
     typedef int pyobj_t;
 
-    int sum(pyobj_t oblist, int count) {
+    int sum(pyobj_t oblist) {
         int i, result = 0;
+        int count = length(oblist);
         for (i=0; i<count; i++) {
             int n = getitem(oblist, i);
             result += n;
@@ -55,4 +61,4 @@ lib = ffi.verify("""
 """)
 
 with Ref([10, 20, 30, 40]) as oblist:
-    print lib.sum(oblist, 4)
+    print lib.sum(oblist)
