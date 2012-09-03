@@ -14,7 +14,9 @@ class Verifier(object):
         self.kwds = kwds
         #
         key = '\x00'.join(['1', sys.version[:3], __version__, preamble] +
-                          ffi._cdefsources).encode('utf-8')
+                          ffi._cdefsources)
+        if sys.version_info >= (3,):
+            key = key.encode('utf-8')
         k1 = hex(binascii.crc32(key[0::2]) & 0xffffffff)
         k1 = k1.lstrip('0x').rstrip('L')
         k2 = hex(binascii.crc32(key[1::2]) & 0xffffffff)
