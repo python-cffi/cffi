@@ -405,7 +405,8 @@ as ``dlopen()`` does dynamically in C.
 The verification step
 ---------------------
 
-``ffi.verify(source, **kwargs)``: verifies that the current ffi signatures
+``ffi.verify(source, tmpdir=.., **kwargs)``:
+verifies that the current ffi signatures
 compile on this machine, and return a dynamic library object.  The
 dynamic library can be used to call functions and access global
 variables declared by a previous ``ffi.cdef()``.  You don't need to use
@@ -514,6 +515,15 @@ not recommended.
 
 .. versionadded:: 0.4
    Unions used to crash ``verify()``.  Fixed.
+
+.. versionadded:: 0.4
+   The ``tmpdir`` argument to ``verify()``: it controls where the C
+   files are created and compiled.  By default it is
+   ``directory_containing_the_py_file/__pycache__``, using the
+   directory name of the .py file that contains the actual call to
+   ``ffi.verify()``.  (This is a bit of a hack but is generally
+   consistent with the location of the .pyc files for your library.
+   The name ``__pycache__`` itself comes from Python 3.)
 
 
 Working with pointers, structures and arrays
@@ -1107,7 +1117,7 @@ For advanced use cases, the ``Verifier`` class from ``cffi.verifier``
 can be instantiated directly.  It is normally instantiated for you by
 ``ffi.verify()``, and the instance is attached as ``ffi.verifier``.
 
-- ``Verifier(ffi, preamble, **kwds)``: instantiate the class with an
+- ``Verifier(ffi, preamble, tmpdir=.., **kwds)``: instantiate the class with an
   FFI object and a preamble, which is C text that will be pasted into
   the generated C source.  The keyword arguments are passed directly
   to `distutils when building the Extension object.`__
@@ -1147,11 +1157,14 @@ can be instantiated directly.  It is normally instantiated for you by
 The following are global functions in the ``cffi.verifier`` module:
 
 - ``set_tmpdir(dirname)``: sets the temporary directory to use instead of
-  ``__pycache__``.
-  
-- ``cleanup_tmpdir()``: cleans up the temporary directory by removing all
-  files in it called ``_cffi_*.{c,so}`` as well as all files in the
-  ``build`` subdirectory.
+  ``directory_containing_the_py_file/__pycache__``.  This is a global, so
+  avoid it in production code.
+
+- ``cleanup_tmpdir(tmpdir=...)``: cleans up the temporary directory by
+  removing all files in it called ``_cffi_*.{c,so}`` as well as all
+  files in the ``build`` subdirectory.  By default it will clear
+  ``directory_containing_the_py_file/__pycache__``.  This is the .py
+  file containing the actual call to ``cleanup_tmpdir()``.
 
 
 
