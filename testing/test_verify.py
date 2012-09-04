@@ -1004,3 +1004,15 @@ def test_ffi_union():
     ffi = FFI()
     ffi.cdef("union foo_u { char x; long *z; };")
     ffi.verify("union foo_u { char x; int y; long *z; };")
+
+def test_ffi_struct_packed():
+    if sys.platform == 'win32':
+        py.test.skip("needs a GCC extension")
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int b; ...; };")
+    ffi.verify("""
+        struct foo_s {
+            char a;
+            int b;
+        } __attribute__((packed));
+    """)
