@@ -1383,3 +1383,12 @@ class BackendTests:
         del q
         import gc; gc.collect(); gc.collect(); gc.collect()
         assert seen == [1]
+
+    def test_CData_CType(self):
+        ffi = FFI(backend=self.Backend())
+        assert isinstance(ffi.cast("int", 0), ffi.CData)
+        assert isinstance(ffi.new("int *"), ffi.CData)
+        assert not isinstance(ffi.typeof("int"), ffi.CData)
+        assert not isinstance(ffi.cast("int", 0), ffi.CType)
+        assert not isinstance(ffi.new("int *"), ffi.CType)
+        assert isinstance(ffi.typeof("int"), ffi.CType)

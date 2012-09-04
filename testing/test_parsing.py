@@ -43,6 +43,8 @@ class FakeBackend(object):
         return FakeType("<void>")
     def cast(self, x, y):
         return 'casted!'
+    def _get_types(self):
+        return "CData", "CType"
 
 class FakeType(object):
     def __init__(self, cdecl):

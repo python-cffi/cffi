@@ -4105,6 +4105,12 @@ static PyObject *b_set_errno(PyObject *self, PyObject *args)
     return Py_None;
 }
 
+static PyObject *b__get_types(PyObject *self, PyObject *noarg)
+{
+    return PyTuple_Pack(2, (PyObject *)&CData_Type,
+                           (PyObject *)&CTypeDescr_Type);
+}
+
 /************************************************************/
 
 static char _testfunc0(char a, char b)
@@ -4322,6 +4328,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"buffer", b_buffer, METH_VARARGS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_VARARGS},
+    {"_get_types", b__get_types, METH_NOARGS},
     {"_testfunc", b__testfunc, METH_VARARGS},
     {NULL,     NULL}    /* Sentinel */
 };

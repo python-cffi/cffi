@@ -10,7 +10,11 @@ else:
     xrange = range
     bytechr = lambda num: bytes([num])
 
+class CTypesType(type):
+    pass
+
 class CTypesData(object):
+    __metaclass__ = CTypesType
     __slots__ = ['__weakref__']
 
     def __init__(self, *args):
@@ -284,6 +288,9 @@ class CTypesBackend(object):
 
     def set_ffi(self, ffi):
         self.ffi = ffi
+
+    def _get_types(self):
+        return CTypesData, CTypesType
 
     def nonstandard_integer_types(self):
         UNSIGNED = 0x1000

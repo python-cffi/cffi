@@ -952,6 +952,13 @@ e.g.::
         assert ffi.typeof(ptr) is ffi.typeof("foo_t*")
         ...
 
+.. versionadded:: 0.4
+   ``ffi.CData, ffi.CType``: the Python type of the objects referred to
+   as ``<cdata>`` and ``<ctype>`` in the rest of this document.  Note
+   that some cdata objects may be actually of a subclass of
+   ``ffi.CData``, and similarly with ctype, so you should check with
+   ``if isinstance(x, ffi.CData)``.
+
 ``ffi.sizeof("C type" or cdata object)``: return the size of the
 argument in bytes.  The argument can be either a C type, or a cdata object,
 like in the equivalent ``sizeof`` operator in C.

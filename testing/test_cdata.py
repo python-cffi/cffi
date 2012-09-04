@@ -21,6 +21,8 @@ class FakeBackend(object):
         return FakeType('ptr-to-%r' % (x,))
     def cast(self, x, y):
         return 'casted!'
+    def _get_types(self):
+        return "CData", "CType"
 
 
 class FakeType(object):

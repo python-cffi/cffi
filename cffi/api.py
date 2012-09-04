@@ -69,6 +69,7 @@ class FFI(object):
         del self._cdefsources[:]
         #
         self.NULL = self.cast("void *", 0)
+        self.CData, self.CType = backend._get_types()
 
     def cdef(self, csource, override=False):
         """Parse the given C source.  This registers all declared functions,
