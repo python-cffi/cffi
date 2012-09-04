@@ -1016,3 +1016,13 @@ def test_ffi_struct_packed():
             int b;
         } __attribute__((packed));
     """)
+
+def test_tmpdir():
+    import tempfile, os, shutil
+    from testing.udir import udir
+    tmpdir = tempfile.mkdtemp(dir=str(udir))
+    ffi = FFI()
+    ffi.cdef("int foo(int);")
+    lib = ffi.verify("int foo(int a) { return a + 42; }", tmpdir=tmpdir)
+    assert os.listdir(tmpdir)
+    assert lib.foo(100) == 142

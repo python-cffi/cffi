@@ -255,7 +255,7 @@ class FFI(object):
             assert BType2 is BType
         return BType
 
-    def verify(self, source='', **kwargs):
+    def verify(self, source='', tmpdir=None, **kwargs):
         """Verify that the current ffi signatures compile on this
         machine, and return a dynamic library object.  The dynamic
         library can be used to call functions and access global
@@ -264,8 +264,9 @@ class FFI(object):
         (including calling macros).  This is unlike 'ffi.dlopen()',
         which requires binary compatibility in the signatures.
         """
-        from .verifier import Verifier
-        self.verifier = Verifier(self, source, **kwargs)
+        from .verifier import Verifier, _caller_dir_pycache
+        tmpdir = tmpdir or _caller_dir_pycache()
+        self.verifier = Verifier(self, source, tmpdir, **kwargs)
         return self.verifier.load_library()
 
     def _get_errno(self):

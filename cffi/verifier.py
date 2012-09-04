@@ -5,7 +5,8 @@ from . import ffiplatform
 
 class Verifier(object):
 
-    def __init__(self, ffi, preamble, force_generic_engine=False, **kwds):
+    def __init__(self, ffi, preamble, tmpdir=None,
+                 force_generic_engine=False, **kwds):
         self.ffi = ffi
         self.preamble = preamble
         vengine_class = _locate_engine_class(ffi, force_generic_engine)
@@ -23,8 +24,9 @@ class Verifier(object):
         k2 = k2.lstrip('0').rstrip('L')
         modulename = '_cffi_%s%s%s' % (self._vengine._class_key, k1, k2)
         suffix = _get_so_suffix()
-        self.sourcefilename = os.path.join(_TMPDIR, modulename + '.c')
-        self.modulefilename = os.path.join(_TMPDIR, modulename + suffix)
+        self.tmpdir = tmpdir or _caller_dir_pycache()
+        self.sourcefilename = os.path.join(self.tmpdir, modulename + '.c')
+        self.modulefilename = os.path.join(self.tmpdir, modulename + suffix)
         self._has_source = False
         self._has_module = False
 
@@ -145,18 +147,26 @@ def _locate_engine_class(ffi, force_generic_engine):
 
 # ____________________________________________________________
 
-_TMPDIR = '__pycache__'
+_TMPDIR = None
+
+def _caller_dir_pycache():
+    if _TMPDIR:
+        return _TMPDIR
+    filename = sys._getframe(2).f_code.co_filename
+    return os.path.abspath(os.path.join(os.path.dirname(filename),
+                           '__pycache__'))
 
 def set_tmpdir(dirname):
     """Set the temporary directory to use instead of __pycache__."""
     global _TMPDIR
     _TMPDIR = dirname
 
-def cleanup_tmpdir(keep_so=False):
+def cleanup_tmpdir(tmpdir=None, keep_so=False):
     """Clean up the temporary directory by removing all files in it
     called `_cffi_*.{c,so}` as well as the `build` subdirectory."""
+    tmpdir = tmpdir or _caller_dir_pycache()
     try:
-        filelist = os.listdir(_TMPDIR)
+        filelist = os.listdir(tmpdir)
     except OSError:
         return
     if keep_so:
@@ -167,10 +177,10 @@ def cleanup_tmpdir(keep_so=False):
         if fn.lower().startswith('_cffi_') and (
                 fn.lower().endswith(suffix) or fn.lower().endswith('.c')):
             try:
-                os.unlink(os.path.join(_TMPDIR, fn))
+                os.unlink(os.path.join(tmpdir, fn))
             except OSError:
                 pass
-    clean_dir = [os.path.join(_TMPDIR, 'build')]
+    clean_dir = [os.path.join(tmpdir, 'build')]
     for dir in clean_dir:
         try:
             for fn in os.listdir(dir):
