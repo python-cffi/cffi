@@ -431,12 +431,14 @@ The arguments to ``ffi.verify()`` are:
    some advanced macros (see the example of ``getyx()`` in
    `demo/_curses.py`_).
 
-*  ``include_dirs``, ``define_macros``, ``undef_macros``, ``libraries``,
+*  ``sources``, ``include_dirs``,
+   ``define_macros``, ``undef_macros``, ``libraries``,
    ``library_dirs``, ``extra_objects``, ``extra_compile_args``,
    ``extra_link_args`` (keyword arguments): these are used when
    compiling the C code, and are passed directly to distutils_.  You
    typically need at least ``libraries=['foo']`` in order to link with
-   ``libfoo.so`` or ``libfoo.so.X.Y``, or ``foo.dll`` on Windows.  See
+   ``libfoo.so`` or ``libfoo.so.X.Y``, or ``foo.dll`` on Windows.  The
+   ``sources`` is a list of extra .c files compiled and linked together.  See
    the distutils documentation for `more information about the other
    arguments`__.
 
