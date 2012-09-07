@@ -308,6 +308,18 @@ Example::
   setup(...
         ext_modules=[yourmodule.ffi.verifier.get_extension()])
 
+If your ``setup.py`` installs a whole package, you can put the extension
+in it too::
+
+  setup(...
+        ext_package='yourpackage',     # but see below!
+        ext_modules=[yourmodule.ffi.verifier.get_extension()])
+
+However in this case you must also give the same ``ext_package``
+argument to the original call to ``ffi.verify()``::
+
+  ffi.verify("...", ext_package='yourpackage')
+
 Usually that's all you need, but see the `Reference: verifier`_ section
 for more details about the ``verifier`` object.
 
@@ -405,7 +417,7 @@ as ``dlopen()`` does dynamically in C.
 The verification step
 ---------------------
 
-``ffi.verify(source, tmpdir=.., **kwargs)``:
+``ffi.verify(source, tmpdir=.., ext_package=.., **kwargs)``:
 verifies that the current ffi signatures
 compile on this machine, and return a dynamic library object.  The
 dynamic library can be used to call functions and access global
@@ -517,13 +529,17 @@ not recommended.
    Unions used to crash ``verify()``.  Fixed.
 
 .. versionadded:: 0.4
-   The ``tmpdir`` argument to ``verify()``: it controls where the C
+   The ``tmpdir`` argument to ``verify()`` controls where the C
    files are created and compiled.  By default it is
    ``directory_containing_the_py_file/__pycache__``, using the
    directory name of the .py file that contains the actual call to
    ``ffi.verify()``.  (This is a bit of a hack but is generally
    consistent with the location of the .pyc files for your library.
    The name ``__pycache__`` itself comes from Python 3.)
+
+   The ``ext_package`` argument controls in which package the
+   compiled extension module should be looked from.  This is
+   only useful after `distributing modules using CFFI`_.
 
 
 Working with pointers, structures and arrays
@@ -1124,9 +1140,14 @@ For advanced use cases, the ``Verifier`` class from ``cffi.verifier``
 can be instantiated directly.  It is normally instantiated for you by
 ``ffi.verify()``, and the instance is attached as ``ffi.verifier``.
 
-- ``Verifier(ffi, preamble, tmpdir=.., **kwds)``: instantiate the class with an
+- ``Verifier(ffi, preamble, tmpdir=.., ext_package='', **kwds)``:
+  instantiate the class with an
   FFI object and a preamble, which is C text that will be pasted into
-  the generated C source.  The keyword arguments are passed directly
+  the generated C source.  The value of ``tmpdir`` defaults to the
+  directory ``directory_of_the_caller/__pycache__``.  The value of
+  ``ext_package`` is used when looking up an already-compiled, already-
+  installed version of the extension module.
+  The keyword arguments are passed directly
   to `distutils when building the Extension object.`__
 
 .. __: http://docs.python.org/distutils/setupscript.html#describing-extension-module
@@ -1134,13 +1155,13 @@ can be instantiated directly.  It is normally instantiated for you by
 ``Verifier`` objects have the following public attributes and methods:
 
 - ``sourcefilename``: name of a C file.  Defaults to
-  ``__pycache__/_cffi_CRCHASH.c``, with the ``CRCHASH`` part computed
+  ``tmpdir/_cffi_CRCHASH.c``, with the ``CRCHASH`` part computed
   from the strings you passed to cdef() and verify() as well as the
   version numbers of Python and CFFI.  Can be changed before calling
   ``write_source()`` if you want to write the source somewhere else.
 
 - ``modulefilename``: name of the ``.so`` file (or ``.pyd`` on Windows).
-  Defaults to ``__pycache__/_cffi_CRCHASH.so``.  Can be changed before
+  Defaults to ``tmpdir/_cffi_CRCHASH.so``.  Can be changed before
   calling ``compile_module()``.
 
 - ``get_module_name()``: extract the module name from ``modulefilename``.
@@ -1154,7 +1175,10 @@ can be instantiated directly.  It is normally instantiated for you by
   given by ``modulefilename``.
 
 - ``load_library()``: loads the C module (if necessary, making it
-  first).  Returns an instance of a FFILibrary class that behaves like
+  first; it looks for the existing module based on the checksum of the
+  strings passed to ``ffi.cdef()`` and ``preamble``, either in the
+  directory ``tmpdir`` or in the directory of the package ``ext_package``).
+  Returns an instance of a FFILibrary class that behaves like
   the objects returned by ffi.dlopen(), but that delegates all
   operations to the C module.  This is what is returned by
   ``ffi.verify()``.

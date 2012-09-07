@@ -5,7 +5,7 @@ from . import ffiplatform
 
 class Verifier(object):
 
-    def __init__(self, ffi, preamble, tmpdir=None,
+    def __init__(self, ffi, preamble, tmpdir=None, ext_package=None,
                  force_generic_engine=False, **kwds):
         self.ffi = ffi
         self.preamble = preamble
@@ -27,6 +27,7 @@ class Verifier(object):
         self.tmpdir = tmpdir or _caller_dir_pycache()
         self.sourcefilename = os.path.join(self.tmpdir, modulename + '.c')
         self.modulefilename = os.path.join(self.tmpdir, modulename + suffix)
+        self.ext_package = ext_package
         self._has_source = False
         self._has_module = False
 
@@ -79,8 +80,14 @@ class Verifier(object):
 
     def _locate_module(self):
         if not os.path.isfile(self.modulefilename):
+            if self.ext_package:
+                pkg = __import__(self.ext_package, None, None, ['__doc__'])
+                path = pkg.__path__
+            else:
+                path = None
             try:
-                f, filename, descr = imp.find_module(self.get_module_name())
+                f, filename, descr = imp.find_module(self.get_module_name(),
+                                                     path)
             except ImportError:
                 return
             if f is not None:

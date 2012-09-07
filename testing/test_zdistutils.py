@@ -1,4 +1,4 @@
-import sys, os, imp, math, random
+import sys, os, imp, math, random, shutil
 import py
 from cffi import FFI, FFIError
 from cffi.verifier import Verifier, _locate_engine_class
@@ -174,6 +174,55 @@ class DistUtilsTest(object):
         assert 'distutils.extension.Extension' in str(ext.__class__)
         assert ext.sources == [v.sourcefilename, extra_source]
         assert ext.name == v.get_module_name()
+
+    def test_install_and_reload_module(self, targetpackage=''):
+        if not hasattr(os, 'fork'):
+            py.test.skip("test requires os.fork()")
+
+        if targetpackage:
+            udir.ensure(targetpackage, dir=1).ensure('__init__.py')
+        sys.path.insert(0, str(udir))
+
+        def make_ffi(**verifier_args):
+            ffi = FFI()
+            ffi.cdef("/* %s */" % targetpackage)
+            ffi.cdef("double test1iarm(double x);")
+            csrc = "double test1iarm(double x) { return x * 42.0; }"
+            lib = ffi.verify(csrc, force_generic_engine=self.generic,
+                             ext_package=targetpackage,
+                             **verifier_args)
+            return ffi, lib
+
+        childpid = os.fork()
+        if childpid == 0:
+            # in the child
+            ffi, lib = make_ffi()
+            assert lib.test1iarm(1.5) == 63.0
+            # "install" the module by moving it into udir (/targetpackage)
+            if targetpackage:
+                target = udir.join(targetpackage)
+            else:
+                target = udir
+            shutil.move(ffi.verifier.modulefilename, str(target))
+            os._exit(0)
+        # in the parent
+        _, status = os.waitpid(childpid, 0)
+        if not (os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0):
+            raise AssertionError   # see error above in subprocess
+
+        from cffi import ffiplatform
+        prev_compile = ffiplatform.compile
+        try:
+            ffiplatform.compile = lambda *args: dont_call_me_any_more
+            # won't find it in tmpdir, but should find it correctly
+            # installed in udir
+            ffi, lib = make_ffi()
+            assert lib.test1iarm(0.5) == 21.0
+        finally:
+            ffiplatform.compile = prev_compile
+
+    def test_install_and_reload_module_package(self):
+        self.test_install_and_reload_module(targetpackage='foo_iarmp')
 
 
 class TestDistUtilsCPython(DistUtilsTest):
