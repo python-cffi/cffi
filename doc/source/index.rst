@@ -308,9 +308,12 @@ Example::
   setup(...
         ext_modules=[yourmodule.ffi.verifier.get_extension()])
 
-If your ``setup.py`` installs a whole package, you can put the extension
-in it too::
+.. versionadded:: 0.4
+   If your ``setup.py`` installs a whole package, you can put the extension
+   in it too:
 
+::
+  
   setup(...
         ext_package='yourpackage',     # but see below!
         ext_modules=[yourmodule.ffi.verifier.get_extension()])
