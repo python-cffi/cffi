@@ -6,7 +6,7 @@ from . import ffiplatform
 class Verifier(object):
 
     def __init__(self, ffi, preamble, tmpdir=None, ext_package=None,
-                 force_generic_engine=False, **kwds):
+                 tag='', force_generic_engine=False, **kwds):
         self.ffi = ffi
         self.preamble = preamble
         vengine_class = _locate_engine_class(ffi, force_generic_engine)
@@ -22,7 +22,8 @@ class Verifier(object):
         k1 = k1.lstrip('0x').rstrip('L')
         k2 = hex(binascii.crc32(key[1::2]) & 0xffffffff)
         k2 = k2.lstrip('0').rstrip('L')
-        modulename = '_cffi_%s%s%s' % (self._vengine._class_key, k1, k2)
+        modulename = '_cffi_%s_%s%s%s' % (tag, self._vengine._class_key,
+                                          k1, k2)
         suffix = _get_so_suffix()
         self.tmpdir = tmpdir or _caller_dir_pycache()
         self.sourcefilename = os.path.join(self.tmpdir, modulename + '.c')

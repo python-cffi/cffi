@@ -420,7 +420,7 @@ as ``dlopen()`` does dynamically in C.
 The verification step
 ---------------------
 
-``ffi.verify(source, tmpdir=.., ext_package=.., **kwargs)``:
+``ffi.verify(source, tmpdir=.., ext_package=.., tag='', **kwargs)``:
 verifies that the current ffi signatures
 compile on this machine, and return a dynamic library object.  The
 dynamic library can be used to call functions and access global
@@ -543,6 +543,10 @@ not recommended.
    The ``ext_package`` argument controls in which package the
    compiled extension module should be looked from.  This is
    only useful after `distributing modules using CFFI`_.
+
+   The ``tag`` argument gives an extra string inserted in the
+   middle of the extension module's name: ``_cffi_<tag>_<hash>``.
+   Useful to give a bit more context, e.g. when debugging.
 
 
 Working with pointers, structures and arrays
@@ -1143,13 +1147,14 @@ For advanced use cases, the ``Verifier`` class from ``cffi.verifier``
 can be instantiated directly.  It is normally instantiated for you by
 ``ffi.verify()``, and the instance is attached as ``ffi.verifier``.
 
-- ``Verifier(ffi, preamble, tmpdir=.., ext_package='', **kwds)``:
+- ``Verifier(ffi, preamble, tmpdir=.., ext_package='', tag='', **kwds)``:
   instantiate the class with an
   FFI object and a preamble, which is C text that will be pasted into
   the generated C source.  The value of ``tmpdir`` defaults to the
   directory ``directory_of_the_caller/__pycache__``.  The value of
   ``ext_package`` is used when looking up an already-compiled, already-
-  installed version of the extension module.
+  installed version of the extension module.  The module name is
+  ``_cffi_<tag>_<hash>``.
   The keyword arguments are passed directly
   to `distutils when building the Extension object.`__
 

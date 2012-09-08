@@ -224,6 +224,15 @@ class DistUtilsTest(object):
     def test_install_and_reload_module_package(self):
         self.test_install_and_reload_module(targetpackage='foo_iarmp')
 
+    def test_tag(self):
+        ffi = FFI()
+        ffi.cdef("/* test_tag */ double test1tag(double x);")
+        csrc = "double test1tag(double x) { return x - 42.0; }"
+        lib = ffi.verify(csrc, force_generic_engine=self.generic,
+                         tag='xxtest_tagxx')
+        assert lib.test1tag(143) == 101.0
+        assert '_cffi_xxtest_tagxx_' in ffi.verifier.modulefilename
+
 
 class TestDistUtilsCPython(DistUtilsTest):
     generic = False
