@@ -696,6 +696,26 @@ def test_unknown_type_2():
     lib = ffi.verify("typedef struct token_s token_t;")
     # assert did not crash, even though 'sizeof(token_t)' is not valid in C.
 
+def test_unknown_type_3():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef ... *token_p;
+        token_p foo(token_p);
+    """)
+    lib = ffi.verify("""
+        typedef struct _token_s *token_p;
+        token_p foo(token_p arg) {
+            if (arg)
+                return (token_p)0x12347;
+            else
+                return (token_p)0x12345;
+        }
+    """)
+    p = lib.foo(ffi.NULL)
+    assert int(ffi.cast("intptr_t", p)) == 0x12345
+    q = lib.foo(p)
+    assert int(ffi.cast("intptr_t", q)) == 0x12347
+
 def test_varargs():
     ffi = FFI()
     ffi.cdef("int foo(int x, ...);")

@@ -127,6 +127,12 @@ class Parser(object):
                 if (isinstance(decl.type.type, pycparser.c_ast.IdentifierType)
                         and decl.type.type.names == ['__dotdotdot__']):
                     realtype = model.unknown_type(decl.name)
+                elif (isinstance(decl.type, pycparser.c_ast.PtrDecl) and
+                      isinstance(decl.type.type, pycparser.c_ast.TypeDecl) and
+                      isinstance(decl.type.type.type,
+                                 pycparser.c_ast.IdentifierType) and
+                      decl.type.type.type.names == ['__dotdotdot__']):
+                    realtype = model.unknown_ptr_type(decl.name)
                 else:
                     realtype = self._get_type(decl.type, name=decl.name)
                 self._declare('typedef ' + decl.name, realtype)

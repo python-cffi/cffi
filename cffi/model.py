@@ -136,6 +136,17 @@ class ConstPointerType(PointerType):
         return BPtr
 
 
+class NamedPointerType(PointerType):
+    _attrs_ = ('totype', 'name')
+
+    def __init__(self, totype, name):
+        PointerType.__init__(self, totype)
+        self.name = name
+
+    def _get_c_name(self, replace_with):
+        return self.name + replace_with
+
+
 class ArrayType(BaseType):
     _attrs_ = ('item', 'length')
 
@@ -297,6 +308,10 @@ def unknown_type(name):
     tp = StructType('$%s' % name, None, None, None)
     tp.forcename = name
     return tp
+
+def unknown_ptr_type(name):
+    tp = StructType('*$%s' % name, None, None, None)
+    return NamedPointerType(tp, name)
 
 def global_cache(ffi, funcname, *args):
     try:
