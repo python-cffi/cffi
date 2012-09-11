@@ -1046,3 +1046,18 @@ def test_tmpdir():
     lib = ffi.verify("int foo(int a) { return a + 42; }", tmpdir=tmpdir)
     assert os.listdir(tmpdir)
     assert lib.foo(100) == 142
+
+def test_bug1():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef struct tdlhandle_s { ...; } *tdl_handle_t;
+        typedef struct my_error_code_ {
+            tdl_handle_t *rh;
+        } my_error_code_t;
+    """)
+    ffi.verify("""
+        typedef struct tdlhandle_s { int foo; } *tdl_handle_t;
+        typedef struct my_error_code_ {
+            tdl_handle_t *rh;
+        } my_error_code_t;
+    """)

@@ -10,6 +10,7 @@ class VGenericEngine(object):
         self.verifier = verifier
         self.ffi = verifier.ffi
         self.export_symbols = []
+        self._struct_pending_verification = {}
 
     def patch_extension_kwds(self, kwds):
         # add 'export_symbols' to the dictionary.  Note that we add the
@@ -232,7 +233,6 @@ class VGenericEngine(object):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
         layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
-        cname = ('%s %s' % (prefix, name)).strip()
         #
         BFunc = self.ffi.typeof("ssize_t(*)(ssize_t)")
         function = module.load_function(BFunc, layoutfuncname)
@@ -254,8 +254,16 @@ class VGenericEngine(object):
             assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
             tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
         else:
-            # check that the function()'s sizes and offsets match
-            # the real ones
+            cname = ('%s %s' % (prefix, name)).strip()
+            self._struct_pending_verification[tp] = layout, cname
+
+    def _loaded_struct_or_union(self, tp):
+        if tp.fldnames is None:
+            return     # nothing to do with opaque structs
+        self.ffi._get_cached_btype(tp)   # force 'fixedlayout' to be considered
+
+        if tp in self._struct_pending_verification:
+            # check that the layout sizes and offsets match the real ones
             def check(realvalue, expectedvalue, msg):
                 if realvalue != expectedvalue:
                     raise ffiplatform.VerificationError(
@@ -263,6 +271,7 @@ class VGenericEngine(object):
                         % (cname, msg, expectedvalue, realvalue))
             ffi = self.ffi
             BStruct = ffi._get_cached_btype(tp)
+            layout, cname = self._struct_pending_verification.pop(tp)
             check(layout[0], ffi.sizeof(BStruct), "wrong total size")
             check(layout[1], ffi.alignof(BStruct), "wrong total alignment")
             i = 2
@@ -276,11 +285,6 @@ class VGenericEngine(object):
                       "wrong size for field %r" % (fname,))
                 i += 2
             assert i == len(layout)
-
-    def _loaded_struct_or_union(self, tp):
-        if tp.fldnames is None:
-            return     # nothing to do with opaque structs
-        self.ffi._get_cached_btype(tp)   # force 'fixedlayout' to be considered
 
     # ----------
     # 'anonymous' declarations.  These are produced for anonymous structs
