@@ -82,7 +82,11 @@ class Verifier(object):
     def _locate_module(self):
         if not os.path.isfile(self.modulefilename):
             if self.ext_package:
-                pkg = __import__(self.ext_package, None, None, ['__doc__'])
+                try:
+                    pkg = __import__(self.ext_package, None, None, ['__doc__'])
+                except ImportError:
+                    return      # cannot import the package itself, give up
+                    # (e.g. it might be called differently before installation)
                 path = pkg.__path__
             else:
                 path = None

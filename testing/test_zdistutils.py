@@ -175,7 +175,7 @@ class DistUtilsTest(object):
         assert ext.sources == [v.sourcefilename, extra_source]
         assert ext.name == v.get_module_name()
 
-    def test_install_and_reload_module(self, targetpackage=''):
+    def test_install_and_reload_module(self, targetpackage='', ext_package=''):
         if not hasattr(os, 'fork'):
             py.test.skip("test requires os.fork()")
 
@@ -185,11 +185,11 @@ class DistUtilsTest(object):
 
         def make_ffi(**verifier_args):
             ffi = FFI()
-            ffi.cdef("/* %s */" % targetpackage)
+            ffi.cdef("/* %s, %s */" % (targetpackage, ext_package))
             ffi.cdef("double test1iarm(double x);")
             csrc = "double test1iarm(double x) { return x * 42.0; }"
             lib = ffi.verify(csrc, force_generic_engine=self.generic,
-                             ext_package=targetpackage,
+                             ext_package=ext_package,
                              **verifier_args)
             return ffi, lib
 
@@ -213,7 +213,8 @@ class DistUtilsTest(object):
         from cffi import ffiplatform
         prev_compile = ffiplatform.compile
         try:
-            ffiplatform.compile = lambda *args: dont_call_me_any_more
+            if targetpackage == ext_package:
+                ffiplatform.compile = lambda *args: dont_call_me_any_more
             # won't find it in tmpdir, but should find it correctly
             # installed in udir
             ffi, lib = make_ffi()
@@ -222,7 +223,12 @@ class DistUtilsTest(object):
             ffiplatform.compile = prev_compile
 
     def test_install_and_reload_module_package(self):
-        self.test_install_and_reload_module(targetpackage='foo_iarmp')
+        self.test_install_and_reload_module(targetpackage='foo_iarmp',
+                                            ext_package='foo_iarmp')
+
+    def test_install_and_reload_module_ext_package_not_found(self):
+        self.test_install_and_reload_module(targetpackage='foo_epnf',
+                                            ext_package='not_found')
 
     def test_tag(self):
         ffi = FFI()
