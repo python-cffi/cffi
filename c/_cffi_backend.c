@@ -4435,6 +4435,16 @@ static long double _cffi_to_c_long_double(PyObject *obj)
         return PyFloat_AsDouble(obj);
 }
 
+static _Bool _cffi_to_c__Bool(PyObject *obj)
+{
+    long tmp = PyCffiInt_AsLong(obj);
+    switch (tmp) {
+    case 0: return 0;
+    case 1: return 1;
+    default: return (_Bool)_convert_overflow(obj, "_Bool");
+    }
+}
+
 static PyObject *_cffi_get_struct_layout(Py_ssize_t nums[])
 {
     PyObject *result;
@@ -4500,6 +4510,7 @@ static void *cffi_exports[] = {
     0,
 #endif
     _cffi_to_c_long_double,
+    _cffi_to_c__Bool,
 };
 
 /************************************************************/

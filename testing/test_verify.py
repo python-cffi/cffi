@@ -1061,3 +1061,15 @@ def test_bug1():
             tdl_handle_t *rh;
         } my_error_code_t;
     """)
+
+def test_bool():
+    ffi = FFI()
+    ffi.cdef("_Bool foo(_Bool);")
+    lib = ffi.verify("""
+        int foo(int arg) {
+            return !arg;
+        }
+    """)
+    assert lib.foo(1) == 0
+    assert lib.foo(0) == 1
+    py.test.raises(OverflowError, lib.foo, 42)
