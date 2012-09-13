@@ -106,6 +106,7 @@ def test_longdouble_precision():
     # passing through Python and CFFI.
     ffi = FFI()
     ffi.cdef("long double step1(long double x);")
+    SAME_SIZE = ffi.sizeof("long double") == ffi.sizeof("double")
     lib = ffi.verify("""
         long double step1(long double x)
         {
@@ -122,16 +123,18 @@ def test_longdouble_precision():
 
     more_precise = do(False)
     less_precise = do(True)
-    assert abs(more_precise - less_precise) > 0.1
-
-    # Check the particular results on Intel
-    import platform
-    if (platform.machine().startswith('i386') or
-        platform.machine().startswith('x86')):
-        assert abs(more_precise - 0.656769) < 0.001
-        assert abs(less_precise - 3.99091) < 0.001
+    if SAME_SIZE:
+        assert more_precise == less_precise
     else:
-        py.test.skip("don't know the very exact precision of 'long double'")
+        assert abs(more_precise - less_precise) > 0.1
+        # Check the particular results on Intel
+        import platform
+        if (platform.machine().startswith('i386') or
+            platform.machine().startswith('x86')):
+            assert abs(more_precise - 0.656769) < 0.001
+            assert abs(less_precise - 3.99091) < 0.001
+        else:
+            py.test.skip("don't know the very exact precision of 'long double'")
 
 
 all_integer_types = ['short', 'int', 'long', 'long long',
