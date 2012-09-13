@@ -378,8 +378,8 @@ can assume to exist are the standard types:
 
 * wchar_t (if supported by the backend)
 
-* _Bool (if unsupported by the C compiler, this is declared with the
-  size of ``unsigned char``).  *New in version 0.4.*  Note that the
+* *New in version 0.4:* _Bool.  If not directly supported by the C compiler,
+  this is declared with the size of ``unsigned char``.  Note that the
   effects of ``<stdbool.h>`` are not automatically included: you have
   to say ``typedef _Bool bool;`` in your ``cdef()`` if you want to
   use this ``_Bool`` with the more standard name ``bool``.  This is because
