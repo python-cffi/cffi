@@ -1067,12 +1067,86 @@ def test_bug1():
 
 def test_bool():
     ffi = FFI()
-    ffi.cdef("_Bool foo(_Bool);")
+    ffi.cdef("struct foo_s { _Bool x; };"
+             "_Bool foo(_Bool);")
     lib = ffi.verify("""
+        struct foo_s { _Bool x; };
         int foo(int arg) {
             return !arg;
         }
     """)
+    p = ffi.new("struct foo_s *")
+    p.x = 1
+    assert p.x == 1
+    py.test.raises(OverflowError, "p.x = -1")
+    py.test.raises(TypeError, "p.x = 0.0")
     assert lib.foo(1) == 0
     assert lib.foo(0) == 1
     py.test.raises(OverflowError, lib.foo, 42)
+    py.test.raises(TypeError, lib.foo, 0.0)
+    assert int(ffi.cast("_Bool", long(1))) == 1
+    assert int(ffi.cast("_Bool", long(0))) == 0
+    assert int(ffi.cast("_Bool", long(-1))) == 1
+    assert int(ffi.cast("_Bool", 10**200)) == 1
+    assert int(ffi.cast("_Bool", 10**40000)) == 1
+    #
+    class Foo(object):
+        def __int__(self):
+            self.seen = 1
+            return result
+    f = Foo()
+    f.seen = 0
+    result = 42
+    assert int(ffi.cast("_Bool", f)) == 1
+    assert f.seen
+    f.seen = 0
+    result = 0
+    assert int(ffi.cast("_Bool", f)) == 0
+    assert f.seen
+    #
+    py.test.raises(TypeError, ffi.cast, "_Bool", [])
+
+def test_bool_on_long_double():
+    f = 1E-250
+    if f == 0.0 or f*f != 0.0:
+        py.test.skip("unexpected precision")
+    ffi = FFI()
+    ffi.cdef("long double square(long double f); _Bool opposite(_Bool);")
+    lib = ffi.verify("long double square(long double f) { return f*f; }\n"
+                     "_Bool opposite(_Bool x) { return !x; }")
+    f0 = lib.square(0.0)
+    f2 = lib.square(f)
+    f3 = lib.square(f * 2.0)
+    assert repr(f2) != repr(f3)             # two non-null 'long doubles'
+    assert float(f0) == float(f2) == float(f3) == 0.0  # too tiny for 'double'
+    assert int(ffi.cast("_Bool", f2)) == 1
+    assert int(ffi.cast("_Bool", f3)) == 1
+    assert int(ffi.cast("_Bool", f0)) == 0
+    py.test.raises(TypeError, lib.opposite, f2)
+
+def test_cannot_pass_float():
+    for basetype in ['char', 'short', 'int', 'long', 'long long']:
+        for sign in ['signed', 'unsigned']:
+            type = '%s %s' % (sign, basetype)
+            ffi = FFI()
+            ffi.cdef("struct foo_s { %s x; };\n"
+                     "int foo(%s);" % (type, type))
+            lib = ffi.verify("""
+                struct foo_s { %s x; };
+                int foo(%s arg) {
+                    return !arg;
+                }
+            """ % (type, type))
+            p = ffi.new("struct foo_s *")
+            py.test.raises(TypeError, "p.x = 0.0")
+            assert lib.foo(42) == 0
+            assert lib.foo(0) == 1
+            py.test.raises(TypeError, lib.foo, 0.0)
+
+def test_cast_from_int_type_to_bool():
+    ffi = FFI()
+    for basetype in ['char', 'short', 'int', 'long', 'long long']:
+        for sign in ['signed', 'unsigned']:
+            type = '%s %s' % (sign, basetype)
+            assert int(ffi.cast("_Bool", ffi.cast(type, 42))) == 1
+            assert int(ffi.cast("_Bool", ffi.cast(type, 0))) == 0

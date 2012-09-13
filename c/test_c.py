@@ -2088,6 +2088,8 @@ def test_bool():
     assert int(cast(BBool, True)) == 1
     assert bool(cast(BBool, False)) is True    # warning!
     assert int(cast(BBool, 3)) == 1
+    assert int(cast(BBool, long(3))) == 1
+    assert int(cast(BBool, 10**40000)) == 1
     assert int(cast(BBool, -0.1)) == 1
     assert int(cast(BBool, -0.0)) == 0
     assert int(cast(BBool, '\x00')) == 0
@@ -2105,3 +2107,6 @@ def test_bool():
     q = cast(BBoolP, p)
     assert q[0] == ord('X')
     py.test.raises(TypeError, string, cast(BBool, False))
+    BDouble = new_primitive_type("double")
+    assert int(cast(BBool, cast(BDouble, 0.1))) == 1
+    assert int(cast(BBool, cast(BDouble, 0.0))) == 0

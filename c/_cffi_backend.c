@@ -392,6 +392,14 @@ static PyTypeObject CField_Type = {
 
 /************************************************************/
 
+static int
+CDataObject_Or_PyFloat_Check(PyObject *ob)
+{
+    return (PyFloat_Check(ob) ||
+            (CData_Check(ob) &&
+             (((CDataObject *)ob)->c_type->ct_flags & CT_PRIMITIVE_FLOAT)));
+}
+
 static PY_LONG_LONG
 _my_PyLong_AsLongLong(PyObject *ob)
 {
@@ -413,7 +421,7 @@ _my_PyLong_AsLongLong(PyObject *ob)
         PY_LONG_LONG res;
         PyNumberMethods *nb = ob->ob_type->tp_as_number;
 
-        if (PyFloat_Check(ob) ||
+        if (CDataObject_Or_PyFloat_Check(ob) ||
                 nb == NULL || nb->nb_int == NULL) {
             PyErr_SetString(PyExc_TypeError, "an integer is required");
             return -1;
@@ -470,7 +478,7 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int strict)
         unsigned PY_LONG_LONG res;
         PyNumberMethods *nb = ob->ob_type->tp_as_number;
 
-        if ((strict && PyFloat_Check(ob)) ||
+        if ((strict && CDataObject_Or_PyFloat_Check(ob)) ||
                 nb == NULL || nb->nb_int == NULL) {
             PyErr_SetString(PyExc_TypeError, "an integer is required");
             return (unsigned PY_LONG_LONG)-1;
@@ -2263,6 +2271,45 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
     return (PyObject *)cd;
 }
 
+static int
+_my_PyObject_AsBool(PyObject *ob)
+{
+    /* convert and cast a Python object to a boolean.  Accept an integer
+       or a float object, up to a CData 'long double'. */
+    double x;
+
+#if PY_MAJOR_VERSION < 3
+    if (PyInt_Check(ob)) {
+        return PyInt_AS_LONG(ob) != 0;
+    }
+    else
+#endif
+    if (PyLong_Check(ob)) {
+        return _PyLong_Sign(ob) != 0;
+    }
+    else if (CData_Check(ob)) {
+        CDataObject *cd = (CDataObject *)ob;
+        if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
+            if (cd->c_type->ct_flags & CT_IS_LONGDOUBLE) {
+                /* 'long double' objects: return the answer directly */
+                return read_raw_longdouble_data(cd->c_data) != 0.0;
+            }
+            /* else fall through */
+        }
+        else {
+            unsigned PY_LONG_LONG value;
+            value = _my_PyLong_AsUnsignedLongLong(ob, 0);
+            if (value == -1 && PyErr_Occurred())
+                return -1;
+            return value != 0;
+        }
+    }
+    x = PyFloat_AsDouble(ob);
+    if (x == -1.0 && PyErr_Occurred())
+        return -1;
+    return x != 0.0;
+}
+
 static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
 {
     int dataoffset = offsetof(CDataObject_casted_primitive, alignment);
@@ -2334,15 +2381,15 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
             return NULL;
         value = (unsigned char)res;
     }
+    else if (ct->ct_flags & CT_IS_BOOL) {
+        value = _my_PyObject_AsBool(ob);
+        if (value < 0)
+            return NULL;
+    }
     else {
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
             return NULL;
-        if (ct->ct_flags & CT_IS_BOOL) {
-            value = PyObject_IsTrue(ob);
-            if (value < 0)
-                return NULL;
-        }
     }
     if (ct->ct_flags & CT_IS_BOOL)
         value = !!value;
@@ -4368,16 +4415,10 @@ static char *_cffi_to_c_char_p(PyObject *obj)
     return NULL;
 }
 
-#if PY_MAJOR_VERSION < 3
-# define PyCffiInt_AsLong PyInt_AsLong
-#else
-# define PyCffiInt_AsLong PyLong_AsLong
-#endif
-
 #define _cffi_to_c_PRIMITIVE(TARGETNAME, TARGET)        \
 static TARGET _cffi_to_c_##TARGETNAME(PyObject *obj) {  \
-    long tmp = PyCffiInt_AsLong(obj);                   \
-    if (tmp != (TARGET)tmp)                             \
+    PY_LONG_LONG tmp = _my_PyLong_AsLongLong(obj);      \
+    if (tmp != (TARGET)tmp && !PyErr_Occurred())        \
         return (TARGET)_convert_overflow(obj, #TARGET); \
     return (TARGET)tmp;                                 \
 }
@@ -4386,10 +4427,14 @@ _cffi_to_c_PRIMITIVE(signed_char,    signed char)
 _cffi_to_c_PRIMITIVE(unsigned_char,  unsigned char)
 _cffi_to_c_PRIMITIVE(short,          short)
 _cffi_to_c_PRIMITIVE(unsigned_short, unsigned short)
-#if SIZEOF_INT < SIZEOF_LONG
+#if SIZEOF_INT == SIZEOF_LONG
+#define _cffi_to_c_int           _cffi_to_c_long
+#define _cffi_to_c_unsigned_int  _cffi_to_c_unsigned_long
+#else
 _cffi_to_c_PRIMITIVE(int,            int)
 _cffi_to_c_PRIMITIVE(unsigned_int,   unsigned int)
 #endif
+_cffi_to_c_PRIMITIVE(long,           long)
 
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
 static unsigned long _cffi_to_c_unsigned_long(PyObject *obj)
@@ -4402,6 +4447,8 @@ static unsigned long _cffi_to_c_unsigned_long(PyObject *obj)
 #else
 #  define _cffi_to_c_unsigned_long _cffi_to_c_unsigned_long_long
 #endif
+
+#define _cffi_to_c_long_long _my_PyLong_AsLongLong
 
 static unsigned PY_LONG_LONG _cffi_to_c_unsigned_long_long(PyObject *obj)
 {
@@ -4437,12 +4484,15 @@ static long double _cffi_to_c_long_double(PyObject *obj)
 
 static _Bool _cffi_to_c__Bool(PyObject *obj)
 {
-    long tmp = PyCffiInt_AsLong(obj);
-    switch (tmp) {
-    case 0: return 0;
-    case 1: return 1;
-    default: return (_Bool)_convert_overflow(obj, "_Bool");
-    }
+    PY_LONG_LONG tmp = _my_PyLong_AsLongLong(obj);
+    if (tmp == 0)
+        return 0;
+    else if (tmp == 1)
+        return 1;
+    else if (PyErr_Occurred())
+        return (_Bool)-1;
+    else
+        return (_Bool)_convert_overflow(obj, "_Bool");
 }
 
 static PyObject *_cffi_get_struct_layout(Py_ssize_t nums[])
@@ -4483,15 +4533,10 @@ static void *cffi_exports[] = {
     _cffi_to_c_unsigned_char,
     _cffi_to_c_short,
     _cffi_to_c_unsigned_short,
-#if SIZEOF_INT < SIZEOF_LONG
     _cffi_to_c_int,
     _cffi_to_c_unsigned_int,
-#else
-    0,
-    0,
-#endif
+    _cffi_to_c_long,
     _cffi_to_c_unsigned_long,
-    _cffi_to_c_unsigned_long_long,
     _cffi_to_c_char,
     _cffi_from_c_pointer,
     _cffi_to_c_pointer,
@@ -4511,6 +4556,8 @@ static void *cffi_exports[] = {
 #endif
     _cffi_to_c_long_double,
     _cffi_to_c__Bool,
+    _cffi_to_c_long_long,
+    _cffi_to_c_unsigned_long_long,
 };
 
 /************************************************************/
