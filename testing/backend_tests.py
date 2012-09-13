@@ -1392,3 +1392,19 @@ class BackendTests:
         assert not isinstance(ffi.cast("int", 0), ffi.CType)
         assert not isinstance(ffi.new("int *"), ffi.CType)
         assert isinstance(ffi.typeof("int"), ffi.CType)
+
+    def test_bool(self):
+        ffi = FFI(backend=self.Backend())
+        assert int(ffi.cast("_Bool", 0.1)) == 1
+        assert int(ffi.cast("_Bool", -0.0)) == 0
+        assert int(ffi.cast("_Bool", '\x02')) == 1
+        assert int(ffi.cast("_Bool", '\x00')) == 0
+        assert int(ffi.cast("_Bool", '\x80')) == 1
+        assert ffi.new("_Bool *", False)[0] == 0
+        assert ffi.new("_Bool *", 1)[0] == 1
+        py.test.raises(OverflowError, ffi.new, "_Bool *", 2)
+        py.test.raises(TypeError, ffi.string, ffi.cast("_Bool", 2))
+
+    def test_use_own_bool(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""typedef int bool;""")

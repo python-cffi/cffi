@@ -84,6 +84,7 @@
 #define CT_IS_PTR_TO_OWNED      16384
 #define CT_CUSTOM_FIELD_POS     32768
 #define CT_IS_LONGDOUBLE        65536
+#define CT_IS_BOOL             131072
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -203,6 +204,10 @@ static void init_errno(void) { }
 
 #ifdef HAVE_WCHAR_H
 # include "wchar_helper.h"
+#endif
+
+#ifndef HAVE_C99_BOOL
+typedef unsigned char _Bool;
 #endif
 
 /************************************************************/
@@ -977,6 +982,9 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(init, 1);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
             return -1;
+        if (ct->ct_flags & CT_IS_BOOL)
+            if (value & ~1)      /* value != 0 && value != 1 */
+                goto overflow;
         write_raw_integer_data(buf, value, ct->ct_size);
         if (value != read_raw_unsigned_data(buf, ct->ct_size))
             goto overflow;
@@ -2330,7 +2338,14 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
             return NULL;
+        if (ct->ct_flags & CT_IS_BOOL) {
+            value = PyObject_IsTrue(ob);
+            if (value < 0)
+                return NULL;
+        }
     }
+    if (ct->ct_flags & CT_IS_BOOL)
+        value = !!value;
     cd = _new_casted_primitive(ct);
     if (cd != NULL)
         write_raw_integer_data(cd->c_data, value, ct->ct_size);
@@ -2679,7 +2694,10 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
        EPTYPE(ull, unsigned long long, CT_PRIMITIVE_UNSIGNED )  \
        EPTYPE(f, float, CT_PRIMITIVE_FLOAT )                    \
        EPTYPE(d, double, CT_PRIMITIVE_FLOAT )                   \
-       EPTYPE(ld, long double, CT_PRIMITIVE_FLOAT | CT_IS_LONGDOUBLE )
+       EPTYPE(ld, long double, CT_PRIMITIVE_FLOAT | CT_IS_LONGDOUBLE ) \
+       ENUM_PRIMITIVE_TYPES_WCHAR                               \
+       EPTYPE(b, _Bool, CT_PRIMITIVE_UNSIGNED | CT_IS_BOOL )
+
 #ifdef HAVE_WCHAR_H
 # define ENUM_PRIMITIVE_TYPES_WCHAR                             \
        EPTYPE(wc, wchar_t, CT_PRIMITIVE_CHAR )
@@ -2690,7 +2708,6 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 #define EPTYPE(code, typename, flags)                   \
     struct aligncheck_##code { char x; typename y; };
     ENUM_PRIMITIVE_TYPES
-    ENUM_PRIMITIVE_TYPES_WCHAR
 #undef EPTYPE
 
     CTypeDescrObject *td;
@@ -2704,7 +2721,6 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
           flags                                         \
         },
     ENUM_PRIMITIVE_TYPES
-    ENUM_PRIMITIVE_TYPES_WCHAR
 #undef EPTYPE
 #undef ENUM_PRIMITIVE_TYPES_WCHAR
 #undef ENUM_PRIMITIVE_TYPES
@@ -4025,6 +4041,9 @@ static PyObject *b_string(PyObject *self, PyObject *args)
     }
     else if (cd->c_type->ct_flags & CT_IS_ENUM) {
         return convert_to_object(cd->c_data, cd->c_type);
+    }
+    else if (cd->c_type->ct_flags & CT_IS_BOOL) {
+        /* fall through to TypeError */
     }
     else if (cd->c_type->ct_flags & (CT_PRIMITIVE_CHAR |
                                      CT_PRIMITIVE_SIGNED |

@@ -284,6 +284,7 @@ class CTypesBackend(object):
         'unsigned long long': ctypes.c_ulonglong,
         'float': ctypes.c_float,
         'double': ctypes.c_double,
+        '_Bool': ctypes.c_bool,
     }
 
     def set_ffi(self, ffi):
@@ -339,6 +340,8 @@ class CTypesBackend(object):
         else:
             if name in ('signed char', 'unsigned char'):
                 kind = 'byte'
+            elif name == '_Bool':
+                kind = 'bool'
             else:
                 kind = 'int'
             is_signed = (ctype(-1).value == -1)
@@ -380,6 +383,15 @@ class CTypesBackend(object):
                 def __int__(self):
                     return self._value
 
+            if kind == 'bool':
+                @classmethod
+                def _cast_from(cls, source):
+                    if not isinstance(source, (integer_types, float)):
+                        source = _cast_source_to_int(source)
+                    return cls(bool(source))
+                def __int__(self):
+                    return self._value
+
             if kind == 'char':
                 @classmethod
                 def _cast_from(cls, source):
@@ -410,7 +422,7 @@ class CTypesBackend(object):
 
             _cast_to_integer = __int__
 
-            if kind == 'int' or kind == 'byte':
+            if kind == 'int' or kind == 'byte' or kind == 'bool':
                 @staticmethod
                 def _to_ctypes(x):
                     if not isinstance(x, integer_types):

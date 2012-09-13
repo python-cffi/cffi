@@ -378,6 +378,16 @@ can assume to exist are the standard types:
 
 * wchar_t (if supported by the backend)
 
+* _Bool (if unsupported by the C compiler, this is declared with the
+  size of ``unsigned char``).  *New in version 0.4.*  Note that the
+  effects of ``<stdbool.h>`` are not automatically included: you have
+  to say ``typedef _Bool bool;`` in your ``cdef()`` if you want to
+  use this ``_Bool`` with the more standard name ``bool``.  This is because
+  some headers declare a different type (e.g. an enum) and also call it
+  ``bool``.
+
+.. "versionadded:: 0.4": bool
+
 As we will see on `the verification step`_ below, the declarations can
 also contain "``...``" at various places; these are placeholders that will
 be completed by a call to ``verify()``.
@@ -1015,10 +1025,6 @@ Unimplemented features
 ----------------------
 
 All of the ANSI C declarations should be supported, and some of C99.
-Important missing features from C99:
-
-* The ``_Bool`` type, also known as ``bool`` from ``stdbool.h``.
-
 Known missing features that are GCC or MSVC extensions:
 
 * Any ``__attribute__`` or ``#pragma pack(n)``

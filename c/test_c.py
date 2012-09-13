@@ -2080,3 +2080,28 @@ def test_CData_CType():
     assert not isinstance(nullchr, CType)
     assert not isinstance(chrref, CType)
     assert isinstance(BChar, CType)
+
+def test_bool():
+    BBool = new_primitive_type("_Bool")
+    BBoolP = new_pointer_type(BBool)
+    assert int(cast(BBool, False)) == 0
+    assert int(cast(BBool, True)) == 1
+    assert bool(cast(BBool, False)) is True    # warning!
+    assert int(cast(BBool, 3)) == 1
+    assert int(cast(BBool, -0.1)) == 1
+    assert int(cast(BBool, -0.0)) == 0
+    assert int(cast(BBool, '\x00')) == 0
+    assert int(cast(BBool, '\xff')) == 1
+    assert newp(BBoolP, False)[0] == 0
+    assert newp(BBoolP, True)[0] == 1
+    assert newp(BBoolP, 0)[0] == 0
+    assert newp(BBoolP, 1)[0] == 1
+    py.test.raises(TypeError, newp, BBoolP, 1.0)
+    py.test.raises(TypeError, newp, BBoolP, '\x00')
+    py.test.raises(OverflowError, newp, BBoolP, 2)
+    py.test.raises(OverflowError, newp, BBoolP, -1)
+    BCharP = new_pointer_type(new_primitive_type("char"))
+    p = newp(BCharP, 'X')
+    q = cast(BBoolP, p)
+    assert q[0] == ord('X')
+    py.test.raises(TypeError, string, cast(BBool, False))
