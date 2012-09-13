@@ -2276,7 +2276,9 @@ _my_PyObject_AsBool(PyObject *ob)
 {
     /* convert and cast a Python object to a boolean.  Accept an integer
        or a float object, up to a CData 'long double'. */
-    double x;
+    PyObject *io;
+    PyNumberMethods *nb;
+    int res;
 
 #if PY_MAJOR_VERSION < 3
     if (PyInt_Check(ob)) {
@@ -2287,6 +2289,9 @@ _my_PyObject_AsBool(PyObject *ob)
     if (PyLong_Check(ob)) {
         return _PyLong_Sign(ob) != 0;
     }
+    else if (PyFloat_Check(ob)) {
+        return PyFloat_AS_DOUBLE(ob) != 0.0;
+    }
     else if (CData_Check(ob)) {
         CDataObject *cd = (CDataObject *)ob;
         if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
@@ -2294,20 +2299,38 @@ _my_PyObject_AsBool(PyObject *ob)
                 /* 'long double' objects: return the answer directly */
                 return read_raw_longdouble_data(cd->c_data) != 0.0;
             }
-            /* else fall through */
-        }
-        else {
-            unsigned PY_LONG_LONG value;
-            value = _my_PyLong_AsUnsignedLongLong(ob, 0);
-            if (value == -1 && PyErr_Occurred())
-                return -1;
-            return value != 0;
+            else {
+                /* 'float'/'double' objects: return the answer directly */
+                return read_raw_float_data(cd->c_data,
+                                           cd->c_type->ct_size) != 0.0;
+            }
         }
     }
-    x = PyFloat_AsDouble(ob);
-    if (x == -1.0 && PyErr_Occurred())
+    nb = ob->ob_type->tp_as_number;
+    if (nb == NULL || (nb->nb_float == NULL && nb->nb_int == NULL)) {
+        PyErr_SetString(PyExc_TypeError, "integer/float expected");
         return -1;
-    return x != 0.0;
+    }
+    if (nb->nb_float && !CData_Check(ob))
+        io = (*nb->nb_float) (ob);
+    else
+        io = (*nb->nb_int) (ob);
+    if (io == NULL)
+        return -1;
+
+#if PY_MAJOR_VERSION < 3
+    if (PyInt_Check(io) || PyLong_Check(io) || PyFloat_Check(io)) {
+#else
+    if (PyLong_Check(io) || PyFloat_Check(io)) {
+#endif
+        res = _my_PyObject_AsBool(io);
+    }
+    else {
+        PyErr_SetString(PyExc_TypeError, "integer/float conversion failed");
+        res = -1;
+    }
+    Py_DECREF(io);
+    return res;
 }
 
 static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
@@ -2382,9 +2405,10 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
         value = (unsigned char)res;
     }
     else if (ct->ct_flags & CT_IS_BOOL) {
-        value = _my_PyObject_AsBool(ob);
-        if (value < 0)
+        int res = _my_PyObject_AsBool(ob);
+        if (res < 0)
             return NULL;
+        value = res;
     }
     else {
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
