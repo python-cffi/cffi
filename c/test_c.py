@@ -2081,6 +2081,15 @@ def test_CData_CType():
     assert not isinstance(chrref, CType)
     assert isinstance(BChar, CType)
 
+def test_no_cdata_float():
+    BInt = new_primitive_type("int")
+    BIntP = new_pointer_type(BInt)
+    BUInt = new_primitive_type("unsigned int")
+    BUIntP = new_pointer_type(BUInt)
+    BFloat = new_primitive_type("float")
+    py.test.raises(TypeError, newp, BIntP, cast(BFloat, 0.0))
+    py.test.raises(TypeError, newp, BUIntP, cast(BFloat, 0.0))
+
 def test_bool():
     BBool = new_primitive_type("_Bool")
     BBoolP = new_pointer_type(BBool)
@@ -2089,7 +2098,7 @@ def test_bool():
     assert bool(cast(BBool, False)) is True    # warning!
     assert int(cast(BBool, 3)) == 1
     assert int(cast(BBool, long(3))) == 1
-    assert int(cast(BBool, 10**40000)) == 1
+    assert int(cast(BBool, long(10)**4000)) == 1
     assert int(cast(BBool, -0.1)) == 1
     assert int(cast(BBool, -0.0)) == 0
     assert int(cast(BBool, '\x00')) == 0
