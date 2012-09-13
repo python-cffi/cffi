@@ -38,7 +38,7 @@ class VoidType(BaseType):
         return 'void' + replace_with
 
     def finish_backend_type(self, ffi):
-        return global_cache(ffi, 'new_void_type')
+        return global_cache(self, ffi, 'new_void_type')
 
 void_type = VoidType()
 
@@ -64,7 +64,7 @@ class PrimitiveType(BaseType):
         return self.name in ('double', 'float')
 
     def finish_backend_type(self, ffi):
-        return global_cache(ffi, 'new_primitive_type', self.name)
+        return global_cache(self, ffi, 'new_primitive_type', self.name)
 
 
 class BaseFunctionType(BaseType):
@@ -108,7 +108,7 @@ class FunctionPtrType(BaseFunctionType):
         args = []
         for tp in self.args:
             args.append(ffi._get_cached_btype(tp))
-        return global_cache(ffi, 'new_function_type',
+        return global_cache(self, ffi, 'new_function_type',
                             tuple(args), result, self.ellipsis)
 
 
@@ -123,7 +123,7 @@ class PointerType(BaseType):
 
     def finish_backend_type(self, ffi):
         BItem = ffi._get_cached_btype(self.totype)
-        return global_cache(ffi, 'new_pointer_type', BItem)
+        return global_cache(self, ffi, 'new_pointer_type', BItem)
 
 
 class ConstPointerType(PointerType):
@@ -166,7 +166,7 @@ class ArrayType(BaseType):
 
     def finish_backend_type(self, ffi):
         BPtrItem = ffi._get_cached_btype(PointerType(self.item))
-        return global_cache(ffi, 'new_array_type', BPtrItem, self.length)
+        return global_cache(self, ffi, 'new_array_type', BPtrItem, self.length)
 
 
 class StructOrUnionOrEnum(BaseType):
@@ -313,7 +313,7 @@ def unknown_ptr_type(name):
     tp = StructType('*$%s' % name, None, None, None)
     return NamedPointerType(tp, name)
 
-def global_cache(ffi, funcname, *args):
+def global_cache(srctype, ffi, funcname, *args):
     try:
         return ffi._backend.__typecache[args]
     except KeyError:
@@ -327,6 +327,9 @@ def global_cache(ffi, funcname, *args):
             ffi._backend.__typecache = weakref.WeakValueDictionary()
         else:
             type(ffi._backend).__typecache = weakref.WeakValueDictionary()
-    res = getattr(ffi._backend, funcname)(*args)
+    try:
+        res = getattr(ffi._backend, funcname)(*args)
+    except NotImplementedError, e:
+        raise NotImplementedError("%r: %s" % (srctype, e))
     ffi._backend.__typecache[args] = res
     return res
