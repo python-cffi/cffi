@@ -1015,8 +1015,11 @@ Unimplemented features
 ----------------------
 
 All of the ANSI C declarations should be supported, and some of C99.
-Here are the major known missing features that are GCC or MSVC
-extensions:
+Important missing features from C99:
+
+* The ``_Bool`` type, also known as ``bool`` from ``stdbool.h``.
+
+Known missing features that are GCC or MSVC extensions:
 
 * Any ``__attribute__`` or ``#pragma pack(n)``
 
