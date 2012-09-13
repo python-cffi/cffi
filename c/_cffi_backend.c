@@ -3278,7 +3278,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
             assert(cf != NULL);
             if (cf->cf_bitshift >= 0) {
                 PyErr_SetString(PyExc_NotImplementedError,
-                    "cannot pass as argument a struct with bit fields");
+                                "cannot pass as argument or return value "
+                                "a struct with bit fields");
                 return NULL;
             }
             ffifield = fb_fill_type(fb, cf->cf_type, 0);
