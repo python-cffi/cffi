@@ -1427,14 +1427,14 @@ class BackendTests:
     def test_ordering_bug2(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
+            struct bar_s;
+
             struct foo_s {
-                struct bar_s (*p)[3];
+                void (*foo)(struct bar_s[]);
             };
+
             struct bar_s {
                 struct foo_s foo;
             };
         """)
         q = ffi.new("struct foo_s *")
-        bar = ffi.new("struct bar_s *")
-        q.p[1] = bar
-        assert q.p[1].foo.p[1] == ffi.NULL
