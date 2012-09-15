@@ -14,6 +14,15 @@ class BaseType(object):
     def has_c_name(self):
         return '$' not in self._get_c_name('')
 
+    def get_cached_btype(self, ffi, finishlist, can_delay=False):
+        try:
+            BType = ffi._cached_btypes[self]
+        except KeyError:
+            BType = self.build_backend_type(ffi, finishlist)
+            BType2 = ffi._cached_btypes.setdefault(self, BType)
+            assert BType2 is BType
+        return BType
+
     def __repr__(self):
         return '<%s>' % (self._get_c_name(''),)
 
@@ -37,7 +46,7 @@ class VoidType(BaseType):
     def _get_c_name(self, replace_with):
         return 'void' + replace_with
 
-    def finish_backend_type(self, ffi):
+    def build_backend_type(self, ffi, finishlist):
         return global_cache(self, ffi, 'new_void_type')
 
 void_type = VoidType()
@@ -63,7 +72,7 @@ class PrimitiveType(BaseType):
     def is_float_type(self):
         return self.name in ('double', 'float')
 
-    def finish_backend_type(self, ffi):
+    def build_backend_type(self, ffi, finishlist):
         return global_cache(self, ffi, 'new_primitive_type', self.name)
 
 
@@ -89,7 +98,7 @@ class RawFunctionType(BaseFunctionType):
     # a function, but not a pointer-to-function.  The backend has no
     # notion of such a type; it's used temporarily by parsing.
 
-    def finish_backend_type(self, ffi):
+    def build_backend_type(self, ffi, finishlist):
         from . import api
         raise api.CDefError("cannot render the type %r: it is a function "
                             "type, not a pointer-to-function type" % (self,))
@@ -103,11 +112,11 @@ class FunctionPtrType(BaseFunctionType):
     def _get_c_name(self, replace_with):
         return BaseFunctionType._get_c_name(self, '*'+replace_with)
 
-    def finish_backend_type(self, ffi):
-        result = ffi._get_cached_btype(self.result)
+    def build_backend_type(self, ffi, finishlist):
+        result = self.result.get_cached_btype(ffi, finishlist)
         args = []
         for tp in self.args:
-            args.append(ffi._get_cached_btype(tp))
+            args.append(tp.get_cached_btype(ffi, finishlist))
         return global_cache(self, ffi, 'new_function_type',
                             tuple(args), result, self.ellipsis)
 
@@ -121,8 +130,8 @@ class PointerType(BaseType):
     def _get_c_name(self, replace_with):
         return self.totype._get_c_name('* ' + replace_with)
 
-    def finish_backend_type(self, ffi):
-        BItem = ffi._get_cached_btype(self.totype)
+    def build_backend_type(self, ffi, finishlist):
+        BItem = self.totype.get_cached_btype(ffi, finishlist, can_delay=True)
         return global_cache(self, ffi, 'new_pointer_type', BItem)
 
 
@@ -131,8 +140,8 @@ class ConstPointerType(PointerType):
     def _get_c_name(self, replace_with):
         return self.totype._get_c_name(' const * ' + replace_with)
 
-    def finish_backend_type(self, ffi):
-        BPtr = ffi._get_cached_btype(PointerType(self.totype))
+    def build_backend_type(self, ffi, finishlist):
+        BPtr = PointerType(self.totype).get_cached_btype(ffi, finishlist)
         return BPtr
 
 
@@ -164,8 +173,9 @@ class ArrayType(BaseType):
             brackets = '[%d]' % self.length
         return self.item._get_c_name(replace_with + brackets)
 
-    def finish_backend_type(self, ffi):
-        BPtrItem = ffi._get_cached_btype(PointerType(self.item))
+    def build_backend_type(self, ffi, finishlist):
+        self.item.get_cached_btype(ffi, finishlist)   # force the item BType
+        BPtrItem = PointerType(self.item).get_cached_btype(ffi, finishlist)
         return global_cache(self, ffi, 'new_array_type', BPtrItem, self.length)
 
 
@@ -180,6 +190,7 @@ class StructOrUnionOrEnum(BaseType):
 
 class StructOrUnion(StructOrUnionOrEnum):
     fixedlayout = None
+    completed = False
 
     def __init__(self, name, fldnames, fldtypes, fldbitsize):
         self.name = name
@@ -212,13 +223,26 @@ class StructOrUnion(StructOrUnionOrEnum):
         self.fldtypes = tuple(types)
         self.fldbitsize = tuple(bitsizes)
 
-    def finish_backend_type(self, ffi):
-        BType = self.new_btype(ffi)
-        ffi._cached_btypes[self] = BType
+    def get_cached_btype(self, ffi, finishlist, can_delay=False):
+        BType = StructOrUnionOrEnum.get_cached_btype(self, ffi, finishlist,
+                                                     can_delay)
+        if not can_delay:
+            self.finish_backend_type(ffi, finishlist)
+        return BType
+
+    def finish_backend_type(self, ffi, finishlist):
+        if self.completed:
+            if self.completed != 2:
+                raise NotImplementedError("recursive structure declaration "
+                                          "for '%s'" % (self.name,))
+            return
+        BType = ffi._cached_btypes[self]
         if self.fldtypes is None:
-            return BType    # not completing it: it's an opaque struct
+            return    # not completing it: it's an opaque struct
         #
-        fldtypes = tuple(ffi._get_cached_btype(tp) for tp in self.fldtypes)
+        self.completed = 1
+        fldtypes = tuple(tp.get_cached_btype(ffi, finishlist)
+                         for tp in self.fldtypes)
         #
         if self.fixedlayout is None:
             lst = list(zip(self.fldnames, fldtypes, self.fldbitsize))
@@ -232,7 +256,7 @@ class StructOrUnion(StructOrUnionOrEnum):
                 #
                 if isinstance(ftype, ArrayType) and ftype.length is None:
                     # fix the length to match the total size
-                    BItemType = ffi._get_cached_btype(ftype.item)
+                    BItemType = ftype.item.get_cached_btype(ffi, finishlist)
                     nlen, nrest = divmod(fsize, ffi.sizeof(BItemType))
                     if nrest != 0:
                         self._verification_error(
@@ -241,7 +265,7 @@ class StructOrUnion(StructOrUnionOrEnum):
                     ftype = ftype.resolve_length(nlen)
                     self.fldtypes = (self.fldtypes[:i] + (ftype,) +
                                      self.fldtypes[i+1:])
-                    BArrayType = ffi._get_cached_btype(ftype)
+                    BArrayType = ftype.get_cached_btype(ffi, finishlist)
                     fldtypes = (fldtypes[:i] + (BArrayType,) +
                                 fldtypes[i+1:])
                     continue
@@ -256,7 +280,7 @@ class StructOrUnion(StructOrUnionOrEnum):
             lst = list(zip(self.fldnames, fldtypes, self.fldbitsize, fieldofs))
             ffi._backend.complete_struct_or_union(BType, lst, self,
                                                   totalsize, totalalignment)
-        return BType
+        self.completed = 2
 
     def _verification_error(self, msg):
         from .ffiplatform import VerificationError
@@ -272,15 +296,17 @@ class StructType(StructOrUnion):
             from . import ffiplatform
             raise ffiplatform.VerificationMissing(self._get_c_name(''))
 
-    def new_btype(self, ffi):
+    def build_backend_type(self, ffi, finishlist):
         self.check_not_partial()
+        finishlist.append(self)
         return ffi._backend.new_struct_type(self.name)
 
 
 class UnionType(StructOrUnion):
     kind = 'union'
 
-    def new_btype(self, ffi):
+    def build_backend_type(self, ffi, finishlist):
+        finishlist.append(self)
         return ffi._backend.new_union_type(self.name)
 
 
@@ -298,7 +324,7 @@ class EnumType(StructOrUnionOrEnum):
             from . import ffiplatform
             raise ffiplatform.VerificationMissing(self._get_c_name(''))
 
-    def finish_backend_type(self, ffi):
+    def build_backend_type(self, ffi, finishlist):
         self.check_not_partial()
         return ffi._backend.new_enum_type(self.name, self.enumerators,
                                           self.enumvalues)

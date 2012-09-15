@@ -1408,3 +1408,33 @@ class BackendTests:
     def test_use_own_bool(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""typedef int bool;""")
+
+    def test_ordering_bug1(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            struct foo_s {
+                struct bar_s *p;
+            };
+            struct bar_s {
+                struct foo_s foo;
+            };
+        """)
+        q = ffi.new("struct foo_s *")
+        bar = ffi.new("struct bar_s *")
+        q.p = bar
+        assert q.p.foo.p == ffi.NULL
+
+    def test_ordering_bug2(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            struct foo_s {
+                struct bar_s (*p)[3];
+            };
+            struct bar_s {
+                struct foo_s foo;
+            };
+        """)
+        q = ffi.new("struct foo_s *")
+        bar = ffi.new("struct bar_s *")
+        q.p[1] = bar
+        assert q.p[1].foo.p[1] == ffi.NULL
