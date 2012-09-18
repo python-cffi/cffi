@@ -838,11 +838,10 @@ class CTypesBackend(object):
                         args2.append(BArg._from_ctypes(arg))
                     try:
                         res2 = init(*args2)
+                        res2 = BResult._to_ctypes(res2)
                     except:
                         traceback.print_exc()
                         res2 = error
-                    else:
-                        res2 = BResult._to_ctypes(res2)
                     if issubclass(BResult, CTypesGenericPtr):
                         if res2:
                             res2 = ctypes.cast(res2, ctypes.c_void_p).value
