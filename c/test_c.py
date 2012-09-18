@@ -2117,8 +2117,31 @@ def test_bool():
     assert int(cast(BBool, cast(BDouble, 0.1))) == 1
     assert int(cast(BBool, cast(BDouble, 0.0))) == 0
 
-def test_addressof():
+def test_typeoffsetof():
     BChar = new_primitive_type("char")
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BChar, -1),
+                                       ('a2', BChar, -1),
+                                       ('a3', BChar, -1)])
+    py.test.raises(TypeError, typeoffsetof, BStructPtr, None)
+    assert typeoffsetof(BStruct, None) == (BStruct, 0)
+    assert typeoffsetof(BStructPtr, 'a1') == (BChar, 0)
+    assert typeoffsetof(BStruct, 'a1') == (BChar, 0)
+    assert typeoffsetof(BStructPtr, 'a2') == (BChar, 1)
+    assert typeoffsetof(BStruct, 'a3') == (BChar, 2)
+    py.test.raises(KeyError, typeoffsetof, BStructPtr, 'a4')
+    py.test.raises(KeyError, typeoffsetof, BStruct, 'a5')
+
+def test_typeoffsetof_no_bitfield():
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("foo")
+    complete_struct_or_union(BStruct, [('a1', BInt, 4)])
+    py.test.raises(TypeError, typeoffsetof, BStruct, 'a1')
+
+def test_rawaddressof():
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
     BStruct = new_struct_type("foo")
     BStructPtr = new_pointer_type(BStruct)
     complete_struct_or_union(BStruct, [('a1', BChar, -1),
@@ -2128,10 +2151,14 @@ def test_addressof():
     assert repr(p) == "<cdata 'struct foo *' owning 3 bytes>"
     s = p[0]
     assert repr(s) == "<cdata 'struct foo' owning 3 bytes>"
-    a = addressof(BStructPtr, s)
+    a = rawaddressof(BStructPtr, s)
     assert repr(a).startswith("<cdata 'struct foo *' 0x")
-    py.test.raises(TypeError, addressof, BStruct, s)
-    py.test.raises(TypeError, addressof, new_pointer_type(BChar), s)
-    py.test.raises(TypeError, addressof, BStructPtr, a)
-    py.test.raises(TypeError, addressof, new_pointer_type(BStructPtr), a)
-    py.test.raises(TypeError, addressof, BStructPtr, cast(BChar, '?'))
+    py.test.raises(TypeError, rawaddressof, BStruct, s)
+    b = rawaddressof(BCharP, s)
+    assert b == cast(BCharP, p)
+    c = rawaddressof(BStructPtr, a)
+    assert c == a
+    py.test.raises(TypeError, rawaddressof, BStructPtr, cast(BChar, '?'))
+    #
+    d = rawaddressof(BCharP, s, 1)
+    assert d == cast(BCharP, p) + 1

@@ -718,13 +718,17 @@ class CTypesBackend(object):
         btypes = [BField for (fname, BField, bitsize) in fields]
         bitfields = [bitsize for (fname, BField, bitsize) in fields]
         #
+        bfield_types = {}
         cfields = []
         for (fname, BField, bitsize) in fields:
             if bitsize < 0:
                 cfields.append((fname, BField._ctype))
+                bfield_types[fname] = BField
             else:
                 cfields.append((fname, BField._ctype, bitsize))
+                bfield_types[fname] = Ellipsis
         struct_or_union._fields_ = cfields
+        CTypesStructOrUnion._bfield_types = bfield_types
         #
         @staticmethod
         def _create_ctype_obj(init):
@@ -1044,10 +1048,31 @@ class CTypesBackend(object):
     def getcname(self, BType, replace_with):
         return BType._get_c_name(replace_with)
 
-    def addressof(self, BTypePtr, cdata):
-        if not isinstance(cdata, CTypesBaseStructOrUnion):
+    def typeoffsetof(self, BType, fieldname):
+        if fieldname is not None and issubclass(BType, CTypesGenericPtr):
+            BType = BType._BItem
+        if not issubclass(BType, CTypesBaseStructOrUnion):
+            raise TypeError("expected a struct or union ctype")
+        if fieldname is None:
+            return (BType, 0)
+        else:
+            BField = BType._bfield_types[fieldname]
+            if BField is Ellipsis:
+                raise TypeError("not supported for bitfields")
+            return (BField, BType._offsetof(fieldname))
+
+    def rawaddressof(self, BTypePtr, cdata, offset):
+        if isinstance(cdata, CTypesBaseStructOrUnion):
+            ptr = ctypes.pointer(type(cdata)._to_ctypes(cdata))
+        elif isinstance(cdata, CTypesGenericPtr):
+            ptr = type(cdata)._to_ctypes(cdata)
+        else:
             raise TypeError("expected a <cdata 'struct-or-union'>")
-        ptr = ctypes.pointer(type(cdata)._to_ctypes(cdata))
+        if offset != 0:
+            ptr = ctypes.cast(
+                ctypes.c_void_p(
+                    ctypes.cast(ptr, ctypes.c_void_p).value + offset),
+                type(ptr))
         return BTypePtr._from_ctypes(ptr)
 
 

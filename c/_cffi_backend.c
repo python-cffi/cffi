@@ -4020,28 +4020,73 @@ static PyObject *b_offsetof(PyObject *self, PyObject *args)
     return PyInt_FromSsize_t(cf->cf_offset);
 }
 
-static PyObject *b_addressof(PyObject *self, PyObject *args)
+static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
+{
+    PyObject *res, *fieldname;
+    CTypeDescrObject *ct;
+    CFieldObject *cf;
+    Py_ssize_t offset;
+
+    if (!PyArg_ParseTuple(args, "O!O:typeof",
+                          &CTypeDescr_Type, &ct, &fieldname))
+        return NULL;
+
+    if (fieldname == Py_None) {
+        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION)))
+            goto typeerror;
+        res = (PyObject *)ct;
+        offset = 0;
+    }
+    else {
+        if (ct->ct_flags & CT_POINTER)
+            ct = ct->ct_itemdescr;
+        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION)))
+            goto typeerror;
+        if (ct->ct_flags & CT_IS_OPAQUE)
+            cf = NULL;
+        else
+            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
+        if (cf == NULL) {
+            PyErr_SetObject(PyExc_KeyError, fieldname);
+            return NULL;
+        }
+        if (cf->cf_bitshift >= 0) {
+            PyErr_SetString(PyExc_TypeError, "not supported for bitfields");
+            return NULL;
+        }
+        res = (PyObject *)cf->cf_type;
+        offset = cf->cf_offset;
+    }
+    return Py_BuildValue("(On)", res, offset);
+
+ typeerror:
+    PyErr_SetString(PyExc_TypeError, "expected a struct or union ctype");
+    return NULL;
+}
+
+static PyObject *b_rawaddressof(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
     CDataObject *cd;
+    Py_ssize_t offset = 0;
 
-    if (!PyArg_ParseTuple(args, "O!O!:addressof",
+    if (!PyArg_ParseTuple(args, "O!O!|n:rawaddressof",
                           &CTypeDescr_Type, &ct,
-                          &CData_Type, &cd))
+                          &CData_Type, &cd,
+                          &offset))
         return NULL;
 
-    if ((cd->c_type->ct_flags & (CT_STRUCT|CT_UNION)) == 0) {
+    if ((cd->c_type->ct_flags & (CT_STRUCT|CT_UNION|CT_IS_PTR_TO_OWNED)) == 0) {
         PyErr_SetString(PyExc_TypeError,
                         "expected a 'cdata struct-or-union' object");
         return NULL;
     }
-    if ((ct->ct_flags & CT_POINTER) == 0 ||
-        (ct->ct_itemdescr != cd->c_type)) {
+    if ((ct->ct_flags & CT_POINTER) == 0) {
         PyErr_SetString(PyExc_TypeError,
-                        "arg 1 must be the type of pointers to arg 2");
+                        "expected a pointer ctype");
         return NULL;
     }
-    return new_simple_cdata(cd->c_data, ct);
+    return new_simple_cdata(cd->c_data + offset, ct);
 }
 
 static PyObject *b_getcname(PyObject *self, PyObject *args)
@@ -4428,7 +4473,8 @@ static PyMethodDef FFIBackendMethods[] = {
     {"sizeof", b_sizeof, METH_O},
     {"typeof", b_typeof, METH_O},
     {"offsetof", b_offsetof, METH_VARARGS},
-    {"addressof", b_addressof, METH_VARARGS},
+    {"typeoffsetof", b_typeoffsetof, METH_VARARGS},
+    {"rawaddressof", b_rawaddressof, METH_VARARGS},
     {"getcname", b_getcname, METH_VARARGS},
     {"string", b_string, METH_VARARGS},
     {"buffer", b_buffer, METH_VARARGS},

@@ -287,15 +287,18 @@ class FFI(object):
     errno = property(_get_errno, _set_errno, None,
                      "the value of 'errno' from/to the C calls")
 
-    def addressof(self, cdata):
-        """Return the address of a <cdata 'struct-or-union'>."""
+    def addressof(self, cdata, field=None):
+        """Return the address of a <cdata 'struct-or-union'>.
+        If 'field' is specified, return the address of this field.
+        """
         ctype = self._backend.typeof(cdata)
+        ctype, offset = self._backend.typeoffsetof(ctype, field)
         try:
             ctypeptr = self._pointer_type_cache[ctype]
         except KeyError:
             ctypeptr = self._pointer_type_cache[ctype] = (
                 self._typeof(self.getctype(ctype, '*')))
-        return self._backend.addressof(ctypeptr, cdata)
+        return self._backend.rawaddressof(ctypeptr, cdata, offset)
 
 
 def _make_ffi_library(ffi, libname):

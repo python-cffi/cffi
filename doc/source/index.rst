@@ -1034,12 +1034,14 @@ with the fact that any cdata object can be weakly referenced).
 
 .. "versionadded:: 0.3" --- inlined in the previous paragraph
 
-``ffi.addressof(cdata)``: from a cdata whose type is ``struct foo_s``,
-return its "address", as a cdata whose type is ``struct foo_s *``.  Also
-works on unions, but not on any other type.  (It would be difficult
-because only structs and unions are internally stored as an indirect
-pointer to the data.)  The returned pointer is only valid as long as
-the original object is.  *New in version 0.4.*
+``ffi.addressof(cdata, field=None)``: from a cdata whose type is
+``struct foo_s``, return its "address", as a cdata whose type is
+``struct foo_s *``.  Also works on unions, but not on any other type.
+(It would be difficult because only structs and unions are internally
+stored as an indirect pointer to the data.)  If ``field`` is given,
+returns the address of that field in the structure.  The returned
+pointer is only valid as long as the original object is.  *New in
+version 0.4.*
 
 .. "versionadded:: 0.4" --- inlined in the previous paragraph
 

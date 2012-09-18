@@ -1456,3 +1456,14 @@ class BackendTests:
         assert repr(a).startswith("<cdata 'struct foo_s *' 0x")
         py.test.raises(TypeError, ffi.addressof, p)
         py.test.raises((AttributeError, TypeError), ffi.addressof, 5)
+
+    def test_addressof_field(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo_s { int x, y; };")
+        p = ffi.new("struct foo_s *")
+        a = ffi.addressof(p[0], 'y')
+        assert repr(a).startswith("<cdata 'int *' 0x")
+        assert int(ffi.cast("uintptr_t", a)) == (
+            int(ffi.cast("uintptr_t", p)) + ffi.sizeof("int"))
+        assert a == ffi.addressof(p, 'y')
+        assert a != ffi.addressof(p, 'x')
