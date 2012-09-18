@@ -898,15 +898,19 @@ Python function, you need to use::
     >>> def myfunc(x, y):
     ...    return x + y
     ...
-    >>> ffi.callback("int(*)(int, int)", myfunc)
+    >>> ffi.callback("int(int, int)", myfunc)
     <cdata 'int(*)(int, int)' calling <function myfunc at 0xf757bbc4>>
 
 .. versionadded:: 0.4
    Or equivalently as a decorator:
 
-    >>> @ffi.callback("int(*)(int, int)")
+    >>> @ffi.callback("int(int, int)")
     ... def myfunc(x, y):
     ...    return x + y
+
+Note that you can also use a C function pointer type like ``"int(*)(int,
+int)"`` (as opposed to a C function type like ``"int(int, int)"``).  It
+is equivalent here.
 
 Warning: like ffi.new(), ffi.callback() returns a cdata that has
 ownership of its C data.  (In this case, the necessary C data contains
@@ -931,7 +935,7 @@ and the C-level callback is made to return a default value.
 The returned value in case of errors is 0 or null by default, but can be
 specified with the ``error`` keyword argument to ``ffi.callback()``::
 
-    >>> ffi.callback("int(*)(int, int)", myfunc, error=42)
+    >>> ffi.callback("int(int, int)", myfunc, error=42)
 
 In all cases the exception is printed to stderr, so this should be
 used only as a last-resort solution.
