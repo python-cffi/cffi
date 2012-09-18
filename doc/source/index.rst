@@ -642,8 +642,11 @@ syntaxes in C both become ``p.x`` in Python.
    now it returns a regular ``<cdata 'type *' NULL>``, which you can
    check for e.g. by comparing it with ``ffi.NULL``.
 
-There is no equivalent to the ``&`` operator in C (because it would not
-fit nicely in the model, and it does not seem to be needed here).
+There is no general equivalent to the ``&`` operator in C (because it
+would not fit nicely in the model, and it does not seem to be needed
+here).  But see ``ffi.addressof()`` below__.
+
+__ Miscellaneous_
 
 Any operation that would in C return a pointer or array or struct type
 gives you a fresh cdata object.  Unlike the "original" one, these fresh
@@ -1030,6 +1033,15 @@ same data.  Later, when this new cdata object is garbage-collected,
 with the fact that any cdata object can be weakly referenced).
 
 .. "versionadded:: 0.3" --- inlined in the previous paragraph
+
+``ffi.addressof(cdata)``: from a cdata whose type is ``struct foo_s``,
+return its "address", as a cdata whose type is ``struct foo_s *``.  Also
+works on unions, but not on any other type.  (It would be difficult
+because only structs and unions are internally stored as an indirect
+pointer to the data.)  The returned pointer is only valid as long as
+the original object is.  *New in version 0.4.*
+
+.. "versionadded:: 0.4" --- inlined in the previous paragraph
 
 
 Unimplemented features
