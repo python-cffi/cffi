@@ -901,6 +901,13 @@ Python function, you need to use::
     >>> ffi.callback("int(*)(int, int)", myfunc)
     <cdata 'int(*)(int, int)' calling <function myfunc at 0xf757bbc4>>
 
+.. versionadded:: 0.4
+   Or equivalently as a decorator:
+
+    >>> @ffi.callback("int(*)(int, int)")
+    ... def myfunc(x, y):
+    ...    return x + y
+
 Warning: like ffi.new(), ffi.callback() returns a cdata that has
 ownership of its C data.  (In this case, the necessary C data contains
 the libffi data structures to do a callback.)  This means that the

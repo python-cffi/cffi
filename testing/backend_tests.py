@@ -663,7 +663,6 @@ class BackendTests:
 
     def test_functionptr_simple(self):
         ffi = FFI(backend=self.Backend())
-        py.test.raises(TypeError, ffi.callback, "int(*)(int)")
         py.test.raises(TypeError, ffi.callback, "int(*)(int)", 0)
         def cb(n):
             return n + 1
@@ -1258,6 +1257,16 @@ class BackendTests:
         f = ffi.callback("long long cb(long i, ...)", cb)
         res = f(10, ffi.cast("int", 100), ffi.cast("long long", 1000))
         assert res == 20 + 300 + 5000
+
+    def test_callback_decorator(self):
+        ffi = FFI(backend=self.Backend())
+        #
+        @ffi.callback("long(long, long)", error=42)
+        def cb(a, b):
+            return a - b
+        #
+        assert cb(-100, -10) == -90
+        assert cb(sys.maxint, -10) == 42
 
     def test_unique_types(self):
         ffi1 = FFI(backend=self.Backend())

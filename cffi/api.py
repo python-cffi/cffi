@@ -207,17 +207,25 @@ class FFI(object):
         """
         return self._backend.buffer(cdata, size)
 
-    def callback(self, cdecl, python_callable, error=None):
-        """Return a callback object.  'cdecl' must name a C function pointer
-        type.  The callback invokes the specified 'python_callable'.
-        Important: the callback object must be manually kept alive for as
-        long as the callback may be invoked from the C level.
+    def callback(self, cdecl, python_callable=None, error=None):
+        """Return a callback object or a decorator making such a
+        callback object.  'cdecl' must name a C function pointer type.
+        The callback invokes the specified 'python_callable' (which may
+        be provided either directly or via a decorator).  Important: the
+        callback object must be manually kept alive for as long as the
+        callback may be invoked from the C level.
         """
-        if not callable(python_callable):
-            raise TypeError("the 'python_callable' argument is not callable")
+        def callback_decorator_wrap(python_callable):
+            if not callable(python_callable):
+                raise TypeError("the 'python_callable' argument "
+                                "is not callable")
+            return self._backend.callback(cdecl, python_callable, error)
         if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl, consider_function_as_funcptr=True)
-        return self._backend.callback(cdecl, python_callable, error)
+        if python_callable is None:
+            return callback_decorator_wrap                # decorator mode
+        else:
+            return callback_decorator_wrap(python_callable)  # direct mode
 
     def getctype(self, cdecl, replace_with=''):
         """Return a string giving the C type 'cdecl', which may be itself
