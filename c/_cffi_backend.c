@@ -4009,18 +4009,23 @@ static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
         return NULL;
 
     if (fieldname == Py_None) {
-        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION)))
-            goto typeerror;
+        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION))) {
+            PyErr_SetString(PyExc_TypeError,
+                            "expected a struct or union ctype");
+            return NULL;
+        }
         res = (PyObject *)ct;
         offset = 0;
     }
     else {
         if (ct->ct_flags & CT_POINTER)
             ct = ct->ct_itemdescr;
-        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION)))
-            goto typeerror;
-        if (ct->ct_stuff == NULL)
-            goto typeerror;
+        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION)) || ct->ct_stuff == NULL) {
+            PyErr_SetString(PyExc_TypeError,
+                            "expected an initialized struct or union ctype, "
+                            "or a pointer to one");
+            return NULL;
+        }
         cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
         if (cf == NULL) {
             PyErr_SetObject(PyExc_KeyError, fieldname);
@@ -4034,12 +4039,6 @@ static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
         offset = cf->cf_offset;
     }
     return Py_BuildValue("(On)", res, offset);
-
- typeerror:
-    PyErr_SetString(PyExc_TypeError,
-                    "expected an initialized struct or union ctype, "
-                    "or a pointer to it");
-    return NULL;
 }
 
 static PyObject *b_rawaddressof(PyObject *self, PyObject *args)
