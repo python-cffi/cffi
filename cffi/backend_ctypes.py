@@ -1044,6 +1044,12 @@ class CTypesBackend(object):
     def getcname(self, BType, replace_with):
         return BType._get_c_name(replace_with)
 
+    def addressof(self, BTypePtr, cdata):
+        if not isinstance(cdata, CTypesBaseStructOrUnion):
+            raise TypeError("expected a <cdata 'struct-or-union'>")
+        ptr = ctypes.pointer(type(cdata)._to_ctypes(cdata))
+        return BTypePtr._from_ctypes(ptr)
+
 
 class CTypesLibrary(object):
 

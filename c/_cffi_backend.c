@@ -1866,18 +1866,8 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             }
             ((char **)data)[1] = NULL;
         }
-        if (convert_from_object(data, argtype, obj) < 0) {
-            if (CData_Check(obj) && (argtype->ct_flags & CT_IS_PTR_TO_OWNED) &&
-                   argtype->ct_itemdescr == ((CDataObject *)obj)->c_type) {
-                /* special case to make the life of verifier.py easier:
-                   if the formal argument type is 'struct foo *' but
-                   we pass a 'struct foo', then get a pointer to it */
-                PyErr_Clear();
-                ((char **)data)[0] = ((CDataObject *)obj)->c_data;
-                continue;
-            }
+        if (convert_from_object(data, argtype, obj) < 0)
             goto error;
-        }
     }
 
     resultdata = buffer + cif_descr->exchange_offset_arg[0];
@@ -4030,6 +4020,30 @@ static PyObject *b_offsetof(PyObject *self, PyObject *args)
     return PyInt_FromSsize_t(cf->cf_offset);
 }
 
+static PyObject *b_addressof(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    CDataObject *cd;
+
+    if (!PyArg_ParseTuple(args, "O!O!:addressof",
+                          &CTypeDescr_Type, &ct,
+                          &CData_Type, &cd))
+        return NULL;
+
+    if ((cd->c_type->ct_flags & (CT_STRUCT|CT_UNION)) == 0) {
+        PyErr_SetString(PyExc_TypeError,
+                        "expected a 'cdata struct-or-union' object");
+        return NULL;
+    }
+    if ((ct->ct_flags & CT_POINTER) == 0 ||
+        (ct->ct_itemdescr != cd->c_type)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "arg 1 must be the type of pointers to arg 2");
+        return NULL;
+    }
+    return new_simple_cdata(cd->c_data, ct);
+}
+
 static PyObject *b_getcname(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
@@ -4414,6 +4428,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"sizeof", b_sizeof, METH_O},
     {"typeof", b_typeof, METH_O},
     {"offsetof", b_offsetof, METH_VARARGS},
+    {"addressof", b_addressof, METH_VARARGS},
     {"getcname", b_getcname, METH_VARARGS},
     {"string", b_string, METH_VARARGS},
     {"buffer", b_buffer, METH_VARARGS},

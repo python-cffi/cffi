@@ -1150,3 +1150,32 @@ def test_cast_from_int_type_to_bool():
             type = '%s %s' % (sign, basetype)
             assert int(ffi.cast("_Bool", ffi.cast(type, 42))) == 1
             assert int(ffi.cast("_Bool", ffi.cast(type, 0))) == 0
+
+def test_addressof():
+    ffi = FFI()
+    ffi.cdef("""
+        struct point_s { int x, y; };
+        struct foo_s { int z; struct point_s point; };
+        struct point_s sum_coord(struct point_s *);
+    """)
+    lib = ffi.verify("""
+        struct point_s { int x, y; };
+        struct foo_s { int z; struct point_s point; };
+        struct point_s sum_coord(struct point_s *point) {
+            struct point_s r;
+            r.x = point->x + point->y;
+            r.y = point->x - point->y;
+            return r;
+        }
+    """)
+    p = ffi.new("struct foo_s *")
+    p.point.x = 16
+    p.point.y = 9
+    py.test.raises(TypeError, lib.sum_coord, p.point)
+    res = lib.sum_coord(ffi.addressof(p.point))
+    assert res.x == 25
+    assert res.y == 7
+    res2 = lib.sum_coord(ffi.addressof(res))
+    assert res2.x == 32
+    assert res2.y == 18
+    py.test.raises(TypeError, lib.sum_coord, res2)

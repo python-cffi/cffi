@@ -892,11 +892,8 @@ def test_call_function_20():
     BFunc20 = new_function_type((BStructPtr,), BShort, False)
     f = cast(BFunc20, _testfunc(20))
     x = newp(BStructPtr, {'a1': b'A', 'a2': -4042})
-    # test the exception that allows us to pass a 'struct foo' where the
-    # function really expects a 'struct foo *'.
-    res = f(x[0])
-    assert res == -4042 + ord(b'A')
-    assert res == f(x)
+    # can't pass a 'struct foo'
+    py.test.raises(TypeError, f, x[0])
 
 def test_call_function_21():
     BInt = new_primitive_type("int")
@@ -2119,3 +2116,22 @@ def test_bool():
     BDouble = new_primitive_type("double")
     assert int(cast(BBool, cast(BDouble, 0.1))) == 1
     assert int(cast(BBool, cast(BDouble, 0.0))) == 0
+
+def test_addressof():
+    BChar = new_primitive_type("char")
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    complete_struct_or_union(BStruct, [('a1', BChar, -1),
+                                       ('a2', BChar, -1),
+                                       ('a3', BChar, -1)])
+    p = newp(BStructPtr)
+    assert repr(p) == "<cdata 'struct foo *' owning 3 bytes>"
+    s = p[0]
+    assert repr(s) == "<cdata 'struct foo' owning 3 bytes>"
+    a = addressof(BStructPtr, s)
+    assert repr(a).startswith("<cdata 'struct foo *' 0x")
+    py.test.raises(TypeError, addressof, BStruct, s)
+    py.test.raises(TypeError, addressof, new_pointer_type(BChar), s)
+    py.test.raises(TypeError, addressof, BStructPtr, a)
+    py.test.raises(TypeError, addressof, new_pointer_type(BStructPtr), a)
+    py.test.raises(TypeError, addressof, BStructPtr, cast(BChar, '?'))
