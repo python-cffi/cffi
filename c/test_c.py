@@ -750,7 +750,7 @@ def test_offsetof():
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo")
     py.test.raises(TypeError, offsetof, BInt, "abc")
-    py.test.raises(KeyError, offsetof, BStruct, "abc")
+    py.test.raises(TypeError, offsetof, BStruct, "abc")
     complete_struct_or_union(BStruct, [('abc', BInt, -1), ('def', BInt, -1)])
     assert offsetof(BStruct, 'abc') == 0
     assert offsetof(BStruct, 'def') == size_of_int()

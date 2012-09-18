@@ -4019,10 +4019,9 @@ static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
             ct = ct->ct_itemdescr;
         if (!(ct->ct_flags & (CT_STRUCT|CT_UNION)))
             goto typeerror;
-        if (ct->ct_flags & CT_IS_OPAQUE)
-            cf = NULL;
-        else
-            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
+        if (ct->ct_stuff == NULL)
+            goto typeerror;
+        cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
         if (cf == NULL) {
             PyErr_SetObject(PyExc_KeyError, fieldname);
             return NULL;
@@ -4037,7 +4036,9 @@ static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
     return Py_BuildValue("(On)", res, offset);
 
  typeerror:
-    PyErr_SetString(PyExc_TypeError, "expected a struct or union ctype");
+    PyErr_SetString(PyExc_TypeError,
+                    "expected an initialized struct or union ctype, "
+                    "or a pointer to it");
     return NULL;
 }
 
