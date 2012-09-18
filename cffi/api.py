@@ -144,7 +144,7 @@ class FFI(object):
         """
         if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
-        return self._backend.offsetof(cdecl, fieldname)
+        return self._backend.typeoffsetof(cdecl, fieldname)[1]
 
     def new(self, cdecl, init=None):
         """Allocate an instance according to the specified C type and

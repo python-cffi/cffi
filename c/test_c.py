@@ -745,14 +745,17 @@ def test_array_in_struct():
     assert repr(s.a1).startswith("<cdata 'int[5]' 0x")
 
 def test_offsetof():
+    def offsetof(BType, fieldname):
+        return typeoffsetof(BType, fieldname)[1]
     BInt = new_primitive_type("int")
     BStruct = new_struct_type("foo")
     py.test.raises(TypeError, offsetof, BInt, "abc")
-    py.test.raises(TypeError, offsetof, BStruct, "abc")
+    py.test.raises(KeyError, offsetof, BStruct, "abc")
     complete_struct_or_union(BStruct, [('abc', BInt, -1), ('def', BInt, -1)])
     assert offsetof(BStruct, 'abc') == 0
     assert offsetof(BStruct, 'def') == size_of_int()
     py.test.raises(KeyError, offsetof, BStruct, "ghi")
+    assert offsetof(new_pointer_type(BStruct), "def") == size_of_int()
 
 def test_function_type():
     BInt = new_primitive_type("int")

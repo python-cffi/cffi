@@ -3997,29 +3997,6 @@ static PyObject *b_typeof(PyObject *self, PyObject *arg)
     return res;
 }
 
-static PyObject *b_offsetof(PyObject *self, PyObject *args)
-{
-    PyObject *fieldname;
-    CTypeDescrObject *ct;
-    CFieldObject *cf;
-
-    if (!PyArg_ParseTuple(args, "O!O:offsetof",
-                          &CTypeDescr_Type, &ct, &fieldname))
-        return NULL;
-
-    if (!((ct->ct_flags & (CT_STRUCT|CT_UNION)) && ct->ct_stuff != NULL)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "not an initialized struct or union ctype");
-        return NULL;
-    }
-    cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
-    if (cf == NULL) {
-        PyErr_SetObject(PyExc_KeyError, fieldname);
-        return NULL;
-    }
-    return PyInt_FromSsize_t(cf->cf_offset);
-}
-
 static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
 {
     PyObject *res, *fieldname;
@@ -4472,7 +4449,6 @@ static PyMethodDef FFIBackendMethods[] = {
     {"alignof", b_alignof, METH_O},
     {"sizeof", b_sizeof, METH_O},
     {"typeof", b_typeof, METH_O},
-    {"offsetof", b_offsetof, METH_VARARGS},
     {"typeoffsetof", b_typeoffsetof, METH_VARARGS},
     {"rawaddressof", b_rawaddressof, METH_VARARGS},
     {"getcname", b_getcname, METH_VARARGS},

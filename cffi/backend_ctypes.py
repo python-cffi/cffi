@@ -1028,10 +1028,6 @@ class CTypesBackend(object):
         assert issubclass(BType, CTypesData)
         return BType._alignment()
 
-    def offsetof(self, BType, fieldname):
-        assert issubclass(BType, CTypesData)
-        return BType._offsetof(fieldname)
-
     def newp(self, BType, source):
         if not issubclass(BType, CTypesData):
             raise TypeError
