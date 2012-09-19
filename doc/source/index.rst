@@ -613,7 +613,9 @@ somewhere else, then make sure you also keep the object alive for as
 long as needed.  (This also applies if you immediately cast the returned
 pointer to a pointer of a different type: only the original object has
 ownership, so you must keep it alive.  As soon as you forget it, then
-the casted pointer will point to garbage.)  Example::
+the casted pointer will point to garbage!  In other words, the ownership
+rules are attached to the *wrapper* cdata objects: they are not, and
+cannot, be attached to the underlying raw memory.)  Example::
 
     global_weakkeydict = weakref.WeakKeyDictionary()
 
