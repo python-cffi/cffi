@@ -1,7 +1,6 @@
 import sys, os
 import subprocess
 import errno
-from distutils.core import setup, Extension
 
 
 sources = ['c/_cffi_backend.c']
@@ -76,23 +75,9 @@ if COMPILE_LIBFFI:
 else:
     use_pkg_config()
 
-if '__pypy__' in sys.modules:
-    ext_modules = []
-else:
-    ext_modules = [Extension(
-        name='_cffi_backend',
-        include_dirs=include_dirs,
-        sources=sources,
-        libraries=libraries,
-        define_macros=define_macros,
-        library_dirs=library_dirs,
-        extra_compile_args=extra_compile_args,
-        extra_link_args=extra_link_args,
-    ),]
-
-
 
 if __name__ == '__main__':
+  from setuptools import setup, Feature, Extension
   setup(
     name='cffi',
     description='Foreign Function Interface for Python calling C code.',
@@ -105,7 +90,24 @@ if __name__ == '__main__':
 
     license='MIT',
 
-    ext_modules=ext_modules,
+    features={
+        'cextension': Feature(
+            "fast c backend for cpython",
+            standard='__pypy__' not in sys.modules,
+            ext_modules=[
+                Extension(name='_cffi_backend',
+                          include_dirs=include_dirs,
+                          sources=sources,
+                          libraries=libraries,
+                          define_macros=define_macros,
+                          library_dirs=library_dirs,
+                          extra_compile_args=extra_compile_args,
+                          extra_link_args=extra_link_args,
+                          ),
+            ],
+        ),
+    },
+
     install_requires=[
         'pycparser',
     ]
