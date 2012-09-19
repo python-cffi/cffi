@@ -511,7 +511,6 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int strict)
 static PY_LONG_LONG
 read_raw_signed_data(char *target, int size)
 {
-    /*READ(target, size)*/
     if (size == sizeof(signed char))
         return *((signed char*)target);
     else if (size == sizeof(short))
@@ -531,7 +530,6 @@ read_raw_signed_data(char *target, int size)
 static unsigned PY_LONG_LONG
 read_raw_unsigned_data(char *target, int size)
 {
-    /*READ(target, size)*/
     if (size == sizeof(unsigned char))
         return *((unsigned char*)target);
     else if (size == sizeof(unsigned short))
@@ -551,7 +549,6 @@ read_raw_unsigned_data(char *target, int size)
 static void
 write_raw_integer_data(char *target, unsigned PY_LONG_LONG source, int size)
 {
-    /*WRITE(target, size)*/
     if (size == sizeof(unsigned char))
         *((unsigned char*)target) = (unsigned char)source;
     else if (size == sizeof(unsigned short))
@@ -569,7 +566,6 @@ write_raw_integer_data(char *target, unsigned PY_LONG_LONG source, int size)
 static double
 read_raw_float_data(char *target, int size)
 {
-    /*READ(target, size)*/
     if (size == sizeof(float))
         return *((float*)target);
     else if (size == sizeof(double))
@@ -583,14 +579,12 @@ read_raw_float_data(char *target, int size)
 static long double
 read_raw_longdouble_data(char *target)
 {
-    /*READ(target, sizeof(long double))*/
     return *((long double*)target);
 }
 
 static void
 write_raw_float_data(char *target, double source, int size)
 {
-    /*WRITE(target, size)*/
     if (size == sizeof(float))
         *((float*)target) = (float)source;
     else if (size == sizeof(double))
@@ -602,7 +596,6 @@ write_raw_float_data(char *target, double source, int size)
 static void
 write_raw_longdouble_data(char *target, long double source)
 {
-    /*WRITE(target, sizeof(long double))*/
     *((long double*)target) = source;
 }
 
@@ -677,7 +670,9 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         }
     }
     else if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
-        PY_LONG_LONG value = read_raw_signed_data(data, ct->ct_size);
+        PY_LONG_LONG value;
+        /*READ(data, ct->ct_size)*/
+        value = read_raw_signed_data(data, ct->ct_size);
 
         if (ct->ct_flags & CT_IS_ENUM) {
             PyObject *d_value, *d_key = PyInt_FromLong((int)value);
@@ -698,7 +693,9 @@ convert_to_object(char *data, CTypeDescrObject *ct)
             return PyLong_FromLongLong(value);
     }
     else if (ct->ct_flags & CT_PRIMITIVE_UNSIGNED) {
-        unsigned PY_LONG_LONG value =read_raw_unsigned_data(data, ct->ct_size);
+        unsigned PY_LONG_LONG value;
+        /*READ(data, ct->ct_size)*/
+        value = read_raw_unsigned_data(data, ct->ct_size);
 
         if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
             return PyInt_FromLong((long)value);
@@ -706,6 +703,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
             return PyLong_FromUnsignedLongLong(value);
     }
     else if (ct->ct_flags & CT_PRIMITIVE_FLOAT) {
+        /*READ(data, ct->ct_size)*/
         if (!(ct->ct_flags & CT_IS_LONGDOUBLE)) {
             double value = read_raw_float_data(data, ct->ct_size);
             return PyFloat_FromDouble(value);
@@ -719,15 +717,12 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         }
     }
     else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
-        if (ct->ct_size == sizeof(char)) {
-            /*READ(data, 1)*/
+        /*READ(data, ct->ct_size)*/
+        if (ct->ct_size == sizeof(char))
             return PyBytes_FromStringAndSize(data, 1);
-        }
 #ifdef HAVE_WCHAR_H
-        else {
-            /*READ(data, sizeof(wchar_t))*/
+        else
             return _my_PyUnicode_FromWideChar((wchar_t *)data, 1);
-        }
 #endif
     }
 
@@ -740,6 +735,7 @@ static PyObject *
 convert_to_object_bitfield(char *data, CFieldObject *cf)
 {
     CTypeDescrObject *ct = cf->cf_type;
+    /*READ(data, ct->ct_size)*/
 
     if (ct->ct_flags & CT_PRIMITIVE_SIGNED) {
         unsigned PY_LONG_LONG value, valuemask, shiftforsign;
@@ -939,7 +935,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     const char *expected;
     char buf[sizeof(PY_LONG_LONG)];
 
-    /*if (ct->ct_size >= 0)*/
+    /*if (ct->ct_size > 0)*/
         /*WRITE(data, ct->ct_size)*/
 
     if (ct->ct_flags & CT_ARRAY) {
@@ -1024,7 +1020,9 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                 CData_Check(init) &&
                 (((CDataObject *)init)->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
             long double lvalue;
-            lvalue = read_raw_longdouble_data(((CDataObject *)init)->c_data);
+            char *initdata = ((CDataObject *)init)->c_data;
+            /*READ(initdata, sizeof(long double))*/
+            lvalue = read_raw_longdouble_data(initdata);
             write_raw_longdouble_data(data, lvalue);
             return 0;
         }
@@ -1175,6 +1173,7 @@ convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init)
 
     rawmask = ((1ULL << cf->cf_bitsize) - 1ULL) << cf->cf_bitshift;
     rawvalue = ((unsigned PY_LONG_LONG)value) << cf->cf_bitshift;
+    /*WRITE(data, ct->ct_size)*/
     rawfielddata = read_raw_unsigned_data(data, ct->ct_size);
     rawfielddata = (rawfielddata & ~rawmask) | (rawvalue & rawmask);
     write_raw_integer_data(data, rawfielddata, ct->ct_size);
@@ -1268,8 +1267,10 @@ static PyObject *cdata_repr(CDataObject *cd)
             Py_DECREF(o);
         }
         else {
-            long double lvalue = read_raw_longdouble_data(cd->c_data);
+            long double lvalue;
             char buffer[128];   /* big enough */
+            /*READ(cd->c_data, sizeof(long double)*/
+            lvalue = read_raw_longdouble_data(cd->c_data);
             sprintf(buffer, "%LE", lvalue);
             s = PyText_FromString(buffer);
         }
@@ -1340,23 +1341,21 @@ static PyObject *cdata_int(CDataObject *cd)
                              == (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_FITS_LONG)) {
         /* this case is to handle enums, but also serves as a slight
            performance improvement for some other primitive types */
-        long value = (long)read_raw_signed_data(cd->c_data,
-                                                cd->c_type->ct_size);
+        long value;
+        /*READ(cd->c_data, cd->c_type->ct_size)*/
+        value = (long)read_raw_signed_data(cd->c_data, cd->c_type->ct_size);
         return PyInt_FromLong(value);
     }
     if (cd->c_type->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
         return convert_to_object(cd->c_data, cd->c_type);
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
-        if (cd->c_type->ct_size == sizeof(char)) {
-            /*READ(cd->c_data, 1)*/
+        /*READ(cd->c_data, cd->c_type->ct_size)*/
+        if (cd->c_type->ct_size == sizeof(char))
             return PyInt_FromLong((unsigned char)cd->c_data[0]);
-        }
 #ifdef HAVE_WCHAR_H
-        else {
-            /*READ(cd->c_data, sizeof(wchar_t))*/
+        else
             return PyInt_FromLong((long)*(wchar_t *)cd->c_data);
-        }
 #endif
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
@@ -1391,6 +1390,7 @@ static PyObject *cdata_float(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
         double value;
+        /*READ(cd->c_data, cd->c_type->ct_size)*/
         if (!(cd->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
             value = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
         }
@@ -2309,6 +2309,7 @@ _my_PyObject_AsBool(PyObject *ob)
     else if (CData_Check(ob)) {
         CDataObject *cd = (CDataObject *)ob;
         if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
+            /*READ(cd->c_data, cd->c_type->ct_size)*/
             if (cd->c_type->ct_flags & CT_IS_LONGDOUBLE) {
                 /* 'long double' objects: return the answer directly */
                 return read_raw_longdouble_data(cd->c_data) != 0.0;
@@ -2510,7 +2511,9 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
                  CData_Check(io) &&
                  (((CDataObject *)io)->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
             long double lvalue;
-            lvalue = read_raw_longdouble_data(((CDataObject *)io)->c_data);
+            char *data = ((CDataObject *)io)->c_data;
+            /*READ(data, sizeof(long double)*/
+            lvalue = read_raw_longdouble_data(data);
             cd = _new_casted_primitive(ct);
             if (cd != NULL)
                 write_raw_longdouble_data(cd->c_data, lvalue);
@@ -4141,11 +4144,14 @@ static PyObject *b_string(PyObject *self, PyObject *args)
         }
         if (cd->c_type->ct_itemdescr->ct_size == sizeof(char)) {
             const char *start = cd->c_data;
-            /*READ(start, ?)*/
-            if (length < 0)
+            if (length < 0) {
+                /*READ(start, 1)*/
                 length = strlen(start);
+                /*READ(start, length)*/
+            }
             else {
                 const char *end;
+                /*READ(start, length)*/
                 end = (const char *)memchr(start, 0, length);
                 if (end != NULL)
                     length = end - start;
@@ -4155,14 +4161,16 @@ static PyObject *b_string(PyObject *self, PyObject *args)
 #ifdef HAVE_WCHAR_H
         else if (cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) {
             const wchar_t *start = (wchar_t *)cd->c_data;
-            /*READ(start, ?)*/
             assert(cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t));
             if (length < 0) {
+                /*READ(start, sizeof(wchar_t))*/
                 length = 0;
                 while (start[length])
                     length++;
+                /*READ(start, sizeof(wchar_t) * length)*/
             }
             else {
+                /*READ(start, sizeof(wchar_t) * length)*/
                 maxlen = length;
                 length = 0;
                 while (length < maxlen && start[length])
@@ -4181,14 +4189,12 @@ static PyObject *b_string(PyObject *self, PyObject *args)
     else if (cd->c_type->ct_flags & (CT_PRIMITIVE_CHAR |
                                      CT_PRIMITIVE_SIGNED |
                                      CT_PRIMITIVE_UNSIGNED)) {
-        if (cd->c_type->ct_size == sizeof(char)) {
-            /*READ(cd->c_data, 1)*/
+        /*READ(cd->c_data, cd->c_type->ct_size)*/
+        if (cd->c_type->ct_size == sizeof(char))
             return PyBytes_FromStringAndSize(cd->c_data, 1);
-        }
 #ifdef HAVE_WCHAR_H
         else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
             assert(cd->c_type->ct_size == sizeof(wchar_t));
-            /*READ(cd->c_data, sizeof(wchar_t))*/
             return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, 1);
         }
 #endif
@@ -4566,8 +4572,11 @@ static char *_cffi_to_c_pointer(PyObject *obj, CTypeDescrObject *ct)
 static long double _cffi_to_c_long_double(PyObject *obj)
 {
     if (CData_Check(obj) &&
-            (((CDataObject *)obj)->c_type->ct_flags & CT_IS_LONGDOUBLE))
-        return read_raw_longdouble_data(((CDataObject *)obj)->c_data);
+            (((CDataObject *)obj)->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
+        char *data = ((CDataObject *)obj)->c_data;
+        /*READ(data, sizeof(long double))*/
+        return read_raw_longdouble_data(data);
+    }
     else
         return PyFloat_AsDouble(obj);
 }
