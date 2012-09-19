@@ -1029,7 +1029,10 @@ of the C type "pointer to the same type than x".
 ``ffi.gc(cdata, destructor)``: return a new cdata object that points to the
 same data.  Later, when this new cdata object is garbage-collected,
 ``destructor(old_cdata_object)`` will be called.  Example of usage:
-``ptr = ffi.gc(lib.malloc(42), lib.free)``.  *New in version 0.3* (together
+``ptr = ffi.gc(lib.malloc(42), lib.free)``.  Note that like objects
+returned by ``ffi.new()``, the returned pointer objects have *ownership*,
+which means the destructor is called as soon as *this* exact returned
+object is garbage-collected.  *New in version 0.3* (together
 with the fact that any cdata object can be weakly referenced).
 
 .. "versionadded:: 0.3" --- inlined in the previous paragraph
