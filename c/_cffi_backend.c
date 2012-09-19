@@ -511,6 +511,7 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int strict)
 static PY_LONG_LONG
 read_raw_signed_data(char *target, int size)
 {
+    /*READ(target, size)*/
     if (size == sizeof(signed char))
         return *((signed char*)target);
     else if (size == sizeof(short))
@@ -530,6 +531,7 @@ read_raw_signed_data(char *target, int size)
 static unsigned PY_LONG_LONG
 read_raw_unsigned_data(char *target, int size)
 {
+    /*READ(target, size)*/
     if (size == sizeof(unsigned char))
         return *((unsigned char*)target);
     else if (size == sizeof(unsigned short))
@@ -549,6 +551,7 @@ read_raw_unsigned_data(char *target, int size)
 static void
 write_raw_integer_data(char *target, unsigned PY_LONG_LONG source, int size)
 {
+    /*WRITE(target, size)*/
     if (size == sizeof(unsigned char))
         *((unsigned char*)target) = (unsigned char)source;
     else if (size == sizeof(unsigned short))
@@ -566,6 +569,7 @@ write_raw_integer_data(char *target, unsigned PY_LONG_LONG source, int size)
 static double
 read_raw_float_data(char *target, int size)
 {
+    /*READ(target, size)*/
     if (size == sizeof(float))
         return *((float*)target);
     else if (size == sizeof(double))
@@ -579,12 +583,14 @@ read_raw_float_data(char *target, int size)
 static long double
 read_raw_longdouble_data(char *target)
 {
+    /*READ(target, sizeof(long double))*/
     return *((long double*)target);
 }
 
 static void
 write_raw_float_data(char *target, double source, int size)
 {
+    /*WRITE(target, size)*/
     if (size == sizeof(float))
         *((float*)target) = (float)source;
     else if (size == sizeof(double))
@@ -596,6 +602,7 @@ write_raw_float_data(char *target, double source, int size)
 static void
 write_raw_longdouble_data(char *target, long double source)
 {
+    /*WRITE(target, sizeof(long double))*/
     *((long double*)target) = source;
 }
 
@@ -648,6 +655,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         /* non-primitive types (check done just for performance) */
         if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
             char *ptrdata = *(char **)data;
+            /*READ(data, sizeof(char *))*/
             return new_simple_cdata(ptrdata, ct);
         }
         else if (ct->ct_flags & CT_IS_OPAQUE) {
@@ -711,11 +719,15 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         }
     }
     else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
-        if (ct->ct_size == sizeof(char))
+        if (ct->ct_size == sizeof(char)) {
+            /*READ(data, 1)*/
             return PyBytes_FromStringAndSize(data, 1);
+        }
 #ifdef HAVE_WCHAR_H
-        else
+        else {
+            /*READ(data, sizeof(wchar_t))*/
             return _my_PyUnicode_FromWideChar((wchar_t *)data, 1);
+        }
 #endif
     }
 
@@ -780,7 +792,9 @@ static int _convert_to_char(PyObject *init)
     if (CData_Check(init) &&
            (((CDataObject *)init)->c_type->ct_flags & CT_PRIMITIVE_CHAR) &&
            (((CDataObject *)init)->c_type->ct_size == sizeof(char))) {
-        return *(unsigned char *)((CDataObject *)init)->c_data;
+        char *data = ((CDataObject *)init)->c_data;
+        /*READ(data, 1)*/
+        return *(unsigned char *)data;
     }
     PyErr_Format(PyExc_TypeError,
                  "initializer for ctype 'char' must be a "STR_OR_BYTES
@@ -799,7 +813,9 @@ static wchar_t _convert_to_wchar_t(PyObject *init)
     if (CData_Check(init) &&
            (((CDataObject *)init)->c_type->ct_flags & CT_PRIMITIVE_CHAR) &&
            (((CDataObject *)init)->c_type->ct_size == sizeof(wchar_t))) {
-        return *(wchar_t *)((CDataObject *)init)->c_data;
+        char *data = ((CDataObject *)init)->c_data;
+        /*READ(data, sizeof(wchar_t))*/
+        return *(wchar_t *)data;
     }
     PyErr_Format(PyExc_TypeError,
                  "initializer for ctype 'wchar_t' must be a unicode string "
@@ -922,6 +938,9 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
     const char *expected;
     char buf[sizeof(PY_LONG_LONG)];
+
+    /*if (ct->ct_size >= 0)*/
+        /*WRITE(data, ct->ct_size)*/
 
     if (ct->ct_flags & CT_ARRAY) {
         return convert_array_from_object(data, ct, init);
@@ -1329,11 +1348,15 @@ static PyObject *cdata_int(CDataObject *cd)
         return convert_to_object(cd->c_data, cd->c_type);
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
-        if (cd->c_type->ct_size == sizeof(char))
+        if (cd->c_type->ct_size == sizeof(char)) {
+            /*READ(cd->c_data, 1)*/
             return PyInt_FromLong((unsigned char)cd->c_data[0]);
+        }
 #ifdef HAVE_WCHAR_H
-        else
+        else {
+            /*READ(cd->c_data, sizeof(wchar_t))*/
             return PyInt_FromLong((long)*(wchar_t *)cd->c_data);
+        }
 #endif
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
@@ -1871,6 +1894,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     }
 
     resultdata = buffer + cif_descr->exchange_offset_arg[0];
+    /*READ(cd->c_data, sizeof(void(*)(void)))*/
 
     Py_BEGIN_ALLOW_THREADS
     restore_errno();
@@ -4117,6 +4141,7 @@ static PyObject *b_string(PyObject *self, PyObject *args)
         }
         if (cd->c_type->ct_itemdescr->ct_size == sizeof(char)) {
             const char *start = cd->c_data;
+            /*READ(start, ?)*/
             if (length < 0)
                 length = strlen(start);
             else {
@@ -4130,6 +4155,7 @@ static PyObject *b_string(PyObject *self, PyObject *args)
 #ifdef HAVE_WCHAR_H
         else if (cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) {
             const wchar_t *start = (wchar_t *)cd->c_data;
+            /*READ(start, ?)*/
             assert(cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t));
             if (length < 0) {
                 length = 0;
@@ -4156,11 +4182,13 @@ static PyObject *b_string(PyObject *self, PyObject *args)
                                      CT_PRIMITIVE_SIGNED |
                                      CT_PRIMITIVE_UNSIGNED)) {
         if (cd->c_type->ct_size == sizeof(char)) {
+            /*READ(cd->c_data, 1)*/
             return PyBytes_FromStringAndSize(cd->c_data, 1);
         }
 #ifdef HAVE_WCHAR_H
         else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
             assert(cd->c_type->ct_size == sizeof(wchar_t));
+            /*READ(cd->c_data, sizeof(wchar_t))*/
             return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, 1);
         }
 #endif
@@ -4198,6 +4226,7 @@ static PyObject *b_buffer(PyObject *self, PyObject *args)
                      cd->c_type->ct_name);
         return NULL;
     }
+    /*WRITE(cd->c_data, size)*/
 #if PY_MAJOR_VERSION < 3
     return PyBuffer_FromReadWriteMemory(cd->c_data, size);
 #else
