@@ -297,21 +297,23 @@ This lets normal ``setup.py`` commands compile and package the C
 extension modules too.
 
 Example::
-  
+
+  from setuptools import setup
+  --OR--
   from distutils.core import setup
-  from distutils.extension import Extension
 
   # you must import at least the module(s) that define the ffi's
   # that you use in your application
   import yourmodule
 
   setup(...
-        zip_safe=False,
+        zip_safe=False,     # with setuptools only
         ext_modules=[yourmodule.ffi.verifier.get_extension()])
 
-Warning: you have to say ``zip_safe=False``, otherwise it might or might
-not work, depending on which verifier engine is used!  (I tried to find
-either workarounds or proper solutions but failed so far.)
+Warning: with ``setuptools``, you have to say ``zip_safe=False``,
+otherwise it might or might not work, depending on which verifier engine
+is used!  (I tried to find either workarounds or proper solutions but
+failed so far.)
 
 .. versionadded:: 0.4
    If your ``setup.py`` installs a whole package, you can put the extension
