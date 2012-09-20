@@ -306,7 +306,12 @@ Example::
   import yourmodule
 
   setup(...
+        zip_safe=False,
         ext_modules=[yourmodule.ffi.verifier.get_extension()])
+
+Warning: you have to say ``zip_safe=False``, otherwise it might or might
+not work, depending on which verifier engine is used!  (I tried to find
+either workarounds or proper solutions but failed so far.)
 
 .. versionadded:: 0.4
    If your ``setup.py`` installs a whole package, you can put the extension
@@ -315,6 +320,7 @@ Example::
 ::
   
   setup(...
+        zip_safe=False,
         ext_package='yourpackage',     # but see below!
         ext_modules=[yourmodule.ffi.verifier.get_extension()])
 
