@@ -2704,8 +2704,8 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
     handle = dlopen(filename_or_null,
                     RTLD_LAZY | (is_global?RTLD_GLOBAL:RTLD_LOCAL));
     if (handle == NULL) {
-        PyErr_Format(PyExc_OSError, "cannot load library: %s",
-                     printable_filename);
+        PyErr_Format(PyExc_OSError, "cannot load library %s: %s",
+                     printable_filename, dlerror());
         return NULL;
     }
 
