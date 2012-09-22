@@ -10,10 +10,8 @@ class DummyLogger(object):
         return lambda *args: None
 
 def create_venv():
-    import virtualenv
     tmpdir = tempfile.mkdtemp()
-    virtualenv.logger = DummyLogger()
-    virtualenv.create_environment(tmpdir, site_packages=False)
+    subprocess.call(['virtualenv', tmpdir])
     return py.path.local(tmpdir)
 
 SNIPPET_DIR = py.path.local(__file__).join('..', 'snippets')
