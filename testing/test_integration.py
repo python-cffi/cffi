@@ -52,3 +52,12 @@ def test_basic_verify():
     p = snip_basic_verify.C.getpwuid(0)
     assert snip_basic_verify.ffi.string(p.pw_name) == "root"
     ''')
+
+def test_setuptools_verify():
+    venv_dir = create_venv()
+    run_setup_and_program("setuptools_verify", venv_dir, '''
+    import snip_setuptools_verify
+    p = snip_setuptools_verify.C.getpwuid(0)
+    assert snip_setuptools_verify.ffi.string(p.pw_name) == "root"
+    ''')
+    
