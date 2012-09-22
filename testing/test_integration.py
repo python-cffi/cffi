@@ -11,7 +11,7 @@ class DummyLogger(object):
 
 def create_venv():
     tmpdir = tempfile.mkdtemp()
-    subprocess.call(['virtualenv', tmpdir])
+    subprocess.call(['virtualenv', '-p', sys.executable, tmpdir])
     return py.path.local(tmpdir)
 
 SNIPPET_DIR = py.path.local(__file__).join('..', 'snippets')
