@@ -878,7 +878,9 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         }
         return 0;
     }
-    else if (ctitem->ct_flags & CT_PRIMITIVE_CHAR) {
+    else if ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) ||
+             ((ctitem->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED))
+              && (ctitem->ct_size == sizeof(char)))) {
         if (ctitem->ct_size == sizeof(char)) {
             char *srcdata;
             Py_ssize_t n;
