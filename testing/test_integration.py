@@ -13,7 +13,7 @@ def create_venv():
     import virtualenv
     tmpdir = tempfile.mkdtemp()
     virtualenv.logger = DummyLogger()
-    virtualenv.create_environment(tmpdir, site_packages=True)
+    virtualenv.create_environment(tmpdir, site_packages=False)
     return py.path.local(tmpdir)
 
 SNIPPET_DIR = py.path.local(__file__).join('..', 'snippets')
@@ -47,7 +47,7 @@ def test_infrastructure():
 
 def test_basic_verify():
     venv_dir = create_venv()
-    run_setup_and_program("basic_verify", venv_dir, ''')
+    run_setup_and_program("basic_verify", venv_dir, '''
     import snip_basic_verify
     p = snip_basic_verify.C.getpwuid(0)
     assert snip_basic_verify.ffi.string(p.pw_name) == "root"
