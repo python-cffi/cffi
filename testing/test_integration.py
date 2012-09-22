@@ -23,10 +23,9 @@ def run_setup_and_program(dirname, venv_dir, python_snippet):
     python_f.write(py.code.Source(python_snippet))
     try:
         os.chdir(str(SNIPPET_DIR.join(dirname)))
-        python = sys.executable
         venv = venv_dir.join('bin/activate')
-        p = subprocess.Popen(['bash', '-c', '. %(venv)s && %(python)s setup.py '
-                              'install && %(python)s %(python_f)s' % locals()],
+        p = subprocess.Popen(['bash', '-c', '. %(venv)s && python setup.py '
+                              'install && python %(python_f)s' % locals()],
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
         if p.returncode != 0:
