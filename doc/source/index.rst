@@ -404,7 +404,7 @@ be completed by a call to ``verify()``.
 Loading libraries
 -----------------
 
-``ffi.dlopen(libpath)``: this function opens a shared library and
+``ffi.dlopen(libpath, [flags])``: this function opens a shared library and
 returns a module-like library object.  You need to use *either*
 ``ffi.dlopen()`` *or* ``ffi.verify()``, documented below_.
 
@@ -431,6 +431,9 @@ This is due to the C model: the types you declare in C are not tied to a
 particular library, as long as you ``#include`` their headers; but you
 cannot call functions from a library without linking it in your program,
 as ``dlopen()`` does dynamically in C.
+
+For the optional ``flags`` argument, see ``man dlopen`` (ignored on
+Windows).  It defaults to ``ffi.RTLD_NOW``.
 
 .. _below:
 

@@ -54,6 +54,9 @@ class FFI(object):
         self._pointer_type_cache = {}
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
+        for name in backend.__dict__:
+            if name.startswith('RTLD_'):
+                setattr(self, name, getattr(backend, name))
         #
         lines = []
         by_size = {}
@@ -84,7 +87,7 @@ class FFI(object):
             for cache in self._function_caches:
                 cache.clear()
 
-    def dlopen(self, name):
+    def dlopen(self, name, flags=0):
         """Load and return a dynamic library identified by 'name'.
         The standard C library can be loaded by passing None.
         Note that functions and types declared by 'ffi.cdef()' are not
@@ -92,7 +95,7 @@ class FFI(object):
         library we only look for the actual (untyped) symbols.
         """
         assert isinstance(name, str) or name is None
-        lib, function_cache = _make_ffi_library(self, name)
+        lib, function_cache = _make_ffi_library(self, name, flags)
         self._function_caches.append(function_cache)
         return lib
 
@@ -301,11 +304,13 @@ class FFI(object):
         return self._backend.rawaddressof(ctypeptr, cdata, offset)
 
 
-def _make_ffi_library(ffi, libname):
+def _make_ffi_library(ffi, libname, flags):
+    import os
     name = libname
     if name is None:
         name = 'c'    # on Posix only
-    if '/' in name:
+    if os.path.sep in name or (
+            os.path.altsep is not None and os.path.altsep in name):
         path = name
     else:
         import ctypes.util
@@ -314,7 +319,7 @@ def _make_ffi_library(ffi, libname):
             raise OSError("library not found: %r" % (name,))
     #
     backend = ffi._backend
-    backendlib = backend.load_library(path)
+    backendlib = backend.load_library(path, flags)
     #
     def make_accessor(name):
         key = 'function ' + name

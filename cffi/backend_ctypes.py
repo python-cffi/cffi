@@ -287,6 +287,12 @@ class CTypesBackend(object):
         '_Bool': ctypes.c_bool,
     }
 
+    def __init__(self):
+        self.RTLD_LAZY = 0   # not supported anyway by ctypes
+        self.RTLD_NOW  = 0
+        self.RTLD_GLOBAL = ctypes.RTLD_GLOBAL
+        self.RTLD_LOCAL = ctypes.RTLD_LOCAL
+
     def set_ffi(self, ffi):
         self.ffi = ffi
 
@@ -309,8 +315,8 @@ class CTypesBackend(object):
                 result['ssize_t'] = size
         return result
 
-    def load_library(self, path):
-        cdll = ctypes.CDLL(path)
+    def load_library(self, path, flags=0):
+        cdll = ctypes.CDLL(path, flags)
         return CTypesLibrary(self, cdll)
 
     def new_void_type(self):

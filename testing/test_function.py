@@ -68,6 +68,15 @@ class TestFunction(object):
         x = m.sin(1.23)
         assert x is None
 
+    def test_dlopen_flags(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            double cos(double x);
+        """)
+        m = ffi.dlopen("m", ffi.RTLD_LAZY | ffi.RTLD_LOCAL)
+        x = m.cos(1.23)
+        assert x == math.cos(1.23)
+
     def test_tlsalloc(self):
         if sys.platform != 'win32':
             py.test.skip("win32 only")

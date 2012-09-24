@@ -9,7 +9,7 @@ class FakeBackend(object):
     def sizeof(self, name):
         return 1
 
-    def load_library(self, name):
+    def load_library(self, name, flags):
         if sys.platform == 'win32':
             assert "msvcr" in name
         else:

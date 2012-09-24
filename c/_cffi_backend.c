@@ -2691,20 +2691,24 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
     char *filename_or_null, *printable_filename;
     void *handle;
     DynLibObject *dlobj;
-    int is_global = 0;
+    int flags = 0;
 
     if (PyTuple_GET_SIZE(args) == 0 || PyTuple_GET_ITEM(args, 0) == Py_None) {
-        filename_or_null = NULL;
-        is_global = 1;
+        PyObject *dummy;
+        if (!PyArg_ParseTuple(args, "|Oi:load_library",
+                              &dummy, &flags))
+            return NULL;
     }
     else if (!PyArg_ParseTuple(args, "et|i:load_library",
                           Py_FileSystemDefaultEncoding, &filename_or_null,
-                          &is_global))
+                          &flags))
         return NULL;
 
+    if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
+        flags |= RTLD_NOW;
+
     printable_filename = filename_or_null ? filename_or_null : "<None>";
-    handle = dlopen(filename_or_null,
-                    RTLD_LAZY | (is_global?RTLD_GLOBAL:RTLD_LOCAL));
+    handle = dlopen(filename_or_null, flags);
     if (handle == NULL) {
         PyErr_Format(PyExc_OSError, "cannot load library %s: %s",
                      printable_filename, dlerror());
@@ -4723,17 +4727,35 @@ init_cffi_backend(void)
     if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
         INITERROR;
 
+    if (PyModule_AddIntConstant(m, "FFI_DEFAULT_ABI", FFI_DEFAULT_ABI) < 0 ||
 #if defined(MS_WIN32) && !defined(_WIN64)
-    v = PyInt_FromLong(FFI_STDCALL);
-    if (v == NULL || PyModule_AddObject(m, "FFI_STDCALL", v) < 0)
-        INITERROR;
+        PyModule_AddIntConstant(m, "FFI_STDCALL", FFI_STDCALL) < 0 ||
 #endif
-    v = PyInt_FromLong(FFI_DEFAULT_ABI);
-    if (v == NULL || PyModule_AddObject(m, "FFI_DEFAULT_ABI", v) < 0)
-        INITERROR;
-    Py_INCREF(v);
-    if (PyModule_AddObject(m, "FFI_CDECL", v) < 0)  /* win32 name */
-        INITERROR;
+#ifdef FFI_CDECL
+        PyModule_AddIntConstant(m, "FFI_CDECL", FFI_CDECL) < 0 ||   /* win32 */
+#else
+        PyModule_AddIntConstant(m, "FFI_CDECL", FFI_DEFAULT_ABI) < 0 ||
+#endif
+
+        PyModule_AddIntConstant(m, "RTLD_LAZY",   RTLD_LAZY) < 0 ||
+        PyModule_AddIntConstant(m, "RTLD_NOW",    RTLD_NOW) < 0 ||
+        PyModule_AddIntConstant(m, "RTLD_GLOBAL", RTLD_GLOBAL) < 0 ||
+#ifdef RTLD_LOCAL
+        PyModule_AddIntConstant(m, "RTLD_LOCAL",  RTLD_LOCAL) < 0 ||
+#else
+        PyModule_AddIntConstant(m, "RTLD_LOCAL",  0) < 0 ||
+#endif
+#ifdef RTLD_NODELETE
+        PyModule_AddIntConstant(m, "RTLD_NODELETE",  RTLD_NODELETE) < 0 ||
+#endif
+#ifdef RTLD_NOLOAD
+        PyModule_AddIntConstant(m, "RTLD_NOLOAD",  RTLD_NOLOAD) < 0 ||
+#endif
+#ifdef RTLD_DEEPBIND
+        PyModule_AddIntConstant(m, "RTLD_DEEPBIND",  RTLD_DEEPBIND) < 0 ||
+#endif
+        0)
+      INITERROR;
 
     init_errno();
 
