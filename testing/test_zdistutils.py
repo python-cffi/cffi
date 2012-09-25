@@ -1,4 +1,4 @@
-import sys, os, imp, math, random, shutil
+import sys, os, imp, math, shutil
 import py
 from cffi import FFI, FFIError
 from cffi.verifier import Verifier, _locate_engine_class
@@ -23,7 +23,7 @@ class DistUtilsTest(object):
     def test_write_source(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there!*/\n#include <math.h>\n'
+        csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
         v = Verifier(ffi, csrc, force_generic_engine=self.generic)
         v.write_source()
         with open(v.sourcefilename, 'r') as f:
@@ -33,7 +33,7 @@ class DistUtilsTest(object):
     def test_write_source_explicit_filename(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there!*/\n#include <math.h>\n'
+        csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
         v = Verifier(ffi, csrc, force_generic_engine=self.generic)
         v.sourcefilename = filename = str(udir.join('write_source.c'))
         v.write_source()
@@ -45,7 +45,7 @@ class DistUtilsTest(object):
     def test_write_source_to_file_obj(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there!*/\n#include <math.h>\n'
+        csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
         v = Verifier(ffi, csrc, force_generic_engine=self.generic)
         try:
             from StringIO import StringIO
@@ -58,7 +58,7 @@ class DistUtilsTest(object):
     def test_compile_module(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there!*/\n#include <math.h>\n'
+        csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
         v = Verifier(ffi, csrc, force_generic_engine=self.generic)
         v.compile_module()
         assert v.get_module_name().startswith('_cffi_')
@@ -69,7 +69,7 @@ class DistUtilsTest(object):
     def test_compile_module_explicit_filename(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there!2*/\n#include <math.h>\n'
+        csrc = '/*hi there %s!2*/\n#include <math.h>\n' % self
         v = Verifier(ffi, csrc, force_generic_engine=self.generic)
         basename = self.__class__.__name__ + 'test_compile_module'
         v.modulefilename = filename = str(udir.join(basename + '.so'))
@@ -102,7 +102,7 @@ class DistUtilsTest(object):
     def test_load_library(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there!3*/\n#include <math.h>\n'
+        csrc = '/*hi there %s!3*/\n#include <math.h>\n' % self
         v = Verifier(ffi, csrc, force_generic_engine=self.generic)
         library = v.load_library()
         assert library.sin(12.3) == math.sin(12.3)
@@ -110,7 +110,7 @@ class DistUtilsTest(object):
     def test_verifier_args(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there!4*/#include "test_verifier_args.h"\n'
+        csrc = '/*hi there %s!4*/#include "test_verifier_args.h"\n' % self
         udir.join('test_verifier_args.h').write('#include <math.h>\n')
         v = Verifier(ffi, csrc, include_dirs=[str(udir)],
                      force_generic_engine=self.generic)
@@ -120,7 +120,7 @@ class DistUtilsTest(object):
     def test_verifier_object_from_ffi(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = "/*6*/\n#include <math.h>"
+        csrc = "/*6%s*/\n#include <math.h>" % self
         lib = ffi.verify(csrc, force_generic_engine=self.generic)
         assert lib.sin(12.3) == math.sin(12.3)
         assert isinstance(ffi.verifier, Verifier)
@@ -132,7 +132,7 @@ class DistUtilsTest(object):
     def test_extension_object(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '''/*7*/
+        csrc = '/*7%s*/' % self + '''
     #include <math.h>
     #ifndef TEST_EXTENSION_OBJECT
     # error "define_macros missing"
@@ -151,7 +151,7 @@ class DistUtilsTest(object):
     def test_extension_forces_write_source(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there!%r*/\n#include <math.h>\n' % random.random()
+        csrc = '/*hi there9!%s*/\n#include <math.h>\n' % self
         v = Verifier(ffi, csrc, force_generic_engine=self.generic)
         assert not os.path.exists(v.sourcefilename)
         v.get_extension()
@@ -163,7 +163,7 @@ class DistUtilsTest(object):
         extra_source = str(udir.join('extension_extra_sources.c'))
         with open(extra_source, 'w') as f:
             f.write('double test1eoes(double x) { return x * 6.0; }\n')
-        csrc = '''/*9*/
+        csrc = '/*9%s*/' % self + '''
         double test1eoes(double x);   /* or #include "extra_sources.h" */
         '''
         lib = ffi.verify(csrc, sources=[extra_source],
@@ -176,6 +176,7 @@ class DistUtilsTest(object):
         assert ext.name == v.get_module_name()
 
     def test_install_and_reload_module(self, targetpackage='', ext_package=''):
+        KEY = repr(self)
         if not hasattr(os, 'fork'):
             py.test.skip("test requires os.fork()")
 
@@ -185,7 +186,7 @@ class DistUtilsTest(object):
 
         def make_ffi(**verifier_args):
             ffi = FFI()
-            ffi.cdef("/* %s, %s */" % (targetpackage, ext_package))
+            ffi.cdef("/* %s, %s, %s */" % (KEY, targetpackage, ext_package))
             ffi.cdef("double test1iarm(double x);")
             csrc = "double test1iarm(double x) { return x * 42.0; }"
             lib = ffi.verify(csrc, force_generic_engine=self.generic,
@@ -232,7 +233,7 @@ class DistUtilsTest(object):
 
     def test_tag(self):
         ffi = FFI()
-        ffi.cdef("/* test_tag */ double test1tag(double x);")
+        ffi.cdef("/* %s test_tag */ double test1tag(double x);" % self)
         csrc = "double test1tag(double x) { return x - 42.0; }"
         lib = ffi.verify(csrc, force_generic_engine=self.generic,
                          tag='xxtest_tagxx')
