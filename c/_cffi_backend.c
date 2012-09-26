@@ -2698,6 +2698,7 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
         if (!PyArg_ParseTuple(args, "|Oi:load_library",
                               &dummy, &flags))
             return NULL;
+        filename_or_null = NULL;
     }
     else if (!PyArg_ParseTuple(args, "et|i:load_library",
                           Py_FileSystemDefaultEncoding, &filename_or_null,
