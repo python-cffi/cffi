@@ -469,6 +469,10 @@ def test_nonfull_enum():
     assert int(ffi.cast('enum ee', 'EE2')) == 11
     assert int(ffi.cast('enum ee', 'EE3')) == -10
     py.test.raises(ValueError, ffi.cast, 'enum ee', '__dotdotdot0__')
+    #
+    # try again
+    ffi.verify("enum ee { EE1=10, EE2, EE3=-10, EE4 };")
+    assert int(ffi.cast('enum ee', 'EE2')) == 11
 
 def test_full_enum():
     ffi = FFI()
