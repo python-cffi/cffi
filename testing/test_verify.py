@@ -1179,3 +1179,11 @@ def test_addressof():
     assert res2.x == 32
     assert res2.y == 18
     py.test.raises(TypeError, lib.sum_coord, res2)
+
+def test_callback_in_thread():
+    if sys.platform == 'win32':
+        py.test.skip("pthread only")
+    import subprocess
+    g = subprocess.Popen([sys.executable, 'callback_in_thread.py'])
+    result = g.wait()
+    assert result == 0
