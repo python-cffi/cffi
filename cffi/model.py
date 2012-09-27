@@ -313,6 +313,7 @@ class UnionType(StructOrUnion):
 class EnumType(StructOrUnionOrEnum):
     kind = 'enum'
     partial = False
+    partial_resolved = False
 
     def __init__(self, name, enumerators, enumvalues):
         self.name = name
@@ -320,7 +321,7 @@ class EnumType(StructOrUnionOrEnum):
         self.enumvalues = enumvalues
 
     def check_not_partial(self):
-        if self.partial:
+        if self.partial and not self.partial_resolved:
             from . import ffiplatform
             raise ffiplatform.VerificationMissing(self._get_c_name(''))
 

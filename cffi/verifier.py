@@ -121,7 +121,7 @@ class Verifier(object):
             del self._vengine._f
             if must_close:
                 file.close()
-        if file is None:
+        if must_close:
             self._has_source = True
 
     def _compile_module(self):

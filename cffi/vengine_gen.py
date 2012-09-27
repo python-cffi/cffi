@@ -394,7 +394,7 @@ class VGenericEngine(object):
             enumvalues = [self._load_constant(True, tp, enumerator, module)
                           for enumerator in tp.enumerators]
             tp.enumvalues = tuple(enumvalues)
-            tp.partial = False
+            tp.partial_resolved = True
         else:
             BFunc = self.ffi.typeof("int(*)(char*)")
             funcname = '_cffi_e_%s_%s' % (prefix, name)

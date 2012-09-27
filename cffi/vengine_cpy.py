@@ -582,7 +582,7 @@ class VCPythonEngine(object):
             enumvalues = [getattr(module, enumerator)
                           for enumerator in tp.enumerators]
             tp.enumvalues = tuple(enumvalues)
-            tp.partial = False
+            tp.partial_resolved = True
 
     def _loaded_cpy_enum(self, tp, name, module, library):
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
