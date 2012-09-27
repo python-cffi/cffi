@@ -3888,6 +3888,9 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         goto error;
     }
     assert(closure->user_data == infotuple);
+#ifdef WITH_THREAD
+    PyEval_InitThreads();
+#endif
     return (PyObject *)cd;
 
  error:
