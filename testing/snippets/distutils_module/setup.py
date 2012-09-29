@@ -3,5 +3,5 @@ from distutils.core import setup
 import snip_basic_verify
 
 setup(
-    packages=['snip_basic_verify'],
+    py_modules=['snip_basic_verify'],
     ext_modules=[snip_basic_verify.ffi.verifier.get_extension()])
