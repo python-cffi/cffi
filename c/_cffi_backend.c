@@ -2595,10 +2595,13 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
                      ct->ct_name);
         return NULL;
     }
+    dlerror();   /* clear error condition */
     funcptr = dlsym(dlobj->dl_handle, funcname);
     if (funcptr == NULL) {
-        PyErr_Format(PyExc_KeyError, "function '%s' not found in library '%s'",
-                     funcname, dlobj->dl_name);
+        const char *error = dlerror();
+        PyErr_Format(PyExc_KeyError,
+                     "function '%s' not found in library '%s': %s",
+                     funcname, dlobj->dl_name, error);
         return NULL;
     }
 
@@ -2615,11 +2618,16 @@ static PyObject *dl_read_variable(DynLibObject *dlobj, PyObject *args)
                           &CTypeDescr_Type, &ct, &varname))
         return NULL;
 
+    dlerror();   /* clear error condition */
     data = dlsym(dlobj->dl_handle, varname);
     if (data == NULL) {
-        PyErr_Format(PyExc_KeyError, "variable '%s' not found in library '%s'",
-                     varname, dlobj->dl_name);
-        return NULL;
+        const char *error = dlerror();
+        if (error != NULL) {
+            PyErr_Format(PyExc_KeyError,
+                         "variable '%s' not found in library '%s': %s",
+                         varname, dlobj->dl_name, error);
+            return NULL;
+        }
     }
     return convert_to_object(data, ct);
 }
@@ -2635,10 +2643,13 @@ static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
                           &CTypeDescr_Type, &ct, &varname, &value))
         return NULL;
 
+    dlerror();   /* clear error condition */
     data = dlsym(dlobj->dl_handle, varname);
     if (data == NULL) {
-        PyErr_Format(PyExc_KeyError, "variable '%s' not found in library '%s'",
-                     varname, dlobj->dl_name);
+        const char *error = dlerror();
+        PyErr_Format(PyExc_KeyError,
+                     "variable '%s' not found in library '%s': %s",
+                     varname, dlobj->dl_name, error);
         return NULL;
     }
     if (convert_from_object(data, ct, value) < 0)
@@ -2711,8 +2722,9 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
     printable_filename = filename_or_null ? filename_or_null : "<None>";
     handle = dlopen(filename_or_null, flags);
     if (handle == NULL) {
+        const char *error = dlerror();
         PyErr_Format(PyExc_OSError, "cannot load library %s: %s",
-                     printable_filename, dlerror());
+                     printable_filename, error);
         return NULL;
     }
 
