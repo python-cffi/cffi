@@ -1187,7 +1187,8 @@ def test_addressof():
 def test_callback_in_thread():
     if sys.platform == 'win32':
         py.test.skip("pthread only")
-    import subprocess
-    g = subprocess.Popen([sys.executable, 'callback_in_thread.py'])
+    import os, subprocess
+    arg = os.path.join(os.path.dirname(__file__), 'callback_in_thread.py')
+    g = subprocess.Popen([sys.executable, arg])
     result = g.wait()
     assert result == 0
