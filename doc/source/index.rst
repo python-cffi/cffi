@@ -1089,6 +1089,44 @@ Known missing features that are GCC or MSVC extensions:
    structs/unions inside structs/unions.
 
 
+Debugging dlopen'ed C libraries
+-------------------------------
+
+A few C libraries are actually hard to use correctly in a ``dlopen()``
+setting.  This is because most C libraries are intented for, and tested
+with, a situation where they are *linked* with another program, using
+either static linking or dynamic linking --- but from a program written
+in C, at start-up, using the linker's capabilities instead of
+``dlopen()``.
+
+This can occasionally create issues.  You would have the same issues in
+another setting than CFFI, like with ``ctypes`` or even plain C code that
+calls ``dlopen()``.  This section contains a few generally useful
+environment variables (on Linux) that can help when debugging these
+issues.
+
+**export LD_TRACE_LOADED_OBJECTS=all**
+
+    provides a lot of information, sometimes too much depending on the
+    setting.  Output verbose debugging information about the dynamic
+    linker. If set to ``all`` prints all debugging information it has, if
+    set to ``help`` prints a help message about which categories can be
+    specified in this environment variable
+
+**export LD_VERBOSE=1**
+
+    (glibc since 2.1) If set to a nonempty string, output symbol
+    versioning information about the program if querying information
+    about the program (i.e., either ``LD_TRACE_LOADED_OBJECTS`` has been set,
+    or ``--list`` or ``--verify`` options have been given to the dynamic
+    linker).
+
+**export LD_WARN=1**
+
+    (ELF only)(glibc since 2.1.3) If set to a nonempty string, warn
+    about unresolved symbols.
+
+
 Reference: conversions
 ----------------------
 
