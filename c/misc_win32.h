@@ -103,6 +103,16 @@ static void dlclose(void *handle)
     FreeLibrary((HMODULE)handle);
 }
 
+static const char *dlerror(void)
+{
+    static char buf[32];
+    DWORD dw = GetLastError(); 
+    if (dw == 0)
+        return NULL;
+    sprintf(buf, "error 0x%x", (unsigned int)dw);
+    return buf;
+}
+
 
 /************************************************************/
 /* obscure */
