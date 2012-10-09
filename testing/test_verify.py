@@ -1,5 +1,5 @@
 import py
-import sys, math
+import sys, math, weakref
 from cffi import FFI, VerificationError, VerificationMissing, model
 from testing.support import *
 
@@ -1192,3 +1192,29 @@ def test_callback_in_thread():
     g = subprocess.Popen([sys.executable, arg])
     result = g.wait()
     assert result == 0
+
+def test_keepalive_lib():
+    ffi = FFI()
+    ffi.cdef("int foobar(void);")
+    lib = ffi.verify("int foobar(void) { return 42; }")
+    func = lib.foobar
+    ffi_r = weakref.ref(ffi)
+    lib_r = weakref.ref(lib)
+    del ffi
+    import gc; gc.collect()       # lib stays alive
+    assert lib_r() is not None
+    assert ffi_r() is not None
+    assert func() == 42
+
+def test_keepalive_ffi():
+    ffi = FFI()
+    ffi.cdef("int foobar(void);")
+    lib = ffi.verify("int foobar(void) { return 42; }")
+    func = lib.foobar
+    ffi_r = weakref.ref(ffi)
+    lib_r = weakref.ref(lib)
+    del lib
+    import gc; gc.collect()       # ffi stays alive
+    assert ffi_r() is not None
+    assert lib_r() is not None
+    assert func() == 42

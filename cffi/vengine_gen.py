@@ -53,6 +53,7 @@ class VGenericEngine(object):
         # build the FFILibrary class and instance
         class FFILibrary(object):
             _cffi_generic_module = module
+            _cffi_ffi = self.ffi
         library = FFILibrary()
         #
         # finally, call the loaded_gen_xxx() functions.  This will set

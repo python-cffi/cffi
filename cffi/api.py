@@ -50,6 +50,7 @@ class FFI(object):
         self._parsed_types = types.ModuleType('parsed_types').__dict__
         self._new_types = types.ModuleType('new_types').__dict__
         self._function_caches = []
+        self._libraries = []
         self._cdefsources = []
         self._pointer_type_cache = {}
         if hasattr(backend, 'set_ffi'):
@@ -97,6 +98,7 @@ class FFI(object):
         assert isinstance(name, str) or name is None
         lib, function_cache = _make_ffi_library(self, name, flags)
         self._function_caches.append(function_cache)
+        self._libraries.append(lib)
         return lib
 
     def _typeof(self, cdecl, consider_function_as_funcptr=False):
@@ -281,7 +283,9 @@ class FFI(object):
         from .verifier import Verifier, _caller_dir_pycache
         tmpdir = tmpdir or _caller_dir_pycache()
         self.verifier = Verifier(self, source, tmpdir, **kwargs)
-        return self.verifier.load_library()
+        lib = self.verifier.load_library()
+        self._libraries.append(lib)
+        return lib
 
     def _get_errno(self):
         return self._backend.get_errno()

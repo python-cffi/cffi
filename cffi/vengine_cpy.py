@@ -140,6 +140,7 @@ class VCPythonEngine(object):
         # pointers, and store them as attributes on the 'library' object.
         class FFILibrary(object):
             _cffi_python_module = module
+            _cffi_ffi = self.ffi
         library = FFILibrary()
         module._cffi_setup(lst, ffiplatform.VerificationError, library)
         #

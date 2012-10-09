@@ -1,5 +1,5 @@
 import py, sys
-import subprocess
+import subprocess, weakref
 from cffi import FFI
 from cffi.backend_ctypes import CTypesBackend
 
@@ -98,3 +98,40 @@ class TestOwnLib(object):
         ownlib.my_array = list(range(7))
         for i in range(7):
             assert ownlib.my_array[i] == i
+
+    def test_keepalive_lib(self):
+        if sys.platform == 'win32':
+            py.test.skip("fix the auto-generation of the tiny test lib")
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            int test_getting_errno(void);
+        """)
+        ownlib = ffi.dlopen(self.module)
+        ffi_r = weakref.ref(ffi)
+        ownlib_r = weakref.ref(ownlib)
+        func = ownlib.test_getting_errno
+        del ffi
+        import gc; gc.collect()       # ownlib stays alive
+        assert ownlib_r() is not None
+        assert ffi_r() is not None    # kept alive by ownlib
+        res = func()
+        assert res == -1
+
+    def test_keepalive_ffi(self):
+        if sys.platform == 'win32':
+            py.test.skip("fix the auto-generation of the tiny test lib")
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            int test_getting_errno(void);
+        """)
+        ownlib = ffi.dlopen(self.module)
+        ffi_r = weakref.ref(ffi)
+        ownlib_r = weakref.ref(ownlib)
+        func = ownlib.test_getting_errno
+        del ownlib
+        import gc; gc.collect()       # ffi stays alive
+        assert ffi_r() is not None
+        assert ownlib_r() is not None # kept alive by ffi
+        res = func()
+        assert res == -1
+        assert ffi.errno == 123
