@@ -1070,11 +1070,13 @@ def test_bug1():
     """)
 
 def test_bool():
+    if sys.platform == 'win32':
+        py.test.skip("_Bool not in MSVC")
     ffi = FFI()
     ffi.cdef("struct foo_s { _Bool x; };"
              "_Bool foo(_Bool);")
     lib = ffi.verify("""
-        struct foo_s { char x; };
+        struct foo_s { _Bool x; };
         int foo(int arg) {
             return !arg;
         }
@@ -1111,13 +1113,15 @@ def test_bool():
     py.test.raises(TypeError, ffi.cast, "_Bool", [])
 
 def test_bool_on_long_double():
+    if sys.platform == 'win32':
+        py.test.skip("_Bool not in MSVC")
     f = 1E-250
     if f == 0.0 or f*f != 0.0:
         py.test.skip("unexpected precision")
     ffi = FFI()
     ffi.cdef("long double square(long double f); _Bool opposite(_Bool);")
     lib = ffi.verify("long double square(long double f) { return f*f; }\n"
-                     "int opposite(int x) { return !x; }")
+                     "_Bool opposite(_Bool x) { return !x; }")
     f0 = lib.square(0.0)
     f2 = lib.square(f)
     f3 = lib.square(f * 2.0)
