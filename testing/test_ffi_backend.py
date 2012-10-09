@@ -15,7 +15,7 @@ class TestFFI(backend_tests.BackendTests,
 
     def test_not_supported_bitfield_in_result(self):
         ffi = FFI(backend=self.Backend())
-        ffi.cdef("struct foo_s { int x:1; };")
+        ffi.cdef("struct foo_s { int a,b,c,d,e; int x:1; };")
         e = py.test.raises(NotImplementedError, ffi.callback,
                            "struct foo_s foo(void)", lambda: 42)
         assert str(e.value) == ("<struct foo_s(*)(void)>: "
