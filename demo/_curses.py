@@ -22,6 +22,11 @@ static const int KEY_MIN, KEY_MAX;
 
 int setupterm(char *term, int fildes, int *errret);
 
+int tigetflag(char *);
+int tigetnum(char *);
+char *tigetstr(char *);
+char *tparm (char *, ...);
+
 int cbreak(void);
 int nocbreak(void);
 int echo(void);
@@ -205,8 +210,17 @@ class Window(object):
 
 initscr = Window
 
+_setupterm_called = False
 
-def setupterm(term=ffi.NULL, fd=-1):
+
+def _ensure_setupterm_called():
+    if not _setupterm_called:
+        raise error("must call (at least) setupterm() first")
+
+
+def setupterm(term=None, fd=-1):
+    if term is None:
+        term = ffi.NULL
     if fd < 0:
         import sys
         fd = sys.stdout.fileno()
@@ -219,6 +233,33 @@ def setupterm(term=ffi.NULL, fd=-1):
         else:
             s = "setupterm: unknown error %d" % err[0]
         raise error(s)
+    global _setupterm_called
+    _setupterm_called = True
+
+
+def tigetflag(capname):
+    _ensure_setupterm_called()
+    return lib.tigetflag(capname)
+
+
+def tigetnum(capname):
+    _ensure_setupterm_called()
+    return lib.tigetnum(capname)
+
+
+def tigetstr(capname):
+    _ensure_setupterm_called()
+    out = lib.tigetstr(capname)
+    if out == ffi.NULL:
+        return None
+    return ffi.string(out)
+
+
+def tparm(name, *args):
+    _ensure_setupterm_called()
+    cargs = [ffi.cast("long", arg) for arg in args]
+    return ffi.string(lib.tparm(name, *cargs))
+
 
 def color_pair(n):
     return n << 8
