@@ -960,8 +960,8 @@ In all cases the exception is printed to stderr, so this should be
 used only as a last-resort solution.
 
 
-Miscellaneous
--------------
+Misc methods on ffi
+-------------------
 
 ``ffi.errno``: the value of ``errno`` received from the most recent C call
 in this thread, and passed to the following C call, is available via
