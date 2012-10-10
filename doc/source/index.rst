@@ -1084,6 +1084,11 @@ Known missing features that are GCC or MSVC extensions:
   length 0, allocating a ``char[]`` of the correct size, and casting
   it to a struct pointer)
 
+* Enum types are always ``int``.  GCC supports enums containing
+  larger constants (``unsigned int``, or ``long long``) as an extension
+  to the C standard, but CFFI does not.  Use
+  ``typedef <exact type> my_enum;`` and then some ``#define foo <value>``.
+
 .. versionadded:: 0.4
    Now supported: the common GCC extension of anonymous nested
    structs/unions inside structs/unions.

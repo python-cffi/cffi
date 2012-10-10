@@ -34,6 +34,7 @@
 # define PyText_FromString PyUnicode_FromString
 # define PyText_FromStringAndSize PyUnicode_FromStringAndSize
 # define PyText_InternInPlace PyUnicode_InternInPlace
+# define PyIntOrLong_Check PyLong_Check
 #else
 # define STR_OR_BYTES "str"
 # define PyText_Type PyString_Type
@@ -45,6 +46,7 @@
 # define PyText_FromString PyString_FromString
 # define PyText_FromStringAndSize PyString_FromStringAndSize
 # define PyText_InternInPlace PyString_InternInPlace
+# define PyIntOrLong_Check(op) (PyInt_Check(op) || PyLong_Check(op))
 #endif 
 
 #if PY_MAJOR_VERSION >= 3
@@ -430,11 +432,7 @@ _my_PyLong_AsLongLong(PyObject *ob)
         if (io == NULL)
             return -1;
 
-#if PY_MAJOR_VERSION < 3
-        if (PyInt_Check(io) || PyLong_Check(io)) {
-#else
-        if (PyLong_Check(io)) {
-#endif
+        if (PyIntOrLong_Check(io)) {
             res = _my_PyLong_AsLongLong(io);
         }
         else {
@@ -487,11 +485,7 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int strict)
         if (io == NULL)
             return (unsigned PY_LONG_LONG)-1;
 
-#if PY_MAJOR_VERSION < 3
-        if (PyInt_Check(io) || PyLong_Check(io)) {
-#else
-        if (PyLong_Check(io)) {
-#endif
+        if (PyIntOrLong_Check(io)) {
             res = _my_PyLong_AsUnsignedLongLong(io, strict);
         }
         else {
@@ -2335,11 +2329,7 @@ _my_PyObject_AsBool(PyObject *ob)
     if (io == NULL)
         return -1;
 
-#if PY_MAJOR_VERSION < 3
-    if (PyInt_Check(io) || PyLong_Check(io) || PyFloat_Check(io)) {
-#else
-    if (PyLong_Check(io) || PyFloat_Check(io)) {
-#endif
+    if (PyIntOrLong_Check(io) || PyFloat_Check(io)) {
         res = _my_PyObject_AsBool(io);
     }
     else {
@@ -3943,8 +3933,22 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
     if (dict1 == NULL)
         goto error;
     for (i=n; --i >= 0; ) {
-        if (PyDict_SetItem(dict1, PyTuple_GET_ITEM(enumerators, i),
-                                  PyTuple_GET_ITEM(enumvalues, i)) < 0)
+        PyObject *key = PyTuple_GET_ITEM(enumerators, i);
+        PyObject *value = PyTuple_GET_ITEM(enumvalues, i);
+        long lvalue;
+        if (!PyText_Check(key)) {
+            PyErr_SetString(PyExc_TypeError,
+                            "enumerators must be a list of strings");
+            goto error;
+        }
+        lvalue = PyLong_AsLong(value);
+        if ((lvalue == -1 && PyErr_Occurred()) || lvalue != (int)lvalue) {
+            PyErr_Format(PyExc_OverflowError,
+                         "enum '%s' declaration for '%s' does not fit an int",
+                         ename, PyText_AS_UTF8(key));
+            goto error;
+        }
+        if (PyDict_SetItem(dict1, key, value) < 0)
             goto error;
     }
 

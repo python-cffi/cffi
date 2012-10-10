@@ -1160,6 +1160,13 @@ def test_enum_in_struct():
     e = py.test.raises(TypeError, newp, BStructPtr, [None])
     assert "must be a str or int, not NoneType" in str(e.value)
 
+def test_enum_overflow():
+    for ovf in (sys.maxint+1, -sys.maxint-2, 2**31, -2**31-1):
+        e = py.test.raises(OverflowError, new_enum_type, "foo", ('a', 'b'),
+                           (5, ovf))
+        assert str(e.value) == (
+            "enum 'foo' declaration for 'b' does not fit an int")
+
 def test_callback_returning_enum():
     BInt = new_primitive_type("int")
     BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
