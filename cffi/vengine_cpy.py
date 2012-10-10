@@ -384,7 +384,7 @@ class VCPythonEngine(object):
                 try:
                     prnt('  { %s = &p->%s; (void)tmp; }' % (
                         ftype.get_c_name('(*tmp)', 'field %r'%fname), fname))
-                except ffiplatform.VerificationError, e:
+                except ffiplatform.VerificationError as e:
                     prnt('  /* %s */' % str(e))   # cannot verify it, ignore
         prnt('}')
         prnt('static PyObject *')

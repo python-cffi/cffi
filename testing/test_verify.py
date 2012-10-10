@@ -986,12 +986,12 @@ def test_nested_anonymous_struct_exact():
     p = ffi.new("struct foo_s *")
     assert ffi.sizeof(p[0]) == 3 * ffi.sizeof("int")    # with alignment
     p.a = 1234567
-    p.b = 'X'
-    p.c = 'Y'
+    p.b = b'X'
+    p.c = b'Y'
     assert p.a == 1234567
-    assert p.b == 'X'
-    assert p.c == 'Y'
-    assert p.d == 'Y'
+    assert p.b == b'X'
+    assert p.c == b'Y'
+    assert p.d == b'Y'
 
 def test_nested_anonymous_struct_exact_error():
     if sys.platform == 'win32':

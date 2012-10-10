@@ -356,7 +356,7 @@ def global_cache(srctype, ffi, funcname, *args):
             type(ffi._backend).__typecache = weakref.WeakValueDictionary()
     try:
         res = getattr(ffi._backend, funcname)(*args)
-    except NotImplementedError, e:
+    except NotImplementedError as e:
         raise NotImplementedError("%r: %s" % (srctype, e))
     ffi._backend.__typecache[args] = res
     return res

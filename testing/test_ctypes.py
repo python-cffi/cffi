@@ -1,4 +1,4 @@
-import py
+import py, sys
 from testing import backend_tests
 from cffi.backend_ctypes import CTypesBackend
 
@@ -30,3 +30,8 @@ class TestCTypes(backend_tests.BackendTests):
 
     def test_nested_anonymous_union(self):
         py.test.skip("ctypes backend: not supported: nested anonymous union")
+
+    def test_CData_CType_2(self):
+        if sys.version_info >= (3,):
+            py.test.skip("ctypes backend: not supported in Python 3: CType")
+        backend_tests.BackendTests.test_CData_CType_2(self)

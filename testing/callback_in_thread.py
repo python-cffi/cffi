@@ -35,6 +35,6 @@ def _run_callback_in_thread():
         assert count > 0, "timeout"
     assert seen == [(10, 10), (12, 15)]
 
-print 'STARTING'
+print('STARTING')
 _run_callback_in_thread()
-print 'DONE'
+print('DONE')

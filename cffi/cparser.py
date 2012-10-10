@@ -71,7 +71,7 @@ class Parser(object):
         csource = '\n'.join(csourcelines)
         try:
             ast = _get_parser().parse(csource)
-        except pycparser.c_parser.ParseError, e:
+        except pycparser.c_parser.ParseError as e:
             self.convert_pycparser_error(e, csource)
         return ast, macros
 

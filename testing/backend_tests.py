@@ -1266,7 +1266,8 @@ class BackendTests:
             return a - b
         #
         assert cb(-100, -10) == -90
-        assert cb(sys.maxint, -10) == 42
+        sz = ffi.sizeof("long")
+        assert cb((1 << (sz*8-1)) - 1, -10) == 42
 
     def test_unique_types(self):
         ffi1 = FFI(backend=self.Backend())
@@ -1400,15 +1401,18 @@ class BackendTests:
         assert not isinstance(ffi.typeof("int"), ffi.CData)
         assert not isinstance(ffi.cast("int", 0), ffi.CType)
         assert not isinstance(ffi.new("int *"), ffi.CType)
+
+    def test_CData_CType_2(self):
+        ffi = FFI(backend=self.Backend())
         assert isinstance(ffi.typeof("int"), ffi.CType)
 
     def test_bool(self):
         ffi = FFI(backend=self.Backend())
         assert int(ffi.cast("_Bool", 0.1)) == 1
         assert int(ffi.cast("_Bool", -0.0)) == 0
-        assert int(ffi.cast("_Bool", '\x02')) == 1
-        assert int(ffi.cast("_Bool", '\x00')) == 0
-        assert int(ffi.cast("_Bool", '\x80')) == 1
+        assert int(ffi.cast("_Bool", b'\x02')) == 1
+        assert int(ffi.cast("_Bool", b'\x00')) == 0
+        assert int(ffi.cast("_Bool", b'\x80')) == 1
         assert ffi.new("_Bool *", False)[0] == 0
         assert ffi.new("_Bool *", 1)[0] == 1
         py.test.raises(OverflowError, ffi.new, "_Bool *", 2)
