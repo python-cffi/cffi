@@ -667,7 +667,7 @@ There is no general equivalent to the ``&`` operator in C (because it
 would not fit nicely in the model, and it does not seem to be needed
 here).  But see ``ffi.addressof()`` below__.
 
-__ Miscellaneous_
+__ `Misc methods on ffi`_
 
 Any operation that would in C return a pointer or array or struct type
 gives you a fresh cdata object.  Unlike the "original" one, these fresh
