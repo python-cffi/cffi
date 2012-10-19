@@ -397,7 +397,12 @@ can assume to exist are the standard types:
   some headers declare a different type (e.g. an enum) and also call it
   ``bool``.
 
+* *New in version 0.4:* FILE.  Limited support: just enough to declare C
+  functions taking a ``FILE *`` argument and calling them with a Python
+  file object.
+
 .. "versionadded:: 0.4": bool
+.. "versionadded:: 0.4": FILE
 
 As we will see on `the verification step`_ below, the declarations can
 also contain "``...``" at various places; these are placeholders that will

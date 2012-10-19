@@ -2,6 +2,7 @@ import py
 from cffi import FFI
 import math, os, sys
 from cffi.backend_ctypes import CTypesBackend
+from testing.udir import udir
 
 try:
     from StringIO import StringIO
@@ -295,3 +296,20 @@ class TestFunction(object):
         m = ffi.dlopen("m")
         x = m.sin(1.23)
         assert x == math.sin(1.23)
+
+    def test_fputs_custom_FILE(self):
+        if self.Backend is CTypesBackend:
+            py.test.skip("FILE not supported with the ctypes backend")
+        filename = str(udir.join('fputs_custom_FILE'))
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("int fputs(const char *, FILE *);")
+        C = ffi.dlopen(None)
+        with open(filename, 'wb') as f:
+            f.write(b'[')
+            C.fputs(b"hello from custom file", f)
+            f.write(b'][')
+            C.fputs(b"some more output", f)
+            f.write(b']')
+        with open(filename, 'rb') as f:
+            res = f.read()
+        assert res == b'[hello from custom file][some more output]'

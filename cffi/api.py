@@ -59,7 +59,7 @@ class FFI(object):
             if name.startswith('RTLD_'):
                 setattr(self, name, getattr(backend, name))
         #
-        lines = []
+        lines = ['typedef struct _IO_FILE FILE;']
         by_size = {}
         for cname in ['long long', 'long', 'int', 'short', 'char']:
             by_size[self.sizeof(cname)] = cname

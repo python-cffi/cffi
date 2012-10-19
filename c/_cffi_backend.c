@@ -1695,8 +1695,9 @@ static CTypeDescrObject *_get_ct_int(void)
     return ct_int;
 }
 
-static PyObject *
-_prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init)
+static int
+_prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
+                               char **output_data)
 {
     /* 'ctptr' is here a pointer type 'ITEM *'.  Accept as argument an
        initializer for an array 'ITEM[]'.  This includes the case of
@@ -1712,11 +1713,11 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init)
            We assume that the C code won't modify the 'char *' data. */
         if ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
                 (ctitem->ct_size == sizeof(char))) {
-            Py_INCREF(init);
-            return init;
+            output_data[0] = PyBytes_AS_STRING(init);
+            return 1;
         }
         else
-            return Py_None;
+            return 0;
     }
     else if (PyList_Check(init) || PyTuple_Check(init)) {
         length = PySequence_Fast_GET_SIZE(init);
@@ -1725,32 +1726,44 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init)
         /* from a unicode, we add the null terminator */
         length = _my_PyUnicode_SizeAsWideChar(init) + 1;
     }
+    else if (PyFile_Check(init)) {
+        if (strcmp(ctptr->ct_itemdescr->ct_name, "struct _IO_FILE") != 0) {
+            PyErr_Format(PyExc_TypeError,
+                         "FILE object passed to a '%s' argument",
+                         ctptr->ct_name);
+            return -1;
+        }
+        output_data[0] = (char *)PyFile_AsFile(init);
+        return 1;
+    }
     else {
         /* refuse to receive just an integer (and interpret it
            as the array size) */
-        return Py_None;
+        return 0;
     }
 
     if (ctitem->ct_size <= 0)
-        return Py_None;
+        return 0;
     datasize = length * ctitem->ct_size;
     if ((datasize / ctitem->ct_size) != length) {
         PyErr_SetString(PyExc_OverflowError,
                         "array size would overflow a Py_ssize_t");
-        return NULL;
+        return -1;
     }
 
     result = PyBytes_FromStringAndSize(NULL, datasize);
     if (result == NULL)
-        return NULL;
+        return -1;
 
     data = PyBytes_AS_STRING(result);
     memset(data, 0, datasize);
     if (convert_array_from_object(data, ctptr, init) < 0) {
         Py_DECREF(result);
-        return NULL;
+        return -1;
     }
-    return result;
+    output_data[0] = data;
+    output_data[1] = (char *)result;
+    return 1;
 }
 
 static PyObject*
@@ -1870,20 +1883,19 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(fvarargs, i);
 
         if (argtype->ct_flags & CT_POINTER) {
-            PyObject *string;
+            ((char **)data)[1] = NULL;
+
             if (!CData_Check(obj)) {
-                string = _prepare_pointer_call_argument(argtype, obj);
-                if (string != Py_None) {
-                    if (string == NULL)
+                int res = _prepare_pointer_call_argument(argtype, obj,
+                                                         (char **)data);
+                if (res != 0) {
+                    if (res < 0)
                         goto error;
-                    ((char **)data)[0] = PyBytes_AS_STRING(string);
-                    ((char **)data)[1] = (char *)string;
                     assert(i < nargs_declared); /* otherwise, obj is a CData */
                     free_me_until = i + 1;
                     continue;
                 }
             }
-            ((char **)data)[1] = NULL;
         }
         if (convert_from_object(data, argtype, obj) < 0)
             goto error;
@@ -1928,8 +1940,8 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 2 + i);
         if (argtype->ct_flags & CT_POINTER) {
             char *data = buffer + cif_descr->exchange_offset_arg[1 + i];
-            PyObject *string_or_null = (PyObject *)(((char **)data)[1]);
-            Py_XDECREF(string_or_null);
+            PyObject *tmpobj_or_null = (PyObject *)(((char **)data)[1]);
+            Py_XDECREF(tmpobj_or_null);
         }
     }
     if (buffer)
