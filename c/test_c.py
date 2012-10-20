@@ -2233,9 +2233,10 @@ def test_FILE():
     #
     import posix
     fdr, fdw = posix.pipe()
-    fr1 = posix.fdopen(fdr, 'r')
-    fw1 = posix.fdopen(fdw, 'w')
+    fr1 = posix.fdopen(fdr, 'r', 256)
+    fw1 = posix.fdopen(fdw, 'w', 256)
     #
+    fw1.write(b"X")
     res = fputs(b"hello world\n", fw1)
     assert res >= 0
     fw1.close()
@@ -2243,7 +2244,7 @@ def test_FILE():
     p = newp(new_array_type(BCharP, 100), None)
     res = fscanf(fr1, b"%s\n", p)
     assert res == 1
-    assert string(p) == b"hello"
+    assert string(p) == b"Xhello"
     fr1.close()
 
 def test_FILE_only_for_FILE_arg():
