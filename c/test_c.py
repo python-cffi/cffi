@@ -2265,5 +2265,5 @@ def test_FILE_only_for_FILE_arg():
     fw1 = posix.fdopen(fdw, 'w')
     #
     e = py.test.raises(TypeError, fputs, b"hello world\n", fw1)
-    assert str(e.value) == ("FILE object passed to a 'struct NOT_FILE *' "
-                            "argument")
+    assert str(e.value) == ("initializer for ctype 'struct NOT_FILE *' must "
+                            "be a cdata pointer, not file")

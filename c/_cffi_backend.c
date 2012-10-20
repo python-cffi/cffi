@@ -1727,12 +1727,8 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
         length = _my_PyUnicode_SizeAsWideChar(init) + 1;
     }
     else if (PyFile_Check(init)) {
-        if (strcmp(ctptr->ct_itemdescr->ct_name, "struct _IO_FILE") != 0) {
-            PyErr_Format(PyExc_TypeError,
-                         "FILE object passed to a '%s' argument",
-                         ctptr->ct_name);
-            return -1;
-        }
+        if (strcmp(ctptr->ct_itemdescr->ct_name, "struct _IO_FILE") != 0)
+            return 0;
         output_data[0] = (char *)PyFile_AsFile(init);
         return 1;
     }
