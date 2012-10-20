@@ -523,7 +523,7 @@ compiler during ``verify()``:
    you would use "``typedef struct { ...; } foo_t;``".
 
 *  array lengths: when used as structure fields, arrays can have an
-   unspecified length, as in "``int n[];``" or "``int n[...];``.
+   unspecified length, as in "``int n[];``" or "``int n[...];``".
    The length is completed by the C compiler.
 
 *  enums: if you don't know the exact order (or values) of the declared
