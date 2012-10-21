@@ -1,10 +1,22 @@
 import py, os, sys, shutil
+import imp
 import subprocess
 from testing.udir import udir
 
 def create_venv(name):
     tmpdir = udir.join(name)
     subprocess.check_call(['virtualenv', '-p', sys.executable, str(tmpdir)])
+
+    site_packages = None
+    for dirpath, dirnames, filenames in os.walk(str(tmpdir)):
+        if os.path.basename(dirpath) == 'site-packages':
+            site_packages = dirpath
+            break
+    if site_packages:
+        for module in ('pycparser', 'ply'):
+            os.symlink(imp.find_module(module)[1],
+                       os.path.join(site_packages, module))
+
     return tmpdir
 
 SNIPPET_DIR = py.path.local(__file__).join('..', 'snippets')
