@@ -4,7 +4,7 @@ from testing.udir import udir
 
 def create_venv(name):
     tmpdir = udir.join(name)
-    subprocess.call(['virtualenv', '-p', sys.executable, str(tmpdir)])
+    subprocess.check_call(['virtualenv', '-p', sys.executable, str(tmpdir)])
     return tmpdir
 
 SNIPPET_DIR = py.path.local(__file__).join('..', 'snippets')
@@ -19,14 +19,10 @@ def really_run_setup_and_program(dirname, venv_dir, python_snippet):
     python_f.write(py.code.Source(python_snippet))
     try:
         os.chdir(str(SNIPPET_DIR.join(dirname)))
-        venv = venv_dir.join('bin/activate')
-        p = subprocess.Popen(['bash', '-c', '. %(venv)s && '
-                              'python setup.py clean && '
-                              'python setup.py install && '
-                              'python %(python_f)s' % locals()])
-        p.communicate()
-        if p.returncode != 0:
-            raise Exception("crashed")
+        vp = str(venv_dir.join('bin/python'))
+        subprocess.check_call((vp, 'setup.py', 'clean'))
+        subprocess.check_call((vp, 'setup.py', 'install'))
+        subprocess.check_call((vp, str(python_f)))
     finally:
         os.chdir(olddir)
 
