@@ -1265,7 +1265,7 @@ def test_FILE_stored_explicitly():
     import posix
     fdr, fdw = posix.pipe()
     fw1 = posix.fdopen(fdw, 'wb', 256)
-    lib.myfile = fw1
+    lib.myfile = ffi.cast("FILE *", fw1)
     #
     fw1.write(b"X")
     r = lib.myprintf(b"hello, %d!\n", ffi.cast("int", 42))

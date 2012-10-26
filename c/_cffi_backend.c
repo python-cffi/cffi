@@ -4606,8 +4606,14 @@ static PyObject *_cffi_from_c_pointer(char *ptr, CTypeDescrObject *ct)
 static char *_cffi_to_c_pointer(PyObject *obj, CTypeDescrObject *ct)
 {
     char *result;
-    if (convert_from_object((char *)&result, ct, obj) < 0)
+    if (convert_from_object((char *)&result, ct, obj) < 0) {
+        if (PyFile_Check(obj) && (ct->ct_flags & CT_POINTER) &&
+                   (ct->ct_itemdescr->ct_flags & CT_IS_FILE)) {
+            PyErr_Clear();
+            return (char *)PyFile_AsFile(obj);
+        }
         return NULL;
+    }
     return result;
 }
 
