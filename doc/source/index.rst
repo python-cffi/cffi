@@ -397,9 +397,10 @@ can assume to exist are the standard types:
   some headers declare a different type (e.g. an enum) and also call it
   ``bool``.
 
-* *New in version 0.4:* FILE.  Limited support: just enough to declare C
-  functions taking a ``FILE *`` argument and calling them with a Python
-  file object.
+* *New in version 0.4:* FILE.  You can declare C functions taking a
+  ``FILE *`` argument and call them with a Python file object.  If needed,
+  you can also do ``c_f = ffi.cast("FILE *", fileobj)`` and then pass around
+  ``c_f``.
 
 .. "versionadded:: 0.4": bool
 .. "versionadded:: 0.4": FILE
