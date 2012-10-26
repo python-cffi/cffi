@@ -201,7 +201,7 @@ class FFI(object):
         it as a string or unicode string.
 
         If 'cdata' is an enum, returns the value of the enumerator as a
-        string, or "#NUMBER" if the value is out of range.
+        string, or '#NUMBER' if the value is out of range.
         """
         return self._backend.string(cdata, maxlen)
 
