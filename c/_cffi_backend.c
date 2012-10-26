@@ -943,11 +943,6 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         CTypeDescrObject *ctinit;
 
         if (!CData_Check(init)) {
-            if (PyFile_Check(init) &&
-                (ct->ct_itemdescr->ct_flags & CT_IS_FILE)) {
-                *(FILE **)data = PyFile_AsFile(init);
-                return 0;
-            }
             expected = "cdata pointer";
             goto cannot_convert;
         }
@@ -1732,8 +1727,7 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
         /* from a unicode, we add the null terminator */
         length = _my_PyUnicode_SizeAsWideChar(init) + 1;
     }
-    else if (PyFile_Check(init) &&
-             (ctptr->ct_itemdescr->ct_flags & CT_IS_FILE)) {
+    else if (PyFile_Check(init) && (ctitem->ct_flags & CT_IS_FILE)) {
         output_data[0] = (char *)PyFile_AsFile(init);
         return 1;
     }
@@ -2465,6 +2459,10 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
                     (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)) {
                 return new_simple_cdata(cdsrc->c_data, ct);
             }
+        }
+        if (PyFile_Check(ob) && (ct->ct_flags & CT_POINTER) &&
+                  (ct->ct_itemdescr->ct_flags & CT_IS_FILE)) {
+            return new_simple_cdata((char *)PyFile_AsFile(ob), ct);
         }
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
