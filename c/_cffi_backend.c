@@ -2637,7 +2637,7 @@ static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
     char *varname;
     char *data;
 
-    if (!PyArg_ParseTuple(args, "O!sO:read_variable",
+    if (!PyArg_ParseTuple(args, "O!sO:write_variable",
                           &CTypeDescr_Type, &ct, &varname, &value))
         return NULL;
 
