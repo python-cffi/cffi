@@ -1222,3 +1222,56 @@ def test_keepalive_ffi():
     assert ffi_r() is not None
     assert lib_r() is not None
     assert func() == 42
+
+def test_FILE_stored_in_stdout():
+    ffi = FFI()
+    ffi.cdef("int printf(const char *, ...); FILE *setstdout(FILE *);")
+    lib = ffi.verify("""
+        #include <stdio.h>
+        FILE *setstdout(FILE *f) {
+            FILE *result = stdout;
+            stdout = f;
+            return result;
+        }
+    """)
+    import posix
+    fdr, fdw = posix.pipe()
+    fw1 = posix.fdopen(fdw, 'wb', 256)
+    old_stdout = lib.setstdout(fw1)
+    try:
+        #
+        fw1.write(b"X")
+        r = lib.printf(b"hello, %d!\n", ffi.cast("int", 42))
+        fw1.close()
+        assert r == len("hello, 42!\n")
+        #
+    finally:
+        lib.setstdout(old_stdout)
+    #
+    result = posix.read(fdr, 256)
+    posix.close(fdr)
+    assert result == b"Xhello, 42!\n"
+
+def test_FILE_stored_explicitly():
+    ffi = FFI()
+    ffi.cdef("int myprintf(const char *, int); FILE *myfile;")
+    lib = ffi.verify("""
+        #include <stdio.h>
+        FILE *myfile;
+        int myprintf(const char *out, int value) {
+            return fprintf(myfile, out, value);
+        }
+    """)
+    import posix
+    fdr, fdw = posix.pipe()
+    fw1 = posix.fdopen(fdw, 'wb', 256)
+    lib.myfile = fw1
+    #
+    fw1.write(b"X")
+    r = lib.myprintf(b"hello, %d!\n", ffi.cast("int", 42))
+    fw1.close()
+    assert r == len("hello, 42!\n")
+    #
+    result = posix.read(fdr, 256)
+    posix.close(fdr)
+    assert result == b"Xhello, 42!\n"

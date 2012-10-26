@@ -87,6 +87,7 @@
 #define CT_CUSTOM_FIELD_POS     32768
 #define CT_IS_LONGDOUBLE        65536
 #define CT_IS_BOOL             131072
+#define CT_IS_FILE             262144
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -942,6 +943,11 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         CTypeDescrObject *ctinit;
 
         if (!CData_Check(init)) {
+            if (PyFile_Check(init) &&
+                (ct->ct_itemdescr->ct_flags & CT_IS_FILE)) {
+                *(FILE **)data = PyFile_AsFile(init);
+                return 0;
+            }
             expected = "cdata pointer";
             goto cannot_convert;
         }
@@ -1726,9 +1732,8 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
         /* from a unicode, we add the null terminator */
         length = _my_PyUnicode_SizeAsWideChar(init) + 1;
     }
-    else if (PyFile_Check(init)) {
-        if (strcmp(ctptr->ct_itemdescr->ct_name, "struct _IO_FILE") != 0)
-            return 0;
+    else if (PyFile_Check(init) &&
+             (ctptr->ct_itemdescr->ct_flags & CT_IS_FILE)) {
         output_data[0] = (char *)PyFile_AsFile(init);
         return 1;
     }
@@ -3028,9 +3033,14 @@ static PyObject *_b_struct_or_union_type(const char *kind, const char *name,
 static PyObject *b_new_struct_type(PyObject *self, PyObject *args)
 {
     char *name;
+    int flag;
     if (!PyArg_ParseTuple(args, "s:new_struct_type", &name))
         return NULL;
-    return _b_struct_or_union_type("struct", name, CT_STRUCT);
+
+    flag = CT_STRUCT;
+    if (strcmp(name, "_IO_FILE") == 0)
+        flag |= CT_IS_FILE;
+    return _b_struct_or_union_type("struct", name, flag);
 }
 
 static PyObject *b_new_union_type(PyObject *self, PyObject *args)
