@@ -1275,3 +1275,15 @@ def test_FILE_stored_explicitly():
     result = posix.read(fdr, 256)
     posix.close(fdr)
     assert result == b"Xhello, 42!\n"
+
+def test_global_array_with_missing_length():
+    ffi = FFI()
+    ffi.cdef("int fooarray[];")
+    lib = ffi.verify("int fooarray[50];")
+    assert repr(lib.fooarray).startswith("<cdata 'int *'")
+
+def test_global_array_with_dotdotdot_length():
+    ffi = FFI()
+    ffi.cdef("int fooarray[...];")
+    lib = ffi.verify("int fooarray[50];")
+    assert repr(lib.fooarray).startswith("<cdata 'int *'")

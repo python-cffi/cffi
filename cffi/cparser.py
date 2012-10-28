@@ -162,7 +162,7 @@ class Parser(object):
                                     decl)
             #
             if decl.name:
-                tp = self._get_type(node)
+                tp = self._get_type(node, partial_length_ok=True)
                 if self._is_constant_declaration(node):
                     self._declare('constant ' + decl.name, tp)
                 else:
