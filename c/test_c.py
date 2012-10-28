@@ -9,7 +9,7 @@ if sys.version_info < (3,):
     type_or_class = "type"
     mandatory_b_prefix = ''
     mandatory_u_prefix = 'u'
-    readbuf = str
+    readbuf = lambda buf: buf[:]
     bufchar = lambda x: x
     bytechr = chr
     class U(object):
@@ -1839,7 +1839,7 @@ def test_buffer():
     c[2] = b'-'
     buf[:2] = b'HI'
     assert string(c) == b'HI-there'
-    if sys.version_info < (3,) or sys.version_info >= (3, 3):
+    if sys.version_info < (2, 7) or sys.version_info >= (3, 3):
         assert buf[:4:2] == b'H-'
         if '__pypy__' not in sys.builtin_module_names:
             # XXX pypy doesn't support the following assignment so far

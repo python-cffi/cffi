@@ -1074,7 +1074,7 @@ class BackendTests:
             b = ffi.buffer(a)
         except NotImplementedError as e:
             py.test.skip(str(e))
-        if sys.version < '3':
+        if sys.version_info < (2, 7):
             assert type(b) is buffer
             content = str(b)
         else:
@@ -1098,7 +1098,7 @@ class BackendTests:
             b = ffi.buffer(a)
         except NotImplementedError as e:
             py.test.skip(str(e))
-        if sys.version < '3':
+        if sys.version_info < (2, 7):
             assert type(b) is buffer
             content = str(b)
         else:
@@ -1120,7 +1120,7 @@ class BackendTests:
             b = ffi.buffer(a, 1)
         except NotImplementedError as e:
             py.test.skip(str(e))
-        if sys.version < '3':
+        if sys.version_info < (2, 7):
             assert type(b) is buffer
             content = str(b)
         else:
@@ -1144,8 +1144,8 @@ class BackendTests:
             ffi.buffer(a1)
         except NotImplementedError as e:
             py.test.skip(str(e))
-        if sys.version < '3':
-            assert str(ffi.buffer(a1)) == str(ffi.buffer(a2, 4*10))
+        if sys.version_info < (3,):
+            assert ffi.buffer(a1)[:] == ffi.buffer(a2, 4*10)[:]
         else:
             assert ffi.buffer(a1).tobytes() == ffi.buffer(a2, 4*10).tobytes()
 
@@ -1168,6 +1168,24 @@ class BackendTests:
         assert list(a)[:1000] + [0] * (len(a)-1000) == list(b)
         f.close()
         os.unlink(filename)
+
+    def test_ffi_buffer_with_io(self):
+        ffi = FFI(backend=self.Backend())
+        import io, array
+        f = io.BytesIO()
+        a = ffi.new("int[]", list(range(1005)))
+        try:
+            ffi.buffer(a, 512)
+        except NotImplementedError as e:
+            py.test.skip(str(e))
+        f.write(ffi.buffer(a, 1000 * ffi.sizeof("int")))
+        f.seek(0)
+        assert f.read() == array.array('i', range(1000)).tostring()
+        f.seek(0)
+        b = ffi.new("int[]", 1005)
+        f.readinto(ffi.buffer(b, 1000 * ffi.sizeof("int")))
+        assert list(a)[:1000] + [0] * (len(a)-1000) == list(b)
+        f.close()
 
     def test_array_in_struct(self):
         ffi = FFI(backend=self.Backend())

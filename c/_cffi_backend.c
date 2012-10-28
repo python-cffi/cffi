@@ -4275,7 +4275,7 @@ static PyObject *b_buffer(PyObject *self, PyObject *args)
         return NULL;
     }
     /*WRITE(cd->c_data, size)*/
-#if PY_MAJOR_VERSION < 3
+#if PY_MAJOR_VERSION < 3 && !defined(PyMemoryView_Check)   /* Python 2.6 */
     return PyBuffer_FromReadWriteMemory(cd->c_data, size);
 #else
     {

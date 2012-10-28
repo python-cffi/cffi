@@ -980,7 +980,7 @@ class CTypesBackend(object):
         return b._to_string(maxlen)
 
     def buffer(self, bptr, size=-1):
-        if sys.version_info >= (3,):
+        if sys.version_info >= (2, 7):
             # buf = bptr._as_ctype_ptr
             # return memoryview(buf.contents)
             if isinstance(bptr, CTypesGenericPtr):
