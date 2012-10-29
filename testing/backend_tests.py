@@ -1074,13 +1074,8 @@ class BackendTests:
             b = ffi.buffer(a)
         except NotImplementedError as e:
             py.test.skip(str(e))
-        if sys.version_info < (2, 7):
-            assert type(b) is buffer
-            content = str(b)
-        else:
-            assert type(b) is memoryview
-            content = b.tobytes()
-        assert len(content) == 2
+        content = b[:]
+        assert len(content) == len(b) == 2
         if sys.byteorder == 'little':
             assert content == b'\x64\x00'
             assert b[0] == bufitem(b'\x64')
@@ -1098,12 +1093,7 @@ class BackendTests:
             b = ffi.buffer(a)
         except NotImplementedError as e:
             py.test.skip(str(e))
-        if sys.version_info < (2, 7):
-            assert type(b) is buffer
-            content = str(b)
-        else:
-            assert type(b) is memoryview
-            content = b.tobytes()
+        content = b[:]
         if sys.byteorder == 'little':
             assert content.startswith(b'\x64\x00\x00\x00\x65\x00\x00\x00')
             b[4] = bufitem(b'\x45')
@@ -1120,12 +1110,7 @@ class BackendTests:
             b = ffi.buffer(a, 1)
         except NotImplementedError as e:
             py.test.skip(str(e))
-        if sys.version_info < (2, 7):
-            assert type(b) is buffer
-            content = str(b)
-        else:
-            assert type(b) is memoryview
-            content = b.tobytes()
+        content = b[:]
         assert len(content) == 1
         if sys.byteorder == 'little':
             assert content == b'\x43'
@@ -1144,10 +1129,7 @@ class BackendTests:
             ffi.buffer(a1)
         except NotImplementedError as e:
             py.test.skip(str(e))
-        if sys.version_info < (3,):
-            assert ffi.buffer(a1)[:] == ffi.buffer(a2, 4*10)[:]
-        else:
-            assert ffi.buffer(a1).tobytes() == ffi.buffer(a2, 4*10).tobytes()
+        assert ffi.buffer(a1)[:] == ffi.buffer(a2, 4*10)[:]
 
     def test_ffi_buffer_with_file(self):
         ffi = FFI(backend=self.Backend())

@@ -980,48 +980,7 @@ class CTypesBackend(object):
         return b._to_string(maxlen)
 
     def buffer(self, bptr, size=-1):
-        if sys.version_info >= (2, 7):
-            # buf = bptr._as_ctype_ptr
-            # return memoryview(buf.contents)
-            if isinstance(bptr, CTypesGenericPtr):
-                buf = bptr._as_ctype_ptr
-                val = buf.contents
-            elif isinstance(bptr, CTypesGenericArray):
-                buf = bptr._blob
-                val = bptr._blob
-            else:
-                raise TypeError(bptr)
-            class Hack(ctypes.Union):
-                _fields_ = [('stupid', type(val))]
-            ptr = ctypes.cast(buf, ctypes.POINTER(Hack))
-            view = memoryview(ptr.contents)
-            try:
-                view = view.cast('B')
-            except AttributeError:
-                raise NotImplementedError("buffer() with ctypes backend "
-                                          "in Python < 3.3")
-            if size >= 0:
-                view = view[:size]
-            return view
-
-        # haaaaaaaaaaaack
-        if '__pypy__' in sys.builtin_module_names:
-            raise NotImplementedError("PyPy: ffi.buffer() with ctypes backend")
-        call = ctypes.pythonapi.PyBuffer_FromReadWriteMemory
-        call.argtypes = (ctypes.c_void_p, ctypes.c_size_t)
-        call.restype = ctypes.py_object
-        #
-        if isinstance(bptr, CTypesGenericPtr):
-            if size < 0:
-                size = bptr._bitem_size
-            return call(bptr._as_ctype_ptr, size)
-        elif isinstance(bptr, CTypesGenericArray):
-            if size < 0:
-                size = ctypes.sizeof(bptr._blob)
-            return call(ctypes.pointer(bptr._blob), size)
-        else:
-            raise TypeError("pointer or array argument expected, got %r" %
-                            (type(bptr).__name__,))
+        raise NotImplementedError("buffer() with ctypes backend")
 
     def sizeof(self, cdata_or_BType):
         if isinstance(cdata_or_BType, CTypesData):
