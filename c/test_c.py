@@ -1861,8 +1861,8 @@ def test_buffer():
     # --mb_ass_slice--
     buf[:] = b"hi there\x00"
     assert list(buf) == list(c) == list(b"hi there\x00")
-    py.test.raises(TypeError, 'buf[:] = b"shorter"')
-    py.test.raises(TypeError, 'buf[:] = b"this is much too long!"')
+    py.test.raises(ValueError, 'buf[:] = b"shorter"')
+    py.test.raises(ValueError, 'buf[:] = b"this is much too long!"')
     buf[4:2] = b""   # no effect, but should work
     assert buf[:] == b"hi there\x00"
     expected = list(b"hi there\x00")

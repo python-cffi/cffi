@@ -70,7 +70,7 @@ static int mb_ass_slice(MiniBufferObj *self,
 
     count = right - left;
     if (count != buffer_len) {
-        PyErr_SetString(PyExc_TypeError,
+        PyErr_SetString(PyExc_ValueError,
                         "right operand length must match slice length");
         return -1;
     }
