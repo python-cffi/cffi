@@ -205,6 +205,8 @@ static void init_errno(void) { }
 # define restore_errno_only   restore_errno
 #endif
 
+#include "minibuffer.h"
+
 #ifdef HAVE_WCHAR_H
 # include "wchar_helper.h"
 #endif
@@ -4275,17 +4277,7 @@ static PyObject *b_buffer(PyObject *self, PyObject *args)
         return NULL;
     }
     /*WRITE(cd->c_data, size)*/
-#if PY_MAJOR_VERSION < 3 && !defined(PyMemoryView_Check)   /* Python 2.6 */
-    return PyBuffer_FromReadWriteMemory(cd->c_data, size);
-#else
-    {
-      Py_buffer view;
-      if (PyBuffer_FillInfo(&view, NULL, cd->c_data, size,
-                            /*readonly=*/0, PyBUF_CONTIG | PyBUF_FORMAT) < 0)
-        return NULL;
-      return PyMemoryView_FromBuffer(&view);
-    }
-#endif
+    return minibuffer_new(cd->c_data, size);
 }
 
 static PyObject *b_get_errno(PyObject *self, PyObject *noarg)
@@ -4759,6 +4751,8 @@ init_cffi_backend(void)
     if (PyType_Ready(&CDataOwning_Type) < 0)
         INITERROR;
     if (PyType_Ready(&CDataIter_Type) < 0)
+        INITERROR;
+    if (PyType_Ready(&MiniBuffer_Type) < 0)
         INITERROR;
 
     v = PyCapsule_New((void *)cffi_exports, "cffi", NULL);
