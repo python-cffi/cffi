@@ -208,8 +208,13 @@ class FFI(object):
     def buffer(self, cdata, size=-1):
         """Return a read-write buffer object that references the raw C data
         pointed to by the given 'cdata'.  The 'cdata' must be a pointer or
-        an array.  To get a copy of it in a regular string, call str() on
-        the result.
+        an array.  Can be passed to functions expecting a buffer, or directly
+        manipulated with:
+
+            buf[:]          get a copy of it in a regular string, or
+            buf[idx]        as a single character
+            buf[:] = ...
+            buf[idx] = ...  change the content
         """
         return self._backend.buffer(cdata, size)
 

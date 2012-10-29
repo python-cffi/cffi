@@ -996,19 +996,32 @@ string) from the 'cdata'.  *New in version 0.3.*
 - If 'cdata' is an enum, returns the value of the enumerator as a
   string, or ``#NUMBER`` if the value is out of range.
 
-``ffi.buffer(pointer, [size])``: return a read-write buffer object that
-references the raw C data pointed to by the given 'cdata', of 'size'
-bytes.  The 'cdata' must be a pointer or an array.  To get a copy of it
-in a regular string, use ``ffi.buffer(..)[:]`` in Python 2 and
-``ffi.buffer(..).tobytes()`` in Python 3.  To change the content,
-use ``ffi.buffer(..)[:] = new_string_of_bytes``.  If unspecified, the
-default size of the buffer is ``sizeof(*pointer)`` or the whole size of
-the array.  Getting a buffer is useful because you can read from it
+
+``ffi.buffer(cdata, [size])``: return a buffer object that references
+the raw C data pointed to by the given 'cdata', of 'size' bytes.  The
+'cdata' must be a pointer or an array.  If unspecified, the size of the
+buffer is either the size of what ``cdata`` points to, or the whole size
+of the array.  Getting a buffer is useful because you can read from it
 without an extra copy, or write into it to change the original value;
 you can use for example ``file.write()`` and ``file.readinto()`` with
 such a buffer (for files opened in binary mode).  (Remember that like in
 C, you use ``array + index`` to get the pointer to the index'th item of
 an array.)
+
+.. versionchanged:: 0.4
+   The returned object is not a built-in buffer nor memoryview object,
+   because these objects' API changes too much across Python versions.
+   Instead it has the following Python API (a subset of ``buffer``):
+
+- ``buf[:]``: fetch a copy as a regular byte string (or
+  ``buf[start:end]`` for a part)
+
+- ``buf[:] = newstr``: change the original content (or ``buf[start:end]
+  = newstr``)
+
+- ``len(buf), buf[index], buf[index] = newchar``: access as a sequence
+  of characters.
+
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
 ``<ctype>`` corresponding to the parsed string, or to the C type of the
