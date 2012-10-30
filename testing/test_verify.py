@@ -1234,9 +1234,9 @@ def test_FILE_stored_in_stdout():
             return result;
         }
     """)
-    import posix
-    fdr, fdw = posix.pipe()
-    fw1 = posix.fdopen(fdw, 'wb', 256)
+    import os
+    fdr, fdw = os.pipe()
+    fw1 = os.fdopen(fdw, 'wb', 256)
     old_stdout = lib.setstdout(fw1)
     try:
         #
@@ -1248,9 +1248,11 @@ def test_FILE_stored_in_stdout():
     finally:
         lib.setstdout(old_stdout)
     #
-    result = posix.read(fdr, 256)
-    posix.close(fdr)
-    assert result == b"Xhello, 42!\n"
+    result = os.read(fdr, 256)
+    os.close(fdr)
+    # the 'X' might remain in the user-level buffer of 'fw1' and
+    # end up showing up after the 'hello, 42!\n'
+    assert result == b"Xhello, 42!\n" or result == b"hello, 42!\nX"
 
 def test_FILE_stored_explicitly():
     ffi = FFI()
@@ -1262,9 +1264,9 @@ def test_FILE_stored_explicitly():
             return fprintf(myfile, out, value);
         }
     """)
-    import posix
-    fdr, fdw = posix.pipe()
-    fw1 = posix.fdopen(fdw, 'wb', 256)
+    import os
+    fdr, fdw = os.pipe()
+    fw1 = os.fdopen(fdw, 'wb', 256)
     lib.myfile = ffi.cast("FILE *", fw1)
     #
     fw1.write(b"X")
@@ -1272,9 +1274,11 @@ def test_FILE_stored_explicitly():
     fw1.close()
     assert r == len("hello, 42!\n")
     #
-    result = posix.read(fdr, 256)
-    posix.close(fdr)
-    assert result == b"Xhello, 42!\n"
+    result = os.read(fdr, 256)
+    os.close(fdr)
+    # the 'X' might remain in the user-level buffer of 'fw1' and
+    # end up showing up after the 'hello, 42!\n'
+    assert result == b"Xhello, 42!\n" or result == b"hello, 42!\nX"
 
 def test_global_array_with_missing_length():
     ffi = FFI()

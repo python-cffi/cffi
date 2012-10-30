@@ -9,11 +9,6 @@ SIZE_OF_SHORT = ctypes.sizeof(ctypes.c_short)
 SIZE_OF_PTR   = ctypes.sizeof(ctypes.c_void_p)
 SIZE_OF_WCHAR = ctypes.sizeof(ctypes.c_wchar)
 
-if sys.version_info < (3, 3):
-    bufitem = lambda x: x
-else:
-    bufitem = ord
-
 
 class BackendTests:
 
@@ -1078,12 +1073,12 @@ class BackendTests:
         assert len(content) == len(b) == 2
         if sys.byteorder == 'little':
             assert content == b'\x64\x00'
-            assert b[0] == bufitem(b'\x64')
-            b[0] = bufitem(b'\x65')
+            assert b[0] == b'\x64'
+            b[0] = b'\x65'
         else:
             assert content == b'\x00\x64'
-            assert b[1] == bufitem(b'\x64')
-            b[1] = bufitem(b'\x65')
+            assert b[1] == b'\x64'
+            b[1] = b'\x65'
         assert a[0] == 101
 
     def test_ffi_buffer_array(self):
@@ -1096,10 +1091,10 @@ class BackendTests:
         content = b[:]
         if sys.byteorder == 'little':
             assert content.startswith(b'\x64\x00\x00\x00\x65\x00\x00\x00')
-            b[4] = bufitem(b'\x45')
+            b[4] = b'\x45'
         else:
             assert content.startswith('\x00\x00\x00\x64\x00\x00\x00\x65')
-            b[7] = bufitem(b'\x45')
+            b[7] = b'\x45'
         assert len(content) == 4 * 10
         assert a[1] == 0x45
 
@@ -1114,11 +1109,11 @@ class BackendTests:
         assert len(content) == 1
         if sys.byteorder == 'little':
             assert content == b'\x43'
-            b[0] = bufitem(b'\x62')
+            b[0] = b'\x62'
             assert a[0] == 0x4262
         else:
             assert content == b'\x42'
-            b[0] = bufitem(b'\x63')
+            b[0] = b'\x63'
             assert a[0] == 0x6343
 
     def test_ffi_buffer_array_size(self):
