@@ -2310,8 +2310,9 @@ def test_FILE_only_for_FILE_arg():
     fw1 = posix.fdopen(fdw, 'w')
     #
     e = py.test.raises(TypeError, fputs, b"hello world\n", fw1)
-    assert str(e.value) == ("initializer for ctype 'struct NOT_FILE *' must "
-                            "be a cdata pointer, not file")
+    assert str(e.value).startswith(
+        "initializer for ctype 'struct NOT_FILE *' must "
+        "be a cdata pointer, not ")
 
 def test_FILE_object():
     if sys.platform == "win32":
@@ -2338,7 +2339,7 @@ def test_FILE_object():
     res = fputs(b"hello\n", fw1p)
     assert res >= 0
     res = fileno(fw1p)
-    assert res == fdw
+    assert (res == fdw) == (sys.version_info < (3,))
     fw1.close()
     #
     data = posix.read(fdr, 256)
