@@ -32,7 +32,7 @@ static PyObject *mb_slice(MiniBufferObj *self,
     if (left < 0)     left = 0;
     if (right > size) right = size;
     if (left > right) left = right;
-    return PyString_FromStringAndSize(self->mb_data + left, right - left);
+    return PyBytes_FromStringAndSize(self->mb_data + left, right - left);
 }
 
 static int mb_ass_item(MiniBufferObj *self, Py_ssize_t idx, PyObject *other)
@@ -78,6 +78,7 @@ static int mb_ass_slice(MiniBufferObj *self,
     return 0;
 }
 
+#if PY_MAJOR_VERSION < 3
 static Py_ssize_t mb_getdata(MiniBufferObj *self, Py_ssize_t idx, void **pp)
 {
     *pp = self->mb_data;
@@ -90,6 +91,7 @@ static Py_ssize_t mb_getsegcount(MiniBufferObj *self, Py_ssize_t *lenp)
         *lenp = self->mb_size;
     return 1;
 }
+#endif
 
 static int mb_getbuf(MiniBufferObj *self, Py_buffer *view, int flags)
 {
@@ -108,13 +110,21 @@ static PySequenceMethods mb_as_sequence = {
 };
 
 static PyBufferProcs mb_as_buffer = {
+#if PY_MAJOR_VERSION < 3
     (readbufferproc)mb_getdata,
     (writebufferproc)mb_getdata,
     (segcountproc)mb_getsegcount,
     (charbufferproc)mb_getdata,
+#endif
     (getbufferproc)mb_getbuf,
     (releasebufferproc)0,
 };
+
+#if PY_MAJOR_VERSION >= 3
+# define MINIBUF_TPFLAGS (Py_TPFLAGS_DEFAULT)
+#else
+# define MINIBUF_TPFLAGS (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GETCHARBUFFER | Py_TPFLAGS_HAVE_NEWBUFFER)
+#endif
 
 static PyTypeObject MiniBuffer_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
@@ -136,8 +146,7 @@ static PyTypeObject MiniBuffer_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     &mb_as_buffer,                              /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GETCHARBUFFER |
-        Py_TPFLAGS_HAVE_NEWBUFFER,              /* tp_flags */
+    MINIBUF_TPFLAGS,                            /* tp_flags */
 };
 
 static PyObject *minibuffer_new(char *data, Py_ssize_t size)
