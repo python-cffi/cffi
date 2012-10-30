@@ -207,6 +207,10 @@ static void init_errno(void) { }
 
 #include "minibuffer.h"
 
+#if PY_MAJOR_VERSION >= 3
+# include "file_emulator.h"
+#endif
+
 #ifdef HAVE_WCHAR_H
 # include "wchar_helper.h"
 #endif
@@ -1729,8 +1733,10 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
         /* from a unicode, we add the null terminator */
         length = _my_PyUnicode_SizeAsWideChar(init) + 1;
     }
-    else if (PyFile_Check(init) && (ctitem->ct_flags & CT_IS_FILE)) {
+    else if ((ctitem->ct_flags & CT_IS_FILE) && PyFile_Check(init)) {
         output_data[0] = (char *)PyFile_AsFile(init);
+        if (output_data[0] == NULL && PyErr_Occurred())
+            return -1;
         return 1;
     }
     else {
@@ -2462,9 +2468,13 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
                 return new_simple_cdata(cdsrc->c_data, ct);
             }
         }
-        if (PyFile_Check(ob) && (ct->ct_flags & CT_POINTER) &&
-                  (ct->ct_itemdescr->ct_flags & CT_IS_FILE)) {
-            return new_simple_cdata((char *)PyFile_AsFile(ob), ct);
+        if ((ct->ct_flags & CT_POINTER) &&
+                (ct->ct_itemdescr->ct_flags & CT_IS_FILE) &&
+                PyFile_Check(ob)) {
+            FILE *f = PyFile_AsFile(ob);
+            if (f == NULL && PyErr_Occurred())
+                return NULL;
+            return new_simple_cdata((char *)f, ct);
         }
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
@@ -4599,8 +4609,9 @@ static char *_cffi_to_c_pointer(PyObject *obj, CTypeDescrObject *ct)
 {
     char *result;
     if (convert_from_object((char *)&result, ct, obj) < 0) {
-        if (PyFile_Check(obj) && (ct->ct_flags & CT_POINTER) &&
-                   (ct->ct_itemdescr->ct_flags & CT_IS_FILE)) {
+        if ((ct->ct_flags & CT_POINTER) &&
+                (ct->ct_itemdescr->ct_flags & CT_IS_FILE) &&
+                PyFile_Check(obj)) {
             PyErr_Clear();
             return (char *)PyFile_AsFile(obj);
         }

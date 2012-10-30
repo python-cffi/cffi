@@ -10,6 +10,7 @@ if sys.version_info < (3,):
     mandatory_b_prefix = ''
     mandatory_u_prefix = 'u'
     bytechr = chr
+    bitem2bchr = lambda x: x
     class U(object):
         def __add__(self, other):
             return eval('u'+repr(other).replace(r'\\u', r'\u')
@@ -23,6 +24,7 @@ else:
     mandatory_b_prefix = 'b'
     mandatory_u_prefix = ''
     bytechr = lambda n: bytes([n])
+    bitem2bchr = bytechr
     u = ""
 
 def size_of_int():
@@ -1808,7 +1810,10 @@ def test_cmp():
     assert (p < s) ^ (p > s)
 
 def test_buffer():
-    import __builtin__
+    try:
+        import __builtin__
+    except ImportError:
+        import builtins as __builtin__
     BShort = new_primitive_type("short")
     s = newp(new_pointer_type(BShort), 100)
     assert sizeof(s) == size_of_ptr()
@@ -1830,7 +1835,7 @@ def test_buffer():
         except IndexError:
             py.test.raises(IndexError, "buf[i]")
         else:
-            assert buf[i] == expected
+            assert buf[i] == bitem2bchr(expected)
     # --mb_slice--
     assert buf[:] == b"hi there\x00"
     for i in range(-12, 12):
@@ -1839,33 +1844,34 @@ def test_buffer():
         for j in range(-12, 12):
             assert buf[i:j] == b"hi there\x00"[i:j]
     # --misc--
-    assert list(buf) == list(b"hi there\x00")
+    assert list(buf) == list(map(bitem2bchr, b"hi there\x00"))
     # --mb_as_buffer--
-    py.test.raises(TypeError, __builtin__.buffer, c)
-    bf1 = __builtin__.buffer(buf)
-    assert len(bf1) == len(buf) and bf1[3] == "t"
+    if hasattr(__builtin__, 'buffer'):          # Python <= 2.7
+        py.test.raises(TypeError, __builtin__.buffer, c)
+        bf1 = __builtin__.buffer(buf)
+        assert len(bf1) == len(buf) and bf1[3] == "t"
     if hasattr(__builtin__, 'memoryview'):      # Python >= 2.7
         py.test.raises(TypeError, memoryview, c)
         mv1 = memoryview(buf)
-        assert len(mv1) == len(buf) and mv1[3] == "t"
+        assert len(mv1) == len(buf) and mv1[3] in (b"t", ord(b"t"))
     # --mb_ass_item--
-    expected = list(b"hi there\x00")
+    expected = list(map(bitem2bchr, b"hi there\x00"))
     for i in range(-12, 12):
         try:
-            expected[i] = chr(i & 0xff)
+            expected[i] = bytechr(i & 0xff)
         except IndexError:
-            py.test.raises(IndexError, "buf[i] = chr(i & 0xff)")
+            py.test.raises(IndexError, "buf[i] = bytechr(i & 0xff)")
         else:
-            buf[i] = chr(i & 0xff)
+            buf[i] = bytechr(i & 0xff)
         assert list(buf) == expected
     # --mb_ass_slice--
     buf[:] = b"hi there\x00"
-    assert list(buf) == list(c) == list(b"hi there\x00")
+    assert list(buf) == list(c) == list(map(bitem2bchr, b"hi there\x00"))
     py.test.raises(ValueError, 'buf[:] = b"shorter"')
     py.test.raises(ValueError, 'buf[:] = b"this is much too long!"')
     buf[4:2] = b""   # no effect, but should work
     assert buf[:] == b"hi there\x00"
-    expected = list(b"hi there\x00")
+    expected = list(map(bitem2bchr, b"hi there\x00"))
     x = 0
     for i in range(-12, 12):
         for j in range(-12, 12):
@@ -1873,10 +1879,10 @@ def test_buffer():
             stop  = j if j >= 0 else j + len(buf)
             start = max(0, min(len(buf), start))
             stop  = max(0, min(len(buf), stop))
-            sample = chr(x & 0xff) * (stop - start)
+            sample = bytechr(x & 0xff) * (stop - start)
             x += 1
             buf[i:j] = sample
-            expected[i:j] = sample
+            expected[i:j] = map(bitem2bchr, sample)
             assert list(buf) == expected
 
 def test_getcname():
@@ -2249,6 +2255,11 @@ def test_newp_from_bytearray_doesnt_work():
     assert len(p) == 4
     assert list(p) == [b"f", b"o", b"o", b"\x00"]
 
+# XXX hack
+if sys.version_info >= (3,):
+    import posix, io
+    posix.fdopen = io.open
+
 def test_FILE():
     if sys.platform == "win32":
         py.test.skip("testing FILE not implemented")
@@ -2266,8 +2277,8 @@ def test_FILE():
     #
     import posix
     fdr, fdw = posix.pipe()
-    fr1 = posix.fdopen(fdr, 'r', 256)
-    fw1 = posix.fdopen(fdw, 'w', 256)
+    fr1 = posix.fdopen(fdr, 'rb', 256)
+    fw1 = posix.fdopen(fdw, 'wb', 256)
     #
     fw1.write(b"X")
     res = fputs(b"hello world\n", fw1)

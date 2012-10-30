@@ -121,6 +121,83 @@ static PyBufferProcs mb_as_buffer = {
 };
 
 #if PY_MAJOR_VERSION >= 3
+/* pfffffffffffff pages of copy-paste from listobject.c */
+static PyObject *mb_subscript(MiniBufferObj *self, PyObject *item)
+{
+    if (PyIndex_Check(item)) {
+        Py_ssize_t i;
+        i = PyNumber_AsSsize_t(item, PyExc_IndexError);
+        if (i == -1 && PyErr_Occurred())
+            return NULL;
+        if (i < 0)
+            i += self->mb_size;
+        return mb_item(self, i);
+    }
+    else if (PySlice_Check(item)) {
+        Py_ssize_t start, stop, step, slicelength;
+
+        if (PySlice_GetIndicesEx(item, self->mb_size,
+                         &start, &stop, &step, &slicelength) < 0)
+            return NULL;
+
+        if (step == 1)
+            return mb_slice(self, start, stop);
+        else {
+            PyErr_SetString(PyExc_TypeError,
+                            "buffer doesn't support slicing with step != 1");
+            return NULL;
+        }
+    }
+    else {
+        PyErr_Format(PyExc_TypeError,
+                     "buffer indices must be integers, not %.200s",
+                     item->ob_type->tp_name);
+        return NULL;
+    }
+}
+static int
+mb_ass_subscript(MiniBufferObj* self, PyObject* item, PyObject* value)
+{
+    if (PyIndex_Check(item)) {
+        Py_ssize_t i = PyNumber_AsSsize_t(item, PyExc_IndexError);
+        if (i == -1 && PyErr_Occurred())
+            return -1;
+        if (i < 0)
+            i += self->mb_size;
+        return mb_ass_item(self, i, value);
+    }
+    else if (PySlice_Check(item)) {
+        Py_ssize_t start, stop, step, slicelength;
+
+        if (PySlice_GetIndicesEx(item, self->mb_size,
+                         &start, &stop, &step, &slicelength) < 0) {
+            return -1;
+        }
+
+        if (step == 1)
+            return mb_ass_slice(self, start, stop, value);
+        else {
+            PyErr_SetString(PyExc_TypeError,
+                            "buffer doesn't support slicing with step != 1");
+            return -1;
+        }
+    }
+    else {
+        PyErr_Format(PyExc_TypeError,
+                     "buffer indices must be integers, not %.200s",
+                     item->ob_type->tp_name);
+        return -1;
+    }
+}
+
+static PyMappingMethods mb_as_mapping = {
+    (lenfunc)mb_length, /*mp_length*/
+    (binaryfunc)mb_subscript, /*mp_subscript*/
+    (objobjargproc)mb_ass_subscript, /*mp_ass_subscript*/
+};
+#endif
+
+#if PY_MAJOR_VERSION >= 3
 # define MINIBUF_TPFLAGS (Py_TPFLAGS_DEFAULT)
 #else
 # define MINIBUF_TPFLAGS (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GETCHARBUFFER | Py_TPFLAGS_HAVE_NEWBUFFER)
@@ -139,7 +216,11 @@ static PyTypeObject MiniBuffer_Type = {
     0,                                          /* tp_repr */
     0,                                          /* tp_as_number */
     &mb_as_sequence,                            /* tp_as_sequence */
+#if PY_MAJOR_VERSION < 3
     0,                                          /* tp_as_mapping */
+#else
+    &mb_as_mapping,                             /* tp_as_mapping */
+#endif
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
