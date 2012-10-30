@@ -57,6 +57,7 @@ static FILE *PyFile_AsFile(PyObject *ob_file)
             PyErr_SetFromErrno(PyExc_OSError);
             goto fail;
         }
+        setbuf(f, NULL);    /* non-buffered */
         Py_DECREF(ob_mode);
         ob_mode = NULL;
 
