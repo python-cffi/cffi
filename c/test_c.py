@@ -2361,7 +2361,7 @@ def test_GetLastError():
     #
     SetLastError(42)
     # a random function that will reset the real GetLastError() to 0
-    import posix; posix.stat('.')
+    import nt; nt.stat('.')
     #
     res = GetLastError()
     assert res == 42
