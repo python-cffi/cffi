@@ -1025,13 +1025,13 @@ def test_callback():
     assert str(e.value) == "'int(*)(int)' expects 1 arguments, got 0"
 
 def test_callback_exception():
-    import cStringIO
+    import cStringIO, linecache
     def matches(str, pattern):
         while '$' in pattern:
             i = pattern.index('$')
             assert str[:i] == pattern[:i]
             j = str.find(pattern[i+1], i)
-            assert i + 1 <= j < str.find('\n', i)
+            assert i + 1 <= j <= str.find('\n', i)
             str = str[j:]
             pattern = pattern[i+1:]
         assert str == pattern
@@ -1042,11 +1042,13 @@ def test_callback_exception():
     def cb1(x):
         check_value(x)
         return x * 3
-    BInt = new_primitive_type("int")
-    BFunc = new_function_type((BInt,), BInt, False)
+    BShort = new_primitive_type("short")
+    BFunc = new_function_type((BShort,), BShort, False)
     f = callback(BFunc, cb1, -42)
     orig_stderr = sys.stderr
+    orig_getline = linecache.getline
     try:
+        linecache.getline = lambda *args: 'LINE'    # hack: speed up PyPy tests
         sys.stderr = cStringIO.StringIO()
         assert f(100) == 300
         assert sys.stderr.getvalue() == ''
@@ -1055,20 +1057,21 @@ def test_callback_exception():
 From callback <function cb1 at 0x$>:
 Traceback (most recent call last):
   File "$", line $, in cb1
-    check_value(x)
+    $
   File "$", line $, in check_value
-    raise ValueError(42)
+    $
 ValueError: 42
 """)
         sys.stderr = cStringIO.StringIO()
-        bigvalue = 1 << (8 * size_of_int() - 2)
+        bigvalue = 20000
         assert f(bigvalue) == -42
         assert matches(sys.stderr.getvalue(), """\
 From callback <function cb1 at 0x$>:
-OverflowError: integer %d does not fit 'int'
-""" % (bigvalue * 3,))
+OverflowError: integer 60000 does not fit 'short'
+""")
     finally:
         sys.stderr = orig_stderr
+        linecache.getline = orig_getline
 
 def test_callback_return_type():
     for rettype in ["signed char", "short", "int", "long", "long long",
