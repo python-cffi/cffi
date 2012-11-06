@@ -1024,6 +1024,52 @@ def test_callback():
     e = py.test.raises(TypeError, f)
     assert str(e.value) == "'int(*)(int)' expects 1 arguments, got 0"
 
+def test_callback_exception():
+    import cStringIO
+    def matches(str, pattern):
+        while '$' in pattern:
+            i = pattern.index('$')
+            assert str[:i] == pattern[:i]
+            j = str.find(pattern[i+1], i)
+            assert i + 1 <= j < str.find('\n', i)
+            str = str[j:]
+            pattern = pattern[i+1:]
+        assert str == pattern
+        return True
+    def check_value(x):
+        if x == 10000:
+            raise ValueError(42)
+    def cb1(x):
+        check_value(x)
+        return x * 3
+    BInt = new_primitive_type("int")
+    BFunc = new_function_type((BInt,), BInt, False)
+    f = callback(BFunc, cb1, -42)
+    orig_stderr = sys.stderr
+    try:
+        sys.stderr = cStringIO.StringIO()
+        assert f(100) == 300
+        assert sys.stderr.getvalue() == ''
+        assert f(10000) == -42
+        assert matches(sys.stderr.getvalue(), """\
+From callback <function cb1 at 0x$>:
+Traceback (most recent call last):
+  File "$", line $, in cb1
+    check_value(x)
+  File "$", line $, in check_value
+    raise ValueError(42)
+ValueError: 42
+""")
+        sys.stderr = cStringIO.StringIO()
+        bigvalue = 1 << (8 * size_of_int() - 2)
+        assert f(bigvalue) == -42
+        assert matches(sys.stderr.getvalue(), """\
+From callback <function cb1 at 0x$>:
+OverflowError: integer %d does not fit 'int'
+""" % (bigvalue * 3,))
+    finally:
+        sys.stderr = orig_stderr
+
 def test_callback_return_type():
     for rettype in ["signed char", "short", "int", "long", "long long",
                     "unsigned char", "unsigned short", "unsigned int",

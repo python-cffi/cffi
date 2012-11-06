@@ -3788,6 +3788,23 @@ static int convert_from_object_fficallback(char *result,
     return convert_from_object(result, ctype, pyobj);
 }
 
+static void _my_PyErr_WriteUnraisable(PyObject *obj)
+{
+    /* like PyErr_WriteUnraisable(), but write a full traceback */
+    PyObject *f, *t, *v, *tb;
+    PyErr_Fetch(&t, &v, &tb);
+    f = PySys_GetObject("stderr");
+    if (f != NULL) {
+        PyFile_WriteString("From callback ", f);
+        PyFile_WriteObject(obj, f, 0);
+        PyFile_WriteString(":\n", f);
+        PyErr_Display(t, v, tb);
+    }
+    Py_XDECREF(t);
+    Py_XDECREF(v);
+    Py_XDECREF(tb);
+}
+
 static void invoke_callback(ffi_cif *cif, void *result, void **args,
                             void *userdata)
 {
@@ -3837,7 +3854,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     return;
 
  error:
-    PyErr_WriteUnraisable(py_ob);
+    _my_PyErr_WriteUnraisable(py_ob);
     if (SIGNATURE(1)->ct_size > 0) {
         py_rawerr = PyTuple_GET_ITEM(cb_args, 2);
         memcpy(result, PyBytes_AS_STRING(py_rawerr),
