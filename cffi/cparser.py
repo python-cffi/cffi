@@ -1,6 +1,15 @@
 
 from . import api, model
-import pycparser.c_parser, weakref, re
+import pycparser.c_parser, weakref, re, sys
+
+try:
+    if sys.version_info < (3,):
+        import thread as _thread
+    else:
+        import _thread
+    lock = _thread.allocate_lock()
+except ImportError:
+    lock = None
 
 _r_comment = re.compile(r"/\*.*?\*/|//.*?$", re.DOTALL | re.MULTILINE)
 _r_define  = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z_0-9]*)\s+(.*?)$",
@@ -69,10 +78,15 @@ class Parser(object):
         csource, macros = _preprocess(csource)
         csourcelines.append(csource)
         csource = '\n'.join(csourcelines)
+        if lock is not None:
+            lock.acquire()     # pycparser is not thread-safe...
         try:
             ast = _get_parser().parse(csource)
         except pycparser.c_parser.ParseError as e:
             self.convert_pycparser_error(e, csource)
+        finally:
+            if lock is not None:
+                lock.release()
         return ast, macros
 
     def convert_pycparser_error(self, e, csource):
