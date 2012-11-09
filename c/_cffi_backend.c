@@ -3433,7 +3433,12 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
                 flat *= ct->ct_length;
                 ct = ct->ct_itemdescr;
             }
-            assert(flat >= 0);
+            if (flat <= 0) {
+                PyErr_SetString(PyExc_NotImplementedError,
+                                "cannot pass as argument or return value "
+                                "a struct with a zero-length array");
+                return NULL;
+            }
             nflat += flat;
             cf = cf->cf_next;
         }
