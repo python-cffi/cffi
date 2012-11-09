@@ -927,6 +927,16 @@ def test_call_function_21():
     lst = [(n << i) for (i, n) in enumerate(range(13, 3, -1))]
     assert res == sum(lst)
 
+def test_call_function_22():
+    BInt = new_primitive_type("int")
+    BArray10 = new_array_type(new_pointer_type(BInt), 10)
+    BStruct = new_struct_type("foo")
+    complete_struct_or_union(BStruct, [('a', BArray10, -1)])
+    BFunc22 = new_function_type((BInt,), BStruct, False)
+    f = cast(BFunc22, _testfunc(22))
+    res = f(5432)
+    assert res.a[5] == 5432
+
 def test_call_function_9():
     BInt = new_primitive_type("int")
     BFunc9 = new_function_type((BInt,), BInt, True)    # vararg
