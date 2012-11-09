@@ -3358,7 +3358,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
     if (ct->ct_flags & CT_PRIMITIVE_ANY) {
         return (ffi_type *)ct->ct_extra;
     }
-    else if (ct->ct_flags & (CT_POINTER|CT_ARRAY|CT_FUNCTIONPTR)) {
+    else if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
         return &ffi_type_pointer;
     }
     else if ((ct->ct_flags & CT_VOID) && is_result_type) {
@@ -3375,7 +3375,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
     if (ct->ct_flags & CT_STRUCT) {
         ffi_type *ffistruct, *ffifield;
         ffi_type **elements;
-        Py_ssize_t i, n;
+        Py_ssize_t i, n, nflat;
         CFieldObject *cf;
 
         /* We can't pass a struct that was completed by verify().
@@ -3412,10 +3412,14 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
 #endif
 
         n = PyDict_Size(ct->ct_stuff);
-        elements = fb_alloc(fb, (n + 1) * sizeof(ffi_type*));
-        cf = (CFieldObject *)ct->ct_extra;
+        nflat = 0;
 
+        /* walk the fields, expanding arrays into repetitions; first,
+           only count how many flattened fields there are */
+        cf = (CFieldObject *)ct->ct_extra;
         for (i=0; i<n; i++) {
+            Py_ssize_t flat;
+            CTypeDescrObject *ct;
             assert(cf != NULL);
             if (cf->cf_bitshift >= 0) {
                 PyErr_SetString(PyExc_NotImplementedError,
@@ -3423,16 +3427,41 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
                                 "a struct with bit fields");
                 return NULL;
             }
-            ffifield = fb_fill_type(fb, cf->cf_type, 0);
-            if (elements != NULL)
-                elements[i] = ffifield;
+            flat = 1;
+            ct = cf->cf_type;
+            while (ct->ct_flags & CT_ARRAY) {
+                flat *= ct->ct_length;
+                ct = ct->ct_itemdescr;
+            }
+            assert(flat >= 0);
+            nflat += flat;
             cf = cf->cf_next;
         }
         assert(cf == NULL);
 
+        /* next, allocate and fill the flattened list */
+        elements = fb_alloc(fb, (nflat + 1) * sizeof(ffi_type*));
+        nflat = 0;
+        cf = (CFieldObject *)ct->ct_extra;
+        for (i=0; i<n; i++) {
+            Py_ssize_t j, flat = 1;
+            CTypeDescrObject *ct = cf->cf_type;
+            while (ct->ct_flags & CT_ARRAY) {
+                flat *= ct->ct_length;
+                ct = ct->ct_itemdescr;
+            }
+            ffifield = fb_fill_type(fb, ct, 0);
+            if (elements != NULL) {
+                for (j=0; j<flat; j++)
+                    elements[nflat++] = ffifield;
+            }
+            cf = cf->cf_next;
+        }
+
+        /* finally, allocate the FFI_TYPE_STRUCT */
         ffistruct = fb_alloc(fb, sizeof(ffi_type));
         if (ffistruct != NULL) {
-            elements[n] = NULL;
+            elements[nflat] = NULL;
             ffistruct->size = ct->ct_size;
             ffistruct->alignment = ct->ct_length;
             ffistruct->type = FFI_TYPE_STRUCT;
@@ -3491,6 +3520,9 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
         ffi_type *atype;
 
         farg = (CTypeDescrObject *)PyTuple_GET_ITEM(fargs, i);
+        /* convert arrays to pointers */
+        if (farg->ct_flags & CT_ARRAY)
+            farg = (CTypeDescrObject *)farg->ct_stuff;
 
         /* ffi buffer: fill in the ffi for the i'th argument */
         assert(farg != NULL);
@@ -4490,10 +4522,13 @@ static int _testfunc21(struct _testfunc21_s inlined)
 }
 
 struct _testfunc22_s { int a[10]; };
-static struct _testfunc22_s _testfunc22(int n)
+static struct _testfunc22_s _testfunc22(struct _testfunc22_s s1,
+                                        struct _testfunc22_s s2)
 {
     struct _testfunc22_s result;
-    result.a[5] = n;
+    int i;
+    for (i=0; i<10; i++)
+        result.a[i] = s1.a[i] - s2.a[i];
     return result;
 }
 
