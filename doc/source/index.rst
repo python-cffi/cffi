@@ -1085,6 +1085,14 @@ version 0.4.*
 
 .. "versionadded:: 0.4" --- inlined in the previous paragraph
 
+``ffi.inspecttype(ctype)``: half-internal API.  Returns a tuple whose
+first item is a string describing the kind of ``ctype``, and whose
+remaining items give a full deconstruction of the type.  (Note that in
+the future the returned tuples may grow new items, as needed to
+represent new details of the type.)  *New in version 0.4.*
+
+.. "versionadded:: 0.4" --- inlined in the previous paragraph
+
 
 Unimplemented features
 ----------------------

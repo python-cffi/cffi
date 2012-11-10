@@ -20,3 +20,15 @@ class TestFFI(backend_tests.BackendTests,
                            "struct foo_s foo(void)", lambda: 42)
         assert str(e.value) == ("<struct foo_s(*)(void)>: "
             "cannot pass as argument or return value a struct with bit fields")
+
+    def test_inspecttype(self):
+        ffi = FFI(backend=self.Backend())
+        assert ffi.inspecttype("long") == ("primitive", "long")
+        assert ffi.inspecttype(ffi.typeof("long")) == ("primitive", "long")
+        pointer, LongP = ffi.inspecttype("long**")
+        assert pointer == "pointer"
+        pointer, Long = ffi.inspecttype(LongP)
+        assert pointer == "pointer"
+        assert ffi.inspecttype(Long) == ("primitive", "long")
+        assert ffi.inspecttype("long(*)(long, long, ...)")[:4] == (
+            "function", (Long, Long), Long, True)

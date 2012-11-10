@@ -3285,49 +3285,85 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     return NULL;
 }
 
-static PyObject *b__getfields(PyObject *self, PyObject *arg)
+static PyObject *b_inspecttype(PyObject *self, PyObject *arg)
 {
     CTypeDescrObject *ct = (CTypeDescrObject *)arg;
-    PyObject *d, *res;
 
     if (!CTypeDescr_Check(arg)) {
         PyErr_SetString(PyExc_TypeError,"expected a 'ctype' object");
         return NULL;
     }
-    d = (PyObject *)ct->ct_stuff;
-    if (d == NULL) {
-        res = Py_None;
-        Py_INCREF(res);
+    if ((ct->ct_flags & CT_PRIMITIVE_ANY) && !(ct->ct_flags & CT_IS_ENUM)) {
+        return Py_BuildValue("ss", "primitive", ct->ct_name);
     }
-    else if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
-        CFieldObject *cf;
-        res = PyList_New(0);
-        if (res == NULL)
-            return NULL;
-        for (cf = (CFieldObject *)ct->ct_extra; cf != NULL; cf = cf->cf_next) {
-            int err;
-            PyObject *o = PyTuple_Pack(2, get_field_name(ct, cf),
-                                       (PyObject *)cf);
-            err = (o != NULL) ? PyList_Append(res, o) : -1;
-            Py_XDECREF(o);
-            if (err < 0) {
-                Py_DECREF(res);
+    if (ct->ct_flags & CT_POINTER) {
+        return Py_BuildValue("sO", "pointer", ct->ct_itemdescr);
+    }
+    if (ct->ct_flags & CT_ARRAY) {
+        if (ct->ct_length < 0)
+            return Py_BuildValue("sOO", "array", ct->ct_itemdescr, Py_None);
+        else
+            return Py_BuildValue("sOn", "array", ct->ct_itemdescr,
+                                 ct->ct_length);
+    }
+    if (ct->ct_flags & CT_VOID) {
+        return Py_BuildValue("(s)", "void");
+    }
+    if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
+        PyObject *res;
+        char *kind, *name;
+        kind = (ct->ct_flags & CT_STRUCT) ? "struct" : "union";
+        name = ct->ct_name;
+        while (*name != ' ')
+            name++;
+        name++;
+        if (ct->ct_flags & CT_IS_OPAQUE) {
+            return Py_BuildValue("ssOOO", kind, name,
+                                 Py_None, Py_None, Py_None);
+        }
+        else {
+            CFieldObject *cf;
+            res = PyList_New(0);
+            if (res == NULL)
                 return NULL;
+            for (cf = (CFieldObject *)ct->ct_extra;
+                 cf != NULL; cf = cf->cf_next) {
+                PyObject *o = PyTuple_Pack(2, get_field_name(ct, cf),
+                                           (PyObject *)cf);
+                int err = (o != NULL) ? PyList_Append(res, o) : -1;
+                Py_XDECREF(o);
+                if (err < 0) {
+                    Py_DECREF(res);
+                    return NULL;
+                }
             }
+            return Py_BuildValue("ssOnn", kind, name,
+                                 res, ct->ct_size, ct->ct_length);
         }
     }
-    else if (ct->ct_flags & CT_IS_ENUM) {
-        res = PyDict_Items(PyTuple_GET_ITEM(d, 1));
+    if (ct->ct_flags & CT_IS_ENUM) {
+        PyObject *res = PyDict_Items(PyTuple_GET_ITEM(ct->ct_stuff, 1));
         if (res == NULL)
             return NULL;
         if (PyList_Sort(res) < 0)
             Py_CLEAR(res);
+        return Py_BuildValue("sO", "enum", res);
     }
-    else {
-        res = d;
-        Py_INCREF(res);
+    if (ct->ct_flags & CT_FUNCTIONPTR) {
+        PyObject *t = ct->ct_stuff;
+        PyObject *s = PyTuple_GetSlice(t, 2, PyTuple_GET_SIZE(t));
+        PyObject *o;
+        if (s == NULL)
+            return NULL;
+        o = Py_BuildValue("sOOOO", "function", s,
+                          PyTuple_GET_ITEM(t, 1),
+                          ct->ct_extra ? Py_False : Py_True,
+                          PyTuple_GET_ITEM(t, 0));
+        Py_DECREF(s);
+        return o;
     }
-    return res;
+    PyErr_SetObject(PyExc_NotImplementedError, (PyObject *)ct);
+    return NULL;
 }
 
 struct funcbuilder_s {
@@ -4587,7 +4623,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"complete_struct_or_union", b_complete_struct_or_union, METH_VARARGS},
     {"new_function_type", b_new_function_type, METH_VARARGS},
     {"new_enum_type", b_new_enum_type, METH_VARARGS},
-    {"_getfields", b__getfields, METH_O},
+    {"inspecttype", b_inspecttype, METH_O},
     {"newp", b_newp, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"callback", b_callback, METH_VARARGS},

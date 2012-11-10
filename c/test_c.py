@@ -1,6 +1,6 @@
 import py
 from _cffi_backend import *
-from _cffi_backend import _getfields, _testfunc, _get_types
+from _cffi_backend import _testfunc, _get_types
 
 # ____________________________________________________________
 
@@ -81,6 +81,10 @@ def test_new_primitive_type():
     py.test.raises(KeyError, new_primitive_type, "foo")
     p = new_primitive_type("signed char")
     assert repr(p) == "<ctype 'signed char'>"
+
+def test_inspect_primitive_type():
+    p = new_primitive_type("signed char")
+    assert inspecttype(p) == ("primitive", "signed char")
 
 def test_cast_to_signed_char():
     p = new_primitive_type("signed char")
@@ -218,6 +222,13 @@ def test_pointer_type():
     assert repr(p) == "<ctype 'int * *'>"
     p = new_pointer_type(p)
     assert repr(p) == "<ctype 'int * * *'>"
+
+def test_inspect_pointer_type():
+    p1 = new_primitive_type("int")
+    p2 = new_pointer_type(p1)
+    assert inspecttype(p2) == ("pointer", p1)
+    p3 = new_pointer_type(p2)
+    assert inspecttype(p3) == ("pointer", p2)
 
 def test_pointer_to_int():
     BInt = new_primitive_type("int")
@@ -420,6 +431,10 @@ def test_cast_from_cdataint():
     z = cast(BInt, y)
     assert int(z) == 42
 
+def test_void_type():
+    p = new_void_type()
+    assert inspecttype(p) == ("void",)
+
 def test_array_type():
     p = new_primitive_type("int")
     assert repr(p) == "<ctype 'int'>"
@@ -441,6 +456,13 @@ def test_array_type():
                    new_array_type, new_pointer_type(p), sys.maxsize+1)
     py.test.raises(OverflowError,
                    new_array_type, new_pointer_type(p), sys.maxsize // 3)
+
+def test_inspect_array_type():
+    p = new_primitive_type("int")
+    p1 = new_array_type(new_pointer_type(p), None)
+    assert inspecttype(p1) == ("array", p, None)
+    p1 = new_array_type(new_pointer_type(p), 42)
+    assert inspecttype(p1) == ("array", p, 42)
 
 def test_array_instance():
     LENGTH = 1423
@@ -622,11 +644,14 @@ def test_complete_struct():
     BChar = new_primitive_type("char")
     BShort = new_primitive_type("short")
     BStruct = new_struct_type("foo")
-    assert _getfields(BStruct) is None
+    assert inspecttype(BStruct) == ("struct", "foo", None, None, None)
     complete_struct_or_union(BStruct, [('a1', BLong, -1),
                                        ('a2', BChar, -1),
                                        ('a3', BShort, -1)])
-    d = _getfields(BStruct)
+    k, n, d, s, a = inspecttype(BStruct)
+    assert k == "struct" and n == "foo"
+    assert s == sizeof(BLong) + 2 * sizeof(BShort)
+    assert a == sizeof(BLong)
     assert len(d) == 3
     assert d[0][0] == 'a1'
     assert d[0][1].type is BLong
@@ -650,10 +675,12 @@ def test_complete_union():
     BLong = new_primitive_type("long")
     BChar = new_primitive_type("char")
     BUnion = new_union_type("foo")
-    assert _getfields(BUnion) is None
+    assert inspecttype(BUnion) == ("union", "foo", None, None, None)
     complete_struct_or_union(BUnion, [('a1', BLong, -1),
                                       ('a2', BChar, -1)])
-    d = _getfields(BUnion)
+    k, n, d, s, a = inspecttype(BUnion)
+    assert k == "union" and n == "foo"
+    assert s == a == sizeof(BLong)
     assert len(d) == 2
     assert d[0][0] == 'a1'
     assert d[0][1].type is BLong
@@ -773,6 +800,12 @@ def test_function_type():
     assert repr(BFunc) == "<ctype 'int(*)(int, int)'>"
     BFunc2 = new_function_type((), BFunc, False)
     assert repr(BFunc2) == "<ctype 'int(*(*)())(int, int)'>"
+
+def test_inspect_function_type():
+    BInt = new_primitive_type("int")
+    BFunc = new_function_type((BInt, BInt), BInt, False)
+    assert inspecttype(BFunc) == ("function", (BInt, BInt), BInt, False,
+                                  FFI_DEFAULT_ABI)
 
 def test_function_type_taking_struct():
     BChar = new_primitive_type("char")
@@ -1190,10 +1223,10 @@ def test_callback_returning_void():
 def test_enum_type():
     BEnum = new_enum_type("foo", (), ())
     assert repr(BEnum) == "<ctype 'enum foo'>"
-    assert _getfields(BEnum) == []
+    assert inspecttype(BEnum) == ("enum", [])
     #
     BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
-    assert _getfields(BEnum) == [(-20, 'ab'), (0, 'def'), (1, 'c')]
+    assert inspecttype(BEnum) == ("enum", [(-20, 'ab'), (0, 'def'), (1, 'c')])
 
 def test_cast_to_enum():
     BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
@@ -1287,7 +1320,7 @@ def test_struct_with_bitfields():
                                        ('a2', BLong, 2),
                                        ('a3', BLong, 3),
                                        ('a4', BLong, LONGBITS - 5)])
-    d = _getfields(BStruct)
+    d = inspecttype(BStruct)[2]
     assert d[0][1].offset == d[1][1].offset == d[2][1].offset == 0
     assert d[3][1].offset == sizeof(BLong)
     assert d[0][1].bitshift == 0
@@ -2164,7 +2197,7 @@ def test_nested_anonymous_struct():
                                        ('a3', BChar, -1)])
     assert sizeof(BInnerStruct) == sizeof(BInt) * 2   # with alignment
     assert sizeof(BStruct) == sizeof(BInt) * 3        # 'a3' is placed after
-    d = _getfields(BStruct)
+    d = inspecttype(BStruct)[2]
     assert len(d) == 3
     assert d[0][0] == 'a1'
     assert d[0][1].type is BInt
