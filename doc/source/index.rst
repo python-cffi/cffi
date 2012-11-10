@@ -519,7 +519,9 @@ compiler during ``verify()``:
    works with "``typedef ... *foo_p;``" which declares the pointer type
    ``foo_p`` without giving a name to the opaque type itself.  Note that
    such an opaque struct has no known size, which prevents some operations
-   from working (mostly like in C).  In some cases you need to say that
+   from working (mostly like in C).  *You cannot use this syntax to
+   declare a specific type, like an integer type!  It declares opaque
+   types only.*  In some cases you need to say that
    ``foo_t`` is not opaque, but you just don't know any field in it; then
    you would use "``typedef struct { ...; } foo_t;``".
 
