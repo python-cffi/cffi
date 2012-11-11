@@ -298,6 +298,202 @@ ctypedescr_clear(CTypeDescrObject *ct)
     return 0;
 }
 
+
+static PyObject *nosuchattr(const char *attr)
+{
+    PyErr_SetString(PyExc_AttributeError, attr);
+    return NULL;
+}
+
+static PyObject *ctypeget_kind(CTypeDescrObject *ct, void *context)
+{
+    char *result;
+    if (ct->ct_flags & CT_PRIMITIVE_ANY) {
+        if (ct->ct_flags & CT_IS_ENUM)
+            result = "enum";
+        else
+            result = "primitive";
+    }
+    else if (ct->ct_flags & CT_POINTER) {
+        result = "pointer";
+    }
+    else if (ct->ct_flags & CT_ARRAY) {
+        result = "array";
+    }
+    else if (ct->ct_flags & CT_VOID) {
+        result = "void";
+    }
+    else if (ct->ct_flags & CT_STRUCT) {
+        result = "struct";
+    }
+    else if (ct->ct_flags & CT_UNION) {
+        result = "union";
+    }
+    else if (ct->ct_flags & CT_FUNCTIONPTR) {
+        result = "function";
+    }
+    else
+        result = "?";
+
+    return PyText_FromString(result);
+}
+
+static PyObject *ctypeget_cname(CTypeDescrObject *ct, void *context)
+{
+    return PyText_FromString(ct->ct_name);
+}
+
+static PyObject *ctypeget_item(CTypeDescrObject *ct, void *context)
+{
+    if (ct->ct_flags & (CT_POINTER | CT_ARRAY)) {
+        Py_INCREF(ct->ct_itemdescr);
+        return (PyObject *)ct->ct_itemdescr;
+    }
+    return nosuchattr("item");
+}
+
+static PyObject *ctypeget_length(CTypeDescrObject *ct, void *context)
+{
+    if (ct->ct_flags & CT_ARRAY) {
+        if (ct->ct_length >= 0) {
+            return PyInt_FromSsize_t(ct->ct_length);
+        }
+        else {
+            Py_INCREF(Py_None);
+            return Py_None;
+        }
+    }
+    return nosuchattr("length");
+}
+
+static PyObject *
+get_field_name(CTypeDescrObject *ct, CFieldObject *cf);   /* forward */
+
+static PyObject *ctypeget_fields(CTypeDescrObject *ct, void *context)
+{
+    if (ct->ct_flags & (CT_STRUCT | CT_UNION)) {
+        if (!(ct->ct_flags & CT_IS_OPAQUE)) {
+            CFieldObject *cf;
+            PyObject *res = PyList_New(0);
+            if (res == NULL)
+                return NULL;
+            for (cf = (CFieldObject *)ct->ct_extra;
+                 cf != NULL; cf = cf->cf_next) {
+                PyObject *o = PyTuple_Pack(2, get_field_name(ct, cf),
+                                           (PyObject *)cf);
+                int err = (o != NULL) ? PyList_Append(res, o) : -1;
+                Py_XDECREF(o);
+                if (err < 0) {
+                    Py_DECREF(res);
+                    return NULL;
+                }
+            }
+            return res;
+        }
+        else {
+            Py_INCREF(Py_None);
+            return Py_None;
+        }
+    }
+    return nosuchattr("fields");
+}
+
+static PyObject *ctypeget_args(CTypeDescrObject *ct, void *context)
+{
+    if (ct->ct_flags & CT_FUNCTIONPTR) {
+        PyObject *t = ct->ct_stuff;
+        return PyTuple_GetSlice(t, 2, PyTuple_GET_SIZE(t));
+    }
+    return nosuchattr("args");
+}
+
+static PyObject *ctypeget_result(CTypeDescrObject *ct, void *context)
+{
+    if (ct->ct_flags & CT_FUNCTIONPTR) {
+        PyObject *res = PyTuple_GetItem(ct->ct_stuff, 1);
+        Py_XINCREF(res);
+        return res;
+    }
+    return nosuchattr("result");
+}
+
+static PyObject *ctypeget_ellipsis(CTypeDescrObject *ct, void *context)
+{
+    if (ct->ct_flags & CT_FUNCTIONPTR) {
+        PyObject *res = ct->ct_extra ? Py_False : Py_True;
+        Py_INCREF(res);
+        return res;
+    }
+    return nosuchattr("ellipsis");
+}
+
+static PyObject *ctypeget_abi(CTypeDescrObject *ct, void *context)
+{
+    if (ct->ct_flags & CT_FUNCTIONPTR) {
+        PyObject *res = PyTuple_GetItem(ct->ct_stuff, 0);
+        Py_XINCREF(res);
+        return res;
+    }
+    return nosuchattr("abi");
+}
+
+static PyObject *ctypeget_elements(CTypeDescrObject *ct, void *context)
+{
+    if (ct->ct_flags & CT_IS_ENUM) {
+        PyObject *res = PyTuple_GetItem(ct->ct_stuff, 1);
+        Py_XINCREF(res);
+        return res;
+    }
+    return nosuchattr("elements");
+}
+
+static PyGetSetDef ctypedescr_getsets[] = {
+    {"kind", (getter)ctypeget_kind, NULL, "kind"},
+    {"cname", (getter)ctypeget_cname, NULL, "C name"},
+    {"item", (getter)ctypeget_item, NULL, "pointer to, or array of"},
+    {"length", (getter)ctypeget_length, NULL, "array length or None"},
+    {"fields", (getter)ctypeget_fields, NULL, "struct or union fields"},
+    {"args", (getter)ctypeget_args, NULL, "function argument types"},
+    {"result", (getter)ctypeget_result, NULL, "function result type"},
+    {"ellipsis", (getter)ctypeget_ellipsis, NULL, "function has '...'"},
+    {"abi", (getter)ctypeget_abi, NULL, "function ABI"},
+    {"elements", (getter)ctypeget_elements, NULL, "enum elements"},
+    {NULL}                        /* sentinel */
+};
+
+static PyObject *
+ctypedescr_dir(PyObject *ct, PyObject *noarg)
+{
+    int err;
+    struct PyGetSetDef *gsdef;
+    PyObject *res = PyList_New(0);
+    if (res == NULL)
+        return NULL;
+
+    for (gsdef = ctypedescr_getsets; gsdef->name; gsdef++) {
+        PyObject *x = PyObject_GetAttrString(ct, gsdef->name);
+        if (x == NULL) {
+            PyErr_Clear();
+        }
+        else {
+            Py_DECREF(x);
+            x = PyText_FromString(gsdef->name);
+            err = (x != NULL) ? PyList_Append(res, x) : -1;
+            Py_XDECREF(x);
+            if (err < 0) {
+                Py_DECREF(res);
+                return NULL;
+            }
+        }
+    }
+    return res;
+}
+
+static PyMethodDef ctypedescr_methods[] = {
+    {"__dir__",   ctypedescr_dir,  METH_NOARGS},
+    {NULL,        NULL}           /* sentinel */
+};
+
 static PyTypeObject CTypeDescr_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "_cffi_backend.CTypeDescr",
@@ -324,6 +520,11 @@ static PyTypeObject CTypeDescr_Type = {
     (inquiry)ctypedescr_clear,                  /* tp_clear */
     0,                                          /* tp_richcompare */
     offsetof(CTypeDescrObject, ct_weakreflist), /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    ctypedescr_methods,                         /* tp_methods */
+    0,                                          /* tp_members */
+    ctypedescr_getsets,                         /* tp_getset */
 };
 
 /************************************************************/
@@ -1210,7 +1411,7 @@ get_alignment(CTypeDescrObject *ct)
         goto retry;
     }
     else {
-        PyErr_Format(PyExc_TypeError, "ctype '%s' is of unknown alignment",
+        PyErr_Format(PyExc_ValueError, "ctype '%s' is of unknown alignment",
                      ct->ct_name);
         return -1;
     }
@@ -3285,87 +3486,6 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     return NULL;
 }
 
-static PyObject *b_inspecttype(PyObject *self, PyObject *arg)
-{
-    CTypeDescrObject *ct = (CTypeDescrObject *)arg;
-
-    if (!CTypeDescr_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError,"expected a 'ctype' object");
-        return NULL;
-    }
-    if ((ct->ct_flags & CT_PRIMITIVE_ANY) && !(ct->ct_flags & CT_IS_ENUM)) {
-        return Py_BuildValue("ss", "primitive", ct->ct_name);
-    }
-    if (ct->ct_flags & CT_POINTER) {
-        return Py_BuildValue("sO", "pointer", ct->ct_itemdescr);
-    }
-    if (ct->ct_flags & CT_ARRAY) {
-        if (ct->ct_length < 0)
-            return Py_BuildValue("sOO", "array", ct->ct_itemdescr, Py_None);
-        else
-            return Py_BuildValue("sOn", "array", ct->ct_itemdescr,
-                                 ct->ct_length);
-    }
-    if (ct->ct_flags & CT_VOID) {
-        return Py_BuildValue("(s)", "void");
-    }
-    if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
-        PyObject *res;
-        char *kind, *name;
-        kind = (ct->ct_flags & CT_STRUCT) ? "struct" : "union";
-        name = ct->ct_name;
-        while (*name != ' ')
-            name++;
-        name++;
-        if (ct->ct_flags & CT_IS_OPAQUE) {
-            return Py_BuildValue("ssOOO", kind, name,
-                                 Py_None, Py_None, Py_None);
-        }
-        else {
-            CFieldObject *cf;
-            res = PyList_New(0);
-            if (res == NULL)
-                return NULL;
-            for (cf = (CFieldObject *)ct->ct_extra;
-                 cf != NULL; cf = cf->cf_next) {
-                PyObject *o = PyTuple_Pack(2, get_field_name(ct, cf),
-                                           (PyObject *)cf);
-                int err = (o != NULL) ? PyList_Append(res, o) : -1;
-                Py_XDECREF(o);
-                if (err < 0) {
-                    Py_DECREF(res);
-                    return NULL;
-                }
-            }
-            return Py_BuildValue("ssOnn", kind, name,
-                                 res, ct->ct_size, ct->ct_length);
-        }
-    }
-    if (ct->ct_flags & CT_IS_ENUM) {
-        PyObject *res = PyDict_Items(PyTuple_GET_ITEM(ct->ct_stuff, 1));
-        if (res == NULL)
-            return NULL;
-        if (PyList_Sort(res) < 0)
-            Py_CLEAR(res);
-        return Py_BuildValue("sO", "enum", res);
-    }
-    if (ct->ct_flags & CT_FUNCTIONPTR) {
-        PyObject *t = ct->ct_stuff;
-        PyObject *s = PyTuple_GetSlice(t, 2, PyTuple_GET_SIZE(t));
-        PyObject *o;
-        if (s == NULL)
-            return NULL;
-        o = Py_BuildValue("sOOOO", "function", s,
-                          PyTuple_GET_ITEM(t, 1),
-                          ct->ct_extra ? Py_False : Py_True,
-                          PyTuple_GET_ITEM(t, 0));
-        Py_DECREF(s);
-        return o;
-    }
-    PyErr_SetObject(PyExc_NotImplementedError, (PyObject *)ct);
-    return NULL;
-}
-
 struct funcbuilder_s {
     Py_ssize_t nb_bytes;
     char *bufferp;
@@ -4623,7 +4743,6 @@ static PyMethodDef FFIBackendMethods[] = {
     {"complete_struct_or_union", b_complete_struct_or_union, METH_VARARGS},
     {"new_function_type", b_new_function_type, METH_VARARGS},
     {"new_enum_type", b_new_enum_type, METH_VARARGS},
-    {"inspecttype", b_inspecttype, METH_O},
     {"newp", b_newp, METH_VARARGS},
     {"cast", b_cast, METH_VARARGS},
     {"callback", b_callback, METH_VARARGS},

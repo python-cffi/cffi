@@ -23,12 +23,7 @@ class TestFFI(backend_tests.BackendTests,
 
     def test_inspecttype(self):
         ffi = FFI(backend=self.Backend())
-        assert ffi.inspecttype("long") == ("primitive", "long")
-        assert ffi.inspecttype(ffi.typeof("long")) == ("primitive", "long")
-        pointer, LongP = ffi.inspecttype("long**")
-        assert pointer == "pointer"
-        pointer, Long = ffi.inspecttype(LongP)
-        assert pointer == "pointer"
-        assert ffi.inspecttype(Long) == ("primitive", "long")
-        assert ffi.inspecttype("long(*)(long, long, ...)")[:4] == (
-            "function", (Long, Long), Long, True)
+        assert ffi.typeof("long").kind == "primitive"
+        assert ffi.typeof("long(*)(long, long**, ...)").cname == (
+            "long(*)(long, long * *, ...)")
+        assert ffi.typeof("long(*)(long, long**, ...)").ellipsis is True

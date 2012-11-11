@@ -1043,7 +1043,11 @@ e.g.::
    as ``<cdata>`` and ``<ctype>`` in the rest of this document.  Note
    that some cdata objects may be actually of a subclass of
    ``ffi.CData``, and similarly with ctype, so you should check with
-   ``if isinstance(x, ffi.CData)``.
+   ``if isinstance(x, ffi.CData)``.  Also, ``<ctype>`` objects have
+   a number of attributes for introspection: ``kind`` and ``cname`` are
+   always present, and depending on the kind they may also have
+   ``item``, ``length``, ``fields``, ``args``, ``result``, ``ellipsis``,
+   ``abi`` and ``elements``.
 
 ``ffi.sizeof("C type" or cdata object)``: return the size of the
 argument in bytes.  The argument can be either a C type, or a cdata object,
@@ -1082,14 +1086,6 @@ stored as an indirect pointer to the data.)  If ``field`` is given,
 returns the address of that field in the structure.  The returned
 pointer is only valid as long as the original object is.  *New in
 version 0.4.*
-
-.. "versionadded:: 0.4" --- inlined in the previous paragraph
-
-``ffi.inspecttype(ctype)``: half-internal API.  Returns a tuple whose
-first item is a string describing the kind of ``ctype``, and whose
-remaining items give a full deconstruction of the type.  (Note that in
-the future the returned tuples may grow new items, as needed to
-represent new details of the type.)  *New in version 0.4.*
 
 .. "versionadded:: 0.4" --- inlined in the previous paragraph
 

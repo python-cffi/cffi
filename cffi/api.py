@@ -312,11 +312,6 @@ class FFI(object):
                 self._typeof(self.getctype(ctype, '*')))
         return self._backend.rawaddressof(ctypeptr, cdata, offset)
 
-    def inspecttype(self, cdecl):
-        if isinstance(cdecl, str):
-            cdecl = self._typeof(cdecl)
-        return self._backend.inspecttype(cdecl)
-
 
 def _make_ffi_library(ffi, libname, flags):
     import os
