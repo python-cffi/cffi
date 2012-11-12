@@ -1065,7 +1065,8 @@ appended (or inserted at the right place in more complicated cases); it
 can be the name of a variable to declare, or an extra part of the type
 like ``"*"`` or ``"[5]"``.  For example
 ``ffi.getctype(ffi.typeof(x), "*")`` returns the string representation
-of the C type "pointer to the same type than x".
+of the C type "pointer to the same type than x"; and
+``ffi.getctype("char[80]", "a") == "char a[80]"``.
 
 ``ffi.gc(cdata, destructor)``: return a new cdata object that points to the
 same data.  Later, when this new cdata object is garbage-collected,
