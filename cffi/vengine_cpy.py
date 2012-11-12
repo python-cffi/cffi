@@ -179,7 +179,14 @@ class VCPythonEngine(object):
     def _convert_funcarg_to_c(self, tp, fromvar, tovar, errcode):
         extraarg = ''
         if isinstance(tp, model.PrimitiveType):
-            converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
+            if tp.is_integer_type() and tp.name != '_Bool':
+                if tp.is_signed_type():
+                    converter = '_cffi_to_c_SIGNED'
+                else:
+                    converter = '_cffi_to_c_UNSIGNED'
+                extraarg = ', %s' % tp.name
+            else:
+                converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
             errvalue = '-1'
         #
         elif isinstance(tp, model.PointerType):
@@ -213,7 +220,12 @@ class VCPythonEngine(object):
 
     def _convert_expr_from_c(self, tp, var):
         if isinstance(tp, model.PrimitiveType):
-            if tp.name != 'long double':
+            if tp.is_integer_type():
+                if tp.is_signed_type():
+                    return '_cffi_from_c_SIGNED(%s, %s)' % (var, tp.name)
+                else:
+                    return '_cffi_from_c_UNSIGNED(%s, %s)' % (var, tp.name)
+            elif tp.name != 'long double':
                 return '_cffi_from_c_%s(%s)' % (tp.name.replace(' ', '_'), var)
             else:
                 return '_cffi_from_c_deref((char *)&%s, _cffi_type(%d))' % (
@@ -676,49 +688,53 @@ typedef unsigned __int64 uint64_t;
 
 #define _cffi_from_c_double PyFloat_FromDouble
 #define _cffi_from_c_float PyFloat_FromDouble
-#define _cffi_from_c_signed_char PyInt_FromLong
-#define _cffi_from_c_short PyInt_FromLong
-#define _cffi_from_c_int PyInt_FromLong
 #define _cffi_from_c_long PyInt_FromLong
-#define _cffi_from_c_unsigned_char PyInt_FromLong
-#define _cffi_from_c_unsigned_short PyInt_FromLong
-#define _cffi_from_c_unsigned_long PyLong_FromUnsignedLong
-#define _cffi_from_c_unsigned_long_long PyLong_FromUnsignedLongLong
-#define _cffi_from_c__Bool PyInt_FromLong
-
-#if SIZEOF_INT < SIZEOF_LONG
-#  define _cffi_from_c_unsigned_int PyInt_FromLong
-#else
-#  define _cffi_from_c_unsigned_int PyLong_FromUnsignedLong
-#endif
-
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-#  define _cffi_from_c_long_long PyLong_FromLongLong
-#else
-#  define _cffi_from_c_long_long PyInt_FromLong
-#endif
+#define _cffi_from_c_ulong PyLong_FromUnsignedLong
+#define _cffi_from_c_longlong PyLong_FromLongLong
+#define _cffi_from_c_ulonglong PyLong_FromUnsignedLongLong
 
 #define _cffi_to_c_double PyFloat_AsDouble
 #define _cffi_to_c_float PyFloat_AsDouble
 
+#define _cffi_from_c_SIGNED(x, type)                                     \
+    (sizeof(type) <= sizeof(long) ? PyInt_FromLong(x) :                  \
+                                    PyLong_FromLongLong(x))
+#define _cffi_from_c_UNSIGNED(x, type)                                   \
+    (sizeof(type) < sizeof(long) ? PyInt_FromLong(x) :                   \
+     sizeof(type) == sizeof(long) ? PyLong_FromUnsignedLong(x) :         \
+                                    PyLong_FromUnsignedLongLong(x))
+
+#define _cffi_to_c_SIGNED(o, type)                                       \
+    (sizeof(type) == 1 ? _cffi_to_c_i8(o) :                              \
+     sizeof(type) == 2 ? _cffi_to_c_i16(o) :                             \
+     sizeof(type) == 4 ? _cffi_to_c_i32(o) :                             \
+     sizeof(type) == 8 ? _cffi_to_c_i64(o) :                             \
+     (Py_FatalError("unsupported size for type " #type), 0))
+#define _cffi_to_c_UNSIGNED(o, type)                                     \
+    (sizeof(type) == 1 ? _cffi_to_c_u8(o) :                              \
+     sizeof(type) == 2 ? _cffi_to_c_u16(o) :                             \
+     sizeof(type) == 4 ? _cffi_to_c_u32(o) :                             \
+     sizeof(type) == 8 ? _cffi_to_c_u64(o) :                             \
+     (Py_FatalError("unsupported size for type " #type), 0))
+
 #define _cffi_to_c_char_p                                                \
                  ((char *(*)(PyObject *))_cffi_exports[0])
-#define _cffi_to_c_signed_char                                           \
-                 ((signed char(*)(PyObject *))_cffi_exports[1])
-#define _cffi_to_c_unsigned_char                                         \
-                 ((unsigned char(*)(PyObject *))_cffi_exports[2])
-#define _cffi_to_c_short                                                 \
-                 ((short(*)(PyObject *))_cffi_exports[3])
-#define _cffi_to_c_unsigned_short                                        \
-                 ((unsigned short(*)(PyObject *))_cffi_exports[4])
-#define _cffi_to_c_int                                                   \
+#define _cffi_to_c_i8                                                    \
+                 ((int(*)(PyObject *))_cffi_exports[1])
+#define _cffi_to_c_u8                                                    \
+                 ((int(*)(PyObject *))_cffi_exports[2])
+#define _cffi_to_c_i16                                                   \
+                 ((int(*)(PyObject *))_cffi_exports[3])
+#define _cffi_to_c_u16                                                   \
+                 ((int(*)(PyObject *))_cffi_exports[4])
+#define _cffi_to_c_i32                                                   \
                  ((int(*)(PyObject *))_cffi_exports[5])
-#define _cffi_to_c_unsigned_int                                          \
+#define _cffi_to_c_u32                                                   \
                  ((unsigned int(*)(PyObject *))_cffi_exports[6])
-#define _cffi_to_c_long                                                  \
-                 ((long(*)(PyObject *))_cffi_exports[7])
-#define _cffi_to_c_unsigned_long                                         \
-                 ((unsigned long(*)(PyObject *))_cffi_exports[8])
+#define _cffi_to_c_i64                                                   \
+                 ((long long(*)(PyObject *))_cffi_exports[7])
+#define _cffi_to_c_u64                                                   \
+                 ((unsigned long long(*)(PyObject *))_cffi_exports[8])
 #define _cffi_to_c_char                                                  \
                  ((char(*)(PyObject *))_cffi_exports[9])
 #define _cffi_from_c_pointer                                             \
@@ -747,11 +763,7 @@ typedef unsigned __int64 uint64_t;
     ((long double(*)(PyObject *))_cffi_exports[21])
 #define _cffi_to_c__Bool                                                 \
     ((_Bool(*)(PyObject *))_cffi_exports[22])
-#define _cffi_to_c_long_long                                             \
-                 ((long long(*)(PyObject *))_cffi_exports[23])
-#define _cffi_to_c_unsigned_long_long                                    \
-                 ((unsigned long long(*)(PyObject *))_cffi_exports[24])
-#define _CFFI_NUM_EXPORTS 25
+#define _CFFI_NUM_EXPORTS 23
 
 typedef struct _ctypedescr CTypeDescrObject;
 

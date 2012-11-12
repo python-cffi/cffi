@@ -59,18 +59,7 @@ class FFI(object):
             if name.startswith('RTLD_'):
                 setattr(self, name, getattr(backend, name))
         #
-        lines = ['typedef struct _IO_FILE FILE;']
-        by_size = {}
-        for cname in ['long long', 'long', 'int', 'short', 'char']:
-            by_size[self.sizeof(cname)] = cname
-        for name, size in self._backend.nonstandard_integer_types().items():
-            if size & 0x1000:   # unsigned
-                equiv = 'unsigned %s'
-                size &= ~0x1000
-            else:
-                equiv = 'signed %s'
-            lines.append('typedef %s %s;' % (equiv % by_size[size], name))
-        self.cdef('\n'.join(lines))
+        self.cdef('typedef struct _IO_FILE FILE;')
         del self._cdefsources[:]
         #
         self.NULL = self.cast("void *", 0)

@@ -59,6 +59,10 @@ def _preprocess(csource):
     return csource.replace('...', ' __dotdotdot__ '), macros
 
 class Parser(object):
+    TYPEDEFS = sorted(
+        [_name for _name in model.PrimitiveType.ALL_PRIMITIVE_TYPES
+               if _name.endswith('_t')])
+
     def __init__(self):
         self._declarations = {}
         self._anonymous_counter = 0
@@ -70,10 +74,11 @@ class Parser(object):
         # internals of CParser...  the following registers the
         # typedefs, because their presence or absence influences the
         # parsing itself (but what they are typedef'ed to plays no role)
-        csourcelines = ['typedef int wchar_t;']
+        typenames = self.TYPEDEFS[:]
         for name in sorted(self._declarations):
             if name.startswith('typedef '):
-                csourcelines.append('typedef int %s;' % (name[8:],))
+                typenames.append(name[8:])
+        csourcelines = ['typedef int %s;' % typename for typename in typenames]
         csourcelines.append('typedef int __dotdotdot__;')
         csource, macros = _preprocess(csource)
         csourcelines.append(csource)

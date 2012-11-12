@@ -137,60 +137,145 @@ def test_longdouble_precision():
             py.test.skip("don't know the very exact precision of 'long double'")
 
 
-all_integer_types = ['short', 'int', 'long', 'long long',
-                     'signed char', 'unsigned char',
-                     'unsigned short', 'unsigned int',
-                     'unsigned long', 'unsigned long long']
-all_signed_integer_types = [_typename for _typename in all_integer_types
-                                      if not _typename.startswith('unsigned ')]
-all_unsigned_integer_types = [_typename for _typename in all_integer_types
-                                        if _typename.startswith('unsigned ')]
-all_float_types = ['float', 'double']
+all_primitive_types = model.PrimitiveType.ALL_PRIMITIVE_TYPES
+all_signed_integer_types = sorted(tp for tp in all_primitive_types
+                                     if all_primitive_types[tp] == 'i')
+all_unsigned_integer_types = sorted(tp for tp in all_primitive_types
+                                       if all_primitive_types[tp] == 'u')
+all_float_types = sorted(tp for tp in all_primitive_types
+                            if all_primitive_types[tp] == 'f')
 
 def test_primitive_category():
-    for typename in all_integer_types + all_float_types + ['char', 'wchar_t']:
+    for typename in all_primitive_types:
         tp = model.PrimitiveType(typename)
-        assert tp.is_char_type() == (typename in ('char', 'wchar_t'))
-        assert tp.is_signed_type() == (typename in all_signed_integer_types)
-        assert tp.is_unsigned_type()== (typename in all_unsigned_integer_types)
-        assert tp.is_integer_type() == (typename in all_integer_types)
-        assert tp.is_float_type() == (typename in all_float_types)
+        C = tp.is_char_type()
+        U = tp.is_unsigned_type()
+        S = tp.is_signed_type()
+        F = tp.is_float_type()
+        I = tp.is_integer_type()
+        assert C == (typename in ('char', 'wchar_t'))
+        assert U == (typename.startswith('unsigned ') or
+                     typename == '_Bool' or typename == 'size_t' or
+                     typename == 'uintptr_t' or typename.startswith('uint'))
+        assert F == (typename in ('float', 'double', 'long double'))
+        assert S + U + F + C == 1      # one and only one of them is true
+        assert I == (S or U)
 
 def test_all_integer_and_float_types():
-    for typename in all_integer_types + all_float_types:
-        ffi = FFI()
-        ffi.cdef("%s foo(%s);" % (typename, typename))
-        lib = ffi.verify("%s foo(%s x) { return x+1; }" % (typename, typename))
-        assert lib.foo(42) == 43
+    typenames = []
+    for typename in all_primitive_types:
+        if (all_primitive_types[typename] == 'c' or
+            typename == '_Bool' or typename == 'long double'):
+            pass
+        else:
+            typenames.append(typename)
+    #
+    ffi = FFI()
+    ffi.cdef('\n'.join(["%s foo_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
+                       for tp in typenames]))
+    lib = ffi.verify('\n'.join(["%s foo_%s(%s x) { return x+1; }" %
+                                (tp, tp.replace(' ', '_'), tp)
+                                for tp in typenames]))
+    for typename in typenames:
+        foo = getattr(lib, 'foo_%s' % typename.replace(' ', '_'))
+        assert foo(42) == 43
         if sys.version < '3':
-            assert lib.foo(long(44)) == 45
-        assert lib.foo(ffi.cast(typename, 46)) == 47
-        py.test.raises(TypeError, lib.foo, ffi.NULL)
+            assert foo(long(44)) == 45
+        assert foo(ffi.cast(typename, 46)) == 47
+        py.test.raises(TypeError, foo, ffi.NULL)
         #
         # check for overflow cases
-        if typename in all_float_types:
+        if all_primitive_types[typename] == 'f':
             continue
         for value in [-2**80, -2**40, -2**20, -2**10, -2**5, -1,
                       2**5, 2**10, 2**20, 2**40, 2**80]:
             overflows = int(ffi.cast(typename, value)) != value
             if overflows:
-                py.test.raises(OverflowError, lib.foo, value)
+                py.test.raises(OverflowError, foo, value)
             else:
-                assert lib.foo(value) == value + 1
+                assert foo(value) == value + 1
 
-def test_nonstandard_integer_types():
+def test_var_signed_integer_types():
     ffi = FFI()
-    lst = ffi._backend.nonstandard_integer_types().items()
-    lst = sorted(lst)
-    verify_lines = []
-    for key, value in lst:
-        ffi.cdef("static const int expected_%s;" % key)
-        verify_lines.append("static const int expected_%s =" % key)
-        verify_lines.append("    sizeof(%s) | (((%s)-1) <= 0 ? 0 : 0x1000);"
-                            % (key, key))
-    lib = ffi.verify('\n'.join(verify_lines))
-    for key, value in lst:
-        assert getattr(lib, 'expected_%s' % key) == value
+    lst = all_signed_integer_types
+    csource = "\n".join(["%s somevar_%s;" % (tp, tp.replace(' ', '_'))
+                         for tp in lst])
+    ffi.cdef(csource)
+    lib = ffi.verify(csource)
+    for tp in lst:
+        varname = 'somevar_%s' % tp.replace(' ', '_')
+        sz = ffi.sizeof(tp)
+        max = (1 << (8*sz-1)) - 1
+        min = -(1 << (8*sz-1))
+        setattr(lib, varname, max)
+        assert getattr(lib, varname) == max
+        setattr(lib, varname, min)
+        assert getattr(lib, varname) == min
+        py.test.raises(OverflowError, setattr, lib, varname, max+1)
+        py.test.raises(OverflowError, setattr, lib, varname, min-1)
+
+def test_var_unsigned_integer_types():
+    ffi = FFI()
+    lst = all_unsigned_integer_types
+    csource = "\n".join(["%s somevar_%s;" % (tp, tp.replace(' ', '_'))
+                         for tp in lst])
+    ffi.cdef(csource)
+    lib = ffi.verify(csource)
+    for tp in lst:
+        varname = 'somevar_%s' % tp.replace(' ', '_')
+        sz = ffi.sizeof(tp)
+        if tp != '_Bool':
+            max = (1 << (8*sz)) - 1
+        else:
+            max = 1
+        setattr(lib, varname, max)
+        assert getattr(lib, varname) == max
+        setattr(lib, varname, 0)
+        assert getattr(lib, varname) == 0
+        py.test.raises(OverflowError, setattr, lib, varname, max+1)
+        py.test.raises(OverflowError, setattr, lib, varname, -1)
+
+def test_fn_signed_integer_types():
+    ffi = FFI()
+    lst = all_signed_integer_types
+    cdefsrc = "\n".join(["%s somefn_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
+                         for tp in lst])
+    ffi.cdef(cdefsrc)
+    verifysrc = "\n".join(["%s somefn_%s(%s x) { return x; }" %
+                           (tp, tp.replace(' ', '_'), tp) for tp in lst])
+    lib = ffi.verify(verifysrc)
+    for tp in lst:
+        fnname = 'somefn_%s' % tp.replace(' ', '_')
+        sz = ffi.sizeof(tp)
+        max = (1 << (8*sz-1)) - 1
+        min = -(1 << (8*sz-1))
+        fn = getattr(lib, fnname)
+        assert fn(max) == max
+        assert fn(min) == min
+        py.test.raises(OverflowError, fn, max + 1)
+        py.test.raises(OverflowError, fn, min - 1)
+
+def test_fn_unsigned_integer_types():
+    ffi = FFI()
+    lst = all_unsigned_integer_types
+    cdefsrc = "\n".join(["%s somefn_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
+                         for tp in lst])
+    ffi.cdef(cdefsrc)
+    verifysrc = "\n".join(["%s somefn_%s(%s x) { return x; }" %
+                           (tp, tp.replace(' ', '_'), tp) for tp in lst])
+    lib = ffi.verify(verifysrc)
+    for tp in lst:
+        fnname = 'somefn_%s' % tp.replace(' ', '_')
+        sz = ffi.sizeof(tp)
+        if tp != '_Bool':
+            max = (1 << (8*sz)) - 1
+        else:
+            max = 1
+        fn = getattr(lib, fnname)
+        assert fn(max) == max
+        assert fn(0) == 0
+        py.test.raises(OverflowError, fn, max + 1)
+        py.test.raises(OverflowError, fn, -1)
 
 def test_char_type():
     ffi = FFI()
@@ -348,8 +433,8 @@ def _check_field_match(typename, real, expect_mismatch):
                                  "%s != %s" % (typename, real))
 
 def test_struct_bad_sized_integer():
-    for typename in all_signed_integer_types:
-        for real in all_signed_integer_types:
+    for typename in ['int8_t', 'int16_t', 'int32_t', 'int64_t']:
+        for real in ['int8_t', 'int16_t', 'int32_t', 'int64_t']:
             _check_field_match(typename, real, "by_size")
 
 def test_struct_bad_sized_float():

@@ -285,7 +285,26 @@ class CTypesBackend(object):
         'float': ctypes.c_float,
         'double': ctypes.c_double,
         '_Bool': ctypes.c_bool,
-    }
+        }
+
+    for _name in ['unsigned long long', 'unsigned long',
+                  'unsigned int', 'unsigned short', 'unsigned char']:
+        _size = ctypes.sizeof(PRIMITIVE_TYPES[_name])
+        PRIMITIVE_TYPES['uint%d_t' % (8*_size)] = PRIMITIVE_TYPES[_name]
+        if _size == ctypes.sizeof(ctypes.c_void_p):
+            PRIMITIVE_TYPES['uintptr_t'] = PRIMITIVE_TYPES[_name]
+        if _size == ctypes.sizeof(ctypes.c_size_t):
+            PRIMITIVE_TYPES['size_t'] = PRIMITIVE_TYPES[_name]
+
+    for _name in ['long long', 'long', 'int', 'short', 'signed char']:
+        _size = ctypes.sizeof(PRIMITIVE_TYPES[_name])
+        PRIMITIVE_TYPES['int%d_t' % (8*_size)] = PRIMITIVE_TYPES[_name]
+        if _size == ctypes.sizeof(ctypes.c_void_p):
+            PRIMITIVE_TYPES['intptr_t'] = PRIMITIVE_TYPES[_name]
+            PRIMITIVE_TYPES['ptrdiff_t'] = PRIMITIVE_TYPES[_name]
+        if _size == ctypes.sizeof(ctypes.c_size_t):
+            PRIMITIVE_TYPES['ssize_t'] = PRIMITIVE_TYPES[_name]
+
 
     def __init__(self):
         self.RTLD_LAZY = 0   # not supported anyway by ctypes
@@ -298,22 +317,6 @@ class CTypesBackend(object):
 
     def _get_types(self):
         return CTypesData, CTypesType
-
-    def nonstandard_integer_types(self):
-        UNSIGNED = 0x1000
-        result = {}
-        for name in ['long long', 'long', 'int', 'short', 'char']:
-            size = ctypes.sizeof(self.PRIMITIVE_TYPES[name])
-            result['int%d_t' % (8*size)] = size
-            result['uint%d_t' % (8*size)] = size | UNSIGNED
-            if size == ctypes.sizeof(ctypes.c_void_p):
-                result['intptr_t'] = size
-                result['uintptr_t'] = size | UNSIGNED
-                result['ptrdiff_t'] = result['intptr_t']
-            if size == ctypes.sizeof(ctypes.c_size_t):
-                result['size_t'] = size | UNSIGNED
-                result['ssize_t'] = size
-        return result
 
     def load_library(self, path, flags=0):
         cdll = ctypes.CDLL(path, flags)

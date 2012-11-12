@@ -549,12 +549,12 @@ compiler during ``verify()``:
    ``static char *const FOO;``).
 
 Currently, finding automatically the size of an integer type is not
-supported.  You need to declare them with ``typedef int myint;`` or
-``typedef long myint;`` or ``typedef long long myint;`` or their
-unsigned equivalent.  Depending on the usage, the C compiler might give
-warnings if you misdeclare ``myint`` as the wrong type even if it is
-equivalent on this platform (e.g. using ``long`` instead of ``long
-long`` or vice-versa on 64-bit Linux).
+supported.  You need to declare them with ``typedef EXACTTYPE myint;``.
+The ``EXACTTYPE`` might be a built-in C type like ``int`` or ``unsigned
+long long``, or one of the standard integer types like ``size_t`` (see
+the complete list above__).
+
+.. __: `Declaring types and functions`_
 
 Note that ``verify()`` is meant to call C libraries that are *not* using
 ``#include <Python.h>``.  The C functions are called without the GIL,

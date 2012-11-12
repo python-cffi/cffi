@@ -2954,51 +2954,6 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
 
 /************************************************************/
 
-static PyObject *b_nonstandard_integer_types(PyObject *self, PyObject *noarg)
-{
-#define UNSIGNED   0x1000
-    static const struct descr_s { const char *name; int size; } types[] = {
-        { "int8_t",        1 },
-        { "uint8_t",       1 | UNSIGNED },
-        { "int16_t",       2 },
-        { "uint16_t",      2 | UNSIGNED },
-        { "int32_t",       4 },
-        { "uint32_t",      4 | UNSIGNED },
-        { "int64_t",       8 },
-        { "uint64_t",      8 | UNSIGNED },
-
-        { "intptr_t",      sizeof(intptr_t) },
-        { "uintptr_t",     sizeof(uintptr_t) | UNSIGNED },
-        { "ptrdiff_t",     sizeof(ptrdiff_t) },
-        { "size_t",        sizeof(size_t) | UNSIGNED },
-        { "ssize_t",       sizeof(ssize_t) },
-        { NULL }
-    };
-#undef UNSIGNED
-    const struct descr_s *ptypes;
-    PyObject *d;
-
-    d = PyDict_New();
-    if (d == NULL)
-        return NULL;
-
-    for (ptypes=types; ptypes->name; ptypes++) {
-        int err;
-        PyObject *obj = PyInt_FromLong(ptypes->size);
-        if (obj == NULL)
-            goto error;
-        err = PyDict_SetItemString(d, ptypes->name, obj);
-        Py_DECREF(obj);
-        if (err != 0)
-            goto error;
-    }
-    return d;
-
- error:
-    Py_DECREF(d);
-    return NULL;
-}
-
 static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 {
 #define ENUM_PRIMITIVE_TYPES                                    \
@@ -3017,7 +2972,21 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
        EPTYPE(d, double, CT_PRIMITIVE_FLOAT )                   \
        EPTYPE(ld, long double, CT_PRIMITIVE_FLOAT | CT_IS_LONGDOUBLE ) \
        ENUM_PRIMITIVE_TYPES_WCHAR                               \
-       EPTYPE(b, _Bool, CT_PRIMITIVE_UNSIGNED | CT_IS_BOOL )
+       EPTYPE(b, _Bool, CT_PRIMITIVE_UNSIGNED | CT_IS_BOOL )    \
+     /* the following types are not primitive in the C sense */ \
+       EPTYPE(i8, int8_t, CT_PRIMITIVE_SIGNED)                  \
+       EPTYPE(u8, uint8_t, CT_PRIMITIVE_UNSIGNED)               \
+       EPTYPE(i16, int16_t, CT_PRIMITIVE_SIGNED)                \
+       EPTYPE(u16, uint16_t, CT_PRIMITIVE_UNSIGNED)             \
+       EPTYPE(i32, int32_t, CT_PRIMITIVE_SIGNED)                \
+       EPTYPE(u32, uint32_t, CT_PRIMITIVE_UNSIGNED)             \
+       EPTYPE(i64, int64_t, CT_PRIMITIVE_SIGNED)                \
+       EPTYPE(u64, uint64_t, CT_PRIMITIVE_UNSIGNED)             \
+       EPTYPE(ip, intptr_t, CT_PRIMITIVE_SIGNED)                \
+       EPTYPE(up, uintptr_t, CT_PRIMITIVE_UNSIGNED)             \
+       EPTYPE(pd, ptrdiff_t, CT_PRIMITIVE_SIGNED)               \
+       EPTYPE(sz, size_t, CT_PRIMITIVE_UNSIGNED)                \
+       EPTYPE(ssz, ssize_t, CT_PRIMITIVE_SIGNED)
 
 #ifdef HAVE_WCHAR_H
 # define ENUM_PRIMITIVE_TYPES_WCHAR                             \
@@ -4732,7 +4701,6 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef FFIBackendMethods[] = {
-    {"nonstandard_integer_types", b_nonstandard_integer_types, METH_NOARGS},
     {"load_library", b_load_library, METH_VARARGS},
     {"new_primitive_type", b_new_primitive_type, METH_VARARGS},
     {"new_pointer_type", b_new_pointer_type, METH_VARARGS},
@@ -4776,45 +4744,34 @@ static char *_cffi_to_c_char_p(PyObject *obj)
     return NULL;
 }
 
-#define _cffi_to_c_PRIMITIVE(TARGETNAME, TARGET)        \
-static TARGET _cffi_to_c_##TARGETNAME(PyObject *obj) {  \
-    PY_LONG_LONG tmp = _my_PyLong_AsLongLong(obj);      \
-    if (tmp != (TARGET)tmp && !PyErr_Occurred())        \
-        return (TARGET)_convert_overflow(obj, #TARGET); \
-    return (TARGET)tmp;                                 \
+#define _cffi_to_c_SIGNED_FN(RETURNTYPE, SIZE)                          \
+static RETURNTYPE _cffi_to_c_i##SIZE(PyObject *obj) {                   \
+    PY_LONG_LONG tmp = _my_PyLong_AsLongLong(obj);                      \
+    if ((tmp > (PY_LONG_LONG)((1ULL<<(SIZE-1)) - 1)) ||                 \
+        (tmp < (PY_LONG_LONG)(-(1ULL<<(SIZE-1)))))                      \
+        if (!PyErr_Occurred())                                          \
+            return (RETURNTYPE)_convert_overflow(obj, #SIZE "-bit int"); \
+    return (RETURNTYPE)tmp;                                             \
 }
 
-_cffi_to_c_PRIMITIVE(signed_char,    signed char)
-_cffi_to_c_PRIMITIVE(unsigned_char,  unsigned char)
-_cffi_to_c_PRIMITIVE(short,          short)
-_cffi_to_c_PRIMITIVE(unsigned_short, unsigned short)
-#if SIZEOF_INT == SIZEOF_LONG
-#define _cffi_to_c_int           _cffi_to_c_long
-#define _cffi_to_c_unsigned_int  _cffi_to_c_unsigned_long
-#else
-_cffi_to_c_PRIMITIVE(int,            int)
-_cffi_to_c_PRIMITIVE(unsigned_int,   unsigned int)
-#endif
-_cffi_to_c_PRIMITIVE(long,           long)
-
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-static unsigned long _cffi_to_c_unsigned_long(PyObject *obj)
-{
-    unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(obj, 1);
-    if (value != (unsigned long)value)
-        return (unsigned long)_convert_overflow(obj, "unsigned long");
-    return (unsigned long)value;
+#define _cffi_to_c_UNSIGNED_FN(RETURNTYPE, SIZE)                        \
+static RETURNTYPE _cffi_to_c_u##SIZE(PyObject *obj) {                   \
+    unsigned PY_LONG_LONG tmp = _my_PyLong_AsUnsignedLongLong(obj, 1);  \
+    if (tmp > ~(((unsigned PY_LONG_LONG)-2) << (SIZE-1)))               \
+        if (!PyErr_Occurred())                                          \
+            return (RETURNTYPE)_convert_overflow(obj,                   \
+                                   #SIZE "-bit unsigned int");          \
+    return (RETURNTYPE)tmp;                                             \
 }
-#else
-#  define _cffi_to_c_unsigned_long _cffi_to_c_unsigned_long_long
-#endif
 
-#define _cffi_to_c_long_long _my_PyLong_AsLongLong
-
-static unsigned PY_LONG_LONG _cffi_to_c_unsigned_long_long(PyObject *obj)
-{
-    return _my_PyLong_AsUnsignedLongLong(obj, 1);
-}
+_cffi_to_c_SIGNED_FN(int, 8)
+_cffi_to_c_SIGNED_FN(int, 16)
+_cffi_to_c_SIGNED_FN(int, 32)
+_cffi_to_c_SIGNED_FN(PY_LONG_LONG, 64)
+_cffi_to_c_UNSIGNED_FN(int, 8)
+_cffi_to_c_UNSIGNED_FN(int, 16)
+_cffi_to_c_UNSIGNED_FN(unsigned int, 32)
+_cffi_to_c_UNSIGNED_FN(unsigned PY_LONG_LONG, 64)
 
 static char _cffi_to_c_char(PyObject *obj)
 {
@@ -4900,14 +4857,14 @@ static PyObject *_cffi_from_c_wchar_t(wchar_t x) {
 
 static void *cffi_exports[] = {
     _cffi_to_c_char_p,
-    _cffi_to_c_signed_char,
-    _cffi_to_c_unsigned_char,
-    _cffi_to_c_short,
-    _cffi_to_c_unsigned_short,
-    _cffi_to_c_int,
-    _cffi_to_c_unsigned_int,
-    _cffi_to_c_long,
-    _cffi_to_c_unsigned_long,
+    _cffi_to_c_i8,
+    _cffi_to_c_u8,
+    _cffi_to_c_i16,
+    _cffi_to_c_u16,
+    _cffi_to_c_i32,
+    _cffi_to_c_u32,
+    _cffi_to_c_i64,
+    _cffi_to_c_u64,
     _cffi_to_c_char,
     _cffi_from_c_pointer,
     _cffi_to_c_pointer,
@@ -4927,8 +4884,6 @@ static void *cffi_exports[] = {
 #endif
     _cffi_to_c_long_double,
     _cffi_to_c__Bool,
-    _cffi_to_c_long_long,
-    _cffi_to_c_unsigned_long_long,
 };
 
 /************************************************************/

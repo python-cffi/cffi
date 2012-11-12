@@ -55,22 +55,56 @@ void_type = VoidType()
 class PrimitiveType(BaseType):
     _attrs_ = ('name',)
 
+    ALL_PRIMITIVE_TYPES = {
+        'char':               'c',
+        'short':              'i',
+        'int':                'i',
+        'long':               'i',
+        'long long':          'i',
+        'signed char':        'i',
+        'unsigned char':      'u',
+        'unsigned short':     'u',
+        'unsigned int':       'u',
+        'unsigned long':      'u',
+        'unsigned long long': 'u',
+        'float':              'f',
+        'double':             'f',
+        'long double':        'f',
+        'wchar_t':            'c',
+        '_Bool':              'u',
+        # the following types are not primitive in the C sense
+        'int8_t':             'i',
+        'uint8_t':            'u',
+        'int16_t':            'i',
+        'uint16_t':           'u',
+        'int32_t':            'i',
+        'uint32_t':           'u',
+        'int64_t':            'i',
+        'uint64_t':           'u',
+        'intptr_t':           'i',
+        'uintptr_t':          'u',
+        'ptrdiff_t':          'i',
+        'size_t':             'u',
+        'ssize_t':            'i',
+        }
+
     def __init__(self, name):
+        assert name in self.ALL_PRIMITIVE_TYPES
         self.name = name
 
     def _get_c_name(self, replace_with):
         return self.name + replace_with
 
     def is_char_type(self):
-        return self.name in ('char', 'wchar_t')
+        return self.ALL_PRIMITIVE_TYPES[self.name] == 'c'
     def is_signed_type(self):
-        return self.is_integer_type() and not self.is_unsigned_type()
+        return self.ALL_PRIMITIVE_TYPES[self.name] == 'i'
     def is_unsigned_type(self):
-        return self.name.startswith('unsigned ')
+        return self.ALL_PRIMITIVE_TYPES[self.name] == 'u'
     def is_integer_type(self):
-        return not self.is_float_type() and not self.is_char_type()
+        return self.ALL_PRIMITIVE_TYPES[self.name] in 'iu'
     def is_float_type(self):
-        return self.name in ('double', 'float')
+        return self.ALL_PRIMITIVE_TYPES[self.name] == 'f'
 
     def build_backend_type(self, ffi, finishlist):
         return global_cache(self, ffi, 'new_primitive_type', self.name)
