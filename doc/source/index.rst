@@ -548,13 +548,26 @@ compiler during ``verify()``:
    to write the ``const`` together with the variable name, as in
    ``static char *const FOO;``).
 
-Currently, finding automatically the size of an integer type is not
-supported.  You need to declare them with ``typedef EXACTTYPE myint;``.
-The ``EXACTTYPE`` might be a built-in C type like ``int`` or ``unsigned
-long long``, or one of the standard integer types like ``size_t`` (see
-the complete list above__).
+Currently, it is not supported to find automatically which of the
+various integer or float types you need at which place.  In the case of
+function arguments or return type, when it is a simple integer/float
+type, it may be misdeclared (if you misdeclare a function ``void
+f(long)`` as ``void f(int)``, it still works, but you have to call it
+with arguments that fit an int).  But it doesn't work any longer for
+more complex types (e.g. you cannot misdeclare a ``int *`` argument as
+``long *``) or in other locations (e.g. a global array ``int a[5];``
+must not be declared ``long a[5];``).  CFFI considers all types listed
+above__ as primitive (so ``long long a[5];`` and ``int64_t a[5]`` are
+different declarations).
 
 .. __: `Declaring types and functions`_
+
+Note the following hack to find explicitly the size of any type, in
+bytes::
+
+    ffi.cdef("const int mysize;")
+    lib = ffi.verify("const int mysize = sizeof(THE_TYPE);")
+    print lib.mysize
 
 Note that ``verify()`` is meant to call C libraries that are *not* using
 ``#include <Python.h>``.  The C functions are called without the GIL,
