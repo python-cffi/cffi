@@ -367,14 +367,20 @@ class EnumType(StructOrUnionOrEnum):
                                           self.enumvalues)
 
 
-def unknown_type(name):
-    tp = StructType('$%s' % name, None, None, None)
+def unknown_type(name, structname=None):
+    if structname is None:
+        structname = '$%s' % name
+    tp = StructType(structname, None, None, None)
     tp.forcename = name
     return tp
 
-def unknown_ptr_type(name):
-    tp = StructType('*$%s' % name, None, None, None)
+def unknown_ptr_type(name, structname=None):
+    if structname is None:
+        structname = '*$%s' % name
+    tp = StructType(structname, None, None, None)
     return NamedPointerType(tp, name)
+
+file_type = unknown_type('FILE', '_IO_FILE')
 
 def global_cache(srctype, ffi, funcname, *args):
     try:
