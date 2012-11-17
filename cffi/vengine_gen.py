@@ -388,8 +388,6 @@ class VGenericEngine(object):
         prnt('}')
         prnt()
 
-    _loading_gen_enum = _loaded_noop
-
     def _loading_gen_enum(self, tp, name, module, prefix='enum'):
         if tp.partial:
             enumvalues = [self._load_constant(True, tp, enumerator, module)
