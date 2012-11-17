@@ -168,6 +168,8 @@ class PointerType(BaseType):
         BItem = self.totype.get_cached_btype(ffi, finishlist, can_delay=True)
         return global_cache(self, ffi, 'new_pointer_type', BItem)
 
+voidp_type = PointerType(void_type)
+
 
 class ConstPointerType(PointerType):
 

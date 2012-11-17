@@ -34,7 +34,7 @@ class FFI(object):
         """Create an FFI instance.  The 'backend' argument is used to
         select a non-default backend, mostly for tests.
         """
-        from . import cparser
+        from . import cparser, model
         if backend is None:
             try:
                 import _cffi_backend as backend
@@ -62,8 +62,16 @@ class FFI(object):
         self.cdef('typedef struct _IO_FILE FILE;')
         del self._cdefsources[:]
         #
-        self.NULL = self.cast("void *", 0)
-        self.CData, self.CType = backend._get_types()
+        BVoidP = self._get_cached_btype(model.voidp_type)
+        if isinstance(backend, types.ModuleType):
+            # _cffi_backend: attach these constants to the class
+            if not hasattr(FFI, 'NULL'):
+                FFI.NULL = self.cast(BVoidP, 0)
+                FFI.CData, FFI.CType = backend._get_types()
+        else:
+            # ctypes backend: attach these constants to the instance
+            self.NULL = self.cast(BVoidP, 0)
+            self.CData, self.CType = backend._get_types()
 
     def cdef(self, csource, override=False):
         """Parse the given C source.  This registers all declared functions,
