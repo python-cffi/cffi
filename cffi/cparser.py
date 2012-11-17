@@ -202,7 +202,7 @@ class Parser(object):
                 raise api.FFIError(
                     "multiple declarations of %s (for interactive usage, "
                     "try cdef(xx, override=True))" % (name,))
-        assert name != '__dotdotdot__'
+        assert '__dotdotdot__' not in name.split()
         self._declarations[name] = obj
 
     def _get_type_pointer(self, type, const=False):
