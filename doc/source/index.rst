@@ -1112,9 +1112,16 @@ Known missing features that are GCC or MSVC extensions:
 
 * Any ``__attribute__`` or ``#pragma pack(n)``
 
-* Additional types: complex numbers, special-size floating and
-  fixed point types, vector types, etc. (must be declared with
-  ``typedef struct { ...; } typename;`` and cannot be accessed directly)
+* Additional types: complex numbers, special-size floating and fixed
+  point types, vector types, and so on.  You might be able to access an
+  array of complex numbers by declaring it as an array of ``struct
+  my_complex { double real, imag; }``, but in general you should declare
+  them as ``struct { ...; }`` and cannot access them directly.  This
+  means that you cannot call any function which has an argument or
+  return value of this type (this would need added support in libffi).
+  You need to write wrapper functions in C, e.g. ``void
+  foo_wrapper(struct my_complex c) { foo(c.real + c.imag*1j); }``, and
+  call ``foo_wrapper`` rather than ``foo`` directly.
 
 * Thread-local variables (access them via getter/setter functions)
 
