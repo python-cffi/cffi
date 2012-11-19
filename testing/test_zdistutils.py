@@ -2,6 +2,7 @@ import sys, os, imp, math, shutil
 import py
 from cffi import FFI, FFIError
 from cffi.verifier import Verifier, _locate_engine_class
+from cffi.ffiplatform import maybe_relative_path
 from testing.udir import udir
 
 
@@ -143,7 +144,7 @@ class DistUtilsTest(object):
         v = ffi.verifier
         ext = v.get_extension()
         assert 'distutils.extension.Extension' in str(ext.__class__)
-        assert ext.sources == [v.sourcefilename]
+        assert ext.sources == [maybe_relative_path(v.sourcefilename)]
         assert ext.name == v.get_module_name()
         assert ext.define_macros == [('TEST_EXTENSION_OBJECT', '1')]
 
@@ -171,7 +172,8 @@ class DistUtilsTest(object):
         v = ffi.verifier
         ext = v.get_extension()
         assert 'distutils.extension.Extension' in str(ext.__class__)
-        assert ext.sources == [v.sourcefilename, extra_source]
+        assert ext.sources == [maybe_relative_path(v.sourcefilename),
+                               extra_source]
         assert ext.name == v.get_module_name()
 
     def test_install_and_reload_module(self, targetpackage='', ext_package=''):

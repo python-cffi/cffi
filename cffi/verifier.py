@@ -70,7 +70,7 @@ class Verifier(object):
     def get_extension(self):
         if not self._has_source:
             self._write_source()
-        sourcename = self.sourcefilename
+        sourcename = ffiplatform.maybe_relative_path(self.sourcefilename)
         modname = self.get_module_name()
         return ffiplatform.get_extension(sourcename, modname, **self.kwds)
 
