@@ -3523,19 +3523,6 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
             return NULL;
         }
 
-#ifdef USE_C_LIBFFI_MSVC
-        /* MSVC returns small structures in registers.  Pretend int32 or
-           int64 return type.  This is needed as a workaround for what
-           is really a bug of libffi_msvc seen as an independent library
-           (ctypes has a similar workaround). */
-        if (is_result_type) {
-            if (ct->ct_size <= 4)
-                return &ffi_type_sint32;
-            if (ct->ct_size <= 8)
-                return &ffi_type_sint64;
-        }
-#endif
-
         n = PyDict_Size(ct->ct_stuff);
         nflat = 0;
 
@@ -3568,6 +3555,19 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
             cf = cf->cf_next;
         }
         assert(cf == NULL);
+
+#ifdef USE_C_LIBFFI_MSVC
+        /* MSVC returns small structures in registers.  Pretend int32 or
+           int64 return type.  This is needed as a workaround for what
+           is really a bug of libffi_msvc seen as an independent library
+           (ctypes has a similar workaround). */
+        if (is_result_type) {
+            if (ct->ct_size <= 4)
+                return &ffi_type_sint32;
+            if (ct->ct_size <= 8)
+                return &ffi_type_sint64;
+        }
+#endif
 
         /* next, allocate and fill the flattened list */
         elements = fb_alloc(fb, (nflat + 1) * sizeof(ffi_type*));
