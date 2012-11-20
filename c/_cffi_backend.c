@@ -215,10 +215,6 @@ static void init_errno(void) { }
 # include "wchar_helper.h"
 #endif
 
-#ifndef HAVE_C99_BOOL
-typedef unsigned char _Bool;
-#endif
-
 /************************************************************/
 
 static CTypeDescrObject *
