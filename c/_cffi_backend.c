@@ -3950,7 +3950,7 @@ static int convert_from_object_fficallback(char *result,
     return convert_from_object(result, ctype, pyobj);
 }
 
-static void _my_PyErr_WriteUnraisable(PyObject *obj)
+static void _my_PyErr_WriteUnraisable(PyObject *obj, char *extra_error_line)
 {
     /* like PyErr_WriteUnraisable(), but write a full traceback */
     PyObject *f, *t, *v, *tb;
@@ -3960,6 +3960,8 @@ static void _my_PyErr_WriteUnraisable(PyObject *obj)
         PyFile_WriteString("From callback ", f);
         PyFile_WriteObject(obj, f, 0);
         PyFile_WriteString(":\n", f);
+        if (extra_error_line != NULL)
+            PyFile_WriteString(extra_error_line, f);
         PyErr_Display(t, v, tb);
     }
     Py_XDECREF(t);
@@ -3983,6 +3985,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     PyObject *py_res = NULL;
     PyObject *py_rawerr;
     Py_ssize_t i, n;
+    char *extra_error_line = NULL;
 
 #define SIGNATURE(i)  ((CTypeDescrObject *)PyTuple_GET_ITEM(signature, i))
 
@@ -4003,8 +4006,10 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     py_res = PyEval_CallObject(py_ob, py_args);
     if (py_res == NULL)
         goto error;
-    if (convert_from_object_fficallback(result, SIGNATURE(1), py_res) < 0)
+    if (convert_from_object_fficallback(result, SIGNATURE(1), py_res) < 0) {
+        extra_error_line = "Trying to convert the result back to C:\n";
         goto error;
+    }
  done:
     Py_XDECREF(py_args);
     Py_XDECREF(py_res);
@@ -4016,7 +4021,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     return;
 
  error:
-    _my_PyErr_WriteUnraisable(py_ob);
+    _my_PyErr_WriteUnraisable(py_ob, extra_error_line);
     if (SIGNATURE(1)->ct_size > 0) {
         py_rawerr = PyTuple_GET_ITEM(cb_args, 2);
         memcpy(result, PyBytes_AS_STRING(py_rawerr),
