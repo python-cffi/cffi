@@ -1105,7 +1105,8 @@ def test_callback_exception():
     except ImportError:
         import io as cStringIO    # Python 3
     import linecache
-    def matches(str, pattern):
+    def matches(istr, ipattern):
+        str, pattern = istr, ipattern
         while '$' in pattern:
             i = pattern.index('$')
             assert str[:i] == pattern[:i]

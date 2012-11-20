@@ -3951,6 +3951,15 @@ static void _my_PyErr_WriteUnraisable(PyObject *obj, char *extra_error_line)
     /* like PyErr_WriteUnraisable(), but write a full traceback */
     PyObject *f, *t, *v, *tb;
     PyErr_Fetch(&t, &v, &tb);
+#if PY_MAJOR_VERSION >= 3
+    /* jump through hoops to ensure the tb is attached to v, on Python 3 */
+    PyErr_NormalizeException(&t, &v, &tb);
+    if (tb == NULL) {
+        tb = Py_None;
+        Py_INCREF(tb);
+    }
+    PyException_SetTraceback(v, tb);
+#endif
     f = PySys_GetObject("stderr");
     if (f != NULL) {
         PyFile_WriteString("From callback ", f);
