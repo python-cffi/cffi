@@ -36,14 +36,13 @@ class FFI(object):
         """
         from . import cparser, model
         if backend is None:
-            try:
-                import _cffi_backend as backend
-            except ImportError as e:
-                import warnings
-                warnings.warn("import _cffi_backend: %s\n"
-                              "Falling back to the ctypes backend." % (e,))
-                from . import backend_ctypes
-                backend = backend_ctypes.CTypesBackend()
+            # You need PyPy (>= 2.0 beta), or a CPython (>= 2.6) with
+            # _cffi_backend.so compiled.
+            import _cffi_backend as backend
+            # (If you insist you can also try to pass the option
+            # 'backend=backend_ctypes.CTypesBackend()', but don't
+            # rely on it!  It's probably not going to work well.)
+
         self._backend = backend
         self._parser = cparser.Parser()
         self._cached_btypes = {}
