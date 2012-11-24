@@ -32,16 +32,13 @@ static FILE *PyFile_AsFile(PyObject *ob_file)
     FILE *f = NULL;
     int fd;
     char *mode;
-    _Py_IDENTIFIER(flush);
-    _Py_IDENTIFIER(mode);
-    _Py_IDENTIFIER(__cffi_FILE);
 
-    ob = _PyObject_CallMethodId(ob_file, &PyId_flush, NULL);
+    ob = PyObject_CallMethod(ob_file, "flush", NULL);
     if (ob == NULL)
         goto fail;
     Py_DECREF(ob);
 
-    ob_capsule = _PyObject_GetAttrId(ob_file, &PyId___cffi_FILE);
+    ob_capsule = PyObject_GetAttrString(ob_file, "__cffi_FILE");
     if (ob_capsule == NULL) {
         PyErr_Clear();
 
@@ -49,7 +46,7 @@ static FILE *PyFile_AsFile(PyObject *ob_file)
         if (fd < 0)
             goto fail;
 
-        ob_mode = _PyObject_GetAttrId(ob_file, &PyId_mode);
+        ob_mode = PyObject_GetAttrString(ob_file, "mode");
         if (ob_mode == NULL)
             goto fail;
         mode = PyText_AsUTF8(ob_mode);
@@ -78,7 +75,7 @@ static FILE *PyFile_AsFile(PyObject *ob_file)
             goto fail;
         }
 
-        if (_PyObject_SetAttrId(ob_file, &PyId___cffi_FILE, ob_capsule) < 0)
+        if (PyObject_SetAttrString(ob_file, "__cffi_FILE", ob_capsule) < 0)
             goto fail;
     }
     return PyCapsule_GetPointer(ob_capsule, "FILE");
