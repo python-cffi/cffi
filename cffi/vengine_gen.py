@@ -39,7 +39,12 @@ class VGenericEngine(object):
         # 'export_symbols', so instead of fighting it, just give up and
         # give it one
         if sys.platform == 'win32':
-            prnt("void init%s(void) { }\n" % self.verifier.get_module_name())
+            if sys.version_info >= (3,):
+                prefix = 'PyInit_'
+            else:
+                prefix = 'init'
+            modname = self.verifier.get_module_name()
+            prnt("void %s%s(void) { }\n" % (prefix, modname))
 
     def load_library(self):
         # import it with the CFFI backend
