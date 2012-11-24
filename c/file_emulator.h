@@ -1,13 +1,24 @@
 
 /* Emulation of PyFile_Check() and PyFile_AsFile() for Python 3. */
 
-extern PyTypeObject PyIOBase_Type;
+static PyObject *PyIOBase_TypeObj;
+
+static int init_file_emulator(void)
+{
+    PyObject *io = PyImport_ImportModule("_io");
+    if (io == NULL)
+        return -1;
+    PyIOBase_TypeObj = PyObject_GetAttrString(io, "_IOBase");
+    if (PyIOBase_TypeObj == NULL)
+        return -1;
+    return 0;
+}
 
 
-#define PyFile_Check(p)  PyObject_IsInstance(p, (PyObject *)&PyIOBase_Type)
+#define PyFile_Check(p)  PyObject_IsInstance(p, PyIOBase_TypeObj)
 
 
-void _close_file_capsule(PyObject *ob_capsule)
+static void _close_file_capsule(PyObject *ob_capsule)
 {
     FILE *f = (FILE *)PyCapsule_GetPointer(ob_capsule, "FILE");
     if (f != NULL)
