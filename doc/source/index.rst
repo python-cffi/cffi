@@ -62,8 +62,8 @@ This code has been developed on Linux but should work on any POSIX
 platform as well as on Win32.  There are some Windows-specific issues
 left.
 
-It supports CPython 2.6; 2.7; 3.x (tested with 3.3, seems to work on 3.2
-too); and PyPy trunk (not 1.9).
+It supports CPython 2.6; 2.7; 3.x (tested with 3.2 and 3.3);
+and PyPy 2.0 beta1 or later.
 
 Its speed is comparable to ctypes on CPython (a bit faster but a higher
 warm-up time).  It is already faster on PyPy (1.5x-2x), but not yet
@@ -89,13 +89,16 @@ Requirements:
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-0.4.tar.gz
+* http://pypi.python.org/packages/source/c/cffi/cffi-0.4.1.tar.gz
 
    - Or grab the most current version by following the instructions below.
 
-   - MD5: 4d5cee77fcb328ece71d794dcc38b5a9
+   - Version 0.4.1 fixes installation issues with 0.4 on Python 3.2
+     (and for Windows on Python 3.3 as well).
 
-   - SHA: 0496bb58a7bc94d5d749dd88751c8962541b32c4
+   - MD5: xxx
+
+   - SHA: xxx
 
 * Or get it from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
