@@ -2394,8 +2394,11 @@ def test_newp_from_bytearray_doesnt_work():
 
 # XXX hack
 if sys.version_info >= (3,):
-    import posix, io
-    posix.fdopen = io.open
+    try:
+        import posix, io
+        posix.fdopen = io.open
+    except ImportError:
+        pass   # win32
 
 def test_FILE():
     if sys.platform == "win32":
