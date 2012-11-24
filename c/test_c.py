@@ -2491,7 +2491,7 @@ def test_GetLastError():
     if sys.platform != "win32":
         py.test.skip("GetLastError(): only for Windows")
     #
-    lib = find_and_load_library('KERNEL32')
+    lib = find_and_load_library('KERNEL32.DLL')
     BInt = new_primitive_type("int")
     BVoid = new_void_type()
     BFunc1 = new_function_type((BInt,), BVoid, False)

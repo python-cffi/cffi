@@ -85,7 +85,7 @@ class TestFunction(object):
             py.test.skip("ctypes complains on wrong calling conv")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("long TlsAlloc(void); int TlsFree(long);")
-        lib = ffi.dlopen('KERNEL32')
+        lib = ffi.dlopen('KERNEL32.DLL')
         x = lib.TlsAlloc()
         assert x != 0
         y = lib.TlsFree(x)
