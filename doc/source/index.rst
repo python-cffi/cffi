@@ -96,9 +96,9 @@ Download and Installation:
    - Version 0.4.2 fixes some issues with 0.4 and 0.4.1 on Python 3.x
      (and possibly 2.7.3).
 
-   - MD5: xxx
+   - MD5: c2a35af157006e966c67d1a725e7875e
 
-   - SHA: xxx
+   - SHA: adbc997377a3efc0d2841968ae7441e0152c272c
 
 * Or get it from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
