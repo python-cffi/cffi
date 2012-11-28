@@ -51,7 +51,6 @@ class FFI(object):
         self._function_caches = []
         self._libraries = []
         self._cdefsources = []
-        self._pointer_type_cache = {}
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
         for name in backend.__dict__:
@@ -293,17 +292,17 @@ class FFI(object):
     errno = property(_get_errno, _set_errno, None,
                      "the value of 'errno' from/to the C calls")
 
+    def _pointer_to(self, ctype):
+        from . import model
+        return model.pointer_cache(self, ctype)
+
     def addressof(self, cdata, field=None):
         """Return the address of a <cdata 'struct-or-union'>.
         If 'field' is specified, return the address of this field.
         """
         ctype = self._backend.typeof(cdata)
         ctype, offset = self._backend.typeoffsetof(ctype, field)
-        try:
-            ctypeptr = self._pointer_type_cache[ctype]
-        except KeyError:
-            ctypeptr = self._pointer_type_cache[ctype] = (
-                self._typeof(self.getctype(ctype, '*')))
+        ctypeptr = self._pointer_to(ctype)
         return self._backend.rawaddressof(ctypeptr, cdata, offset)
 
 

@@ -1466,3 +1466,10 @@ class BackendTests:
             int(ffi.cast("uintptr_t", p)) + ffi.sizeof("int"))
         assert a == ffi.addressof(p, 'y')
         assert a != ffi.addressof(p, 'x')
+
+    def test_addressof_anonymous_struct(self):
+        ffi = FFI()
+        ffi.cdef("typedef struct { int x; } foo_t;")
+        p = ffi.new("foo_t *")
+        a = ffi.addressof(p[0])
+        assert a == p

@@ -402,3 +402,6 @@ def global_cache(srctype, ffi, funcname, *args):
         raise NotImplementedError("%r: %s" % (srctype, e))
     ffi._backend.__typecache[args] = res
     return res
+
+def pointer_cache(ffi, BType):
+    return global_cache('?', ffi, 'new_pointer_type', BType)
