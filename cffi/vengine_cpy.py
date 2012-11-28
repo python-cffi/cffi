@@ -151,8 +151,11 @@ class VCPythonEngine(object):
         self._load(module, 'loaded', library=library)
         return library
 
+    def _get_declarations(self):
+        return sorted(self.ffi._parser._declarations.items())
+
     def _generate(self, step_name):
-        for name, tp in self.ffi._parser._declarations.items():
+        for name, tp in self._get_declarations():
             kind, realname = name.split(' ', 1)
             try:
                 method = getattr(self, '_generate_cpy_%s_%s' % (kind,
@@ -163,7 +166,7 @@ class VCPythonEngine(object):
             method(tp, realname)
 
     def _load(self, module, step_name, **kwds):
-        for name, tp in self.ffi._parser._declarations.items():
+        for name, tp in self._get_declarations():
             kind, realname = name.split(' ', 1)
             method = getattr(self, '_%s_cpy_%s' % (step_name, kind))
             method(tp, realname, module, **kwds)
