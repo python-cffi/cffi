@@ -1,11 +1,15 @@
 import py, os
 import cffi, _cffi_backend
 
+BACKEND_VERSIONS = {
+    '0.4.2': '0.4',     # did not change
+    }
+
 def test_version():
     v = cffi.__version__
     version_info = '.'.join(str(i) for i in cffi.__version_info__)
     assert v == version_info
-    assert v == _cffi_backend.__version__
+    assert BACKEND_VERSIONS.get(v, v) == _cffi_backend.__version__
 
 def test_doc_version():
     parent = os.path.dirname(os.path.dirname(__file__))
