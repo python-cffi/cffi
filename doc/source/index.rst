@@ -1224,7 +1224,7 @@ allowed.
 |               | float() works          |                  |                |
 +---------------+------------------------+------------------+----------------+
 |  pointers     | another <cdata> with   | a <cdata>        | ``[]``, ``+``, |
-|               | a compatible type (i.e.|                  | ``-``          |
+|               | a compatible type (i.e.|                  | ``-``, bool()  |
 |               | same type or ``char*`` |                  |                |
 |               | or ``void*``, or as an |                  |                |
 |               | array instead) `(*)`   |                  |                |
@@ -1233,13 +1233,13 @@ allowed.
 |  ``char *``   | any pointer or array   |                  |                |
 |               | type                   |                  |                |
 +---------------+------------------------+                  +----------------+
-|  pointers to  | same as pointers `(*)` |                  | ``[]``,        |
-|  structure or |                        |                  | ``+``, ``-``,  |
+|  pointers to  | same as pointers `(*)` |                  | ``[]``, ``+``, |
+|  structure or |                        |                  | ``-``, bool(), |
 |  union        |                        |                  | and read/write |
 |               |                        |                  | struct fields  |
 +---------------+------------------------+                  +----------------+
-| function      | same as pointers       |                  | call `(**)`    |
-| pointers      |                        |                  |                |
+| function      | same as pointers       |                  | bool(),        |
+| pointers      |                        |                  | call `(**)`    |
 +---------------+------------------------+------------------+----------------+
 |  arrays       | a list or tuple of     | a <cdata>        | len(), iter(), |
 |               | items                  |                  | ``[]``,        |
