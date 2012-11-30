@@ -1915,7 +1915,9 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
     if (PyBytes_Check(init)) {
         /* from a string: just returning the string here is fine.
            We assume that the C code won't modify the 'char *' data. */
-        if (ctptr->ct_flags & CT_CAST_ANYTHING) {
+        if ((ctptr->ct_flags & CT_CAST_ANYTHING) ||
+            ((ctitem->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED))
+             && (ctitem->ct_size == sizeof(char)))) {
             output_data[0] = PyBytes_AS_STRING(init);
             return 1;
         }
