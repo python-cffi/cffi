@@ -1482,3 +1482,46 @@ class BackendTests:
         assert foo1.x == 10
         assert foo2.y == 20
         assert foo2.z == 30
+
+    def test_missing_include(self):
+        backend = self.Backend()
+        ffi1 = FFI(backend=backend)
+        ffi2 = FFI(backend=backend)
+        ffi1.cdef("typedef signed char schar_t;")
+        py.test.raises((AttributeError, TypeError), ffi2.cast, "schar_t", 142)
+
+    def test_include_typedef(self):
+        backend = self.Backend()
+        ffi1 = FFI(backend=backend)
+        ffi2 = FFI(backend=backend)
+        ffi1.cdef("typedef signed char schar_t;")
+        ffi2.include(ffi1)
+        p = ffi2.cast("schar_t", 142)
+        assert int(p) == 142 - 256
+
+    def test_include_struct(self):
+        backend = self.Backend()
+        ffi1 = FFI(backend=backend)
+        ffi2 = FFI(backend=backend)
+        ffi1.cdef("struct foo { int x; };")
+        ffi2.include(ffi1)
+        p = ffi2.new("struct foo *", [142])
+        assert p.x == 142
+
+    def test_include_union(self):
+        backend = self.Backend()
+        ffi1 = FFI(backend=backend)
+        ffi2 = FFI(backend=backend)
+        ffi1.cdef("union foo { int x; };")
+        ffi2.include(ffi1)
+        p = ffi2.new("union foo *", [142])
+        assert p.x == 142
+
+    def test_include_enum(self):
+        backend = self.Backend()
+        ffi1 = FFI(backend=backend)
+        ffi2 = FFI(backend=backend)
+        ffi1.cdef("enum foo { FA, FB, FC };")
+        ffi2.include(ffi1)
+        p = ffi2.cast("enum foo", 1)
+        assert ffi2.string(p) == "FB"

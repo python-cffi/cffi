@@ -485,3 +485,9 @@ class Parser(object):
         else:   # opaque enum
             tp = model.EnumType(explicit_name, (), ())
         return tp
+
+    def include(self, other):
+        for name, tp in other._declarations.items():
+            kind = name.split(' ', 1)[0]
+            if kind in ('typedef', 'struct', 'union', 'enum'):
+                self._declare(name, tp)

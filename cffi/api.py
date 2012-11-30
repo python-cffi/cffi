@@ -305,6 +305,17 @@ class FFI(object):
         ctypeptr = self._pointer_to(ctype)
         return self._backend.rawaddressof(ctypeptr, cdata, offset)
 
+    def include(self, ffi_to_include):
+        """Includes the typedefs, structs, unions and enums defined
+        in another FFI instance.  Usage is similar to a #include in C,
+        where a part of the program might include types defined in
+        another part for its own usage.  Note that the include()
+        method has no effect on functions, constants and global
+        variables, which must anyway be accessed directly from the
+        lib object returned by the original FFI instance.
+        """
+        self._parser.include(ffi_to_include._parser)
+
 
 def _make_ffi_library(ffi, libname, flags):
     import os

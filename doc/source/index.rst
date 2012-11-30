@@ -986,6 +986,16 @@ used only as a last-resort solution.
 Misc methods on ffi
 -------------------
 
+``ffi.include(other_ffi)``: includes the typedefs, structs, unions and
+enums defined in another FFI instance.  Usage is similar to a
+``#include`` in C, where a part of the program might include types
+defined in another part for its own usage.  Note that the include()
+method has no effect on functions, constants and global variables, which
+must anyway be accessed directly from the ``lib`` object returned by the
+original FFI instance.  *New in version 0.5.*
+
+.. "versionadded:: 0.5" --- inlined in the previous paragraph
+
 ``ffi.errno``: the value of ``errno`` received from the most recent C call
 in this thread, and passed to the following C call, is available via
 reads and writes of the property ``ffi.errno``.  On Windows we also save
