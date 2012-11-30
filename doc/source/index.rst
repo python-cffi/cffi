@@ -950,8 +950,8 @@ Python function, you need to use::
     ... def myfunc(x, y):
     ...    return x + y
 
-Note that you can also use a C function pointer type like ``"int(*)(int,
-int)"`` (as opposed to a C function type like ``"int(int, int)"``).  It
+Note that you can also use a C *function pointer* type like ``"int(*)(int,
+int)"`` (as opposed to a C *function* type like ``"int(int, int)"``).  It
 is equivalent here.
 
 Warning: like ffi.new(), ffi.callback() returns a cdata that has
