@@ -1915,8 +1915,7 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
     if (PyBytes_Check(init)) {
         /* from a string: just returning the string here is fine.
            We assume that the C code won't modify the 'char *' data. */
-        if ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
-                (ctitem->ct_size == sizeof(char))) {
+        if (ctptr->ct_flags & CT_CAST_ANYTHING) {
             output_data[0] = PyBytes_AS_STRING(init);
             return 1;
         }
@@ -4676,6 +4675,11 @@ static struct _testfunc22_s _testfunc22(struct _testfunc22_s s1,
     return result;
 }
 
+static int _testfunc23(char *p)
+{
+    return 1000 * p[0];
+}
+
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
     /* for testing only */
@@ -4707,6 +4711,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 20: f = &_testfunc20; break;
     case 21: f = &_testfunc21; break;
     case 22: f = &_testfunc22; break;
+    case 23: f = &_testfunc23; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;
@@ -4754,7 +4759,7 @@ static char *_cffi_to_c_char_p(PyObject *obj)
     if (CData_Check(obj)) {
         return ((CDataObject *)obj)->c_data;
     }
-    _convert_error(obj, "char *", "compatible pointer");
+    _convert_error(obj, "char * or void *", "compatible pointer");
     return NULL;
 }
 

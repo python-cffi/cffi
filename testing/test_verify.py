@@ -1423,3 +1423,17 @@ def test_include_enum():
                        "int myfunc(enum foo_e x) { return (int)x; }")
     res = lib2.myfunc("AA")
     assert res == 2
+
+def test_string_to_voidp_arg():
+    ffi = FFI()
+    ffi.cdef("int myfunc(void *);")
+    lib = ffi.verify("int myfunc(void *p) { return ((signed char *)p)[0]; }")
+    res = lib.myfunc(b"hi!")
+    assert res == ord(b"h")
+    p = ffi.new("char[]", b"gah")
+    res = lib.myfunc(p)
+    assert res == ord(b"g")
+    res = lib.myfunc(ffi.cast("void *", p))
+    assert res == ord(b"g")
+    res = lib.myfunc(ffi.cast("int *", p))
+    assert res == ord(b"g")

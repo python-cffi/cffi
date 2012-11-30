@@ -201,8 +201,9 @@ class VCPythonEngine(object):
             errvalue = '-1'
         #
         elif isinstance(tp, model.PointerType):
-            if (isinstance(tp.totype, model.PrimitiveType) and
-                    tp.totype.name == 'char'):
+            if ((isinstance(tp.totype, model.PrimitiveType) and
+                    tp.totype.name == 'char') or
+                 isinstance(tp.totype, model.VoidType)):
                 converter = '_cffi_to_c_char_p'
             else:
                 converter = '(%s)_cffi_to_c_pointer' % tp.get_c_name('')
