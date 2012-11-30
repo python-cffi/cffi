@@ -1473,3 +1473,12 @@ class BackendTests:
         p = ffi.new("foo_t *")
         a = ffi.addressof(p[0])
         assert a == p
+
+    def test_multiple_independent_structs(self):
+        ffi1 = FFI(); ffi1.cdef("struct foo { int x; };")
+        ffi2 = FFI(); ffi2.cdef("struct foo { int y, z; };")
+        foo1 = ffi1.new("struct foo *", [10])
+        foo2 = ffi2.new("struct foo *", [20, 30])
+        assert foo1.x == 10
+        assert foo2.y == 20
+        assert foo2.z == 30
