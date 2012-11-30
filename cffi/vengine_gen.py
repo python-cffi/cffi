@@ -78,13 +78,21 @@ class VGenericEngine(object):
             except AttributeError:
                 raise ffiplatform.VerificationError(
                     "not implemented in verify(): %r" % name)
-            method(tp, realname)
+            try:
+                method(tp, realname)
+            except Exception, e:
+                model.attach_exception_info(e, name)
+                raise
 
     def _load(self, module, step_name, **kwds):
         for name, tp in self._get_declarations():
             kind, realname = name.split(' ', 1)
             method = getattr(self, '_%s_gen_%s' % (step_name, kind))
-            method(tp, realname, module, **kwds)
+            try:
+                method(tp, realname, module, **kwds)
+            except Exception, e:
+                model.attach_exception_info(e, name)
+                raise
 
     def _generate_nothing(self, tp, name):
         pass
@@ -154,11 +162,7 @@ class VGenericEngine(object):
                     indirect_args.append(type)
                 tp = model.FunctionPtrType(tuple(indirect_args),
                                            tp.result, tp.ellipsis)
-            try:
-                BFunc = self.ffi._get_cached_btype(tp)
-            except TypeError, e:
-                msg = 'function %s(): %s' % (name, e)
-                raise TypeError(msg)
+            BFunc = self.ffi._get_cached_btype(tp)
             wrappername = '_cffi_f_%s' % name
             newfunction = module.load_function(BFunc, wrappername)
             for i, type in indirections:
@@ -280,8 +284,8 @@ class VGenericEngine(object):
             def check(realvalue, expectedvalue, msg):
                 if realvalue != expectedvalue:
                     raise ffiplatform.VerificationError(
-                        "in %s: %s (we have %d, but C compiler says %d)"
-                        % (cname, msg, expectedvalue, realvalue))
+                        "%s (we have %d, but C compiler says %d)"
+                        % (msg, expectedvalue, realvalue))
             ffi = self.ffi
             BStruct = ffi._get_cached_btype(tp)
             layout, cname = self._struct_pending_verification.pop(tp)
@@ -390,10 +394,10 @@ class VGenericEngine(object):
         prnt('{')
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
             prnt('  if (%s != %d) {' % (enumerator, enumvalue))
-            prnt('    snprintf(out_error, 255, "in enum %s: '
-                             '%s has the real value %d, not %d",')
-            prnt('            "%s", "%s", (int)%s, %d);' % (
-                name, enumerator, enumerator, enumvalue))
+            prnt('    snprintf(out_error, 255,'
+                             '"%s has the real value %d, not %d",')
+            prnt('            "%s", (int)%s, %d);' % (
+                enumerator, enumerator, enumvalue))
             prnt('    return -1;')
             prnt('  }')
         prnt('  return 0;')

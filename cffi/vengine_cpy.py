@@ -163,13 +163,21 @@ class VCPythonEngine(object):
             except AttributeError:
                 raise ffiplatform.VerificationError(
                     "not implemented in verify(): %r" % name)
-            method(tp, realname)
+            try:
+                method(tp, realname)
+            except Exception, e:
+                model.attach_exception_info(e, name)
+                raise
 
     def _load(self, module, step_name, **kwds):
         for name, tp in self._get_declarations():
             kind, realname = name.split(' ', 1)
             method = getattr(self, '_%s_cpy_%s' % (step_name, kind))
-            method(tp, realname, module, **kwds)
+            try:
+                method(tp, realname, module, **kwds)
+            except Exception, e:
+                model.attach_exception_info(e, name)
+                raise
 
     def _generate_nothing(self, tp, name):
         pass
@@ -221,7 +229,7 @@ class VCPythonEngine(object):
             tovar, tp.get_c_name(''), errvalue))
         self._prnt('    %s;' % errcode)
 
-    def _convert_expr_from_c(self, tp, var, where):
+    def _convert_expr_from_c(self, tp, var, context):
         if isinstance(tp, model.PrimitiveType):
             if tp.is_integer_type():
                 if tp.is_signed_type():
@@ -242,7 +250,7 @@ class VCPythonEngine(object):
         elif isinstance(tp, model.StructType):
             if tp.fldnames is None:
                 raise TypeError("'%s' is used as %s, but is opaque" % (
-                    tp._get_c_name(''), where))
+                    tp._get_c_name(''), context))
             return '_cffi_from_c_struct((char *)&%s, _cffi_type(%d))' % (
                 var, self._gettypenum(tp))
         elif isinstance(tp, model.EnumType):
@@ -328,8 +336,7 @@ class VCPythonEngine(object):
         #
         if result_code:
             prnt('  return %s;' %
-                 self._convert_expr_from_c(tp.result, 'result',
-                                           'result of %s()' % name))
+                 self._convert_expr_from_c(tp.result, 'result', 'result type'))
         else:
             prnt('  Py_INCREF(Py_None);')
             prnt('  return Py_None;')
@@ -464,8 +471,8 @@ class VCPythonEngine(object):
             def check(realvalue, expectedvalue, msg):
                 if realvalue != expectedvalue:
                     raise ffiplatform.VerificationError(
-                        "in %s: %s (we have %d, but C compiler says %d)"
-                        % (cname, msg, expectedvalue, realvalue))
+                        "%s (we have %d, but C compiler says %d)"
+                        % (msg, expectedvalue, realvalue))
             ffi = self.ffi
             BStruct = ffi._get_cached_btype(tp)
             layout, cname = self._struct_pending_verification.pop(tp)
@@ -534,7 +541,7 @@ class VCPythonEngine(object):
                 realexpr = name
             prnt('  i = (%s);' % (realexpr,))
             prnt('  o = %s;' % (self._convert_expr_from_c(tp, 'i',
-                                                'type of %s' % name),))
+                                                          'variable type'),))
             assert delayed
         else:
             prnt('  if (LONG_MIN <= (%s) && (%s) <= LONG_MAX)' % (name, name))
@@ -584,7 +591,7 @@ class VCPythonEngine(object):
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
             prnt('  if (%s != %d) {' % (enumerator, enumvalue))
             prnt('    PyErr_Format(_cffi_VerificationError,')
-            prnt('                 "in enum %s: %s has the real value %d, '
+            prnt('                 "enum %s: %s has the real value %d, '
                  'not %d",')
             prnt('                 "%s", "%s", (int)%s, %d);' % (
                 name, enumerator, enumerator, enumvalue))

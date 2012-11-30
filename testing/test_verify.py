@@ -368,13 +368,13 @@ def test_ffi_full_struct():
     e = py.test.raises(VerificationError, ffi.verify,
         "struct foo_s { int y; char x; long *z; };")
     assert str(e.value) == (
-        "in struct foo_s: wrong offset for field 'x'"
+        "struct foo_s: wrong offset for field 'x'"
         " (we have 0, but C compiler says 4)")
     #
     e = py.test.raises(VerificationError, ffi.verify,
         "struct foo_s { char x; int y; long *z; char extra; };")
     assert str(e.value) == (
-        "in struct foo_s: wrong total size"
+        "struct foo_s: wrong total size"
         " (we have %d, but C compiler says %d)" % (
             ffi.sizeof("struct foo_s"),
             ffi.sizeof("struct foo_s") + ffi.sizeof("long*")))
@@ -387,7 +387,7 @@ def test_ffi_full_struct():
     e = py.test.raises(VerificationError, ffi.verify,
         "struct foo_s { char x; short pad; short y; long *z; };")
     assert str(e.value) == (
-        "in struct foo_s: wrong size for field 'y'"
+        "struct foo_s: wrong size for field 'y'"
         " (we have 4, but C compiler says 2)")
 
 def test_ffi_nonfull_struct():
@@ -566,7 +566,7 @@ def test_full_enum():
     py.test.raises(VerificationError, ffi.verify, "enum ee { EE1, EE2 };")
     e = py.test.raises(VerificationError, ffi.verify,
                        "enum ee { EE1, EE3, EE2 };")
-    assert str(e.value) == 'in enum ee: EE2 has the real value 2, not 1'
+    assert str(e.value) == 'enum ee: EE2 has the real value 2, not 1'
     # extra items cannot be seen and have no bad consequence anyway
     lib = ffi.verify("enum ee { EE1, EE2, EE3, EE4 };")
     assert lib.EE3 == 2
@@ -1395,5 +1395,5 @@ def test_struct_returned_by_func():
                        "typedef struct { int x; } foo_t; "
                        "foo_t myfunc(void) { foo_t x = { 42 }; return x; }")
     assert str(e.value) in [
-        "'foo_t' is used as result of myfunc(), but is opaque",
-        "function myfunc(): result type 'struct $foo_t' is opaque"]
+        "function myfunc: 'foo_t' is used as result type, but is opaque",
+        "function myfunc: result type 'struct $foo_t' is opaque"]
