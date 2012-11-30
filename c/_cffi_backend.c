@@ -437,7 +437,7 @@ static PyObject *ctypeget_elements(CTypeDescrObject *ct, void *context)
 {
     if (ct->ct_flags & CT_IS_ENUM) {
         PyObject *res = PyTuple_GetItem(ct->ct_stuff, 1);
-        Py_XINCREF(res);
+        if (res) res = PyDict_Copy(res);
         return res;
     }
     return nosuchattr("elements");
