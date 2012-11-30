@@ -81,8 +81,10 @@ def maybe_relative_path(path):
 
 try:
     int_or_long = (int, long)
+    import cStringIO
 except NameError:
     int_or_long = int      # Python 3
+    import io as cStringIO
 
 def _flatten(x, f):
     if isinstance(x, str):
@@ -104,7 +106,6 @@ def _flatten(x, f):
             "the keywords to verify() contains unsupported object %r" % (x,))
 
 def flatten(x):
-    import cStringIO
     f = cStringIO.StringIO()
     _flatten(x, f)
     return f.getvalue()

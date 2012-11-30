@@ -80,7 +80,7 @@ class VGenericEngine(object):
                     "not implemented in verify(): %r" % name)
             try:
                 method(tp, realname)
-            except Exception, e:
+            except Exception as e:
                 model.attach_exception_info(e, name)
                 raise
 
@@ -90,7 +90,7 @@ class VGenericEngine(object):
             method = getattr(self, '_%s_gen_%s' % (step_name, kind))
             try:
                 method(tp, realname, module, **kwds)
-            except Exception, e:
+            except Exception as e:
                 model.attach_exception_info(e, name)
                 raise
 
