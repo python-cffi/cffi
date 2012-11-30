@@ -1411,3 +1411,15 @@ def test_include():
     assert res == 420
     res = lib.myfunc(ffi1.new("foo_t *", {'x': -10}))
     assert res == -420
+
+def test_include_enum():
+    ffi1 = FFI()
+    ffi1.cdef("enum foo_e { AA, ... };")
+    lib1 = ffi1.verify("enum foo_e { CC, BB, AA };")
+    ffi2 = FFI()
+    ffi2.include(ffi1)
+    ffi2.cdef("int myfunc(enum foo_e);")
+    lib2 = ffi2.verify("enum foo_e { CC, BB, AA };"
+                       "int myfunc(enum foo_e x) { return (int)x; }")
+    res = lib2.myfunc("AA")
+    assert res == 2
