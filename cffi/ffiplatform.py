@@ -76,3 +76,35 @@ def maybe_relative_path(path):
                 return os.path.join(*names)
         except OSError:
             pass
+
+# ____________________________________________________________
+
+try:
+    int_or_long = (int, long)
+except NameError:
+    int_or_long = int      # Python 3
+
+def _flatten(x, f):
+    if isinstance(x, str):
+        f.write('%ds%s' % (len(x), x))
+    elif isinstance(x, dict):
+        keys = sorted(x.keys())
+        f.write('%dd' % len(keys))
+        for key in keys:
+            _flatten(key, f)
+            _flatten(x[key], f)
+    elif isinstance(x, (list, tuple)):
+        f.write('%dl' % len(x))
+        for value in x:
+            _flatten(value, f)
+    elif isinstance(x, int_or_long):
+        f.write('%di' % (x,))
+    else:
+        raise TypeError(
+            "the keywords to verify() contains unsupported object %r" % (x,))
+
+def flatten(x):
+    import cStringIO
+    f = cStringIO.StringIO()
+    _flatten(x, f)
+    return f.getvalue()

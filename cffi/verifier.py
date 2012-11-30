@@ -9,12 +9,14 @@ class Verifier(object):
                  tag='', force_generic_engine=False, **kwds):
         self.ffi = ffi
         self.preamble = preamble
+        flattened_kwds = ffiplatform.flatten(kwds)
         vengine_class = _locate_engine_class(ffi, force_generic_engine)
         self._vengine = vengine_class(self)
         self._vengine.patch_extension_kwds(kwds)
         self.kwds = kwds
         #
-        key = '\x00'.join(['1', sys.version[:3], __version__, preamble] +
+        key = '\x00'.join([sys.version[:3], __version__, preamble,
+                           flattened_kwds] +
                           ffi._cdefsources)
         if sys.version_info >= (3,):
             key = key.encode('utf-8')
