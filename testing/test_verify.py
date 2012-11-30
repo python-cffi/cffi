@@ -1397,3 +1397,17 @@ def test_struct_returned_by_func():
     assert str(e.value) in [
         "function myfunc: 'foo_t' is used as result type, but is opaque",
         "function myfunc: result type 'struct $foo_t' is opaque"]
+
+def test_include():
+    ffi1 = FFI()
+    ffi1.cdef("typedef struct { int x; ...; } foo_t;")
+    ffi1.verify("typedef struct { int y, x; } foo_t;")
+    ffi2 = FFI()
+    ffi2.include(ffi1)
+    ffi2.cdef("int myfunc(foo_t *);")
+    lib = ffi2.verify("typedef struct { int y, x; } foo_t;"
+                      "int myfunc(foo_t *p) { return 42 * p->x; }")
+    res = lib.myfunc(ffi2.new("foo_t *", {'x': 10}))
+    assert res == 420
+    res = lib.myfunc(ffi1.new("foo_t *", {'x': -10}))
+    assert res == -420
