@@ -383,8 +383,9 @@ def unknown_ptr_type(name, structname=None):
 file_type = unknown_type('FILE', '_IO_FILE')
 
 def global_cache(srctype, ffi, funcname, *args):
+    key = (funcname, args)
     try:
-        return ffi._backend.__typecache[args]
+        return ffi._backend.__typecache[key]
     except KeyError:
         pass
     except AttributeError:
@@ -400,7 +401,7 @@ def global_cache(srctype, ffi, funcname, *args):
         res = getattr(ffi._backend, funcname)(*args)
     except NotImplementedError as e:
         raise NotImplementedError("%r: %s" % (srctype, e))
-    ffi._backend.__typecache[args] = res
+    ffi._backend.__typecache[key] = res
     return res
 
 def pointer_cache(ffi, BType):
