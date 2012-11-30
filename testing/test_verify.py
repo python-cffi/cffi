@@ -1378,3 +1378,22 @@ def test_global_array_with_dotdotdot_length():
     ffi.cdef("int fooarray[...];")
     lib = ffi.verify("int fooarray[50];")
     assert repr(lib.fooarray).startswith("<cdata 'int *'")
+
+def test_struct_containing_struct():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { ...; }; struct bar_s { struct foo_s f; ...; };")
+    ffi.verify("struct foo_s { int x; }; struct bar_s { struct foo_s f; };")
+    #
+    ffi = FFI()
+    ffi.cdef("struct foo_s { struct bar_s f; ...; }; struct bar_s { ...; };")
+    ffi.verify("struct bar_s { int x; }; struct foo_s { struct bar_s f; };")
+
+def test_struct_returned_by_func():
+    ffi = FFI()
+    ffi.cdef("typedef ... foo_t; foo_t myfunc(void);")
+    e = py.test.raises(TypeError, ffi.verify,
+                       "typedef struct { int x; } foo_t; "
+                       "foo_t myfunc(void) { foo_t x = { 42 }; return x; }")
+    assert str(e.value) in [
+        "'foo_t' is used as result of myfunc(), but is opaque",
+        "function myfunc(): result type 'struct $foo_t' is opaque"]

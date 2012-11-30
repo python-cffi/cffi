@@ -221,7 +221,7 @@ class VCPythonEngine(object):
             tovar, tp.get_c_name(''), errvalue))
         self._prnt('    %s;' % errcode)
 
-    def _convert_expr_from_c(self, tp, var):
+    def _convert_expr_from_c(self, tp, var, where):
         if isinstance(tp, model.PrimitiveType):
             if tp.is_integer_type():
                 if tp.is_signed_type():
@@ -240,6 +240,9 @@ class VCPythonEngine(object):
             return '_cffi_from_c_deref((char *)%s, _cffi_type(%d))' % (
                 var, self._gettypenum(tp))
         elif isinstance(tp, model.StructType):
+            if tp.fldnames is None:
+                raise TypeError("'%s' is used as %s, but is opaque" % (
+                    tp._get_c_name(''), where))
             return '_cffi_from_c_struct((char *)&%s, _cffi_type(%d))' % (
                 var, self._gettypenum(tp))
         elif isinstance(tp, model.EnumType):
@@ -325,7 +328,8 @@ class VCPythonEngine(object):
         #
         if result_code:
             prnt('  return %s;' %
-                 self._convert_expr_from_c(tp.result, 'result'))
+                 self._convert_expr_from_c(tp.result, 'result',
+                                           'result of %s()' % name))
         else:
             prnt('  Py_INCREF(Py_None);')
             prnt('  return Py_None;')
@@ -529,7 +533,8 @@ class VCPythonEngine(object):
             else:
                 realexpr = name
             prnt('  i = (%s);' % (realexpr,))
-            prnt('  o = %s;' % (self._convert_expr_from_c(tp, 'i'),))
+            prnt('  o = %s;' % (self._convert_expr_from_c(tp, 'i',
+                                                'type of %s' % name),))
             assert delayed
         else:
             prnt('  if (LONG_MIN <= (%s) && (%s) <= LONG_MAX)' % (name, name))

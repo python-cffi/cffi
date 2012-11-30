@@ -154,7 +154,11 @@ class VGenericEngine(object):
                     indirect_args.append(type)
                 tp = model.FunctionPtrType(tuple(indirect_args),
                                            tp.result, tp.ellipsis)
-            BFunc = self.ffi._get_cached_btype(tp)
+            try:
+                BFunc = self.ffi._get_cached_btype(tp)
+            except TypeError, e:
+                msg = 'function %s(): %s' % (name, e)
+                raise TypeError(msg)
             wrappername = '_cffi_f_%s' % name
             newfunction = module.load_function(BFunc, wrappername)
             for i, type in indirections:

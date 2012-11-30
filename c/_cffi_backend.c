@@ -3843,8 +3843,12 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
     }
     if ((fresult->ct_size < 0 && !(fresult->ct_flags & CT_VOID)) ||
         (fresult->ct_flags & CT_ARRAY)) {
-        PyErr_Format(PyExc_TypeError, "invalid result type: '%s'",
-                     fresult->ct_name);
+        char *msg;
+        if (fresult->ct_flags & CT_IS_OPAQUE)
+            msg = "result type '%s' is opaque";
+        else
+            msg = "invalid result type: '%s'";
+        PyErr_Format(PyExc_TypeError, msg, fresult->ct_name);
         return NULL;
     }
 
