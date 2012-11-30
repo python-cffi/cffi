@@ -1,6 +1,6 @@
 import weakref
 
-class BaseType(object):
+class BaseTypeByIdentity(object):
 
     def get_c_name(self, replace_with='', context='a C file'):
         result = self._get_c_name(replace_with)
@@ -26,15 +26,18 @@ class BaseType(object):
     def __repr__(self):
         return '<%s>' % (self._get_c_name(''),)
 
+    def _get_items(self):
+        return [(name, getattr(self, name)) for name in self._attrs_]
+
+
+class BaseType(BaseTypeByIdentity):
+
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
                 self._get_items() == other._get_items())
 
     def __ne__(self, other):
         return not self == other
-
-    def _get_items(self):
-        return [(name, getattr(self, name)) for name in self._attrs_]
 
     def __hash__(self):
         return hash((self.__class__, tuple(self._get_items())))
@@ -215,7 +218,7 @@ class ArrayType(BaseType):
         return global_cache(self, ffi, 'new_array_type', BPtrItem, self.length)
 
 
-class StructOrUnionOrEnum(BaseType):
+class StructOrUnionOrEnum(BaseTypeByIdentity):
     _attrs_ = ('name',)
     forcename = None
 
@@ -335,7 +338,7 @@ class StructType(StructOrUnion):
     def build_backend_type(self, ffi, finishlist):
         self.check_not_partial()
         finishlist.append(self)
-        return ffi._backend.new_struct_type(self.name)
+        return global_cache(self, ffi, 'new_struct_type', self.name, key=self)
 
 
 class UnionType(StructOrUnion):
@@ -343,7 +346,7 @@ class UnionType(StructOrUnion):
 
     def build_backend_type(self, ffi, finishlist):
         finishlist.append(self)
-        return ffi._backend.new_union_type(self.name)
+        return global_cache(self, ffi, 'new_union_type', self.name, key=self)
 
 
 class EnumType(StructOrUnionOrEnum):
@@ -363,8 +366,8 @@ class EnumType(StructOrUnionOrEnum):
 
     def build_backend_type(self, ffi, finishlist):
         self.check_not_partial()
-        return ffi._backend.new_enum_type(self.name, self.enumerators,
-                                          self.enumvalues)
+        return global_cache(self, ffi, 'new_enum_type', self.name,
+                            self.enumerators, self.enumvalues, key=self)
 
 
 def unknown_type(name, structname=None):
@@ -382,8 +385,9 @@ def unknown_ptr_type(name, structname=None):
 
 file_type = unknown_type('FILE', '_IO_FILE')
 
-def global_cache(srctype, ffi, funcname, *args):
-    key = (funcname, args)
+def global_cache(srctype, ffi, funcname, *args, **kwds):
+    key = kwds.pop('key', (funcname, args))
+    assert not kwds
     try:
         return ffi._backend.__typecache[key]
     except KeyError:
