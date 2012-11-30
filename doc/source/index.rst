@@ -1010,8 +1010,9 @@ string) from the 'cdata'.  *New in version 0.3.*
 - If 'cdata' is a pointer or array of characters or bytes, returns the
   null-terminated string.  The returned string extends until the first
   null character, or at most 'maxlen' characters.  If 'cdata' is an
-  array then 'maxlen' defaults to its length.  *Python 3:* this is
-  always a ``bytes``, not a ``str``.
+  array then 'maxlen' defaults to its length.  See ``ffi.buffer()`` below
+  for a way to continue past the first null character.  *Python 3:* this
+  returns a ``bytes``, not a ``str``.
 
 - If 'cdata' is a pointer or array of wchar_t, returns a unicode string
   following the same rules.
