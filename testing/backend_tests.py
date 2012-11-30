@@ -1525,3 +1525,12 @@ class BackendTests:
         ffi2.include(ffi1)
         p = ffi2.cast("enum foo", 1)
         assert ffi2.string(p) == "FB"
+
+    def test_include_typedef_2(self):
+        backend = self.Backend()
+        ffi1 = FFI(backend=backend)
+        ffi2 = FFI(backend=backend)
+        ffi1.cdef("typedef struct { int x; } *foo_p;")
+        ffi2.include(ffi1)
+        p = ffi2.new("foo_p", [142])
+        assert p.x == 142
