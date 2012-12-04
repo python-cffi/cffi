@@ -315,6 +315,9 @@ class FFI(object):
         lib object returned by the original FFI instance.
         """
         self._parser.include(ffi_to_include._parser)
+        self._cdefsources.append('[')
+        self._cdefsources.extend(ffi_to_include._cdefsources)
+        self._cdefsources.append(']')
 
 
 def _make_ffi_library(ffi, libname, flags):
