@@ -963,11 +963,36 @@ object alive for as long as the callback may be invoked.  (If you want
 the callback to remain valid forever, store the object in a fresh global
 variable somewhere.)
 
-Note that callbacks of a variadic function type are not supported.
+Note that callbacks of a variadic function type are not supported.  A
+workaround is to add custom C code.  In the following example, a
+callback gets a first argument that counts how many extra ``int``
+arguments are passed::
+
+    ffi.cdef("""
+        int (*python_callback)(int how_many, int *values);
+        void *const c_callback;   /* pass this ptr to C routines */
+    """)
+    lib = ffi.verify("""
+        #include <stdarg.h>
+        #include <alloca.h>
+        static int (*python_callback)(int how_many, int *values);
+        static int c_callback(int how_many, ...) {
+            va_list ap;
+            /* collect the "..." arguments into the values[] array */
+            int i, *values = alloca(how_many * sizeof(int));
+            va_start(ap, how_many);
+            for (i=0; i<how_many; i++)
+                values[i] = va_arg(ap, int);
+            va_end(ap);
+            return python_callback(how_many, values);
+        }
+    """)
+    lib.python_callback = python_callback
 
 Windows: you can't yet specify the calling convention of callbacks.
 (For regular calls, the correct calling convention should be
-automatically inferred by the C backend.)
+automatically inferred by the C backend.)  Use an indirection, like
+in the example just above.
 
 Be careful when writing the Python callback function: if it returns an
 object of the wrong type, or more generally raises an exception, then

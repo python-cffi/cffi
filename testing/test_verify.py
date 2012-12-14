@@ -1437,3 +1437,39 @@ def test_string_to_voidp_arg():
     assert res == ord(b"g")
     res = lib.myfunc(ffi.cast("int *", p))
     assert res == ord(b"g")
+
+def test_callback_indirection():
+    ffi = FFI()
+    ffi.cdef("""
+        int (*python_callback)(int how_many, int *values);
+        void *const c_callback;   /* pass this ptr to C routines */
+        int some_c_function(void *cb);
+    """)
+    lib = ffi.verify("""
+        #include <stdarg.h>
+        #include <alloca.h>
+        static int (*python_callback)(int how_many, int *values);
+        static int c_callback(int how_many, ...) {
+            va_list ap;
+            /* collect the "..." arguments into the values[] array */
+            int i, *values = alloca(how_many * sizeof(int));
+            va_start(ap, how_many);
+            for (i=0; i<how_many; i++)
+                values[i] = va_arg(ap, int);
+            va_end(ap);
+            return python_callback(how_many, values);
+        }
+        int some_c_function(int(*cb)(int,...)) {
+            return cb(2, 10, 20) + cb(3, 30, 40, 50);
+        }
+    """)
+    seen = []
+    @ffi.callback("int(int, int*)")
+    def python_callback(how_many, values):
+        seen.append([values[i] for i in range(how_many)])
+        return 42
+    lib.python_callback = python_callback
+
+    res = lib.some_c_function(lib.c_callback)
+    assert res == 84
+    assert seen == [[10, 20], [30, 40, 50]]
