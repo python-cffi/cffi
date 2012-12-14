@@ -443,6 +443,16 @@ static PyObject *ctypeget_elements(CTypeDescrObject *ct, void *context)
     return nosuchattr("elements");
 }
 
+static PyObject *ctypeget_relements(CTypeDescrObject *ct, void *context)
+{
+    if (ct->ct_flags & CT_IS_ENUM) {
+        PyObject *res = PyTuple_GetItem(ct->ct_stuff, 0);
+        if (res) res = PyDict_Copy(res);
+        return res;
+    }
+    return nosuchattr("relements");
+}
+
 static PyGetSetDef ctypedescr_getsets[] = {
     {"kind", (getter)ctypeget_kind, NULL, "kind"},
     {"cname", (getter)ctypeget_cname, NULL, "C name"},
@@ -454,6 +464,7 @@ static PyGetSetDef ctypedescr_getsets[] = {
     {"ellipsis", (getter)ctypeget_ellipsis, NULL, "function has '...'"},
     {"abi", (getter)ctypeget_abi, NULL, "function ABI"},
     {"elements", (getter)ctypeget_elements, NULL, "enum elements"},
+    {"relements", (getter)ctypeget_relements, NULL, "enum elements, reverse"},
     {NULL}                        /* sentinel */
 };
 
