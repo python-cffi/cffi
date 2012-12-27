@@ -4992,6 +4992,14 @@ init_cffi_backend(void)
         PyModule_AddIntConstant(m, "FFI_CDECL", FFI_DEFAULT_ABI) < 0 ||
 #endif
 
+#ifdef MS_WIN32
+#  ifdef _WIN64
+        PyModule_AddIntConstant(m, "_WIN", 64) < 0 ||   /* win64 */
+#  else
+        PyModule_AddIntConstant(m, "_WIN", 32) < 0 ||   /* win32 */
+#  endif
+#endif
+
         PyModule_AddIntConstant(m, "RTLD_LAZY",   RTLD_LAZY) < 0 ||
         PyModule_AddIntConstant(m, "RTLD_NOW",    RTLD_NOW) < 0 ||
         PyModule_AddIntConstant(m, "RTLD_GLOBAL", RTLD_GLOBAL) < 0 ||
