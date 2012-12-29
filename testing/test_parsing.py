@@ -199,3 +199,12 @@ def test_cannot_declare_enum_later():
     assert str(e.value) == (
            "enum foo_e: the '{}' declaration should appear on the "
            "first time the enum is mentioned, not later")
+
+def test_unknown_name():
+    ffi = FFI()
+    e = py.test.raises(CDefError, ffi.cast, "foobarbazunknown", 0)
+    assert str(e.value) == "unknown identifier 'foobarbazunknown'"
+    e = py.test.raises(CDefError, ffi.cast, "foobarbazunknown*", 0)
+    assert str(e.value).startswith('cannot parse "foobarbazunknown*"')
+    e = py.test.raises(CDefError, ffi.cast, "int(*)(foobarbazunknown)", 0)
+    assert str(e.value).startswith('cannot parse "int(*)(foobarbazunknown)"')

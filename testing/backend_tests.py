@@ -1488,7 +1488,7 @@ class BackendTests:
         ffi1 = FFI(backend=backend)
         ffi2 = FFI(backend=backend)
         ffi1.cdef("typedef signed char schar_t;")
-        py.test.raises((AttributeError, TypeError), ffi2.cast, "schar_t", 142)
+        py.test.raises(CDefError, ffi2.cast, "schar_t", 142)
 
     def test_include_typedef(self):
         backend = self.Backend()
