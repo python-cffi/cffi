@@ -77,8 +77,9 @@ Requirements:
   ``python-dev`` and ``libffi-dev`` (for Windows, libffi is included
   with CFFI).
 
-* pycparser 2.06 or 2.07: http://code.google.com/p/pycparser/
-  (there is a bug in the distribution of 2.08!)
+* pycparser >= 2.06: http://code.google.com/p/pycparser/
+  (Note that in old downloads of 2.08, the tarball contained an
+  installation issue; it was fixed without changing the version number.)
 
 * a C compiler is required to use CFFI during development, but not to run
   correctly-installed programs that use CFFI.
