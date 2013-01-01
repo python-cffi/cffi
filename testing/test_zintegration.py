@@ -26,10 +26,13 @@ def create_venv(name):
 SNIPPET_DIR = py.path.local(__file__).join('..', 'snippets')
 
 def really_run_setup_and_program(dirname, venv_dir, python_snippet):
-    shutil.rmtree(str(SNIPPET_DIR.join(dirname, 'build')),
-                  ignore_errors=True)
-    shutil.rmtree(str(SNIPPET_DIR.join(dirname, '__pycache__')),
-                  ignore_errors=True)
+    def remove(dir):
+        dir = str(SNIPPET_DIR.join(dirname, dir))
+        shutil.rmtree(dir, ignore_errors=True)
+    remove('build')
+    remove('__pycache__')
+    for basedir in os.listdir(str(SNIPPET_DIR.join(dirname))):
+        remove(os.path.join(basedir, '__pycache__'))
     olddir = os.getcwd()
     python_f = udir.join('x.py')
     python_f.write(py.code.Source(python_snippet))
