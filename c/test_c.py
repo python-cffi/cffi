@@ -1,4 +1,8 @@
 import py
+def _setup_path():
+    import os, sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+_setup_path()
 from _cffi_backend import *
 from _cffi_backend import _testfunc, _get_types
 

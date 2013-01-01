@@ -1,4 +1,5 @@
-import time
+import sys, time
+sys.path.insert(0, sys.argv[1])
 from cffi import FFI
 
 def _run_callback_in_thread():

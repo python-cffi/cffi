@@ -17,10 +17,10 @@ def create_venv(name):
             site_packages = dirpath
             break
     if site_packages:
-        for module in ('pycparser', 'ply'):
-            os.symlink(imp.find_module(module)[1],
-                       os.path.join(site_packages, module))
-
+        for module in ('cffi', '_cffi_backend', 'pycparser', 'ply'):
+            target = imp.find_module(module)[1]
+            os.symlink(target, os.path.join(site_packages,
+                                            os.path.basename(target)))
     return tmpdir
 
 SNIPPET_DIR = py.path.local(__file__).join('..', 'snippets')
