@@ -1,13 +1,20 @@
 import py
-import sys, math, weakref
+import sys, os, math, weakref
 from cffi import FFI, VerificationError, VerificationMissing, model
 from testing.support import *
 
 
-if sys.platform != 'win32':
+if sys.platform == 'win32':
+    pass      # no obvious -Werror equivalent on MSVC
+elif (sys.platform == 'darwin' and
+      map(int, os.uname()[2].split('.')) >= [11, 0, 0]):
+    pass      # recent MacOSX come with clang by default, and passing some
+              # flags from the interpreter (-mno-fused-madd) generates a
+              # warning --- which is interpreted as an error with -Werror
+else:
+    # assume a standard GCC
     class FFI(FFI):
         def verify(self, *args, **kwds):
-            # XXX a GCC-only way to say "crash upon warnings too"
             return super(FFI, self).verify(
                 *args, extra_compile_args=['-Werror'], **kwds)
 
