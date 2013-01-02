@@ -83,6 +83,10 @@ class FFI(object):
         then be accessed via either 'ffi.dlopen()' or 'ffi.verify()'.
         The types can be used in 'ffi.new()' and other functions.
         """
+        if not isinstance(csource, str):    # unicode, on Python 2
+            if not isinstance(csource, basestring):
+                raise TypeError("cdef() argument must be a string")
+            csource = csource.encode('ascii')
         self._parser.parse(csource, override=override)
         self._cdefsources.append(csource)
         if override:
@@ -96,7 +100,7 @@ class FFI(object):
         linked to a particular library, just like C headers; in the
         library we only look for the actual (untyped) symbols.
         """
-        assert isinstance(name, str) or name is None
+        assert isinstance(name, basestring) or name is None
         lib, function_cache = _make_ffi_library(self, name, flags)
         self._function_caches.append(function_cache)
         self._libraries.append(lib)
@@ -109,11 +113,14 @@ class FFI(object):
             if consider_function_as_funcptr and not cfaf:
                 raise KeyError
         except KeyError:
+            key = cdecl
+            if not isinstance(cdecl, str):    # unicode, on Python 2
+                cdecl = cdecl.encode('ascii')
             cfaf = consider_function_as_funcptr
             type = self._parser.parse_type(cdecl,
                        consider_function_as_funcptr=cfaf)
             btype = self._get_cached_btype(type)
-            self._parsed_types[cdecl] = btype, cfaf
+            self._parsed_types[key] = btype, cfaf
         return btype
 
     def typeof(self, cdecl):
@@ -121,7 +128,7 @@ class FFI(object):
         corresponding Python type: <class 'ffi.CData<...>'>.
         It can also be used on 'cdata' instance to get its C type.
         """
-        if isinstance(cdecl, str):
+        if isinstance(cdecl, basestring):
             return self._typeof(cdecl)
         else:
             return self._backend.typeof(cdecl)
@@ -130,7 +137,7 @@ class FFI(object):
         """Return the size in bytes of the argument.  It can be a
         string naming a C type, or a 'cdata' instance.
         """
-        if isinstance(cdecl, str):
+        if isinstance(cdecl, basestring):
             BType = self._typeof(cdecl)
             return self._backend.sizeof(BType)
         else:
@@ -140,7 +147,7 @@ class FFI(object):
         """Return the natural alignment size in bytes of the C type
         given as a string.
         """
-        if isinstance(cdecl, str):
+        if isinstance(cdecl, basestring):
             cdecl = self._typeof(cdecl)
         return self._backend.alignof(cdecl)
 
@@ -148,7 +155,7 @@ class FFI(object):
         """Return the offset of the named field inside the given
         structure, which must be given as a C type name.
         """
-        if isinstance(cdecl, str):
+        if isinstance(cdecl, basestring):
             cdecl = self._typeof(cdecl)
         return self._backend.typeoffsetof(cdecl, fieldname)[1]
 
@@ -175,7 +182,7 @@ class FFI(object):
         about that when copying the pointer to the memory somewhere
         else, e.g. into another structure.
         """
-        if isinstance(cdecl, str):
+        if isinstance(cdecl, basestring):
             cdecl = self._typeof(cdecl)
         return self._backend.newp(cdecl, init)
 
@@ -184,7 +191,7 @@ class FFI(object):
         type initialized with the given 'source'.  The source is
         casted between integers or pointers of any type.
         """
-        if isinstance(cdecl, str):
+        if isinstance(cdecl, basestring):
             cdecl = self._typeof(cdecl)
         return self._backend.cast(cdecl, source)
 
@@ -232,7 +239,7 @@ class FFI(object):
                 raise TypeError("the 'python_callable' argument "
                                 "is not callable")
             return self._backend.callback(cdecl, python_callable, error)
-        if isinstance(cdecl, str):
+        if isinstance(cdecl, basestring):
             cdecl = self._typeof(cdecl, consider_function_as_funcptr=True)
         if python_callable is None:
             return callback_decorator_wrap                # decorator mode
@@ -245,7 +252,7 @@ class FFI(object):
         extra text to append (or insert for more complicated C types), like
         a variable name, or '*' to get actually the C type 'pointer-to-cdecl'.
         """
-        if isinstance(cdecl, str):
+        if isinstance(cdecl, basestring):
             cdecl = self._typeof(cdecl)
         replace_with = replace_with.strip()
         if (replace_with.startswith('*')
@@ -381,6 +388,11 @@ def _make_ffi_library(ffi, libname, flags):
                 property.__set__(self, value)
     #
     if libname is not None:
-        FFILibrary.__name__ = 'FFILibrary_%s' % libname
+        try:
+            if not isinstance(libname, str):    # unicode, on Python 2
+                libname = libname.encode('utf-8')
+            FFILibrary.__name__ = 'FFILibrary_%s' % libname
+        except UnicodeError:
+            pass
     library = FFILibrary()
     return library, library.__dict__
