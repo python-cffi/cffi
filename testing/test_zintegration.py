@@ -6,7 +6,8 @@ from testing.udir import udir
 def create_venv(name):
     tmpdir = udir.join(name)
     try:
-        subprocess.check_call(['virtualenv', '-p', sys.executable,
+        subprocess.check_call(['virtualenv', '--distribute',
+                               '-p', sys.executable,
                                str(tmpdir)])
     except OSError, e:
         py.test.skip("Cannot execute virtualenv: %s" % (e,))
