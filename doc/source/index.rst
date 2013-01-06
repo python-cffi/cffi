@@ -721,6 +721,12 @@ is the only way to get cdata objects of integer or floating-point type::
     >>> int(x)
     42
 
+To cast a pointer to an int, cast it to ``intptr_t``, which is defined
+by C to be a large enough integer type::
+
+    >>> int(ffi.cast("intptr_t", pointer_cdata))
+    135812708
+
 The initializer given as the optional second argument to ``ffi.new()``
 can be mostly anything that you would use as an initializer for C code,
 with lists or tuples instead of using the C syntax ``{ .., .., .. }``.
