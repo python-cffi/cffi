@@ -1491,6 +1491,8 @@ def test_floatstar_argument():
         }
     """)
     assert lib.sum3floats((1.5, 2.5, 3.5)) == 7.5
+    p = ffi.new("float[]", (1.5, 2.5, 3.5))
+    assert lib.sum3floats(p) == 7.5
 
 def test_charstar_argument():
     ffi = FFI()
@@ -1501,3 +1503,5 @@ def test_charstar_argument():
         }
     """)
     assert lib.sum3chars(('\x10', '\x20', '\x30')) == '\x60'
+    p = ffi.new("char[]", '\x10\x20\x30')
+    assert lib.sum3chars(p) == '\x60'
