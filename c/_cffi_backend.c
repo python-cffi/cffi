@@ -1914,17 +1914,20 @@ static CTypeDescrObject *_get_ct_int(void)
     return ct_int;
 }
 
-static int
+static Py_ssize_t
 _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
                                char **output_data)
 {
     /* 'ctptr' is here a pointer type 'ITEM *'.  Accept as argument an
        initializer for an array 'ITEM[]'.  This includes the case of
-       passing a Python byte string to a 'char *' argument. */
+       passing a Python byte string to a 'char *' argument.
+
+       This function returns -1 if an error occurred,
+       0 if conversion succeeded (into *output_data),
+       or N > 0 if conversion would require N bytes of storage.
+    */
     Py_ssize_t length, datasize;
     CTypeDescrObject *ctitem = ctptr->ct_itemdescr;
-    PyObject *result;
-    char *data;
 
     /* XXX some code duplication, how to avoid it? */
     if (PyBytes_Check(init)) {
@@ -1933,11 +1936,11 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
         if ((ctptr->ct_flags & CT_CAST_ANYTHING) ||
             ((ctitem->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED))
              && (ctitem->ct_size == sizeof(char)))) {
-            output_data[0] = PyBytes_AS_STRING(init);
-            return 1;
+            *output_data = PyBytes_AS_STRING(init);
+            return 0;
         }
         else
-            return 0;
+            goto convert_default;
     }
     else if (PyList_Check(init) || PyTuple_Check(init)) {
         length = PySequence_Fast_GET_SIZE(init);
@@ -1947,39 +1950,31 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
         length = _my_PyUnicode_SizeAsWideChar(init) + 1;
     }
     else if ((ctitem->ct_flags & CT_IS_FILE) && PyFile_Check(init)) {
-        output_data[0] = (char *)PyFile_AsFile(init);
-        if (output_data[0] == NULL && PyErr_Occurred())
+        *output_data = (char *)PyFile_AsFile(init);
+        if (*output_data == NULL && PyErr_Occurred())
             return -1;
-        return 1;
+        return 0;
     }
     else {
         /* refuse to receive just an integer (and interpret it
            as the array size) */
-        return 0;
+        goto convert_default;
     }
 
     if (ctitem->ct_size <= 0)
-        return 0;
+        goto convert_default;
     datasize = length * ctitem->ct_size;
     if ((datasize / ctitem->ct_size) != length) {
         PyErr_SetString(PyExc_OverflowError,
                         "array size would overflow a Py_ssize_t");
         return -1;
     }
+    if (datasize <= 0)
+        datasize = 1;
+    return datasize;
 
-    result = PyBytes_FromStringAndSize(NULL, datasize);
-    if (result == NULL)
-        return -1;
-
-    data = PyBytes_AS_STRING(result);
-    memset(data, 0, datasize);
-    if (convert_array_from_object(data, ctptr, init) < 0) {
-        Py_DECREF(result);
-        return -1;
-    }
-    output_data[0] = data;
-    output_data[1] = (char *)result;
-    return 1;
+ convert_default:
+    return convert_from_object((char *)output_data, ctptr, init);
 }
 
 static PyObject*
@@ -1988,7 +1983,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     char *buffer;
     void** buffer_array;
     cif_description_t *cif_descr;
-    Py_ssize_t i, nargs, nargs_declared, free_me_until = 0;
+    Py_ssize_t i, nargs, nargs_declared;
     PyObject *signature, *res = NULL, *fvarargs;
     CTypeDescrObject *fresult;
     char *resultdata;
@@ -2098,22 +2093,23 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         else
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(fvarargs, i);
 
-        if (argtype->ct_flags & CT_POINTER) {
-            ((char **)data)[1] = NULL;
-
-            if (!CData_Check(obj)) {
-                int res = _prepare_pointer_call_argument(argtype, obj,
-                                                         (char **)data);
-                if (res != 0) {
-                    if (res < 0)
-                        goto error;
-                    assert(i < nargs_declared); /* otherwise, obj is a CData */
-                    free_me_until = i + 1;
-                    continue;
-                }
+        if ((argtype->ct_flags & CT_POINTER) && !CData_Check(obj)) {
+            char *tmpbuf;
+            Py_ssize_t datasize = _prepare_pointer_call_argument(
+                                            argtype, obj, (char **)data);
+            if (datasize == 0)
+                ;    /* successfully filled '*data' */
+            else if (datasize < 0)
+                goto error;
+            else {
+                tmpbuf = alloca(datasize);
+                memset(tmpbuf, 0, datasize);
+                *(char **)data = tmpbuf;
+                if (convert_array_from_object(tmpbuf, argtype, obj) < 0)
+                    goto error;
             }
         }
-        if (convert_from_object(data, argtype, obj) < 0)
+        else if (convert_from_object(data, argtype, obj) < 0)
             goto error;
     }
 
@@ -2151,15 +2147,6 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     /* fall-through */
 
  error:
-    for (i=0; i<free_me_until; i++) {
-        CTypeDescrObject *argtype;
-        argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 2 + i);
-        if (argtype->ct_flags & CT_POINTER) {
-            char *data = buffer + cif_descr->exchange_offset_arg[1 + i];
-            PyObject *tmpobj_or_null = (PyObject *)(((char **)data)[1]);
-            Py_XDECREF(tmpobj_or_null);
-        }
-    }
     if (buffer)
         PyObject_Free(buffer);
     if (fvarargs != NULL) {
@@ -3667,15 +3654,6 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
             exchange_offset = ALIGN_ARG(exchange_offset);
             cif_descr->exchange_offset_arg[1 + i] = exchange_offset;
             exchange_offset += atype->size;
-            /* if 'farg' is a pointer type 'ITEM *', then we might receive
-               as argument to the function call what is an initializer
-               for an array 'ITEM[]'.  This includes the case of passing a
-               Python string to a 'char *' argument.  In this case, we
-               convert the initializer to a cdata 'ITEM[]' that gets
-               temporarily stored here: */
-            if (farg->ct_flags & CT_POINTER) {
-                exchange_offset += sizeof(PyObject *);
-            }
         }
     }
 
