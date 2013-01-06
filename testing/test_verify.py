@@ -1481,3 +1481,23 @@ def test_callback_indirection():
     res = lib.some_c_function(lib.c_callback)
     assert res == 84
     assert seen == [[10, 20], [30, 40, 50]]
+
+def test_floatstar_argument():
+    ffi = FFI()
+    ffi.cdef("float sum3floats(float *);")
+    lib = ffi.verify("""
+        float sum3floats(float *f) {
+            return f[0] + f[1] + f[2];
+        }
+    """)
+    assert lib.sum3floats((1.5, 2.5, 3.5)) == 7.5
+
+def test_charstar_argument():
+    ffi = FFI()
+    ffi.cdef("char sum3chars(char *);")
+    lib = ffi.verify("""
+        char sum3chars(char *f) {
+            return f[0] + f[1] + f[2];
+        }
+    """)
+    assert lib.sum3chars(('\x10', '\x20', '\x30')) == '\x60'

@@ -201,14 +201,9 @@ class VCPythonEngine(object):
             errvalue = '-1'
         #
         elif isinstance(tp, model.PointerType):
-            if ((isinstance(tp.totype, model.PrimitiveType) and
-                    tp.totype.name == 'char') or
-                 isinstance(tp.totype, model.VoidType)):
-                converter = '_cffi_to_c_char_p'
-            else:
-                converter = '(%s)_cffi_to_c_pointer' % tp.get_c_name('')
-                extraarg = ', _cffi_type(%d)' % self._gettypenum(tp)
-            errvalue = 'NULL'
+            self._convert_funcarg_to_c_ptr_or_array(tp, fromvar,
+                                                    tovar, errcode)
+            return
         #
         elif isinstance(tp, (model.StructOrUnion, model.EnumType)):
             # a struct (not a struct pointer) as a function argument
@@ -229,6 +224,25 @@ class VCPythonEngine(object):
         self._prnt('  if (%s == (%s)%s && PyErr_Occurred())' % (
             tovar, tp.get_c_name(''), errvalue))
         self._prnt('    %s;' % errcode)
+
+    def _extra_local_variables(self, tp, localvars):
+        if isinstance(tp, model.PointerType):
+            localvars.add('Py_ssize_t datasize')
+
+    def _convert_funcarg_to_c_ptr_or_array(self, tp, fromvar, tovar, errcode):
+        self._prnt('  datasize = _cffi_prepare_pointer_call_argument(')
+        self._prnt('      _cffi_type(%d), %s, (char **)&%s);' % (
+            self._gettypenum(tp), fromvar, tovar))
+        self._prnt('  if (datasize != 0) {')
+        self._prnt('    if (datasize < 0)')
+        self._prnt('      %s;' % errcode)
+        self._prnt('    %s = alloca(datasize);' % (tovar,))
+        self._prnt('    memset((void *)%s, 0, datasize);' % (tovar,))
+        self._prnt('    if (_cffi_convert_array_from_object('
+                   '(char *)%s, _cffi_type(%d), %s) < 0)' % (
+            tovar, self._gettypenum(tp), fromvar))
+        self._prnt('      %s;' % errcode)
+        self._prnt('  }')
 
     def _convert_expr_from_c(self, tp, var, context):
         if isinstance(tp, model.PrimitiveType):
@@ -304,6 +318,13 @@ class VCPythonEngine(object):
         context = 'argument of %s' % name
         for i, type in enumerate(tp.args):
             prnt('  %s;' % type.get_c_name(' x%d' % i, context))
+        #
+        localvars = set()
+        for type in tp.args:
+            self._extra_local_variables(type, localvars)
+        for decl in localvars:
+            prnt('  %s;' % (decl,))
+        #
         if not isinstance(tp.result, model.VoidType):
             result_code = 'result = '
             context = 'result of %s' % name
@@ -734,8 +755,6 @@ typedef unsigned char _Bool;
      sizeof(type) == 8 ? _cffi_to_c_u64(o) :                             \
      (Py_FatalError("unsupported size for type " #type), 0))
 
-#define _cffi_to_c_char_p                                                \
-                 ((char *(*)(PyObject *))_cffi_exports[0])
 #define _cffi_to_c_i8                                                    \
                  ((int(*)(PyObject *))_cffi_exports[1])
 #define _cffi_to_c_u8                                                    \
@@ -780,7 +799,11 @@ typedef unsigned char _Bool;
     ((long double(*)(PyObject *))_cffi_exports[21])
 #define _cffi_to_c__Bool                                                 \
     ((_Bool(*)(PyObject *))_cffi_exports[22])
-#define _CFFI_NUM_EXPORTS 23
+#define _cffi_prepare_pointer_call_argument                              \
+    ((Py_ssize_t(*)(CTypeDescrObject *, PyObject *, char **))_cffi_exports[23])
+#define _cffi_convert_array_from_object                                  \
+    ((int(*)(char *, CTypeDescrObject *, PyObject *))_cffi_exports[24])
+#define _CFFI_NUM_EXPORTS 25
 
 typedef struct _ctypedescr CTypeDescrObject;
 

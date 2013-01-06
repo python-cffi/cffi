@@ -1927,8 +1927,12 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
        or N > 0 if conversion would require N bytes of storage.
     */
     Py_ssize_t length, datasize;
-    CTypeDescrObject *ctitem = ctptr->ct_itemdescr;
+    CTypeDescrObject *ctitem;
 
+    if (CData_Check(init))
+        goto convert_default;
+
+    ctitem = ctptr->ct_itemdescr;
     /* XXX some code duplication, how to avoid it? */
     if (PyBytes_Check(init)) {
         /* from a string: just returning the string here is fine.
@@ -2093,7 +2097,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         else
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(fvarargs, i);
 
-        if ((argtype->ct_flags & CT_POINTER) && !CData_Check(obj)) {
+        if (argtype->ct_flags & CT_POINTER) {
             char *tmpbuf;
             Py_ssize_t datasize = _prepare_pointer_call_argument(
                                             argtype, obj, (char **)data);
@@ -4753,18 +4757,6 @@ static PyMethodDef FFIBackendMethods[] = {
 /************************************************************/
 /* Functions used by '_cffi_N.so', the generated modules    */
 
-static char *_cffi_to_c_char_p(PyObject *obj)
-{
-    if (PyBytes_Check(obj)) {
-        return PyBytes_AS_STRING(obj);
-    }
-    if (CData_Check(obj)) {
-        return ((CDataObject *)obj)->c_data;
-    }
-    _convert_error(obj, "char * or void *", "compatible pointer");
-    return NULL;
-}
-
 #define _cffi_to_c_SIGNED_FN(RETURNTYPE, SIZE)                          \
 static RETURNTYPE _cffi_to_c_i##SIZE(PyObject *obj) {                   \
     PY_LONG_LONG tmp = _my_PyLong_AsLongLong(obj);                      \
@@ -4877,7 +4869,7 @@ static PyObject *_cffi_from_c_wchar_t(wchar_t x) {
 #endif
 
 static void *cffi_exports[] = {
-    _cffi_to_c_char_p,
+    0,
     _cffi_to_c_i8,
     _cffi_to_c_u8,
     _cffi_to_c_i16,
@@ -4905,6 +4897,8 @@ static void *cffi_exports[] = {
 #endif
     _cffi_to_c_long_double,
     _cffi_to_c__Bool,
+    _prepare_pointer_call_argument,
+    convert_array_from_object,
 };
 
 /************************************************************/
