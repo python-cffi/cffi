@@ -1,7 +1,7 @@
 import sys, os, imp, math, shutil
 import py
 from cffi import FFI, FFIError
-from cffi.verifier import Verifier, _locate_engine_class
+from cffi.verifier import Verifier, _locate_engine_class, _get_so_suffix
 from cffi.ffiplatform import maybe_relative_path
 from testing.udir import udir
 
@@ -240,6 +240,20 @@ class DistUtilsTest(object):
                          tag='xxtest_tagxx')
         assert lib.test1tag(143) == 101.0
         assert '_cffi_xxtest_tagxx_' in ffi.verifier.modulefilename
+
+    def test_modulename(self):
+        ffi = FFI()
+        ffi.cdef("/* %s test_modulename */ double test1foo(double x);" % self)
+        csrc = "double test1foo(double x) { return x - 63.0; }"
+        modname = 'xxtest_modulenamexx%d' % (self.generic,)
+        lib = ffi.verify(csrc, force_generic_engine=self.generic,
+                         modulename=modname)
+        assert lib.test1foo(143) == 80.0
+        suffix = _get_so_suffix()
+        fn1 = os.path.join(ffi.verifier.tmpdir, modname + '.c')
+        fn2 = os.path.join(ffi.verifier.tmpdir, modname + suffix)
+        assert ffi.verifier.sourcefilename == fn1
+        assert ffi.verifier.modulefilename == fn2
 
 
 class TestDistUtilsCPython(DistUtilsTest):

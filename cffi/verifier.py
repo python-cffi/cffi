@@ -5,27 +5,32 @@ from . import ffiplatform
 
 class Verifier(object):
 
-    def __init__(self, ffi, preamble, tmpdir=None, ext_package=None,
-                 tag='', force_generic_engine=False, **kwds):
+    def __init__(self, ffi, preamble, tmpdir=None, modulename=None,
+                 ext_package=None, tag='', force_generic_engine=False, **kwds):
         self.ffi = ffi
         self.preamble = preamble
-        flattened_kwds = ffiplatform.flatten(kwds)
+        if not modulename:
+            flattened_kwds = ffiplatform.flatten(kwds)
         vengine_class = _locate_engine_class(ffi, force_generic_engine)
         self._vengine = vengine_class(self)
         self._vengine.patch_extension_kwds(kwds)
         self.kwds = kwds
         #
-        key = '\x00'.join([sys.version[:3], __version__, preamble,
-                           flattened_kwds] +
-                          ffi._cdefsources)
-        if sys.version_info >= (3,):
-            key = key.encode('utf-8')
-        k1 = hex(binascii.crc32(key[0::2]) & 0xffffffff)
-        k1 = k1.lstrip('0x').rstrip('L')
-        k2 = hex(binascii.crc32(key[1::2]) & 0xffffffff)
-        k2 = k2.lstrip('0').rstrip('L')
-        modulename = '_cffi_%s_%s%s%s' % (tag, self._vengine._class_key,
-                                          k1, k2)
+        if modulename:
+            if tag:
+                raise TypeError("can't specify both 'modulename' and 'tag'")
+        else:
+            key = '\x00'.join([sys.version[:3], __version__, preamble,
+                               flattened_kwds] +
+                              ffi._cdefsources)
+            if sys.version_info >= (3,):
+                key = key.encode('utf-8')
+            k1 = hex(binascii.crc32(key[0::2]) & 0xffffffff)
+            k1 = k1.lstrip('0x').rstrip('L')
+            k2 = hex(binascii.crc32(key[1::2]) & 0xffffffff)
+            k2 = k2.lstrip('0').rstrip('L')
+            modulename = '_cffi_%s_%s%s%s' % (tag, self._vengine._class_key,
+                                              k1, k2)
         suffix = _get_so_suffix()
         self.tmpdir = tmpdir or _caller_dir_pycache()
         self.sourcefilename = os.path.join(self.tmpdir, modulename + '.c')

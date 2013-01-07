@@ -453,7 +453,7 @@ Windows).  It defaults to ``ffi.RTLD_NOW``.
 The verification step
 ---------------------
 
-``ffi.verify(source, tmpdir=.., ext_package=.., tag='', **kwargs)``:
+``ffi.verify(source, tmpdir=.., ext_package=.., modulename=.., **kwargs)``:
 verifies that the current ffi signatures
 compile on this machine, and return a dynamic library object.  The
 dynamic library can be used to call functions and access global
@@ -597,6 +597,18 @@ not recommended.
    The ``tag`` argument gives an extra string inserted in the
    middle of the extension module's name: ``_cffi_<tag>_<hash>``.
    Useful to give a bit more context, e.g. when debugging.
+
+.. _`warning about modulename`:
+
+.. versionadded:: 0.5
+   The ``modulename`` argument can be used to force a specific module
+   name, overriding the name ``_cffi_<tag>_<hash>``.  Use with care,
+   e.g. if you are passing variable information to ``verify()`` but
+   still want the module name to be always the same (e.g. absolute
+   paths to local files).  In this case, no hash is computed and if
+   the module name already exists it will be reused without further
+   check.  Be sure to have other means of clearing the ``tmpdir``
+   whenever you change your sources.
 
 
 Working with pointers, structures and arrays
@@ -1339,15 +1351,17 @@ For advanced use cases, the ``Verifier`` class from ``cffi.verifier``
 can be instantiated directly.  It is normally instantiated for you by
 ``ffi.verify()``, and the instance is attached as ``ffi.verifier``.
 
-- ``Verifier(ffi, preamble, tmpdir=.., ext_package='', tag='', **kwds)``:
+- ``Verifier(ffi, preamble, tmpdir=.., ext_package='', modulename=None,
+  tag='', **kwds)``:
   instantiate the class with an
   FFI object and a preamble, which is C text that will be pasted into
   the generated C source.  The value of ``tmpdir`` defaults to the
   directory ``directory_of_the_caller/__pycache__``.  The value of
   ``ext_package`` is used when looking up an already-compiled, already-
   installed version of the extension module.  The module name is
-  ``_cffi_<tag>_<hash>``.
-  The keyword arguments are passed directly
+  ``_cffi_<tag>_<hash>``, unless overridden with ``modulename``
+  (see the `warning about modulename`_ above).
+  The other keyword arguments are passed directly
   to `distutils when building the Extension object.`__
 
 .. __: http://docs.python.org/distutils/setupscript.html#describing-extension-module
