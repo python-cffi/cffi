@@ -1097,6 +1097,12 @@ an array.)
 - ``len(buf), buf[index], buf[index] = newchar``: access as a sequence
   of characters.
 
+.. versionchanged:: 0.5
+   The buffer object returned by ``ffi.buffer(cdata)`` keeps alive the
+   ``cdata`` object: if it was originally an owning cdata, then its
+   owned memory will not be freed as long as the buffer is alive.
+   Moreover buffer objects now support weakrefs to them.
+
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
 ``<ctype>`` corresponding to the parsed string, or to the C type of the
