@@ -4485,7 +4485,7 @@ static PyObject *b_buffer(PyObject *self, PyObject *args)
         return NULL;
     }
     /*WRITE(cd->c_data, size)*/
-    return minibuffer_new(cd->c_data, size);
+    return minibuffer_new(cd->c_data, size, (PyObject *)cd);
 }
 
 static PyObject *b_get_errno(PyObject *self, PyObject *noarg)

@@ -9,6 +9,8 @@ typedef struct {
     PyObject_HEAD
     char      *mb_data;
     Py_ssize_t mb_size;
+    PyObject  *mb_keepalive;
+    PyObject  *mb_weakreflist;    /* weakref support */
 } MiniBufferObj;
 
 static Py_ssize_t mb_length(MiniBufferObj *self)
@@ -120,6 +122,30 @@ static PyBufferProcs mb_as_buffer = {
     (releasebufferproc)0,
 };
 
+static void
+mb_dealloc(MiniBufferObj *ob)
+{
+    PyObject_GC_UnTrack(ob);
+    if (ob->mb_weakreflist != NULL)
+        PyObject_ClearWeakRefs((PyObject *)ob);
+    Py_XDECREF(ob->mb_keepalive);
+    Py_TYPE(ob)->tp_free((PyObject *)ob);
+}
+
+static int
+mb_traverse(MiniBufferObj *ob, visitproc visit, void *arg)
+{
+    Py_VISIT(ob->mb_keepalive);
+    return 0;
+}
+
+static int
+mb_clear(MiniBufferObj *ob)
+{
+    Py_CLEAR(ob->mb_keepalive);
+    return 0;
+}
+
 #if PY_MAJOR_VERSION >= 3
 /* pfffffffffffff pages of copy-paste from listobject.c */
 static PyObject *mb_subscript(MiniBufferObj *self, PyObject *item)
@@ -198,9 +224,9 @@ static PyMappingMethods mb_as_mapping = {
 #endif
 
 #if PY_MAJOR_VERSION >= 3
-# define MINIBUF_TPFLAGS (Py_TPFLAGS_DEFAULT)
+# define MINIBUF_TPFLAGS 0
 #else
-# define MINIBUF_TPFLAGS (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GETCHARBUFFER | Py_TPFLAGS_HAVE_NEWBUFFER)
+# define MINIBUF_TPFLAGS (Py_TPFLAGS_HAVE_GETCHARBUFFER | Py_TPFLAGS_HAVE_NEWBUFFER)
 #endif
 
 static PyTypeObject MiniBuffer_Type = {
@@ -208,7 +234,7 @@ static PyTypeObject MiniBuffer_Type = {
     "_cffi_backend.buffer",
     sizeof(MiniBufferObj),
     0,
-    (destructor)PyObject_Del,                   /* tp_dealloc */
+    (destructor)mb_dealloc,                     /* tp_dealloc */
     0,                                          /* tp_print */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
@@ -227,15 +253,25 @@ static PyTypeObject MiniBuffer_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     &mb_as_buffer,                              /* tp_as_buffer */
-    MINIBUF_TPFLAGS,                            /* tp_flags */
+    (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+        MINIBUF_TPFLAGS),                       /* tp_flags */
+    0,                                          /* tp_doc */
+    (traverseproc)mb_traverse,                  /* tp_traverse */
+    (inquiry)mb_clear,                          /* tp_clear */
+    0,                                          /* tp_richcompare */
+    offsetof(MiniBufferObj, mb_weakreflist),    /* tp_weaklistoffset */
 };
 
-static PyObject *minibuffer_new(char *data, Py_ssize_t size)
+static PyObject *minibuffer_new(char *data, Py_ssize_t size,
+                                PyObject *keepalive)
 {
-    MiniBufferObj *ob = PyObject_New(MiniBufferObj, &MiniBuffer_Type);
+    MiniBufferObj *ob = PyObject_GC_New(MiniBufferObj, &MiniBuffer_Type);
     if (ob != NULL) {
         ob->mb_data = data;
         ob->mb_size = size;
+        ob->mb_keepalive = keepalive; Py_INCREF(keepalive);
+        ob->mb_weakreflist = NULL;
+        PyObject_GC_Track(ob);
     }
     return (PyObject *)ob;
 }
