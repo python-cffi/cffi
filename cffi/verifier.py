@@ -223,7 +223,11 @@ def _get_so_suffix():
     for suffix, mode, type in imp.get_suffixes():
         if type == imp.C_EXTENSION:
             return suffix
-    raise ffiplatform.VerificationError("no C_EXTENSION available")
+    # bah, no C_EXTENSION available.  Occurs on pypy without cpyext
+    if sys.platform == 'win32':
+        return ".pyd"
+    else:
+        return ".so"
 
 def _ensure_dir(filename):
     try:
