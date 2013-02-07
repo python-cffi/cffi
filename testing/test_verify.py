@@ -1502,6 +1502,6 @@ def test_charstar_argument():
             return f[0] + f[1] + f[2];
         }
     """)
-    assert lib.sum3chars(('\x10', '\x20', '\x30')) == '\x60'
-    p = ffi.new("char[]", '\x10\x20\x30')
-    assert lib.sum3chars(p) == '\x60'
+    assert lib.sum3chars((b'\x10', b'\x20', b'\x30')) == b'\x60'
+    p = ffi.new("char[]", b'\x10\x20\x30')
+    assert lib.sum3chars(p) == b'\x60'
