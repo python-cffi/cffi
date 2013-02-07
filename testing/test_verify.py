@@ -1455,7 +1455,12 @@ def test_callback_indirection():
     """)
     lib = ffi.verify("""
         #include <stdarg.h>
+        #ifdef _WIN32
+        #include <malloc.h>
+        #define alloca _alloca
+        #else
         #include <alloca.h>
+        #endif
         static int (*python_callback)(int how_many, int *values);
         static int c_callback(int how_many, ...) {
             va_list ap;
@@ -1468,7 +1473,9 @@ def test_callback_indirection():
             return python_callback(how_many, values);
         }
         int some_c_function(int(*cb)(int,...)) {
-            return cb(2, 10, 20) + cb(3, 30, 40, 50);
+            int result = cb(2, 10, 20);
+            result += cb(3, 30, 40, 50);
+            return result;
         }
     """)
     seen = []
