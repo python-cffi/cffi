@@ -90,16 +90,13 @@ Requirements:
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-0.4.2.tar.gz
+* http://pypi.python.org/packages/source/c/cffi/cffi-0.5.tar.gz
 
    - Or grab the most current version by following the instructions below.
 
-   - Version 0.4.2 fixes some issues with 0.4 and 0.4.1 on Python 3.x
-     (and possibly 2.7.3).
+   - MD5: b163c11f68cad4371e8caeb91d81743f
 
-   - MD5: c2a35af157006e966c67d1a725e7875e
-
-   - SHA: adbc997377a3efc0d2841968ae7441e0152c272c
+   - SHA: d201e114d701eafbf458ebde569acbcc5225eeff
 
 * Or get it from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
