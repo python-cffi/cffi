@@ -20,6 +20,7 @@ if sys.version_info < (3,):
             return eval('u'+repr(other).replace(r'\\u', r'\u')
                                        .replace(r'\\U', r'\U'))
     u = U()
+    str2bytes = str
 else:
     type_or_class = "class"
     long = int
@@ -30,6 +31,7 @@ else:
     bytechr = lambda n: bytes([n])
     bitem2bchr = bytechr
     u = ""
+    str2bytes = lambda s: bytes(s, "ascii")
 
 def size_of_int():
     BInt = new_primitive_type("int")
@@ -2564,9 +2566,9 @@ def test_buffer_keepalive():
     BCharArray = new_array_type(BCharP, None)
     buflist = []
     for i in range(20):
-        c = newp(BCharArray, b"hi there %d" % i)
+        c = newp(BCharArray, str2bytes("hi there %d" % i))
         buflist.append(buffer(c))
     import gc; gc.collect()
     for i in range(20):
         buf = buflist[i]
-        assert buf[:] == b"hi there %d\x00" % i
+        assert buf[:] == str2bytes("hi there %d\x00" % i)
