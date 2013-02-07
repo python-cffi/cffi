@@ -9,7 +9,7 @@ def create_venv(name):
         subprocess.check_call(['virtualenv', '--distribute',
                                '-p', sys.executable,
                                str(tmpdir)])
-    except OSError, e:
+    except OSError as e:
         py.test.skip("Cannot execute virtualenv: %s" % (e,))
 
     site_packages = None

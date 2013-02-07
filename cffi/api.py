@@ -7,6 +7,12 @@ except NameError:
     from collections import Callable
     callable = lambda x: isinstance(x, Callable)
 
+try:
+    basestring
+except NameError:
+    # Python 3.x
+    basestring = str
+
 
 class FFIError(Exception):
     pass
