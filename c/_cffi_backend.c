@@ -1934,7 +1934,11 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
 
     ctitem = ctptr->ct_itemdescr;
     /* XXX some code duplication, how to avoid it? */
-    if (PyBytes_Check(init)) {
+    if (init == Py_None) {
+        *output_data = NULL;
+        return 0;
+    }
+    else if (PyBytes_Check(init)) {
         /* from a string: just returning the string here is fine.
            We assume that the C code won't modify the 'char *' data. */
         if ((ctptr->ct_flags & CT_CAST_ANYTHING) ||
@@ -4683,7 +4687,9 @@ static struct _testfunc22_s _testfunc22(struct _testfunc22_s s1,
 
 static int _testfunc23(char *p)
 {
-    return 1000 * p[0];
+    if (p)
+        return 1000 * p[0];
+    return -42;
 }
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)

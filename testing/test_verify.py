@@ -1512,3 +1512,19 @@ def test_charstar_argument():
     assert lib.sum3chars((b'\x10', b'\x20', b'\x30')) == b'\x60'
     p = ffi.new("char[]", b'\x10\x20\x30')
     assert lib.sum3chars(p) == b'\x60'
+
+def test_passing_None():
+    ffi = FFI()
+    ffi.cdef("int seeme1(char *); int seeme2(int *);")
+    lib = ffi.verify("""
+        int seeme1(char *x) {
+            return (x == NULL);
+        }
+        int seeme2(int *x) {
+            return (x == NULL);
+        }
+    """)
+    assert lib.seeme1("foo") == 0
+    assert lib.seeme1(None) == 1
+    assert lib.seeme2([42, 43]) == 0
+    assert lib.seeme2(None) == 1

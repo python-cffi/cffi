@@ -1329,6 +1329,9 @@ allowed.
    you need to specify it in a list of length 1; for example, a ``struct
    foo *`` argument might be passed as ``[[field1, field2...]]``.
 
+.. versionadded:: 0.6
+   You can also pass None to ``item *`` arguments (meaning NULL).
+
 As an optimization, the CPython version of CFFI assumes that a function
 with a ``char *`` argument to which you pass a Python string will not
 actually modify the array of characters passed in, and so passes directly
