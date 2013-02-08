@@ -1292,22 +1292,20 @@ def test_enum_type():
 def test_cast_to_enum():
     BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
     e = cast(BEnum, 0)
-    assert repr(e) == "<cdata 'enum foo' 'def'>"
+    assert repr(e) == "<cdata 'enum foo' 0: def>"
+    assert repr(cast(BEnum, -42)) == "<cdata 'enum foo' -42>"
+    assert repr(cast(BEnum, -20)) == "<cdata 'enum foo' -20: ab>"
     assert string(e) == 'def'
     assert string(cast(BEnum, -20)) == 'ab'
-    assert string(cast(BEnum, 'c')) == 'c'
-    assert int(cast(BEnum, 'c')) == 1
-    assert int(cast(BEnum, 'def')) == 0
+    assert int(cast(BEnum, 1)) == 1
+    assert int(cast(BEnum, 0)) == 0
     assert int(cast(BEnum, -242 + 2**128)) == -242
-    assert string(cast(BEnum, -242 + 2**128)) == '#-242'
-    assert string(cast(BEnum, '#-20')) == 'ab'
-    assert repr(cast(BEnum, '#-20')) == "<cdata 'enum foo' 'ab'>"
-    assert repr(cast(BEnum, '#-21')) == "<cdata 'enum foo' '#-21'>"
+    assert string(cast(BEnum, -242 + 2**128)) == '-242'
 
 def test_enum_with_non_injective_mapping():
     BEnum = new_enum_type("foo", ('ab', 'cd'), (7, 7))
     e = cast(BEnum, 7)
-    assert repr(e) == "<cdata 'enum foo' 'ab'>"
+    assert repr(e) == "<cdata 'enum foo' 7: ab>"
     assert string(e) == 'ab'
 
 def test_enum_in_struct():
@@ -1316,17 +1314,16 @@ def test_enum_in_struct():
     BStructPtr = new_pointer_type(BStruct)
     complete_struct_or_union(BStruct, [('a1', BEnum, -1)])
     p = newp(BStructPtr, [-20])
-    assert p.a1 == "ab"
-    p = newp(BStructPtr, ["c"])
-    assert p.a1 == "c"
+    assert p.a1 == -20
+    p = newp(BStructPtr, [12])
+    assert p.a1 == 12
     e = py.test.raises(TypeError, newp, BStructPtr, [None])
-    assert "must be a str or int, not NoneType" in str(e.value)
+    assert "an integer is required" in str(e.value)
+    py.test.raises(TypeError, 'p.a1 = "def"')
     if sys.version_info < (3,):
-        p.a1 = unicode("def")
-        assert p.a1 == "def" and type(p.a1) is str
-        py.test.raises(UnicodeEncodeError, "p.a1 = unichr(1234)")
         BEnum2 = new_enum_type(unicode("foo"), (unicode('abc'),), (5,))
-        assert string(cast(BEnum2, unicode('abc'))) == 'abc'
+        assert string(cast(BEnum2, 5)) == 'abc'
+        assert type(string(cast(BEnum2, 5))) is str
 
 def test_enum_overflow():
     for ovf in (2**63, -2**63-1, 2**31, -2**31-1):
@@ -1339,13 +1336,17 @@ def test_callback_returning_enum():
     BInt = new_primitive_type("int")
     BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20))
     def cb(n):
-        return '#%d' % n
+        if n & 1:
+            return cast(BEnum, n)
+        else:
+            return n
     BFunc = new_function_type((BInt,), BEnum)
     f = callback(BFunc, cb)
-    assert f(0) == 'def'
-    assert f(1) == 'c'
-    assert f(-20) == 'ab'
-    assert f(20) == '#20'
+    assert f(0) == 0
+    assert f(1) == 1
+    assert f(-20) == -20
+    assert f(20) == 20
+    assert f(21) == 21
 
 def test_callback_returning_char():
     BInt = new_primitive_type("int")

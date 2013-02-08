@@ -49,7 +49,7 @@ def test_offsetof():
 def test_enum():
     ffi = FFI()
     ffi.cdef("enum foo_e { AA, BB, CC };")        # unicode literal
-    x = ffi.cast("enum foo_e", "BB")
+    x = ffi.cast("enum foo_e", 1)
     assert int(ffi.cast("int", x)) == 1
 
 def test_dlopen():

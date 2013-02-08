@@ -558,13 +558,12 @@ def test_nonfull_enum():
     ffi.cdef("enum ee { EE1, EE2, EE3, ... \n \t };")
     py.test.raises(VerificationMissing, ffi.cast, 'enum ee', 'EE2')
     ffi.verify("enum ee { EE1=10, EE2, EE3=-10, EE4 };")
-    assert int(ffi.cast('enum ee', 'EE2')) == 11
-    assert int(ffi.cast('enum ee', 'EE3')) == -10
-    py.test.raises(ValueError, ffi.cast, 'enum ee', '__dotdotdot0__')
+    assert ffi.string(ffi.cast('enum ee', 11)) == "EE2"
+    assert ffi.string(ffi.cast('enum ee', -10)) == "EE3"
     #
     # try again
     ffi.verify("enum ee { EE1=10, EE2, EE3=-10, EE4 };")
-    assert int(ffi.cast('enum ee', 'EE2')) == 11
+    assert ffi.string(ffi.cast('enum ee', 11)) == "EE2"
 
 def test_full_enum():
     ffi = FFI()
@@ -578,25 +577,35 @@ def test_full_enum():
     lib = ffi.verify("enum ee { EE1, EE2, EE3, EE4 };")
     assert lib.EE3 == 2
 
+def test_enum_usage():
+    ffi = FFI()
+    ffi.cdef("enum ee { EE1,EE2 }; typedef struct { enum ee x; } *sp;")
+    lib = ffi.verify("enum ee { EE1,EE2 }; typedef struct { enum ee x; } *sp;")
+    assert lib.EE2 == 1
+    s = ffi.new("sp", [lib.EE2])
+    assert s.x == 1
+    s.x = 17
+    assert s.x == 17
+
 def test_nonfull_enum_syntax2():
     ffi = FFI()
     ffi.cdef("enum ee { EE1, EE2=\t..., EE3 };")
     py.test.raises(VerificationMissing, ffi.cast, 'enum ee', 'EE1')
     ffi.verify("enum ee { EE1=10, EE2, EE3=-10, EE4 };")
-    assert int(ffi.cast('enum ee', 'EE2')) == 11
-    assert int(ffi.cast('enum ee', 'EE3')) == -10
+    assert ffi.string(ffi.cast('enum ee', 11)) == 'EE2'
+    assert ffi.string(ffi.cast('enum ee', -10)) == 'EE3'
     #
     ffi = FFI()
     ffi.cdef("enum ee { EE1, EE2=\t... };")
     py.test.raises(VerificationMissing, ffi.cast, 'enum ee', 'EE1')
     ffi.verify("enum ee { EE1=10, EE2, EE3=-10, EE4 };")
-    assert int(ffi.cast('enum ee', 'EE2')) == 11
+    assert ffi.string(ffi.cast('enum ee', 11)) == 'EE2'
     #
     ffi = FFI()
     ffi.cdef("enum ee2 { EE4=..., EE5=..., ... };")
     ffi.verify("enum ee2 { EE4=-1234-5, EE5 }; ")
-    assert int(ffi.cast('enum ee2', 'EE4')) == -1239
-    assert int(ffi.cast('enum ee2', 'EE5')) == -1238
+    assert ffi.string(ffi.cast('enum ee2', -1239)) == 'EE4'
+    assert ffi.string(ffi.cast('enum ee2', -1238)) == 'EE5'
 
 def test_get_set_errno():
     ffi = FFI()
@@ -961,7 +970,7 @@ def test_enum_as_argument():
         int foo_func(enum foo_e e) { return e; }
     """)
     assert lib.foo_func(lib.BB) == 2
-    assert lib.foo_func("BB") == 2
+    py.test.raises(TypeError, lib.foo_func, "BB")
 
 def test_enum_as_function_result():
     ffi = FFI()
@@ -973,7 +982,7 @@ def test_enum_as_function_result():
         enum foo_e { AA, CC, BB };
         enum foo_e foo_func(int x) { return x; }
     """)
-    assert lib.foo_func(lib.BB) == "BB"
+    assert lib.foo_func(lib.BB) == lib.BB == 2
 
 def test_enum_values():
     ffi = FFI()
@@ -1001,7 +1010,7 @@ def test_typedef_incomplete_enum():
     ffi = FFI()
     ffi.cdef("typedef enum { AA, BB, ... } enum1_t;")
     lib = ffi.verify("typedef enum { AA, CC, BB } enum1_t;")
-    assert ffi.string(ffi.cast("enum1_t", 1)) == '#1'
+    assert ffi.string(ffi.cast("enum1_t", 1)) == '1'
     assert ffi.string(ffi.cast("enum1_t", 2)) == 'BB'
     assert lib.AA == 0
     assert lib.BB == 2
@@ -1016,7 +1025,7 @@ def test_typedef_enum_as_function_result():
         typedef enum { AA, CC, BB } foo_t;
         foo_t foo_func(int x) { return x; }
     """)
-    assert lib.foo_func(lib.BB) == "BB"
+    assert lib.foo_func(lib.BB) == lib.BB == 2
 
 def test_callback_calling_convention():
     py.test.skip("later")
@@ -1429,7 +1438,7 @@ def test_include_enum():
     ffi2.cdef("int myfunc(enum foo_e);")
     lib2 = ffi2.verify("enum foo_e { CC, BB, AA };"
                        "int myfunc(enum foo_e x) { return (int)x; }")
-    res = lib2.myfunc("AA")
+    res = lib2.myfunc(lib2.AA)
     assert res == 2
 
 def test_string_to_voidp_arg():
