@@ -81,7 +81,7 @@ if __name__ == '__main__':
   setup(
     name='cffi',
     description='Foreign Function Interface for Python calling C code.',
-    version='0.5',
+    version='0.6',
     packages=['cffi'],
     zip_safe=False,
 
