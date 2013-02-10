@@ -2574,3 +2574,19 @@ def test_buffer_keepalive():
     for i in range(20):
         buf = buflist[i]
         assert buf[:] == str2bytes("hi there %d\x00" % i)
+
+def test_slice():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    assert len(c) == 5
+    assert repr(c) == "<cdata 'int[]' owning 20 bytes>"
+    d = c[1:4]
+    assert len(d) == 3
+    assert repr(d) == "<cdata 'int[]' sliced length 3>"
+    d[0] = 123
+    d[2] = 456
+    assert c[1] == 123
+    assert c[3] == 456
+    py.test.raises(IndexError, "d[3]")
+    py.test.raises(IndexError, "d[-1]")
