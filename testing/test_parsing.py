@@ -215,3 +215,10 @@ def test_redefine_common_type():
     assert repr(ffi.cast("FILE", 123)) == "<cdata 'char' '{'>"
     ffi.cdef("typedef char int32_t;")
     assert repr(ffi.cast("int32_t", 123)) == "<cdata 'char' '{'>"
+
+def test_bool():
+    ffi = FFI()
+    ffi.cdef("void f(bool);")
+    #
+    ffi = FFI()
+    ffi.cdef("typedef _Bool bool; void f(bool);")

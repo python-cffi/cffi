@@ -383,8 +383,6 @@ def unknown_ptr_type(name, structname=None):
     tp = StructType(structname, None, None, None)
     return NamedPointerType(tp, name)
 
-file_type = unknown_type('FILE', '_IO_FILE')
-
 def global_cache(srctype, ffi, funcname, *args, **kwds):
     key = kwds.pop('key', (funcname, args))
     assert not kwds
