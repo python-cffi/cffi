@@ -2626,3 +2626,19 @@ def test_nonstandard_slice():
     assert str(e.value) == "slice start > stop"
     e = py.test.raises(IndexError, "c[6:6]")
     assert str(e.value) == "index too large (expected 6 < 5)"
+
+def test_setslice():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    c[1:3] = [100, 200]
+    assert list(c) == [0, 100, 200, 0, 0]
+    cp = c + 3
+    cp[-1:1] = [300, 400]
+    assert list(c) == [0, 100, 300, 400, 0]
+    cp[-1:1] = iter([500, 600])
+    assert list(c) == [0, 100, 500, 600, 0]
+    py.test.raises(ValueError, "cp[-1:1] = [1000]")
+    assert list(c) == [0, 100, 1000, 600, 0]
+    py.test.raises(ValueError, "cp[-1:1] = (700, 800, 900)")
+    assert list(c) == [0, 100, 700, 800, 0]
