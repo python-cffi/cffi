@@ -1,6 +1,6 @@
 
 from . import api, model
-from .commontypes import COMMON_TYPES
+from .commontypes import COMMON_TYPES, resolve_common_type
 import pycparser.c_parser, weakref, re, sys
 
 try:
@@ -299,9 +299,7 @@ class Parser(object):
                     return model.void_type
                 if ident == '__dotdotdot__':
                     raise api.FFIError('bad usage of "..."')
-                if ident in COMMON_TYPES:
-                    return COMMON_TYPES[ident]
-                return model.PrimitiveType(ident)
+                return resolve_common_type(ident)
             #
             if isinstance(type, pycparser.c_ast.Struct):
                 # 'struct foobar'

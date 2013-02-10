@@ -183,6 +183,8 @@ class ConstPointerType(PointerType):
         BPtr = PointerType(self.totype).get_cached_btype(ffi, finishlist)
         return BPtr
 
+const_voidp_type = ConstPointerType(void_type)
+
 
 class NamedPointerType(PointerType):
     _attrs_ = ('totype', 'name')
