@@ -390,24 +390,38 @@ can assume to exist are the standard types:
 * wchar_t (if supported by the backend)
 
 * *New in version 0.4:* _Bool.  If not directly supported by the C compiler,
-  this is declared with the size of ``unsigned char``.  Note that the
-  effects of ``<stdbool.h>`` are not automatically included: you have
-  to say ``typedef _Bool bool;`` in your ``cdef()`` if you want to
-  use this ``_Bool`` with the more standard name ``bool``.  This is because
-  some headers declare a different type (e.g. an enum) and also call it
-  ``bool``.
+  this is declared with the size of ``unsigned char``.
+
+* *New in version 0.6:* bool.  In CFFI 0.4 or 0.5, you had to manually say
+  ``typedef _Bool bool;``.  Now such a line is optional.
 
 * *New in version 0.4:* FILE.  You can declare C functions taking a
   ``FILE *`` argument and call them with a Python file object.  If needed,
   you can also do ``c_f = ffi.cast("FILE *", fileobj)`` and then pass around
   ``c_f``.
 
-.. "versionadded:: 0.4": bool
+* *New in version 0.6:* all `common Windows types`_ are defined if you run
+  on Windows (``DWORD``, ``LPARAM``, etc.).
+
+.. _`common Windows types`: http://msdn.microsoft.com/en-us/library/windows/desktop/aa383751%28v=vs.85%29.aspx
+
+.. "versionadded:: 0.4": _Bool
+.. "versionadded:: 0.6": bool
 .. "versionadded:: 0.4": FILE
+.. "versionadded:: 0.6": Wintypes
 
 As we will see on `the verification step`_ below, the declarations can
 also contain "``...``" at various places; these are placeholders that will
 be completed by a call to ``verify()``.
+
+.. versionadded:: 0.6
+   The standard type names listed above are now handled as *defaults*
+   only (apart from the ones that are keywords in the C language).
+   If your ``cdef`` contains an explicit typedef that redefines one of
+   the types above, then the default described above is ignored.  (This
+   is a bit hard to implement cleanly, so in some corner cases it might
+   fail, notably with the error ``Multiple type specifiers with a type
+   tag``.  Please report it as a bug if it does.)
 
 
 Loading libraries
