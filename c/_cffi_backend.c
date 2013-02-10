@@ -1728,13 +1728,8 @@ cdata_slice(CDataObject *cd, PySliceObject *slice)
 {
     Py_ssize_t start, stop;
     CDataObject_own_length *scd;
-    CTypeDescrObject *ct = cd->c_type;
+    CTypeDescrObject *ct;
 
-    if (!(ct->ct_flags & (CT_ARRAY | CT_POINTER))) {
-        PyErr_Format(PyExc_TypeError, "cdata of type '%s' cannot be indexed",
-                     ct->ct_name);
-        return NULL;
-    }
     start = PyInt_AsSsize_t(slice->start);
     if (start == -1 && PyErr_Occurred()) {
         if (slice->start == Py_None)
@@ -1756,9 +1751,28 @@ cdata_slice(CDataObject *cd, PySliceObject *slice)
         return NULL;
     }
 
-    if (ct->ct_flags & CT_ARRAY)
+    ct = cd->c_type;
+    if (ct->ct_flags & CT_ARRAY) {
+        if (start < 0) {
+            PyErr_SetString(PyExc_IndexError,
+                            "negative index not supported");
+            return NULL;
+        }
+        if (stop >= get_array_length(cd)) {
+            PyErr_Format(PyExc_IndexError,
+                         "index too large for cdata '%s' (expected %zd < %zd)",
+                         cd->c_type->ct_name,
+                         stop, get_array_length(cd));
+            return NULL;
+        }
         ct = (CTypeDescrObject *)ct->ct_stuff;
-    assert(ct->ct_flags & CT_POINTER);
+    }
+    else if (!(ct->ct_flags & CT_POINTER)) {
+        PyErr_Format(PyExc_TypeError, "cdata of type '%s' cannot be indexed",
+                     ct->ct_name);
+        return NULL;
+    }
+
     if (ct->ct_stuff == NULL) {
         ct->ct_stuff = new_array_type(ct, Py_None);
         if (ct->ct_stuff == NULL)

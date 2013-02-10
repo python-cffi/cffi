@@ -2588,5 +2588,24 @@ def test_slice():
     d[2] = 456
     assert c[1] == 123
     assert c[3] == 456
+    assert d[2] == 456
     py.test.raises(IndexError, "d[3]")
     py.test.raises(IndexError, "d[-1]")
+
+def test_slice_ptr():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    d = (c+1)[0:2]
+    assert len(d) == 2
+    assert repr(d) == "<cdata 'int[]' sliced length 2>"
+    d[1] += 50
+    assert c[2] == 50
+
+def test_slice_array_checkbounds():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    py.test.raises(IndexError, "c[-1:1]")
+    cp = c + 0
+    cp[-1:1]
