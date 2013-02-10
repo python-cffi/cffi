@@ -2609,3 +2609,20 @@ def test_slice_array_checkbounds():
     py.test.raises(IndexError, "c[-1:1]")
     cp = c + 0
     cp[-1:1]
+
+def test_nonstandard_slice():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    e = py.test.raises(IndexError, "c[:5]")
+    assert str(e.value) == "slice start must be specified"
+    e = py.test.raises(IndexError, "c[4:]")
+    assert str(e.value) == "slice stop must be specified"
+    e = py.test.raises(IndexError, "c[1:2:3]")
+    assert str(e.value) == "slice with step not supported"
+    e = py.test.raises(IndexError, "c[1:2:1]")
+    assert str(e.value) == "slice with step not supported"
+    e = py.test.raises(IndexError, "c[4:2]")
+    assert str(e.value) == "slice start > stop"
+    e = py.test.raises(IndexError, "c[6:6]")
+    assert str(e.value) == "index too large (expected 6 < 5)"

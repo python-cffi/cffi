@@ -1760,8 +1760,7 @@ cdata_slice(CDataObject *cd, PySliceObject *slice)
         }
         if (stop >= get_array_length(cd)) {
             PyErr_Format(PyExc_IndexError,
-                         "index too large for cdata '%s' (expected %zd < %zd)",
-                         cd->c_type->ct_name,
+                         "index too large (expected %zd < %zd)",
                          stop, get_array_length(cd));
             return NULL;
         }
