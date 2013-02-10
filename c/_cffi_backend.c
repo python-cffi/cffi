@@ -1815,16 +1815,26 @@ cdata_ass_slice(CDataObject *cd, PySliceObject *slice, PyObject *v)
     CTypeDescrObject *ct = _cdata_getslicearg(cd, slice, bounds);
     if (ct == NULL)
         return -1;
+    ct = ct->ct_itemdescr;
+    itemsize = ct->ct_size;
+    cdata = cd->c_data + itemsize * bounds[0];
+    length = bounds[1];
+
+    if (CData_Check(v)) {
+        CTypeDescrObject *ctv = ((CDataObject *)v)->c_type;
+        if ((ctv->ct_flags & CT_ARRAY) && (ctv->ct_itemdescr == ct) &&
+            (get_array_length((CDataObject *)v) == length)) {
+            /* fast path: copying from exactly the correct type */
+            memcpy(cdata, ((CDataObject *)v)->c_data, itemsize * length);
+            return 0;
+        }
+    }
 
     it = PyObject_GetIter(v);
     if (it == NULL)
         return -1;
     iternext = *it->ob_type->tp_iternext;
 
-    ct = ct->ct_itemdescr;
-    itemsize = ct->ct_size;
-    cdata = cd->c_data + itemsize * bounds[0];
-    length = bounds[1];
     for (i = 0; i < length; i++) {
         item = iternext(it);
         if (item == NULL) {

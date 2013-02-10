@@ -2642,3 +2642,17 @@ def test_setslice():
     assert list(c) == [0, 100, 1000, 600, 0]
     py.test.raises(ValueError, "cp[-1:1] = (700, 800, 900)")
     assert list(c) == [0, 100, 700, 800, 0]
+
+def test_setslice_array():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    d = newp(BIntArray, [10, 20, 30])
+    c[1:4] = d
+    assert list(c) == [0, 10, 20, 30, 0]
+    #
+    BShortP = new_pointer_type(new_primitive_type("short"))
+    BShortArray = new_array_type(BShortP, None)
+    d = newp(BShortArray, [40, 50])
+    c[1:3] = d
+    assert list(c) == [0, 40, 50, 30, 0]
