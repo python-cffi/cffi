@@ -208,3 +208,10 @@ def test_unknown_name():
     assert str(e.value).startswith('cannot parse "foobarbazunknown*"')
     e = py.test.raises(CDefError, ffi.cast, "int(*)(foobarbazunknown)", 0)
     assert str(e.value).startswith('cannot parse "int(*)(foobarbazunknown)"')
+
+def test_redefine_common_type():
+    ffi = FFI()
+    ffi.cdef("typedef char FILE;")
+    assert repr(ffi.cast("FILE", 123)) == "<cdata 'char' '{'>"
+    ffi.cdef("typedef char int32_t;")
+    assert repr(ffi.cast("int32_t", 123)) == "<cdata 'char' '{'>"

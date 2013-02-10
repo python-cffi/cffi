@@ -2505,7 +2505,7 @@ def test_FILE_object():
     if sys.platform == "win32":
         py.test.skip("testing FILE not implemented")
     #
-    BFILE = new_struct_type("_IO_FILE")
+    BFILE = new_struct_type("$FILE")
     BFILEP = new_pointer_type(BFILE)
     BChar = new_primitive_type("char")
     BCharP = new_pointer_type(BChar)

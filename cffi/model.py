@@ -73,9 +73,9 @@ class PrimitiveType(BaseType):
         'float':              'f',
         'double':             'f',
         'long double':        'f',
-        'wchar_t':            'c',
         '_Bool':              'u',
         # the following types are not primitive in the C sense
+        'wchar_t':            'c',
         'int8_t':             'i',
         'uint8_t':            'u',
         'int16_t':            'i',
