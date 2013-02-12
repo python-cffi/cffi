@@ -71,7 +71,6 @@ class FFI(object):
             if name.startswith('RTLD_'):
                 setattr(self, name, getattr(backend, name))
         #
-        self._parser._declarations['typedef FILE'] = model.file_type
         BVoidP = self._get_cached_btype(model.voidp_type)
         if isinstance(backend, types.ModuleType):
             # _cffi_backend: attach these constants to the class

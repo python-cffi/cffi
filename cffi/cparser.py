@@ -1,5 +1,6 @@
 
 from . import api, model
+from .commontypes import COMMON_TYPES, resolve_common_type
 import pycparser.c_parser, weakref, re, sys
 
 try:
@@ -17,6 +18,7 @@ _r_define  = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z_0-9]*)\s+(.*?)$",
 _r_partial_enum = re.compile(r"=\s*\.\.\.\s*[,}]|\.\.\.\s*\}")
 _r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _r_partial_array = re.compile(r"\[\s*\.\.\.\s*\]")
+_r_words = re.compile(r"\w+|\S")
 _parser_cache = None
 
 def _get_parser():
@@ -58,10 +60,34 @@ def _preprocess(csource):
     # which is declared with a typedef for the purpose of C parsing.
     return csource.replace('...', ' __dotdotdot__ '), macros
 
+def _common_type_names(csource):
+    # Look in the source for what looks like usages of types from the
+    # list of common types.  A "usage" is approximated here as the
+    # appearance of the word, minus a "definition" of the type, which
+    # is the last word in a "typedef" statement.  Approximative only
+    # but should be fine for all the common types.
+    look_for_words = set(COMMON_TYPES)
+    look_for_words.add(';')
+    look_for_words.add('typedef')
+    words_used = set()
+    is_typedef = False
+    previous_word = ''
+    for word in _r_words.findall(csource):
+        if word in look_for_words:
+            if word == ';':
+                if is_typedef:
+                    words_used.discard(previous_word)
+                    look_for_words.discard(previous_word)
+                    is_typedef = False
+            elif word == 'typedef':
+                is_typedef = True
+            else:   # word in COMMON_TYPES
+                words_used.add(word)
+        previous_word = word
+    return words_used
+
+
 class Parser(object):
-    TYPEDEFS = sorted(
-        [_name for _name in model.PrimitiveType.ALL_PRIMITIVE_TYPES
-               if _name.endswith('_t')])
 
     def __init__(self):
         self._declarations = {}
@@ -70,17 +96,23 @@ class Parser(object):
         self._override = False
 
     def _parse(self, csource):
+        csource, macros = _preprocess(csource)
         # XXX: for more efficiency we would need to poke into the
         # internals of CParser...  the following registers the
         # typedefs, because their presence or absence influences the
         # parsing itself (but what they are typedef'ed to plays no role)
-        typenames = self.TYPEDEFS[:]
+        ctn = _common_type_names(csource)
+        print `csource`, ctn
+        typenames = []
         for name in sorted(self._declarations):
             if name.startswith('typedef '):
-                typenames.append(name[8:])
+                name = name[8:]
+                typenames.append(name)
+                ctn.discard(name)
+        typenames += sorted(ctn)
+        #
         csourcelines = ['typedef int %s;' % typename for typename in typenames]
         csourcelines.append('typedef int __dotdotdot__;')
-        csource, macros = _preprocess(csource)
         csourcelines.append(csource)
         csource = '\n'.join(csourcelines)
         if lock is not None:
@@ -267,7 +299,7 @@ class Parser(object):
                     return model.void_type
                 if ident == '__dotdotdot__':
                     raise api.FFIError('bad usage of "..."')
-                return model.PrimitiveType(ident)
+                return resolve_common_type(ident)
             #
             if isinstance(type, pycparser.c_ast.Struct):
                 # 'struct foobar'

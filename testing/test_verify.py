@@ -1258,6 +1258,7 @@ def test_cast_from_int_type_to_bool():
         for sign in ['signed', 'unsigned']:
             type = '%s %s' % (sign, basetype)
             assert int(ffi.cast("_Bool", ffi.cast(type, 42))) == 1
+            assert int(ffi.cast("bool", ffi.cast(type, 42))) == 1
             assert int(ffi.cast("_Bool", ffi.cast(type, 0))) == 0
 
 def test_addressof():

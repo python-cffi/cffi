@@ -73,9 +73,9 @@ class PrimitiveType(BaseType):
         'float':              'f',
         'double':             'f',
         'long double':        'f',
-        'wchar_t':            'c',
         '_Bool':              'u',
         # the following types are not primitive in the C sense
+        'wchar_t':            'c',
         'int8_t':             'i',
         'uint8_t':            'u',
         'int16_t':            'i',
@@ -182,6 +182,8 @@ class ConstPointerType(PointerType):
     def build_backend_type(self, ffi, finishlist):
         BPtr = PointerType(self.totype).get_cached_btype(ffi, finishlist)
         return BPtr
+
+const_voidp_type = ConstPointerType(void_type)
 
 
 class NamedPointerType(PointerType):
@@ -382,8 +384,6 @@ def unknown_ptr_type(name, structname=None):
         structname = '*$%s' % name
     tp = StructType(structname, None, None, None)
     return NamedPointerType(tp, name)
-
-file_type = unknown_type('FILE', '_IO_FILE')
 
 def global_cache(srctype, ffi, funcname, *args, **kwds):
     key = kwds.pop('key', (funcname, args))

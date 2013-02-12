@@ -3346,7 +3346,7 @@ static PyObject *b_new_struct_type(PyObject *self, PyObject *args)
         return NULL;
 
     flag = CT_STRUCT;
-    if (strcmp(name, "_IO_FILE") == 0)
+    if (strcmp(name, "_IO_FILE") == 0 || strcmp(name, "$FILE") == 0)
         flag |= CT_IS_FILE;
     return _b_struct_or_union_type("struct", name, flag);
 }
