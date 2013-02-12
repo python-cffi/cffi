@@ -1274,9 +1274,9 @@ allowed.
 |               | anything on which      | precision `(***)`|                |
 |               | float() works          |                  |                |
 +---------------+------------------------+------------------+----------------+
-|  pointers     | another <cdata> with   | a <cdata>        | ``[]``, ``+``, |
-|               | a compatible type (i.e.|                  | ``-``, bool()  |
-|               | same type or ``char*`` |                  |                |
+|  pointers     | another <cdata> with   | a <cdata>        |``[]`` `(****)`,|
+|               | a compatible type (i.e.|                  |``+``, ``-``,   |
+|               | same type or ``char*`` |                  |bool()          |
 |               | or ``void*``, or as an |                  |                |
 |               | array instead) `(*)`   |                  |                |
 +---------------+------------------------+                  |                |
@@ -1292,9 +1292,9 @@ allowed.
 | function      | same as pointers       |                  | bool(),        |
 | pointers      |                        |                  | call `(**)`    |
 +---------------+------------------------+------------------+----------------+
-|  arrays       | a list or tuple of     | a <cdata>        | len(), iter(), |
-|               | items                  |                  | ``[]``,        |
-|               |                        |                  | ``+``, ``-``   |
+|  arrays       | a list or tuple of     | a <cdata>        |len(), iter(),  |
+|               | items                  |                  |``[]`` `(****)`,|
+|               |                        |                  |``+``, ``-``    |
 +---------------+------------------------+                  +----------------+
 |  ``char[]``   | same as arrays, or a   |                  | len(), iter(), |
 |               | Python string          |                  | ``[]``, ``+``, |
@@ -1348,6 +1348,15 @@ a pointer inside the Python string object.
    call ``float()``.  If you want to operate on such numbers
    without any precision loss, you need to define and use a family of C
    functions like ``long double add(long double a, long double b);``.
+
+.. versionadded:: 0.6
+   `(****)` Supports simple slices as well: ``x[start:stop]`` gives another
+   cdata object that is a "view" of all items from ``start`` to ``stop``.
+   It is a cdata of type "array" (so e.g. passing it as an argument to a
+   C function would just convert it to a pointer to the ``start`` item).
+   As with indexing, negative bounds mean really negative indices, like in
+   C.  As for slice assignment, it accepts any iterable, including a list
+   of items or another array-like cdata object, but the length must match.
 
 
 Reference: verifier

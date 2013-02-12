@@ -2574,3 +2574,85 @@ def test_buffer_keepalive():
     for i in range(20):
         buf = buflist[i]
         assert buf[:] == str2bytes("hi there %d\x00" % i)
+
+def test_slice():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    assert len(c) == 5
+    assert repr(c) == "<cdata 'int[]' owning 20 bytes>"
+    d = c[1:4]
+    assert len(d) == 3
+    assert repr(d) == "<cdata 'int[]' sliced length 3>"
+    d[0] = 123
+    d[2] = 456
+    assert c[1] == 123
+    assert c[3] == 456
+    assert d[2] == 456
+    py.test.raises(IndexError, "d[3]")
+    py.test.raises(IndexError, "d[-1]")
+
+def test_slice_ptr():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    d = (c+1)[0:2]
+    assert len(d) == 2
+    assert repr(d) == "<cdata 'int[]' sliced length 2>"
+    d[1] += 50
+    assert c[2] == 50
+
+def test_slice_array_checkbounds():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    py.test.raises(IndexError, "c[-1:1]")
+    cp = c + 0
+    cp[-1:1]
+
+def test_nonstandard_slice():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    e = py.test.raises(IndexError, "c[:5]")
+    assert str(e.value) == "slice start must be specified"
+    e = py.test.raises(IndexError, "c[4:]")
+    assert str(e.value) == "slice stop must be specified"
+    e = py.test.raises(IndexError, "c[1:2:3]")
+    assert str(e.value) == "slice with step not supported"
+    e = py.test.raises(IndexError, "c[1:2:1]")
+    assert str(e.value) == "slice with step not supported"
+    e = py.test.raises(IndexError, "c[4:2]")
+    assert str(e.value) == "slice start > stop"
+    e = py.test.raises(IndexError, "c[6:6]")
+    assert str(e.value) == "index too large (expected 6 < 5)"
+
+def test_setslice():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    c[1:3] = [100, 200]
+    assert list(c) == [0, 100, 200, 0, 0]
+    cp = c + 3
+    cp[-1:1] = [300, 400]
+    assert list(c) == [0, 100, 300, 400, 0]
+    cp[-1:1] = iter([500, 600])
+    assert list(c) == [0, 100, 500, 600, 0]
+    py.test.raises(ValueError, "cp[-1:1] = [1000]")
+    assert list(c) == [0, 100, 1000, 600, 0]
+    py.test.raises(ValueError, "cp[-1:1] = (700, 800, 900)")
+    assert list(c) == [0, 100, 700, 800, 0]
+
+def test_setslice_array():
+    BIntP = new_pointer_type(new_primitive_type("int"))
+    BIntArray = new_array_type(BIntP, None)
+    c = newp(BIntArray, 5)
+    d = newp(BIntArray, [10, 20, 30])
+    c[1:4] = d
+    assert list(c) == [0, 10, 20, 30, 0]
+    #
+    BShortP = new_pointer_type(new_primitive_type("short"))
+    BShortArray = new_array_type(BShortP, None)
+    d = newp(BShortArray, [40, 50])
+    c[1:3] = d
+    assert list(c) == [0, 40, 50, 30, 0]

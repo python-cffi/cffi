@@ -102,7 +102,8 @@ typedef struct _ctypedescr {
     PyObject *ct_stuff;                /* structs: dict of the fields
                                           arrays: ctypedescr of the ptr type
                                           function: tuple(abi, ctres, ctargs..)
-                                          enum: pair {"name":x},{x:"name"} */
+                                          enum: pair {"name":x},{x:"name"}
+                                          ptrs: lazily, ctypedescr of array */
     void *ct_extra;                    /* structs: first field (not a ref!)
                                           function types: cif_description
                                           primitives: prebuilt "cif" object */
@@ -1490,6 +1491,9 @@ static PyObject *cdata_repr(CDataObject *cd)
             s = PyText_FromString(buffer);
         }
     }
+    else if ((cd->c_type->ct_flags & CT_ARRAY) && cd->c_type->ct_length < 0) {
+        s = PyText_FromFormat("sliced length %zd", get_array_length(cd));
+    }
     else {
         if (cd->c_data != NULL) {
             s = PyText_FromFormat("%p", cd->c_data);
@@ -1717,9 +1721,155 @@ _cdata_get_indexed_ptr(CDataObject *cd, PyObject *key)
 }
 
 static PyObject *
+new_array_type(CTypeDescrObject *ctptr, PyObject *lengthobj);   /* forward */
+
+static CTypeDescrObject *
+_cdata_getslicearg(CDataObject *cd, PySliceObject *slice, Py_ssize_t bounds[])
+{
+    Py_ssize_t start, stop;
+    CTypeDescrObject *ct;
+
+    start = PyInt_AsSsize_t(slice->start);
+    if (start == -1 && PyErr_Occurred()) {
+        if (slice->start == Py_None)
+            PyErr_SetString(PyExc_IndexError, "slice start must be specified");
+        return NULL;
+    }
+    stop = PyInt_AsSsize_t(slice->stop);
+    if (stop == -1 && PyErr_Occurred()) {
+        if (slice->stop == Py_None)
+            PyErr_SetString(PyExc_IndexError, "slice stop must be specified");
+        return NULL;
+    }
+    if (slice->step != Py_None) {
+        PyErr_SetString(PyExc_IndexError, "slice with step not supported");
+        return NULL;
+    }
+    if (start > stop) {
+        PyErr_SetString(PyExc_IndexError, "slice start > stop");
+        return NULL;
+    }
+
+    ct = cd->c_type;
+    if (ct->ct_flags & CT_ARRAY) {
+        if (start < 0) {
+            PyErr_SetString(PyExc_IndexError,
+                            "negative index not supported");
+            return NULL;
+        }
+        if (stop >= get_array_length(cd)) {
+            PyErr_Format(PyExc_IndexError,
+                         "index too large (expected %zd < %zd)",
+                         stop, get_array_length(cd));
+            return NULL;
+        }
+        ct = (CTypeDescrObject *)ct->ct_stuff;
+    }
+    else if (!(ct->ct_flags & CT_POINTER)) {
+        PyErr_Format(PyExc_TypeError, "cdata of type '%s' cannot be indexed",
+                     ct->ct_name);
+        return NULL;
+    }
+
+    bounds[0] = start;
+    bounds[1] = stop - start;
+    return ct;
+}
+
+static PyObject *
+cdata_slice(CDataObject *cd, PySliceObject *slice)
+{
+    Py_ssize_t bounds[2];
+    CDataObject_own_length *scd;
+    CTypeDescrObject *ct = _cdata_getslicearg(cd, slice, bounds);
+    if (ct == NULL)
+        return NULL;
+
+    if (ct->ct_stuff == NULL) {
+        ct->ct_stuff = new_array_type(ct, Py_None);
+        if (ct->ct_stuff == NULL)
+            return NULL;
+    }
+    ct = (CTypeDescrObject *)ct->ct_stuff;
+
+    scd = (CDataObject_own_length *)PyObject_Malloc(
+              offsetof(CDataObject_own_length, alignment));
+    if (PyObject_Init((PyObject *)scd, &CData_Type) == NULL)
+        return NULL;
+    Py_INCREF(ct);
+    scd->head.c_type = ct;
+    scd->head.c_data = cd->c_data + ct->ct_itemdescr->ct_size * bounds[0];
+    scd->head.c_weakreflist = NULL;
+    scd->length = bounds[1];
+    return (PyObject *)scd;
+}
+
+static int
+cdata_ass_slice(CDataObject *cd, PySliceObject *slice, PyObject *v)
+{
+    Py_ssize_t bounds[2], i, length, itemsize;
+    PyObject *it, *item;
+    PyObject *(*iternext)(PyObject *);
+    char *cdata;
+    int err;
+    CTypeDescrObject *ct = _cdata_getslicearg(cd, slice, bounds);
+    if (ct == NULL)
+        return -1;
+    ct = ct->ct_itemdescr;
+    itemsize = ct->ct_size;
+    cdata = cd->c_data + itemsize * bounds[0];
+    length = bounds[1];
+
+    if (CData_Check(v)) {
+        CTypeDescrObject *ctv = ((CDataObject *)v)->c_type;
+        if ((ctv->ct_flags & CT_ARRAY) && (ctv->ct_itemdescr == ct) &&
+            (get_array_length((CDataObject *)v) == length)) {
+            /* fast path: copying from exactly the correct type */
+            memcpy(cdata, ((CDataObject *)v)->c_data, itemsize * length);
+            return 0;
+        }
+    }
+
+    it = PyObject_GetIter(v);
+    if (it == NULL)
+        return -1;
+    iternext = *it->ob_type->tp_iternext;
+
+    for (i = 0; i < length; i++) {
+        item = iternext(it);
+        if (item == NULL) {
+            if (!PyErr_Occurred())
+                PyErr_Format(PyExc_ValueError,
+                             "need %zd values to unpack, got %zd",
+                             length, i);
+            goto error;
+        }
+        err = convert_from_object(cdata, ct, item);
+        Py_DECREF(item);
+        if (err < 0)
+            goto error;
+
+        cdata += itemsize;
+    }
+    item = iternext(it);
+    if (item != NULL) {
+        Py_DECREF(item);
+        PyErr_Format(PyExc_ValueError,
+                     "got more than %zd values to unpack", length);
+    }
+ error:
+    Py_DECREF(it);
+    return PyErr_Occurred() ? -1 : 0;
+}
+
+static PyObject *
 cdataowning_subscript(CDataObject *cd, PyObject *key)
 {
-    char *c = _cdata_get_indexed_ptr(cd, key);
+    char *c;
+    if (PySlice_Check(key))
+        return cdata_slice(cd, (PySliceObject *)key);
+
+    c = _cdata_get_indexed_ptr(cd, key);
     /* use 'mp_subscript' instead of 'sq_item' because we don't want
        negative indexes to be corrected automatically */
     if (c == NULL && PyErr_Occurred())
@@ -1738,7 +1888,11 @@ cdataowning_subscript(CDataObject *cd, PyObject *key)
 static PyObject *
 cdata_subscript(CDataObject *cd, PyObject *key)
 {
-    char *c = _cdata_get_indexed_ptr(cd, key);
+    char *c;
+    if (PySlice_Check(key))
+        return cdata_slice(cd, (PySliceObject *)key);
+
+    c = _cdata_get_indexed_ptr(cd, key);
     /* use 'mp_subscript' instead of 'sq_item' because we don't want
        negative indexes to be corrected automatically */
     if (c == NULL && PyErr_Occurred())
@@ -1749,8 +1903,13 @@ cdata_subscript(CDataObject *cd, PyObject *key)
 static int
 cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
 {
-    char *c = _cdata_get_indexed_ptr(cd, key);
-    CTypeDescrObject *ctitem = cd->c_type->ct_itemdescr;
+    char *c;
+    CTypeDescrObject *ctitem;
+    if (PySlice_Check(key))
+        return cdata_ass_slice(cd, (PySliceObject *)key, v);
+
+    c = _cdata_get_indexed_ptr(cd, key);
+    ctitem = cd->c_type->ct_itemdescr;
     /* use 'mp_ass_subscript' instead of 'sq_ass_item' because we don't want
        negative indexes to be corrected automatically */
     if (c == NULL && PyErr_Occurred())
@@ -3122,13 +3281,21 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
 static PyObject *b_new_array_type(PyObject *self, PyObject *args)
 {
     PyObject *lengthobj;
-    CTypeDescrObject *td, *ctitem, *ctptr;
-    char extra_text[32];
-    Py_ssize_t length, arraysize;
+    CTypeDescrObject *ctptr;
 
     if (!PyArg_ParseTuple(args, "O!O:new_array_type",
                           &CTypeDescr_Type, &ctptr, &lengthobj))
         return NULL;
+
+    return new_array_type(ctptr, lengthobj);
+}
+
+static PyObject *
+new_array_type(CTypeDescrObject *ctptr, PyObject *lengthobj)
+{
+    CTypeDescrObject *td, *ctitem;
+    char extra_text[32];
+    Py_ssize_t length, arraysize;
 
     if (!(ctptr->ct_flags & CT_POINTER)) {
         PyErr_SetString(PyExc_TypeError, "first arg must be a pointer ctype");
