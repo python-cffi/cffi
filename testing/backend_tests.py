@@ -860,54 +860,55 @@ class BackendTests:
     def test_enum(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("enum foo { A, B, CC, D };")
-        assert int(ffi.cast("enum foo", "A")) == 0
-        assert int(ffi.cast("enum foo", "B")) == 1
-        assert int(ffi.cast("enum foo", "CC")) == 2
-        assert int(ffi.cast("enum foo", "D")) == 3
-        ffi.cdef("enum bar { A, B=-2, CC, D };")
-        assert int(ffi.cast("enum bar", "A")) == 0
-        assert int(ffi.cast("enum bar", "B")) == -2
-        assert int(ffi.cast("enum bar", "CC")) == -1
-        assert int(ffi.cast("enum bar", "D")) == 0
-        assert ffi.cast("enum bar", "B") != ffi.cast("enum bar", "B")
-        assert ffi.cast("enum foo", "A") != ffi.cast("enum bar", "A")
-        assert ffi.cast("enum bar", "A") != ffi.cast("int", 0)
-        assert repr(ffi.cast("enum bar", "CC")) == "<cdata 'enum bar' 'CC'>"
-        py.test.raises(ValueError, ffi.cast, "enum bar", "UNKNOWN")
+        assert ffi.string(ffi.cast("enum foo", 0)) == "A"
+        assert ffi.string(ffi.cast("enum foo", 2)) == "CC"
+        assert ffi.string(ffi.cast("enum foo", 3)) == "D"
+        assert ffi.string(ffi.cast("enum foo", 4)) == "4"
+        ffi.cdef("enum bar { A, B=-2, CC, D, E };")
+        assert ffi.string(ffi.cast("enum bar", 0)) == "A"
+        assert ffi.string(ffi.cast("enum bar", -2)) == "B"
+        assert ffi.string(ffi.cast("enum bar", -1)) == "CC"
+        assert ffi.string(ffi.cast("enum bar", 1)) == "E"
+        assert ffi.cast("enum bar", -2) != ffi.cast("enum bar", -2)
+        assert ffi.cast("enum foo", 0) != ffi.cast("enum bar", 0)
+        assert ffi.cast("enum bar", 0) != ffi.cast("int", 0)
+        assert repr(ffi.cast("enum bar", -1)) == "<cdata 'enum bar' -1: CC>"
+        assert repr(ffi.cast("enum foo", -1)) == (  # enums are unsigned, if
+            "<cdata 'enum foo' 4294967295>")        # they contain no neg value
         ffi.cdef("enum baz { A=0x1000, B=0x2000 };")
-        assert int(ffi.cast("enum baz", "A")) == 0x1000
-        assert int(ffi.cast("enum baz", "B")) == 0x2000
+        assert ffi.string(ffi.cast("enum baz", 0x1000)) == "A"
+        assert ffi.string(ffi.cast("enum baz", 0x2000)) == "B"
 
     def test_enum_in_struct(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("enum foo { A, B, C, D }; struct bar { enum foo e; };")
         s = ffi.new("struct bar *")
         s.e = 0
-        assert s.e == "A"
-        s.e = "D"
-        assert s.e == "D"
-        assert s[0].e == "D"
-        s[0].e = "C"
-        assert s.e == "C"
-        assert s[0].e == "C"
+        assert s.e == 0
+        s.e = 3
+        assert s.e == 3
+        assert s[0].e == 3
+        s[0].e = 2
+        assert s.e == 2
+        assert s[0].e == 2
         s.e = ffi.cast("enum foo", -1)
-        assert s.e == '#-1'
-        assert s[0].e == '#-1'
+        assert s.e == 4294967295
+        assert s[0].e == 4294967295
         s.e = s.e
-        py.test.raises(TypeError, "s.e = None")
+        py.test.raises(TypeError, "s.e = 'B'")
+        py.test.raises(TypeError, "s.e = '2'")
+        py.test.raises(TypeError, "s.e = '#2'")
+        py.test.raises(TypeError, "s.e = '#7'")
 
     def test_enum_non_contiguous(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("enum foo { A, B=42, C };")
-        assert int(ffi.cast("enum foo", "A")) == 0
-        assert int(ffi.cast("enum foo", "B")) == 42
-        assert int(ffi.cast("enum foo", "C")) == 43
         assert ffi.string(ffi.cast("enum foo", 0)) == "A"
         assert ffi.string(ffi.cast("enum foo", 42)) == "B"
         assert ffi.string(ffi.cast("enum foo", 43)) == "C"
         invalid_value = ffi.cast("enum foo", 2)
         assert int(invalid_value) == 2
-        assert ffi.string(invalid_value) == "#2"
+        assert ffi.string(invalid_value) == "2"
 
     def test_array_of_struct(self):
         ffi = FFI(backend=self.Backend())
@@ -1301,7 +1302,7 @@ class BackendTests:
     def test_enum_with_non_injective_mapping(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("enum e { AA=0, BB=0, CC=0, DD=0 };")
-        e = ffi.cast("enum e", 'CC')
+        e = ffi.cast("enum e", 0)
         assert ffi.string(e) == "AA"     # pick the first one arbitrarily
 
     def test_nested_anonymous_struct(self):

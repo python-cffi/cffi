@@ -926,49 +926,43 @@ class CTypesBackend(object):
 
     def new_enum_type(self, name, enumerators, enumvalues):
         assert isinstance(name, str)
-        mapping = dict(zip(enumerators, enumvalues))
         reverse_mapping = dict(zip(reversed(enumvalues),
                                    reversed(enumerators)))
-        CTypesInt = self.ffi._get_cached_btype(model.PrimitiveType('int'))
-        #
-        def forward_map(source):
-            if not isinstance(source, str):
-                return source
-            try:
-                return mapping[source]
-            except KeyError:
-                if source.startswith('#'):
-                    try:
-                        return int(source[1:])
-                    except ValueError:
-                        pass
-            raise ValueError("%r is not an enumerator for %r" % (
-                source, CTypesEnum))
+        smallest = min(enumvalues or [0])
+        largest = max(enumvalues or [0])
+        if smallest < 0:
+            if largest == ctypes.c_int(largest).value:
+                tp = 'int'
+            elif largest == ctypes.c_long(largest).value:
+                tp = 'long'
+            else:
+                raise OverflowError
+        else:
+            if largest == ctypes.c_uint(largest).value:
+                tp = 'unsigned int'
+            elif largest == ctypes.c_ulong(largest).value:
+                tp = 'unsigned long'
+            else:
+                raise OverflowError
+        CTypesInt = self.ffi._get_cached_btype(model.PrimitiveType(tp))
         #
         class CTypesEnum(CTypesInt):
             __slots__ = []
             _reftypename = 'enum %s &' % name
 
+            def _get_own_repr(self):
+                value = self._value
+                try:
+                    return '%d: %s' % (value, reverse_mapping[value])
+                except KeyError:
+                    return str(value)
+
             def _to_string(self, maxlen):
-                return str(CTypesEnum._from_ctypes(self._value))
-
-            @classmethod
-            def _cast_from(cls, source):
-                source = forward_map(source)
-                return super(CTypesEnum, cls)._cast_from(source)
-
-            @staticmethod
-            def _to_ctypes(x):
-                x = forward_map(x)
-                return CTypesInt._to_ctypes(x)
-
-            @staticmethod
-            def _from_ctypes(value):
-                value = CTypesInt._from_ctypes(value)
+                value = self._value
                 try:
                     return reverse_mapping[value]
                 except KeyError:
-                    return '#%s' % value
+                    return str(value)
         #
         CTypesEnum._fix_class()
         return CTypesEnum
