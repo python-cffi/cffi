@@ -873,6 +873,8 @@ class BackendTests:
         assert ffi.cast("enum foo", 0) != ffi.cast("enum bar", 0)
         assert ffi.cast("enum bar", 0) != ffi.cast("int", 0)
         assert repr(ffi.cast("enum bar", -1)) == "<cdata 'enum bar' -1: CC>"
+        assert repr(ffi.cast("enum foo", -1)) == (  # enums are unsigned, if
+            "<cdata 'enum foo' 4294967295>")        # they contain no neg value
         ffi.cdef("enum baz { A=0x1000, B=0x2000 };")
         assert ffi.string(ffi.cast("enum baz", 0x1000)) == "A"
         assert ffi.string(ffi.cast("enum baz", 0x2000)) == "B"
@@ -890,10 +892,11 @@ class BackendTests:
         assert s.e == 2
         assert s[0].e == 2
         s.e = ffi.cast("enum foo", -1)
-        assert s.e == -1
-        assert s[0].e == -1
+        assert s.e == 4294967295
+        assert s[0].e == 4294967295
         s.e = s.e
         py.test.raises(TypeError, "s.e = 'B'")
+        py.test.raises(TypeError, "s.e = '2'")
         py.test.raises(TypeError, "s.e = '#2'")
         py.test.raises(TypeError, "s.e = '#7'")
 
