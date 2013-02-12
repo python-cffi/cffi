@@ -1347,9 +1347,10 @@ a pointer inside the Python string object.
    functions like ``long double add(long double a, long double b);``.
 
 .. versionchanged:: 0.6
-   `(*****)` Enums are now handled like ints.  In previous versions,
-   you would get the enum's value as a string.  Now we follow the C
-   convention and treat them as really equivalent to ints.  To compare
+   `(*****)` Enums are now handled like ints (unsigned or signed, int or
+   long, like GCC; note that the first choice is unsigned).  In previous
+   versions, you would get the enum's value as a string.  Now we follow the C
+   convention and treat them as really equivalent to integers.  To compare
    their value symbolically, use code like ``if x.field == lib.FOO``.
    If you really want to get their value as a string, use
    ``ffi.string(ffi.cast("the_enum_type", x.field))``.
