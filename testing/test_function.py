@@ -276,6 +276,9 @@ class TestFunction(object):
     def test_function_with_struct_argument(self):
         if sys.platform == 'win32':
             py.test.skip("no 'inet_ntoa'")
+        if (self.Backend is CTypesBackend and
+            '__pypy__' in sys.builtin_module_names):
+            py.test.skip("ctypes limitation on pypy")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             struct in_addr { unsigned int s_addr; };
