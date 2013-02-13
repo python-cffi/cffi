@@ -4,7 +4,7 @@ def _setup_path():
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 _setup_path()
 from _cffi_backend import *
-from _cffi_backend import _testfunc, _get_types
+from _cffi_backend import _testfunc, _get_types, __version__
 
 # ____________________________________________________________
 
@@ -2736,3 +2736,7 @@ def test_setslice_array():
     d = newp(BShortArray, [40, 50])
     c[1:3] = d
     assert list(c) == [0, 40, 50, 30, 0]
+
+def test_version():
+    # this test is here mostly for PyPy
+    assert __version__ == "0.6"

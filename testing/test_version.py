@@ -35,3 +35,10 @@ def test_setup_version():
     #
     v = cffi.__version__
     assert ("version='%s'" % v) in content
+
+def test_c_version():
+    parent = os.path.dirname(os.path.dirname(__file__))
+    v = cffi.__version__
+    p = os.path.join(parent, 'c', 'test_c.py')
+    content = open(p).read()
+    assert ('assert __version__ == "%s"' % v) in content
