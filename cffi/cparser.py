@@ -102,7 +102,6 @@ class Parser(object):
         # typedefs, because their presence or absence influences the
         # parsing itself (but what they are typedef'ed to plays no role)
         ctn = _common_type_names(csource)
-        print `csource`, ctn
         typenames = []
         for name in sorted(self._declarations):
             if name.startswith('typedef '):
