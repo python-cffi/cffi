@@ -2683,6 +2683,8 @@ def test_slice_array_checkbounds():
     BIntP = new_pointer_type(new_primitive_type("int"))
     BIntArray = new_array_type(BIntP, None)
     c = newp(BIntArray, 5)
+    c[0:5]
+    assert len(c[5:5]) == 0
     py.test.raises(IndexError, "c[-1:1]")
     cp = c + 0
     cp[-1:1]
@@ -2702,7 +2704,7 @@ def test_nonstandard_slice():
     e = py.test.raises(IndexError, "c[4:2]")
     assert str(e.value) == "slice start > stop"
     e = py.test.raises(IndexError, "c[6:6]")
-    assert str(e.value) == "index too large (expected 6 < 5)"
+    assert str(e.value) == "index too large (expected 6 <= 5)"
 
 def test_setslice():
     BIntP = new_pointer_type(new_primitive_type("int"))

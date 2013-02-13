@@ -1730,9 +1730,9 @@ _cdata_getslicearg(CDataObject *cd, PySliceObject *slice, Py_ssize_t bounds[])
                             "negative index not supported");
             return NULL;
         }
-        if (stop >= get_array_length(cd)) {
+        if (stop > get_array_length(cd)) {
             PyErr_Format(PyExc_IndexError,
-                         "index too large (expected %zd < %zd)",
+                         "index too large (expected %zd <= %zd)",
                          stop, get_array_length(cd));
             return NULL;
         }
