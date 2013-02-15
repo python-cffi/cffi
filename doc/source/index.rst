@@ -1368,6 +1368,9 @@ a pointer inside the Python string object.
    As with indexing, negative bounds mean really negative indices, like in
    C.  As for slice assignment, it accepts any iterable, including a list
    of items or another array-like cdata object, but the length must match.
+   (Note that this behavior differs from initialization: e.g. if you pass
+   a string when assigning to a slice of a ``char`` array, it must be of
+   the correct length; no implicit null character is added.)
 
 .. versionchanged:: 0.6
    `(*****)` Enums are now handled like ints (unsigned or signed, int or
