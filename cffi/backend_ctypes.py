@@ -924,27 +924,10 @@ class CTypesBackend(object):
         CTypesFunctionPtr._fix_class()
         return CTypesFunctionPtr
 
-    def new_enum_type(self, name, enumerators, enumvalues):
+    def new_enum_type(self, name, enumerators, enumvalues, CTypesInt):
         assert isinstance(name, str)
         reverse_mapping = dict(zip(reversed(enumvalues),
                                    reversed(enumerators)))
-        smallest = min(enumvalues or [0])
-        largest = max(enumvalues or [0])
-        if smallest < 0:
-            if largest == ctypes.c_int(largest).value:
-                tp = 'int'
-            elif largest == ctypes.c_long(largest).value:
-                tp = 'long'
-            else:
-                raise OverflowError
-        else:
-            if largest == ctypes.c_uint(largest).value:
-                tp = 'unsigned int'
-            elif largest == ctypes.c_ulong(largest).value:
-                tp = 'unsigned long'
-            else:
-                raise OverflowError
-        CTypesInt = self.ffi._get_cached_btype(model.PrimitiveType(tp))
         #
         class CTypesEnum(CTypesInt):
             __slots__ = []

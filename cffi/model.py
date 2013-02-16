@@ -356,10 +356,11 @@ class EnumType(StructOrUnionOrEnum):
     partial = False
     partial_resolved = False
 
-    def __init__(self, name, enumerators, enumvalues):
+    def __init__(self, name, enumerators, enumvalues, baseinttype=None):
         self.name = name
         self.enumerators = enumerators
         self.enumvalues = enumvalues
+        self.baseinttype = baseinttype
 
     def check_not_partial(self):
         if self.partial and not self.partial_resolved:
@@ -368,9 +369,41 @@ class EnumType(StructOrUnionOrEnum):
 
     def build_backend_type(self, ffi, finishlist):
         self.check_not_partial()
+        base_btype = self.build_baseinttype(ffi, finishlist)
         return global_cache(self, ffi, 'new_enum_type', self.name,
-                            self.enumerators, self.enumvalues, key=self)
+                            self.enumerators, self.enumvalues,
+                            base_btype, key=self)
 
+    def build_baseinttype(self, ffi, finishlist):
+        if self.baseinttype is not None:
+            return self.baseinttype.get_cached_btype(ffi, finishlist)
+        #
+        if self.enumvalues:
+            smallest_value = min(self.enumvalues)
+            largest_value = max(self.enumvalues)
+        else:
+            smallest_value = 0
+            largest_value = 0
+        if smallest_value < 0:   # needs a signed type
+            sign = 1
+            candidate1 = PrimitiveType("int")
+            candidate2 = PrimitiveType("long")
+        else:
+            sign = 0
+            candidate1 = PrimitiveType("unsigned int")
+            candidate2 = PrimitiveType("unsigned long")
+        btype1 = candidate1.get_cached_btype(ffi, finishlist)
+        btype2 = candidate2.get_cached_btype(ffi, finishlist)
+        size1 = ffi.sizeof(btype1)
+        size2 = ffi.sizeof(btype2)
+        if (smallest_value >= ((-1) << (8*size1-1)) and
+            largest_value < (1 << (8*size1-sign))):
+            return btype1
+        if (smallest_value >= ((-1) << (8*size2-1)) and
+            largest_value < (1 << (8*size2-sign))):
+            return btype2
+        raise api.CDefError("%s values don't all fit into either 'long' "
+                            "or 'unsigned long'" % self._get_c_name(''))
 
 def unknown_type(name, structname=None):
     if structname is None:

@@ -1442,6 +1442,35 @@ def test_include_enum():
     res = lib2.myfunc(lib2.AA)
     assert res == 2
 
+def test_enum_size():
+    cases = [('123',           4, 4294967295),
+             ('4294967295U',   4, 4294967295),
+             ('-123',          4, -1),
+             ('-2147483647-1', 4, -1),
+             ]
+    if FFI().sizeof("long") == 8:
+        cases += [('4294967296L',        8, 2**64-1),
+                  ('%dUL' % (2**64-1),   8, 2**64-1),
+                  ('-2147483649L',       8, -1),
+                  ('%dL-1L' % (1-2**63), 8, -1)]
+    for hidden_value, expected_size, expected_minus1 in cases:
+        ffi = FFI()
+        ffi.cdef("enum foo_e { AA, BB, ... };")
+        lib = ffi.verify("enum foo_e { AA, BB=%s };" % hidden_value)
+        assert lib.AA == 0
+        assert lib.BB == eval(hidden_value.replace('U', '').replace('L', ''))
+        assert ffi.sizeof("enum foo_e") == expected_size
+        assert int(ffi.cast("enum foo_e", -1)) == expected_minus1
+    # test with the large value hidden:
+    # disabled so far, doesn't work
+##    for hidden_value, expected_size, expected_minus1 in cases:
+##        ffi = FFI()
+##        ffi.cdef("enum foo_e { AA, BB, ... };")
+##        lib = ffi.verify("enum foo_e { AA, BB=%s };" % hidden_value)
+##        assert lib.AA == 0
+##        assert ffi.sizeof("enum foo_e") == expected_size
+##        assert int(ffi.cast("enum foo_e", -1)) == expected_minus1
+
 def test_string_to_voidp_arg():
     ffi = FFI()
     ffi.cdef("int myfunc(void *);")

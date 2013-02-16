@@ -1216,7 +1216,10 @@ Known missing features that are GCC or MSVC extensions:
    Enum types follow the GCC rules: they are defined as the first of
    ``unsigned int``, ``int``, ``unsigned long`` or ``long`` that fits
    all numeric values.  Note that the first choice is unsigned.  In CFFI
-   0.5 and before, it was always ``int``.
+   0.5 and before, it was always ``int``.  *Unimplemented: if the very
+   large values are not declared, the enum size will be incorrectly
+   deduced!  Work around this by making sure that you name the largest
+   value and/or any negative value in the cdef.*
 
 
 Debugging dlopen'ed C libraries

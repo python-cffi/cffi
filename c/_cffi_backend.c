@@ -4253,26 +4253,27 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
     char *ename;
     PyObject *enumerators, *enumvalues;
     PyObject *dict1 = NULL, *dict2 = NULL, *combined = NULL, *tmpkey = NULL;
-    ffi_type *ffitype;
     int name_size;
-    CTypeDescrObject *td;
+    CTypeDescrObject *td, *basetd;
     Py_ssize_t i, n;
-    struct aligncheck_int { char x; int y; };
-    struct aligncheck_long { char x; long y; };
-    long smallest_item = 0;
-    unsigned long largest_item = 0;
-    int size, flags;
 
-    if (!PyArg_ParseTuple(args, "sO!O!:new_enum_type",
+    if (!PyArg_ParseTuple(args, "sO!O!O!:new_enum_type",
                           &ename,
                           &PyTuple_Type, &enumerators,
-                          &PyTuple_Type, &enumvalues))
+                          &PyTuple_Type, &enumvalues,
+                          &CTypeDescr_Type, &basetd))
         return NULL;
 
     n = PyTuple_GET_SIZE(enumerators);
     if (n != PyTuple_GET_SIZE(enumvalues)) {
         PyErr_SetString(PyExc_ValueError,
                         "tuple args must have the same size");
+        return NULL;
+    }
+
+    if (!(basetd->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED))) {
+        PyErr_SetString(PyExc_TypeError,
+                        "expected a primitive signed or unsigned base type");
         return NULL;
     }
 
@@ -4284,8 +4285,7 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
         goto error;
 
     for (i=n; --i >= 0; ) {
-        long lvalue;
-        unsigned long ulvalue;
+        long long lvalue;
         PyObject *value = PyTuple_GET_ITEM(enumvalues, i);
         tmpkey = PyTuple_GET_ITEM(enumerators, i);
         Py_INCREF(tmpkey);
@@ -4308,63 +4308,14 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
                 goto error;
             }
         }
-        lvalue = PyLong_AsLong(value);
-        if (PyErr_Occurred()) {
-            PyErr_Clear();
-            ulvalue = PyLong_AsUnsignedLong(value);
-            if (PyErr_Occurred()) {
-                PyErr_Format(PyExc_OverflowError,
-                             "enum '%s' declaration for '%s' does not fit "
-                             "a long or unsigned long",
-                             ename, PyText_AS_UTF8(tmpkey));
-                goto error;
-            }
-            if (ulvalue > largest_item)
-                largest_item = ulvalue;
-        }
-        else {
-            if (lvalue < 0) {
-                if (lvalue < smallest_item)
-                    smallest_item = lvalue;
-            }
-            else {
-                ulvalue = (unsigned long)lvalue;
-                if (ulvalue > largest_item)
-                    largest_item = ulvalue;
-            }
-        }
+        if (convert_from_object((char*)&lvalue, basetd, value) < 0)
+            goto error;     /* out-of-range or badly typed 'value' */
         if (PyDict_SetItem(dict1, tmpkey, value) < 0)
             goto error;
         if (PyDict_SetItem(dict2, value, tmpkey) < 0)
             goto error;
         Py_DECREF(tmpkey);
         tmpkey = NULL;
-    }
-
-    if (smallest_item < 0) {
-        flags = CT_PRIMITIVE_SIGNED | CT_PRIMITIVE_FITS_LONG | CT_IS_ENUM;
-        if (smallest_item == (int)smallest_item &&
-                 largest_item <= (unsigned long)INT_MAX) {
-            size = sizeof(int);
-        }
-        else if (largest_item <= (unsigned long)LONG_MAX) {
-            size = sizeof(long);
-        }
-        else {
-            PyErr_Format(PyExc_OverflowError,
-                         "enum '%s' values don't all fit into either 'long' "
-                         "or 'unsigned long'", ename);
-            goto error;
-        }
-    }
-    else if (sizeof(unsigned int) < sizeof(unsigned long) &&
-             largest_item == (unsigned int)largest_item) {
-        flags = CT_PRIMITIVE_UNSIGNED | CT_PRIMITIVE_FITS_LONG | CT_IS_ENUM;
-        size = sizeof(unsigned int);
-    }
-    else {
-        flags = CT_PRIMITIVE_UNSIGNED | CT_IS_ENUM;
-        size = sizeof(unsigned long);
     }
 
     combined = PyTuple_Pack(2, dict1, dict2);
@@ -4374,12 +4325,6 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
     Py_CLEAR(dict2);
     Py_CLEAR(dict1);
 
-    switch (size) {
-    case 4: ffitype = &ffi_type_sint32; break;
-    case 8: ffitype = &ffi_type_sint64; break;
-    default: Py_FatalError("'int' or 'long' is not 4 or 8 bytes"); return NULL;
-    }
-
     name_size = strlen("enum ") + strlen(ename) + 1;
     td = ctypedescr_new(name_size);
     if (td == NULL)
@@ -4388,11 +4333,10 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
     memcpy(td->ct_name, "enum ", strlen("enum "));
     memcpy(td->ct_name + strlen("enum "), ename, name_size - strlen("enum "));
     td->ct_stuff = combined;
-    td->ct_size = size;
-    td->ct_length = size == sizeof(int) ? offsetof(struct aligncheck_int, y)
-                                        : offsetof(struct aligncheck_long, y);
-    td->ct_extra = ffitype;
-    td->ct_flags = flags;
+    td->ct_size = basetd->ct_size;
+    td->ct_length = basetd->ct_length;   /* alignment */
+    td->ct_extra = basetd->ct_extra;     /* ffi type  */
+    td->ct_flags = basetd->ct_flags | CT_IS_ENUM;
     td->ct_name_position = name_size - 1;
     return (PyObject *)td;
 
