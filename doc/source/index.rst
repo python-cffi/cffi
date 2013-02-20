@@ -1050,7 +1050,13 @@ enum types defined in another FFI instance.  Usage is similar to a
 defined in another part for its own usage.  Note that the include()
 method has no effect on functions, constants and global variables, which
 must anyway be accessed directly from the ``lib`` object returned by the
-original FFI instance.  *New in version 0.5.*
+original FFI instance.  *Note that you should only use one ffi object
+per library; the intended usage of ffi.include() is if you want to
+interface with several inter-dependent libraries.*  For only one
+library, make one ``ffi`` object.  (If the source becomes too large,
+split it up e.g. by collecting the cdef/verify strings from multiple
+Python modules, as long as you call ``ffi.verify()`` only once.)  *New
+in version 0.5.*
 
 .. "versionadded:: 0.5" --- inlined in the previous paragraph
 
@@ -1216,10 +1222,11 @@ Known missing features that are GCC or MSVC extensions:
    Enum types follow the GCC rules: they are defined as the first of
    ``unsigned int``, ``int``, ``unsigned long`` or ``long`` that fits
    all numeric values.  Note that the first choice is unsigned.  In CFFI
-   0.5 and before, it was always ``int``.  *Unimplemented: if the very
-   large values are not declared, the enum size will be incorrectly
-   deduced!  Work around this by making sure that you name the largest
-   value and/or any negative value in the cdef.*
+   0.5 and before, enums were always ``int``.  *Unimplemented: if the enum
+   has very large values in C not declared in CFFI, the enum will incorrectly
+   be considered as an int even though it is really a long!  Work around
+   this by naming the largest value.  A similar but less important problem
+   involves negative values.*
 
 
 Debugging dlopen'ed C libraries
