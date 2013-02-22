@@ -345,17 +345,17 @@ def _make_ffi_library(ffi, libname, flags):
     name = libname
     if name is None:
         name = 'c'    # on Posix only
-    if os.path.sep in name or (
-            os.path.altsep is not None and os.path.altsep in name):
-        path = name
-    else:
+    backend = ffi._backend
+    try:
+        if '.' not in name and '/' not in name:
+            raise OSError
+        backendlib = backend.load_library(name, flags)
+    except OSError:
         import ctypes.util
         path = ctypes.util.find_library(name)
         if path is None:
             raise OSError("library not found: %r" % (name,))
-    #
-    backend = ffi._backend
-    backendlib = backend.load_library(path, flags)
+        backendlib = backend.load_library(path, flags)
     #
     def make_accessor(name):
         key = 'function ' + name

@@ -69,6 +69,17 @@ class TestFunction(object):
         x = m.sin(1.23)
         assert x is None
 
+    def test_dlopen_filename(self):
+        if not os.path.exists('/ib/libm.so.6'):
+            py.test.skip("/lib/libm.so.6 does not exist")
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            double cos(double x);
+        """)
+        m = ffi.dlopen("/lib/libm.so.6")
+        x = m.cos(1.23)
+        assert x == math.cos(1.23)
+
     def test_dlopen_flags(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""

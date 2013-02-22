@@ -439,9 +439,9 @@ the functions from the correct one.
 
 The ``libpath`` is the file name of the shared library, which can
 contain a full path or not (in which case it is searched in standard
-locations, as described in ``man dlopen``).  Alternatively, if
-``libpath`` is None, it returns the standard C library (which can be
-used to access the functions of glibc, on Linux).
+locations, as described in ``man dlopen``), with extensions or not.
+Alternatively, if ``libpath`` is None, it returns the standard C library
+(which can be used to access the functions of glibc, on Linux).
 
 This gives ABI-level access to the library: you need to have all types
 declared manually exactly as they were while the library was made.  No
