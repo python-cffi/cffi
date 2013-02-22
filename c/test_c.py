@@ -1,6 +1,9 @@
 import py
 def _setup_path():
     import os, sys
+    if '__pypy__' in sys.builtin_module_names:
+        py.test.skip("_cffi_backend.c: not tested on top of pypy, "
+                     "use pypy/module/_cffi_backend/test/ instead.")
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 _setup_path()
 from _cffi_backend import *
