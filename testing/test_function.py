@@ -1,6 +1,7 @@
 import py
 from cffi import FFI
 import math, os, sys
+import ctypes.util
 from cffi.backend_ctypes import CTypesBackend
 from testing.udir import udir
 
@@ -70,13 +71,18 @@ class TestFunction(object):
         assert x is None
 
     def test_dlopen_filename(self):
-        if not os.path.exists('/ib/libm.so.6'):
-            py.test.skip("/lib/libm.so.6 does not exist")
+        path = ctypes.util.find_library("m")
+        if not path:
+            py.test.skip("libm not found")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             double cos(double x);
         """)
-        m = ffi.dlopen("/lib/libm.so.6")
+        m = ffi.dlopen(path)
+        x = m.cos(1.23)
+        assert x == math.cos(1.23)
+
+        m = ffi.dlopen(os.path.basename(path))
         x = m.cos(1.23)
         assert x == math.cos(1.23)
 
