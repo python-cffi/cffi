@@ -73,9 +73,9 @@ class Verifier(object):
         # kill both the .so extension and the other .'s, as introduced
         # by Python 3: 'basename.cpython-33m.so'
         basename = basename.split('.', 1)[0]
-        # kill the _d added in Python 2 debug builds
+        # and the _d added in Python 2 debug builds
         if basename.endswith('_d'):
-            basename = basename.rsplit('_', 1)[0]
+            basename = basename[:-2]
         return basename
 
     def get_extension(self):
