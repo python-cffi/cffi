@@ -716,7 +716,7 @@ gives you a fresh cdata object.  Unlike the "original" one, these fresh
 cdata objects don't have ownership: they are merely references to
 existing memory.
 
-As an exception the above rule, dereferencing a pointer that owns a
+As an exception to the above rule, dereferencing a pointer that owns a
 *struct* or *union* object returns a cdata struct or union object
 that "co-owns" the same memory.  Thus in this case there are two
 objects that can keep the same memory alive.  This is done for cases where
