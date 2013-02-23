@@ -1144,7 +1144,7 @@ e.g.::
    a number of attributes for introspection: ``kind`` and ``cname`` are
    always present, and depending on the kind they may also have
    ``item``, ``length``, ``fields``, ``args``, ``result``, ``ellipsis``,
-   ``abi`` and ``elements``.
+   ``abi``, ``elements`` and ``relements``.
 
 ``ffi.sizeof("C type" or cdata object)``: return the size of the
 argument in bytes.  The argument can be either a C type, or a cdata object,
