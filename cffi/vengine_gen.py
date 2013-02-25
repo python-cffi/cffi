@@ -1,4 +1,6 @@
-import sys, os, binascii, imp, shutil
+import sys
+import types
+
 from . import model, ffiplatform
 
 
@@ -54,12 +56,12 @@ class VGenericEngine(object):
         # call loading_gen_struct() to get the struct layout inferred by
         # the C compiler
         self._load(module, 'loading')
-        #
+
         # build the FFILibrary class and instance
-        class FFILibrary(object):
+        class FFILibrary(types.ModuleType):
             _cffi_generic_module = module
             _cffi_ffi = self.ffi
-        library = FFILibrary()
+        library = FFILibrary("")
         #
         # finally, call the loaded_gen_xxx() functions.  This will set
         # up the 'library' object.
