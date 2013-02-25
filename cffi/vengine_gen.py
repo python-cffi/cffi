@@ -57,7 +57,10 @@ class VGenericEngine(object):
         # the C compiler
         self._load(module, 'loading')
 
-        # build the FFILibrary class and instance
+        # build the FFILibrary class and instance, this is a module subclass
+        # because modules are expected to have usually-constant-attributes and
+        # in PyPy this means the JIT is able to treat attributes as constant,
+        # which we want.
         class FFILibrary(types.ModuleType):
             _cffi_generic_module = module
             _cffi_ffi = self.ffi
