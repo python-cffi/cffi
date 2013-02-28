@@ -72,7 +72,11 @@ class Verifier(object):
         basename = os.path.basename(self.modulefilename)
         # kill both the .so extension and the other .'s, as introduced
         # by Python 3: 'basename.cpython-33m.so'
-        return basename.split('.', 1)[0]
+        basename = basename.split('.', 1)[0]
+        # and the _d added in Python 2 debug builds
+        if basename.endswith('_d'):
+            basename = basename[:-2]
+        return basename
 
     def get_extension(self):
         if not self._has_source:
