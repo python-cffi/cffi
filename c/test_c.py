@@ -399,6 +399,19 @@ def test_cmp_none():
     assert (x == ["hello"]) is False
     assert (x != ["hello"]) is True
 
+def test_cmp_pointer_with_0():
+    p = new_pointer_type(new_primitive_type("int"))
+    x = cast(p, 0)
+    assert (x == 0) is True
+    assert (x != 0) is False
+    assert (0 == x) is True
+    assert (0 != x) is False
+    y = cast(p, 42)
+    assert (y == 0) is False
+    assert (y != 0) is True
+    assert (0 == y) is False
+    assert (0 != y) is True
+
 def test_invalid_indexing():
     p = new_primitive_type("int")
     x = cast(p, 42)
@@ -777,6 +790,7 @@ def test_struct_init_list():
     assert s.a2 == 456
     assert s.a3 == 0
     assert s.p4 == cast(BVoidP, 0)
+    assert s.p4 == 0
     #
     s = newp(BStructPtr, {'a2': 41122, 'a3': -123})
     assert s.a1 == 0
@@ -791,6 +805,9 @@ def test_struct_init_list():
     assert s.p4 == p
     #
     s = newp(BStructPtr, [12, 34, 56, cast(BVoidP, 0)])
+    assert s.p4 == 0
+    #
+    s = newp(BStructPtr, [12, 34, 56, 0])
     assert s.p4 == cast(BVoidP, 0)
     #
     py.test.raises(TypeError, newp, BStructPtr, [12, 34, 56, None])
@@ -1009,8 +1026,12 @@ def test_call_function_23():
     f = cast(BFunc23, _testfunc(23))
     res = f(b"foo")
     assert res == 1000 * ord(b'f')
-    res = f(None)
+    res = f(0)          # NULL
     assert res == -42
+    res = f(long(0))    # NULL
+    assert res == -42
+    py.test.raises(TypeError, f, None)
+    py.test.raises(TypeError, f, 0.0)
 
 def test_call_function_23_bis():
     # declaring the function as int(unsigned char*)
