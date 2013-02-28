@@ -1563,7 +1563,7 @@ def test_passing_None():
             return (x == NULL);
         }
     """)
-    assert lib.seeme1("foo") == 0
+    assert lib.seeme1(b"foo") == 0
     assert lib.seeme1(None) == 1
     assert lib.seeme2([42, 43]) == 0
     assert lib.seeme2(None) == 1

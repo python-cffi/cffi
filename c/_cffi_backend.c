@@ -54,6 +54,7 @@
 #if PY_MAJOR_VERSION >= 3
 # define PyInt_FromLong PyLong_FromLong
 # define PyInt_FromSsize_t PyLong_FromSsize_t
+# define PyInt_AsSsize_t PyLong_AsSsize_t
 #endif
 
 #if PY_MAJOR_VERSION >= 3

@@ -210,11 +210,12 @@ def test_unknown_name():
     assert str(e.value).startswith('cannot parse "int(*)(foobarbazunknown)"')
 
 def test_redefine_common_type():
+    prefix = "" if sys.version_info < (3,) else "b"
     ffi = FFI()
     ffi.cdef("typedef char FILE;")
-    assert repr(ffi.cast("FILE", 123)) == "<cdata 'char' '{'>"
+    assert repr(ffi.cast("FILE", 123)) == "<cdata 'char' %s'{'>" % prefix
     ffi.cdef("typedef char int32_t;")
-    assert repr(ffi.cast("int32_t", 123)) == "<cdata 'char' '{'>"
+    assert repr(ffi.cast("int32_t", 123)) == "<cdata 'char' %s'{'>" % prefix
 
 def test_bool():
     ffi = FFI()
