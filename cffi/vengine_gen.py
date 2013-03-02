@@ -222,12 +222,10 @@ class VGenericEngine(object):
                 # accept all integers, but complain on float or double
                 prnt('  (void)((p->%s) << 1);' % fname)
             else:
-                # only accept exactly the type declared.  Note the parentheses
-                # around the '*tmp' below.  In most cases they are not needed
-                # but don't hurt --- except test_struct_array_field.
+                # only accept exactly the type declared.
                 try:
                     prnt('  { %s = &p->%s; (void)tmp; }' % (
-                        ftype.get_c_name('(*tmp)', 'field %r'%fname), fname))
+                        ftype.get_c_name('*tmp', 'field %r'%fname), fname))
                 except ffiplatform.VerificationError as e:
                     prnt('  /* %s */' % str(e))   # cannot verify it, ignore
         prnt('}')

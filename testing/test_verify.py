@@ -498,6 +498,14 @@ def test_struct_array_guess_length_3():
     s = ffi.new("struct foo_s *")
     assert ffi.sizeof(s.a) == 17 * ffi.sizeof('int')
 
+def test_struct_ptr_to_array_field():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int (*a)[17]; ...; };")
+    ffi.verify("struct foo_s { int x; int (*a)[17]; int y; };")
+    assert ffi.sizeof('struct foo_s') == 2 * ffi.sizeof('int') + ffi.sizeof('int(*)[17]')
+    s = ffi.new("struct foo_s *")
+    assert ffi.sizeof(s.a) == ffi.sizeof('int(*)[17]')
+
 def test_struct_with_bitfield_exact():
     ffi = FFI()
     ffi.cdef("struct foo_s { int a:2, b:3; };")

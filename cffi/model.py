@@ -212,7 +212,7 @@ class ArrayType(BaseType):
             brackets = '[]'
         else:
             brackets = '[%d]' % self.length
-        return self.item._get_c_name(replace_with + brackets)
+        return self.item._get_c_name('(%s)%s' % (replace_with, brackets))
 
     def build_backend_type(self, ffi, finishlist):
         self.item.get_cached_btype(ffi, finishlist)   # force the item BType
