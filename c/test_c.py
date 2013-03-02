@@ -803,6 +803,8 @@ def test_struct_init_list():
     p = newp(BIntPtr, 14141)
     s = newp(BStructPtr, [12, 34, 56, p])
     assert s.p4 == p
+    s.p4 = 0
+    assert s.p4 == 0
     #
     s = newp(BStructPtr, [12, 34, 56, cast(BVoidP, 0)])
     assert s.p4 == 0
