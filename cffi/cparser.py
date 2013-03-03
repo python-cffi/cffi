@@ -421,7 +421,8 @@ class Parser(object):
                 raise NotImplementedError(
                     "enum %s: the '{}' declaration should appear on the first "
                     "time the enum is mentioned, not later" % explicit_name)
-        tp.forcename = tp.forcename or force_name
+        if not tp.forcename:
+            tp.force_the_name(force_name)
         if tp.forcename and '$' in tp.name:
             self._declare('anonymous %s' % tp.forcename, tp)
         #

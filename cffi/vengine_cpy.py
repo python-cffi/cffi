@@ -265,7 +265,7 @@ class VCPythonEngine(object):
         elif isinstance(tp, model.StructType):
             if tp.fldnames is None:
                 raise TypeError("'%s' is used as %s, but is opaque" % (
-                    tp._get_c_name(''), context))
+                    tp._get_c_name(), context))
             return '_cffi_from_c_struct((char *)&%s, _cffi_type(%d))' % (
                 var, self._gettypenum(tp))
         elif isinstance(tp, model.EnumType):

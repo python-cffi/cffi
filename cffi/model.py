@@ -1,18 +1,31 @@
 import weakref
 
 class BaseTypeByIdentity(object):
+    is_array_type = False
 
     def get_c_name(self, replace_with='', context='a C file'):
-        result = self._get_c_name(replace_with)
+        result = self.c_name_with_marker
+        assert result.count('&') == 1
+        # some logic duplication with ffi.getctype()... :-(
+        replace_with = replace_with.strip()
+        if replace_with:
+            if replace_with.startswith('*') and '&[' in result:
+                replace_with = '(%s)' % replace_with
+            elif not replace_with[0] in '[(':
+                replace_with = ' ' + replace_with
+        result = result.replace('&', replace_with)
         if '$' in result:
             from .ffiplatform import VerificationError
             raise VerificationError(
                 "cannot generate '%s' in %s: unknown type name"
-                % (self._get_c_name(''), context))
+                % (self._get_c_name(), context))
         return result
 
+    def _get_c_name(self):
+        return self.c_name_with_marker.replace('&', '')
+
     def has_c_name(self):
-        return '$' not in self._get_c_name('')
+        return '$' not in self._get_c_name()
 
     def get_cached_btype(self, ffi, finishlist, can_delay=False):
         try:
@@ -24,7 +37,7 @@ class BaseTypeByIdentity(object):
         return BType
 
     def __repr__(self):
-        return '<%s>' % (self._get_c_name(''),)
+        return '<%s>' % (self._get_c_name(),)
 
     def _get_items(self):
         return [(name, getattr(self, name)) for name in self._attrs_]
@@ -46,8 +59,8 @@ class BaseType(BaseTypeByIdentity):
 class VoidType(BaseType):
     _attrs_ = ()
 
-    def _get_c_name(self, replace_with):
-        return 'void' + replace_with
+    def __init__(self):
+        self.c_name_with_marker = 'void&'
 
     def build_backend_type(self, ffi, finishlist):
         return global_cache(self, ffi, 'new_void_type')
@@ -94,9 +107,7 @@ class PrimitiveType(BaseType):
     def __init__(self, name):
         assert name in self.ALL_PRIMITIVE_TYPES
         self.name = name
-
-    def _get_c_name(self, replace_with):
-        return self.name + replace_with
+        self.c_name_with_marker = name + '&'
 
     def is_char_type(self):
         return self.ALL_PRIMITIVE_TYPES[self.name] == 'c'
@@ -120,20 +131,21 @@ class BaseFunctionType(BaseType):
         self.args = args
         self.result = result
         self.ellipsis = ellipsis
-
-    def _get_c_name(self, replace_with):
-        reprargs = [arg._get_c_name('') for arg in self.args]
+        #
+        reprargs = [arg._get_c_name() for arg in self.args]
         if self.ellipsis:
             reprargs.append('...')
         reprargs = reprargs or ['void']
-        replace_with = '(%s)(%s)' % (replace_with, ', '.join(reprargs))
-        return self.result._get_c_name(replace_with)
+        replace_with = self._base_pattern % (', '.join(reprargs),)
+        self.c_name_with_marker = (
+            self.result.c_name_with_marker.replace('&', replace_with))
 
 
 class RawFunctionType(BaseFunctionType):
     # Corresponds to a C type like 'int(int)', which is the C type of
     # a function, but not a pointer-to-function.  The backend has no
     # notion of such a type; it's used temporarily by parsing.
+    _base_pattern = '(&)(%s)'
 
     def build_backend_type(self, ffi, finishlist):
         from . import api
@@ -145,9 +157,7 @@ class RawFunctionType(BaseFunctionType):
 
 
 class FunctionPtrType(BaseFunctionType):
-
-    def _get_c_name(self, replace_with):
-        return BaseFunctionType._get_c_name(self, '*'+replace_with)
+    _base_pattern = '(*&)(%s)'
 
     def build_backend_type(self, ffi, finishlist):
         result = self.result.get_cached_btype(ffi, finishlist)
@@ -160,12 +170,16 @@ class FunctionPtrType(BaseFunctionType):
 
 class PointerType(BaseType):
     _attrs_ = ('totype',)
-    
+    _base_pattern       = " *&"
+    _base_pattern_array = "(*&)"
+
     def __init__(self, totype):
         self.totype = totype
-
-    def _get_c_name(self, replace_with):
-        return self.totype._get_c_name('* ' + replace_with)
+        if totype.is_array_type:
+            extra = self._base_pattern_array
+        else:
+            extra = self._base_pattern
+        self.c_name_with_marker = totype.c_name_with_marker.replace('&', extra)
 
     def build_backend_type(self, ffi, finishlist):
         BItem = self.totype.get_cached_btype(ffi, finishlist, can_delay=True)
@@ -175,9 +189,8 @@ voidp_type = PointerType(void_type)
 
 
 class ConstPointerType(PointerType):
-
-    def _get_c_name(self, replace_with):
-        return self.totype._get_c_name(' const * ' + replace_with)
+    _base_pattern       = " const *&"
+    _base_pattern_array = "(const *&)"
 
     def build_backend_type(self, ffi, finishlist):
         BPtr = PointerType(self.totype).get_cached_btype(ffi, finishlist)
@@ -192,27 +205,26 @@ class NamedPointerType(PointerType):
     def __init__(self, totype, name):
         PointerType.__init__(self, totype)
         self.name = name
-
-    def _get_c_name(self, replace_with):
-        return self.name + replace_with
+        self.c_name_with_marker = name + '&'
 
 
 class ArrayType(BaseType):
     _attrs_ = ('item', 'length')
+    is_array_type = True
 
     def __init__(self, item, length):
         self.item = item
         self.length = length
+        #
+        if self.length is None:
+            brackets = '&[]'
+        else:
+            brackets = '&[%d]' % self.length
+        self.c_name_with_marker = (
+            self.item.c_name_with_marker.replace('&', brackets))
 
     def resolve_length(self, newlength):
         return ArrayType(self.item, newlength)
-
-    def _get_c_name(self, replace_with):
-        if self.length is None:
-            brackets = '[]'
-        else:
-            brackets = '[%d]' % self.length
-        return self.item._get_c_name('(%s)%s' % (replace_with, brackets))
 
     def build_backend_type(self, ffi, finishlist):
         self.item.get_cached_btype(ffi, finishlist)   # force the item BType
@@ -224,9 +236,13 @@ class StructOrUnionOrEnum(BaseTypeByIdentity):
     _attrs_ = ('name',)
     forcename = None
 
-    def _get_c_name(self, replace_with):
+    def build_c_name_with_marker(self):
         name = self.forcename or '%s %s' % (self.kind, self.name)
-        return name + replace_with
+        self.c_name_with_marker = name + '&'
+
+    def force_the_name(self, forcename):
+        self.forcename = forcename
+        self.build_c_name_with_marker()
 
 
 class StructOrUnion(StructOrUnionOrEnum):
@@ -238,6 +254,7 @@ class StructOrUnion(StructOrUnionOrEnum):
         self.fldnames = fldnames
         self.fldtypes = fldtypes
         self.fldbitsize = fldbitsize
+        self.build_c_name_with_marker()
 
     def enumfields(self):
         for name, type, bitsize in zip(self.fldnames, self.fldtypes,
@@ -335,7 +352,7 @@ class StructType(StructOrUnion):
     def check_not_partial(self):
         if self.partial and self.fixedlayout is None:
             from . import ffiplatform
-            raise ffiplatform.VerificationMissing(self._get_c_name(''))
+            raise ffiplatform.VerificationMissing(self._get_c_name())
 
     def build_backend_type(self, ffi, finishlist):
         self.check_not_partial()
@@ -361,11 +378,12 @@ class EnumType(StructOrUnionOrEnum):
         self.enumerators = enumerators
         self.enumvalues = enumvalues
         self.baseinttype = baseinttype
+        self.build_c_name_with_marker()
 
     def check_not_partial(self):
         if self.partial and not self.partial_resolved:
             from . import ffiplatform
-            raise ffiplatform.VerificationMissing(self._get_c_name(''))
+            raise ffiplatform.VerificationMissing(self._get_c_name())
 
     def build_backend_type(self, ffi, finishlist):
         self.check_not_partial()
@@ -403,13 +421,13 @@ class EnumType(StructOrUnionOrEnum):
             largest_value < (1 << (8*size2-sign))):
             return btype2
         raise api.CDefError("%s values don't all fit into either 'long' "
-                            "or 'unsigned long'" % self._get_c_name(''))
+                            "or 'unsigned long'" % self._get_c_name())
 
 def unknown_type(name, structname=None):
     if structname is None:
         structname = '$%s' % name
     tp = StructType(structname, None, None, None)
-    tp.forcename = name
+    tp.force_the_name(name)
     return tp
 
 def unknown_ptr_type(name, structname=None):

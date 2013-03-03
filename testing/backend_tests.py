@@ -1200,6 +1200,7 @@ class BackendTests:
         assert ffi.getctype("int", 'x') == "int x"
         assert ffi.getctype("int*") == "int *"
         assert ffi.getctype("int*", '') == "int *"
+        assert ffi.getctype("int*", 'x') == "int * x"
         assert ffi.getctype("int", '*') == "int *"
         assert ffi.getctype("int", ' * x ') == "int * x"
         assert ffi.getctype(ffi.typeof("int*"), '*') == "int * *"
