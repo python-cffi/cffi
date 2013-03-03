@@ -500,11 +500,12 @@ def test_struct_array_guess_length_3():
 
 def test_struct_ptr_to_array_field():
     ffi = FFI()
-    ffi.cdef("struct foo_s { int (*a)[17]; ...; };")
-    ffi.verify("struct foo_s { int x; int (*a)[17]; int y; };")
-    assert ffi.sizeof('struct foo_s') == 2 * ffi.sizeof('int') + ffi.sizeof('int(*)[17]')
+    ffi.cdef("struct foo_s { int (*a)[17]; ...; }; struct bar_s { ...; };")
+    ffi.verify("struct foo_s { int x; int (*a)[17]; int y; };\n"
+               "struct bar_s { int x; int *a; int y; };")
+    assert ffi.sizeof('struct foo_s') == ffi.sizeof("struct bar_s")
     s = ffi.new("struct foo_s *")
-    assert ffi.sizeof(s.a) == ffi.sizeof('int(*)[17]')
+    assert ffi.sizeof(s.a) == ffi.sizeof('int(*)[17]') == ffi.sizeof("int *")
 
 def test_struct_with_bitfield_exact():
     ffi = FFI()
