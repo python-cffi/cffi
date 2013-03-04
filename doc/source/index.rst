@@ -937,7 +937,9 @@ to a union is fine), nor a struct which uses bitfields (but a
 **pointer** to such a struct is fine).  If you pass a struct (not a
 **pointer** to a struct), the struct type cannot have been declared with
 "``...;``" and completed with ``verify()``; you need to declare it
-completely in ``cdef()``.
+completely in ``cdef()``.  You can work around these limitations by
+writing a C function with a simpler signature in the code passed to
+``ffi.verify()``, which calls the real C function.
 
 Aside from these limitations, functions and callbacks can return structs.
 
