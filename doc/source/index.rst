@@ -645,11 +645,12 @@ obvious Python equivalent.  Thus, they correspond to objects of type
 
 ``ffi.new(ctype, [initializer])``: this function builds and returns a
 new cdata object of the given ``ctype``.  The ctype is usually some
-constant string describing the C type.  It must be a pointer or array
-type.  If it is a pointer, e.g. ``"int *"`` or ``struct foo *``, then
-it allocates the memory for one ``int`` or ``struct foo``.  If it is
-an array, e.g. ``int[10]``, then it allocates the memory for ten
-``int``.  In both cases the returned cdata is of type ``ctype``.
+constant string describing the C type.  It must be a pointer, struct,
+union, or array type.  If it is a pointer, e.g. ``"int *"`` or ``struct
+foo *``, then it allocates the memory for one ``int`` or ``struct foo``.
+If it is a struct, union or array, e.g. ``int[10]``, then it allocates
+the memory for the struct or array --- in this example, ten ``int``.  In
+all cases the returned cdata is exactly of type ``ctype``.
 
 The memory is initially filled with zeros.  An initializer can be given
 too, as described later.
@@ -714,15 +715,16 @@ __ `Misc methods on ffi`_
 Any operation that would in C return a pointer or array or struct type
 gives you a fresh cdata object.  Unlike the "original" one, these fresh
 cdata objects don't have ownership: they are merely references to
-existing memory.
+existing memory.  Only ``ffi.new()`` returns an object owning the
+memory.
 
-As an exception to the above rule, dereferencing a pointer that owns a
-*struct* or *union* object returns a cdata struct or union object
-that "co-owns" the same memory.  Thus in this case there are two
-objects that can keep the same memory alive.  This is done for cases where
-you really want to have a struct object but don't have any convenient
-place to keep alive the original pointer object (returned by
-``ffi.new()``).
+.. versionchanged:: 0.6
+   The above rule has no more exception: it used to be that
+   ``ffi.new("struct foo_s *")[0]`` would also keep the memory alive,
+   but this was removed in version 0.6.  Now instead you can pass a
+   struct or union type directly to ``ffi.new()``, and get a cdata
+   object of type struct or union that owns the memory, by writing
+   simply ``ffi.new("struct foo_s")``.
 
 Example::
 
@@ -1184,8 +1186,9 @@ with the fact that any cdata object can be weakly referenced).
 (It would be difficult because only structs and unions are internally
 stored as an indirect pointer to the data.)  If ``field`` is given,
 returns the address of that field in the structure.  The returned
-pointer is only valid as long as the original object is.  *New in
-version 0.4.*
+pointer is only valid as long as the original ``cdata`` object is; be
+sure to keep it alive if it was obtained directly from ``ffi.new()``.
+*New in version 0.4.*
 
 .. "versionadded:: 0.4" --- inlined in the previous paragraph
 
@@ -1306,12 +1309,11 @@ allowed.
 |               | a compatible type (i.e.|                  |``+``, ``-``,   |
 |               | same type or ``char*`` |                  |bool()          |
 |               | or ``void*``, or as an |                  |                |
-|               | array instead) `(*)`;  |                  |                |
-|               | or ``0`` `(******)`    |                  |                |
+|               | array instead) `(*)`   |                  |                |
 +---------------+------------------------+                  |                |
 |  ``void *``,  | another <cdata> with   |                  |                |
 |  ``char *``   | any pointer or array   |                  |                |
-|               | type; or ``0``         |                  |                |
+|               | type                   |                  |                |
 +---------------+------------------------+                  +----------------+
 |  pointers to  | same as pointers       |                  | ``[]``, ``+``, |
 |  structure or |                        |                  | ``-``, bool(), |
@@ -1390,11 +1392,6 @@ a pointer inside the Python string object.
    their value symbolically, use code like ``if x.field == lib.FOO``.
    If you really want to get their value as a string, use
    ``ffi.string(ffi.cast("the_enum_type", x.field))``.
-
-.. versionadded:: 0.6
-   `(******)` ``0`` is interpreted like ``ffi.NULL`` in most places.
-   It is the way both gcc and MSVC work.  (Of course non-null integers
-   are not transparently interpreted as pointers; only ``0`` is.)
 
 
 Reference: verifier
