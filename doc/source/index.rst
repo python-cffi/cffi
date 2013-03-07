@@ -458,6 +458,10 @@ as ``dlopen()`` does dynamically in C.
 For the optional ``flags`` argument, see ``man dlopen`` (ignored on
 Windows).  It defaults to ``ffi.RTLD_NOW``.
 
+This function returns a "library" object that gets closed when it goes
+out of scope.  Make sure you keep the library object around as long as
+needed.
+
 .. _below:
 
 
@@ -620,6 +624,10 @@ not recommended.
    the module name already exists it will be reused without further
    check.  Be sure to have other means of clearing the ``tmpdir``
    whenever you change your sources.
+
+This function returns a "library" object that gets closed when it goes
+out of scope.  Make sure you keep the library object around as long as
+needed.
 
 
 Working with pointers, structures and arrays
