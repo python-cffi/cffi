@@ -388,9 +388,9 @@ def _make_ffi_library(ffi, libname, flags):
                     if enumname not in library.__dict__:
                         library.__dict__[enumname] = enumval
             copied_enums.append(True)
-            if name in library.__dict__:
-                return
         #
+        if name in library.__dict__:   # copied from an enum value just above,
+            return                     # or multithread's race condition
         raise AttributeError(name)
     #
     class FFILibrary(object):
