@@ -358,6 +358,7 @@ def _make_ffi_library(ffi, libname, flags):
         if path is None:
             raise OSError("library not found: %r" % (name,))
         backendlib = backend.load_library(path, flags)
+    copied_enums = []
     #
     def make_accessor(name):
         key = 'function ' + name
@@ -378,6 +379,17 @@ def _make_ffi_library(ffi, libname, flags):
                 lambda self: read_variable(BType, name),
                 lambda self, value: write_variable(BType, name, value)))
             return
+        #
+        if not copied_enums:
+            for key, tp in ffi._parser._declarations.iteritems():
+                if not key.startswith('enum '):
+                    continue
+                for enumname, enumval in zip(tp.enumerators, tp.enumvalues):
+                    if enumname not in library.__dict__:
+                        library.__dict__[enumname] = enumval
+            copied_enums.append(True)
+            if name in library.__dict__:
+                return
         #
         raise AttributeError(name)
     #
