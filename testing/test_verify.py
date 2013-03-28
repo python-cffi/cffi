@@ -1590,3 +1590,9 @@ def test_typeof_function():
     ctype = ffi.typeof(lib.foo)
     assert len(ctype.args) == 2
     assert ctype.result == ffi.typeof("int")
+
+def test_call_with_voidstar_arg():
+    ffi = FFI()
+    ffi.cdef("int f(void *);")
+    lib = ffi.verify("int f(void *x) { return ((char*)x)[0]; }")
+    assert lib.f(b"foobar") == ord(b"f")
