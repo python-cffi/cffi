@@ -137,8 +137,13 @@ class FFI(object):
         """
         if isinstance(cdecl, basestring):
             return self._typeof(cdecl)
-        else:
+        if isinstance(cdecl, self.CData):
             return self._backend.typeof(cdecl)
+        if isinstance(cdecl, types.BuiltinFunctionType):
+            res = _builtin_function_type(cdecl)
+            if res is not None:
+                return res
+        raise TypeError(type(cdecl))
 
     def sizeof(self, cdecl):
         """Return the size in bytes of the argument.  It can be a
@@ -415,3 +420,17 @@ def _make_ffi_library(ffi, libname, flags):
             pass
     library = FFILibrary()
     return library, library.__dict__
+
+def _builtin_function_type(func):
+    # a hack to make at least ffi.typeof(builtin_function) work,
+    # if the builtin function was obtained by 'vengine_cpy'.
+    import sys
+    try:
+        module = sys.modules[func.__module__]
+        ffi = module._cffi_original_ffi
+        types_of_builtin_funcs = module._cffi_types_of_builtin_funcs
+        tp = types_of_builtin_funcs[func]
+    except (KeyError, AttributeError, TypeError):
+        return None
+    else:
+        return ffi._get_cached_btype(tp)

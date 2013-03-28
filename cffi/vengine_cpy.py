@@ -10,6 +10,7 @@ class VCPythonEngine(object):
         self.verifier = verifier
         self.ffi = verifier.ffi
         self._struct_pending_verification = {}
+        self._types_of_builtin_functions = {}
 
     def patch_extension_kwds(self, kwds):
         pass
@@ -149,6 +150,8 @@ class VCPythonEngine(object):
         # functions from the module to the 'library' object, and setting
         # up the FFILibrary class with properties for the global C variables.
         self._load(module, 'loaded', library=library)
+        module._cffi_original_ffi = self.ffi
+        module._cffi_types_of_builtin_funcs = self._types_of_builtin_functions
         return library
 
     def _get_declarations(self):
@@ -384,7 +387,9 @@ class VCPythonEngine(object):
     def _loaded_cpy_function(self, tp, name, module, library):
         if tp.ellipsis:
             return
-        setattr(library, name, getattr(module, name))
+        func = getattr(module, name)
+        setattr(library, name, func)
+        self._types_of_builtin_functions[func] = tp
 
     # ----------
     # named structs

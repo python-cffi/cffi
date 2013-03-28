@@ -1582,3 +1582,11 @@ def test_passing_0_for_NULL():
     py.test.raises(TypeError, lib.seeme2, None)
     py.test.raises(TypeError, lib.seeme1, 0.0)
     py.test.raises(TypeError, lib.seeme2, 0.0)
+
+def test_typeof_function():
+    ffi = FFI()
+    ffi.cdef("int foo(int, char);")
+    lib = ffi.verify("int foo(int x, char y) { return 42; }")
+    ctype = ffi.typeof(lib.foo)
+    assert len(ctype.args) == 2
+    assert ctype.result == ffi.typeof("int")
