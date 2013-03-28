@@ -291,6 +291,8 @@ class VCPythonEngine(object):
         if tp.ellipsis:
             self._do_collect_type(tp)
         else:
+            # don't call _do_collect_type(tp) in this common case,
+            # otherwise test_autofilled_struct_as_argument fails
             for type in tp.args:
                 self._do_collect_type(type)
             self._do_collect_type(tp.result)
