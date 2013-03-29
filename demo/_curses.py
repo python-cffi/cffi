@@ -25,7 +25,7 @@ int setupterm(char *term, int fildes, int *errret);
 int tigetflag(char *);
 int tigetnum(char *);
 char *tigetstr(char *);
-char *tparm (char *, ...);
+char *tparm (const char *, ...);
 
 int cbreak(void);
 int nocbreak(void);
