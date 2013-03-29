@@ -386,8 +386,9 @@ def _make_ffi_library(ffi, libname, flags):
             return
         #
         if not copied_enums:
+            from . import model
             for key, tp in ffi._parser._declarations.items():
-                if not key.startswith('enum '):
+                if not isinstance(tp, model.EnumType):
                     continue
                 for enumname, enumval in zip(tp.enumerators, tp.enumvalues):
                     if enumname not in library.__dict__:
