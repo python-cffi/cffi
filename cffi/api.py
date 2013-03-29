@@ -386,7 +386,7 @@ def _make_ffi_library(ffi, libname, flags):
             return
         #
         if not copied_enums:
-            for key, tp in ffi._parser._declarations.iteritems():
+            for key, tp in ffi._parser._declarations.items():
                 if not key.startswith('enum '):
                     continue
                 for enumname, enumval in zip(tp.enumerators, tp.enumvalues):
