@@ -2313,15 +2313,16 @@ def test_longdouble():
         start = 4 * start - start * start
         lstart = f(lstart, 1)
     lother = f(1.5, 107)
-    assert float(lstart) == float(lother)
-    assert repr(lstart) == repr(lother)
-    if sizeof(BLongDouble) > sizeof(new_primitive_type("double")):
-        assert float(lstart) != start
-        assert repr(lstart).startswith("<cdata 'long double' ")
+    if not py_py:
+        assert float(lstart) == float(lother)
+        assert repr(lstart) == repr(lother)
+        if sizeof(BLongDouble) > sizeof(new_primitive_type("double")):
+            assert float(lstart) != start
+            assert repr(lstart).startswith("<cdata 'long double' ")
     #
     c = newp(BLongDoubleArray, [lstart])
     x = c[0]
-    assert float(f(lstart, 50)) == float(f(x, 50))
+    assert float(f(lstart, 107)) == float(f(x, 107))
 
 def test_get_array_of_length_zero():
     for length in [0, 5, 10]:
