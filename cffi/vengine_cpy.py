@@ -778,7 +778,7 @@ typedef unsigned char _Bool;
 #define _cffi_to_c_u64                                                   \
                  ((unsigned long long(*)(PyObject *))_cffi_exports[8])
 #define _cffi_to_c_char                                                  \
-                 ((char(*)(PyObject *))_cffi_exports[9])
+                 ((int(*)(PyObject *))_cffi_exports[9])
 #define _cffi_from_c_pointer                                             \
     ((PyObject *(*)(char *, CTypeDescrObject *))_cffi_exports[10])
 #define _cffi_to_c_pointer                                               \

@@ -4932,11 +4932,6 @@ _cffi_to_c_UNSIGNED_FN(int, 16)
 _cffi_to_c_UNSIGNED_FN(unsigned int, 32)
 _cffi_to_c_UNSIGNED_FN(unsigned PY_LONG_LONG, 64)
 
-static char _cffi_to_c_char(PyObject *obj)
-{
-    return (char)_convert_to_char(obj);
-}
-
 static PyObject *_cffi_from_c_pointer(char *ptr, CTypeDescrObject *ct)
 {
     return convert_to_object((char *)&ptr, ct);
@@ -5024,7 +5019,7 @@ static void *cffi_exports[] = {
     _cffi_to_c_u32,
     _cffi_to_c_i64,
     _cffi_to_c_u64,
-    _cffi_to_c_char,
+    _convert_to_char,
     _cffi_from_c_pointer,
     _cffi_to_c_pointer,
     _cffi_get_struct_layout,
