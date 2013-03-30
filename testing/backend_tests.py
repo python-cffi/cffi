@@ -1094,7 +1094,7 @@ class BackendTests:
             assert content.startswith(b'\x64\x00\x00\x00\x65\x00\x00\x00')
             b[4] = b'\x45'
         else:
-            assert content.startswith('\x00\x00\x00\x64\x00\x00\x00\x65')
+            assert content.startswith(b'\x00\x00\x00\x64\x00\x00\x00\x65')
             b[7] = b'\x45'
         assert len(content) == 4 * 10
         assert a[1] == 0x45
