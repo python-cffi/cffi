@@ -25,8 +25,7 @@ def test_doc_version_file():
     v = cffi.__version__
     p = os.path.join(parent, 'doc', 'source', 'index.rst')
     content = open(p).read()
-    if ("cffi/cffi-%s.tar.gz" % v) not in content:
-        py.test.skip("XXX fix the file referenced by the doc!")
+    assert ("cffi/cffi-%s.tar.gz" % v) in content
 
 def test_setup_version():
     parent = os.path.dirname(os.path.dirname(__file__))
