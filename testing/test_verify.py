@@ -1235,7 +1235,8 @@ def test_bool_on_long_double():
     f0 = lib.square(0.0)
     f2 = lib.square(f)
     f3 = lib.square(f * 2.0)
-    assert repr(f2) != repr(f3)             # two non-null 'long doubles'
+    if repr(f2) == repr(f3):
+        py.test.skip("long double doesn't have enough precision")
     assert float(f0) == float(f2) == float(f3) == 0.0  # too tiny for 'double'
     assert int(ffi.cast("_Bool", f2)) == 1
     assert int(ffi.cast("_Bool", f3)) == 1
