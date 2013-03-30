@@ -2288,6 +2288,7 @@ def test_autocast_float():
 
 def test_longdouble():
     py_py = 'PY_DOT_PY' in globals()
+    BInt = new_primitive_type("int")
     BLongDouble = new_primitive_type("long double")
     BLongDoublePtr = new_pointer_type(BLongDouble)
     BLongDoubleArray = new_array_type(BLongDoublePtr, None)
@@ -2305,21 +2306,22 @@ def test_longdouble():
     assert float(x) == 1.23
     assert int(x) == 1
     #
-    BFunc19 = new_function_type((BLongDouble,), BLongDouble)
+    BFunc19 = new_function_type((BLongDouble, BInt), BLongDouble)
     f = cast(BFunc19, _testfunc(19))
-    start = 8
+    start = lstart = 1.5
     for i in range(107):
-        start = f(start)
+        start = 4 * start - start * start
+        lstart = f(lstart, 1)
+    lother = f(1.5, 107)
+    assert float(lstart) == float(lother)
+    assert repr(lstart) == repr(lother)
     if sizeof(BLongDouble) > sizeof(new_primitive_type("double")):
-        if not py_py:
-            assert repr(start).startswith("<cdata 'long double' 6.15")
-            assert repr(start).endswith("E+902>")
-        #
-        c = newp(BLongDoubleArray, [start])
-        x = c[0]
-        if not py_py:
-            assert repr(x).endswith("E+902>")
-            assert float(x) == float("inf")
+        assert float(lstart) != start
+        assert repr(lstart).startswith("<cdata 'long double' ")
+    #
+    c = newp(BLongDoubleArray, [lstart])
+    x = c[0]
+    assert float(f(lstart, 50)) == float(f(x, 50))
 
 def test_get_array_of_length_zero():
     for length in [0, 5, 10]:
