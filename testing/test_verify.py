@@ -433,7 +433,7 @@ def _check_field_match(typename, real, expect_mismatch):
         ffi.verify("struct foo_s { %s x; };" % real)
     except VerificationError:
         if not expect_mismatch:
-            if testing_by_size:
+            if testing_by_size and typename != real:
                 print("ignoring mismatch between %s* and %s* even though "
                       "they have the same size" % (typename, real))
                 return
