@@ -1469,6 +1469,8 @@ def test_enum_size():
                   ('-2147483649L',       8, -1),
                   ('%dL-1L' % (1-2**63), 8, -1)]
     for hidden_value, expected_size, expected_minus1 in cases:
+        if sys.platform == 'win32' and 'U' in hidden_value:
+            continue   # skipped on Windows
         ffi = FFI()
         ffi.cdef("enum foo_e { AA, BB, ... };")
         lib = ffi.verify("enum foo_e { AA, BB=%s };" % hidden_value)
