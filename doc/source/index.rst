@@ -1192,8 +1192,9 @@ with the fact that any cdata object can be weakly referenced).
 (It would be difficult because only structs and unions are internally
 stored as an indirect pointer to the data.)  If ``field`` is given,
 returns the address of that field in the structure.  The returned
-pointer is only valid as long as the original object is.  *New in
-version 0.4.*
+pointer is only valid as long as the original ``cdata`` object is; be
+sure to keep it alive if it was obtained directly from ``ffi.new()``.
+*New in version 0.4.*
 
 .. "versionadded:: 0.4" --- inlined in the previous paragraph
 
@@ -1314,12 +1315,11 @@ allowed.
 |               | a compatible type (i.e.|                  |``+``, ``-``,   |
 |               | same type or ``char*`` |                  |bool()          |
 |               | or ``void*``, or as an |                  |                |
-|               | array instead) `(*)`;  |                  |                |
-|               | or ``0`` `(******)`    |                  |                |
+|               | array instead) `(*)`   |                  |                |
 +---------------+------------------------+                  |                |
 |  ``void *``,  | another <cdata> with   |                  |                |
 |  ``char *``   | any pointer or array   |                  |                |
-|               | type; or ``0``         |                  |                |
+|               | type                   |                  |                |
 +---------------+------------------------+                  +----------------+
 |  pointers to  | same as pointers       |                  | ``[]``, ``+``, |
 |  structure or |                        |                  | ``-``, bool(), |
@@ -1398,11 +1398,6 @@ a pointer inside the Python string object.
    their value symbolically, use code like ``if x.field == lib.FOO``.
    If you really want to get their value as a string, use
    ``ffi.string(ffi.cast("the_enum_type", x.field))``.
-
-.. versionadded:: 0.6
-   `(******)` ``0`` is interpreted like ``ffi.NULL`` in most places.
-   It is the way both gcc and MSVC work.  (Of course non-null integers
-   are not transparently interpreted as pointers; only ``0`` is.)
 
 
 Reference: verifier

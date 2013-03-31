@@ -1120,11 +1120,6 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         CTypeDescrObject *ctinit;
 
         if (!CData_Check(init)) {
-            if (PyIntOrLong_Check(init) && !PyObject_IsTrue(init)) {
-                /* convert 0 to NULL */
-                *(char **)data = NULL;
-                return 0;
-            }
             expected = "cdata pointer";
             goto cannot_convert;
         }
@@ -1609,15 +1604,7 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
     char *v_cdata, *w_cdata;
 
     assert(CData_Check(v));
-    v_cdata = ((CDataObject *)v)->c_data;
-
     if (!CData_Check(w)) {
-        if (PyIntOrLong_Check(w) && !PyObject_IsTrue(w) &&
-            !(((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY)) {
-            /* comparing a non-primitive with 0 */
-            w_cdata = NULL;
-            goto compare;
-        }
         pyres = Py_NotImplemented;
         goto done;
     }
@@ -1627,8 +1614,9 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
          (((CDataObject *)w)->c_type->ct_flags & CT_PRIMITIVE_ANY)))
         goto Error;
 
+    v_cdata = ((CDataObject *)v)->c_data;
     w_cdata = ((CDataObject *)w)->c_data;
- compare:
+
     switch (op) {
     case Py_EQ: res = (v_cdata == w_cdata); break;
     case Py_NE: res = (v_cdata != w_cdata); break;
@@ -2078,16 +2066,7 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
 
     ctitem = ctptr->ct_itemdescr;
     /* XXX some code duplication, how to avoid it? */
-    if (PyIntOrLong_Check(init) && !PyObject_IsTrue(init)) {
-        /* Convert 0 to NULL.  Note that passing 0 is not ambigous,
-           despite the potential confusion: as a 'T*' argument, 0 means
-           NULL, but as a 'T[]' argument it would mean "array of size 0"
-           --- except that we specifically refuse to interpret numbers
-           as the array size when passing arguments. */
-        *output_data = NULL;
-        return 0;
-    }
-    else if (PyBytes_Check(init)) {
+    if (PyBytes_Check(init)) {
         /* from a string: just returning the string here is fine.
            We assume that the C code won't modify the 'char *' data. */
         if ((ctptr->ct_flags & CT_CAST_ANYTHING) ||
