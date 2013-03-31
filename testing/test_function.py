@@ -173,7 +173,7 @@ class TestFunction(object):
         res = fd.getvalue()
         if sys.platform == 'win32':
             NIL = b"00000000"
-        elif sys.platform.startswith('linux'):
+        elif sys.platform.startswith(('linux', 'gnu')):
             NIL = b"(nil)"
         else:
             NIL = b"0x0"    # OS/X at least
