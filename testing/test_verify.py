@@ -1590,7 +1590,9 @@ def test_passing_string_or_NULL():
     py.test.raises(TypeError, lib.seeme2, 0.0)
     py.test.raises(TypeError, lib.seeme1, 0)
     py.test.raises(TypeError, lib.seeme2, 0)
-    py.test.raises(TypeError, lib.seeme2, 0L)
+    zeroL  = 99999999999999999999
+    zeroL -= 99999999999999999999
+    py.test.raises(TypeError, lib.seeme2, zeroL)
 
 def test_typeof_function():
     ffi = FFI()
