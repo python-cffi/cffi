@@ -1,5 +1,9 @@
-import py, os
+import py, os, sys
 import cffi, _cffi_backend
+
+def setup_module(mod):
+    if '_cffi_backend' in sys.builtin_module_names:
+        py.test.skip("this is embedded version")
 
 BACKEND_VERSIONS = {
     '0.4.2': '0.4',     # did not change
