@@ -18,7 +18,7 @@ def create_venv(name):
             site_packages = dirpath
             break
     if site_packages:
-        for module in ('cffi', '_cffi_backend', 'pycparser', 'ply'):
+        for module in ('cffi', '_cffi_backend', 'pycparser'):
             target = imp.find_module(module)[1]
             os.symlink(target, os.path.join(site_packages,
                                             os.path.basename(target)))

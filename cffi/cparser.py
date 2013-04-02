@@ -1,7 +1,11 @@
 
 from . import api, model
 from .commontypes import COMMON_TYPES, resolve_common_type
-import pycparser.c_parser, weakref, re, sys
+try:
+    from cffi import _pycparser as pycparser
+except ImportError:
+    import pycparser
+import weakref, re, sys
 
 try:
     if sys.version_info < (3,):
@@ -513,7 +517,7 @@ class Parser(object):
                     nextenumvalue = self._parse_constant(enum.value)
                 enumvalues.append(nextenumvalue)
                 nextenumvalue += 1
-            enumvalues = tuple(enumvalues) 
+            enumvalues = tuple(enumvalues)
             tp = model.EnumType(explicit_name, enumerators, enumvalues)
             tp.partial = partial
         else:   # opaque enum
