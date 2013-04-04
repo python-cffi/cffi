@@ -2087,8 +2087,12 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
         if ((ctptr->ct_flags & CT_CAST_ANYTHING) ||
             ((ctitem->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED))
              && (ctitem->ct_size == sizeof(char)))) {
+#if defined(CFFI_MEM_DEBUG) || defined(CFFI_MEM_LEAK)
+            length = PyBytes_GET_SIZE(init) + 1;
+#else
             *output_data = PyBytes_AS_STRING(init);
             return 0;
+#endif
         }
         else
             goto convert_default;
