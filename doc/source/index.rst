@@ -1383,7 +1383,8 @@ a pointer inside the Python string object.
    cdata object that is a "view" of all items from ``start`` to ``stop``.
    It is a cdata of type "array" (so e.g. passing it as an argument to a
    C function would just convert it to a pointer to the ``start`` item).
-   As with indexing, negative bounds mean really negative indices, like in
+   It makes cdata's of type "array" behave more like a Python list, but
+   as with indexing, negative bounds mean really negative indices, like in
    C.  As for slice assignment, it accepts any iterable, including a list
    of items or another array-like cdata object, but the length must match.
    (Note that this behavior differs from initialization: e.g. if you pass
