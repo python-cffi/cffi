@@ -1382,7 +1382,9 @@ static void cdata_dealloc(CDataObject *cd)
         PyObject_ClearWeakRefs((PyObject *) cd);
 
     Py_DECREF(cd->c_type);
+#ifndef CFFI_MEM_LEAK     /* never release anything, tests only */
     PyObject_Del(cd);
+#endif
 }
 
 static void cdataowning_dealloc(CDataObject *cd)
@@ -1397,6 +1399,19 @@ static void cdataowning_dealloc(CDataObject *cd)
         Py_XDECREF(args);
         cffi_closure_free(closure);
     }
+#if defined(CFFI_MEM_DEBUG) || defined(CFFI_MEM_LEAK)
+    if (cd->c_type->ct_flags & (CT_PRIMITIVE_ANY | CT_STRUCT | CT_UNION)) {
+        assert(cd->c_type->ct_size >= 0);
+        memset(cd->c_data, 0xDD, cd->c_type->ct_size);
+    }
+    else if (cd->c_type->ct_flags & CT_ARRAY) {
+        Py_ssize_t x = get_array_length(cd);
+        assert(x >= 0);
+        x *= cd->c_type->ct_itemdescr->ct_size;
+        assert(x >= 0);
+        memset(cd->c_data, 0xDD, x);
+    }
+#endif
     cdata_dealloc(cd);
 }
 
