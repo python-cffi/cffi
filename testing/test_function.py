@@ -370,3 +370,11 @@ class TestFunction(object):
         lib = ffi.dlopen(None)
         res = lib.strlen(b"hello")
         assert res == 5
+
+    def test_missing_function(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            int nonexistent();
+        """)
+        m = ffi.dlopen("m")
+        assert not hasattr(m, 'nonexistent')
