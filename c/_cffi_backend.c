@@ -5096,6 +5096,15 @@ init_cffi_backend(void)
     if (PyType_Ready(&MiniBuffer_Type) < 0)
         INITERROR;
 
+    v = PyString_FromString("_cffi_backend");
+    if (v == NULL || PyDict_SetItemString(CData_Type.tp_dict,
+                                          "__module__", v) < 0)
+        INITERROR;
+    v = PyString_FromString("<cdata>");
+    if (v == NULL || PyDict_SetItemString(CData_Type.tp_dict,
+                                          "__name__", v) < 0)
+        INITERROR;
+
     v = PyCapsule_New((void *)cffi_exports, "cffi", NULL);
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
         INITERROR;

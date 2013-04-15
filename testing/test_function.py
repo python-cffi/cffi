@@ -365,3 +365,19 @@ class TestFunction(object):
         """)
         m = ffi.dlopen("m")
         assert not hasattr(m, 'nonexistent')
+
+    def test_wraps_from_stdlib(self):
+        import functools
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            double sin(double x);
+        """)
+        def my_decorator(f):
+            @functools.wraps(f)
+            def wrapper(*args):
+                return f(*args) + 100
+            return wrapper
+        m = ffi.dlopen("m")
+        sin100 = my_decorator(m.sin)
+        x = sin100(1.23)
+        assert x == math.sin(1.23) + 100

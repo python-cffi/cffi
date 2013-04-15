@@ -16,6 +16,7 @@ class CTypesType(type):
 class CTypesData(object):
     __metaclass__ = CTypesType
     __slots__ = ['__weakref__']
+    __name__ = '<cdata>'
 
     def __init__(self, *args):
         raise TypeError("cannot instantiate %r" % (self.__class__,))
