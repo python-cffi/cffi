@@ -1,6 +1,12 @@
 import sys
 import cffi
 
+#
+# This is only a demo based on the GMP library.
+# There is a rather more complete version available at:
+# http://bazaar.launchpad.net/~tolot-solar-empire/+junk/gmpy_cffi/files
+#
+
 ffi = cffi.FFI()
 
 ffi.cdef("""
