@@ -372,7 +372,7 @@ def _make_ffi_library(ffi, libname, flags):
             BType = ffi._get_cached_btype(tp)
             try:
                 value = backendlib.load_function(BType, name)
-            except KeyError, e:
+            except KeyError as e:
                 raise AttributeError('%s: %s' % (name, e))
             library.__dict__[name] = value
             return
