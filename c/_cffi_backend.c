@@ -1654,10 +1654,7 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
 
 static long cdata_hash(CDataObject *cd)
 {
-    long h = _Py_HashPointer(cd->c_type) ^ _Py_HashPointer(cd->c_data);
-    if (h == -1)
-        h = -2;
-    return h;
+    return _Py_HashPointer(cd->c_data);
 }
 
 static Py_ssize_t
