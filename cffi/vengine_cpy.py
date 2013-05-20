@@ -15,6 +15,20 @@ class VCPythonEngine(object):
     def patch_extension_kwds(self, kwds):
         pass
 
+    def find_module(self, module_name, path, so_suffix):
+        try:
+            f, filename, descr = imp.find_module(module_name, path)
+        except ImportError:
+            return None
+        if f is not None:
+            f.close()
+        # Note that after a setuptools installation, there are both .py
+        # and .so files with the same basename.  The code here relies on
+        # imp.find_module() locating the .so in priority.
+        if descr[0] != so_suffix:
+            return None
+        return filename
+
     def collect_types(self):
         self._typesdict = {}
         self._generate("collecttype")

@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import types
 
 from . import model, ffiplatform
@@ -19,6 +19,16 @@ class VGenericEngine(object):
         # list before filling it.  When we fill it, it will thus also show
         # up in kwds['export_symbols'].
         kwds.setdefault('export_symbols', self.export_symbols)
+
+    def find_module(self, module_name, path, so_suffix):
+        basename = module_name + so_suffix
+        if path is None:
+            path = sys.path
+        for dirname in path:
+            filename = os.path.join(dirname, basename)
+            if os.path.isfile(filename):
+                return filename
+        return None
 
     def collect_types(self):
         pass      # not needed in the generic engine
