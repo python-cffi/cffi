@@ -91,6 +91,7 @@
 #define CT_IS_LONGDOUBLE        65536
 #define CT_IS_BOOL             131072
 #define CT_IS_FILE             262144
+#define CT_IS_VOID_PTR         524288
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -1392,6 +1393,10 @@ static void cdataowning_dealloc(CDataObject *cd)
     if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
         Py_DECREF(((CDataObject_own_structptr *)cd)->structobj);
     }
+    else if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {
+        PyObject *x = (PyObject *)(cd->c_data + 42);
+        Py_DECREF(x);
+    }
     else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {
         /* a callback */
         ffi_closure *closure = (ffi_closure *)cd->c_data;
@@ -1506,11 +1511,25 @@ static PyObject *cdata_repr(CDataObject *cd)
     return result;
 }
 
+static PyObject *_cdata_repr2(CDataObject *cd, char *text, PyObject *x)
+{
+    PyObject *res, *s = PyObject_Repr(x);
+    if (s == NULL)
+        return NULL;
+    res = PyText_FromFormat("<cdata '%s' %s %s>",
+                            cd->c_type->ct_name, text, PyText_AsUTF8(s));
+    Py_DECREF(s);
+    return res;
+}
+
 static PyObject *cdataowning_repr(CDataObject *cd)
 {
     Py_ssize_t size;
-    if (cd->c_type->ct_flags & CT_POINTER)
+    if (cd->c_type->ct_flags & CT_POINTER) {
+        if (cd->c_type->ct_flags & CT_IS_VOID_PTR)
+            goto handle_repr;
         size = cd->c_type->ct_itemdescr->ct_size;
+    }
     else if (cd->c_type->ct_flags & CT_ARRAY)
         size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
     else if (cd->c_type->ct_flags & CT_FUNCTIONPTR)
@@ -1523,18 +1542,17 @@ static PyObject *cdataowning_repr(CDataObject *cd)
 
  callback_repr:
     {
-        PyObject *s, *res;
         PyObject *args = (PyObject *)((ffi_closure *)cd->c_data)->user_data;
         if (args == NULL)
             return cdata_repr(cd);
+        else
+            return _cdata_repr2(cd, "calling", PyTuple_GET_ITEM(args, 1));
+    }
 
-        s = PyObject_Repr(PyTuple_GET_ITEM(args, 1));
-        if (s == NULL)
-            return NULL;
-        res = PyText_FromFormat("<cdata '%s' calling %s>",
-                                cd->c_type->ct_name, PyText_AsUTF8(s));
-        Py_DECREF(s);
-        return res;
+ handle_repr:
+    {
+        PyObject *x = (PyObject *)(cd->c_data + 42);
+        return _cdata_repr2(cd, "handle to", x);
     }
 }
 
@@ -3248,6 +3266,8 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
     td->ct_flags = CT_POINTER;
     if (ctitem->ct_flags & (CT_STRUCT|CT_UNION))
         td->ct_flags |= CT_IS_PTR_TO_OWNED;
+    if (ctitem->ct_flags & CT_VOID)
+        td->ct_flags |= CT_IS_VOID_PTR;
     if ((ctitem->ct_flags & CT_VOID) ||
         ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
          ctitem->ct_size == sizeof(char)))
@@ -4647,6 +4667,55 @@ static PyObject *b_set_errno(PyObject *self, PyObject *args)
     return Py_None;
 }
 
+static PyObject *b_newp_handle(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    CDataObject *cd;
+    PyObject *x;
+    if (!PyArg_ParseTuple(args, "O!O", &CTypeDescr_Type, &ct, &x))
+        return NULL;
+
+    if (!(ct->ct_flags & CT_IS_VOID_PTR)) {
+        PyErr_Format(PyExc_TypeError, "needs 'void *', got '%s'", ct->ct_name);
+        return NULL;
+    }
+
+    cd = allocate_owning_object(sizeof(CDataObject), ct);
+    if (cd == NULL)
+        return NULL;
+
+    Py_INCREF(x);
+    cd->c_data = ((char *)x) - 42;
+    return (PyObject *)cd;
+}
+
+static PyObject *b_from_handle(PyObject *self, PyObject *arg)
+{
+    CTypeDescrObject *ct;
+    char *raw;
+    PyObject *x;
+    if (!CData_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "expected a 'cdata' object");
+        return NULL;
+    }
+    ct = ((CDataObject *)arg)->c_type;
+    raw = ((CDataObject *)arg)->c_data;
+    if (!(ct->ct_flags & CT_CAST_ANYTHING)) {
+        PyErr_Format(PyExc_TypeError,
+                     "expected a 'cdata' object with a 'void *' out of "
+                     "new_handle(), got '%s'", ct->ct_name);
+        return NULL;
+    }
+    if (!raw) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "cannot use from_handle() on NULL pointer");
+        return NULL;
+    }
+    x = (PyObject *)(raw + 42);
+    Py_INCREF(x);
+    return x;
+}
+
 static PyObject *b__get_types(PyObject *self, PyObject *noarg)
 {
     return PyTuple_Pack(2, (PyObject *)&CData_Type,
@@ -4890,6 +4959,8 @@ static PyMethodDef FFIBackendMethods[] = {
     {"buffer", b_buffer, METH_VARARGS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_VARARGS},
+    {"newp_handle", b_newp_handle, METH_VARARGS},
+    {"from_handle", b_from_handle, METH_O},
     {"_get_types", b__get_types, METH_NOARGS},
     {"_testfunc", b__testfunc, METH_VARARGS},
     {NULL,     NULL}    /* Sentinel */
