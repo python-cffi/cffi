@@ -82,12 +82,16 @@ class TestBitfield:
         for name, cfield in ctype.fields:
             if cfield.bitsize < 0 or not name:
                 continue
-            max_value = (1 << (cfield.bitsize-1)) - 1
-            min_value = -(1 << (cfield.bitsize-1))
-            if max_value >= 1:
-                self._fieldcheck(ffi, lib, fnames, name, 1)
-            self._fieldcheck(ffi, lib, fnames, name, min_value)
-            self._fieldcheck(ffi, lib, fnames, name, max_value)
+            if int(ffi.cast(cfield.type, -1)) == -1:   # signed
+                min_value = -(1 << (cfield.bitsize-1))
+                max_value = (1 << (cfield.bitsize-1)) - 1
+            else:
+                min_value = 0
+                max_value = (1 << cfield.bitsize) - 1
+            for t in [1, 2, 4, 8, 16, 128, 2813, 89728, 981729,
+                     -1,-2,-4,-8,-16,-128,-2813,-89728,-981729]:
+                if min_value <= t <= max_value:
+                    self._fieldcheck(ffi, lib, fnames, name, t)
 
     def _fieldcheck(self, ffi, lib, fnames, name, value):
         s = ffi.new("struct s1 *")
@@ -132,3 +136,14 @@ class TestBitfield:
         self.check("char y; int :0;", 0, 1, 4)
         self.check("char x; int :0; char y;", 4, 1, 5)
         self.check("char x; long long :0; char y;", L, 1, L + 1)
+        self.check("short x, y; int :0; int :0;", 2, 2, 4)
+        self.check("char x; int :0; short b:1; char y;", 5, 2, 6)
+
+    def test_error_cases(self):
+        ffi = FFI()
+        py.test.raises(TypeError,
+            'ffi.cdef("struct s1 { float x:1; };"); ffi.new("struct s1 *")')
+        py.test.raises(TypeError,
+            'ffi.cdef("struct s2 { char x:0; };"); ffi.new("struct s2 *")')
+        py.test.raises(TypeError,
+            'ffi.cdef("struct s3 { char x:9; };"); ffi.new("struct s3 *")')

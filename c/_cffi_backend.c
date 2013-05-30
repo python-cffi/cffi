@@ -3429,10 +3429,10 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     CTypeDescrObject *ct;
     PyObject *fields, *interned_fields, *ignored;
     int is_union, alignment;
-    Py_ssize_t offset, i, nb_fields, maxsize, prev_bit_position;
+    Py_ssize_t boffset, i, nb_fields, boffsetmax;
     Py_ssize_t totalsize = -1;
     int totalalignment = -1;
-    CFieldObject **previous, *prev_field;
+    CFieldObject **previous;
 
     if (!PyArg_ParseTuple(args, "O!O!|Oni:complete_struct_or_union",
                           &CTypeDescr_Type, &ct,
@@ -3454,22 +3454,20 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    maxsize = 0;
     alignment = 1;
-    offset = 0;
+    boffset = 0;         /* this number is in *bits*, not bytes! */
+    boffsetmax = 0;      /* the maximum value of boffset, in bits too */
     nb_fields = PyList_GET_SIZE(fields);
     interned_fields = PyDict_New();
     if (interned_fields == NULL)
         return NULL;
 
     previous = (CFieldObject **)&ct->ct_extra;
-    prev_bit_position = 0;
-    prev_field = NULL;
 
     for (i=0; i<nb_fields; i++) {
         PyObject *fname;
         CTypeDescrObject *ftype;
-        int fbitsize = -1, falign, bitshift, foffset = -1;
+        int fbitsize = -1, falign, foffset = -1;
 
         if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!|ii:list item",
                               &PyText_Type, &fname,
@@ -3485,121 +3483,159 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             goto error;
         }
 
+        if (is_union)
+            boffset = 0;   /* reset each field at offset 0 */
+
+        /* update the total alignment requirement, but skip it if the
+           field is an anonymous bitfield */
         falign = get_alignment(ftype);
         if (falign < 0)
             goto error;
-        if (alignment < falign)
+        if (alignment < falign && (fbitsize < 0 || PyText_GetSize(fname) > 0))
             alignment = falign;
 
-        /* align this field to its own 'falign' by inserting padding */
-        offset = (offset + falign - 1) & ~(falign-1);
+        if (fbitsize < 0) {
+            /* not a bitfield: common case */
+            int bs_flag;
 
-        if (foffset >= 0) {
-            /* a forced field position: ignore the offset just computed,
-               except to know if we must set CT_CUSTOM_FIELD_POS */
-            if (offset != foffset)
-                ct->ct_flags |= CT_CUSTOM_FIELD_POS;
-            offset = foffset;
-        }
-
-        if (fbitsize < 0 || (fbitsize == 8 * ftype->ct_size &&
-                             !(ftype->ct_flags & CT_PRIMITIVE_CHAR))) {
-            fbitsize = -1;
             if (ftype->ct_flags & CT_ARRAY && ftype->ct_length == 0)
-                bitshift = BS_EMPTY_ARRAY;
+                bs_flag = BS_EMPTY_ARRAY;
             else
-                bitshift = BS_REGULAR;
-            prev_bit_position = 0;
-        }
-        else {
-            if (!(ftype->ct_flags & (CT_PRIMITIVE_SIGNED |
-                                     CT_PRIMITIVE_UNSIGNED |
-                                     CT_PRIMITIVE_CHAR)) ||
-#ifdef HAVE_WCHAR_H
-                    ((ftype->ct_flags & CT_PRIMITIVE_CHAR)
-                         && ftype->ct_size == sizeof(wchar_t)) ||
-#endif
-                    fbitsize == 0 ||
-                    fbitsize > 8 * ftype->ct_size) {
-                PyErr_Format(PyExc_TypeError, "invalid bit field '%s'",
-                             PyText_AS_UTF8(fname));
-                goto error;
-            }
-            if (prev_bit_position > 0) {
-                assert(prev_field && prev_field->cf_bitshift >= 0);
-                if (prev_field->cf_type->ct_size != ftype->ct_size) {
-                    PyErr_SetString(PyExc_NotImplementedError,
-                                    "consecutive bit fields should be "
-                                    "declared with a same-sized type");
-                    goto error;
-                }
-                else if (prev_bit_position + fbitsize > 8 * ftype->ct_size) {
-                    prev_bit_position = 0;
-                }
-                else {
-                    /* we can share the same field as 'prev_field' */
-                    offset = prev_field->cf_offset;
-                }
-            }
-            bitshift = prev_bit_position;
-            if (!is_union)
-                prev_bit_position += fbitsize;
-        }
+                bs_flag = BS_REGULAR;
 
-        if (PyText_GetSize(fname) == 0 &&
-                ftype->ct_flags & (CT_STRUCT|CT_UNION)) {
-            /* a nested anonymous struct or union */
-            CFieldObject *cfsrc = (CFieldObject *)ftype->ct_extra;
-            for (; cfsrc != NULL; cfsrc = cfsrc->cf_next) {
-                /* broken complexity in the call to get_field_name(),
-                   but we'll assume you never do that with nested
-                   anonymous structures with thousand of fields */
-                *previous = _add_field(interned_fields,
-                                       get_field_name(ftype, cfsrc),
-                                       cfsrc->cf_type,
-                                       offset + cfsrc->cf_offset,
-                                       cfsrc->cf_bitshift,
-                                       cfsrc->cf_bitsize);
+            /* align this field to its own 'falign' by inserting padding */
+            boffset = (boffset + falign*8-1) & ~(falign*8-1); /* bits! */
+
+            if (foffset >= 0) {
+                /* a forced field position: ignore the offset just computed,
+                   except to know if we must set CT_CUSTOM_FIELD_POS */
+                if (boffset != foffset * 8)
+                    ct->ct_flags |= CT_CUSTOM_FIELD_POS;
+                boffset = foffset * 8;
+            }
+
+            if (PyText_GetSize(fname) == 0 &&
+                    ftype->ct_flags & (CT_STRUCT|CT_UNION)) {
+                /* a nested anonymous struct or union */
+                CFieldObject *cfsrc = (CFieldObject *)ftype->ct_extra;
+                for (; cfsrc != NULL; cfsrc = cfsrc->cf_next) {
+                    /* broken complexity in the call to get_field_name(),
+                       but we'll assume you never do that with nested
+                       anonymous structures with thousand of fields */
+                    *previous = _add_field(interned_fields,
+                                           get_field_name(ftype, cfsrc),
+                                           cfsrc->cf_type,
+                                           boffset / 8 + cfsrc->cf_offset,
+                                           cfsrc->cf_bitshift,
+                                           cfsrc->cf_bitsize);
+                    if (*previous == NULL)
+                        goto error;
+                    previous = &(*previous)->cf_next;
+                }
+                /* always forbid such structures from being passed by value */
+                ct->ct_flags |= CT_CUSTOM_FIELD_POS;
+            }
+            else {
+                *previous = _add_field(interned_fields, fname, ftype,
+                                        boffset / 8, bs_flag, -1);
                 if (*previous == NULL)
                     goto error;
                 previous = &(*previous)->cf_next;
             }
-            /* always forbid such structures from being passed by value */
-            ct->ct_flags |= CT_CUSTOM_FIELD_POS;
-            prev_field = NULL;
+            boffset += ftype->ct_size * 8;
         }
         else {
-            prev_field = _add_field(interned_fields, fname, ftype,
-                                    offset, bitshift, fbitsize);
-            if (prev_field == NULL)
+            /* this is the case of a bitfield */
+            Py_ssize_t field_offset_bytes;
+            int bits_already_occupied, bitshift;
+
+            if (foffset >= 0) {
+                PyErr_Format(PyExc_TypeError,
+                             "field '%s.%s' is a bitfield, "
+                             "but a fixed offset is specified",
+                             ct->ct_name, PyText_AS_UTF8(fname));
                 goto error;
-            *previous = prev_field;
-            previous = &prev_field->cf_next;
+            }
+
+            if (!(ftype->ct_flags & (CT_PRIMITIVE_SIGNED |
+                                     CT_PRIMITIVE_UNSIGNED |
+                                     CT_PRIMITIVE_CHAR))) {
+                PyErr_Format(PyExc_TypeError,
+                        "field '%s.%s' declared as '%s' cannot be a bit field",
+                             ct->ct_name, PyText_AS_UTF8(fname),
+                             ftype->ct_name);
+                goto error;
+            }
+            if (fbitsize > 8 * ftype->ct_size) {
+                PyErr_Format(PyExc_TypeError,
+                             "bit field '%s.%s' is declared '%s:%d', which "
+                             "exceeds the width of the type",
+                             ct->ct_name, PyText_AS_UTF8(fname),
+                             ftype->ct_name, fbitsize);
+                goto error;
+            }
+
+            /* compute the starting position of the theoretical field
+               that covers a complete 'ftype', inside of which we will
+               locate the real bitfield */
+            field_offset_bytes = boffset / 8;
+            field_offset_bytes &= ~(falign - 1);
+
+            if (fbitsize == 0) {
+                if (PyText_GetSize(fname) > 0) {
+                    PyErr_Format(PyExc_TypeError,
+                                 "field '%s.%s' is declared with :0",
+                                 ct->ct_name, PyText_AS_UTF8(fname));
+                }
+                if (boffset > field_offset_bytes * 8) {
+                    field_offset_bytes += falign;
+                    assert(boffset < field_offset_bytes * 8);
+                }
+                boffset = field_offset_bytes * 8;   /* the only effect */
+            }
+            else {
+                /* Can the field start at the offset given by 'boffset'?  It
+                   can if it would entirely fit into an aligned ftype field. */
+                bits_already_occupied = boffset - (field_offset_bytes * 8);
+
+                if (bits_already_occupied + fbitsize > 8 * ftype->ct_size) {
+                    /* it would not fit, we need to start at the next
+                       allowed position */
+                    field_offset_bytes += falign;
+                    assert(boffset < field_offset_bytes * 8);
+                    boffset = field_offset_bytes * 8;
+                    bitshift = 0;
+                }
+                else
+                    bitshift = bits_already_occupied;
+
+                *previous = _add_field(interned_fields, fname, ftype,
+                                       field_offset_bytes, bitshift, fbitsize);
+                if (*previous == NULL)
+                    goto error;
+                previous = &(*previous)->cf_next;
+                boffset += fbitsize;
+            }
         }
 
-        if (maxsize < ftype->ct_size)
-            maxsize = ftype->ct_size;
-        if (!is_union)
-            offset += ftype->ct_size;
+        if (boffset > boffsetmax)
+            boffsetmax = boffset;
     }
     *previous = NULL;
-
-    if (is_union) {
-        assert(offset == 0);
-        offset = maxsize;
-    }
 
     /* Like C, if the size of this structure would be zero, we compute it
        as 1 instead.  But for ctypes support, we allow the manually-
        specified totalsize to be zero in this case. */
+    boffsetmax = (boffsetmax + 7) / 8;        /* bits -> bytes */
     if (totalsize < 0) {
-        offset = (offset + alignment - 1) & ~(alignment-1);
-        totalsize = (offset == 0 ? 1 : offset);
+        totalsize = (boffsetmax + alignment - 1) & ~(alignment-1);
+        if (totalsize == 0)
+            totalsize = 1;
     }
-    else if (totalsize < offset) {
+    else if (totalsize < boffsetmax) {
         PyErr_Format(PyExc_TypeError,
                      "%s cannot be of size %zd: there are fields at least "
-                     "up to %zd", ct->ct_name, totalsize, offset);
+                     "up to %zd", ct->ct_name, totalsize, boffsetmax);
         goto error;
     }
     ct->ct_size = totalsize;
