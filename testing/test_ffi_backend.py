@@ -51,7 +51,7 @@ class TestBitfield:
                 struct s1 *try_with_value(int fieldnum, long long value);
             """)
             fnames = [name for name, cfield in ctype.fields
-                           if cfield.bitsize > 0]
+                           if name and cfield.bitsize > 0]
             setters = ['case %d: s.%s = value; break;' % iname
                        for iname in enumerate(fnames)]
             lib = ffi1.verify("""
@@ -60,7 +60,7 @@ class TestBitfield:
                 #define Gofs_y  offsetof(struct s1, y)
                 #define Galign  offsetof(struct sa, b)
                 #define Gsize   sizeof(struct s1)
-                char *try_with_value(int fieldnum, long long value)
+                struct s1 *try_with_value(int fieldnum, long long value)
                 {
                     static struct s1 s;
                     memset(&s, 0, sizeof(s));
@@ -80,11 +80,12 @@ class TestBitfield:
         assert ffi.sizeof("struct s1") == expected_size
         # compare the actual storage of the two
         for name, cfield in ctype.fields:
-            if cfield.bitsize < 0:
+            if cfield.bitsize < 0 or not name:
                 continue
             max_value = (1 << (cfield.bitsize-1)) - 1
             min_value = -(1 << (cfield.bitsize-1))
-            self._fieldcheck(ffi, lib, fnames, name, 1)
+            if max_value >= 1:
+                self._fieldcheck(ffi, lib, fnames, name, 1)
             self._fieldcheck(ffi, lib, fnames, name, min_value)
             self._fieldcheck(ffi, lib, fnames, name, max_value)
 
@@ -105,6 +106,8 @@ class TestBitfield:
 
     def test_bitfield_reuse_if_enough_space(self):
         self.check("int a:2; char y;", 1, 4, 4)
+        self.check("int a:1; char b  ; int c:1; char y;", 3, 4, 4)
+        self.check("int a:1; char b:8; int c:1; char y;", 3, 4, 4)
         self.check("char a; int b:9; char y;", 3, 4, 4)
         self.check("char a; short b:9; char y;", 4, 2, 6)
         self.check("int a:2; char b:6; char y;", 1, 4, 4)
