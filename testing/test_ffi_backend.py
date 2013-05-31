@@ -138,6 +138,7 @@ class TestBitfield:
         self.check("char x; long long :0; char y;", L, 1, L + 1)
         self.check("short x, y; int :0; int :0;", 2, 2, 4)
         self.check("char x; int :0; short b:1; char y;", 5, 2, 6)
+        self.check("int a:1; int :0; int b:1; char y;", 5, 4, 8)
 
     def test_error_cases(self):
         ffi = FFI()
