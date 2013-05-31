@@ -44,36 +44,31 @@ class TestBitfield:
         ffi.cdef("struct s1 { %s };" % source)
         ctype = ffi.typeof("struct s1")
         # verify the information with gcc
-        if sys.platform != "win32":
-            ffi1 = FFI()
-            ffi1.cdef("""
-                static const int Gofs_y, Galign, Gsize;
-                struct s1 *try_with_value(int fieldnum, long long value);
-            """)
-            fnames = [name for name, cfield in ctype.fields
-                           if name and cfield.bitsize > 0]
-            setters = ['case %d: s.%s = value; break;' % iname
-                       for iname in enumerate(fnames)]
-            lib = ffi1.verify("""
-                struct s1 { %s };
-                struct sa { char a; struct s1 b; };
-                #define Gofs_y  offsetof(struct s1, y)
-                #define Galign  offsetof(struct sa, b)
-                #define Gsize   sizeof(struct s1)
-                struct s1 *try_with_value(int fieldnum, long long value)
-                {
-                    static struct s1 s;
-                    memset(&s, 0, sizeof(s));
-                    switch (fieldnum) { %s }
-                    return &s;
-                }
-            """ % (source, ' '.join(setters)))
-            assert lib.Gofs_y == expected_ofs_y
-            assert lib.Galign == expected_align
-            assert lib.Gsize  == expected_size
-        else:
-            lib = None
-            fnames = None
+        ffi1 = FFI()
+        ffi1.cdef("""
+            static const int Gofs_y, Galign, Gsize;
+            struct s1 *try_with_value(int fieldnum, long long value);
+        """)
+        fnames = [name for name, cfield in ctype.fields
+                       if name and cfield.bitsize > 0]
+        setters = ['case %d: s.%s = value; break;' % iname
+                   for iname in enumerate(fnames)]
+        lib = ffi1.verify("""
+            struct s1 { %s };
+            struct sa { char a; struct s1 b; };
+            #define Gofs_y  offsetof(struct s1, y)
+            #define Galign  offsetof(struct sa, b)
+            #define Gsize   sizeof(struct s1)
+            struct s1 *try_with_value(int fieldnum, long long value)
+            {
+                static struct s1 s;
+                memset(&s, 0, sizeof(s));
+                switch (fieldnum) { %s }
+                return &s;
+            }
+        """ % (source, ' '.join(setters)))
+        assert (lib.Gofs_y, lib.Galign, lib.Gsize) == (
+            expected_ofs_y, expected_align, expected_size)
         # the real test follows
         assert ffi.offsetof("struct s1", "y") == expected_ofs_y
         assert ffi.alignof("struct s1") == expected_align
@@ -98,10 +93,9 @@ class TestBitfield:
         setattr(s, name, value)
         assert getattr(s, name) == value
         raw1 = ffi.buffer(s)[:]
-        if lib is not None:
-            t = lib.try_with_value(fnames.index(name), value)
-            raw2 = ffi.buffer(t, len(raw1))[:]
-            assert raw1 == raw2
+        t = lib.try_with_value(fnames.index(name), value)
+        raw2 = ffi.buffer(t, len(raw1))[:]
+        assert raw1 == raw2
 
     def test_bitfield_basic(self):
         self.check("int a; int b:9; int c:20; int y;", 8, 4, 12)
