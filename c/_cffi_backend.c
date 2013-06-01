@@ -3424,6 +3424,8 @@ _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
     return cf;   /* borrowed reference */
 }
 
+#define SF_MSVC_BITFIELDS 1
+
 static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
@@ -3433,11 +3435,17 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     Py_ssize_t totalsize = -1;
     int totalalignment = -1;
     CFieldObject **previous;
+    int prev_bitfield_size, prev_bitfield_free;
+#ifdef MS_WIN32
+    int sflags = SF_MSVC_BITFIELDS;
+#else
+    int sflags = 0;
+#endif
 
-    if (!PyArg_ParseTuple(args, "O!O!|Oni:complete_struct_or_union",
+    if (!PyArg_ParseTuple(args, "O!O!|Onii:complete_struct_or_union",
                           &CTypeDescr_Type, &ct,
                           &PyList_Type, &fields,
-                          &ignored, &totalsize, &totalalignment))
+                          &ignored, &totalsize, &totalalignment, &sflags))
         return NULL;
 
     if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) ==
@@ -3457,6 +3465,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     alignment = 1;
     boffset = 0;         /* this number is in *bits*, not bytes! */
     boffsetmax = 0;      /* the maximum value of boffset, in bits too */
+    prev_bitfield_size = 0;
+    prev_bitfield_free = 0;
     nb_fields = PyList_GET_SIZE(fields);
     interned_fields = PyDict_New();
     if (interned_fields == NULL)
@@ -3543,6 +3553,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                 previous = &(*previous)->cf_next;
             }
             boffset += ftype->ct_size * 8;
+            prev_bitfield_size = 0;
         }
         else {
             /* this is the case of a bitfield */
@@ -3592,29 +3603,59 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     assert(boffset < field_offset_bytes * 8);
                 }
                 boffset = field_offset_bytes * 8;   /* the only effect */
+                prev_bitfield_size = 0;
             }
             else {
-                /* Can the field start at the offset given by 'boffset'?  It
-                   can if it would entirely fit into an aligned ftype field. */
-                bits_already_occupied = boffset - (field_offset_bytes * 8);
+                if (!(sflags & SF_MSVC_BITFIELDS)) {
+                    /* GCC's algorithm */
 
-                if (bits_already_occupied + fbitsize > 8 * ftype->ct_size) {
-                    /* it would not fit, we need to start at the next
-                       allowed position */
-                    field_offset_bytes += falign;
-                    assert(boffset < field_offset_bytes * 8);
-                    boffset = field_offset_bytes * 8;
-                    bitshift = 0;
+                    /* Can the field start at the offset given by 'boffset'?  It
+                       can if it would entirely fit into an aligned ftype field. */
+                    bits_already_occupied = boffset - (field_offset_bytes * 8);
+
+                    if (bits_already_occupied + fbitsize > 8 * ftype->ct_size) {
+                        /* it would not fit, we need to start at the next
+                           allowed position */
+                        field_offset_bytes += falign;
+                        assert(boffset < field_offset_bytes * 8);
+                        boffset = field_offset_bytes * 8;
+                        bitshift = 0;
+                    }
+                    else {
+                        bitshift = bits_already_occupied;
+                        assert(bitshift >= 0);
+                    }
+                    boffset += fbitsize;
                 }
-                else
-                    bitshift = bits_already_occupied;
+                else {
+                    /* MSVC's algorithm */
+
+                    /* A bitfield is considered as taking the full width
+                       of their declared type.  It can share some bits
+                       with the previous field only if it was also a
+                       bitfield and used a type of the same size. */
+                    if (prev_bitfield_size == ftype->ct_size &&
+                        prev_bitfield_free >= fbitsize) {
+                        /* yes: reuse */
+                        bitshift = 8 * prev_bitfield_size - prev_bitfield_free;
+                    }
+                    else {
+                        /* no: start a new full field */
+                        boffset = (boffset + falign*8-1) & ~(falign*8-1); /*align*/
+                        boffset += ftype->ct_size * 8;
+                        bitshift = 0;
+                        prev_bitfield_size = ftype->ct_size;
+                        prev_bitfield_free = 8 * prev_bitfield_size;
+                    }
+                    prev_bitfield_free -= fbitsize;
+                    field_offset_bytes = boffset / 8 - ftype->ct_size;
+                }
 
                 *previous = _add_field(interned_fields, fname, ftype,
                                        field_offset_bytes, bitshift, fbitsize);
                 if (*previous == NULL)
                     goto error;
                 previous = &(*previous)->cf_next;
-                boffset += fbitsize;
             }
         }
 
