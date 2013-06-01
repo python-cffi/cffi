@@ -3477,7 +3477,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     for (i=0; i<nb_fields; i++) {
         PyObject *fname;
         CTypeDescrObject *ftype;
-        int fbitsize = -1, falign, foffset = -1;
+        int fbitsize = -1, falign, do_align, foffset = -1;
 
         if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!|ii:list item",
                               &PyText_Type, &fname,
@@ -3501,7 +3501,19 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         falign = get_alignment(ftype);
         if (falign < 0)
             goto error;
-        if (alignment < falign && (fbitsize < 0 || PyText_GetSize(fname) > 0))
+
+        do_align = 1;
+        if (fbitsize >= 0) {
+            if (!(sflags & SF_MSVC_BITFIELDS)) {
+                /* GCC: anonymous bitfields (of any size) don't cause alignment */
+                do_align = PyText_GetSize(fname) > 0;
+            }
+            else {
+                /* MSVC: zero-sized bitfields don't cause alignment */
+                do_align = fbitsize > 0;
+            }
+        }
+        if (alignment < falign && do_align)
             alignment = falign;
 
         if (fbitsize < 0) {
@@ -3598,11 +3610,23 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                                  "field '%s.%s' is declared with :0",
                                  ct->ct_name, PyText_AS_UTF8(fname));
                 }
-                if (boffset > field_offset_bytes * 8) {
-                    field_offset_bytes += falign;
-                    assert(boffset < field_offset_bytes * 8);
+                if (!(sflags & SF_MSVC_BITFIELDS)) {
+                    /* GCC's notion of "ftype :0;" */
+
+                    /* pad boffset to a value aligned for "ftype" */
+                    if (boffset > field_offset_bytes * 8) {
+                        field_offset_bytes += falign;
+                        assert(boffset < field_offset_bytes * 8);
+                    }
+                    boffset = field_offset_bytes * 8;
                 }
-                boffset = field_offset_bytes * 8;   /* the only effect */
+                else {
+                    /* MSVC's notion of "ftype :0;" */
+
+                    /* Mostly ignored.  It seems they only serve as
+                       separator between other bitfields, to force them
+                       into separate words. */
+                }
                 prev_bitfield_size = 0;
             }
             else {

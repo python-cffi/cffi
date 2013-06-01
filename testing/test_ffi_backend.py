@@ -137,6 +137,7 @@ class TestBitfield:
         L = FFI().alignof("long long")
         self.check("char y; int :0;", 0, 1, 4)
         self.check("char x; int :0; char y;", 4, 1, 5)
+        self.check("char x; int :0; int :0; char y;", 4, 1, 5)
         self.check("char x; long long :0; char y;", L, 1, L + 1)
         self.check("short x, y; int :0; int :0;", 2, 2, 4)
         self.check("char x; int :0; short b:1; char y;", 5, 2, 6)

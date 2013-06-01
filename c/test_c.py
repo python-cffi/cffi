@@ -2791,16 +2791,24 @@ def _test_bitfield_details(flag):
                                        ('',  BShort, 9),
                                        ('c', BChar, -1)], -1, -1, -1, flag)
     assert typeoffsetof(BStruct, 'c') == (BChar, 4)
-    assert sizeof(BStruct) == 5
-    assert alignof(BStruct) == 1
+    if flag == 0:   # gcc
+        assert sizeof(BStruct) == 5
+        assert alignof(BStruct) == 1
+    else:           # msvc
+        assert sizeof(BStruct) == 6
+        assert alignof(BStruct) == 2
     #
     BStruct = new_struct_type("foo2")
     complete_struct_or_union(BStruct, [('a', BChar, -1),
                                        ('',  BInt, 0),
                                        ('',  BInt, 0),
                                        ('c', BChar, -1)], -1, -1, -1, flag)
-    assert typeoffsetof(BStruct, 'c') == (BChar, 4)
-    assert sizeof(BStruct) == 5
+    if flag == 0:   # gcc
+        assert typeoffsetof(BStruct, 'c') == (BChar, 4)
+        assert sizeof(BStruct) == 5
+    else:           # msvc
+        assert typeoffsetof(BStruct, 'c') == (BChar, 1)
+        assert sizeof(BStruct) == 2
     assert alignof(BStruct) == 1
 
 
