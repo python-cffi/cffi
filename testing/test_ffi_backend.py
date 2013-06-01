@@ -40,6 +40,9 @@ class TestFFI(backend_tests.BackendTests,
 
 class TestBitfield:
     def check(self, source, expected_ofs_y, expected_align, expected_size):
+        # NOTE: 'expected_*' is the numbers expected from GCC.
+        # The numbers expected from MSVC are not explicitly written
+        # in this file, and will just be taken from the compiler.
         ffi = FFI()
         ffi.cdef("struct s1 { %s };" % source)
         ctype = ffi.typeof("struct s1")
@@ -67,8 +70,13 @@ class TestBitfield:
                 return &s;
             }
         """ % (source, ' '.join(setters)))
-        assert (lib.Gofs_y, lib.Galign, lib.Gsize) == (
-            expected_ofs_y, expected_align, expected_size)
+        if sys.platform == 'win32':
+            expected_ofs_y = lib.Gofs_y
+            expected_align = lib.Galign
+            expected_size  = lib.Gsize
+        else:
+            assert (lib.Gofs_y, lib.Galign, lib.Gsize) == (
+                expected_ofs_y, expected_align, expected_size)
         # the real test follows
         assert ffi.offsetof("struct s1", "y") == expected_ofs_y
         assert ffi.alignof("struct s1") == expected_align
