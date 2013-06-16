@@ -3503,6 +3503,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             goto error;
 
         do_align = 1;
+#ifndef __arm__
         if (fbitsize >= 0) {
             if (!(sflags & SF_MSVC_BITFIELDS)) {
                 /* GCC: anonymous bitfields (of any size) don't cause alignment */
@@ -3513,6 +3514,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                 do_align = fbitsize > 0;
             }
         }
+#endif
         if (alignment < falign && do_align)
             alignment = falign;
 
