@@ -1186,6 +1186,18 @@ with the fact that any cdata object can be weakly referenced).
 
 .. "versionadded:: 0.3" --- inlined in the previous paragraph
 
+``ffi.new_handle(python_object)``: return a non-NULL cdata of type
+``void *`` that contains an opaque reference to ``python_object``.  You
+can pass it around to C functions or store it into C structures.  Later,
+you can use ``ffi.from_handle(p)`` to retrive the original
+``python_object`` from a value with the same ``void *`` pointer.  The
+cdata object returned by ``new_handle()`` has *ownership*, in the same
+sense as ``ffi.new()`` or ``ffi.gc()``: the association ``void * ->
+python_object`` is only valid as long as *this* exact cdata returned by
+``new_handle()`` is alive.  *New in version 0.7.*
+
+.. "versionadded:: 0.7" --- inlined in the previous paragraph
+
 ``ffi.addressof(cdata, field=None)``: from a cdata whose type is
 ``struct foo_s``, return its "address", as a cdata whose type is
 ``struct foo_s *``.  Also works on unions, but not on any other type.
