@@ -357,7 +357,8 @@ class StructType(StructOrUnion):
     def build_backend_type(self, ffi, finishlist):
         self.check_not_partial()
         finishlist.append(self)
-        return global_cache(self, ffi, 'new_struct_type', self.name, key=self)
+        return global_cache(self, ffi, 'new_struct_type',
+                            'struct ' + self.name, key=self)
 
 
 class UnionType(StructOrUnion):
@@ -365,7 +366,8 @@ class UnionType(StructOrUnion):
 
     def build_backend_type(self, ffi, finishlist):
         finishlist.append(self)
-        return global_cache(self, ffi, 'new_union_type', self.name, key=self)
+        return global_cache(self, ffi, 'new_union_type',
+                            'union ' + self.name, key=self)
 
 
 class EnumType(StructOrUnionOrEnum):
