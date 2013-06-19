@@ -934,7 +934,7 @@ class CTypesBackend(object):
         #
         class CTypesEnum(CTypesInt):
             __slots__ = []
-            _reftypename = 'enum %s &' % name
+            _reftypename = '%s &' % name
 
             def _get_own_repr(self):
                 value = self._value

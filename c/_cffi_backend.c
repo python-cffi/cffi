@@ -4459,13 +4459,12 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
     Py_CLEAR(dict2);
     Py_CLEAR(dict1);
 
-    name_size = strlen("enum ") + strlen(ename) + 1;
+    name_size = strlen(ename) + 1;
     td = ctypedescr_new(name_size);
     if (td == NULL)
         goto error;
 
-    memcpy(td->ct_name, "enum ", strlen("enum "));
-    memcpy(td->ct_name + strlen("enum "), ename, name_size - strlen("enum "));
+    memcpy(td->ct_name, ename, name_size);
     td->ct_stuff = combined;
     td->ct_size = basetd->ct_size;
     td->ct_length = basetd->ct_length;   /* alignment */

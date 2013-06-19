@@ -1288,26 +1288,27 @@ def test_callback_returning_void():
 def test_enum_type():
     BUInt = new_primitive_type("unsigned int")
     BEnum = new_enum_type("foo", (), (), BUInt)
-    assert repr(BEnum) == "<ctype 'enum foo'>"
+    assert repr(BEnum) == "<ctype 'foo'>"
     assert BEnum.kind == "enum"
-    assert BEnum.cname == "enum foo"
+    assert BEnum.cname == "foo"
     assert BEnum.elements == {}
     #
     BInt = new_primitive_type("int")
-    BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20), BInt)
+    BEnum = new_enum_type("enum foo", ('def', 'c', 'ab'), (0, 1, -20), BInt)
     assert BEnum.kind == "enum"
+    assert BEnum.cname == "enum foo"
     assert BEnum.elements == {-20: 'ab', 0: 'def', 1: 'c'}
     # 'elements' is not the real dict, but merely a copy
     BEnum.elements[2] = '??'
     assert BEnum.elements == {-20: 'ab', 0: 'def', 1: 'c'}
     #
-    BEnum = new_enum_type("bar", ('ab', 'cd'), (5, 5), BUInt)
+    BEnum = new_enum_type("enum bar", ('ab', 'cd'), (5, 5), BUInt)
     assert BEnum.elements == {5: 'ab'}
     assert BEnum.relements == {'ab': 5, 'cd': 5}
 
 def test_cast_to_enum():
     BInt = new_primitive_type("int")
-    BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20), BInt)
+    BEnum = new_enum_type("enum foo", ('def', 'c', 'ab'), (0, 1, -20), BInt)
     assert sizeof(BEnum) == sizeof(BInt)
     e = cast(BEnum, 0)
     assert repr(e) == "<cdata 'enum foo' 0: def>"
@@ -1321,26 +1322,26 @@ def test_cast_to_enum():
     assert string(cast(BEnum, -242 + 2**128)) == '-242'
     #
     BUInt = new_primitive_type("unsigned int")
-    BEnum = new_enum_type("bar", ('def', 'c', 'ab'), (0, 1, 20), BUInt)
+    BEnum = new_enum_type("enum bar", ('def', 'c', 'ab'), (0, 1, 20), BUInt)
     e = cast(BEnum, -1)
     assert repr(e) == "<cdata 'enum bar' 4294967295>"     # unsigned int
     #
     BLong = new_primitive_type("long")
-    BEnum = new_enum_type("baz", (), (), BLong)
+    BEnum = new_enum_type("enum baz", (), (), BLong)
     assert sizeof(BEnum) == sizeof(BLong)
     e = cast(BEnum, -1)
     assert repr(e) == "<cdata 'enum baz' -1>"
 
 def test_enum_with_non_injective_mapping():
     BInt = new_primitive_type("int")
-    BEnum = new_enum_type("foo", ('ab', 'cd'), (7, 7), BInt)
+    BEnum = new_enum_type("enum foo", ('ab', 'cd'), (7, 7), BInt)
     e = cast(BEnum, 7)
     assert repr(e) == "<cdata 'enum foo' 7: ab>"
     assert string(e) == 'ab'
 
 def test_enum_in_struct():
     BInt = new_primitive_type("int")
-    BEnum = new_enum_type("foo", ('def', 'c', 'ab'), (0, 1, -20), BInt)
+    BEnum = new_enum_type("enum foo", ('def', 'c', 'ab'), (0, 1, -20), BInt)
     BStruct = new_struct_type("struct bar")
     BStructPtr = new_pointer_type(BStruct)
     complete_struct_or_union(BStruct, [('a1', BEnum, -1)])
