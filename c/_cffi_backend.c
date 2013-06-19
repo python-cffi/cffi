@@ -3421,6 +3421,7 @@ _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
 }
 
 #define SF_MSVC_BITFIELDS 1
+#define SF_GCC_ARM_BITFIELDS 2
 
 static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 {
@@ -3435,7 +3436,11 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 #ifdef MS_WIN32
     int sflags = SF_MSVC_BITFIELDS;
 #else
+# ifdef __arm__
+    int sflags = SF_GCC_ARM_BITFIELDS;
+# else
     int sflags = 0;
+# endif
 #endif
 
     if (!PyArg_ParseTuple(args, "O!O!|Onii:complete_struct_or_union",
@@ -3499,8 +3504,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             goto error;
 
         do_align = 1;
-#ifndef __arm__
-        if (fbitsize >= 0) {
+        if (!(sflags & SF_GCC_ARM_BITFIELDS) && fbitsize >= 0) {
             if (!(sflags & SF_MSVC_BITFIELDS)) {
                 /* GCC: anonymous bitfields (of any size) don't cause alignment */
                 do_align = PyText_GetSize(fname) > 0;
@@ -3510,7 +3514,6 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                 do_align = fbitsize > 0;
             }
         }
-#endif
         if (alignment < falign && do_align)
             alignment = falign;
 
