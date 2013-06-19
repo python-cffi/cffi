@@ -3351,22 +3351,18 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *args)
     return (PyObject *)td;
 }
 
-static PyObject *_b_struct_or_union_type(const char *kind, const char *name,
-                                         int flag)
+static PyObject *_b_struct_or_union_type(const char *name, int flag)
 {
-    int kindlen = strlen(kind);
     int namelen = strlen(name);
-    CTypeDescrObject *td = ctypedescr_new(kindlen + 1 + namelen + 1);
+    CTypeDescrObject *td = ctypedescr_new(namelen + 1);
     if (td == NULL)
         return NULL;
 
     td->ct_size = -1;
     td->ct_length = -1;
     td->ct_flags = flag | CT_IS_OPAQUE;
-    memcpy(td->ct_name, kind, kindlen);
-    td->ct_name[kindlen] = ' ';
-    memcpy(td->ct_name + kindlen + 1, name, namelen + 1);
-    td->ct_name_position = kindlen + 1 + namelen;
+    memcpy(td->ct_name, name, namelen + 1);
+    td->ct_name_position = namelen;
     return (PyObject *)td;
 }
 
@@ -3378,9 +3374,9 @@ static PyObject *b_new_struct_type(PyObject *self, PyObject *args)
         return NULL;
 
     flag = CT_STRUCT;
-    if (strcmp(name, "_IO_FILE") == 0 || strcmp(name, "$FILE") == 0)
+    if (strcmp(name, "struct _IO_FILE") == 0 || strcmp(name, "FILE") == 0)
         flag |= CT_IS_FILE;
-    return _b_struct_or_union_type("struct", name, flag);
+    return _b_struct_or_union_type(name, flag);
 }
 
 static PyObject *b_new_union_type(PyObject *self, PyObject *args)
@@ -3388,7 +3384,7 @@ static PyObject *b_new_union_type(PyObject *self, PyObject *args)
     char *name;
     if (!PyArg_ParseTuple(args, "s:new_union_type", &name))
         return NULL;
-    return _b_struct_or_union_type("union", name, CT_UNION);
+    return _b_struct_or_union_type(name, CT_UNION);
 }
 
 static CFieldObject *
