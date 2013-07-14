@@ -500,8 +500,8 @@ class Parser(object):
                 self._partial_length = True
                 return None
         #
-        raise api.FFIError("unsupported non-constant or "
-                           "not immediately constant expression")
+        raise api.FFIError("unsupported expression: expected a "
+                           "simple numeric constant")
 
     def _build_enum_type(self, explicit_name, decls):
         if decls is not None:
