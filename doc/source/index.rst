@@ -103,7 +103,7 @@ Download and Installation:
 
 * ``python setup.py install`` or ``python setup_base.py install``
   (should work out of the box on Linux or Windows; see below for
-  `MacOS 10.6`_)
+  `MacOS 10.6`_ or `Windows 64`_.)
 
 * or you can directly import and use ``cffi``, but if you don't
   compile the ``_cffi_backend`` extension module, it will fall back
@@ -160,6 +160,20 @@ Then running ``python setup.py build`` complains about "fatal error: error writi
 as described here_.
 
 .. _here: http://superuser.com/questions/259278/python-2-6-1-pycrypto-2-3-pypi-package-broken-pipe-during-build
+
+
+Windows 64
+++++++++++
+
+Win32 works and is tested at least each official release.  However, it
+seems that compiling it for Win64 (explicitly *not* in Win32 mode) does
+not work out of the box.  According to `issue 9`_, this is because
+distutils doesn't support .asm files.  This can be resolved by applying
+the patch from `Python issue 7546`_.
+
+.. _`issue 9`: https://bitbucket.org/cffi/cffi/issue/9
+.. _`Python issue 7546`: http://bugs.python.org/issue7546
+
 
 
 =======================================================
