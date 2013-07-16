@@ -1422,8 +1422,26 @@ static void cdataowning_dealloc(CDataObject *cd)
 
 static int cdata_traverse(CDataObject *cd, visitproc visit, void *arg)
 {
+    /* XXX needs Py_TPFLAGS_HAVE_GC */
     Py_VISIT(cd->c_type);
     return 0;
+}
+
+static int cdataowning_traverse(CDataObject *cd, visitproc visit, void *arg)
+{
+    if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
+        Py_VISIT(((CDataObject_own_structptr *)cd)->structobj);
+    }
+    else if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {
+        PyObject *x = (PyObject *)(cd->c_data + 42);
+        Py_VISIT(x);
+    }
+    else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {
+        ffi_closure *closure = (ffi_closure *)cd->c_data;
+        PyObject *args = (PyObject *)(closure->user_data);
+        Py_VISIT(args);
+    }
+    return cdata_traverse(cd, visit, arg);
 }
 
 static PyObject *cdata_float(CDataObject *cd);  /*forward*/
@@ -2427,7 +2445,7 @@ static PyTypeObject CDataOwning_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
     0,                                          /* tp_doc */
-    0,                                          /* tp_traverse */
+    (traverseproc)cdataowning_traverse,         /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
