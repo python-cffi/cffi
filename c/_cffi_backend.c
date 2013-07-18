@@ -144,11 +144,14 @@ static PyTypeObject CTypeDescr_Type;
 static PyTypeObject CField_Type;
 static PyTypeObject CData_Type;
 static PyTypeObject CDataOwning_Type;
+static PyTypeObject CDataOwningGC_Type;
 
 #define CTypeDescr_Check(ob)  (Py_TYPE(ob) == &CTypeDescr_Type)
 #define CData_Check(ob)       (Py_TYPE(ob) == &CData_Type ||            \
-                               Py_TYPE(ob) == &CDataOwning_Type)
-#define CDataOwn_Check(ob)    (Py_TYPE(ob) == &CDataOwning_Type)
+                               Py_TYPE(ob) == &CDataOwning_Type ||      \
+                               Py_TYPE(ob) == &CDataOwningGC_Type)
+#define CDataOwn_Check(ob)    (Py_TYPE(ob) == &CDataOwning_Type ||      \
+                               Py_TYPE(ob) == &CDataOwningGC_Type)
 
 typedef union {
     unsigned char m_char;
@@ -561,13 +564,6 @@ cfield_dealloc(CFieldObject *cf)
     PyObject_Del(cf);
 }
 
-static int
-cfield_traverse(CFieldObject *cf, visitproc visit, void *arg)
-{
-    Py_VISIT(cf->cf_type);
-    return 0;
-}
-
 #undef OFF
 #define OFF(x) offsetof(CFieldObject, x)
 
@@ -602,7 +598,7 @@ static PyTypeObject CField_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,                         /* tp_flags */
     0,                                          /* tp_doc */
-    (traverseproc)cfield_traverse,              /* tp_traverse */
+    0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
@@ -1384,25 +1380,16 @@ static void cdata_dealloc(CDataObject *cd)
 
     Py_DECREF(cd->c_type);
 #ifndef CFFI_MEM_LEAK     /* never release anything, tests only */
-    PyObject_Del(cd);
+    Py_TYPE(cd)->tp_free((PyObject *)cd);
 #endif
 }
 
 static void cdataowning_dealloc(CDataObject *cd)
 {
+    assert(!(cd->c_type->ct_flags & (CT_IS_VOID_PTR | CT_FUNCTIONPTR)));
+
     if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
         Py_DECREF(((CDataObject_own_structptr *)cd)->structobj);
-    }
-    else if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {
-        PyObject *x = (PyObject *)(cd->c_data + 42);
-        Py_DECREF(x);
-    }
-    else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {
-        /* a callback */
-        ffi_closure *closure = (ffi_closure *)cd->c_data;
-        PyObject *args = (PyObject *)(closure->user_data);
-        Py_XDECREF(args);
-        cffi_closure_free(closure);
     }
 #if defined(CFFI_MEM_DEBUG) || defined(CFFI_MEM_LEAK)
     if (cd->c_type->ct_flags & (CT_PRIMITIVE_ANY | CT_STRUCT | CT_UNION)) {
@@ -1420,28 +1407,55 @@ static void cdataowning_dealloc(CDataObject *cd)
     cdata_dealloc(cd);
 }
 
-static int cdata_traverse(CDataObject *cd, visitproc visit, void *arg)
+static void cdataowninggc_dealloc(CDataObject *cd)
 {
-    /* XXX needs Py_TPFLAGS_HAVE_GC */
-    Py_VISIT(cd->c_type);
-    return 0;
+    assert(!(cd->c_type->ct_flags & (CT_IS_PTR_TO_OWNED |
+                                     CT_PRIMITIVE_ANY |
+                                     CT_STRUCT | CT_UNION)));
+    PyObject_GC_UnTrack(cd);
+
+    if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {        /* a handle */
+        PyObject *x = (PyObject *)(cd->c_data + 42);
+        Py_DECREF(x);
+    }
+    else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
+        ffi_closure *closure = (ffi_closure *)cd->c_data;
+        PyObject *args = (PyObject *)(closure->user_data);
+        Py_XDECREF(args);
+        cffi_closure_free(closure);
+    }
+    cdata_dealloc(cd);
 }
 
-static int cdataowning_traverse(CDataObject *cd, visitproc visit, void *arg)
+static int cdataowninggc_traverse(CDataObject *cd, visitproc visit, void *arg)
 {
-    if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
-        Py_VISIT(((CDataObject_own_structptr *)cd)->structobj);
-    }
-    else if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {
+    if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {        /* a handle */
         PyObject *x = (PyObject *)(cd->c_data + 42);
         Py_VISIT(x);
     }
-    else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {
+    else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
         ffi_closure *closure = (ffi_closure *)cd->c_data;
         PyObject *args = (PyObject *)(closure->user_data);
         Py_VISIT(args);
     }
-    return cdata_traverse(cd, visit, arg);
+    return 0;
+}
+
+static int cdataowninggc_clear(CDataObject *cd)
+{
+    if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {        /* a handle */
+        PyObject *x = (PyObject *)(cd->c_data + 42);
+        Py_INCREF(Py_None);
+        cd->c_data = ((char *)Py_None) - 42;
+        Py_DECREF(x);
+    }
+    else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
+        ffi_closure *closure = (ffi_closure *)cd->c_data;
+        PyObject *args = (PyObject *)(closure->user_data);
+        closure->user_data = NULL;
+        Py_XDECREF(args);
+    }
+    return 0;
 }
 
 static PyObject *cdata_float(CDataObject *cd);  /*forward*/
@@ -2415,7 +2429,7 @@ static PyTypeObject CData_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
     0,                                          /* tp_doc */
-    (traverseproc)cdata_traverse,               /* tp_traverse */
+    0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     cdata_richcompare,                          /* tp_richcompare */
     offsetof(CDataObject, c_weakreflist),       /* tp_weaklistoffset */
@@ -2445,7 +2459,7 @@ static PyTypeObject CDataOwning_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
     0,                                          /* tp_doc */
-    (traverseproc)cdataowning_traverse,         /* tp_traverse */
+    0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
@@ -2455,6 +2469,41 @@ static PyTypeObject CDataOwning_Type = {
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
     &CData_Type,                                /* tp_base */
+};
+
+static PyTypeObject CDataOwningGC_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_cffi_backend.CDataOwnGC",
+    sizeof(CDataObject),
+    0,
+    (destructor)cdataowninggc_dealloc,          /* tp_dealloc */
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+    0,                                          /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    0,                                          /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
+                       | Py_TPFLAGS_HAVE_GC,
+    0,                                          /* tp_doc */
+    (traverseproc)cdataowninggc_traverse,       /* tp_traverse */
+    (inquiry)cdataowninggc_clear,               /* tp_clear */
+    0,                                          /* tp_richcompare */
+    0,                                          /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    0,                                          /* tp_methods */
+    0,                                          /* tp_members */
+    0,                                          /* tp_getset */
+    &CDataOwning_Type,                          /* tp_base */
 };
 
 /************************************************************/
@@ -4364,7 +4413,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
 
     closure = cffi_closure_alloc();
 
-    cd = PyObject_New(CDataObject, &CDataOwning_Type);
+    cd = PyObject_GC_New(CDataObject, &CDataOwningGC_Type);
     if (cd == NULL)
         goto error;
     Py_INCREF(ct);
@@ -4799,12 +4848,14 @@ static PyObject *b_newp_handle(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    cd = allocate_owning_object(sizeof(CDataObject), ct);
+    cd = (CDataObject *)PyObject_GC_New(CDataObject, &CDataOwningGC_Type);
     if (cd == NULL)
         return NULL;
-
+    Py_INCREF(ct);
+    cd->c_type = ct;
     Py_INCREF(x);
     cd->c_data = ((char *)x) - 42;
+    cd->c_weakreflist = NULL;
     return (PyObject *)cd;
 }
 
@@ -5277,6 +5328,8 @@ init_cffi_backend(void)
     if (PyType_Ready(&CData_Type) < 0)
         INITERROR;
     if (PyType_Ready(&CDataOwning_Type) < 0)
+        INITERROR;
+    if (PyType_Ready(&CDataOwningGC_Type) < 0)
         INITERROR;
     if (PyType_Ready(&CDataIter_Type) < 0)
         INITERROR;
