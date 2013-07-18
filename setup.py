@@ -63,12 +63,13 @@ if COMPILE_LIBFFI:
     libraries[:] = []
     _filenames = [filename.lower() for filename in os.listdir(COMPILE_LIBFFI)]
     _filenames = [filename for filename in _filenames
-                           if filename.endswith('.c') or
-                              filename.endswith('.asm')]
-    if sys.maxsize <= 2**32:
-        _filenames.remove('win64.asm')
-    else:
+                           if filename.endswith('.c')]
+    if sys.maxsize > 2**32:
+        # 64-bit: unlist win32.c, and add instead win64.obj.  If the obj
+        # happens to get outdated at some point in the future, you need to
+        # rebuild it manually from win64.asm.
         _filenames.remove('win32.c')
+        extra_link_args.append(os.path.join(COMPILE_LIBFFI, 'win64.obj'))
     sources.extend(os.path.join(COMPILE_LIBFFI, filename)
                    for filename in _filenames)
     define_macros.append(('USE_C_LIBFFI_MSVC', '1'))
