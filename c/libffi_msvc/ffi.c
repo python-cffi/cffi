@@ -102,6 +102,15 @@ void ffi_prep_args(char *stack, extended_cif *ecif)
 	      FFI_ASSERT(0);
 	    }
 	}
+#ifdef _WIN64
+      else if (z > 8)
+        {
+          /* On Win64, if a single argument takes more than 8 bytes,
+             then it is always passed by reference. */
+          *(void **)argp = *p_argv;
+          z = 8;
+        }
+#endif
       else
 	{
 	  memcpy(argp, *p_argv, z);
