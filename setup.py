@@ -72,7 +72,6 @@ if COMPILE_LIBFFI:
         extra_link_args.append(os.path.join(COMPILE_LIBFFI, 'win64.obj'))
     sources.extend(os.path.join(COMPILE_LIBFFI, filename)
                    for filename in _filenames)
-    define_macros.append(('USE_C_LIBFFI_MSVC', '1'))
 else:
     use_pkg_config()
 

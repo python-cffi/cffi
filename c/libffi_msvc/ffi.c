@@ -46,7 +46,7 @@ void ffi_prep_args(char *stack, extended_cif *ecif)
   register ffi_type **p_arg;
 
   argp = stack;
-  if (ecif->cif->rtype->type == FFI_TYPE_STRUCT)
+  if (ecif->cif->flags == FFI_TYPE_STRUCT)
     {
       *(void **) argp = ecif->rvalue;
       argp += sizeof(void *);
@@ -124,12 +124,23 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
   switch (cif->rtype->type)
     {
     case FFI_TYPE_VOID:
-    case FFI_TYPE_STRUCT:
     case FFI_TYPE_SINT64:
     case FFI_TYPE_FLOAT:
     case FFI_TYPE_DOUBLE:
     case FFI_TYPE_LONGDOUBLE:
       cif->flags = (unsigned) cif->rtype->type;
+      break;
+
+    case FFI_TYPE_STRUCT:
+      /* MSVC returns small structures in registers.  Put in cif->flags
+         the value FFI_TYPE_STRUCT only if the structure is big enough;
+         otherwise, put the 4- or 8-bytes integer type. */
+      if (cif->rtype->size <= 4)
+        cif->flags = FFI_TYPE_INT;
+      else if (cif->rtype->size <= 8)
+        cif->flags = FFI_TYPE_SINT64;
+      else
+        cif->flags = FFI_TYPE_STRUCT;
       break;
 
     case FFI_TYPE_UINT64:
@@ -180,7 +191,7 @@ ffi_call(/*@dependent@*/ ffi_cif *cif,
   /* value address then we need to make one		        */
 
   if ((rvalue == NULL) && 
-      (cif->rtype->type == FFI_TYPE_STRUCT))
+      (cif->flags == FFI_TYPE_STRUCT))
     {
       /*@-sysunrecog@*/
       ecif.rvalue = alloca(cif->rtype->size);
@@ -338,7 +349,7 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue,
 
   argp = stack;
 
-  if ( cif->rtype->type == FFI_TYPE_STRUCT ) {
+  if ( cif->flags == FFI_TYPE_STRUCT ) {
     *rvalue = *(void **) argp;
     argp += 4;
   }
