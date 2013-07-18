@@ -381,3 +381,24 @@ class TestFunction(object):
         sin100 = my_decorator(m.sin)
         x = sin100(1.23)
         assert x == math.sin(1.23) + 100
+
+    def test_free_callback_cycle(self):
+        import weakref
+        def make_callback(data):
+            container = [data]
+            callback = ffi.callback('int()', lambda: len(container))
+            container.append(callback)
+            # Ref cycle: callback -> lambda (closure) -> container -> callback
+            return callback
+
+        class Data(object):
+            pass
+        ffi = FFI(backend=self.Backend())
+        data = Data()
+        callback = make_callback(data)
+        wr = weakref.ref(data)
+        del callback, data
+        for i in range(3):
+            if wr() is not None:
+                import gc; gc.collect()
+        assert wr() is None    # 'data' does not leak
