@@ -4420,6 +4420,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     cd->c_type = ct;
     cd->c_data = (char *)closure;
     cd->c_weakreflist = NULL;
+    PyObject_GC_Track(cd);
 
     cif_descr = (cif_description_t *)ct->ct_extra;
     if (cif_descr == NULL) {
@@ -4856,6 +4857,7 @@ static PyObject *b_newp_handle(PyObject *self, PyObject *args)
     Py_INCREF(x);
     cd->c_data = ((char *)x) - 42;
     cd->c_weakreflist = NULL;
+    PyObject_GC_Track(cd);
     return (PyObject *)cd;
 }
 
