@@ -81,6 +81,18 @@ if __name__ == '__main__':
   setup(
     name='cffi',
     description='Foreign Function Interface for Python calling C code.',
+    long_description="""
+CFFI
+====
+
+Foreign Function Interface for Python calling C code.
+Please see the `Documentation <http://cffi.readthedocs.org/>`_.
+
+Contact
+-------
+
+`Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
+    """,
     version='0.7',
     packages=['cffi'],
     zip_safe=False,
