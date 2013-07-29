@@ -1216,7 +1216,10 @@ python_object`` is only valid as long as *this* exact cdata returned by
 ``struct foo_s``, return its "address", as a cdata whose type is
 ``struct foo_s *``.  Also works on unions, but not on any other type.
 (It would be difficult because only structs and unions are internally
-stored as an indirect pointer to the data.)  If ``field`` is given,
+stored as an indirect pointer to the data.  If you need a C int whose
+address can be taken, use ``ffi.new("int[1]")`` in the first place;
+similarly, if it's a C pointer, use ``ffi.new("foo_t *[1]")``.)
+If ``field`` is given,
 returns the address of that field in the structure.  The returned
 pointer is only valid as long as the original ``cdata`` object is; be
 sure to keep it alive if it was obtained directly from ``ffi.new()``.
