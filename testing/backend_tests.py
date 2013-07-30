@@ -198,6 +198,9 @@ class BackendTests:
         typerepr = self.TypeRepr
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { short a, b, c; };")
+        p = ffi.cast("short unsigned int", 0)
+        assert repr(p) == "<cdata 'unsigned short' 0>"
+        assert repr(ffi.typeof(p)) == typerepr % "unsigned short"
         p = ffi.cast("unsigned short int", 0)
         assert repr(p) == "<cdata 'unsigned short' 0>"
         assert repr(ffi.typeof(p)) == typerepr % "unsigned short"
