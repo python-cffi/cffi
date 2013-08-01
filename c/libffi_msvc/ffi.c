@@ -246,7 +246,7 @@ void *
 #else
 static void __fastcall
 #endif
-ffi_closure_SYSV (ffi_closure *closure, int *argp)
+ffi_closure_SYSV (ffi_closure *closure, char *argp)
 {
   // this is our return value storage
   long double    res;
@@ -256,7 +256,7 @@ ffi_closure_SYSV (ffi_closure *closure, int *argp)
   void         **arg_area;
   unsigned short rtype;
   void          *resp = (void*)&res;
-  void *args = &argp[1];
+  void *args = argp + sizeof(void *);
 
   cif         = closure->cif;
   arg_area    = (void**) alloca (cif->nargs * sizeof (void*));  
