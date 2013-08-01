@@ -90,7 +90,7 @@ Requirements:
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-0.7.tar.gz
+* http://pypi.python.org/packages/source/c/cffi/cffi-0.7.1.tar.gz
 
    - Or grab the most current version by following the instructions below.
 
