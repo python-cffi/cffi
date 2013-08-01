@@ -78,8 +78,6 @@ Requirements:
   with CFFI).
 
 * pycparser >= 2.06: http://code.google.com/p/pycparser/
-  (Note that in old downloads of 2.08, the tarball contained an
-  installation issue; it was fixed without changing the version number.)
 
 * a C compiler is required to use CFFI during development, but not to run
   correctly-installed programs that use CFFI.
