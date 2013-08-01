@@ -168,6 +168,12 @@ ffi_status ffi_prep_cif(/*@out@*/ /*@partial@*/ ffi_cif *cif,
 #endif
     }
 
+#ifdef _WIN64
+  /* Function call needs at least 40 bytes stack size, on win64 AMD64 */
+  if (bytes < 40)
+      bytes = 40;
+#endif
+
   cif->bytes = bytes;
 
   /* Perform machine dependent cif processing */

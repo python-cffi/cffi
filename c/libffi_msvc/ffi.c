@@ -221,8 +221,7 @@ ffi_call(/*@dependent@*/ ffi_cif *cif,
 #else
     case FFI_SYSV:
       /*@-usedef@*/
-      /* Function call needs at least 40 bytes stack size, on win64 AMD64 */
-      return ffi_call_AMD64(ffi_prep_args, &ecif, cif->bytes ? cif->bytes : 40,
+      return ffi_call_AMD64(ffi_prep_args, &ecif, cif->bytes,
 			   cif->flags, ecif.rvalue, fn);
       /*@=usedef@*/
       break;
@@ -247,7 +246,7 @@ void *
 #else
 static void __fastcall
 #endif
-ffi_closure_SYSV (ffi_closure *closure, int *argp)
+ffi_closure_SYSV (ffi_closure *closure, char *argp)
 {
   // this is our return value storage
   long double    res;
@@ -257,7 +256,7 @@ ffi_closure_SYSV (ffi_closure *closure, int *argp)
   void         **arg_area;
   unsigned short rtype;
   void          *resp = (void*)&res;
-  void *args = &argp[1];
+  void *args = argp + sizeof(void *);
 
   cif         = closure->cif;
   arg_area    = (void**) alloca (cif->nargs * sizeof (void*));  
@@ -378,6 +377,11 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue,
 
       /* because we're little endian, this is what it turns into.   */
 
+#ifdef _WIN64
+      if (z > 8)
+          *p_argv = *((void**) argp);   /* indirect */
+      else
+#endif
       *p_argv = (void*) argp;
 
       p_argv++;
