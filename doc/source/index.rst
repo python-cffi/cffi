@@ -165,14 +165,15 @@ as described here_.
 Windows 64
 ++++++++++
 
-Win32 works and is tested at least each official release.  However, it
-seems that compiling it for Win64 (explicitly *not* in Win32 mode) does
-not work out of the box.  According to `issue 9`_, this is because
-distutils doesn't support .asm files.  This can be resolved by applying
-the patch from `Python issue 7546`_.
+Win32 works and is tested at least each official release.
 
 Status: Win64 received very basic testing and we applied a few essential
 fixes in cffi 0.7.  Please report any other issue.
+
+Note as usual that this is only about running the 64-bit version of
+Python on the 64-bit OS.  If you're running the 32-bit version (the
+common case apparently), then you're running Win32 as far as we're
+concerned.
 
 .. _`issue 9`: https://bitbucket.org/cffi/cffi/issue/9
 .. _`Python issue 7546`: http://bugs.python.org/issue7546
