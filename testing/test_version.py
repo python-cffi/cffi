@@ -8,6 +8,7 @@ def setup_module(mod):
 BACKEND_VERSIONS = {
     '0.4.2': '0.4',     # did not change
     '0.7.1': '0.7',     # did not change
+    '0.7.2': '0.7',     # did not change
     }
 
 def test_version():
