@@ -340,6 +340,9 @@ ffi_closure_SYSV (ffi_closure *closure, int *argp)
      result types except for floats; we have to 'mov xmm0, rax' in the
      caller to correct this.
   */
+  if ( cif->flags == FFI_TYPE_STRUCT ) {
+      resp = *(void **)resp;
+  }
   return *(void **)resp;
 #endif
 }
