@@ -377,6 +377,11 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue,
 
       /* because we're little endian, this is what it turns into.   */
 
+#ifdef _WIN64
+      if (z > 8)
+          *p_argv = *((void**) argp);   /* indirect */
+      else
+#endif
       *p_argv = (void*) argp;
 
       p_argv++;
