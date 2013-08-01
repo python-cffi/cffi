@@ -171,6 +171,9 @@ not work out of the box.  According to `issue 9`_, this is because
 distutils doesn't support .asm files.  This can be resolved by applying
 the patch from `Python issue 7546`_.
 
+Status: Win64 received very basic testing and we applied a few essential
+fixes in cffi 0.7.  Please report any other issue.
+
 .. _`issue 9`: https://bitbucket.org/cffi/cffi/issue/9
 .. _`Python issue 7546`: http://bugs.python.org/issue7546
 
