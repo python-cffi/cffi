@@ -1212,7 +1212,9 @@ you can use ``ffi.from_handle(p)`` to retrive the original
 cdata object returned by ``new_handle()`` has *ownership*, in the same
 sense as ``ffi.new()`` or ``ffi.gc()``: the association ``void * ->
 python_object`` is only valid as long as *this* exact cdata returned by
-``new_handle()`` is alive.  *New in version 0.7.*
+``new_handle()`` is alive.  *Calling ffi.from_handle(p) is invalid and
+will likely crash if the cdata object returned by new_handle() is not
+kept alive!* *New in version 0.7.*
 
 .. "versionadded:: 0.7" --- inlined in the previous paragraph
 
