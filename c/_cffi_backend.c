@@ -3489,6 +3489,7 @@ _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
 
 #define SF_MSVC_BITFIELDS 1
 #define SF_GCC_ARM_BITFIELDS 2
+#define SF_GCC_BIG_ENDIAN 4
 
 static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 {
@@ -3508,6 +3509,9 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 # else
     int sflags = 0;
 # endif
+    int _check_endian = 1;
+    if (*(char *)&_check_endian == 0)
+        sflags |= SF_GCC_BIG_ENDIAN;
 #endif
 
     if (!PyArg_ParseTuple(args, "O!O!|Onii:complete_struct_or_union",
@@ -3742,6 +3746,9 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     prev_bitfield_free -= fbitsize;
                     field_offset_bytes = boffset / 8 - ftype->ct_size;
                 }
+
+                if (sflags & SF_GCC_BIG_ENDIAN)
+                    bitshift = 8 * ftype->ct_size - fbitsize - bitshift;
 
                 *previous = _add_field(interned_fields, fname, ftype,
                                        field_offset_bytes, bitshift, fbitsize);
