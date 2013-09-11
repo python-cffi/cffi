@@ -1634,3 +1634,13 @@ def test_dir():
                         #define FOO 42""")
     assert dir(lib) == ['AA', 'BB', 'FOO', 'somearray',
                         'somefunc', 'somevar', 'sv2']
+
+def test_typeof_func_with_struct_argument():
+    ffi = FFI()
+    ffi.cdef("""struct s { int a; }; int foo(struct s);""")
+    lib = ffi.verify("""struct s { int a; };
+                        int foo(struct s x) { return x.a; }""")
+    s = ffi.new("struct s *", [-1234])
+    m = lib.foo(s[0])
+    assert m == -1234
+    assert repr(ffi.typeof(lib.foo)) == "<ctype 'int(*)(struct s)'>"

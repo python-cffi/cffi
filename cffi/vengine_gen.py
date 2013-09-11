@@ -173,6 +173,7 @@ class VGenericEngine(object):
             newfunction = self._load_constant(False, tp, name, module)
         else:
             indirections = []
+            base_tp = tp
             if any(isinstance(typ, model.StructOrUnion) for typ in tp.args):
                 indirect_args = []
                 for i, typ in enumerate(tp.args):
@@ -186,16 +187,18 @@ class VGenericEngine(object):
             wrappername = '_cffi_f_%s' % name
             newfunction = module.load_function(BFunc, wrappername)
             for i, typ in indirections:
-                newfunction = self._make_struct_wrapper(newfunction, i, typ)
+                newfunction = self._make_struct_wrapper(newfunction, i, typ,
+                                                        base_tp)
         setattr(library, name, newfunction)
         type(library)._cffi_dir.append(name)
 
-    def _make_struct_wrapper(self, oldfunc, i, tp):
+    def _make_struct_wrapper(self, oldfunc, i, tp, base_tp):
         backend = self.ffi._backend
         BType = self.ffi._get_cached_btype(tp)
         def newfunc(*args):
             args = args[:i] + (backend.newp(BType, args[i]),) + args[i+1:]
             return oldfunc(*args)
+        newfunc._cffi_base_type = base_tp
         return newfunc
 
     # ----------

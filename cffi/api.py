@@ -144,6 +144,9 @@ class FFI(object):
             res = _builtin_function_type(cdecl)
             if res is not None:
                 return res
+        if (isinstance(cdecl, types.FunctionType)
+                and hasattr(cdecl, '_cffi_base_type')):
+            return self._get_cached_btype(cdecl._cffi_base_type)
         raise TypeError(type(cdecl))
 
     def sizeof(self, cdecl):
