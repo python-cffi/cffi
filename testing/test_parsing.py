@@ -255,3 +255,27 @@ def test_WPARAM_on_windows():
         py.test.skip("Only for Windows")
     ffi = FFI()
     ffi.cdef("void f(WPARAM);")
+
+def test__is_constant_globalvar():
+    from cffi.cparser import Parser, _get_parser
+    for input, expected_output in [
+        ("int a;",          False),
+        ("const int a;",    True),
+        ("int *a;",         False),
+        ("const int *a;",   False),
+        ("int const *a;",   False),
+        ("int *const a;",   True),
+        ("int a[5];",       False),
+        ("const int a[5];", False),
+        ("int *a[5];",      False),
+        ("const int *a[5];", False),
+        ("int const *a[5];", False),
+        ("int *const a[5];", False),
+        ("int a[5][6];",       False),
+        ("const int a[5][6];", False),
+        ]:
+        p = Parser()
+        ast = _get_parser().parse(input)
+        decl = ast.children()[0][1]
+        node = decl.type
+        assert p._is_constant_globalvar(node) == expected_output

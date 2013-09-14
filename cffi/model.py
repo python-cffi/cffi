@@ -192,10 +192,6 @@ class ConstPointerType(PointerType):
     _base_pattern       = " const *&"
     _base_pattern_array = "(const *&)"
 
-    def build_backend_type(self, ffi, finishlist):
-        BPtr = PointerType(self.totype).get_cached_btype(ffi, finishlist)
-        return BPtr
-
 const_voidp_type = ConstPointerType(void_type)
 
 

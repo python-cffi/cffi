@@ -217,7 +217,7 @@ class Parser(object):
             #
             if decl.name:
                 tp = self._get_type(node, partial_length_ok=True)
-                if self._is_constant_declaration(node):
+                if self._is_constant_globalvar(node):
                     self._declare('constant ' + decl.name, tp)
                 else:
                     self._declare('variable ' + decl.name, tp)
@@ -372,14 +372,11 @@ class Parser(object):
         result = self._get_type(typenode.type)
         return model.RawFunctionType(tuple(args), result, ellipsis)
 
-    def _is_constant_declaration(self, typenode, const=False):
-        if isinstance(typenode, pycparser.c_ast.ArrayDecl):
-            return self._is_constant_declaration(typenode.type)
+    def _is_constant_globalvar(self, typenode):
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
-            const = 'const' in typenode.quals
-            return self._is_constant_declaration(typenode.type, const)
+            return 'const' in typenode.quals
         if isinstance(typenode, pycparser.c_ast.TypeDecl):
-            return const or 'const' in typenode.quals
+            return 'const' in typenode.quals
         return False
 
     def _get_struct_union_enum_type(self, kind, type, name=None, nested=False):

@@ -1644,3 +1644,16 @@ def test_typeof_func_with_struct_argument():
     m = lib.foo(s[0])
     assert m == -1234
     assert repr(ffi.typeof(lib.foo)) == "<ctype 'int(*)(struct s)'>"
+
+def test_bug_const_char_ptr_array_1():
+    ffi = FFI()
+    ffi.cdef("""const char *a[...];""")
+    lib = ffi.verify("""const char *a[5];""")
+    assert repr(ffi.typeof(lib.a)) == "<ctype 'char * *'>"
+
+def test_bug_const_char_ptr_array_2():
+    from cffi import FFI     # ignore warnings
+    ffi = FFI()
+    ffi.cdef("""const int a[];""")
+    lib = ffi.verify("""const int a[5];""")
+    assert repr(ffi.typeof(lib.a)) == "<ctype 'int *'>"
