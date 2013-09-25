@@ -17,12 +17,6 @@
 
 #include "malloc_closure.h"
 
-/* Define USE__THREAD if gcc on your platform supports "__thread"
-   global variables. */
-#if !defined(MS_WIN32) && !defined(X86_DARWIN) && !defined(POWERPC_DARWIN)
-# define USE__THREAD
-#endif
-
 #if PY_MAJOR_VERSION >= 3
 # define STR_OR_BYTES "bytes"
 # define PyText_Type PyUnicode_Type
@@ -202,6 +196,8 @@ typedef struct {
    variable */
 #ifndef MS_WIN32
 # ifdef USE__THREAD
+/* This macro ^^^ is defined by setup.py if it finds that it is
+   syntactically valid to use "__thread" with this C compiler. */
 static __thread int cffi_saved_errno = 0;
 static void save_errno(void) { cffi_saved_errno = errno; }
 static void restore_errno(void) { errno = cffi_saved_errno; }

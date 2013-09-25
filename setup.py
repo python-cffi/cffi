@@ -41,6 +41,17 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
             #
             resultlist[:] = res
 
+def ask_supports_thread():
+    import distutils.errors
+    from distutils.ccompiler import new_compiler
+    compiler = new_compiler(force=1)
+    try:
+        compiler.compile(['c/check__thread.c'])
+    except distutils.errors.CompileError:
+        print >> sys.stderr, "will not use '__thread' in the C code"
+    else:
+        define_macros.append(('USE__THREAD', None))
+
 def use_pkg_config():
     _ask_pkg_config(include_dirs,       '--cflags-only-I', '-I', sysroot=True)
     _ask_pkg_config(extra_compile_args, '--cflags-only-other')
@@ -71,6 +82,7 @@ if COMPILE_LIBFFI:
                    for filename in _filenames)
 else:
     use_pkg_config()
+    ask_supports_thread()
 
 
 if __name__ == '__main__':
