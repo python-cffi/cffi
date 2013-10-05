@@ -6,17 +6,20 @@ from testing.support import *
 
 if sys.platform == 'win32':
     pass      # no obvious -Werror equivalent on MSVC
-elif (sys.platform == 'darwin' and
-      [int(x) for x in os.uname()[2].split('.')] >= [11, 0, 0]):
-    pass      # recent MacOSX come with clang by default, and passing some
-              # flags from the interpreter (-mno-fused-madd) generates a
-              # warning --- which is interpreted as an error with -Werror
 else:
-    # assume a standard GCC
+    if (sys.platform == 'darwin' and
+          [int(x) for x in os.uname()[2].split('.')] >= [11, 0, 0]):
+        # special things for clang
+        extra_compile_args = [
+            '-Werror', '-Qunused-arguments', '-Wno-error=shorten-64-to-32']
+    else:
+        # assume a standard gcc
+        extra_compile_args = ['-Werror']
+
     class FFI(FFI):
         def verify(self, *args, **kwds):
             return super(FFI, self).verify(
-                *args, extra_compile_args=['-Werror'], **kwds)
+                *args, extra_compile_args=extra_compile_args, **kwds)
 
 def setup_module():
     import cffi.verifier
