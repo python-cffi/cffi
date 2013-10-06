@@ -31,7 +31,7 @@ class Verifier(object):
             k2 = k2.lstrip('0').rstrip('L')
             modulename = '_cffi_%s_%s%s%s' % (tag, self._vengine._class_key,
                                               k1, k2)
-        suffix = _get_so_suffix()
+        suffix = _get_so_suffixes()[0]
         self.tmpdir = tmpdir or _caller_dir_pycache()
         self.sourcefilename = os.path.join(self.tmpdir, modulename + '.c')
         self.modulefilename = os.path.join(self.tmpdir, modulename + suffix)
@@ -103,7 +103,7 @@ class Verifier(object):
             else:
                 path = None
             filename = self._vengine.find_module(self.get_module_name(), path,
-                                                 _get_so_suffix())
+                                                 _get_so_suffixes())
             if filename is None:
                 return
             self.modulefilename = filename
@@ -193,7 +193,7 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
     if keep_so:
         suffix = '.c'   # only remove .c files
     else:
-        suffix = _get_so_suffix().lower()
+        suffix = _get_so_suffixes()[0].lower()
     for fn in filelist:
         if fn.lower().startswith('_cffi_') and (
                 fn.lower().endswith(suffix) or fn.lower().endswith('.c')):
@@ -213,15 +213,20 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
         except OSError:
             pass
 
-def _get_so_suffix():
+def _get_so_suffixes():
+    suffixes = []
     for suffix, mode, type in imp.get_suffixes():
         if type == imp.C_EXTENSION:
-            return suffix
-    # bah, no C_EXTENSION available.  Occurs on pypy without cpyext
-    if sys.platform == 'win32':
-        return ".pyd"
-    else:
-        return ".so"
+            suffixes.append(suffix)
+
+    if not suffixes:
+        # bah, no C_EXTENSION available.  Occurs on pypy without cpyext
+        if sys.platform == 'win32':
+            suffixes = [".pyd"]
+        else:
+            suffixes = [".so"]
+
+    return suffixes
 
 def _ensure_dir(filename):
     try:
