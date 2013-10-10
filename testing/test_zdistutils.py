@@ -1,7 +1,7 @@
 import sys, os, imp, math, shutil
 import py
 from cffi import FFI, FFIError
-from cffi.verifier import Verifier, _locate_engine_class, _get_so_suffix
+from cffi.verifier import Verifier, _locate_engine_class, _get_so_suffixes
 from cffi.ffiplatform import maybe_relative_path
 from testing.udir import udir
 
@@ -249,7 +249,7 @@ class DistUtilsTest(object):
         lib = ffi.verify(csrc, force_generic_engine=self.generic,
                          modulename=modname)
         assert lib.test1foo(143) == 80.0
-        suffix = _get_so_suffix()
+        suffix = _get_so_suffixes()[0]
         fn1 = os.path.join(ffi.verifier.tmpdir, modname + '.c')
         fn2 = os.path.join(ffi.verifier.tmpdir, modname + suffix)
         assert ffi.verifier.sourcefilename == fn1
