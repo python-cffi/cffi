@@ -1162,6 +1162,36 @@ def test_ffi_union():
     ffi.cdef("union foo_u { char x; long *z; };")
     ffi.verify("union foo_u { char x; int y; long *z; };")
 
+def test_ffi_union_partial():
+    ffi = FFI()
+    ffi.cdef("union foo_u { char x; ...; };")
+    ffi.verify("union foo_u { char x; int y; };")
+    assert ffi.sizeof("union foo_u") == 4
+
+def test_ffi_union_with_partial_struct():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int x; ...; }; union foo_u { struct foo_s s; };")
+    ffi.verify("struct foo_s { int a; int x; }; "
+               "union foo_u { char b[32]; struct foo_s s; };")
+    assert ffi.sizeof("struct foo_s") == 8
+    assert ffi.sizeof("union foo_u") == 32
+
+def test_ffi_union_partial_2():
+    ffi = FFI()
+    ffi.cdef("typedef union { char x; ...; } u1;")
+    ffi.verify("typedef union { char x; int y; } u1;")
+    assert ffi.sizeof("u1") == 4
+
+def test_ffi_union_with_partial_struct_2():
+    ffi = FFI()
+    ffi.cdef("typedef struct { int x; ...; } s1;"
+             "typedef union { s1 s; } u1;")
+    ffi.verify("typedef struct { int a; int x; } s1; "
+               "typedef union { char b[32]; s1 s; } u1;")
+    assert ffi.sizeof("s1") == 8
+    assert ffi.sizeof("u1") == 32
+    assert ffi.offsetof("u1", "s") == 0
+
 def test_ffi_struct_packed():
     if sys.platform == 'win32':
         py.test.skip("needs a GCC extension")

@@ -488,7 +488,7 @@ class Parser(object):
         return tp
 
     def _make_partial(self, tp, nested):
-        if not isinstance(tp, model.StructType):
+        if not isinstance(tp, model.StructOrUnion):
             raise api.CDefError("%s cannot be partial" % (tp,))
         if not tp.has_c_name() and not nested:
             raise NotImplementedError("%s is partial but has no C name" %(tp,))

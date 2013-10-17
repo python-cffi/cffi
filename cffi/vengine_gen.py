@@ -282,7 +282,7 @@ class VGenericEngine(object):
             if x < 0: break
             layout.append(x)
             num += 1
-        if isinstance(tp, model.StructType) and tp.partial:
+        if isinstance(tp, model.StructOrUnion) and tp.partial:
             # use the function()'s sizes and offsets to guide the
             # layout of the struct
             totalsize = layout[0]

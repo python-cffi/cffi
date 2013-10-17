@@ -248,6 +248,7 @@ class StructOrUnionOrEnum(BaseTypeByIdentity):
 class StructOrUnion(StructOrUnionOrEnum):
     fixedlayout = None
     completed = False
+    partial = False
 
     def __init__(self, name, fldnames, fldtypes, fldbitsize):
         self.name = name
@@ -344,11 +345,6 @@ class StructOrUnion(StructOrUnionOrEnum):
         from .ffiplatform import VerificationError
         raise VerificationError(msg)
 
-
-class StructType(StructOrUnion):
-    kind = 'struct'
-    partial = False
-
     def check_not_partial(self):
         if self.partial and self.fixedlayout is None:
             from . import ffiplatform
@@ -357,18 +353,17 @@ class StructType(StructOrUnion):
     def build_backend_type(self, ffi, finishlist):
         self.check_not_partial()
         finishlist.append(self)
-        
-        return global_cache(self, ffi, 'new_struct_type',
+        #
+        return global_cache(self, ffi, 'new_%s_type' % self.kind,
                             self.get_official_name(), key=self)
+
+
+class StructType(StructOrUnion):
+    kind = 'struct'
 
 
 class UnionType(StructOrUnion):
     kind = 'union'
-
-    def build_backend_type(self, ffi, finishlist):
-        finishlist.append(self)
-        return global_cache(self, ffi, 'new_union_type',
-                            self.get_official_name(), key=self)
 
 
 class EnumType(StructOrUnionOrEnum):
