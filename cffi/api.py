@@ -133,7 +133,7 @@ class FFI(object):
 
     def typeof(self, cdecl):
         """Parse the C type given as a string and return the
-        corresponding Python type: <class 'ffi.CData<...>'>.
+        corresponding <ctype> object.
         It can also be used on 'cdata' instance to get its C type.
         """
         if isinstance(cdecl, basestring):
