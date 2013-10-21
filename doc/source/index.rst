@@ -101,7 +101,7 @@ Download and Installation:
 
 * ``python setup.py install`` or ``python setup_base.py install``
   (should work out of the box on Linux or Windows; see below for
-  `MacOS 10.6`_ or `Windows 64`_.)
+  `MacOS X`_ or `Windows 64`_.)
 
 * or you can directly import and use ``cffi``, but if you don't
   compile the ``_cffi_backend`` extension module, it will fall back
@@ -138,10 +138,23 @@ Modern Linuxes work out of the box thanks to ``pkg-config``.  Here are some
 (user-supplied) instructions for other platforms.
 
 
-MacOS 10.6
-++++++++++
+MacOS X
++++++++
 
-(Thanks Juraj Sukop for this)
+**Homebrew** (Thanks David Griffin for this)
+
+1) Install homebrew: http://brew.sh
+
+2) Run the following commands in a terminal
+
+::
+
+    brew install pkg-config libffi
+    export PKG_CONFIG_PATH=/usr/local/Cellar/libffi/3.0.13/lib/pkgconfig/ # May change with libffi version
+    pip install cffi
+
+
+Aternatively, **on OS/X 10.6** (Thanks Juraj Sukop for this)
 
 For building libffi you can use the default install path, but then, in
 ``setup.py`` you need to change::
