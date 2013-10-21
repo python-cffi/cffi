@@ -981,6 +981,17 @@ writing a C function with a simpler signature in the code passed to
 
 Aside from these limitations, functions and callbacks can return structs.
 
+CPython only: for performance, ``ffi.verify()`` returns functions as
+objects of type ``<built-in function>``.  They are not ``<cdata>``, so
+you cannot e.g. pass them to some other C function expecting a function
+pointer argument.  Only ``ffi.typeof()`` works on them.  If you really
+need a pointer to the function, use the following workaround::
+  
+    ffi.cdef(""" int (*foo)(int a, int b); """)
+
+i.e. declare them as pointer-to-function in the cdef (even if they are
+regular functions in the C code).
+
 
 Variadic function calls
 -----------------------
