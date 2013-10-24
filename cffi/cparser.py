@@ -142,7 +142,7 @@ class Parser(object):
                 if 1 <= linenum <= len(csourcelines):
                     line = csourcelines[linenum-1]
         if line:
-            msg = 'cannot parse "%s"\n%s' % (line, msg)
+            msg = 'cannot parse "%s"\n%s' % (line.strip(), msg)
         else:
             msg = 'parse error\n%s' % (msg,)
         raise api.CDefError(msg)

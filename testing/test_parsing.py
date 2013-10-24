@@ -190,7 +190,7 @@ def test_cannot_have_only_variadic_part():
 def test_parse_error():
     ffi = FFI()
     e = py.test.raises(CDefError, ffi.cdef, " x y z ")
-    assert re.match(r'cannot parse " x y z "\n:\d+:', str(e.value))
+    assert re.match(r'cannot parse "x y z"\n:\d+:', str(e.value))
 
 def test_cannot_declare_enum_later():
     ffi = FFI()
