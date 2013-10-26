@@ -378,6 +378,12 @@ class EnumType(StructOrUnionOrEnum):
         self.baseinttype = baseinttype
         self.build_c_name_with_marker()
 
+    def force_the_name(self, forcename):
+        StructOrUnionOrEnum.force_the_name(self, forcename)
+        if self.forcename is None:
+            name = self.get_official_name()
+            self.forcename = '$' + name.replace(' ', '_')
+
     def check_not_partial(self):
         if self.partial and not self.partial_resolved:
             from . import ffiplatform

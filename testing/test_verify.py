@@ -616,6 +616,21 @@ def test_enum_usage():
     s.x = 17
     assert s.x == 17
 
+def test_anonymous_enum():
+    ffi = FFI()
+    ffi.cdef("enum { EE1 }; enum { EE2, EE3 };")
+    lib = ffi.verify("enum { EE1 }; enum { EE2, EE3 };")
+    assert lib.EE1 == 0
+    assert lib.EE2 == 0
+    assert lib.EE3 == 1
+
+def test_nonfull_anonymous_enum():
+    ffi = FFI()
+    ffi.cdef("enum { EE1, ... }; enum { EE3, ... };")
+    lib = ffi.verify("enum { EE2, EE1 }; enum { EE3 };")
+    assert lib.EE1 == 1
+    assert lib.EE3 == 0
+
 def test_nonfull_enum_syntax2():
     ffi = FFI()
     ffi.cdef("enum ee { EE1, EE2=\t..., EE3 };")
