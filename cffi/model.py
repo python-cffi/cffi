@@ -327,7 +327,6 @@ class StructOrUnion(StructOrUnionOrEnum):
                             "field '%s.%s' has a bogus size?" % (
                             self.name, self.fldnames[i] or '{}'))
                     ftype = ftype.resolve_length(nlen)
-                    fsize = 0
                     self.fldtypes = (self.fldtypes[:i] + (ftype,) +
                                      self.fldtypes[i+1:])
                 #

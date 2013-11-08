@@ -517,15 +517,15 @@ def test_struct_array_c99_1():
     ffi.verify("struct foo_s { int x; int a[]; };")
     assert ffi.sizeof('struct foo_s') == 1 * ffi.sizeof('int')
     s = ffi.new("struct foo_s *", [424242, 4])
-    assert ffi.sizeof(s) == 5 * ffi.sizeof('int')
+    assert ffi.sizeof(s[0]) == 1 * ffi.sizeof('int')   # the same in C
     assert s.a[3] == 0
     s = ffi.new("struct foo_s *", [424242, [-40, -30, -20, -10]])
-    assert ffi.sizeof(s) == 5 * ffi.sizeof('int')
+    assert ffi.sizeof(s[0]) == 1 * ffi.sizeof('int')
     assert s.a[3] == -10
     s = ffi.new("struct foo_s *")
-    assert ffi.sizeof(s) == 1 * ffi.sizeof('int')
+    assert ffi.sizeof(s[0]) == 1 * ffi.sizeof('int')
     s = ffi.new("struct foo_s *", [424242])
-    assert ffi.sizeof(s) == 1 * ffi.sizeof('int')
+    assert ffi.sizeof(s[0]) == 1 * ffi.sizeof('int')
 
 def test_struct_array_c99_2():
     if sys.platform == 'win32':
@@ -535,15 +535,15 @@ def test_struct_array_c99_2():
     ffi.verify("struct foo_s { int x, y; int a[]; };")
     assert ffi.sizeof('struct foo_s') == 2 * ffi.sizeof('int')
     s = ffi.new("struct foo_s *", [424242, 4])
-    assert ffi.sizeof(s) == 6 * ffi.sizeof('int')
+    assert ffi.sizeof(s[0]) == 2 * ffi.sizeof('int')
     assert s.a[3] == 0
     s = ffi.new("struct foo_s *", [424242, [-40, -30, -20, -10]])
-    assert ffi.sizeof(s) == 6 * ffi.sizeof('int')
+    assert ffi.sizeof(s[0]) == 2 * ffi.sizeof('int')
     assert s.a[3] == -10
     s = ffi.new("struct foo_s *")
-    assert ffi.sizeof(s) == 2 * ffi.sizeof('int')
+    assert ffi.sizeof(s[0]) == 2 * ffi.sizeof('int')
     s = ffi.new("struct foo_s *", [424242])
-    assert ffi.sizeof(s) == 2 * ffi.sizeof('int')
+    assert ffi.sizeof(s[0]) == 2 * ffi.sizeof('int')
 
 def test_struct_ptr_to_array_field():
     ffi = FFI()

@@ -255,11 +255,14 @@ class VGenericEngine(object):
         prnt('  static ssize_t nums[] = {')
         prnt('    sizeof(%s),' % cname)
         prnt('    offsetof(struct _cffi_aligncheck, y),')
-        for fname, _, fbitsize in tp.enumfields():
+        for fname, ftype, fbitsize in tp.enumfields():
             if fbitsize >= 0:
                 continue      # xxx ignore fbitsize for now
             prnt('    offsetof(%s, %s),' % (cname, fname))
-            prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
+            if isinstance(ftype, model.ArrayType) and ftype.length is None:
+                prnt('    0,  /* %s */' % ftype._get_c_name())
+            else:
+                prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
         prnt('    -1')
         prnt('  };')
         prnt('  return nums[i];')
@@ -319,9 +322,10 @@ class VGenericEngine(object):
                     continue        # xxx ignore fbitsize for now
                 check(layout[i], ffi.offsetof(BStruct, fname),
                       "wrong offset for field %r" % (fname,))
-                BField = ffi._get_cached_btype(ftype)
-                check(layout[i+1], ffi.sizeof(BField),
-                      "wrong size for field %r" % (fname,))
+                if layout[i+1] != 0:
+                    BField = ffi._get_cached_btype(ftype)
+                    check(layout[i+1], ffi.sizeof(BField),
+                          "wrong size for field %r" % (fname,))
                 i += 2
             assert i == len(layout)
 
@@ -483,7 +487,7 @@ class VGenericEngine(object):
             value = self._load_constant(False, tp_ptr, name, module)
             # 'value' is a <cdata 'type *'> which we have to replace with
             # a <cdata 'type[N]'> if the N is actually known
-            if tp.length is not None:
+            if tp.length is not None and tp.length != '...':
                 BArray = self.ffi._get_cached_btype(tp)
                 value = self.ffi.cast(BArray, value)
             setattr(library, name, value)

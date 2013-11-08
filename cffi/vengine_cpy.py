@@ -531,9 +531,10 @@ class VCPythonEngine(object):
                     continue        # xxx ignore fbitsize for now
                 check(layout[i], ffi.offsetof(BStruct, fname),
                       "wrong offset for field %r" % (fname,))
-                BField = ffi._get_cached_btype(ftype)
-                check(layout[i+1], ffi.sizeof(BField),
-                      "wrong size for field %r" % (fname,))
+                if layout[i+1] != 0:
+                    BField = ffi._get_cached_btype(ftype)
+                    check(layout[i+1], ffi.sizeof(BField),
+                          "wrong size for field %r" % (fname,))
                 i += 2
             assert i == len(layout)
 
