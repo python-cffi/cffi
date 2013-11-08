@@ -327,17 +327,21 @@ class StructOrUnion(StructOrUnionOrEnum):
                             "field '%s.%s' has a bogus size?" % (
                             self.name, self.fldnames[i] or '{}'))
                     ftype = ftype.resolve_length(nlen)
+                    fsize = 0
                     self.fldtypes = (self.fldtypes[:i] + (ftype,) +
                                      self.fldtypes[i+1:])
                 #
                 BFieldType = ftype.get_cached_btype(ffi, finishlist)
-                bitemsize = ffi.sizeof(BFieldType)
-                if bitemsize != fsize:
-                    self._verification_error(
-                        "field '%s.%s' is declared as %d bytes, but is "
-                        "really %d bytes" % (self.name,
-                                             self.fldnames[i] or '{}',
-                                             bitemsize, fsize))
+                if isinstance(ftype, ArrayType) and ftype.length is None:
+                    assert fsize == 0
+                else:
+                    bitemsize = ffi.sizeof(BFieldType)
+                    if bitemsize != fsize:
+                        self._verification_error(
+                            "field '%s.%s' is declared as %d bytes, but is "
+                            "really %d bytes" % (self.name,
+                                                 self.fldnames[i] or '{}',
+                                                 bitemsize, fsize))
                 fldtypes.append(BFieldType)
             #
             lst = list(zip(self.fldnames, fldtypes, self.fldbitsize, fieldofs))

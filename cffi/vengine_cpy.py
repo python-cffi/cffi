@@ -464,11 +464,14 @@ class VCPythonEngine(object):
         prnt('  static Py_ssize_t nums[] = {')
         prnt('    sizeof(%s),' % cname)
         prnt('    offsetof(struct _cffi_aligncheck, y),')
-        for fname, _, fbitsize in tp.enumfields():
+        for fname, ftype, fbitsize in tp.enumfields():
             if fbitsize >= 0:
                 continue      # xxx ignore fbitsize for now
             prnt('    offsetof(%s, %s),' % (cname, fname))
-            prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
+            if isinstance(ftype, model.ArrayType) and ftype.length is None:
+                prnt('    0,  /* %s */' % ftype._get_c_name())
+            else:
+                prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
         prnt('    -1')
         prnt('  };')
         prnt('  return _cffi_get_struct_layout(nums);')
