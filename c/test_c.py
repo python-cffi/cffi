@@ -3050,6 +3050,45 @@ def test_struct_array_no_length():
     assert p.a[2] == 30
     assert p.a[3] == 0
 
+def test_struct_array_no_length_explicit_position():
+    BInt = new_primitive_type("int")
+    BIntP = new_pointer_type(BInt)
+    BArray = new_array_type(BIntP, None)
+    BStruct = new_struct_type("foo")
+    complete_struct_or_union(BStruct, [('x', BArray, -1, 0), # actually 3 items
+                                       ('y', BInt, -1, 12)])
+    p = newp(new_pointer_type(BStruct), [[10, 20], 30])
+    assert p.x[0] == 10
+    assert p.x[1] == 20
+    assert p.x[2] == 0
+    assert p.y == 30
+    p = newp(new_pointer_type(BStruct), {'x': [40], 'y': 50})
+    assert p.x[0] == 40
+    assert p.x[1] == 0
+    assert p.x[2] == 0
+    assert p.y == 50
+    p = newp(new_pointer_type(BStruct), {'y': 60})
+    assert p.x[0] == 0
+    assert p.x[1] == 0
+    assert p.x[2] == 0
+    assert p.y == 60
+    #
+    # This "should" work too, allocating a larger structure
+    # (a bit strange in this case, but useful in general)
+    plist = []
+    for i in range(20):
+        p = newp(new_pointer_type(BStruct), [[10, 20, 30, 40, 50, 60, 70]])
+        plist.append(p)
+    for i in range(20):
+        p = plist[i]
+        assert p.x[0] == 10
+        assert p.x[1] == 20
+        assert p.x[2] == 30
+        assert p.x[3] == 40 == p.y
+        assert p.x[4] == 50
+        assert p.x[5] == 60
+        assert p.x[6] == 70
+
 
 def test_version():
     # this test is here mostly for PyPy

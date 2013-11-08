@@ -3621,7 +3621,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 
         if (ftype->ct_size < 0) {
             if ((ftype->ct_flags & CT_ARRAY) && fbitsize < 0
-                    && i == nb_fields - 1) {
+                    && (i == nb_fields - 1 || foffset != -1)) {
                 ct->ct_flags |= CT_WITH_VAR_ARRAY;
             }
             else {
