@@ -86,6 +86,7 @@
 #define CT_IS_BOOL             131072
 #define CT_IS_FILE             262144
 #define CT_IS_VOID_PTR         524288
+#define CT_WITH_VAR_ARRAY     1048576
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -1007,13 +1008,82 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init);
 static int    /* forward */
 convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init);
 
+static Py_ssize_t
+get_new_array_length(PyObject **pvalue)
+{
+    PyObject *value = *pvalue;
+
+    if (PyList_Check(value) || PyTuple_Check(value)) {
+        return PySequence_Fast_GET_SIZE(value);
+    }
+    else if (PyBytes_Check(value)) {
+        /* from a string, we add the null terminator */
+        return PyBytes_GET_SIZE(value) + 1;
+    }
+    else if (PyUnicode_Check(value)) {
+        /* from a unicode, we add the null terminator */
+        return _my_PyUnicode_SizeAsWideChar(value) + 1;
+    }
+    else {
+        Py_ssize_t explicitlength;
+        explicitlength = PyNumber_AsSsize_t(value, PyExc_OverflowError);
+        if (explicitlength < 0) {
+            if (!PyErr_Occurred())
+                PyErr_SetString(PyExc_ValueError, "negative array length");
+            return -1;
+        }
+        *pvalue = Py_None;
+        return explicitlength;
+    }
+}
+
 static int
 convert_field_from_object(char *data, CFieldObject *cf, PyObject *value)
 {
+    data += cf->cf_offset;
     if (cf->cf_bitshift >= 0)
         return convert_from_object_bitfield(data, cf, value);
     else
         return convert_from_object(data, cf->cf_type, value);
+}
+
+static int
+convert_vfield_from_object(char *data, CFieldObject *cf, PyObject *value,
+                           Py_ssize_t *optvarsize)
+{
+    /* a special case for var-sized C99 arrays */
+    if ((cf->cf_type->ct_flags & CT_ARRAY) && cf->cf_type->ct_size < 0) {
+        Py_ssize_t varsizelength = get_new_array_length(&value);
+        if (varsizelength < 0)
+            return -1;
+        if (optvarsize != NULL) {
+            /* in this mode, the only purpose of this function is to compute
+               the real size of the structure from a var-sized C99 array */
+            Py_ssize_t size, itemsize;
+            assert(data == NULL);
+            itemsize = cf->cf_type->ct_itemdescr->ct_size;
+            size = cf->cf_offset + itemsize * varsizelength;
+            if (size < 0 ||
+                ((size - cf->cf_offset) / itemsize) != varsizelength) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "array size would overflow a Py_ssize_t");
+                return -1;
+            }
+            if (size > *optvarsize)
+                *optvarsize = size;
+            return 0;
+        }
+        /* if 'value' was only an integer, get_new_array_length() returns
+           it and convert 'value' to be None.  Detect if this was the case,
+           and if so, stop here, leaving the content uninitialized
+           (it should be zero-initialized from somewhere else). */
+        if (value == Py_None)
+            return 0;
+    }
+    if (optvarsize == NULL)
+        return convert_field_from_object(data, cf, value);
+    else
+        return 0;
 }
 
 static int
@@ -1093,6 +1163,63 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     }
 
  cannot_convert:
+    return _convert_error(init, ct->ct_name, expected);
+}
+
+static int
+convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
+                           Py_ssize_t *optvarsize)
+{
+    const char *expected;
+
+    if (ct->ct_flags & CT_UNION) {
+        Py_ssize_t n = PyObject_Size(init);
+        if (n < 0)
+            return -1;
+        if (n > 1) {
+            PyErr_Format(PyExc_ValueError,
+                         "initializer for '%s': %zd items given, but "
+                         "only one supported (use a dict if needed)",
+                         ct->ct_name, n);
+            return -1;
+        }
+    }
+    if (PyList_Check(init) || PyTuple_Check(init)) {
+        PyObject **items = PySequence_Fast_ITEMS(init);
+        Py_ssize_t i, n = PySequence_Fast_GET_SIZE(init);
+        CFieldObject *cf = (CFieldObject *)ct->ct_extra;
+
+        for (i=0; i<n; i++) {
+            if (cf == NULL) {
+                PyErr_Format(PyExc_ValueError,
+                             "too many initializers for '%s' (got %zd)",
+                             ct->ct_name, n);
+                return -1;
+            }
+            if (convert_vfield_from_object(data, cf, items[i], optvarsize) < 0)
+                return -1;
+            cf = cf->cf_next;
+        }
+        return 0;
+    }
+    if (PyDict_Check(init)) {
+        PyObject *d_key, *d_value;
+        Py_ssize_t i = 0;
+        CFieldObject *cf;
+
+        while (PyDict_Next(init, &i, &d_key, &d_value)) {
+            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, d_key);
+            if (cf == NULL) {
+                PyErr_SetObject(PyExc_KeyError, d_key);
+                return -1;
+            }
+            if (convert_vfield_from_object(data, cf, d_value, optvarsize) < 0)
+                return -1;
+        }
+        return 0;
+    }
+    expected = optvarsize == NULL ? "list or tuple or dict or struct-cdata"
+                                  : "list or tuple or dict";
     return _convert_error(init, ct->ct_name, expected);
 }
 
@@ -1209,56 +1336,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                 return 0;
             }
         }
-        if (ct->ct_flags & CT_UNION) {
-            Py_ssize_t n = PyObject_Size(init);
-            if (n < 0)
-                return -1;
-            if (n > 1) {
-                PyErr_Format(PyExc_ValueError,
-                             "initializer for '%s': %zd items given, but "
-                             "only one supported (use a dict if needed)",
-                             ct->ct_name, n);
-                return -1;
-            }
-        }
-        if (PyList_Check(init) || PyTuple_Check(init)) {
-            PyObject **items = PySequence_Fast_ITEMS(init);
-            Py_ssize_t i, n = PySequence_Fast_GET_SIZE(init);
-            CFieldObject *cf = (CFieldObject *)ct->ct_extra;
-
-            for (i=0; i<n; i++) {
-                if (cf == NULL) {
-                    PyErr_Format(PyExc_ValueError,
-                                 "too many initializers for '%s' (got %zd)",
-                                 ct->ct_name, n);
-                    return -1;
-                }
-                if (convert_field_from_object(data + cf->cf_offset,
-                                              cf, items[i]) < 0)
-                    return -1;
-                cf = cf->cf_next;
-            }
-            return 0;
-        }
-        if (PyDict_Check(init)) {
-            PyObject *d_key, *d_value;
-            Py_ssize_t i = 0;
-            CFieldObject *cf;
-
-            while (PyDict_Next(init, &i, &d_key, &d_value)) {
-                cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, d_key);
-                if (cf == NULL) {
-                    PyErr_SetObject(PyExc_KeyError, d_key);
-                    return -1;
-                }
-                if (convert_field_from_object(data + cf->cf_offset,
-                                              cf, d_value) < 0)
-                    return -1;
-            }
-            return 0;
-        }
-        expected = "list or tuple or dict or struct-cdata";
-        goto cannot_convert;
+        return convert_struct_from_object(data, ct, init, NULL);
     }
     PyErr_Format(PyExc_SystemError,
                  "convert_from_object: '%s'", ct->ct_name);
@@ -2068,9 +2146,8 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
         cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
         if (cf != NULL) {
             /* write the field 'cf' */
-            char *data = cd->c_data + cf->cf_offset;
             if (value != NULL) {
-                return convert_field_from_object(data, cf, value);
+                return convert_field_from_object(cd->c_data, cf, value);
             }
             else {
                 PyErr_SetString(PyExc_AttributeError,
@@ -2642,32 +2719,21 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
         }
         if (ctitem->ct_flags & CT_PRIMITIVE_CHAR)
             datasize *= 2;   /* forcefully add another character: a null */
+
+        if ((ctitem->ct_flags & CT_WITH_VAR_ARRAY) && init != Py_None) {
+            Py_ssize_t optvarsize = datasize;
+            if (convert_struct_from_object(NULL,ctitem, init, &optvarsize) < 0)
+                return NULL;
+            datasize = optvarsize;
+        }
     }
     else if (ct->ct_flags & CT_ARRAY) {
         dataoffset = offsetof(CDataObject_own_nolength, alignment);
         datasize = ct->ct_size;
         if (datasize < 0) {
-            if (PyList_Check(init) || PyTuple_Check(init)) {
-                explicitlength = PySequence_Fast_GET_SIZE(init);
-            }
-            else if (PyBytes_Check(init)) {
-                /* from a string, we add the null terminator */
-                explicitlength = PyBytes_GET_SIZE(init) + 1;
-            }
-            else if (PyUnicode_Check(init)) {
-                /* from a unicode, we add the null terminator */
-                explicitlength = _my_PyUnicode_SizeAsWideChar(init) + 1;
-            }
-            else {
-                explicitlength = PyNumber_AsSsize_t(init, PyExc_OverflowError);
-                if (explicitlength < 0) {
-                    if (!PyErr_Occurred())
-                        PyErr_SetString(PyExc_ValueError,
-                                        "negative array length");
-                    return NULL;
-                }
-                init = Py_None;
-            }
+            explicitlength = get_new_array_length(&init);
+            if (explicitlength < 0)
+                return NULL;
             ctitem = ct->ct_itemdescr;
             dataoffset = offsetof(CDataObject_own_length, alignment);
             datasize = explicitlength * ctitem->ct_size;
@@ -3554,11 +3620,17 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             goto error;
 
         if (ftype->ct_size < 0) {
-            PyErr_Format(PyExc_TypeError,
-                         "field '%s.%s' has ctype '%s' of unknown size",
-                         ct->ct_name, PyText_AS_UTF8(fname),
-                         ftype->ct_name);
-            goto error;
+            if ((ftype->ct_flags & CT_ARRAY) && fbitsize < 0
+                    && i == nb_fields - 1) {
+                ct->ct_flags |= CT_WITH_VAR_ARRAY;
+            }
+            else {
+                PyErr_Format(PyExc_TypeError,
+                             "field '%s.%s' has ctype '%s' of unknown size",
+                             ct->ct_name, PyText_AS_UTF8(fname),
+                             ftype->ct_name);
+                goto error;
+            }
         }
 
         if (is_union)
@@ -3632,7 +3704,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     goto error;
                 previous = &(*previous)->cf_next;
             }
-            boffset += ftype->ct_size * 8;
+            if (ftype->ct_size >= 0)
+                boffset += ftype->ct_size * 8;
             prev_bitfield_size = 0;
         }
         else {
