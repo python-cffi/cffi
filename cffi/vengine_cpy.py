@@ -280,8 +280,8 @@ class VCPythonEngine(object):
             return '_cffi_from_c_pointer((char *)%s, _cffi_type(%d))' % (
                 var, self._gettypenum(tp))
         elif isinstance(tp, model.ArrayType):
-            return '_cffi_from_c_deref((char *)%s, _cffi_type(%d))' % (
-                var, self._gettypenum(tp))
+            return '_cffi_from_c_pointer((char *)%s, _cffi_type(%d))' % (
+                var, self._gettypenum(model.PointerType(tp.item)))
         elif isinstance(tp, model.StructType):
             if tp.fldnames is None:
                 raise TypeError("'%s' is used as %s, but is opaque" % (
@@ -570,7 +570,7 @@ class VCPythonEngine(object):
     # constants, likely declared with '#define'
 
     def _generate_cpy_const(self, is_int, name, tp=None, category='const',
-                            vartp=None, delayed=True):
+                            vartp=None, delayed=True, size_too=False):
         prnt = self._prnt
         funcname = '_cffi_%s_%s' % (category, name)
         prnt('static int %s(PyObject *lib)' % funcname)
@@ -601,6 +601,15 @@ class VCPythonEngine(object):
                  '(unsigned long long)(%s));' % (name,))
         prnt('  if (o == NULL)')
         prnt('    return -1;')
+        if size_too:
+            prnt('  {')
+            prnt('    PyObject *o1 = o;')
+            prnt('    o = Py_BuildValue("On", o1, (Py_ssize_t)sizeof(%s));'
+                 % (name,))
+            prnt('    Py_DECREF(o1);')
+            prnt('    if (o == NULL)')
+            prnt('      return -1;')
+            prnt('  }')
         prnt('  res = PyObject_SetAttrString(lib, "%s", o);' % name)
         prnt('  Py_DECREF(o);')
         prnt('  if (res < 0)')
@@ -681,15 +690,16 @@ class VCPythonEngine(object):
 
     def _generate_cpy_variable_collecttype(self, tp, name):
         if isinstance(tp, model.ArrayType):
-            self._do_collect_type(tp)
+            tp_ptr = model.PointerType(tp.item)
         else:
             tp_ptr = model.PointerType(tp)
-            self._do_collect_type(tp_ptr)
+        self._do_collect_type(tp_ptr)
 
     def _generate_cpy_variable_decl(self, tp, name):
         if isinstance(tp, model.ArrayType):
             tp_ptr = model.PointerType(tp.item)
-            self._generate_cpy_const(False, name, tp, vartp=tp_ptr)
+            self._generate_cpy_const(False, name, tp, vartp=tp_ptr,
+                                     size_too = (tp.length == '...'))
         else:
             tp_ptr = model.PointerType(tp)
             self._generate_cpy_const(False, name, tp_ptr, category='var')
@@ -698,11 +708,29 @@ class VCPythonEngine(object):
     _loading_cpy_variable = _loaded_noop
 
     def _loaded_cpy_variable(self, tp, name, module, library):
+        value = getattr(library, name)
         if isinstance(tp, model.ArrayType):   # int a[5] is "constant" in the
-            return                            # sense that "a=..." is forbidden
+                                              # sense that "a=..." is forbidden
+            if tp.length == '...':
+                assert isinstance(value, tuple)
+                (value, size) = value
+                BItemType = self.ffi._get_cached_btype(tp.item)
+                length, rest = divmod(size, self.ffi.sizeof(BItemType))
+                if rest != 0:
+                    raise ffiplatform.VerificationError(
+                        "bad size: %r does not seem to be an array of %s" %
+                        (name, tp.item))
+                tp = tp.resolve_length(length)
+            # 'value' is a <cdata 'type *'> which we have to replace with
+            # a <cdata 'type[N]'> if the N is actually known
+            if tp.length is not None:
+                BArray = self.ffi._get_cached_btype(tp)
+                value = self.ffi.cast(BArray, value)
+                setattr(library, name, value)
+            return
         # remove ptr=<cdata 'int *'> from the library instance, and replace
         # it by a property on the class, which reads/writes into ptr[0].
-        ptr = getattr(library, name)
+        ptr = value
         delattr(library, name)
         def getter(library):
             return ptr[0]
