@@ -508,7 +508,7 @@ class Parser(object):
             if (isinstance(exprnode, pycparser.c_ast.ID) and
                     exprnode.name == '__dotdotdotarray__'):
                 self._partial_length = True
-                return None
+                return '...'
         #
         raise api.FFIError("unsupported expression: expected a "
                            "simple numeric constant")

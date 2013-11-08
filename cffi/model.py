@@ -212,10 +212,10 @@ class ArrayType(BaseType):
         self.item = item
         self.length = length
         #
-        if self.length is None:
+        if length is None or length == '...':
             brackets = '&[]'
         else:
-            brackets = '&[%d]' % self.length
+            brackets = '&[%d]' % length
         self.c_name_with_marker = (
             self.item.c_name_with_marker.replace('&', brackets))
 
@@ -223,6 +223,10 @@ class ArrayType(BaseType):
         return ArrayType(self.item, newlength)
 
     def build_backend_type(self, ffi, finishlist):
+        if self.length == '...':
+            from . import api
+            raise api.CDefError("cannot render the type %r: unknown length" %
+                                (self,))
         self.item.get_cached_btype(ffi, finishlist)   # force the item BType
         BPtrItem = PointerType(self.item).get_cached_btype(ffi, finishlist)
         return global_cache(self, ffi, 'new_array_type', BPtrItem, self.length)
@@ -300,20 +304,21 @@ class StructOrUnion(StructOrUnionOrEnum):
             return    # not completing it: it's an opaque struct
         #
         self.completed = 1
-        fldtypes = tuple(tp.get_cached_btype(ffi, finishlist)
-                         for tp in self.fldtypes)
         #
         if self.fixedlayout is None:
+            fldtypes = [tp.get_cached_btype(ffi, finishlist)
+                        for tp in self.fldtypes]
             lst = list(zip(self.fldnames, fldtypes, self.fldbitsize))
             ffi._backend.complete_struct_or_union(BType, lst, self)
             #
         else:
+            fldtypes = []
             fieldofs, fieldsize, totalsize, totalalignment = self.fixedlayout
             for i in range(len(self.fldnames)):
                 fsize = fieldsize[i]
                 ftype = self.fldtypes[i]
                 #
-                if isinstance(ftype, ArrayType) and ftype.length is None:
+                if isinstance(ftype, ArrayType) and ftype.length == '...':
                     # fix the length to match the total size
                     BItemType = ftype.item.get_cached_btype(ffi, finishlist)
                     nlen, nrest = divmod(fsize, ffi.sizeof(BItemType))
@@ -324,18 +329,17 @@ class StructOrUnion(StructOrUnionOrEnum):
                     ftype = ftype.resolve_length(nlen)
                     self.fldtypes = (self.fldtypes[:i] + (ftype,) +
                                      self.fldtypes[i+1:])
-                    BArrayType = ftype.get_cached_btype(ffi, finishlist)
-                    fldtypes = (fldtypes[:i] + (BArrayType,) +
-                                fldtypes[i+1:])
-                    continue
                 #
-                bitemsize = ffi.sizeof(fldtypes[i])
+                BFieldType = ftype.get_cached_btype(ffi, finishlist)
+                bitemsize = ffi.sizeof(BFieldType)
                 if bitemsize != fsize:
                     self._verification_error(
                         "field '%s.%s' is declared as %d bytes, but is "
                         "really %d bytes" % (self.name,
                                              self.fldnames[i] or '{}',
                                              bitemsize, fsize))
+                fldtypes.append(BFieldType)
+            #
             lst = list(zip(self.fldnames, fldtypes, self.fldbitsize, fieldofs))
             ffi._backend.complete_struct_or_union(BType, lst, self,
                                                   totalsize, totalalignment)
