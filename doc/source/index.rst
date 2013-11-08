@@ -573,9 +573,18 @@ compiler during ``verify()``:
    ``foo_t`` is not opaque, but you just don't know any field in it; then
    you would use "``typedef struct { ...; } foo_t;``".
 
-*  array lengths: when used as structure fields, arrays can have an
-   unspecified length, as in "``int n[];``" or "``int n[...];``".
-   The length is completed by the C compiler.
+*  array lengths: when used as structure fields or in global variables,
+   arrays can have an unspecified length, as in "``int n[...];``".  The
+   length is completed by the C compiler.  (Only the outermost array
+   may have an unknown length, in case of array-of-array.)
+   You can also use the syntax "``int n[];``".
+
+.. versionchanged:: 0.8
+   "``int n[];``" asks for an array of unknown length whose length must
+   *not* be completed by the C compiler.  See `variable-length array`_
+   below.  If the structure does not contain the syntax ``...`` anywhere,
+   it will be not be considered to have a partial layout to complete by
+   the compiler.
 
 *  enums: if you don't know the exact order (or values) of the declared
    constants, then use this syntax: "``enum foo { A, B, C, ... };``"
@@ -1278,11 +1287,6 @@ Known missing features that are GCC or MSVC extensions:
 
 * Thread-local variables (access them via getter/setter functions)
 
-* Variable-length structures, i.e. whose last field is a variable-length
-  array (work around like in C, e.g. by declaring it as an array of
-  length 0, allocating a ``char[]`` of the correct size, and casting
-  it to a struct pointer)
-
 .. versionadded:: 0.4
    Now supported: the common GCC extension of anonymous nested
    structs/unions inside structs/unions.
@@ -1296,6 +1300,20 @@ Known missing features that are GCC or MSVC extensions:
    be considered as an int even though it is really a long!  Work around
    this by naming the largest value.  A similar but less important problem
    involves negative values.*
+
+.. _`variable-length array`:
+
+.. versionadded:: 0.8
+   Now supported: variable-length structures, i.e. whose last field is
+   a variable-length array.
+
+Note that since version 0.8, declarations like ``int field[];`` in
+structures are interpreted as variable-length structures.  When used for
+structures that are not, in fact, variable-length, it works too; in this
+case, the difference with using ``int field[...];`` is that, as CFFI
+believes it cannot ask the C compiler for the length of the array, you
+get reduced safety checks: for example, you risk overwriting the
+following fields by passing too many array items in the constructor.
 
 
 Debugging dlopen'ed C libraries

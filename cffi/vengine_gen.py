@@ -255,11 +255,14 @@ class VGenericEngine(object):
         prnt('  static ssize_t nums[] = {')
         prnt('    sizeof(%s),' % cname)
         prnt('    offsetof(struct _cffi_aligncheck, y),')
-        for fname, _, fbitsize in tp.enumfields():
+        for fname, ftype, fbitsize in tp.enumfields():
             if fbitsize >= 0:
                 continue      # xxx ignore fbitsize for now
             prnt('    offsetof(%s, %s),' % (cname, fname))
-            prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
+            if isinstance(ftype, model.ArrayType) and ftype.length is None:
+                prnt('    0,  /* %s */' % ftype._get_c_name())
+            else:
+                prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
         prnt('    -1')
         prnt('  };')
         prnt('  return nums[i];')
@@ -319,9 +322,10 @@ class VGenericEngine(object):
                     continue        # xxx ignore fbitsize for now
                 check(layout[i], ffi.offsetof(BStruct, fname),
                       "wrong offset for field %r" % (fname,))
-                BField = ffi._get_cached_btype(ftype)
-                check(layout[i+1], ffi.sizeof(BField),
-                      "wrong size for field %r" % (fname,))
+                if layout[i+1] != 0:
+                    BField = ffi._get_cached_btype(ftype)
+                    check(layout[i+1], ffi.sizeof(BField),
+                          "wrong size for field %r" % (fname,))
                 i += 2
             assert i == len(layout)
 
@@ -468,6 +472,14 @@ class VGenericEngine(object):
 
     def _generate_gen_variable_decl(self, tp, name):
         if isinstance(tp, model.ArrayType):
+            if tp.length == '...':
+                prnt = self._prnt
+                funcname = '_cffi_sizeof_%s' % (name,)
+                self.export_symbols.append(funcname)
+                prnt("size_t %s(void)" % funcname)
+                prnt("{")
+                prnt("  return sizeof(%s);" % (name,))
+                prnt("}")
             tp_ptr = model.PointerType(tp.item)
             self._generate_gen_const(False, name, tp_ptr)
         else:
@@ -479,6 +491,18 @@ class VGenericEngine(object):
     def _loaded_gen_variable(self, tp, name, module, library):
         if isinstance(tp, model.ArrayType):   # int a[5] is "constant" in the
                                               # sense that "a=..." is forbidden
+            if tp.length == '...':
+                funcname = '_cffi_sizeof_%s' % (name,)
+                BFunc = self.ffi.typeof('size_t(*)(void)')
+                function = module.load_function(BFunc, funcname)
+                size = function()
+                BItemType = self.ffi._get_cached_btype(tp.item)
+                length, rest = divmod(size, self.ffi.sizeof(BItemType))
+                if rest != 0:
+                    raise ffiplatform.VerificationError(
+                        "bad size: %r does not seem to be an array of %s" %
+                        (name, tp.item))
+                tp = tp.resolve_length(length)
             tp_ptr = model.PointerType(tp.item)
             value = self._load_constant(False, tp_ptr, name, module)
             # 'value' is a <cdata 'type *'> which we have to replace with
