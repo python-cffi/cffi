@@ -1509,7 +1509,12 @@ def test_global_array_with_dotdotdot_length():
     ffi = FFI()
     ffi.cdef("int fooarray[...];")
     lib = ffi.verify("int fooarray[50];")
-    assert repr(lib.fooarray).startswith("<cdata 'int *'")
+    assert repr(lib.fooarray).startswith("<cdata 'int[50]'")
+
+def test_bad_global_array_with_dotdotdot_length():
+    ffi = FFI()
+    ffi.cdef("int fooarray[...];")
+    py.test.raises(VerificationError, ffi.verify, "char fooarray[23];")
 
 def test_struct_containing_struct():
     ffi = FFI()

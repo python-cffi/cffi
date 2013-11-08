@@ -472,6 +472,14 @@ class VGenericEngine(object):
 
     def _generate_gen_variable_decl(self, tp, name):
         if isinstance(tp, model.ArrayType):
+            if tp.length == '...':
+                prnt = self._prnt
+                funcname = '_cffi_sizeof_%s' % (name,)
+                self.export_symbols.append(funcname)
+                prnt("size_t %s(void)" % funcname)
+                prnt("{")
+                prnt("  return sizeof(%s);" % (name,))
+                prnt("}")
             tp_ptr = model.PointerType(tp.item)
             self._generate_gen_const(False, name, tp_ptr)
         else:
@@ -483,11 +491,23 @@ class VGenericEngine(object):
     def _loaded_gen_variable(self, tp, name, module, library):
         if isinstance(tp, model.ArrayType):   # int a[5] is "constant" in the
                                               # sense that "a=..." is forbidden
+            if tp.length == '...':
+                funcname = '_cffi_sizeof_%s' % (name,)
+                BFunc = self.ffi.typeof('size_t(*)(void)')
+                function = module.load_function(BFunc, funcname)
+                size = function()
+                BItemType = self.ffi._get_cached_btype(tp.item)
+                length, rest = divmod(size, self.ffi.sizeof(BItemType))
+                if rest != 0:
+                    raise ffiplatform.VerificationError(
+                        "bad size: %r does not seem to be an array of %s" %
+                        (name, tp.item))
+                tp = tp.resolve_length(length)
             tp_ptr = model.PointerType(tp.item)
             value = self._load_constant(False, tp_ptr, name, module)
             # 'value' is a <cdata 'type *'> which we have to replace with
             # a <cdata 'type[N]'> if the N is actually known
-            if tp.length is not None and tp.length != '...':
+            if tp.length is not None:
                 BArray = self.ffi._get_cached_btype(tp)
                 value = self.ffi.cast(BArray, value)
             setattr(library, name, value)
