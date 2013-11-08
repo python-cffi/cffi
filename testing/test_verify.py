@@ -1741,7 +1741,7 @@ def test_bug_const_char_ptr_array_1():
     ffi = FFI()
     ffi.cdef("""const char *a[...];""")
     lib = ffi.verify("""const char *a[5];""")
-    assert repr(ffi.typeof(lib.a)) == "<ctype 'char * *'>"
+    assert repr(ffi.typeof(lib.a)) == "<ctype 'char *[5]'>"
 
 def test_bug_const_char_ptr_array_2():
     from cffi import FFI     # ignore warnings
