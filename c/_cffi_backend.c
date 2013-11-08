@@ -1939,6 +1939,22 @@ cdata_ass_slice(CDataObject *cd, PySliceObject *slice, PyObject *v)
         }
     }
 
+    /* A fast path for <char[]>[0:N] = b"somestring", which also adds
+       support for Python 3: otherwise, you get integers while enumerating
+       the string, and you can't set them to characters :-/
+    */
+    if (PyBytes_Check(v) && (ct->ct_flags & CT_PRIMITIVE_CHAR)
+            && itemsize == sizeof(char)) {
+        if (PyBytes_GET_SIZE(v) != length) {
+            PyErr_Format(PyExc_ValueError,
+                         "need a string of length %zd, got %zd",
+                         length, PyBytes_GET_SIZE(v));
+            return -1;
+        }
+        memcpy(cdata, PyBytes_AS_STRING(v), length);
+        return 0;
+    }
+
     it = PyObject_GetIter(v);
     if (it == NULL)
         return -1;

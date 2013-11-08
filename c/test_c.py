@@ -3089,6 +3089,25 @@ def test_struct_array_no_length_explicit_position():
         assert p.x[5] == 60
         assert p.x[6] == 70
 
+def test_ass_slice():
+    BChar = new_primitive_type("char")
+    BArray = new_array_type(new_pointer_type(BChar), None)
+    p = newp(BArray, b"foobar")
+    p[2:5] = [b"*", b"Z", b"T"]
+    p[1:3] = b"XY"
+    assert list(p) == [b"f", b"X", b"Y", b"Z", b"T", b"r", b"\x00"]
+    py.test.raises(TypeError, "p[1:5] = u+'XYZT'")
+    py.test.raises(TypeError, "p[1:5] = [1, 2, 3, 4]")
+    #
+    BUniChar = new_primitive_type("wchar_t")
+    BArray = new_array_type(new_pointer_type(BUniChar), None)
+    p = newp(BArray, u+"foobar")
+    p[2:5] = [u+"*", u+"Z", u+"T"]
+    p[1:3] = u+"XY"
+    assert list(p) == [u+"f", u+"X", u+"Y", u+"Z", u+"T", u+"r", u+"\x00"]
+    py.test.raises(TypeError, "p[1:5] = b'XYZT'")
+    py.test.raises(TypeError, "p[1:5] = [1, 2, 3, 4]")
+
 
 def test_version():
     # this test is here mostly for PyPy
