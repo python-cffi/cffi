@@ -2050,7 +2050,7 @@ cdata_ass_sub(CDataObject *cd, PyObject *key, PyObject *v)
 static PyObject *
 _cdata_add_or_sub(PyObject *v, PyObject *w, int sign)
 {
-    Py_ssize_t i;
+    Py_ssize_t i, itemsize;
     CDataObject *cd;
     CTypeDescrObject *ctptr;
 
@@ -2073,14 +2073,19 @@ _cdata_add_or_sub(PyObject *v, PyObject *w, int sign)
                      cd->c_type->ct_name);
         return NULL;
     }
-    if (ctptr->ct_itemdescr->ct_size < 0) {
-        PyErr_Format(PyExc_TypeError,
-                     "ctype '%s' points to items of unknown size",
-                     cd->c_type->ct_name);
-        return NULL;
+    itemsize = ctptr->ct_itemdescr->ct_size;
+    if (itemsize < 0) {
+        if (ctptr->ct_flags & CT_IS_VOID_PTR) {
+            itemsize = 1;
+        }
+        else {
+            PyErr_Format(PyExc_TypeError,
+                         "ctype '%s' points to items of unknown size",
+                         cd->c_type->ct_name);
+            return NULL;
+        }
     }
-    return new_simple_cdata(cd->c_data + i * ctptr->ct_itemdescr->ct_size,
-                            ctptr);
+    return new_simple_cdata(cd->c_data + i * itemsize, ctptr);
 
  not_implemented:
     Py_INCREF(Py_NotImplemented);
@@ -2101,18 +2106,23 @@ cdata_sub(PyObject *v, PyObject *w)
         CDataObject *cdw = (CDataObject *)w;
         CTypeDescrObject *ct = cdw->c_type;
         Py_ssize_t diff;
+        Py_ssize_t itemsize;
 
         if (ct->ct_flags & CT_ARRAY)     /* ptr_to_T - array_of_T: ok */
             ct = (CTypeDescrObject *)ct->ct_stuff;
 
+        itemsize = ct->ct_itemdescr->ct_size;
+        if (ct->ct_flags & CT_IS_VOID_PTR)
+            itemsize = 1;
+
         if (ct != cdv->c_type || !(ct->ct_flags & CT_POINTER) ||
-                (ct->ct_itemdescr->ct_size <= 0)) {
+                (itemsize <= 0)) {
             PyErr_Format(PyExc_TypeError,
                          "cannot subtract cdata '%s' and cdata '%s'",
                          cdv->c_type->ct_name, ct->ct_name);
             return NULL;
         }
-        diff = (cdv->c_data - cdw->c_data) / ct->ct_itemdescr->ct_size;
+        diff = (cdv->c_data - cdw->c_data) / itemsize;
 #if PY_MAJOR_VERSION < 3
         return PyInt_FromSsize_t(diff);
 #else

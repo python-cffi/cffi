@@ -1642,9 +1642,6 @@ def test_add_error():
 def test_void_errors():
     py.test.raises(ValueError, alignof, new_void_type())
     py.test.raises(TypeError, newp, new_pointer_type(new_void_type()), None)
-    x = cast(new_pointer_type(new_void_type()), 42)
-    py.test.raises(TypeError, "x + 1")
-    py.test.raises(TypeError, "x - 1")
 
 def test_too_many_items():
     BChar = new_primitive_type("char")
@@ -3107,6 +3104,18 @@ def test_ass_slice():
     assert list(p) == [u+"f", u+"X", u+"Y", u+"Z", u+"T", u+"r", u+"\x00"]
     py.test.raises(TypeError, "p[1:5] = b'XYZT'")
     py.test.raises(TypeError, "p[1:5] = [1, 2, 3, 4]")
+
+def test_void_p_arithmetic():
+    BVoid = new_void_type()
+    BInt = new_primitive_type("intptr_t")
+    p = cast(new_pointer_type(BVoid), 100000)
+    assert int(cast(BInt, p)) == 100000
+    assert int(cast(BInt, p + 42)) == 100042
+    assert int(cast(BInt, p - (-42))) == 100042
+    assert (p + 42) - p == 42
+    q = cast(new_pointer_type(new_primitive_type("char")), 100000)
+    py.test.raises(TypeError, "p - q")
+    py.test.raises(TypeError, "q - p")
 
 
 def test_version():
