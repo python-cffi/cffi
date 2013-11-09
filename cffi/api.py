@@ -117,18 +117,23 @@ class FFI(object):
     def _typeof(self, cdecl, consider_function_as_funcptr=False):
         # string -> ctype object
         try:
-            btype, cfaf = self._parsed_types[cdecl]
-            if consider_function_as_funcptr and not cfaf:
-                raise KeyError
+            btype, really_a_function_type = self._parsed_types[cdecl]
         except KeyError:
             key = cdecl
             if not isinstance(cdecl, str):    # unicode, on Python 2
                 cdecl = cdecl.encode('ascii')
-            cfaf = consider_function_as_funcptr
-            type = self._parser.parse_type(cdecl,
-                       consider_function_as_funcptr=cfaf)
+            type = self._parser.parse_type(cdecl)
+            if hasattr(type, 'as_function_pointer'):
+                really_a_function_type = True
+                type = type.as_function_pointer()
+            else:
+                really_a_function_type = False
             btype = self._get_cached_btype(type)
-            self._parsed_types[key] = btype, cfaf
+            self._parsed_types[key] = btype, really_a_function_type
+        #
+        if really_a_function_type and not consider_function_as_funcptr:
+            raise CDefError("the type %r is a function type, not a "
+                            "pointer-to-function type" % (cdecl,))
         return btype
 
     def typeof(self, cdecl):
