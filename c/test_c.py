@@ -3117,6 +3117,8 @@ def test_void_p_arithmetic():
     q = cast(new_pointer_type(new_primitive_type("char")), 100000)
     py.test.raises(TypeError, "p - q")
     py.test.raises(TypeError, "q - p")
+    py.test.raises(TypeError, "p + cast(new_primitive_type('int'), 42)")
+    py.test.raises(TypeError, "p - cast(new_primitive_type('int'), 42)")
 
 
 def test_version():

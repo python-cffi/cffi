@@ -2112,23 +2112,21 @@ cdata_sub(PyObject *v, PyObject *w)
         CDataObject *cdv = (CDataObject *)v;
         CDataObject *cdw = (CDataObject *)w;
         CTypeDescrObject *ct = cdw->c_type;
-        Py_ssize_t diff;
-        Py_ssize_t itemsize;
+        Py_ssize_t diff, itemsize;
 
         if (ct->ct_flags & CT_ARRAY)     /* ptr_to_T - array_of_T: ok */
             ct = (CTypeDescrObject *)ct->ct_stuff;
 
-        itemsize = ct->ct_itemdescr->ct_size;
-        if (ct->ct_flags & CT_IS_VOID_PTR)
-            itemsize = 1;
-
         if (ct != cdv->c_type || !(ct->ct_flags & CT_POINTER) ||
-                (itemsize <= 0)) {
+                (ct->ct_itemdescr->ct_size <= 0 &&
+                 !(ct->ct_flags & CT_IS_VOID_PTR))) {
             PyErr_Format(PyExc_TypeError,
                          "cannot subtract cdata '%s' and cdata '%s'",
                          cdv->c_type->ct_name, ct->ct_name);
             return NULL;
         }
+        itemsize = ct->ct_itemdescr->ct_size;
+        if (itemsize <= 0) itemsize = 1;
         diff = (cdv->c_data - cdw->c_data) / itemsize;
 #if PY_MAJOR_VERSION < 3
         return PyInt_FromSsize_t(diff);
