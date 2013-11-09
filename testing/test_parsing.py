@@ -130,8 +130,9 @@ def test_typedef_array_convert_array_to_pointer():
     ffi.cdef("""
         typedef int (*fn_t)(int[5]);
         """)
-    type = ffi._parser.parse_type("fn_t")
-    BType = ffi._get_cached_btype(type)
+    with ffi._lock:
+        type = ffi._parser.parse_type("fn_t")
+        BType = ffi._get_cached_btype(type)
     assert str(BType) == '<func (<pointer to <int>>), <int>, False>'
 
 def test_remove_comments():
