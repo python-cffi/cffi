@@ -2054,8 +2054,15 @@ _cdata_add_or_sub(PyObject *v, PyObject *w, int sign)
     CDataObject *cd;
     CTypeDescrObject *ctptr;
 
-    if (!CData_Check(v))
-        goto not_implemented;
+    if (!CData_Check(v)) {
+        PyObject *swap;
+        assert(CData_Check(w));
+        if (sign != 1)
+            goto not_implemented;
+        swap = v;
+        v = w;
+        w = swap;
+    }
 
     i = PyNumber_AsSsize_t(w, PyExc_OverflowError);
     if (i == -1 && PyErr_Occurred())

@@ -553,6 +553,7 @@ def test_array_add():
     assert repr(a) == "<cdata 'int[3][5]' owning %d bytes>" % (
         3*5*size_of_int(),)
     assert repr(a + 0).startswith("<cdata 'int(*)[5]' 0x")
+    assert 0 + a == a + 0 != 1 + a == a + 1
     assert repr(a[0]).startswith("<cdata 'int[5]' 0x")
     assert repr((a + 0)[0]).startswith("<cdata 'int[5]' 0x")
     assert repr(a[0] + 0).startswith("<cdata 'int *' 0x")
