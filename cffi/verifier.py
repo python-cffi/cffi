@@ -42,18 +42,21 @@ class Verifier(object):
     def write_source(self, file=None):
         """Write the C source code.  It is produced in 'self.sourcefilename',
         which can be tweaked beforehand."""
-        if self._has_source and file is None:
-            raise ffiplatform.VerificationError("source code already written")
-        self._write_source(file)
+        with self.ffi._lock:
+            if self._has_source and file is None:
+                raise ffiplatform.VerificationError(
+                    "source code already written")
+            self._write_source(file)
 
     def compile_module(self):
         """Write the C source code (if not done already) and compile it.
         This produces a dynamic link library in 'self.modulefilename'."""
-        if self._has_module:
-            raise ffiplatform.VerificationError("module already compiled")
-        if not self._has_source:
-            self._write_source()
-        self._compile_module()
+        with self.ffi._lock:
+            if self._has_module:
+                raise ffiplatform.VerificationError("module already compiled")
+            if not self._has_source:
+                self._write_source()
+            self._compile_module()
 
     def load_library(self):
         """Get a C module from this Verifier instance.
@@ -62,11 +65,14 @@ class Verifier(object):
         operations to the C module.  If necessary, the C code is written
         and compiled first.
         """
-        if not self._has_module:
-            self._locate_module()
+        with self.ffi._lock:
             if not self._has_module:
-                self.compile_module()
-        return self._load_library()
+                self._locate_module()
+                if not self._has_module:
+                    if not self._has_source:
+                        self._write_source()
+                    self._compile_module()
+            return self._load_library()
 
     def get_module_name(self):
         basename = os.path.basename(self.modulefilename)
@@ -81,7 +87,9 @@ class Verifier(object):
 
     def get_extension(self):
         if not self._has_source:
-            self._write_source()
+            with self.ffi._lock:
+                if not self._has_source:
+                    self._write_source()
         sourcename = ffiplatform.maybe_relative_path(self.sourcefilename)
         modname = self.get_module_name()
         return ffiplatform.get_extension(sourcename, modname, **self.kwds)

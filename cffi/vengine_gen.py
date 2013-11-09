@@ -276,7 +276,7 @@ class VGenericEngine(object):
             return     # nothing to do with opaque structs
         layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
         #
-        BFunc = self.ffi.typeof("ssize_t(*)(ssize_t)")
+        BFunc = self.ffi._typeof_locked("ssize_t(*)(ssize_t)")[0]
         function = module.load_function(BFunc, layoutfuncname)
         layout = []
         num = 0
@@ -386,15 +386,16 @@ class VGenericEngine(object):
     def _load_constant(self, is_int, tp, name, module):
         funcname = '_cffi_const_%s' % name
         if is_int:
-            BFunc = self.ffi.typeof("int(*)(long long*)")
+            BType = self.ffi._typeof_locked("long long*")[0]
+            BFunc = self.ffi._typeof_locked("int(*)(long long*)")[0]
             function = module.load_function(BFunc, funcname)
-            p = self.ffi.new("long long*")
+            p = self.ffi.new(BType)
             negative = function(p)
             value = int(p[0])
             if value < 0 and not negative:
                 value += (1 << (8*self.ffi.sizeof("long long")))
         else:
-            BFunc = self.ffi.typeof(tp.get_c_name('(*)(void)', name))
+            BFunc = self.ffi._typeof_locked(tp.get_c_name('(*)(void)', name))[0]
             function = module.load_function(BFunc, funcname)
             value = function()
         return value
@@ -438,10 +439,11 @@ class VGenericEngine(object):
             tp.enumvalues = tuple(enumvalues)
             tp.partial_resolved = True
         else:
-            BFunc = self.ffi.typeof("int(*)(char*)")
+            BType = self.ffi._typeof_locked("char[]")[0]
+            BFunc = self.ffi._typeof_locked("int(*)(char*)")[0]
             funcname = '_cffi_e_%s_%s' % (prefix, name)
             function = module.load_function(BFunc, funcname)
-            p = self.ffi.new("char[]", 256)
+            p = self.ffi.new(BType, 256)
             if function(p) < 0:
                 error = self.ffi.string(p)
                 if sys.version_info >= (3,):
@@ -493,7 +495,7 @@ class VGenericEngine(object):
                                               # sense that "a=..." is forbidden
             if tp.length == '...':
                 funcname = '_cffi_sizeof_%s' % (name,)
-                BFunc = self.ffi.typeof('size_t(*)(void)')
+                BFunc = self.ffi._typeof_locked('size_t(*)(void)')[0]
                 function = module.load_function(BFunc, funcname)
                 size = function()
                 BItemType = self.ffi._get_cached_btype(tp.item)
@@ -516,7 +518,7 @@ class VGenericEngine(object):
         # remove ptr=<cdata 'int *'> from the library instance, and replace
         # it by a property on the class, which reads/writes into ptr[0].
         funcname = '_cffi_var_%s' % name
-        BFunc = self.ffi.typeof(tp.get_c_name('*(*)(void)', name))
+        BFunc = self.ffi._typeof_locked(tp.get_c_name('*(*)(void)', name))[0]
         function = module.load_function(BFunc, funcname)
         ptr = function()
         def getter(library):
