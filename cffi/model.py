@@ -477,10 +477,17 @@ def global_cache(srctype, ffi, funcname, *args, **kwds):
         res = getattr(ffi._backend, funcname)(*args)
     except NotImplementedError as e:
         raise NotImplementedError("%r: %s" % (srctype, e))
-    # note that setdefault() on WeakValueDictionary is not atomic,
-    # which means that we have to use a lock too
+    # note that setdefault() on WeakValueDictionary is not atomic
+    # and contains a rare bug (http://bugs.python.org/issue19542);
+    # we have to use a lock and do it ourselves
+    cache = ffi._backend.__typecache
     with global_lock:
-        return ffi._backend.__typecache.setdefault(key, res)
+        res1 = cache.get(key)
+        if res1 is None:
+            cache[key] = res
+            return res
+        else:
+            return res1
 
 def pointer_cache(ffi, BType):
     return global_cache('?', ffi, 'new_pointer_type', BType)
