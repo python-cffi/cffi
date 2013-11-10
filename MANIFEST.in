@@ -2,4 +2,5 @@ recursive-include cffi *.py
 recursive-include c *.c *.h *.asm *.py
 recursive-include testing *.py
 recursive-include doc *.py *.rst Makefile *.bat
+recursive-include demo py.cleanup *.py
 include LICENSE setup_base.py
