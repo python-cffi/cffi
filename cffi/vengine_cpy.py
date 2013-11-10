@@ -646,12 +646,23 @@ class VCPythonEngine(object):
         prnt('static int %s(PyObject *lib)' % funcname)
         prnt('{')
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
-            prnt('  if (%s != %d) {' % (enumerator, enumvalue))
+            if enumvalue < 0:
+                prnt('  if ((%s) >= 0 || (long)(%s) != %dL) {' % (
+                    enumerator, enumerator, enumvalue))
+            else:
+                prnt('  if ((%s) < 0 || (unsigned long)(%s) != %dUL) {' % (
+                    enumerator, enumerator, enumvalue))
+            prnt('    char buf[64];')
+            prnt('    if ((%s) < 0)' % enumerator)
+            prnt('        snprintf(buf, 63, "%%ld", (long)(%s));' % enumerator)
+            prnt('    else')
+            prnt('        snprintf(buf, 63, "%%lu", (unsigned long)(%s));' %
+                 enumerator)
             prnt('    PyErr_Format(_cffi_VerificationError,')
-            prnt('                 "enum %s: %s has the real value %d, '
-                 'not %d",')
-            prnt('                 "%s", "%s", (int)%s, %d);' % (
-                name, enumerator, enumerator, enumvalue))
+            prnt('                 "enum %s: %s has the real value %s, '
+                 'not %s",')
+            prnt('                 "%s", "%s", buf, "%d");' % (
+                name, enumerator, enumvalue))
             prnt('    return -1;')
             prnt('  }')
         prnt('  return %s;' % self._chained_list_constants[True])
