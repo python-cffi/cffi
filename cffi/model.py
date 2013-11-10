@@ -1,4 +1,6 @@
 import weakref
+from .lock import allocate_lock
+
 
 class BaseTypeByIdentity(object):
     is_array_type = False
@@ -452,8 +454,10 @@ def unknown_ptr_type(name, structname=None):
     tp = StructType(structname, None, None, None)
     return NamedPointerType(tp, name)
 
+
+global_lock = allocate_lock()
+
 def global_cache(srctype, ffi, funcname, *args, **kwds):
-    # NB. multithread: careful code that should work without an explicit lock
     key = kwds.pop('key', (funcname, args))
     assert not kwds
     try:
@@ -473,7 +477,10 @@ def global_cache(srctype, ffi, funcname, *args, **kwds):
         res = getattr(ffi._backend, funcname)(*args)
     except NotImplementedError as e:
         raise NotImplementedError("%r: %s" % (srctype, e))
-    return ffi._backend.__typecache.setdefault(key, res)
+    # note that setdefault() on WeakValueDictionary is not atomic,
+    # which means that we have to use a lock too
+    with global_lock:
+        return ffi._backend.__typecache.setdefault(key, res)
 
 def pointer_cache(ffi, BType):
     return global_cache('?', ffi, 'new_pointer_type', BType)
