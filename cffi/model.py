@@ -2,6 +2,7 @@ import weakref
 
 class BaseTypeByIdentity(object):
     is_array_type = False
+    is_raw_function = False
 
     def get_c_name(self, replace_with='', context='a C file'):
         result = self.c_name_with_marker
@@ -146,6 +147,7 @@ class RawFunctionType(BaseFunctionType):
     # a function, but not a pointer-to-function.  The backend has no
     # notion of such a type; it's used temporarily by parsing.
     _base_pattern = '(&)(%s)'
+    is_raw_function = True
 
     def build_backend_type(self, ffi, finishlist):
         from . import api
@@ -212,8 +214,10 @@ class ArrayType(BaseType):
         self.item = item
         self.length = length
         #
-        if length is None or length == '...':
+        if length is None:
             brackets = '&[]'
+        elif length == '...':
+            brackets = '&[/*...*/]'
         else:
             brackets = '&[%d]' % length
         self.c_name_with_marker = (
@@ -449,6 +453,7 @@ def unknown_ptr_type(name, structname=None):
     return NamedPointerType(tp, name)
 
 def global_cache(srctype, ffi, funcname, *args, **kwds):
+    # NB. multithread: careful code that should work without an explicit lock
     key = kwds.pop('key', (funcname, args))
     assert not kwds
     try:
@@ -468,8 +473,7 @@ def global_cache(srctype, ffi, funcname, *args, **kwds):
         res = getattr(ffi._backend, funcname)(*args)
     except NotImplementedError as e:
         raise NotImplementedError("%r: %s" % (srctype, e))
-    ffi._backend.__typecache[key] = res
-    return res
+    return ffi._backend.__typecache.setdefault(key, res)
 
 def pointer_cache(ffi, BType):
     return global_cache('?', ffi, 'new_pointer_type', BType)
