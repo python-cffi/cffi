@@ -80,6 +80,54 @@ static void restore_errno_only(void)
     /* else: cannot report the error */
 }
 
+#if PY_MAJOR_VERSION >= 3
+static PyObject *b_getwinerror(PyObject *self, PyObject *args)
+{
+    int err = -1;
+    int len;
+    WCHAR *s_buf = NULL; /* Free via LocalFree */
+    PyObject *v, *message;
+
+    if (!PyArg_ParseTuple(args, "|i", &err))
+        return NULL;
+
+    if (err == -1) {
+        struct cffi_errno_s *p;
+        p = _geterrno_object();
+        if (p == NULL)
+            return PyErr_NoMemory();
+        err = p->saved_lasterror;
+    }
+
+    len = FormatMessageW(
+        /* Error API error */
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,           /* no message source */
+        err,
+        MAKELANGID(LANG_NEUTRAL,
+        SUBLANG_DEFAULT), /* Default language */
+        (LPWSTR) &s_buf,
+        0,              /* size not used */
+        NULL);          /* no args */
+    if (len==0) {
+        /* Only seen this in out of mem situations */
+        message = PyUnicode_FromFormat("Windows Error 0x%X", err);
+    } else {
+        /* remove trailing cr/lf and dots */
+        while (len > 0 && (s_buf[len-1] <= L' ' || s_buf[len-1] == L'.'))
+            s_buf[--len] = L'\0';
+        message = PyUnicode_FromWideChar(s_buf, len);
+    }
+    if (message != NULL)
+        v = Py_BuildValue("(iO)", err, message);
+    else
+        v = NULL;
+    LocalFree(s_buf);
+    return v;
+}
+#else
 static PyObject *b_getwinerror(PyObject *self, PyObject *args)
 {
     int err = -1;
@@ -127,6 +175,7 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args)
     LocalFree(s_buf);
     return v;
 }
+#endif
 
 /************************************************************/
 /* Emulate dlopen()&co. from the Windows API */
