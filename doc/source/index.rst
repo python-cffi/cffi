@@ -1122,9 +1122,18 @@ in version 0.5.*
 
 ``ffi.errno``: the value of ``errno`` received from the most recent C call
 in this thread, and passed to the following C call, is available via
-reads and writes of the property ``ffi.errno``.  On Windows we also save
-and restore the ``GetLastError()`` value, but to access it you need to
-declare and call the ``GetLastError()`` function as usual.
+reads and writes of the property ``ffi.errno``.
+
+``ffi.getwinerror(code=-1)``: on Windows, in addition to ``errno`` we
+also save and restore the ``GetLastError()`` value across function
+calls.  This function returns this error code as a tuple ``(code,
+message)``, adding a readable message like Python does when raising
+WindowsError.  If the argument ``code`` is given, format that code into
+a message instead of using ``GetLastError()``.  *New in version 0.8.*
+(Note that it is also possible to declare and call the ``GetLastError()``
+function as usual.)
+
+.. "versionadded:: 0.8" --- inlined in the previous paragraph
 
 ``ffi.string(cdata, [maxlen])``: return a Python string (or unicode
 string) from the 'cdata'.  *New in version 0.3.*

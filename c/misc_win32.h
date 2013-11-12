@@ -80,6 +80,54 @@ static void restore_errno_only(void)
     /* else: cannot report the error */
 }
 
+static PyObject *b_getwinerror(PyObject *self, PyObject *args)
+{
+    int err = -1;
+    int len;
+    char *s;
+    char *s_buf = NULL; /* Free via LocalFree */
+    char s_small_buf[28]; /* Room for "Windows Error 0xFFFFFFFF" */
+    PyObject *v;
+
+    if (!PyArg_ParseTuple(args, "|i", &err))
+        return NULL;
+
+    if (err == -1) {
+        struct cffi_errno_s *p;
+        p = _geterrno_object();
+        if (p == NULL)
+            return PyErr_NoMemory();
+        err = p->saved_lasterror;
+    }
+
+    len = FormatMessage(
+        /* Error API error */
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,           /* no message source */
+        err,
+        MAKELANGID(LANG_NEUTRAL,
+        SUBLANG_DEFAULT), /* Default language */
+        (LPTSTR) &s_buf,
+        0,              /* size not used */
+        NULL);          /* no args */
+    if (len==0) {
+        /* Only seen this in out of mem situations */
+        sprintf(s_small_buf, "Windows Error 0x%X", err);
+        s = s_small_buf;
+        s_buf = NULL;
+    } else {
+        s = s_buf;
+        /* remove trailing cr/lf and dots */
+        while (len > 0 && (s[len-1] <= ' ' || s[len-1] == '.'))
+            s[--len] = '\0';
+    }
+    v = Py_BuildValue("(is)", err, s);
+    LocalFree(s_buf);
+    return v;
+}
+
 /************************************************************/
 /* Emulate dlopen()&co. from the Windows API */
 

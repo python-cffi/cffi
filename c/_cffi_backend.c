@@ -5227,6 +5227,9 @@ static PyMethodDef FFIBackendMethods[] = {
     {"set_errno", b_set_errno, METH_VARARGS},
     {"newp_handle", b_newp_handle, METH_VARARGS},
     {"from_handle", b_from_handle, METH_O},
+#ifdef MS_WIN32
+    {"getwinerror", b_getwinerror, METH_VARARGS},
+#endif
     {"_get_types", b__get_types, METH_NOARGS},
     {"_testfunc", b__testfunc, METH_VARARGS},
     {NULL,     NULL}    /* Sentinel */
