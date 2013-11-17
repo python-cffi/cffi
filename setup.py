@@ -51,6 +51,10 @@ def ask_supports_thread():
         print >> sys.stderr, "will not use '__thread' in the C code"
     else:
         define_macros.append(('USE__THREAD', None))
+    try:
+        os.unlink('c/check__thread.o')
+    except OSError:
+        pass
 
 def use_pkg_config():
     _ask_pkg_config(include_dirs,       '--cflags-only-I', '-I', sysroot=True)
