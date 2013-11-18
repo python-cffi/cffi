@@ -48,8 +48,8 @@ def ask_supports_thread():
     try:
         compiler.compile(['c/check__thread.c'])
     except distutils.errors.CompileError:
-        print >> sys.stderr, "the above error message can be safely ignored;"
-        print >> sys.stderr, "will not use '__thread' in the C code"
+        sys.stderr.write("the above error message can be safely ignored;\n")
+        sys.stderr.write("will not use '__thread' in the C code\n")
     else:
         define_macros.append(('USE__THREAD', None))
     try:
