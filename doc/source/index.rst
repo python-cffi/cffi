@@ -1,9 +1,6 @@
 CFFI documentation
 ================================
 
-.. toctree::
-   :maxdepth: 2
-
 Foreign Function Interface for Python calling C code. The aim of this project
 is to provide a convenient and reliable way of calling C code from Python.
 The interface is based on `LuaJIT's FFI`_ and follows a few principles:
