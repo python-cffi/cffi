@@ -107,7 +107,7 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
     """,
-    version='0.8',
+    version='0.8.1',
     packages=['cffi'],
     zip_safe=False,
 
