@@ -48,9 +48,14 @@ def ask_supports_thread():
     try:
         compiler.compile(['c/check__thread.c'])
     except distutils.errors.CompileError:
-        print >> sys.stderr, "will not use '__thread' in the C code"
+        sys.stderr.write("the above error message can be safely ignored;\n")
+        sys.stderr.write("will not use '__thread' in the C code\n")
     else:
         define_macros.append(('USE__THREAD', None))
+    try:
+        os.unlink('c/check__thread.o')
+    except OSError:
+        pass
 
 def use_pkg_config():
     _ask_pkg_config(include_dirs,       '--cflags-only-I', '-I', sysroot=True)
@@ -102,7 +107,7 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
     """,
-    version='0.8',
+    version='0.8.1',
     packages=['cffi'],
     zip_safe=False,
 
