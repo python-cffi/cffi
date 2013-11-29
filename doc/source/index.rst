@@ -1240,6 +1240,17 @@ which means the destructor is called as soon as *this* exact returned
 object is garbage-collected.  *New in version 0.3* (together
 with the fact that any cdata object can be weakly referenced).
 
+Note that this should be avoided for large memory allocations or
+for limited resources.  This is particularly true on PyPy: its GC does
+not know how much memory or how many resources the returned ``ptr``
+holds.  It will only run its GC when enough memory it knows about has
+been allocated (and thus run the destructor possibly later than you
+would expect).  Moreover, the destructor is called in whatever thread
+PyPy is at that moment, which might be a problem for some C libraries.
+In these cases, consider writing a wrapper class with custom ``__enter__()``
+and ``__exit__()`` methods that allocate and free the C data at known
+points in time, and using it in a ``with`` statement.
+
 .. "versionadded:: 0.3" --- inlined in the previous paragraph
 
 ``ffi.new_handle(python_object)``: return a non-NULL cdata of type
