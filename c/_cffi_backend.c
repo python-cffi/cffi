@@ -13,6 +13,9 @@
 #include <errno.h>
 #include <ffi.h>
 #include <sys/mman.h>
+#if defined (__SVR4) && defined (__sun)
+#  include <alloca.h>
+#endif
 #endif
 
 #include "malloc_closure.h"
