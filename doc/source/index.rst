@@ -1188,8 +1188,12 @@ an array.)
    Moreover buffer objects now support weakrefs to them.
 
 .. versionchanged:: 0.9
-   Before version 0.9, ``bytes(buf)`` was supported in Python 3 but not
-   Python 2.
+   Before version 0.9, ``bytes(buf)`` was supported in Python 3 to get
+   the content of the buffer, but on Python 2 it would return the repr
+   ``<_cffi_backend.buffer object>``.  This has been fixed.  But you
+   should avoid using ``str(buf)``: it now gives inconsistent results
+   between Python 2 and Python 3 (this is similar to how ``str()``
+   gives inconsistent results on regular byte strings).
 
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
