@@ -1172,7 +1172,7 @@ an array.)
    because these objects' API changes too much across Python versions.
    Instead it has the following Python API (a subset of ``buffer``):
 
-- ``buf[:]``: fetch a copy as a regular byte string (or
+- ``buf[:]`` or ``bytes(buf)``: fetch a copy as a regular byte string (or
   ``buf[start:end]`` for a part)
 
 - ``buf[:] = newstr``: change the original content (or ``buf[start:end]
@@ -1186,6 +1186,10 @@ an array.)
    ``cdata`` object: if it was originally an owning cdata, then its
    owned memory will not be freed as long as the buffer is alive.
    Moreover buffer objects now support weakrefs to them.
+
+.. versionchanged:: 0.9
+   Before version 0.9, ``bytes(buf)`` was supported in Python 3 but not
+   Python 2.
 
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type

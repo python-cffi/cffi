@@ -93,6 +93,26 @@ static Py_ssize_t mb_getsegcount(MiniBufferObj *self, Py_ssize_t *lenp)
         *lenp = self->mb_size;
     return 1;
 }
+
+static PyObject *mb_str(MiniBufferObj *self)
+{
+    /* Python 2: we want str(buffer) to behave like buffer[:], because
+       that's what bytes(buffer) does on Python 3 and there is no way
+       we can prevent this. */
+    return PyString_FromStringAndSize(self->mb_data, self->mb_size);
+}
+
+static PyObject *MiniBuffer_unicode(PyObject *self, PyObject *ignored)
+{
+    /* Python 2: we *don't* want unicode(buffer) to return the
+       unicodified str(buffer)! */
+    return PyObject_Repr(self);
+}
+
+static PyMethodDef MiniBuffer_methods[] = {
+    {"__unicode__", MiniBuffer_unicode, METH_NOARGS},
+    {0}
+};
 #endif
 
 static int mb_getbuf(MiniBufferObj *self, Py_buffer *view, int flags)
@@ -249,7 +269,11 @@ static PyTypeObject MiniBuffer_Type = {
 #endif
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
+#if PY_MAJOR_VERSION < 3
+    (reprfunc)mb_str,                           /* tp_str */
+#else
     0,                                          /* tp_str */
+#endif
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     &mb_as_buffer,                              /* tp_as_buffer */
@@ -260,6 +284,13 @@ static PyTypeObject MiniBuffer_Type = {
     (inquiry)mb_clear,                          /* tp_clear */
     0,                                          /* tp_richcompare */
     offsetof(MiniBufferObj, mb_weakreflist),    /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+#if PY_MAJOR_VERSION < 3
+    MiniBuffer_methods,                         /* tp_methods */
+#else
+    0,                                          /* tp_methods */
+#endif
 };
 
 static PyObject *minibuffer_new(char *data, Py_ssize_t size,
