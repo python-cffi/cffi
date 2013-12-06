@@ -101,18 +101,6 @@ static PyObject *mb_str(MiniBufferObj *self)
        we can prevent this. */
     return PyString_FromStringAndSize(self->mb_data, self->mb_size);
 }
-
-static PyObject *MiniBuffer_unicode(PyObject *self, PyObject *ignored)
-{
-    /* Python 2: we *don't* want unicode(buffer) to return the
-       unicodified str(buffer)! */
-    return PyObject_Repr(self);
-}
-
-static PyMethodDef MiniBuffer_methods[] = {
-    {"__unicode__", MiniBuffer_unicode, METH_NOARGS},
-    {0}
-};
 #endif
 
 static int mb_getbuf(MiniBufferObj *self, Py_buffer *view, int flags)
@@ -284,13 +272,6 @@ static PyTypeObject MiniBuffer_Type = {
     (inquiry)mb_clear,                          /* tp_clear */
     0,                                          /* tp_richcompare */
     offsetof(MiniBufferObj, mb_weakreflist),    /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
-    0,                                          /* tp_iternext */
-#if PY_MAJOR_VERSION < 3
-    MiniBuffer_methods,                         /* tp_methods */
-#else
-    0,                                          /* tp_methods */
-#endif
 };
 
 static PyObject *minibuffer_new(char *data, Py_ssize_t size,
