@@ -1266,6 +1266,8 @@ points in time, and using it in a ``with`` statement.
 can pass it around to C functions or store it into C structures.  Later,
 you can use ``ffi.from_handle(p)`` to retrive the original
 ``python_object`` from a value with the same ``void *`` pointer.
+*Calling ffi.from_handle(p) is invalid and will likely crash if
+the cdata object returned by new_handle() is not kept alive!*
 *New in version 0.7.*
 
 Note that ``from_handle()`` conceptually works like this: it searches in
