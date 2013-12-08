@@ -1270,15 +1270,15 @@ you can use ``ffi.from_handle(p)`` to retrive the original
 
 Note that ``from_handle()`` conceptually works like this: it searches in
 the list of cdata objects made by ``new_handle()`` the one which has got
-the same ``void *`` value, and then it fetches in that cdata object the
-corresponding Python object.  It will crash if the cdata object returned
-by ``new_handle()`` is not alive any more!  (Obviously, the real
+the same ``void *`` value; and then it fetches in that cdata object the
+corresponding Python object.  The cdata object keeps the Python object
+alive, but if the cdata object *itself* is not alive any more, then it
+will crash!  (Obviously, the real
 implementation is more efficient than suggested here.)  In other words,
 the result of ``new_handle()`` has *ownership* (similarly to
 ``ffi.new()`` or ``ffi.gc()``) in the sense that the association ``void
 * -> python_object`` is only valid as long as *this* exact cdata
-returned by ``new_handle()`` is alive.  You must keep it alive (but the
-Python object itself is kept alive by it automatically).
+returned by ``new_handle()`` is alive.
 
 .. "versionadded:: 0.7" --- inlined in the previous paragraph
 
