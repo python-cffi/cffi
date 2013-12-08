@@ -1265,15 +1265,20 @@ points in time, and using it in a ``with`` statement.
 ``void *`` that contains an opaque reference to ``python_object``.  You
 can pass it around to C functions or store it into C structures.  Later,
 you can use ``ffi.from_handle(p)`` to retrive the original
-``python_object`` from a value with the same ``void *`` pointer.  The
-cdata object returned by ``new_handle()`` must be kept alive (and, in
-turn, it keeps alive the ``python_object`` too).  In other words, the
-cdata object returned by ``new_handle()`` has *ownership*, in the same
-sense as ``ffi.new()`` or ``ffi.gc()``: the association ``void * ->
-python_object`` is only valid as long as *this* exact cdata returned by
-``new_handle()`` is alive.  *Calling ffi.from_handle(p) is invalid and
-will likely crash if the cdata object returned by new_handle() is not
-kept alive!* *New in version 0.7.*
+``python_object`` from a value with the same ``void *`` pointer.
+*New in version 0.7.*
+
+Note that ``from_handle()`` conceptually works like this: it searches in
+the list of cdata objects made by ``new_handle()`` the one which has got
+the same ``void *`` value, and then it fetches in that cdata object the
+corresponding Python object.  It will crash if the cdata object returned
+by ``new_handle()`` is not alive any more!  (Obviously, the real
+implementation is more efficient than suggested here.)  In other words,
+the result of ``new_handle()`` has *ownership* (similarly to
+``ffi.new()`` or ``ffi.gc()``) in the sense that the association ``void
+* -> python_object`` is only valid as long as *this* exact cdata
+returned by ``new_handle()`` is alive.  You must keep it alive (but the
+Python object itself is kept alive by it automatically).
 
 .. "versionadded:: 0.7" --- inlined in the previous paragraph
 
