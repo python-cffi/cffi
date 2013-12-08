@@ -1266,6 +1266,8 @@ points in time, and using it in a ``with`` statement.
 can pass it around to C functions or store it into C structures.  Later,
 you can use ``ffi.from_handle(p)`` to retrive the original
 ``python_object`` from a value with the same ``void *`` pointer.  The
+cdata object returned by ``new_handle()`` must be kept alive (and, in
+turn, it keeps alive the ``python_object`` too).  In other words, the
 cdata object returned by ``new_handle()`` has *ownership*, in the same
 sense as ``ffi.new()`` or ``ffi.gc()``: the association ``void * ->
 python_object`` is only valid as long as *this* exact cdata returned by
