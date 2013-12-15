@@ -81,29 +81,29 @@ class PrimitiveType(BaseType):
         'long':               'i',
         'long long':          'i',
         'signed char':        'i',
-        'unsigned char':      'u',
-        'unsigned short':     'u',
-        'unsigned int':       'u',
-        'unsigned long':      'u',
-        'unsigned long long': 'u',
+        'unsigned char':      'i',
+        'unsigned short':     'i',
+        'unsigned int':       'i',
+        'unsigned long':      'i',
+        'unsigned long long': 'i',
         'float':              'f',
         'double':             'f',
         'long double':        'f',
-        '_Bool':              'u',
+        '_Bool':              'i',
         # the following types are not primitive in the C sense
         'wchar_t':            'c',
         'int8_t':             'i',
-        'uint8_t':            'u',
+        'uint8_t':            'i',
         'int16_t':            'i',
-        'uint16_t':           'u',
+        'uint16_t':           'i',
         'int32_t':            'i',
-        'uint32_t':           'u',
+        'uint32_t':           'i',
         'int64_t':            'i',
-        'uint64_t':           'u',
+        'uint64_t':           'i',
         'intptr_t':           'i',
-        'uintptr_t':          'u',
+        'uintptr_t':          'i',
         'ptrdiff_t':          'i',
-        'size_t':             'u',
+        'size_t':             'i',
         'ssize_t':            'i',
         }
 
@@ -114,12 +114,8 @@ class PrimitiveType(BaseType):
 
     def is_char_type(self):
         return self.ALL_PRIMITIVE_TYPES[self.name] == 'c'
-    def is_signed_type(self):
-        return self.ALL_PRIMITIVE_TYPES[self.name] == 'i'
-    def is_unsigned_type(self):
-        return self.ALL_PRIMITIVE_TYPES[self.name] == 'u'
     def is_integer_type(self):
-        return self.ALL_PRIMITIVE_TYPES[self.name] in 'iu'
+        return self.ALL_PRIMITIVE_TYPES[self.name] == 'i'
     def is_float_type(self):
         return self.ALL_PRIMITIVE_TYPES[self.name] == 'f'
 
