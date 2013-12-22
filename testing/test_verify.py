@@ -63,13 +63,13 @@ def test_missing_function_import_error():
 def test_simple_case():
     ffi = FFI()
     ffi.cdef("double sin(double x);")
-    lib = ffi.verify('#include <math.h>')
+    lib = ffi.verify('#include <math.h>', libraries=["m"])
     assert lib.sin(1.23) == math.sin(1.23)
 
 def test_rounding_1():
     ffi = FFI()
     ffi.cdef("float sin(double x);")
-    lib = ffi.verify('#include <math.h>')
+    lib = ffi.verify('#include <math.h>', libraries=["m"])
     res = lib.sin(1.23)
     assert res != math.sin(1.23)     # not exact, because of double->float
     assert abs(res - math.sin(1.23)) < 1E-5
@@ -77,7 +77,7 @@ def test_rounding_1():
 def test_rounding_2():
     ffi = FFI()
     ffi.cdef("double sin(float x);")
-    lib = ffi.verify('#include <math.h>')
+    lib = ffi.verify('#include <math.h>', libraries=["m"])
     res = lib.sin(1.23)
     assert res != math.sin(1.23)     # not exact, because of double->float
     assert abs(res - math.sin(1.23)) < 1E-5
@@ -103,7 +103,7 @@ def test_strlen_array_of_char():
 def test_longdouble():
     ffi = FFI()
     ffi.cdef("long double sinl(long double x);")
-    lib = ffi.verify('#include <math.h>')
+    lib = ffi.verify('#include <math.h>', libraries=["m"])
     for input in [1.23,
                   ffi.cast("double", 1.23),
                   ffi.cast("long double", 1.23)]:
