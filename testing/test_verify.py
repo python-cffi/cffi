@@ -148,28 +148,27 @@ def test_longdouble_precision():
 
 
 all_primitive_types = model.PrimitiveType.ALL_PRIMITIVE_TYPES
-all_signed_integer_types = sorted(tp for tp in all_primitive_types
-                                     if all_primitive_types[tp] == 'i')
-all_unsigned_integer_types = sorted(tp for tp in all_primitive_types
-                                       if all_primitive_types[tp] == 'u')
+all_integer_types = sorted(tp for tp in all_primitive_types
+                           if all_primitive_types[tp] == 'i')
 all_float_types = sorted(tp for tp in all_primitive_types
                             if all_primitive_types[tp] == 'f')
+
+def all_signed_integer_types(ffi):
+    return [x for x in all_integer_types if int(ffi.cast(x, -1)) < 0]
+
+def all_unsigned_integer_types(ffi):
+    return [x for x in all_integer_types if int(ffi.cast(x, -1)) > 0]
+
 
 def test_primitive_category():
     for typename in all_primitive_types:
         tp = model.PrimitiveType(typename)
         C = tp.is_char_type()
-        U = tp.is_unsigned_type()
-        S = tp.is_signed_type()
         F = tp.is_float_type()
         I = tp.is_integer_type()
         assert C == (typename in ('char', 'wchar_t'))
-        assert U == (typename.startswith('unsigned ') or
-                     typename == '_Bool' or typename == 'size_t' or
-                     typename == 'uintptr_t' or typename.startswith('uint'))
         assert F == (typename in ('float', 'double', 'long double'))
-        assert S + U + F + C == 1      # one and only one of them is true
-        assert I == (S or U)
+        assert I + F + C == 1      # one and only one of them is true
 
 def test_all_integer_and_float_types():
     typenames = []
@@ -207,7 +206,7 @@ def test_all_integer_and_float_types():
 
 def test_var_signed_integer_types():
     ffi = FFI()
-    lst = all_signed_integer_types
+    lst = all_signed_integer_types(ffi)
     csource = "\n".join(["%s somevar_%s;" % (tp, tp.replace(' ', '_'))
                          for tp in lst])
     ffi.cdef(csource)
@@ -226,7 +225,7 @@ def test_var_signed_integer_types():
 
 def test_var_unsigned_integer_types():
     ffi = FFI()
-    lst = all_unsigned_integer_types
+    lst = all_unsigned_integer_types(ffi)
     csource = "\n".join(["%s somevar_%s;" % (tp, tp.replace(' ', '_'))
                          for tp in lst])
     ffi.cdef(csource)
@@ -247,7 +246,7 @@ def test_var_unsigned_integer_types():
 
 def test_fn_signed_integer_types():
     ffi = FFI()
-    lst = all_signed_integer_types
+    lst = all_signed_integer_types(ffi)
     cdefsrc = "\n".join(["%s somefn_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
                          for tp in lst])
     ffi.cdef(cdefsrc)
@@ -267,7 +266,7 @@ def test_fn_signed_integer_types():
 
 def test_fn_unsigned_integer_types():
     ffi = FFI()
-    lst = all_unsigned_integer_types
+    lst = all_unsigned_integer_types(ffi)
     cdefsrc = "\n".join(["%s somefn_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
                          for tp in lst])
     ffi.cdef(cdefsrc)
@@ -464,11 +463,12 @@ def test_struct_signedness_ignored():
 def test_struct_float_vs_int():
     if sys.platform == 'win32':
         py.test.skip("XXX fixme: only gives warnings")
-    for typename in all_signed_integer_types:
+    ffi = FFI()
+    for typename in all_signed_integer_types(ffi):
         for real in all_float_types:
             _check_field_match(typename, real, expect_mismatch=True)
     for typename in all_float_types:
-        for real in all_signed_integer_types:
+        for real in all_signed_integer_types(ffi):
             _check_field_match(typename, real, expect_mismatch=True)
 
 def test_struct_array_field():
