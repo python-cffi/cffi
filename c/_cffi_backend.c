@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <ffi.h>
 #include <sys/mman.h>
-#if defined (__SVR4) && defined (__sun)
+#if (defined (__SVR4) && defined (__sun)) || defined(_AIX)
 #  include <alloca.h>
 #endif
 #endif
