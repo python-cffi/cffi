@@ -88,18 +88,20 @@ class FFI(object):
             self.NULL = self.cast(self.BVoidP, 0)
             self.CData, self.CType = backend._get_types()
 
-    def cdef(self, csource, override=False):
+    def cdef(self, csource, override=False, packed=False):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
         then be accessed via either 'ffi.dlopen()' or 'ffi.verify()'.
         The types can be used in 'ffi.new()' and other functions.
+        If 'packed' is specified as True, all structs declared inside this
+        cdef are packed, i.e. laid out without any field alignment at all.
         """
         if not isinstance(csource, str):    # unicode, on Python 2
             if not isinstance(csource, basestring):
                 raise TypeError("cdef() argument must be a string")
             csource = csource.encode('ascii')
         with self._lock:
-            self._parser.parse(csource, override=override)
+            self._parser.parse(csource, override=override, packed=packed)
             self._cdefsources.append(csource)
             if override:
                 for cache in self._function_caches:

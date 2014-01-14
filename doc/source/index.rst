@@ -851,6 +851,14 @@ like ``ffi.new("int[%d]" % x)``.  Indeed, this is not recommended:
 ``ffi`` normally caches the string ``"int[]"`` to not need to re-parse
 it all the time.
 
+.. versionadded:: 0.9
+   The ``ffi.cdef()`` call takes an optional argument ``packed``: if
+   True, then all structs declared within this cdef are "packed".  This
+   has a meaning similar to ``__attribute__((packed))`` in GCC.  It
+   specifies that all structure fields should have an alignment of one
+   byte.  (Note that the packed attribute has no effect on bit fields so
+   far, which mean that they may be packed differently than on GCC.)
+
 
 Python 3 support
 ----------------

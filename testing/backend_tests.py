@@ -1549,3 +1549,21 @@ class BackendTests:
         ffi2.include(ffi1)
         p = ffi2.new("foo_p", [142])
         assert p.x == 142
+
+    def test_struct_packed(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct nonpacked { char a; int b; };")
+        ffi.cdef("struct is_packed { char a; int b; };", packed=True)
+        assert ffi.sizeof("struct nonpacked") == 8
+        assert ffi.sizeof("struct is_packed") == 5
+        assert ffi.alignof("struct nonpacked") == 4
+        assert ffi.alignof("struct is_packed") == 1
+        s = ffi.new("struct is_packed[2]")
+        s[0].b = 42623381
+        s[0].a = 'X'
+        s[1].b = -4892220
+        s[1].a = 'Y'
+        assert s[0].b == 42623381
+        assert s[0].a == 'X'
+        assert s[1].b == -4892220
+        assert s[1].a == 'Y'

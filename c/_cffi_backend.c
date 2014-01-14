@@ -3586,6 +3586,7 @@ _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
 #define SF_MSVC_BITFIELDS 1
 #define SF_GCC_ARM_BITFIELDS 2
 #define SF_GCC_BIG_ENDIAN 4
+#define SF_PACKED 8
 
 static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 {
@@ -3671,8 +3672,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             boffset = 0;   /* reset each field at offset 0 */
 
         /* update the total alignment requirement, but skip it if the
-           field is an anonymous bitfield */
-        falign = get_alignment(ftype);
+           field is an anonymous bitfield or if SF_PACKED */
+        falign = (sflags & SF_PACKED) ? 1 : get_alignment(ftype);
         if (falign < 0)
             goto error;
 
