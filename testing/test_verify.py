@@ -1855,3 +1855,24 @@ def test_various_calls_direct():
 
 def test_various_calls_libffi():
     _test_various_calls(force_libffi=True)
+
+def test_ptr_to_opaque():
+    ffi = FFI()
+    ffi.cdef("typedef ... foo_t; int f1(foo_t*); foo_t *f2(int);")
+    lib = ffi.verify("""
+        #include <stdlib.h>
+        typedef struct { int x; } foo_t;
+        int f1(foo_t* p) {
+            int x = p->x;
+            free(p);
+            return x;
+        }
+        foo_t *f2(int x) {
+            foo_t *p = malloc(sizeof(foo_t));
+            p->x = x;
+            return p;
+        }
+    """)
+    p = lib.f2(42)
+    x = lib.f1(p)
+    assert x == 42
