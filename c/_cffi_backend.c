@@ -3785,6 +3785,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     PyErr_Format(PyExc_TypeError,
                                  "field '%s.%s' is declared with :0",
                                  ct->ct_name, PyText_AS_UTF8(fname));
+                    goto error;
                 }
                 if (!(sflags & SF_MSVC_BITFIELDS)) {
                     /* GCC's notion of "ftype :0;" */
