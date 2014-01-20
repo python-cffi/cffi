@@ -3817,6 +3817,14 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     if (bits_already_occupied + fbitsize > 8 * ftype->ct_size) {
                         /* it would not fit, we need to start at the next
                            allowed position */
+                        if ((sflags & SF_PACKED) &&
+                            (bits_already_occupied & 7)) {
+                            PyErr_Format(PyExc_NotImplementedError,
+                                "with 'packed', gcc would compile field "
+                                "'%s.%s' to reuse some bits in the previous "
+                                "field", ct->ct_name, PyText_AS_UTF8(fname));
+                            goto error;
+                        }
                         field_offset_bytes += falign;
                         assert(boffset < field_offset_bytes * 8);
                         boffset = field_offset_bytes * 8;
