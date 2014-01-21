@@ -835,7 +835,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
             return new_simple_cdata(ptrdata, ct);
         }
         else if (ct->ct_flags & CT_IS_OPAQUE) {
-            PyErr_Format(PyExc_TypeError, "cannot return a cdata '%s'",
+            PyErr_Format(PyExc_TypeError, "cdata '%s' is opaque",
                          ct->ct_name);
             return NULL;
         }
