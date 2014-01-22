@@ -1,4 +1,5 @@
 import py
+import platform
 import sys, ctypes
 from cffi import FFI, CDefError
 from testing.support import *
@@ -755,6 +756,8 @@ class BackendTests:
         p = ffi.cast("long long", ffi.cast("wchar_t", -1))
         if SIZE_OF_WCHAR == 2:      # 2 bytes, unsigned
             assert int(p) == 0xffff
+        elif platform.machine() == 'aarch64': # 4 bytes, unsigned
+            assert int(p) == 0xffffffff
         else:                       # 4 bytes, signed
             assert int(p) == -1
         p = ffi.cast("int", u+'\u1234')
