@@ -1133,6 +1133,9 @@ def test_callback_calling_convention():
     xxx
 
 def test_opaque_integer_as_function_result():
+    import platform
+    if platform.machine().startswith('sparc'):
+        py.test.skip('Breaks horribly on sparc (SIGILL + corrupted stack)')
     # XXX bad abuse of "struct { ...; }".  It only works a bit by chance
     # anyway.  XXX think about something better :-(
     ffi = FFI()
