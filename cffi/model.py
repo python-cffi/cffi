@@ -1,4 +1,6 @@
+import types
 import weakref
+
 from .lock import allocate_lock
 
 
@@ -469,8 +471,7 @@ def global_cache(srctype, ffi, funcname, *args, **kwds):
         # initialize the __typecache attribute, either at the module level
         # if ffi._backend is a module, or at the class level if ffi._backend
         # is some instance.
-        ModuleType = type(weakref)
-        if isinstance(ffi._backend, ModuleType):
+        if isinstance(ffi._backend, types.ModuleType):
             ffi._backend.__typecache = weakref.WeakValueDictionary()
         else:
             type(ffi._backend).__typecache = weakref.WeakValueDictionary()
