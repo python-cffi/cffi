@@ -11,9 +11,9 @@ class FakeBackend(object):
 
     def load_library(self, name, flags):
         if sys.platform == 'win32':
-            assert "msvcr" in name
+            assert name is None or "msvcr" in name
         else:
-            assert "libc" in name or "libm" in name
+            assert name is None or "libc" in name or "libm" in name
         return FakeLibrary()
 
     def new_function_type(self, args, result, has_varargs):

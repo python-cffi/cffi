@@ -1,4 +1,4 @@
-import types
+import sys, types
 from .lock import allocate_lock
 
 try:
@@ -389,22 +389,27 @@ class FFI(object):
         return self._backend.from_handle(x)
 
 
-def _make_ffi_library(ffi, libname, flags):
-    import os
-    name = libname
+def _load_backend_lib(backend, name, flags):
     if name is None:
-        name = 'c'    # on Posix only
-    backend = ffi._backend
+        if sys.platform != "win32":
+            return backend.load_library(None, flags)
+        name = "c"    # Windows: load_library(None) fails, but this works
+                      # (backward compatibility hack only)
     try:
         if '.' not in name and '/' not in name:
             raise OSError("library not found: %r" % (name,))
-        backendlib = backend.load_library(name, flags)
+        return backend.load_library(name, flags)
     except OSError:
         import ctypes.util
         path = ctypes.util.find_library(name)
         if path is None:
             raise     # propagate the original OSError
-        backendlib = backend.load_library(path, flags)
+        return backend.load_library(path, flags)
+
+def _make_ffi_library(ffi, libname, flags):
+    import os
+    backend = ffi._backend
+    backendlib = _load_backend_lib(backend, libname, flags)
     copied_enums = []
     #
     def make_accessor_locked(name):
