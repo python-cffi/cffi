@@ -3583,10 +3583,40 @@ _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
     return cf;   /* borrowed reference */
 }
 
-#define SF_MSVC_BITFIELDS 1
-#define SF_GCC_ARM_BITFIELDS 2
-#define SF_GCC_BIG_ENDIAN 4
-#define SF_PACKED 8
+#define SF_MSVC_BITFIELDS     0x01
+#define SF_GCC_ARM_BITFIELDS  0x02
+#define SF_GCC_X86_BITFIELDS  0x10
+
+#define SF_GCC_BIG_ENDIAN     0x04
+#define SF_GCC_LITTLE_ENDIAN  0x40
+
+#define SF_PACKED             0x08
+
+static int complete_sflags(int sflags)
+{
+    /* add one of the SF_xxx_BITFIELDS flags if none is specified */
+    if (!(sflags & (SF_MSVC_BITFIELDS | SF_GCC_ARM_BITFIELDS |
+                    SF_GCC_X86_BITFIELDS))) {
+#ifdef MS_WIN32
+        sflags |= SF_MSVC_BITFIELDS;
+#else
+# ifdef __arm__
+        sflags |= SF_GCC_ARM_BITFIELDS;
+# else
+        sflags |= SF_GCC_X86_BITFIELDS;
+# endif
+#endif
+    }
+    /* add one of SF_GCC_xx_ENDIAN if none is specified */
+    if (!(sflags & (SF_GCC_BIG_ENDIAN | SF_GCC_LITTLE_ENDIAN))) {
+        int _check_endian = 1;
+        if (*(char *)&_check_endian == 0)
+            sflags |= SF_GCC_BIG_ENDIAN;
+        else
+            sflags |= SF_GCC_LITTLE_ENDIAN;
+    }
+    return sflags;
+}
 
 static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 {
@@ -3598,24 +3628,15 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     int totalalignment = -1;
     CFieldObject **previous;
     int prev_bitfield_size, prev_bitfield_free;
-#ifdef MS_WIN32
-    int sflags = SF_MSVC_BITFIELDS;
-#else
-# ifdef __arm__
-    int sflags = SF_GCC_ARM_BITFIELDS;
-# else
     int sflags = 0;
-# endif
-    int _check_endian = 1;
-    if (*(char *)&_check_endian == 0)
-        sflags |= SF_GCC_BIG_ENDIAN;
-#endif
 
     if (!PyArg_ParseTuple(args, "O!O!|Onii:complete_struct_or_union",
                           &CTypeDescr_Type, &ct,
                           &PyList_Type, &fields,
                           &ignored, &totalsize, &totalalignment, &sflags))
         return NULL;
+
+    sflags = complete_sflags(sflags);
 
     if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) ==
                         (CT_STRUCT|CT_IS_OPAQUE)) {
