@@ -96,23 +96,23 @@ else:
 
 
 if __name__ == '__main__':
-  from setuptools import setup, Extension
-  ext_modules = []
-  if '__pypy__' not in sys.modules:
-    ext_modules.append(Extension(
-        name='_cffi_backend',
-        include_dirs=include_dirs,
-        sources=sources,
-        libraries=libraries,
-        define_macros=define_macros,
-        library_dirs=library_dirs,
-        extra_compile_args=extra_compile_args,
-        extra_link_args=extra_link_args,
-    ))
-  setup(
-    name='cffi',
-    description='Foreign Function Interface for Python calling C code.',
-    long_description="""
+    from setuptools import setup, Extension
+    ext_modules = []
+    if '__pypy__' not in sys.modules:
+        ext_modules.append(Extension(
+            name='_cffi_backend',
+            include_dirs=include_dirs,
+            sources=sources,
+            libraries=libraries,
+            define_macros=define_macros,
+            library_dirs=library_dirs,
+            extra_compile_args=extra_compile_args,
+            extra_link_args=extra_link_args,
+        ))
+    setup(
+        name='cffi',
+        description='Foreign Function Interface for Python calling C code.',
+        long_description="""
 CFFI
 ====
 
@@ -123,29 +123,29 @@ Contact
 -------
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
-    """,
-    version='0.8.2',
-    packages=['cffi'],
-    zip_safe=False,
+""",
+        version='0.8.2',
+        packages=['cffi'],
+        zip_safe=False,
 
-    url='http://cffi.readthedocs.org',
-    author='Armin Rigo, Maciej Fijalkowski',
-    author_email='python-cffi@googlegroups.com',
+        url='http://cffi.readthedocs.org',
+        author='Armin Rigo, Maciej Fijalkowski',
+        author_email='python-cffi@googlegroups.com',
 
-    license='MIT',
+        license='MIT',
 
-    ext_modules=ext_modules,
+        ext_modules=ext_modules,
 
-    install_requires=[
-        'pycparser',
-    ],
-    classifiers=[
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.2',
-        'Programming Language :: Python :: 3.3',
-    ],
-  )
+        install_requires=[
+            'pycparser',
+        ],
+        classifiers=[
+            'Programming Language :: Python',
+            'Programming Language :: Python :: 2',
+            'Programming Language :: Python :: 2.6',
+            'Programming Language :: Python :: 2.7',
+            'Programming Language :: Python :: 3',
+            'Programming Language :: Python :: 3.2',
+            'Programming Language :: Python :: 3.3',
+        ],
+    )
