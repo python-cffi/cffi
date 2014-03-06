@@ -96,7 +96,19 @@ else:
 
 
 if __name__ == '__main__':
-  from setuptools import setup, Feature, Extension
+  from setuptools import setup, Extension
+  ext_modules = []
+  if '__pypy__' not in sys.modules:
+    ext_modules.append(Extension(
+        name='_cffi_backend',
+        include_dirs=include_dirs,
+        sources=sources,
+        libraries=libraries,
+        define_macros=define_macros,
+        library_dirs=library_dirs,
+        extra_compile_args=extra_compile_args,
+        extra_link_args=extra_link_args,
+    ))
   setup(
     name='cffi',
     description='Foreign Function Interface for Python calling C code.',
@@ -122,23 +134,7 @@ Contact
 
     license='MIT',
 
-    features={
-        'cextension': Feature(
-            "fast c backend for cpython",
-            standard='__pypy__' not in sys.modules,
-            ext_modules=[
-                Extension(name='_cffi_backend',
-                          include_dirs=include_dirs,
-                          sources=sources,
-                          libraries=libraries,
-                          define_macros=define_macros,
-                          library_dirs=library_dirs,
-                          extra_compile_args=extra_compile_args,
-                          extra_link_args=extra_link_args,
-                          ),
-            ],
-        ),
-    },
+    ext_modules=ext_modules,
 
     install_requires=[
         'pycparser',
