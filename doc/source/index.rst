@@ -851,7 +851,7 @@ like ``ffi.new("int[%d]" % x)``.  Indeed, this is not recommended:
 ``ffi`` normally caches the string ``"int[]"`` to not need to re-parse
 it all the time.
 
-.. versionadded:: 0.9
+.. versionadded:: 0.8.2
    The ``ffi.cdef()`` call takes an optional argument ``packed``: if
    True, then all structs declared within this cdef are "packed".  This
    has a meaning similar to ``__attribute__((packed))`` in GCC.  It
@@ -1195,8 +1195,8 @@ an array.)
    owned memory will not be freed as long as the buffer is alive.
    Moreover buffer objects now support weakrefs to them.
 
-.. versionchanged:: 0.9
-   Before version 0.9, ``bytes(buf)`` was supported in Python 3 to get
+.. versionchanged:: 0.8.2
+   Before version 0.8.2, ``bytes(buf)`` was supported in Python 3 to get
    the content of the buffer, but on Python 2 it would return the repr
    ``<_cffi_backend.buffer object>``.  This has been fixed.  But you
    should avoid using ``str(buf)``: it now gives inconsistent results
