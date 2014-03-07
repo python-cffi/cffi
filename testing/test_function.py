@@ -54,6 +54,8 @@ class TestFunction(object):
         assert x == math.sin(1.23)
 
     def test_sinf(self):
+        if sys.platform == 'win32':
+            py.test.skip("no sinf found in the Windows stdlib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             float sinf(float x);
