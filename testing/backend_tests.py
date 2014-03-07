@@ -1563,10 +1563,10 @@ class BackendTests:
         assert ffi.alignof("struct is_packed") == 1
         s = ffi.new("struct is_packed[2]")
         s[0].b = 42623381
-        s[0].a = 'X'
+        s[0].a = b'X'
         s[1].b = -4892220
-        s[1].a = 'Y'
+        s[1].a = b'Y'
         assert s[0].b == 42623381
-        assert s[0].a == 'X'
+        assert s[0].a == b'X'
         assert s[1].b == -4892220
-        assert s[1].a == 'Y'
+        assert s[1].a == b'Y'
