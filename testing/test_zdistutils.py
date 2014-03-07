@@ -7,6 +7,13 @@ from testing.udir import udir
 
 
 class DistUtilsTest(object):
+    def setup_class(self):
+        self.lib_m = "m"
+        if sys.platform == 'win32':
+            #there is a small chance this fails on Mingw via environ $CC
+            import distutils.ccompiler
+            if distutils.ccompiler.get_default_compiler() == 'msvc':
+                self.lib_m = 'msvcrt'
 
     def test_locate_engine_class(self):
         cls = _locate_engine_class(FFI(), self.generic)
@@ -25,7 +32,8 @@ class DistUtilsTest(object):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
-        v = Verifier(ffi, csrc, force_generic_engine=self.generic)
+        v = Verifier(ffi, csrc, force_generic_engine=self.generic,
+                     libraries=[self.lib_m])
         v.write_source()
         with open(v.sourcefilename, 'r') as f:
             data = f.read()
@@ -35,7 +43,8 @@ class DistUtilsTest(object):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
-        v = Verifier(ffi, csrc, force_generic_engine=self.generic)
+        v = Verifier(ffi, csrc, force_generic_engine=self.generic,
+                     libraries=[self.lib_m])
         v.sourcefilename = filename = str(udir.join('write_source.c'))
         v.write_source()
         assert filename == v.sourcefilename
@@ -47,7 +56,8 @@ class DistUtilsTest(object):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
-        v = Verifier(ffi, csrc, force_generic_engine=self.generic)
+        v = Verifier(ffi, csrc, force_generic_engine=self.generic,
+                     libraries=[self.lib_m])
         try:
             from StringIO import StringIO
         except ImportError:
@@ -60,7 +70,8 @@ class DistUtilsTest(object):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
-        v = Verifier(ffi, csrc, force_generic_engine=self.generic)
+        v = Verifier(ffi, csrc, force_generic_engine=self.generic,
+                     libraries=[self.lib_m])
         v.compile_module()
         assert v.get_module_name().startswith('_cffi_')
         if v.generates_python_module():
@@ -71,7 +82,8 @@ class DistUtilsTest(object):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         csrc = '/*hi there %s!2*/\n#include <math.h>\n' % self
-        v = Verifier(ffi, csrc, force_generic_engine=self.generic)
+        v = Verifier(ffi, csrc, force_generic_engine=self.generic,
+                     libraries=[self.lib_m])
         basename = self.__class__.__name__ + 'test_compile_module'
         v.modulefilename = filename = str(udir.join(basename + '.so'))
         v.compile_module()
@@ -87,7 +99,8 @@ class DistUtilsTest(object):
             ffi = FFI()
             ffi.cdef("%s sin(double x);" % csrc)
             v = Verifier(ffi, "#include <math.h>",
-                         force_generic_engine=self.generic)
+                         force_generic_engine=self.generic,
+                         libraries=[self.lib_m])
             names.append(v.get_module_name())
         assert names[0] == names[1] != names[2]
 
@@ -104,7 +117,8 @@ class DistUtilsTest(object):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         csrc = '/*hi there %s!3*/\n#include <math.h>\n' % self
-        v = Verifier(ffi, csrc, force_generic_engine=self.generic)
+        v = Verifier(ffi, csrc, force_generic_engine=self.generic,
+                     libraries=[self.lib_m])
         library = v.load_library()
         assert library.sin(12.3) == math.sin(12.3)
 
@@ -114,7 +128,8 @@ class DistUtilsTest(object):
         csrc = '/*hi there %s!4*/#include "test_verifier_args.h"\n' % self
         udir.join('test_verifier_args.h').write('#include <math.h>\n')
         v = Verifier(ffi, csrc, include_dirs=[str(udir)],
-                     force_generic_engine=self.generic)
+                     force_generic_engine=self.generic,
+                     libraries=[self.lib_m])
         library = v.load_library()
         assert library.sin(12.3) == math.sin(12.3)
 
@@ -122,7 +137,8 @@ class DistUtilsTest(object):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         csrc = "/*6%s*/\n#include <math.h>" % self
-        lib = ffi.verify(csrc, force_generic_engine=self.generic)
+        lib = ffi.verify(csrc, force_generic_engine=self.generic,
+                         libraries=[self.lib_m])
         assert lib.sin(12.3) == math.sin(12.3)
         assert isinstance(ffi.verifier, Verifier)
         with open(ffi.verifier.sourcefilename, 'r') as f:
@@ -139,7 +155,8 @@ class DistUtilsTest(object):
     #endif
     '''
         lib = ffi.verify(csrc, define_macros=[('TEST_EXTENSION_OBJECT', '1')],
-                         force_generic_engine=self.generic)
+                         force_generic_engine=self.generic,
+                         libraries=[self.lib_m])
         assert lib.sin(12.3) == math.sin(12.3)
         v = ffi.verifier
         ext = v.get_extension()
@@ -152,7 +169,8 @@ class DistUtilsTest(object):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         csrc = '/*hi there9!%s*/\n#include <math.h>\n' % self
-        v = Verifier(ffi, csrc, force_generic_engine=self.generic)
+        v = Verifier(ffi, csrc, force_generic_engine=self.generic,
+                     libraries=[self.lib_m])
         assert not os.path.exists(v.sourcefilename)
         v.get_extension()
         assert os.path.exists(v.sourcefilename)

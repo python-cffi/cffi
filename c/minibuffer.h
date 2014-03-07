@@ -93,6 +93,14 @@ static Py_ssize_t mb_getsegcount(MiniBufferObj *self, Py_ssize_t *lenp)
         *lenp = self->mb_size;
     return 1;
 }
+
+static PyObject *mb_str(MiniBufferObj *self)
+{
+    /* Python 2: we want str(buffer) to behave like buffer[:], because
+       that's what bytes(buffer) does on Python 3 and there is no way
+       we can prevent this. */
+    return PyString_FromStringAndSize(self->mb_data, self->mb_size);
+}
 #endif
 
 static int mb_getbuf(MiniBufferObj *self, Py_buffer *view, int flags)
@@ -249,7 +257,11 @@ static PyTypeObject MiniBuffer_Type = {
 #endif
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
+#if PY_MAJOR_VERSION < 3
+    (reprfunc)mb_str,                           /* tp_str */
+#else
     0,                                          /* tp_str */
+#endif
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     &mb_as_buffer,                              /* tp_as_buffer */

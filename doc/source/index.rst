@@ -85,13 +85,13 @@ Requirements:
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-0.8.1.tar.gz
+* http://pypi.python.org/packages/source/c/cffi/cffi-0.8.2.tar.gz
 
    - Or grab the most current version by following the instructions below.
 
-   - MD5: 1a877bf113bfe90fdefedbf9e39310d2
+   - MD5: ...
 
-   - SHA: d46b7cf92956fa01d9f8e0a8d3c7e2005ae40893
+   - SHA: ...
 
 * Or get it from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
@@ -851,6 +851,14 @@ like ``ffi.new("int[%d]" % x)``.  Indeed, this is not recommended:
 ``ffi`` normally caches the string ``"int[]"`` to not need to re-parse
 it all the time.
 
+.. versionadded:: 0.9
+   The ``ffi.cdef()`` call takes an optional argument ``packed``: if
+   True, then all structs declared within this cdef are "packed".  This
+   has a meaning similar to ``__attribute__((packed))`` in GCC.  It
+   specifies that all structure fields should have an alignment of one
+   byte.  (Note that the packed attribute has no effect on bit fields so
+   far, which mean that they may be packed differently than on GCC.)
+
 
 Python 3 support
 ----------------
@@ -1172,7 +1180,7 @@ an array.)
    because these objects' API changes too much across Python versions.
    Instead it has the following Python API (a subset of ``buffer``):
 
-- ``buf[:]``: fetch a copy as a regular byte string (or
+- ``buf[:]`` or ``bytes(buf)``: fetch a copy as a regular byte string (or
   ``buf[start:end]`` for a part)
 
 - ``buf[:] = newstr``: change the original content (or ``buf[start:end]
@@ -1186,6 +1194,14 @@ an array.)
    ``cdata`` object: if it was originally an owning cdata, then its
    owned memory will not be freed as long as the buffer is alive.
    Moreover buffer objects now support weakrefs to them.
+
+.. versionchanged:: 0.9
+   Before version 0.9, ``bytes(buf)`` was supported in Python 3 to get
+   the content of the buffer, but on Python 2 it would return the repr
+   ``<_cffi_backend.buffer object>``.  This has been fixed.  But you
+   should avoid using ``str(buf)``: it now gives inconsistent results
+   between Python 2 and Python 3 (this is similar to how ``str()``
+   gives inconsistent results on regular byte strings).
 
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
@@ -1257,13 +1273,19 @@ points in time, and using it in a ``with`` statement.
 ``void *`` that contains an opaque reference to ``python_object``.  You
 can pass it around to C functions or store it into C structures.  Later,
 you can use ``ffi.from_handle(p)`` to retrive the original
-``python_object`` from a value with the same ``void *`` pointer.  The
-cdata object returned by ``new_handle()`` has *ownership*, in the same
-sense as ``ffi.new()`` or ``ffi.gc()``: the association ``void * ->
-python_object`` is only valid as long as *this* exact cdata returned by
-``new_handle()`` is alive.  *Calling ffi.from_handle(p) is invalid and
-will likely crash if the cdata object returned by new_handle() is not
-kept alive!* *New in version 0.7.*
+``python_object`` from a value with the same ``void *`` pointer.
+*Calling ffi.from_handle(p) is invalid and will likely crash if
+the cdata object returned by new_handle() is not kept alive!*
+*New in version 0.7.*
+
+Note that ``from_handle()`` conceptually works like this: it searches in
+the list of cdata objects made by ``new_handle()`` the one which has got
+the same ``void *`` value; and then it fetches in that cdata object the
+corresponding Python object.  The cdata object keeps the Python object
+alive, similar to how ``ffi.new()`` returns a cdata object that keeps a
+piece of memory alive.  If the cdata object *itself* is not alive any
+more, then the association ``void * -> python_object`` is dead and
+``from_handle()`` will crash.
 
 .. "versionadded:: 0.7" --- inlined in the previous paragraph
 

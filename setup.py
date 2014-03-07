@@ -42,6 +42,11 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
             resultlist[:] = res
 
 def ask_supports_thread():
+    if sys.platform == "darwin":
+        sys.stderr.write("OS/X: confusion between 'cc' versus 'gcc'")
+        sys.stderr.write(" (see issue 123)\n")
+        sys.stderr.write("will not use '__thread' in the C code\n")
+        return
     import distutils.errors
     from distutils.ccompiler import new_compiler
     compiler = new_compiler(force=1)
@@ -91,11 +96,23 @@ else:
 
 
 if __name__ == '__main__':
-  from setuptools import setup, Feature, Extension
-  setup(
-    name='cffi',
-    description='Foreign Function Interface for Python calling C code.',
-    long_description="""
+    from setuptools import setup, Extension
+    ext_modules = []
+    if '__pypy__' not in sys.modules:
+        ext_modules.append(Extension(
+            name='_cffi_backend',
+            include_dirs=include_dirs,
+            sources=sources,
+            libraries=libraries,
+            define_macros=define_macros,
+            library_dirs=library_dirs,
+            extra_compile_args=extra_compile_args,
+            extra_link_args=extra_link_args,
+        ))
+    setup(
+        name='cffi',
+        description='Foreign Function Interface for Python calling C code.',
+        long_description="""
 CFFI
 ====
 
@@ -106,36 +123,29 @@ Contact
 -------
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
-    """,
-    version='0.8.1',
-    packages=['cffi'],
-    zip_safe=False,
+""",
+        version='0.8.2',
+        packages=['cffi'],
+        zip_safe=False,
 
-    url='http://cffi.readthedocs.org',
-    author='Armin Rigo, Maciej Fijalkowski',
-    author_email='python-cffi@googlegroups.com',
+        url='http://cffi.readthedocs.org',
+        author='Armin Rigo, Maciej Fijalkowski',
+        author_email='python-cffi@googlegroups.com',
 
-    license='MIT',
+        license='MIT',
 
-    features={
-        'cextension': Feature(
-            "fast c backend for cpython",
-            standard='__pypy__' not in sys.modules,
-            ext_modules=[
-                Extension(name='_cffi_backend',
-                          include_dirs=include_dirs,
-                          sources=sources,
-                          libraries=libraries,
-                          define_macros=define_macros,
-                          library_dirs=library_dirs,
-                          extra_compile_args=extra_compile_args,
-                          extra_link_args=extra_link_args,
-                          ),
-            ],
-        ),
-    },
+        ext_modules=ext_modules,
 
-    install_requires=[
-        'pycparser',
-    ]
-  )
+        install_requires=[
+            'pycparser',
+        ],
+        classifiers=[
+            'Programming Language :: Python',
+            'Programming Language :: Python :: 2',
+            'Programming Language :: Python :: 2.6',
+            'Programming Language :: Python :: 2.7',
+            'Programming Language :: Python :: 3',
+            'Programming Language :: Python :: 3.2',
+            'Programming Language :: Python :: 3.3',
+        ],
+    )

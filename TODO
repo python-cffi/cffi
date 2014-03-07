@@ -7,4 +7,4 @@ verify() handles "typedef ... some_integer_type", but this creates
 an opaque type that works like a struct (so we can't get the value
 out of it).
 
-_cffi backend for PyPy
+accept and kill "static inline" in the cdefs

@@ -13,6 +13,9 @@
 #include <errno.h>
 #include <ffi.h>
 #include <sys/mman.h>
+#if (defined (__SVR4) && defined (__sun)) || defined(_AIX)
+#  include <alloca.h>
+#endif
 #endif
 
 #include "malloc_closure.h"
@@ -832,7 +835,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
             return new_simple_cdata(ptrdata, ct);
         }
         else if (ct->ct_flags & CT_IS_OPAQUE) {
-            PyErr_Format(PyExc_TypeError, "cannot return a cdata '%s'",
+            PyErr_Format(PyExc_TypeError, "cdata '%s' is opaque",
                          ct->ct_name);
             return NULL;
         }
@@ -3580,9 +3583,40 @@ _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
     return cf;   /* borrowed reference */
 }
 
-#define SF_MSVC_BITFIELDS 1
-#define SF_GCC_ARM_BITFIELDS 2
-#define SF_GCC_BIG_ENDIAN 4
+#define SF_MSVC_BITFIELDS     0x01
+#define SF_GCC_ARM_BITFIELDS  0x02
+#define SF_GCC_X86_BITFIELDS  0x10
+
+#define SF_GCC_BIG_ENDIAN     0x04
+#define SF_GCC_LITTLE_ENDIAN  0x40
+
+#define SF_PACKED             0x08
+
+static int complete_sflags(int sflags)
+{
+    /* add one of the SF_xxx_BITFIELDS flags if none is specified */
+    if (!(sflags & (SF_MSVC_BITFIELDS | SF_GCC_ARM_BITFIELDS |
+                    SF_GCC_X86_BITFIELDS))) {
+#ifdef MS_WIN32
+        sflags |= SF_MSVC_BITFIELDS;
+#else
+# ifdef __arm__
+        sflags |= SF_GCC_ARM_BITFIELDS;
+# else
+        sflags |= SF_GCC_X86_BITFIELDS;
+# endif
+#endif
+    }
+    /* add one of SF_GCC_xx_ENDIAN if none is specified */
+    if (!(sflags & (SF_GCC_BIG_ENDIAN | SF_GCC_LITTLE_ENDIAN))) {
+        int _check_endian = 1;
+        if (*(char *)&_check_endian == 0)
+            sflags |= SF_GCC_BIG_ENDIAN;
+        else
+            sflags |= SF_GCC_LITTLE_ENDIAN;
+    }
+    return sflags;
+}
 
 static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 {
@@ -3594,24 +3628,15 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     int totalalignment = -1;
     CFieldObject **previous;
     int prev_bitfield_size, prev_bitfield_free;
-#ifdef MS_WIN32
-    int sflags = SF_MSVC_BITFIELDS;
-#else
-# ifdef __arm__
-    int sflags = SF_GCC_ARM_BITFIELDS;
-# else
     int sflags = 0;
-# endif
-    int _check_endian = 1;
-    if (*(char *)&_check_endian == 0)
-        sflags |= SF_GCC_BIG_ENDIAN;
-#endif
 
     if (!PyArg_ParseTuple(args, "O!O!|Onii:complete_struct_or_union",
                           &CTypeDescr_Type, &ct,
                           &PyList_Type, &fields,
                           &ignored, &totalsize, &totalalignment, &sflags))
         return NULL;
+
+    sflags = complete_sflags(sflags);
 
     if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) ==
                         (CT_STRUCT|CT_IS_OPAQUE)) {
@@ -3668,8 +3693,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             boffset = 0;   /* reset each field at offset 0 */
 
         /* update the total alignment requirement, but skip it if the
-           field is an anonymous bitfield */
-        falign = get_alignment(ftype);
+           field is an anonymous bitfield or if SF_PACKED */
+        falign = (sflags & SF_PACKED) ? 1 : get_alignment(ftype);
         if (falign < 0)
             goto error;
 
@@ -3781,6 +3806,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     PyErr_Format(PyExc_TypeError,
                                  "field '%s.%s' is declared with :0",
                                  ct->ct_name, PyText_AS_UTF8(fname));
+                    goto error;
                 }
                 if (!(sflags & SF_MSVC_BITFIELDS)) {
                     /* GCC's notion of "ftype :0;" */
@@ -3812,6 +3838,14 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     if (bits_already_occupied + fbitsize > 8 * ftype->ct_size) {
                         /* it would not fit, we need to start at the next
                            allowed position */
+                        if ((sflags & SF_PACKED) &&
+                            (bits_already_occupied & 7)) {
+                            PyErr_Format(PyExc_NotImplementedError,
+                                "with 'packed', gcc would compile field "
+                                "'%s.%s' to reuse some bits in the previous "
+                                "field", ct->ct_name, PyText_AS_UTF8(fname));
+                            goto error;
+                        }
                         field_offset_bytes += falign;
                         assert(boffset < field_offset_bytes * 8);
                         boffset = field_offset_bytes * 8;
@@ -5448,7 +5482,7 @@ init_cffi_backend(void)
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
         INITERROR;
 
-    v = PyText_FromString("0.8");
+    v = PyText_FromString("0.8.2");
     if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
         INITERROR;
 

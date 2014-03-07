@@ -370,6 +370,9 @@ def test_load_standard_library():
     assert x.load_function(BVoidP, 'strcpy')
     py.test.raises(KeyError, x.load_function,
                    BVoidP, 'xxx_this_function_does_not_exist')
+    # the next one is from 'libm', not 'libc', but we assume
+    # that it is already loaded too, so it should work
+    assert x.load_function(BVoidP, 'sqrt')
 
 def test_hash_differences():
     BChar = new_primitive_type("char")
@@ -1429,8 +1432,10 @@ def test_enum_in_struct():
     p = newp(BStructPtr, [12])
     assert p.a1 == 12
     e = py.test.raises(TypeError, newp, BStructPtr, [None])
-    assert ("an integer is required" in str(e.value) or
-        "unsupported operand type for int(): 'NoneType'" in str(e.value)) #PyPy
+    msg = str(e.value)
+    assert ("an integer is required" in msg or  # CPython
+            "unsupported operand type for int(): 'NoneType'" in msg or  # old PyPys
+            "expected integer, got NoneType object" in msg) # newer PyPys
     py.test.raises(TypeError, 'p.a1 = "def"')
     if sys.version_info < (3,):
         BEnum2 = new_enum_type(unicode("foo"), (unicode('abc'),), (5,), BInt)
@@ -2154,7 +2159,13 @@ def test_buffer():
     c = newp(BCharArray, b"hi there")
     #
     buf = buffer(c)
-    assert str(buf).startswith('<_cffi_backend.buffer object at 0x')
+    assert repr(buf).startswith('<_cffi_backend.buffer object at 0x')
+    assert bytes(buf) == b"hi there\x00"
+    if sys.version_info < (3,):
+        assert str(buf) == "hi there\x00"
+        assert unicode(buf) == u+"hi there\x00"
+    else:
+        assert str(buf) == repr(buf)
     # --mb_length--
     assert len(buf) == len(b"hi there\x00")
     # --mb_item--
@@ -2886,7 +2897,7 @@ def _test_bitfield_details(flag):
                                        ('b1', BInt, 9),
                                        ('b2', BUInt, 7),
                                        ('c', BChar, -1)], -1, -1, -1, flag)
-    if flag % 2 == 0:   # gcc, any variant
+    if not (flag & SF_MSVC_BITFIELDS):   # gcc, any variant
         assert typeoffsetof(BStruct, 'c') == (BChar, 3)
         assert sizeof(BStruct) == 4
     else:               # msvc
@@ -2901,20 +2912,20 @@ def _test_bitfield_details(flag):
     p.c = b'\x9D'
     raw = buffer(p)[:]
     if sys.byteorder == 'little':
-        if flag == 0 or flag == 2:  # gcc, little endian
-            assert raw == b'A7\xC7\x9D'
-        elif flag == 1: # msvc
+        if flag & SF_MSVC_BITFIELDS:
             assert raw == b'A\x00\x00\x007\xC7\x00\x00\x9D\x00\x00\x00'
-        elif flag == 4: # gcc, big endian
+        elif flag & SF_GCC_LITTLE_ENDIAN:
+            assert raw == b'A7\xC7\x9D'
+        elif flag & SF_GCC_BIG_ENDIAN:
             assert raw == b'A\xE3\x9B\x9D'
         else:
             raise AssertionError("bad flag")
     else:
-        if flag == 0 or flag == 2:  # gcc
-            assert raw == b'A\xC77\x9D'
-        elif flag == 1: # msvc
+        if flag & SF_MSVC_BITFIELDS:
             assert raw == b'A\x00\x00\x00\x00\x00\xC77\x9D\x00\x00\x00'
-        elif flag == 4: # gcc, big endian
+        elif flag & SF_GCC_LITTLE_ENDIAN:
+            assert raw == b'A\xC77\x9D'
+        elif flag & SF_GCC_BIG_ENDIAN:
             assert raw == b'A\x9B\xE3\x9D'
         else:
             raise AssertionError("bad flag")
@@ -2924,18 +2935,15 @@ def _test_bitfield_details(flag):
                                        ('',  BShort, 9),
                                        ('c', BChar, -1)], -1, -1, -1, flag)
     assert typeoffsetof(BStruct, 'c') == (BChar, 4)
-    if flag == 0:   # gcc
-        assert sizeof(BStruct) == 5
-        assert alignof(BStruct) == 1
-    elif flag == 1: # msvc
+    if flag & SF_MSVC_BITFIELDS:
         assert sizeof(BStruct) == 6
         assert alignof(BStruct) == 2
-    elif flag == 2: # gcc ARM
-        assert sizeof(BStruct) == 6
-        assert alignof(BStruct) == 2
-    elif flag == 4: # gcc, big endian
+    elif flag & SF_GCC_X86_BITFIELDS:
         assert sizeof(BStruct) == 5
         assert alignof(BStruct) == 1
+    elif flag & SF_GCC_ARM_BITFIELDS:
+        assert sizeof(BStruct) == 6
+        assert alignof(BStruct) == 2
     else:
         raise AssertionError("bad flag")
     #
@@ -2944,37 +2952,43 @@ def _test_bitfield_details(flag):
                                        ('',  BInt, 0),
                                        ('',  BInt, 0),
                                        ('c', BChar, -1)], -1, -1, -1, flag)
-    if flag == 0:    # gcc
-        assert typeoffsetof(BStruct, 'c') == (BChar, 4)
-        assert sizeof(BStruct) == 5
-        assert alignof(BStruct) == 1
-    elif flag == 1:  # msvc
+    if flag & SF_MSVC_BITFIELDS:
         assert typeoffsetof(BStruct, 'c') == (BChar, 1)
         assert sizeof(BStruct) == 2
         assert alignof(BStruct) == 1
-    elif flag == 2:  # gcc ARM
-        assert typeoffsetof(BStruct, 'c') == (BChar, 4)
-        assert sizeof(BStruct) == 8
-        assert alignof(BStruct) == 4
-    elif flag == 4:  # gcc, big endian
+    elif flag & SF_GCC_X86_BITFIELDS:
         assert typeoffsetof(BStruct, 'c') == (BChar, 4)
         assert sizeof(BStruct) == 5
         assert alignof(BStruct) == 1
+    elif flag & SF_GCC_ARM_BITFIELDS:
+        assert typeoffsetof(BStruct, 'c') == (BChar, 4)
+        assert sizeof(BStruct) == 8
+        assert alignof(BStruct) == 4
     else:
         raise AssertionError("bad flag")
 
 
-def test_bitfield_as_gcc():
-    _test_bitfield_details(flag=0)
+SF_MSVC_BITFIELDS     = 0x01
+SF_GCC_ARM_BITFIELDS  = 0x02
+SF_GCC_X86_BITFIELDS  = 0x10
+
+SF_GCC_BIG_ENDIAN     = 0x04
+SF_GCC_LITTLE_ENDIAN  = 0x40
+
+SF_PACKED             = 0x08
+
+def test_bitfield_as_x86_gcc():
+    _test_bitfield_details(flag=SF_GCC_X86_BITFIELDS|SF_GCC_LITTLE_ENDIAN)
 
 def test_bitfield_as_msvc():
-    _test_bitfield_details(flag=1)
+    _test_bitfield_details(flag=SF_MSVC_BITFIELDS|SF_GCC_LITTLE_ENDIAN)
 
 def test_bitfield_as_arm_gcc():
-    _test_bitfield_details(flag=2)
+    _test_bitfield_details(flag=SF_GCC_ARM_BITFIELDS|SF_GCC_LITTLE_ENDIAN)
 
-def test_bitfield_as_big_endian():
-    _test_bitfield_details(flag=4)
+def test_bitfield_as_ppc_gcc():
+    # PowerPC uses the same format as X86, but is big-endian
+    _test_bitfield_details(flag=SF_GCC_X86_BITFIELDS|SF_GCC_BIG_ENDIAN)
 
 
 def test_struct_array_no_length():
@@ -3136,7 +3150,53 @@ def test_void_p_arithmetic():
     py.test.raises(TypeError, "p + cast(new_primitive_type('int'), 42)")
     py.test.raises(TypeError, "p - cast(new_primitive_type('int'), 42)")
 
+def test_sizeof_sliced_array():
+    BInt = new_primitive_type("int")
+    BArray = new_array_type(new_pointer_type(BInt), 10)
+    p = newp(BArray, None)
+    assert sizeof(p[2:9]) == 7 * sizeof(BInt)
+
+def test_packed():
+    BLong = new_primitive_type("long")
+    BChar = new_primitive_type("char")
+    BShort = new_primitive_type("short")
+    BStruct = new_struct_type("struct foo")
+    complete_struct_or_union(BStruct, [('a1', BLong, -1),
+                                       ('a2', BChar, -1),
+                                       ('a3', BShort, -1)],
+                             None, -1, -1, SF_PACKED)
+    d = BStruct.fields
+    assert len(d) == 3
+    assert d[0][0] == 'a1'
+    assert d[0][1].type is BLong
+    assert d[0][1].offset == 0
+    assert d[0][1].bitshift == -1
+    assert d[0][1].bitsize == -1
+    assert d[1][0] == 'a2'
+    assert d[1][1].type is BChar
+    assert d[1][1].offset == sizeof(BLong)
+    assert d[1][1].bitshift == -1
+    assert d[1][1].bitsize == -1
+    assert d[2][0] == 'a3'
+    assert d[2][1].type is BShort
+    assert d[2][1].offset == sizeof(BLong) + sizeof(BChar)
+    assert d[2][1].bitshift == -1
+    assert d[2][1].bitsize == -1
+    assert sizeof(BStruct) == sizeof(BLong) + sizeof(BChar) + sizeof(BShort)
+    assert alignof(BStruct) == 1
+
+def test_packed_with_bitfields():
+    if sys.platform == "win32":
+        py.test.skip("testing gcc behavior")
+    BLong = new_primitive_type("long")
+    BChar = new_primitive_type("char")
+    BStruct = new_struct_type("struct foo")
+    py.test.raises(NotImplementedError,
+                   complete_struct_or_union,
+                   BStruct, [('a1', BLong, 30),
+                             ('a2', BChar, 5)],
+                   None, -1, -1, SF_PACKED)
 
 def test_version():
     # this test is here mostly for PyPy
-    assert __version__ == "0.8"
+    assert __version__ == "0.8.2"
