@@ -43,9 +43,9 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
 
 def ask_supports_thread():
     if sys.platform == "darwin":
-        sys.stderr.write("OS/X: confusion between 'cc' versus 'gcc'")
-        sys.stderr.write(" (see issue 123)\n")
-        sys.stderr.write("will not use '__thread' in the C code\n")
+        sys.stderr.write("Note: will not use '__thread' in the C code\n")
+        sys.stderr.write("This is for OS/X-specific reasons: confusion "
+                         "between 'cc' versus 'gcc' (see issue 123)\n")
         return
     import distutils.errors
     from distutils.ccompiler import new_compiler
@@ -53,8 +53,8 @@ def ask_supports_thread():
     try:
         compiler.compile(['c/check__thread.c'])
     except distutils.errors.CompileError:
-        sys.stderr.write("the above error message can be safely ignored;\n")
-        sys.stderr.write("will not use '__thread' in the C code\n")
+        sys.stderr.write("Note: will not use '__thread' in the C code\n")
+        sys.stderr.write("The above error message can be safely ignored\n")
     else:
         define_macros.append(('USE__THREAD', None))
     try:
