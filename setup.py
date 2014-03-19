@@ -42,25 +42,14 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
             resultlist[:] = res
 
 def ask_supports_thread():
-    if sys.platform == "darwin":
-        sys.stderr.write("Note: will not use '__thread' in the C code\n")
-        sys.stderr.write("This is for OS/X-specific reasons: confusion "
-                         "between 'cc' versus 'gcc' (see issue 123)\n")
-        return
-    import distutils.errors
-    from distutils.ccompiler import new_compiler
-    compiler = new_compiler(force=1)
-    try:
-        compiler.compile(['c/check__thread.c'])
-    except distutils.errors.CompileError:
+    from distutils.core import Distribution
+    config = Distribution().get_command_obj('config')
+    ok = config.try_compile('__thread int some_threadlocal_variable_42;')
+    if ok:
+        define_macros.append(('USE__THREAD', None))
+    else:
         sys.stderr.write("Note: will not use '__thread' in the C code\n")
         sys.stderr.write("The above error message can be safely ignored\n")
-    else:
-        define_macros.append(('USE__THREAD', None))
-    try:
-        os.unlink('c/check__thread.o')
-    except OSError:
-        pass
 
 def use_pkg_config():
     _ask_pkg_config(include_dirs,       '--cflags-only-I', '-I', sysroot=True)
