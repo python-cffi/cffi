@@ -207,7 +207,7 @@ class Parser(object):
         except api.FFIError as e:
             msg = self._convert_pycparser_error(e, csource)
             if msg:
-                print("*** Error: %s" % msg)
+                e.args = (e.args[0] + "\n    *** Err: %s" % msg,)
             raise
 
     def _parse_decl(self, decl):
