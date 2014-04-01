@@ -182,8 +182,8 @@ class Parser(object):
             if decl.name == '__dotdotdot__':
                 break
         #
-        for decl in iterator:
-            try:
+        try:
+            for decl in iterator:
                 if isinstance(decl, pycparser.c_ast.Decl):
                     self._parse_decl(decl)
                 elif isinstance(decl, pycparser.c_ast.Typedef):
@@ -204,11 +204,11 @@ class Parser(object):
                     self._declare('typedef ' + decl.name, realtype)
                 else:
                     raise api.CDefError("unrecognized construct", decl)
-            except api.FFIError as e:
-                msg = self._convert_pycparser_error(e, csource)
-                if msg:
-                    print("*** Error: %s" % msg)
-                raise
+        except api.FFIError as e:
+            msg = self._convert_pycparser_error(e, csource)
+            if msg:
+                print("*** Error: %s" % msg)
+            raise
 
     def _parse_decl(self, decl):
         node = decl.type
