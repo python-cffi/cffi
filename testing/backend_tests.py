@@ -1322,6 +1322,15 @@ class BackendTests:
         e = ffi.cast("enum e", 0)
         assert ffi.string(e) == "AA"     # pick the first one arbitrarily
 
+    def test_enum_refer_previous_enum_value(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("enum e { AA, BB=2, CC=4, DD=BB, EE, FF=CC };")
+        assert ffi.string(ffi.cast("enum e", 2)) == "BB"
+        assert ffi.string(ffi.cast("enum e", 3)) == "EE"
+        assert ffi.sizeof("char[DD]") == 2
+        assert ffi.sizeof("char[EE]") == 3
+        assert ffi.sizeof("char[FF]") == 4
+
     def test_nested_anonymous_struct(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
