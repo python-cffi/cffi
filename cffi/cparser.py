@@ -24,6 +24,7 @@ _r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _r_partial_array = re.compile(r"\[\s*\.\.\.\s*\]")
 _r_words = re.compile(r"\w+|\S")
 _parser_cache = None
+_r_int_literal = re.compile(r"^0?x?[0-9a-f]+u?l?$", re.IGNORECASE)
 
 def _get_parser():
     global _parser_cache
@@ -170,12 +171,7 @@ class Parser(object):
     def _internal_parse(self, csource):
         ast, macros, csource = self._parse(csource)
         # add the macros
-        for key, value in macros.items():
-            value = value.strip()
-            if value != '...':
-                raise api.CDefError('only supports the syntax "#define '
-                                    '%s ..." for now (literally)' % key)
-            self._declare('macro ' + key, value)
+        self._process_macros(macros)
         # find the first "__dotdotdot__" and use that as a separator
         # between the repeated typedefs and the real csource
         iterator = iter(ast.ext)
@@ -210,6 +206,24 @@ class Parser(object):
             if msg:
                 e.args = (e.args[0] + "\n    *** Err: %s" % msg,)
             raise
+
+    def _process_macros(self, macros):
+        for key, value in macros.items():
+            value = value.strip()
+            match = _r_int_literal.search(value)
+            if match is not None:
+                pyvalue = int(match.group(0).rstrip("ULul"), 0)
+                if key not in self._int_constants:
+                    self._int_constants[key] = pyvalue
+                else:
+                    raise api.FFIError(
+                        "multiple declarations of constant %s" % (key,))
+            elif value == '...':
+                self._declare('macro ' + key, value)
+            else:
+                raise api.CDefError('only supports the syntax "#define '
+                                    '%s ..." (literally) or "#define '
+                                    '%s 0x1FF" for now' % (key, key))
 
     def _parse_decl(self, decl):
         node = decl.type
