@@ -99,6 +99,7 @@ class Parser(object):
         self._structnode2type = weakref.WeakKeyDictionary()
         self._override = False
         self._packed = False
+        self._int_constants = {}
 
     def _parse(self, csource):
         csource, macros = _preprocess(csource)
@@ -514,6 +515,10 @@ class Parser(object):
         if (isinstance(exprnode, pycparser.c_ast.UnaryOp) and
                 exprnode.op == '-'):
             return -self._parse_constant(exprnode.expr)
+        # load previously defined int constant
+        if (isinstance(exprnode, pycparser.c_ast.ID) and
+                exprnode.name in self._int_constants):
+            return self._int_constants[exprnode.name]
         #
         if partial_length_ok:
             if (isinstance(exprnode, pycparser.c_ast.ID) and
@@ -537,6 +542,11 @@ class Parser(object):
                 if enum.value is not None:
                     nextenumvalue = self._parse_constant(enum.value)
                 enumvalues.append(nextenumvalue)
+                if enum.name in self._int_constants:
+                    raise api.FFIError(
+                        "multiple declarations of constant %s" % (enum.name,))
+
+                self._int_constants[enum.name] = nextenumvalue
                 nextenumvalue += 1
             enumvalues = tuple(enumvalues)
             tp = model.EnumType(explicit_name, enumerators, enumvalues)
@@ -550,3 +560,9 @@ class Parser(object):
             kind = name.split(' ', 1)[0]
             if kind in ('typedef', 'struct', 'union', 'enum'):
                 self._declare(name, tp)
+        for k, v in other._int_constants.items():
+            if k not in self._int_constants:
+                self._int_constants[k] = v
+            else:
+                raise api.FFIError(
+                    "multiple declarations of constant %s" % (k,))
