@@ -1585,6 +1585,7 @@ class BackendTests:
     def test_define_integer_constant(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
+            #define DOT_0 0
             #define DOT 100
             #define DOT_OCT 0100l
             #define DOT_HEX 0x100u
@@ -1593,6 +1594,7 @@ class BackendTests:
         """)
         lib = ffi.dlopen(None)
         assert ffi.string(ffi.cast("enum foo", 100)) == "BB"
+        assert lib.DOT_0 == 0
         assert lib.DOT == 100
         assert lib.DOT_OCT == 0o100
         assert lib.DOT_HEX == 0x100

@@ -212,7 +212,15 @@ class Parser(object):
             value = value.strip()
             match = _r_int_literal.search(value)
             if match is not None:
-                pyvalue = int(match.group(0).rstrip("ULul"), 0)
+                int_str = match.group(0).lower().rstrip("ul")
+
+                # "010" is not valid oct in py3
+                if (int_str.startswith("0") and
+                        int_str != "0" and
+                        not int_str.startswith("0x")):
+                    int_str = "0o" + int_str[1:]
+
+                pyvalue = int(int_str, 0)
                 if key not in self._int_constants:
                     self._int_constants[key] = pyvalue
                 else:
