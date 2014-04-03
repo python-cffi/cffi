@@ -207,6 +207,12 @@ class Parser(object):
                 e.args = (e.args[0] + "\n    *** Err: %s" % msg,)
             raise
 
+    def _add_constants(self, key, val):
+        if key in self._int_constants:
+            raise api.FFIError(
+                "multiple declarations of constant: %s" % (key,))
+        self._int_constants[key] = val
+
     def _process_macros(self, macros):
         for key, value in macros.items():
             value = value.strip()
@@ -221,11 +227,7 @@ class Parser(object):
                     int_str = "0o" + int_str[1:]
 
                 pyvalue = int(int_str, 0)
-                if key not in self._int_constants:
-                    self._int_constants[key] = pyvalue
-                else:
-                    raise api.FFIError(
-                        "multiple declarations of constant %s" % (key,))
+                self._add_constants(key, pyvalue)
             elif value == '...':
                 self._declare('macro ' + key, value)
             else:
@@ -564,11 +566,7 @@ class Parser(object):
                 if enum.value is not None:
                     nextenumvalue = self._parse_constant(enum.value)
                 enumvalues.append(nextenumvalue)
-                if enum.name in self._int_constants:
-                    raise api.FFIError(
-                        "multiple declarations of constant %s" % (enum.name,))
-
-                self._int_constants[enum.name] = nextenumvalue
+                self._add_constants(enum.name, nextenumvalue)
                 nextenumvalue += 1
             enumvalues = tuple(enumvalues)
             tp = model.EnumType(explicit_name, enumerators, enumvalues)
@@ -583,8 +581,4 @@ class Parser(object):
             if kind in ('typedef', 'struct', 'union', 'enum'):
                 self._declare(name, tp)
         for k, v in other._int_constants.items():
-            if k not in self._int_constants:
-                self._int_constants[k] = v
-            else:
-                raise api.FFIError(
-                    "multiple declarations of constant %s" % (k,))
+            self._add_constants(k, v)
