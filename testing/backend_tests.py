@@ -1589,6 +1589,7 @@ class BackendTests:
             #define DOT 100
             #define DOT_OCT 0100l
             #define DOT_HEX 0x100u
+            #define DOT_HEX2 0X10
             #define DOT_UL 1000UL
             enum foo {AA, BB=DOT, CC};
         """)
@@ -1598,6 +1599,7 @@ class BackendTests:
         assert lib.DOT == 100
         assert lib.DOT_OCT == 0o100
         assert lib.DOT_HEX == 0x100
+        assert lib.DOT_HEX2 == 0x10
         assert lib.DOT_UL == 1000
 
 
