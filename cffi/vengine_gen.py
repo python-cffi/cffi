@@ -410,13 +410,18 @@ class VGenericEngine(object):
     # ----------
     # enums
 
+    def _enum_funcname(self, prefix, name):
+        # "$enum_$1" => "___D_enum____D_1"
+        name = name.replace('$', '___D_')
+        return '_cffi_e_%s_%s' % (prefix, name)
+
     def _generate_gen_enum_decl(self, tp, name, prefix='enum'):
         if tp.partial:
             for enumerator in tp.enumerators:
                 self._generate_gen_const(True, enumerator)
             return
         #
-        funcname = '_cffi_e_%s_%s' % (prefix, name)
+        funcname = self._enum_funcname(prefix, name)
         self.export_symbols.append(funcname)
         prnt = self._prnt
         prnt('int %s(char *out_error)' % funcname)
@@ -453,7 +458,7 @@ class VGenericEngine(object):
         else:
             BType = self.ffi._typeof_locked("char[]")[0]
             BFunc = self.ffi._typeof_locked("int(*)(char*)")[0]
-            funcname = '_cffi_e_%s_%s' % (prefix, name)
+            funcname = self._enum_funcname(prefix, name)
             function = module.load_function(BFunc, funcname)
             p = self.ffi.new(BType, 256)
             if function(p) < 0:

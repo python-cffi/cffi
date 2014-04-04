@@ -1,4 +1,4 @@
-import py
+import py, re
 import sys, os, math, weakref
 from cffi import FFI, VerificationError, VerificationMissing, model
 from testing.support import *
@@ -29,6 +29,24 @@ else:
 def setup_module():
     import cffi.verifier
     cffi.verifier.cleanup_tmpdir()
+    #
+    # check that no $ sign is produced in the C file; it used to be the
+    # case that anonymous enums would produce '$enum_$1', which was
+    # used as part of a function name.  GCC accepts such names, but it's
+    # apparently non-standard.
+    _r_comment = re.compile(r"/\*.*?\*/|//.*?$", re.DOTALL | re.MULTILINE)
+    _r_string = re.compile(r'\".*?\"')
+    def _write_source_and_check(self, file=None):
+        base_write_source(self, file)
+        if file is None:
+            f = open(self.sourcefilename)
+            data = f.read()
+            f.close()
+            data = _r_comment.sub(' ', data)
+            data = _r_string.sub('"skipped"', data)
+            assert '$' not in data
+    base_write_source = cffi.verifier.Verifier._write_source
+    cffi.verifier.Verifier._write_source = _write_source_and_check
 
 
 def test_module_type():

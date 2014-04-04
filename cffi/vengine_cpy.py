@@ -632,13 +632,18 @@ class VCPythonEngine(object):
     # ----------
     # enums
 
+    def _enum_funcname(self, prefix, name):
+        # "$enum_$1" => "___D_enum____D_1"
+        name = name.replace('$', '___D_')
+        return '_cffi_e_%s_%s' % (prefix, name)
+
     def _generate_cpy_enum_decl(self, tp, name, prefix='enum'):
         if tp.partial:
             for enumerator in tp.enumerators:
                 self._generate_cpy_const(True, enumerator, delayed=False)
             return
         #
-        funcname = '_cffi_e_%s_%s' % (prefix, name)
+        funcname = self._enum_funcname(prefix, name)
         prnt = self._prnt
         prnt('static int %s(PyObject *lib)' % funcname)
         prnt('{')
