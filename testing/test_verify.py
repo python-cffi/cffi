@@ -1470,8 +1470,8 @@ def test_keepalive_ffi():
     assert func() == 42
 
 def test_FILE_stored_in_stdout():
-    if sys.platform == 'win32':
-        py.test.skip("MSVC: cannot assign to stdout")
+    if not sys.platform.startswith('linux'):
+        py.test.skip("likely, we cannot assign to stdout")
     ffi = FFI()
     ffi.cdef("int printf(const char *, ...); FILE *setstdout(FILE *);")
     lib = ffi.verify("""
