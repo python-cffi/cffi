@@ -1581,3 +1581,25 @@ class BackendTests:
         assert s[0].a == b'X'
         assert s[1].b == -4892220
         assert s[1].a == b'Y'
+
+    def test_define_integer_constant(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            #define DOT_0 0
+            #define DOT 100
+            #define DOT_OCT 0100l
+            #define DOT_HEX 0x100u
+            #define DOT_HEX2 0X10
+            #define DOT_UL 1000UL
+            enum foo {AA, BB=DOT, CC};
+        """)
+        lib = ffi.dlopen(None)
+        assert ffi.string(ffi.cast("enum foo", 100)) == "BB"
+        assert lib.DOT_0 == 0
+        assert lib.DOT == 100
+        assert lib.DOT_OCT == 0o100
+        assert lib.DOT_HEX == 0x100
+        assert lib.DOT_HEX2 == 0x10
+        assert lib.DOT_UL == 1000
+
+

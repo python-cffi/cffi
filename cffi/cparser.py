@@ -24,6 +24,7 @@ _r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _r_partial_array = re.compile(r"\[\s*\.\.\.\s*\]")
 _r_words = re.compile(r"\w+|\S")
 _parser_cache = None
+_r_int_literal = re.compile(r"^0?x?[0-9a-f]+u?l?$", re.IGNORECASE)
 
 def _get_parser():
     global _parser_cache
@@ -170,12 +171,7 @@ class Parser(object):
     def _internal_parse(self, csource):
         ast, macros, csource = self._parse(csource)
         # add the macros
-        for key, value in macros.items():
-            value = value.strip()
-            if value != '...':
-                raise api.CDefError('only supports the syntax "#define '
-                                    '%s ..." for now (literally)' % key)
-            self._declare('macro ' + key, value)
+        self._process_macros(macros)
         # find the first "__dotdotdot__" and use that as a separator
         # between the repeated typedefs and the real csource
         iterator = iter(ast.ext)
@@ -210,6 +206,34 @@ class Parser(object):
             if msg:
                 e.args = (e.args[0] + "\n    *** Err: %s" % msg,)
             raise
+
+    def _add_constants(self, key, val):
+        if key in self._int_constants:
+            raise api.FFIError(
+                "multiple declarations of constant: %s" % (key,))
+        self._int_constants[key] = val
+
+    def _process_macros(self, macros):
+        for key, value in macros.items():
+            value = value.strip()
+            match = _r_int_literal.search(value)
+            if match is not None:
+                int_str = match.group(0).lower().rstrip("ul")
+
+                # "010" is not valid oct in py3
+                if (int_str.startswith("0") and
+                        int_str != "0" and
+                        not int_str.startswith("0x")):
+                    int_str = "0o" + int_str[1:]
+
+                pyvalue = int(int_str, 0)
+                self._add_constants(key, pyvalue)
+            elif value == '...':
+                self._declare('macro ' + key, value)
+            else:
+                raise api.CDefError('only supports the syntax "#define '
+                                    '%s ..." (literally) or "#define '
+                                    '%s 0x1FF" for now' % (key, key))
 
     def _parse_decl(self, decl):
         node = decl.type
@@ -542,11 +566,7 @@ class Parser(object):
                 if enum.value is not None:
                     nextenumvalue = self._parse_constant(enum.value)
                 enumvalues.append(nextenumvalue)
-                if enum.name in self._int_constants:
-                    raise api.FFIError(
-                        "multiple declarations of constant %s" % (enum.name,))
-
-                self._int_constants[enum.name] = nextenumvalue
+                self._add_constants(enum.name, nextenumvalue)
                 nextenumvalue += 1
             enumvalues = tuple(enumvalues)
             tp = model.EnumType(explicit_name, enumerators, enumvalues)
@@ -561,8 +581,4 @@ class Parser(object):
             if kind in ('typedef', 'struct', 'union', 'enum'):
                 self._declare(name, tp)
         for k, v in other._int_constants.items():
-            if k not in self._int_constants:
-                self._int_constants[k] = v
-            else:
-                raise api.FFIError(
-                    "multiple declarations of constant %s" % (k,))
+            self._add_constants(k, v)
