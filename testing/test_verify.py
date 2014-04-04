@@ -1654,8 +1654,8 @@ def test_callback_indirection():
     ffi = FFI()
     ffi.cdef("""
         int (*python_callback)(int how_many, int *values);
-        void *const c_callback;   /* pass this ptr to C routines */
-        int some_c_function(void *cb);
+        int (*const c_callback)(int,...);   /* pass this ptr to C routines */
+        int some_c_function(int(*cb)(int,...));
     """)
     lib = ffi.verify("""
         #include <stdarg.h>
