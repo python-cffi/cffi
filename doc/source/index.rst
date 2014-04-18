@@ -38,7 +38,7 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
 .. _`CPython native C extensions`: http://docs.python.org/extending/extending.html
 .. _`native C extensions`: http://docs.python.org/extending/extending.html
 .. _`ctypes`: http://docs.python.org/library/ctypes.html
-.. _`Weave`: http://www.scipy.org/Weave
+.. _`Weave`: http://wiki.scipy.org/Weave
 .. _`manually wrap`: `The verification step`_
 
 
