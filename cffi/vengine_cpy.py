@@ -96,36 +96,47 @@ class VCPythonEngine(object):
         #
         # standard init.
         modname = self.verifier.get_module_name()
-        if sys.version_info >= (3,):
-            prnt('static struct PyModuleDef _cffi_module_def = {')
-            prnt('  PyModuleDef_HEAD_INIT,')
-            prnt('  "%s",' % modname)
-            prnt('  NULL,')
-            prnt('  -1,')
-            prnt('  _cffi_methods,')
-            prnt('  NULL, NULL, NULL, NULL')
-            prnt('};')
-            prnt()
-            initname = 'PyInit_%s' % modname
-            createmod = 'PyModule_Create(&_cffi_module_def)'
-            errorcase = 'return NULL'
-            finalreturn = 'return lib'
-        else:
-            initname = 'init%s' % modname
-            createmod = 'Py_InitModule("%s", _cffi_methods)' % modname
-            errorcase = 'return'
-            finalreturn = 'return'
+        constants = self._chained_list_constants[False]
+        prnt('#if PY_MAJOR_VERSION >= 3')
+        prnt()
+        prnt('static struct PyModuleDef _cffi_module_def = {')
+        prnt('  PyModuleDef_HEAD_INIT,')
+        prnt('  "%s",' % modname)
+        prnt('  NULL,')
+        prnt('  -1,')
+        prnt('  _cffi_methods,')
+        prnt('  NULL, NULL, NULL, NULL')
+        prnt('};')
+        prnt()
         prnt('PyMODINIT_FUNC')
-        prnt('%s(void)' % initname)
+        prnt('PyInit_%s(void)' % modname)
         prnt('{')
         prnt('  PyObject *lib;')
-        prnt('  lib = %s;' % createmod)
-        prnt('  if (lib == NULL || %s < 0)' % (
-            self._chained_list_constants[False],))
-        prnt('    %s;' % errorcase)
-        prnt('  _cffi_init();')
-        prnt('  %s;' % finalreturn)
+        prnt('  lib = PyModule_Create(&_cffi_module_def);')
+        prnt('  if (lib == NULL)')
+        prnt('    return NULL;')
+        prnt('  if (%s < 0 || _cffi_init() < 0) {' % (constants,))
+        prnt('    Py_DECREF(lib);')
+        prnt('    return NULL;')
+        prnt('  }')
+        prnt('  return lib;')
         prnt('}')
+        prnt()
+        prnt('#else')
+        prnt()
+        prnt('PyMODINIT_FUNC')
+        prnt('init%s(void)' % modname)
+        prnt('{')
+        prnt('  PyObject *lib;')
+        prnt('  lib = Py_InitModule("%s", _cffi_methods);' % modname)
+        prnt('  if (lib == NULL)')
+        prnt('    return;')
+        prnt('  if (%s < 0 || _cffi_init() < 0)' % (constants,))
+        prnt('    return;')
+        prnt('  return;')
+        prnt('}')
+        prnt()
+        prnt('#endif')
 
     def load_library(self):
         # XXX review all usages of 'self' here!
@@ -894,25 +905,32 @@ static PyObject *_cffi_setup(PyObject *self, PyObject *args)
     return PyBool_FromLong(was_alive);
 }
 
-static void _cffi_init(void)
+static int _cffi_init(void)
 {
-    PyObject *module = PyImport_ImportModule("_cffi_backend");
-    PyObject *c_api_object;
+    PyObject *module, *c_api_object = NULL;
 
+    module = PyImport_ImportModule("_cffi_backend");
     if (module == NULL)
-        return;
+        goto failure;
 
     c_api_object = PyObject_GetAttrString(module, "_C_API");
     if (c_api_object == NULL)
-        return;
+        goto failure;
     if (!PyCapsule_CheckExact(c_api_object)) {
-        Py_DECREF(c_api_object);
         PyErr_SetNone(PyExc_ImportError);
-        return;
+        goto failure;
     }
     memcpy(_cffi_exports, PyCapsule_GetPointer(c_api_object, "cffi"),
            _CFFI_NUM_EXPORTS * sizeof(void *));
+
+    Py_DECREF(module);
     Py_DECREF(c_api_object);
+    return 0;
+
+  failure:
+    Py_XDECREF(module);
+    Py_XDECREF(c_api_object);
+    return -1;
 }
 
 #define _cffi_type(num) ((CTypeDescrObject *)PyList_GET_ITEM(_cffi_types, num))
