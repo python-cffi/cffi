@@ -89,8 +89,8 @@ class VCPythonEngine(object):
         # by generate_cpy_function_method().
         prnt('static PyMethodDef _cffi_methods[] = {')
         self._generate("method")
-        prnt('  {"_cffi_setup", _cffi_setup, METH_VARARGS},')
-        prnt('  {NULL, NULL}    /* Sentinel */')
+        prnt('  {"_cffi_setup", _cffi_setup, METH_VARARGS, NULL},')
+        prnt('  {NULL, NULL, 0, NULL}    /* Sentinel */')
         prnt('};')
         prnt()
         #
@@ -405,7 +405,7 @@ class VCPythonEngine(object):
             meth = 'METH_O'
         else:
             meth = 'METH_VARARGS'
-        self._prnt('  {"%s", _cffi_f_%s, %s},' % (name, name, meth))
+        self._prnt('  {"%s", _cffi_f_%s, %s, NULL},' % (name, name, meth))
 
     _loading_cpy_function = _loaded_noop
 
@@ -492,8 +492,8 @@ class VCPythonEngine(object):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
         layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
-        self._prnt('  {"%s", %s, METH_NOARGS},' % (layoutfuncname,
-                                                   layoutfuncname))
+        self._prnt('  {"%s", %s, METH_NOARGS, NULL},' % (layoutfuncname,
+                                                         layoutfuncname))
 
     def _loading_struct_or_union(self, tp, prefix, name, module):
         if tp.fldnames is None:
