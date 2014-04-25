@@ -600,13 +600,7 @@ class VCPythonEngine(object):
                                                           'variable type'),))
             assert delayed
         else:
-            prnt('  if (LONG_MIN <= (%s) && (%s) <= LONG_MAX)' % (name, name))
-            prnt('    o = PyInt_FromLong((long)(%s));' % (name,))
-            prnt('  else if ((%s) <= 0)' % (name,))
-            prnt('    o = PyLong_FromLongLong((long long)(%s));' % (name,))
-            prnt('  else')
-            prnt('    o = PyLong_FromUnsignedLongLong('
-                 '(unsigned long long)(%s));' % (name,))
+            prnt('  o = _cffi_from_c_int_const(%s);' % name)
         prnt('  if (o == NULL)')
         prnt('    return -1;')
         if size_too:
@@ -814,6 +808,15 @@ typedef unsigned char _Bool;
 
 #define _cffi_to_c_double PyFloat_AsDouble
 #define _cffi_to_c_float PyFloat_AsDouble
+
+#define _cffi_from_c_int_const(x)                                        \
+    (((x) > 0) ?                                                         \
+        ((unsigned long long)(x) <= (unsigned long long)LONG_MAX) ?      \
+            PyInt_FromLong((long)(x)) :                                  \
+            PyLong_FromUnsignedLongLong((unsigned long long)(x)) :       \
+        ((long long)(x) >= (long long)LONG_MIN) ?                        \
+            PyInt_FromLong((long)(x)) :                                  \
+            PyLong_FromLongLong((long long)(x)))
 
 #define _cffi_from_c_int(x, type)                                        \
     (((type)-1) > 0 ?   /* unsigned */                                   \
