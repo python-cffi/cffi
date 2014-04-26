@@ -92,7 +92,11 @@ def test_simple_case():
 def test_rounding_1():
     ffi = FFI()
     ffi.cdef("float sin(double x);")
-    lib = ffi.verify('#include <math.h>', libraries=lib_m)
+    lib = ffi.verify('''
+    #include <math.h>
+    static float my_sin(double x) { return (float)sin(x); }
+    #define sin my_sin
+    ''', libraries=lib_m)
     res = lib.sin(1.23)
     assert res != math.sin(1.23)     # not exact, because of double->float
     assert abs(res - math.sin(1.23)) < 1E-5
@@ -113,13 +117,13 @@ def test_strlen_exact():
 
 def test_strlen_approximate():
     ffi = FFI()
-    ffi.cdef("int strlen(char *s);")
+    ffi.cdef("size_t strlen(char *s);")
     lib = ffi.verify("#include <string.h>")
     assert lib.strlen(b"hi there!") == 9
 
 def test_strlen_array_of_char():
     ffi = FFI()
-    ffi.cdef("int strlen(char[]);")
+    ffi.cdef("size_t strlen(char[]);")
     lib = ffi.verify("#include <string.h>")
     assert lib.strlen(b"hello") == 5
 
@@ -208,8 +212,8 @@ def test_all_integer_and_float_types():
     ffi = FFI()
     ffi.cdef('\n'.join(["%s foo_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
                        for tp in typenames]))
-    lib = ffi.verify('\n'.join(["%s foo_%s(%s x) { return x+1; }" %
-                                (tp, tp.replace(' ', '_'), tp)
+    lib = ffi.verify('\n'.join(["%s foo_%s(%s x) { return (%s)(x+1); }" %
+                                (tp, tp.replace(' ', '_'), tp, tp)
                                 for tp in typenames]))
     for typename in typenames:
         foo = getattr(lib, 'foo_%s' % typename.replace(' ', '_'))
@@ -315,7 +319,7 @@ def test_fn_unsigned_integer_types():
 def test_char_type():
     ffi = FFI()
     ffi.cdef("char foo(char);")
-    lib = ffi.verify("char foo(char x) { return x+1; }")
+    lib = ffi.verify("char foo(char x) { return ++x; }")
     assert lib.foo(b"A") == b"B"
     py.test.raises(TypeError, lib.foo, b"bar")
     py.test.raises(TypeError, lib.foo, "bar")
@@ -896,7 +900,7 @@ def test_unknown_type():
         static int foo(token_t *tk) {
             if (!tk)
                 return -42;
-            *tk += 1.601;
+            *tk += 1.601f;
             return (int)*tk;
         }
         #define TOKEN_SIZE sizeof(token_t)
@@ -991,7 +995,7 @@ def test_autofilled_struct_as_argument():
             long a;
         };
         int foo(struct foo_s s) {
-            return s.a - (int)s.b;
+            return (int)s.a - (int)s.b;
         }
     """)
     s = ffi.new("struct foo_s *", [100, 1])
@@ -1008,7 +1012,7 @@ def test_autofilled_struct_as_argument_dynamic():
             long a;
         };
         int foo1(struct foo_s s) {
-            return s.a - (int)s.b;
+            return (int)s.a - (int)s.b;
         }
         int (*foo)(struct foo_s s) = &foo1;
     """)
@@ -1067,7 +1071,7 @@ def test_func_as_argument():
 def test_array_as_argument():
     ffi = FFI()
     ffi.cdef("""
-        int strlen(char string[]);
+        size_t strlen(char string[]);
     """)
     ffi.verify("#include <string.h>")
 
@@ -1676,7 +1680,7 @@ def test_callback_indirection():
         static int c_callback(int how_many, ...) {
             va_list ap;
             /* collect the "..." arguments into the values[] array */
-            int i, *values = alloca(how_many * sizeof(int));
+            int i, *values = alloca((size_t)how_many * sizeof(int));
             va_start(ap, how_many);
             for (i=0; i<how_many; i++)
                 values[i] = va_arg(ap, int);
@@ -1717,7 +1721,7 @@ def test_charstar_argument():
     ffi.cdef("char sum3chars(char *);")
     lib = ffi.verify("""
         char sum3chars(char *f) {
-            return f[0] + f[1] + f[2];
+            return (char)(f[0] + f[1] + f[2]);
         }
     """)
     assert lib.sum3chars((b'\x10', b'\x20', b'\x30')) == b'\x60'
@@ -1817,6 +1821,7 @@ def _test_various_calls(force_libffi):
     long tf_bl(signed char x, long c);
     unsigned long tf_bL(signed char x, unsigned long c);
     long long tf_bq(signed char x, long long c);
+    unsigned long long tf_bQ(signed char x, unsigned long long c);
     float tf_bf(signed char x, float c);
     double tf_bd(signed char x, double c);
     long double tf_bD(signed char x, long double c);
@@ -1834,20 +1839,35 @@ def _test_various_calls(force_libffi):
     double dvalue;
     long double Dvalue;
 
-    #define S(letter)  xvalue = x; letter##value = c; return rvalue;
+    typedef signed char b_t;
+    typedef unsigned char B_t;
+    typedef short h_t;
+    typedef unsigned short H_t;
+    typedef int i_t;
+    typedef unsigned int I_t;
+    typedef long l_t;
+    typedef unsigned long L_t;
+    typedef long long q_t;
+    typedef unsigned long long Q_t;
+    typedef float f_t;
+    typedef double d_t;
+    typedef long double D_t;
+    #define S(letter)  xvalue = (int)x; letter##value = (letter##_t)c;
+    #define R(letter)  return (letter##_t)rvalue;
 
-    signed char tf_bb(signed char x, signed char c) { S(i) }
-    unsigned char tf_bB(signed char x, unsigned char c) { S(i) }
-    short tf_bh(signed char x, short c) { S(i) }
-    unsigned short tf_bH(signed char x, unsigned short c) { S(i) }
-    int tf_bi(signed char x, int c) { S(i) }
-    unsigned int tf_bI(signed char x, unsigned int c) { S(i) }
-    long tf_bl(signed char x, long c) { S(i) }
-    unsigned long tf_bL(signed char x, unsigned long c) { S(i) }
-    long long tf_bq(signed char x, long long c) { S(i) }
-    float tf_bf(signed char x, float c) { S(f) }
-    double tf_bd(signed char x, double c) { S(d) }
-    long double tf_bD(signed char x, long double c) { S(D) }
+    signed char tf_bb(signed char x, signed char c) { S(i) R(b) }
+    unsigned char tf_bB(signed char x, unsigned char c) { S(i) R(B) }
+    short tf_bh(signed char x, short c) { S(i) R(h) }
+    unsigned short tf_bH(signed char x, unsigned short c) { S(i) R(H) }
+    int tf_bi(signed char x, int c) { S(i) R(i) }
+    unsigned int tf_bI(signed char x, unsigned int c) { S(i) R(I) }
+    long tf_bl(signed char x, long c) { S(i) R(l) }
+    unsigned long tf_bL(signed char x, unsigned long c) { S(i) R(L) }
+    long long tf_bq(signed char x, long long c) { S(i) R(q) }
+    unsigned long long tf_bQ(signed char x, unsigned long long c) { S(i) R(Q) }
+    float tf_bf(signed char x, float c) { S(f) R(f) }
+    double tf_bd(signed char x, double c) { S(d) R(d) }
+    long double tf_bD(signed char x, long double c) { S(D) R(D) }
     """)
     lib.rvalue = 0x7182838485868788
     for kind, cname in [('b', 'signed char'),
@@ -1859,6 +1879,7 @@ def _test_various_calls(force_libffi):
                         ('l', 'long'),
                         ('L', 'unsigned long'),
                         ('q', 'long long'),
+                        ('Q', 'unsigned long long'),
                         ('f', 'float'),
                         ('d', 'double'),
                         ('D', 'long double')]:

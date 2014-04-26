@@ -228,7 +228,8 @@ class VCPythonEngine(object):
                 converter = '_cffi_to_c_int'
                 extraarg = ', %s' % tp.name
             else:
-                converter = '_cffi_to_c_%s' % (tp.name.replace(' ', '_'),)
+                converter = '(%s)_cffi_to_c_%s' % (tp.get_c_name(''),
+                                                   tp.name.replace(' ', '_'))
             errvalue = '-1'
         #
         elif isinstance(tp, model.PointerType):
@@ -267,8 +268,8 @@ class VCPythonEngine(object):
         self._prnt('  if (datasize != 0) {')
         self._prnt('    if (datasize < 0)')
         self._prnt('      %s;' % errcode)
-        self._prnt('    %s = alloca(datasize);' % (tovar,))
-        self._prnt('    memset((void *)%s, 0, datasize);' % (tovar,))
+        self._prnt('    %s = alloca((size_t)datasize);' % (tovar,))
+        self._prnt('    memset((void *)%s, 0, (size_t)datasize);' % (tovar,))
         self._prnt('    if (_cffi_convert_array_from_object('
                    '(char *)%s, _cffi_type(%d), %s) < 0)' % (
             tovar, self._gettypenum(tp), fromvar))
@@ -844,7 +845,7 @@ cffimod_header = r'''
                                          : (type)_cffi_to_c_i32(o)) :    \
      sizeof(type) == 8 ? (((type)-1) > 0 ? (type)_cffi_to_c_u64(o)       \
                                          : (type)_cffi_to_c_i64(o)) :    \
-     (Py_FatalError("unsupported size for type " #type), 0))
+     (Py_FatalError("unsupported size for type " #type), (type)0))
 
 #define _cffi_to_c_i8                                                    \
                  ((int(*)(PyObject *))_cffi_exports[1])
