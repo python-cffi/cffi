@@ -770,7 +770,7 @@ cffimod_header = r'''
 #include <Python.h>
 #include <stddef.h>
 
-#ifdef MS_WIN32
+#if defined(MS_WIN32) && !defined(_STDINT_H)
 #include <malloc.h>   /* for alloca() */
 typedef __int8 int8_t;
 typedef __int16 int16_t;
