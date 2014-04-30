@@ -109,17 +109,19 @@ def test_rounding_2():
     assert res != math.sin(1.23)     # not exact, because of double->float
     assert abs(res - math.sin(1.23)) < 1E-5
 
-def test_strlen_exact():
+def test_return_exact():
     ffi = FFI()
     ffi.cdef("size_t strlen(const char *s);")
     lib = ffi.verify("#include <string.h>")
     assert lib.strlen(b"hi there!") == 9
 
-def test_strlen_approximate():
-    ffi = FFI()
-    ffi.cdef("size_t strlen(char *s);")
-    lib = ffi.verify("#include <string.h>")
-    assert lib.strlen(b"hi there!") == 9
+def test_return_approximate():
+    for typename in ['short', 'int', 'long', 'long long']:
+        ffi = FFI()
+        ffi.cdef("%s foo(signed char x);" % typename)
+        lib = ffi.verify("signed char foo(signed char x) { return x;}")
+        assert lib.foo(-128) == -128
+        assert lib.foo(+127) == +127
 
 def test_strlen_array_of_char():
     ffi = FFI()
