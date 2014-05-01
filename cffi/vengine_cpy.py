@@ -780,7 +780,9 @@ typedef unsigned __int8 uint8_t;
 typedef unsigned __int16 uint16_t;
 typedef unsigned __int32 uint32_t;
 typedef unsigned __int64 uint64_t;
+#if !defined(_MSC_VER) || _MSC_VER <= 1700
 typedef unsigned char _Bool;
+#endif
 #else
 #if (defined (__SVR4) && defined (__sun)) || defined(_AIX)
 #  include <alloca.h>
