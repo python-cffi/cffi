@@ -1201,7 +1201,8 @@ an array.)
    ``<_cffi_backend.buffer object>``.  This has been fixed.  But you
    should avoid using ``str(buf)``: it now gives inconsistent results
    between Python 2 and Python 3 (this is similar to how ``str()``
-   gives inconsistent results on regular byte strings).
+   gives inconsistent results on regular byte strings).  Use ``buf[:]``
+   instead.
 
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
