@@ -45,7 +45,7 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
 Installation and Status
 =======================================================
 
-Quick installation:
+Quick installation (for cpython, cffi is distributed with PyPy):
 
 * ``pip install cffi``
 
@@ -60,10 +60,10 @@ platform as well as on Win32.  There are some Windows-specific issues
 left.
 
 It supports CPython 2.6; 2.7; 3.x (tested with 3.2 and 3.3);
-and PyPy 2.0 beta2 or later.
+and is distrubuted with PyPy 2.0 beta2 or later.
 
 Its speed is comparable to ctypes on CPython (a bit faster but a higher
-warm-up time).  It is already faster on PyPy (1.5x-2x), but not yet
+warm-up time).  It is already faster than ctypes on PyPy (1.5x-2x), but not yet
 *much* faster; stay tuned.
 
 Requirements:
