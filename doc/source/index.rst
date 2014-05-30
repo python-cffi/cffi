@@ -1,31 +1,32 @@
 CFFI documentation
 ================================
 
-Foreign Function Interface for Python calling C code. The aim of this project
-is to provide a convenient and reliable way of calling C code from Python.
-The interface is based on `LuaJIT's FFI`_ and follows a few principles:
+C Foreign Function Interface for Python. The goal is to provide a
+convenient and reliable way to call compiled C code from Python using
+interface declarations written in C.
 
-* The goal is to call C code from Python.  You should be able to do so
-  without learning a 3rd language: every alternative requires you to learn
-  their own language (Cython_, SWIG_) or API (ctypes_).  So we tried to
-  assume that you know Python and C and minimize the extra bits of API that
-  you need to learn.
+The interface is based on `LuaJIT's FFI`_, and follows a few principles:
+
+* The goal is to call C code from Python without learning a 3rd language:
+  existing alternatives require to learn domain specific language
+  (Cython_, SWIG_) or API (ctypes_). CFFI design requires users to know
+  only C and Python, minimizing extra bits of API that need to be learned.
 
 * Keep all the Python-related logic in Python so that you don't need to
   write much C code (unlike `CPython native C extensions`_).
 
-* Work either at the level of the ABI (Application Binary Interface)
-  or the API (Application Programming Interface).  Usually, C
-  libraries have a specified C API but often not an ABI (e.g. they may
+* Support level of the ABI (Application Binary Interface) calling system
+  functions directly (the way ctypes_ works) and level of the API
+  (Application Programming Interface) using compiler to validate and link
+  C language constructs.  Usually, C libraries have a specified C API,
+  bt often not an ABI (e.g. they may
   document a "struct" as having at least these fields, but maybe more).
-  (ctypes_ works at the ABI level, whereas Cython_ and `native C extensions`_
-  work at the API level.)
 
-* We try to be complete.  For now some C99 constructs are not supported,
+* Try to be complete.  For now some C99 constructs are not supported,
   but all C89 should be, including macros (and including macro "abuses",
   which you can `manually wrap`_ in saner-looking C functions).
 
-* We attempt to support both PyPy and CPython, with a reasonable path
+* Attempt to support both PyPy and CPython, with a reasonable path
   for other Python implementations like IronPython and Jython.
 
 * Note that this project is **not** about embedding executable C code in
