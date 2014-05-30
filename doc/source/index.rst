@@ -8,7 +8,7 @@ interface declarations written in C.
 The interface is based on `LuaJIT's FFI`_, and follows a few principles:
 
 * The goal is to call C code from Python without learning a 3rd language:
-  existing alternatives require to learn domain specific language
+  existing alternatives require users to learn domain specific language
   (Cython_, SWIG_) or API (ctypes_). CFFI design requires users to know
   only C and Python, minimizing extra bits of API that need to be learned.
 
