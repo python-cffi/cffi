@@ -19,7 +19,7 @@ The interface is based on `LuaJIT's FFI`_, and follows a few principles:
   functions directly (the way ctypes_ works) and level of the API
   (Application Programming Interface) using compiler to validate and link
   C language constructs.  Usually, C libraries have a specified C API,
-  bt often not an ABI (e.g. they may
+  but often not an ABI (e.g. they may
   document a "struct" as having at least these fields, but maybe more).
 
 * Try to be complete.  For now some C99 constructs are not supported,
