@@ -105,8 +105,12 @@ static PyObject *mb_str(MiniBufferObj *self)
 
 static int mb_getbuf(MiniBufferObj *self, Py_buffer *view, int flags)
 {
-    return PyBuffer_FillInfo(view, NULL, self->mb_data, self->mb_size,
-                             /*readonly=*/0, PyBUF_CONTIG | PyBUF_FORMAT);
+    static Py_ssize_t dummy_stride = 1;
+    int res = PyBuffer_FillInfo(view, (PyObject *)self,
+                                self->mb_data, self->mb_size,
+                                /*readonly=*/0, PyBUF_CONTIG | PyBUF_FORMAT);
+    view->strides = &dummy_stride;
+    return res;
 }
 
 static PySequenceMethods mb_as_sequence = {
