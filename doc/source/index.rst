@@ -9,17 +9,19 @@ The interface is based on `LuaJIT's FFI`_, and follows a few principles:
 
 * The goal is to call C code from Python without learning a 3rd language:
   existing alternatives require users to learn domain specific language
-  (Cython_, SWIG_) or API (ctypes_). CFFI design requires users to know
-  only C and Python, minimizing extra bits of API that need to be learned.
+  (Cython_, SWIG_) or API (ctypes_). The CFFI design requires users to know
+  only C and Python, minimizing the extra bits of API that need to be learned.
 
 * Keep all the Python-related logic in Python so that you don't need to
   write much C code (unlike `CPython native C extensions`_).
 
-* Support level of the ABI (Application Binary Interface) calling system
-  functions directly (the way ctypes_ works) and level of the API
-  (Application Programming Interface) using compiler to validate and link
-  C language constructs.  Usually, C libraries have a specified C API,
-  but often not an ABI (e.g. they may
+* The preferred way is to work at the level of the API (Application
+  Programming Interface): the C compiler is called from the declarations
+  you write to validate and link to the C language constructs.
+  Alternatively, it is also possible to work at the ABI level
+  (Application Binary Interface), the way ctypes_ work.
+  However, on non-Windows platforms, C libraries typically
+  have a specified C API but not an ABI (e.g. they may
   document a "struct" as having at least these fields, but maybe more).
 
 * Try to be complete.  For now some C99 constructs are not supported,
