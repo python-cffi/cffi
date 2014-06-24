@@ -199,6 +199,8 @@ def test_all_integer_and_float_types():
         if (all_primitive_types[typename] == 'c' or
             typename == '_Bool' or typename == 'long double'):
             pass
+        elif typename == 'ssize_t' and sys.platform == 'win32':
+            pass
         else:
             typenames.append(typename)
     #
