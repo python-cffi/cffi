@@ -790,6 +790,7 @@ cffimod_header = r'''
    typedef unsigned char _Bool;
 # endif
 #else
+# include <stdint.h>
 # if (defined (__SVR4) && defined (__sun)) || defined(_AIX)
 #  include <alloca.h>
 # endif
