@@ -5,7 +5,6 @@
 #ifdef MS_WIN32
 #include <windows.h>
 #include "misc_win32.h"
-#include <malloc.h>   /* for alloca() */
 #else
 #include <stddef.h>
 #include <stdint.h>
@@ -13,9 +12,31 @@
 #include <errno.h>
 #include <ffi.h>
 #include <sys/mman.h>
-#if (defined (__SVR4) && defined (__sun)) || defined(_AIX)
-#  include <alloca.h>
 #endif
+
+/* this block of #ifs should be kept exactly identical between
+   c/_cffi_backend.c, cffi/vengine_cpy.py, cffi/vengine_gen.py */
+#if defined(MS_WIN32) && defined(_MSC_VER)
+# include <malloc.h>   /* for alloca() */
+# if _MSC_VER < 1600   /* MSVC < 2010 */
+   typedef __int8 int8_t;
+   typedef __int16 int16_t;
+   typedef __int32 int32_t;
+   typedef __int64 int64_t;
+   typedef unsigned __int8 uint8_t;
+   typedef unsigned __int16 uint16_t;
+   typedef unsigned __int32 uint32_t;
+   typedef unsigned __int64 uint64_t;
+# else
+#  include <stdint.h>
+# endif
+# if _MSC_VER < 1800   /* MSVC < 2013 */
+   typedef unsigned char _Bool;
+# endif
+#else
+# if (defined (__SVR4) && defined (__sun)) || defined(_AIX)
+#  include <alloca.h>
+# endif
 #endif
 
 #include "malloc_closure.h"
