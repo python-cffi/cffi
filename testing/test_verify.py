@@ -172,8 +172,8 @@ def test_longdouble_precision():
 
 all_primitive_types = model.PrimitiveType.ALL_PRIMITIVE_TYPES
 if sys.platform == 'win32':
-    all_primitive_types = all_primitive_types[:]
-    all_primitive_types.remove('ssize_t')
+    all_primitive_types = all_primitive_types.copy()
+    del all_primitive_types['ssize_t']
 all_integer_types = sorted(tp for tp in all_primitive_types
                            if all_primitive_types[tp] == 'i')
 all_float_types = sorted(tp for tp in all_primitive_types
