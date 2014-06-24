@@ -171,6 +171,9 @@ def test_longdouble_precision():
 
 
 all_primitive_types = model.PrimitiveType.ALL_PRIMITIVE_TYPES
+if sys.platform == 'win32':
+    all_primitive_types = all_primitive_types[:]
+    all_primitive_types.remove('ssize_t')
 all_integer_types = sorted(tp for tp in all_primitive_types
                            if all_primitive_types[tp] == 'i')
 all_float_types = sorted(tp for tp in all_primitive_types
@@ -198,8 +201,6 @@ def test_all_integer_and_float_types():
     for typename in all_primitive_types:
         if (all_primitive_types[typename] == 'c' or
             typename == '_Bool' or typename == 'long double'):
-            pass
-        elif typename == 'ssize_t' and sys.platform == 'win32':
             pass
         else:
             typenames.append(typename)
