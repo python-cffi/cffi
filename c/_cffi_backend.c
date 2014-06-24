@@ -16,7 +16,7 @@
 
 /* this block of #ifs should be kept exactly identical between
    c/_cffi_backend.c, cffi/vengine_cpy.py, cffi/vengine_gen.py */
-#if defined(MS_WIN32) && defined(_MSC_VER)
+#if defined(_MSC_VER)
 # include <malloc.h>   /* for alloca() */
 # if _MSC_VER < 1600   /* MSVC < 2010 */
    typedef __int8 int8_t;
