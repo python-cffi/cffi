@@ -249,10 +249,10 @@ class VGenericEngine(object):
                     prnt('  /* %s */' % str(e))   # cannot verify it, ignore
         prnt('}')
         self.export_symbols.append(layoutfuncname)
-        prnt('ssize_t %s(ssize_t i)' % (layoutfuncname,))
+        prnt('intptr_t %s(intptr_t i)' % (layoutfuncname,))
         prnt('{')
         prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
-        prnt('  static ssize_t nums[] = {')
+        prnt('  static intptr_t nums[] = {')
         prnt('    sizeof(%s),' % cname)
         prnt('    offsetof(struct _cffi_aligncheck, y),')
         for fname, ftype, fbitsize in tp.enumfields():
@@ -276,7 +276,7 @@ class VGenericEngine(object):
             return     # nothing to do with opaque structs
         layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
         #
-        BFunc = self.ffi._typeof_locked("ssize_t(*)(ssize_t)")[0]
+        BFunc = self.ffi._typeof_locked("intptr_t(*)(intptr_t)")[0]
         function = module.load_function(BFunc, layoutfuncname)
         layout = []
         num = 0
