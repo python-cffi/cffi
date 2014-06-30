@@ -192,7 +192,27 @@ static void *dlopen(const char *filename, int flag)
 
 static void *dlsym(void *handle, const char *symbol)
 {
-    return GetProcAddress((HMODULE)handle, symbol);
+    void *address = GetProcAddress((HMODULE)handle, symbol);
+#ifndef MS_WIN64
+    if (!address) {
+        /* If 'symbol' is not found, then try '_symbol@N' for N in
+           (0, 4, 8, 12, ..., 124).  Unlike ctypes, we try to do that
+           for any symbol, although in theory it should only be done
+           for __stdcall functions.
+        */
+        int i;
+        char *mangled_name = alloca(1 + strlen(symbol) + 1 + 3 + 1);
+        if (!mangled_name)
+            return NULL;
+        for (i = 0; i < 32; i++) {
+            sprintf(mangled_name, "_%s@%d", symbol, i * 4);
+            address = GetProcAddress((HMODULE)handle, mangled_name);
+            if (address)
+                break;
+        }
+    }
+#endif
+    return address;
 }
 
 static void dlclose(void *handle)
