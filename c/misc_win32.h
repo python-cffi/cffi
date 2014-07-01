@@ -1,3 +1,4 @@
+#include <malloc.h>   /* for alloca() */
 
 /************************************************************/
 /* errno and GetLastError support */
