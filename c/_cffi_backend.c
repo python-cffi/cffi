@@ -5504,7 +5504,7 @@ init_cffi_backend(void)
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
         INITERROR;
 
-    v = PyText_FromString("0.8.3");
+    v = PyText_FromString("0.8.5");
     if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
         INITERROR;
 
