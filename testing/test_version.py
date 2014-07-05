@@ -10,6 +10,7 @@ BACKEND_VERSIONS = {
     '0.7.1': '0.7',     # did not change
     '0.7.2': '0.7',     # did not change
     '0.8.1': '0.8',     # did not change (essentially)
+    '0.8.4': '0.8.3',   # did not change
     }
 
 def test_version():

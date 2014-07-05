@@ -43,6 +43,8 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
 
 def ask_supports_thread():
     from distutils.core import Distribution
+    from distutils.sysconfig import get_config_vars
+    get_config_vars()      # workaround for a bug of distutils, e.g. on OS/X
     config = Distribution().get_command_obj('config')
     ok = config.try_compile('__thread int some_threadlocal_variable_42;')
     if ok:
@@ -113,7 +115,7 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='0.8.3',
+        version='0.8.4',
         packages=['cffi'],
         zip_safe=False,
 
