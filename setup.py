@@ -42,25 +42,14 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
             resultlist[:] = res
 
 def ask_supports_thread():
-    if sys.platform == "darwin":
-        sys.stderr.write("OS/X: confusion between 'cc' versus 'gcc'")
-        sys.stderr.write(" (see issue 123)\n")
-        sys.stderr.write("will not use '__thread' in the C code\n")
-        return
-    import distutils.errors
-    from distutils.ccompiler import new_compiler
-    compiler = new_compiler(force=1)
-    try:
-        compiler.compile(['c/check__thread.c'])
-    except distutils.errors.CompileError:
-        sys.stderr.write("the above error message can be safely ignored;\n")
-        sys.stderr.write("will not use '__thread' in the C code\n")
-    else:
+    from distutils.core import Distribution
+    config = Distribution().get_command_obj('config')
+    ok = config.try_compile('__thread int some_threadlocal_variable_42;')
+    if ok:
         define_macros.append(('USE__THREAD', None))
-    try:
-        os.unlink('c/check__thread.o')
-    except OSError:
-        pass
+    else:
+        sys.stderr.write("Note: will not use '__thread' in the C code\n")
+        sys.stderr.write("The above error message can be safely ignored\n")
 
 def use_pkg_config():
     _ask_pkg_config(include_dirs,       '--cflags-only-I', '-I', sysroot=True)
@@ -124,7 +113,7 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='0.8.2',
+        version='0.8.3',
         packages=['cffi'],
         zip_safe=False,
 

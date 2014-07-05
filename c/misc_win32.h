@@ -1,3 +1,4 @@
+#include <malloc.h>   /* for alloca() */
 
 /************************************************************/
 /* errno and GetLastError support */
@@ -192,7 +193,27 @@ static void *dlopen(const char *filename, int flag)
 
 static void *dlsym(void *handle, const char *symbol)
 {
-    return GetProcAddress((HMODULE)handle, symbol);
+    void *address = GetProcAddress((HMODULE)handle, symbol);
+#ifndef MS_WIN64
+    if (!address) {
+        /* If 'symbol' is not found, then try '_symbol@N' for N in
+           (0, 4, 8, 12, ..., 124).  Unlike ctypes, we try to do that
+           for any symbol, although in theory it should only be done
+           for __stdcall functions.
+        */
+        int i;
+        char *mangled_name = alloca(1 + strlen(symbol) + 1 + 3 + 1);
+        if (!mangled_name)
+            return NULL;
+        for (i = 0; i < 32; i++) {
+            sprintf(mangled_name, "_%s@%d", symbol, i * 4);
+            address = GetProcAddress((HMODULE)handle, mangled_name);
+            if (address)
+                break;
+        }
+    }
+#endif
+    return address;
 }
 
 static void dlclose(void *handle)
@@ -209,21 +230,6 @@ static const char *dlerror(void)
     sprintf(buf, "error 0x%x", (unsigned int)dw);
     return buf;
 }
-
-
-/************************************************************/
-/* types */
-
-typedef __int8 int8_t;
-typedef __int16 int16_t;
-typedef __int32 int32_t;
-typedef __int64 int64_t;
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-typedef unsigned __int64 uint64_t;
-typedef unsigned char _Bool;
-
 
 /************************************************************/
 /* obscure */

@@ -1,31 +1,34 @@
 CFFI documentation
 ================================
 
-Foreign Function Interface for Python calling C code. The aim of this project
-is to provide a convenient and reliable way of calling C code from Python.
-The interface is based on `LuaJIT's FFI`_ and follows a few principles:
+C Foreign Function Interface for Python. The goal is to provide a
+convenient and reliable way to call compiled C code from Python using
+interface declarations written in C.
 
-* The goal is to call C code from Python.  You should be able to do so
-  without learning a 3rd language: every alternative requires you to learn
-  their own language (Cython_, SWIG_) or API (ctypes_).  So we tried to
-  assume that you know Python and C and minimize the extra bits of API that
-  you need to learn.
+The interface is based on `LuaJIT's FFI`_, and follows a few principles:
+
+* The goal is to call C code from Python without learning a 3rd language:
+  existing alternatives require users to learn domain specific language
+  (Cython_, SWIG_) or API (ctypes_). The CFFI design requires users to know
+  only C and Python, minimizing the extra bits of API that need to be learned.
 
 * Keep all the Python-related logic in Python so that you don't need to
   write much C code (unlike `CPython native C extensions`_).
 
-* Work either at the level of the ABI (Application Binary Interface)
-  or the API (Application Programming Interface).  Usually, C
-  libraries have a specified C API but often not an ABI (e.g. they may
+* The preferred way is to work at the level of the API (Application
+  Programming Interface): the C compiler is called from the declarations
+  you write to validate and link to the C language constructs.
+  Alternatively, it is also possible to work at the ABI level
+  (Application Binary Interface), the way ctypes_ work.
+  However, on non-Windows platforms, C libraries typically
+  have a specified C API but not an ABI (e.g. they may
   document a "struct" as having at least these fields, but maybe more).
-  (ctypes_ works at the ABI level, whereas Cython_ and `native C extensions`_
-  work at the API level.)
 
-* We try to be complete.  For now some C99 constructs are not supported,
+* Try to be complete.  For now some C99 constructs are not supported,
   but all C89 should be, including macros (and including macro "abuses",
   which you can `manually wrap`_ in saner-looking C functions).
 
-* We attempt to support both PyPy and CPython, with a reasonable path
+* Attempt to support both PyPy and CPython, with a reasonable path
   for other Python implementations like IronPython and Jython.
 
 * Note that this project is **not** about embedding executable C code in
@@ -38,7 +41,7 @@ The interface is based on `LuaJIT's FFI`_ and follows a few principles:
 .. _`CPython native C extensions`: http://docs.python.org/extending/extending.html
 .. _`native C extensions`: http://docs.python.org/extending/extending.html
 .. _`ctypes`: http://docs.python.org/library/ctypes.html
-.. _`Weave`: http://www.scipy.org/Weave
+.. _`Weave`: http://wiki.scipy.org/Weave
 .. _`manually wrap`: `The verification step`_
 
 
@@ -85,13 +88,13 @@ Requirements:
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-0.8.2.tar.gz
+* http://pypi.python.org/packages/source/c/cffi/cffi-0.8.3.tar.gz
 
    - Or grab the most current version by following the instructions below.
 
-   - MD5: 37fc88c62f40d04e8a18192433f951ec
+   - MD5: ...
 
-   - SHA: 75a6c433664a7a38d4d03cecbdc72cef4c3cceac
+   - SHA: ...
 
 * Or get it from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
@@ -851,7 +854,7 @@ like ``ffi.new("int[%d]" % x)``.  Indeed, this is not recommended:
 ``ffi`` normally caches the string ``"int[]"`` to not need to re-parse
 it all the time.
 
-.. versionadded:: 0.9
+.. versionadded:: 0.8.2
    The ``ffi.cdef()`` call takes an optional argument ``packed``: if
    True, then all structs declared within this cdef are "packed".  This
    has a meaning similar to ``__attribute__((packed))`` in GCC.  It
@@ -1195,13 +1198,14 @@ an array.)
    owned memory will not be freed as long as the buffer is alive.
    Moreover buffer objects now support weakrefs to them.
 
-.. versionchanged:: 0.9
-   Before version 0.9, ``bytes(buf)`` was supported in Python 3 to get
+.. versionchanged:: 0.8.2
+   Before version 0.8.2, ``bytes(buf)`` was supported in Python 3 to get
    the content of the buffer, but on Python 2 it would return the repr
    ``<_cffi_backend.buffer object>``.  This has been fixed.  But you
    should avoid using ``str(buf)``: it now gives inconsistent results
    between Python 2 and Python 3 (this is similar to how ``str()``
-   gives inconsistent results on regular byte strings).
+   gives inconsistent results on regular byte strings).  Use ``buf[:]``
+   instead.
 
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
