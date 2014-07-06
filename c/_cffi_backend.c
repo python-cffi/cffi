@@ -1959,7 +1959,7 @@ cdata_ass_slice(CDataObject *cd, PySliceObject *slice, PyObject *v)
         if ((ctv->ct_flags & CT_ARRAY) && (ctv->ct_itemdescr == ct) &&
             (get_array_length((CDataObject *)v) == length)) {
             /* fast path: copying from exactly the correct type */
-            memcpy(cdata, ((CDataObject *)v)->c_data, itemsize * length);
+            memmove(cdata, ((CDataObject *)v)->c_data, itemsize * length);
             return 0;
         }
     }
