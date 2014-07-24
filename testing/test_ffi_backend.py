@@ -122,7 +122,7 @@ class TestBitfield:
         self.check("int a:2; short b:15; char c:2; char y;", 5, 4, 8)
         self.check("int a:2; char b:1; char c:1; char y;", 1, 4, 4)
 
-    @pytest.mark.skipif("platform.machine().startswith('arm')")
+    @pytest.mark.skipif("platform.machine().startswith(('arm', 'aarch64'))")
     def test_bitfield_anonymous_no_align(self):
         L = FFI().alignof("long long")
         self.check("char y; int :1;", 0, 1, 2)
@@ -135,7 +135,8 @@ class TestBitfield:
         self.check("char x; long long z:57; char y;", L + 8, L, L + 8 + L)
         self.check("char x; long long  :57; char y;", L + 8, 1, L + 9)
 
-    @pytest.mark.skipif("not platform.machine().startswith('arm')")
+    @pytest.mark.skipif(
+        "not platform.machine().startswith(('arm', 'aarch64'))")
     def test_bitfield_anonymous_align_arm(self):
         L = FFI().alignof("long long")
         self.check("char y; int :1;", 0, 4, 4)
@@ -148,7 +149,7 @@ class TestBitfield:
         self.check("char x; long long z:57; char y;", L + 8, L, L + 8 + L)
         self.check("char x; long long  :57; char y;", L + 8, L, L + 8 + L)
 
-    @pytest.mark.skipif("platform.machine().startswith('arm')")
+    @pytest.mark.skipif("platform.machine().startswith(('arm', 'aarch64'))")
     def test_bitfield_zero(self):
         L = FFI().alignof("long long")
         self.check("char y; int :0;", 0, 1, 4)
@@ -159,7 +160,8 @@ class TestBitfield:
         self.check("char x; int :0; short b:1; char y;", 5, 2, 6)
         self.check("int a:1; int :0; int b:1; char y;", 5, 4, 8)
 
-    @pytest.mark.skipif("not platform.machine().startswith('arm')")
+    @pytest.mark.skipif(
+        "not platform.machine().startswith(('arm', 'aarch64'))")
     def test_bitfield_zero_arm(self):
         L = FFI().alignof("long long")
         self.check("char y; int :0;", 0, 4, 4)
