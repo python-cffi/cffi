@@ -532,9 +532,13 @@ class Parser(object):
 
     def _parse_constant(self, exprnode, partial_length_ok=False):
         # for now, limited to expressions that are an immediate number
-        # or negative number
+        # or positive/negative number
         if isinstance(exprnode, pycparser.c_ast.Constant):
             return int(exprnode.value, 0)
+        #
+        if (isinstance(exprnode, pycparser.c_ast.UnaryOp) and
+                exprnode.op == '+'):
+            return self._parse_constant(exprnode.expr)
         #
         if (isinstance(exprnode, pycparser.c_ast.UnaryOp) and
                 exprnode.op == '-'):
