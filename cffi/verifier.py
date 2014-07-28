@@ -4,11 +4,11 @@ from . import ffiplatform
 
 if sys.version_info >= (3, 3):
     import importlib.machinery
-    def extension_suffixes():
+    def _extension_suffixes():
         return importlib.machinery.EXTENSION_SUFFIXES[:]
 else:
     import imp
-    def extension_suffixes():
+    def _extension_suffixes():
         return [suffix for suffix, _, type in imp.get_suffixes()
                 if type == imp.C_EXTENSION]
 
@@ -232,7 +232,7 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
             pass
 
 def _get_so_suffixes():
-    suffixes = extension_suffixes()
+    suffixes = _extension_suffixes()
     if not suffixes:
         # bah, no C_EXTENSION available.  Occurs on pypy without cpyext
         if sys.platform == 'win32':
