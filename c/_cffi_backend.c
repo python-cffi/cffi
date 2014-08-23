@@ -740,95 +740,90 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int strict)
     return (unsigned PY_LONG_LONG)-1;
 }
 
+#define _read_raw_data(type)                    \
+    do {                                        \
+        if (size == sizeof(type)) {             \
+            type r;                             \
+            memcpy(&r, target, sizeof(type));   \
+            return r;                           \
+        }                                       \
+    } while(0)
+
 static PY_LONG_LONG
 read_raw_signed_data(char *target, int size)
 {
-    if (size == sizeof(signed char))
-        return *((signed char*)target);
-    else if (size == sizeof(short))
-        return *((short*)target);
-    else if (size == sizeof(int))
-        return *((int*)target);
-    else if (size == sizeof(long))
-        return *((long*)target);
-    else if (size == sizeof(PY_LONG_LONG))
-        return *((PY_LONG_LONG*)target);
-    else {
-        Py_FatalError("read_raw_signed_data: bad integer size");
-        return 0;
-    }
+    _read_raw_data(signed char);
+    _read_raw_data(short);
+    _read_raw_data(int);
+    _read_raw_data(long);
+    _read_raw_data(PY_LONG_LONG);
+    Py_FatalError("read_raw_signed_data: bad integer size");
+    return 0;
 }
 
 static unsigned PY_LONG_LONG
 read_raw_unsigned_data(char *target, int size)
 {
-    if (size == sizeof(unsigned char))
-        return *((unsigned char*)target);
-    else if (size == sizeof(unsigned short))
-        return *((unsigned short*)target);
-    else if (size == sizeof(unsigned int))
-        return *((unsigned int*)target);
-    else if (size == sizeof(unsigned long))
-        return *((unsigned long*)target);
-    else if (size == sizeof(unsigned PY_LONG_LONG))
-        return *((unsigned PY_LONG_LONG*)target);
-    else {
-        Py_FatalError("read_raw_unsigned_data: bad integer size");
-        return 0;
-    }
+    _read_raw_data(unsigned char);
+    _read_raw_data(unsigned short);
+    _read_raw_data(unsigned int);
+    _read_raw_data(unsigned long);
+    _read_raw_data(unsigned PY_LONG_LONG);
+    Py_FatalError("read_raw_unsigned_data: bad integer size");
+    return 0;
 }
+
+#define _write_raw_data(type)                           \
+    do {                                                \
+        if (size == sizeof(type)) {                     \
+            type r = source;                            \
+            memcpy(target, &r, sizeof(type));           \
+            return;                                     \
+        }                                               \
+    } while(0)
 
 static void
 write_raw_integer_data(char *target, unsigned PY_LONG_LONG source, int size)
 {
-    if (size == sizeof(unsigned char))
-        *((unsigned char*)target) = (unsigned char)source;
-    else if (size == sizeof(unsigned short))
-        *((unsigned short*)target) = (unsigned short)source;
-    else if (size == sizeof(unsigned int))
-        *((unsigned int*)target) = (unsigned int)source;
-    else if (size == sizeof(unsigned long))
-        *((unsigned long*)target) = (unsigned long)source;
-    else if (size == sizeof(unsigned PY_LONG_LONG))
-        *((unsigned PY_LONG_LONG*)target) = source;
-    else
-        Py_FatalError("write_raw_integer_data: bad integer size");
+    _write_raw_data(unsigned char);
+    _write_raw_data(unsigned short);
+    _write_raw_data(unsigned int);
+    _write_raw_data(unsigned long);
+    _write_raw_data(unsigned PY_LONG_LONG);
+    Py_FatalError("write_raw_integer_data: bad integer size");
 }
 
 static double
 read_raw_float_data(char *target, int size)
 {
-    if (size == sizeof(float))
-        return *((float*)target);
-    else if (size == sizeof(double))
-        return *((double*)target);
-    else {
-        Py_FatalError("read_raw_float_data: bad float size");
-        return 0;
-    }
+    _read_raw_data(float);
+    _read_raw_data(double);
+    Py_FatalError("read_raw_float_data: bad float size");
+    return 0;
 }
 
 static long double
 read_raw_longdouble_data(char *target)
 {
-    return *((long double*)target);
+    int size = sizeof(long double);
+    _read_raw_data(long double);
+    Py_FatalError("read_raw_longdouble_data: bad long double size");
+    return 0;
 }
 
 static void
 write_raw_float_data(char *target, double source, int size)
 {
-    if (size == sizeof(float))
-        *((float*)target) = (float)source;
-    else if (size == sizeof(double))
-        *((double*)target) = source;
-    else
-        Py_FatalError("write_raw_float_data: bad float size");
+    _write_raw_data(float);
+    _write_raw_data(double);
+    Py_FatalError("write_raw_float_data: bad float size");
 }
 
 static void
 write_raw_longdouble_data(char *target, long double source)
 {
-    *((long double*)target) = source;
+    int size = sizeof(long double);
+    _write_raw_data(long double);
 }
 
 static PyObject *
