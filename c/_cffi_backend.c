@@ -776,7 +776,7 @@ read_raw_unsigned_data(char *target, int size)
 #define _write_raw_data(type)                           \
     do {                                                \
         if (size == sizeof(type)) {                     \
-            type r = source;                            \
+            type r = (type)source;                      \
             memcpy(target, &r, sizeof(type));           \
             return;                                     \
         }                                               \
