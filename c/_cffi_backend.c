@@ -1243,6 +1243,16 @@ convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
     return _convert_error(init, ct->ct_name, expected);
 }
 
+#ifdef __GNUC__
+# if __GNUC__ >= 4
+/* Don't go inlining this huge function.  Needed because occasionally
+   it gets inlined in places where is causes a warning: call to
+   __builtin___memcpy_chk will always overflow destination buffer
+   (which is places where the 'ct' should never represent such a large
+   primitive type anyway). */
+__attribute__((noinline))
+# endif
+#endif
 static int
 convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
