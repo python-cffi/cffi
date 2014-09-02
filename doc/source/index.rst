@@ -640,8 +640,9 @@ not recommended.
 
 .. versionadded:: 0.4
    The ``tmpdir`` argument to ``verify()`` controls where the C
-   files are created and compiled.  By default it is
-   ``directory_containing_the_py_file/__pycache__``, using the
+   files are created and compiled. Unless the ``CFFI_TMPDIR`` environment
+   variable is set, the default is
+   ``directory_containing_the_py_file/__pycache__`` using the
    directory name of the .py file that contains the actual call to
    ``ffi.verify()``.  (This is a bit of a hack but is generally
    consistent with the location of the .pyc files for your library.
