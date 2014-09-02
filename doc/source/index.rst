@@ -381,7 +381,10 @@ your test suite, a call to ``cffi.verifier.cleanup_tmpdir()``.
 Alternatively, you can just completely remove the ``__pycache__``
 directory.
 
-
+An alternative cache directory can be given as the ``tmpdir`` argument
+to ``verify()``, via the environment variable ``CFFI_TMPDIR``, or by
+calling ``cffi.verifier.set_tmpdir(path)`` prior to calling
+``verify``.
 
 
 =======================================================
