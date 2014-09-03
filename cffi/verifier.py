@@ -42,7 +42,7 @@ class Verifier(object):
             modulename = '_cffi_%s_%s%s%s' % (tag, self._vengine._class_key,
                                               k1, k2)
         suffix = _get_so_suffixes()[0]
-        self.tmpdir = tmpdir or _caller_dir_pycache()
+        self.tmpdir = tmpdir or os.environ.get('CFFI_TMPDIR') or _caller_dir_pycache()
         self.sourcefilename = os.path.join(self.tmpdir, modulename + '.c')
         self.modulefilename = os.path.join(self.tmpdir, modulename + suffix)
         self.ext_package = ext_package

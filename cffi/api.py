@@ -334,8 +334,7 @@ class FFI(object):
         (including calling macros).  This is unlike 'ffi.dlopen()',
         which requires binary compatibility in the signatures.
         """
-        from .verifier import Verifier, _caller_dir_pycache
-        tmpdir = tmpdir or _caller_dir_pycache()
+        from .verifier import Verifier
         self.verifier = Verifier(self, source, tmpdir, **kwargs)
         lib = self.verifier.load_library()
         self._libraries.append(lib)
