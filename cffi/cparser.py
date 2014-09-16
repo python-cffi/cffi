@@ -1,4 +1,3 @@
-
 from . import api, model
 from .commontypes import COMMON_TYPES, resolve_common_type
 try:
@@ -460,6 +459,8 @@ class Parser(object):
             elif kind == 'union':
                 tp = model.UnionType(explicit_name, None, None, None)
             elif kind == 'enum':
+                if explicit_name == '__dotdotdot__':
+                    raise CDefError("Enums cannot be declared with ...")
                 tp = self._build_enum_type(explicit_name, type.values)
             else:
                 raise AssertionError("kind = %r" % (kind,))
