@@ -150,8 +150,7 @@ MacOS X
 ::
 
     brew install pkg-config libffi
-    export PKG_CONFIG_PATH=/usr/local/Cellar/libffi/3.0.13/lib/pkgconfig/ # May change with libffi version
-    pip install cffi
+    PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig pip install cffi
 
 
 Aternatively, **on OS/X 10.6** (Thanks Juraj Sukop for this)
