@@ -16,7 +16,7 @@ else:
 class Verifier(object):
 
     def __init__(self, ffi, preamble, tmpdir=None, modulename=None,
-                 ext_package=None, tag='', force_generic_engine=False, flags=0, **kwds):
+                 ext_package=None, tag='', force_generic_engine=False, flags=None, **kwds):
         self.ffi = ffi
         self.preamble = preamble
         if not modulename:
@@ -159,7 +159,10 @@ class Verifier(object):
 
     def _load_library(self):
         assert self._has_module
-        return self._vengine.load_library(self.flags)
+        if self.flags is not None:
+            return self._vengine.load_library(self.flags)
+        else:
+            return self._vengine.load_library()
 
 # ____________________________________________________________
 

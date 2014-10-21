@@ -138,12 +138,13 @@ class VCPythonEngine(object):
         prnt()
         prnt('#endif')
 
-    def load_library(self, flags=0):
+    def load_library(self, flags=None):
         # XXX review all usages of 'self' here!
         # import it as a new extension module
         previous_flags = sys.getdlopenflags()
         try:
-            sys.setdlopenflags(flags)
+            if flags is not None:
+                sys.setdlopenflags(flags)
             module = imp.load_dynamic(self.verifier.get_module_name(),
                                       self.verifier.modulefilename)
         except ImportError as e:
