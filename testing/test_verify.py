@@ -1962,3 +1962,17 @@ def test_getlasterror_working_even_with_pypys_jit():
             n = (1 << 29) + i
             lib.SetLastError(n)
             assert ffi.getwinerror()[0] == n
+
+def test_verify_dlopen_flags():
+    ffi1 = FFI()
+    ffi2 = FFI()
+
+    ffi1.cdef("int foo;")
+    ffi2.cdef("int foo;")
+
+    lib1 = ffi1.verify("int foo;", modulename="foo1", flags=ffi1.RTLD_GLOBAL)
+    lib2 = ffi2.verify("int foo;", modulename="foo2", flags=ffi2.RTLD_GLOBAL)
+
+    lib1.foo = 42
+
+    assert lib2.foo == 42

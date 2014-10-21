@@ -16,7 +16,7 @@ else:
 class Verifier(object):
 
     def __init__(self, ffi, preamble, tmpdir=None, modulename=None,
-                 ext_package=None, tag='', force_generic_engine=False, **kwds):
+                 ext_package=None, tag='', force_generic_engine=False, flags=0, **kwds):
         self.ffi = ffi
         self.preamble = preamble
         if not modulename:
@@ -24,6 +24,7 @@ class Verifier(object):
         vengine_class = _locate_engine_class(ffi, force_generic_engine)
         self._vengine = vengine_class(self)
         self._vengine.patch_extension_kwds(kwds)
+        self.flags = flags
         self.kwds = kwds
         #
         if modulename:
@@ -158,7 +159,7 @@ class Verifier(object):
 
     def _load_library(self):
         assert self._has_module
-        return self._vengine.load_library()
+        return self._vengine.load_library(self.flags)
 
 # ____________________________________________________________
 
