@@ -859,7 +859,9 @@ it all the time.
 
 .. versionadded:: 0.8.2
    The ``ffi.cdef()`` call takes an optional argument ``packed``: if
-   True, then all structs declared within this cdef are "packed".  This
+   True, then all structs declared within this cdef are "packed".
+   (If you need both packed and non-packed structs,
+   use several cdefs in sequence.)  This
    has a meaning similar to ``__attribute__((packed))`` in GCC.  It
    specifies that all structure fields should have an alignment of one
    byte.  (Note that the packed attribute has no effect on bit fields so
