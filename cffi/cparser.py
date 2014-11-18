@@ -208,6 +208,8 @@ class Parser(object):
 
     def _add_constants(self, key, val):
         if key in self._int_constants:
+            if self._int_constants[key] == val:
+                return     # ignore identical double declarations
             raise api.FFIError(
                 "multiple declarations of constant: %s" % (key,))
         self._int_constants[key] = val
