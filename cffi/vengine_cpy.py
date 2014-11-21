@@ -829,12 +829,15 @@ cffimod_header = r'''
             PyLong_FromLongLong((long long)(x)))
 
 #define _cffi_from_c_int(x, type)                                        \
-    (((type)-1) > 0 ?   /* unsigned */                                   \
-        (sizeof(type) < sizeof(long) ? PyInt_FromLong(x) :               \
-         sizeof(type) == sizeof(long) ? PyLong_FromUnsignedLong(x) :     \
-                                        PyLong_FromUnsignedLongLong(x))  \
-      : (sizeof(type) <= sizeof(long) ? PyInt_FromLong(x) :              \
-                                        PyLong_FromLongLong(x)))
+    (((type)-1) > 0 ? /* unsigned */                                     \
+        (sizeof(type) < sizeof(long) ?                                   \
+            PyInt_FromLong((long)x) :                                    \
+         sizeof(type) == sizeof(long) ?                                  \
+            PyLong_FromUnsignedLong((unsigned long)x) :                  \
+            PyLong_FromUnsignedLongLong((unsigned long long)x)) :        \
+        (sizeof(type) <= sizeof(long) ?                                  \
+            PyInt_FromLong((long)x) :                                    \
+            PyLong_FromLongLong((long long)x)))
 
 #define _cffi_to_c_int(o, type)                                          \
     (sizeof(type) == 1 ? (((type)-1) > 0 ? (type)_cffi_to_c_u8(o)        \
