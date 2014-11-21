@@ -14,12 +14,13 @@ if sys.platform == 'win32':
 else:
     if (sys.platform == 'darwin' and
           [int(x) for x in os.uname()[2].split('.')] >= [11, 0, 0]):
+        # assume a standard clang or gcc
+        extra_compile_args = ['-Werror', '-Wconversion']
         # special things for clang
-        extra_compile_args = [
-            '-Werror', '-Qunused-arguments', '-Wno-error=shorten-64-to-32']
+        extra_compile_args.append('-Qunused-arguments')
     else:
         # assume a standard gcc
-        extra_compile_args = ['-Werror']
+        extra_compile_args = ['-Werror', '-Wconversion']
 
     class FFI(FFI):
         def verify(self, *args, **kwds):
@@ -88,6 +89,39 @@ def test_simple_case():
     ffi.cdef("double sin(double x);")
     lib = ffi.verify('#include <math.h>', libraries=lib_m)
     assert lib.sin(1.23) == math.sin(1.23)
+
+def _Wconversion(cdef, source, **kargs):
+    if sys.platform == 'win32':
+        py.test.skip("needs GCC or Clang")
+    ffi = FFI()
+    ffi.cdef(cdef)
+    py.test.raises(VerificationError, ffi.verify, source, **kargs)
+    extra_compile_args_orig = extra_compile_args[:]
+    extra_compile_args.remove('-Wconversion')
+    try:
+        ffi.verify(source, **kargs)
+    finally:
+        extra_compile_args[:] = extra_compile_args_orig 
+
+def test_Wconversion_unsigned():
+    _Wconversion("unsigned foo(void);",
+                 "int foo(void) { return -1;}")
+
+def test_Wconversion_integer():
+    _Wconversion("short foo(void);",
+                 "long long foo(void) { return 1<<sizeof(short);}")
+
+def test_Wconversion_floating():
+    _Wconversion("float sin(double);",
+                 "#include <math.h>", libraries=lib_m)
+
+def test_Wconversion_float2int():
+    _Wconversion("int sinf(float);",
+                 "#include <math.h>", libraries=lib_m)
+
+def test_Wconversion_double2int():
+    _Wconversion("int sin(double);",
+                 "#include <math.h>", libraries=lib_m)
 
 def test_rounding_1():
     ffi = FFI()
