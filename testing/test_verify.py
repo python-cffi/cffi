@@ -99,9 +99,10 @@ def _Wconversion(cdef, source, **kargs):
     extra_compile_args_orig = extra_compile_args[:]
     extra_compile_args.remove('-Wconversion')
     try:
-        ffi.verify(source, **kargs)
+        lib = ffi.verify(source, **kargs)
     finally:
-        extra_compile_args[:] = extra_compile_args_orig 
+        extra_compile_args[:] = extra_compile_args_orig
+    return lib
 
 def test_Wconversion_unsigned():
     _Wconversion("unsigned foo(void);",
@@ -112,8 +113,11 @@ def test_Wconversion_integer():
                  "long long foo(void) { return 1<<sizeof(short);}")
 
 def test_Wconversion_floating():
-    _Wconversion("float sin(double);",
-                 "#include <math.h>", libraries=lib_m)
+    lib = _Wconversion("float sin(double);",
+                       "#include <math.h>", libraries=lib_m)
+    res = lib.sin(1.23)
+    assert res != math.sin(1.23)     # not exact, because of double->float
+    assert abs(res - math.sin(1.23)) < 1E-5
 
 def test_Wconversion_float2int():
     _Wconversion("int sinf(float);",
@@ -139,10 +143,15 @@ def test_rounding_2():
     assert res != math.sin(1.23)     # not exact, because of double->float
     assert abs(res - math.sin(1.23)) < 1E-5
 
-def test_return_exact():
+def test_strlen_exact():
     ffi = FFI()
     ffi.cdef("size_t strlen(const char *s);")
     lib = ffi.verify("#include <string.h>")
+    assert lib.strlen(b"hi there!") == 9
+
+def test_strlen_approximate():
+    lib = _Wconversion("int strlen(char *s);",
+                       "#include <string.h>")
     assert lib.strlen(b"hi there!") == 9
 
 def test_return_approximate():
