@@ -1085,7 +1085,7 @@ def test_enum_as_argument():
     """)
     lib = ffi.verify("""
         enum foo_e { AA, CC, BB };
-        int foo_func(enum foo_e e) { return e; }
+        int foo_func(enum foo_e e) { return (int)e; }
     """)
     assert lib.foo_func(lib.BB) == 2
     py.test.raises(TypeError, lib.foo_func, "BB")
@@ -1098,7 +1098,7 @@ def test_enum_as_function_result():
     """)
     lib = ffi.verify("""
         enum foo_e { AA, CC, BB };
-        enum foo_e foo_func(int x) { return x; }
+        enum foo_e foo_func(int x) { return (enum foo_e)x; }
     """)
     assert lib.foo_func(lib.BB) == lib.BB == 2
 
@@ -1133,6 +1133,19 @@ def test_typedef_incomplete_enum():
     assert lib.AA == 0
     assert lib.BB == 2
 
+def test_typedef_enum_as_argument():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef enum { AA, BB, ... } foo_t;
+        int foo_func(foo_t);
+    """)
+    lib = ffi.verify("""
+        typedef enum { AA, CC, BB } foo_t;
+        int foo_func(foo_t e) { return (int)e; }
+    """)
+    assert lib.foo_func(lib.BB) == lib.BB == 2
+    py.test.raises(TypeError, lib.foo_func, "BB")
+
 def test_typedef_enum_as_function_result():
     ffi = FFI()
     ffi.cdef("""
@@ -1141,7 +1154,7 @@ def test_typedef_enum_as_function_result():
     """)
     lib = ffi.verify("""
         typedef enum { AA, CC, BB } foo_t;
-        foo_t foo_func(int x) { return x; }
+        foo_t foo_func(int x) { return (foo_t)x; }
     """)
     assert lib.foo_func(lib.BB) == lib.BB == 2
 
