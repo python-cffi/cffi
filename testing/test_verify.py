@@ -91,13 +91,9 @@ def test_simple_case():
 
 def test_rounding_1():
     ffi = FFI()
-    ffi.cdef("float sin(double x);")
-    lib = ffi.verify('''
-    #include <math.h>
-    static float my_sin(double x) { return (float)sin(x); }
-    #define sin my_sin
-    ''', libraries=lib_m)
-    res = lib.sin(1.23)
+    ffi.cdef("double sinf(float x);")
+    lib = ffi.verify('#include <math.h>', libraries=lib_m)
+    res = lib.sinf(1.23)
     assert res != math.sin(1.23)     # not exact, because of double->float
     assert abs(res - math.sin(1.23)) < 1E-5
 
