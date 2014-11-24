@@ -65,7 +65,7 @@ class VCPythonEngine(object):
         # The following two 'chained_list_constants' items contains
         # the head of these two chained lists, as a string that gives the
         # call to do, if any.
-        self._chained_list_constants = ['0', '0']
+        self._chained_list_constants = ['((void)lib,0)', '((void)lib,0)']
         #
         prnt = self._prnt
         # first paste some standard set of lines that are mostly '#define'
@@ -337,7 +337,7 @@ class VCPythonEngine(object):
         prnt = self._prnt
         numargs = len(tp.args)
         if numargs == 0:
-            argname = 'no_arg'
+            argname = 'noarg'
         elif numargs == 1:
             argname = 'arg0'
         else:
@@ -387,6 +387,9 @@ class VCPythonEngine(object):
         prnt('  Py_END_ALLOW_THREADS')
         prnt()
         #
+        prnt('  (void)self; /* unused */')
+        if numargs == 0:
+            prnt('  (void)noarg; /* unused */')
         if result_code:
             prnt('  return %s;' %
                  self._convert_expr_from_c(tp.result, 'result', 'result type'))
@@ -453,6 +456,7 @@ class VCPythonEngine(object):
         prnt('static void %s(%s *p)' % (checkfuncname, cname))
         prnt('{')
         prnt('  /* only to generate compile-time warnings or errors */')
+        prnt('  (void)p;')
         for fname, ftype, fbitsize in tp.enumfields():
             if (isinstance(ftype, model.PrimitiveType)
                 and ftype.is_integer_type()) or fbitsize >= 0:
@@ -483,6 +487,8 @@ class VCPythonEngine(object):
                 prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
         prnt('    -1')
         prnt('  };')
+        prnt('  (void)self; /* unused */')
+        prnt('  (void)noarg; /* unused */')
         prnt('  return _cffi_get_struct_layout(nums);')
         prnt('  /* the next line is not executed, but compiled */')
         prnt('  %s(0);' % (checkfuncname,))
@@ -911,6 +917,7 @@ static PyObject *_cffi_setup(PyObject *self, PyObject *args)
 {
     PyObject *library;
     int was_alive = (_cffi_types != NULL);
+    (void)self; /* unused */
     if (!PyArg_ParseTuple(args, "OOO", &_cffi_types, &_cffi_VerificationError,
                                        &library))
         return NULL;
