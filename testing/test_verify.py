@@ -15,12 +15,12 @@ else:
     if (sys.platform == 'darwin' and
           [int(x) for x in os.uname()[2].split('.')] >= [11, 0, 0]):
         # assume a standard clang or gcc
-        extra_compile_args = ['-Werror', '-Wconversion']
+        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
         # special things for clang
         extra_compile_args.append('-Qunused-arguments')
     else:
         # assume a standard gcc
-        extra_compile_args = ['-Werror', '-Wconversion']
+        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
 
     class FFI(FFI):
         def verify(self, *args, **kwds):
