@@ -16,7 +16,8 @@ else:
 class Verifier(object):
 
     def __init__(self, ffi, preamble, tmpdir=None, modulename=None,
-                 ext_package=None, tag='', force_generic_engine=False, **kwds):
+                 ext_package=None, tag='', force_generic_engine=False,
+                 source_extension='.c', **kwds):
         self.ffi = ffi
         self.preamble = preamble
         if not modulename:
@@ -43,7 +44,7 @@ class Verifier(object):
                                               k1, k2)
         suffix = _get_so_suffixes()[0]
         self.tmpdir = tmpdir or os.environ.get('CFFI_TMPDIR') or _caller_dir_pycache()
-        self.sourcefilename = os.path.join(self.tmpdir, modulename + '.c')
+        self.sourcefilename = os.path.join(self.tmpdir, modulename + source_extension)
         self.modulefilename = os.path.join(self.tmpdir, modulename + suffix)
         self.ext_package = ext_package
         self._has_source = False
