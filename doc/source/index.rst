@@ -667,6 +667,15 @@ not recommended.
    check.  Be sure to have other means of clearing the ``tmpdir``
    whenever you change your sources.
 
+.. versionadded:: 0.8.7
+   You can give C++ source code in ``ffi.verify()``::
+
+     ext = ffi.verify(r'''
+         extern "C" {
+             int somefunc(int somearg) { return real_cpp_func(somearg); }
+         }
+     ''', source_extension='.cpp', extra_compile_args=['-std=c++11'])
+
 This function returns a "library" object that gets closed when it goes
 out of scope.  Make sure you keep the library object around as long as
 needed.
