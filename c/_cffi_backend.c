@@ -4765,7 +4765,7 @@ static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
     CFieldObject *cf;
     Py_ssize_t offset;
 
-    if (!PyArg_ParseTuple(args, "O!O:typeof",
+    if (!PyArg_ParseTuple(args, "O!O:typeoffsetof",
                           &CTypeDescr_Type, &ct, &fieldname))
         return NULL;
 

@@ -1,7 +1,7 @@
 import py
 import platform
 import sys, ctypes
-from cffi import FFI, CDefError
+from cffi import FFI, CDefError, FFIError
 from testing.support import *
 
 SIZE_OF_INT   = ctypes.sizeof(ctypes.c_int)
@@ -1563,6 +1563,12 @@ class BackendTests:
         ffi2.include(ffi1)
         p = ffi2.new("foo_p", [142])
         assert p.x == 142
+
+    def test_ignore_multiple_declarations_of_constant(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("#define FOO 42")
+        ffi.cdef("#define FOO 42")
+        py.test.raises(FFIError, ffi.cdef, "#define FOO 43")
 
     def test_struct_packed(self):
         ffi = FFI(backend=self.Backend())

@@ -667,7 +667,16 @@ not recommended.
    check.  Be sure to have other means of clearing the ``tmpdir``
    whenever you change your sources.
 
-.. versionadded:: 0.9
+.. versionadded:: 0.8.7
+   You can give C++ source code in ``ffi.verify()``::
+
+     ext = ffi.verify(r'''
+         extern "C" {
+             int somefunc(int somearg) { return real_cpp_func(somearg); }
+         }
+     ''', source_extension='.cpp', extra_compile_args=['-std=c++11'])
+
+.. versionadded:: 0.8.7
    The optional ``flags`` argument has been added, see ``man dlopen`` (ignored
    on Windows).  It defaults to ``ffi.RTLD_NOW``.
 
@@ -863,7 +872,9 @@ it all the time.
 
 .. versionadded:: 0.8.2
    The ``ffi.cdef()`` call takes an optional argument ``packed``: if
-   True, then all structs declared within this cdef are "packed".  This
+   True, then all structs declared within this cdef are "packed".
+   (If you need both packed and non-packed structs,
+   use several cdefs in sequence.)  This
    has a meaning similar to ``__attribute__((packed))`` in GCC.  It
    specifies that all structure fields should have an alignment of one
    byte.  (Note that the packed attribute has no effect on bit fields so
