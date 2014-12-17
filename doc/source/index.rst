@@ -500,7 +500,7 @@ needed.
 The verification step
 ---------------------
 
-``ffi.verify(source, tmpdir=.., ext_package=.., modulename=.., **kwargs)``:
+``ffi.verify(source, tmpdir=.., ext_package=.., modulename=.., flags=.., **kwargs)``:
 verifies that the current ffi signatures
 compile on this machine, and return a dynamic library object.  The
 dynamic library can be used to call functions and access global
@@ -666,6 +666,10 @@ not recommended.
    the module name already exists it will be reused without further
    check.  Be sure to have other means of clearing the ``tmpdir``
    whenever you change your sources.
+
+.. versionadded:: 0.9
+   The optional ``flags`` argument has been added, see ``man dlopen`` (ignored
+   on Windows).  It defaults to ``ffi.RTLD_NOW``.
 
 This function returns a "library" object that gets closed when it goes
 out of scope.  Make sure you keep the library object around as long as
