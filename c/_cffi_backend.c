@@ -3070,6 +3070,7 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
             char *data = ((CDataObject *)io)->c_data;
             /*READ(data, sizeof(long double)*/
             lvalue = read_raw_longdouble_data(data);
+            Py_DECREF(io);
             cd = _new_casted_primitive(ct);
             if (cd != NULL)
                 write_raw_longdouble_data(cd->c_data, lvalue);
