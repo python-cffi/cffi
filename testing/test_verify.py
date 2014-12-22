@@ -15,12 +15,12 @@ else:
     if (sys.platform == 'darwin' and
           [int(x) for x in os.uname()[2].split('.')] >= [11, 0, 0]):
         # assume a standard clang or gcc
-        extra_compile_args = ['-Werror', '-Wconversion']
+        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
         # special things for clang
         extra_compile_args.append('-Qunused-arguments')
     else:
         # assume a standard gcc
-        extra_compile_args = ['-Werror', '-Wconversion']
+        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
 
     class FFI(FFI):
         def verify(self, *args, **kwds):
@@ -430,7 +430,7 @@ def test_nondecl_struct():
     ffi = FFI()
     ffi.cdef("typedef struct foo_s foo_t; int bar(foo_t *);")
     lib = ffi.verify("typedef struct foo_s foo_t;\n"
-                     "int bar(foo_t *f) { return 42; }\n")
+                     "int bar(foo_t *f) { (void)f; return 42; }\n")
     assert lib.bar(ffi.NULL) == 42
 
 def test_ffi_full_struct():
@@ -1810,7 +1810,7 @@ def test_passing_string_or_NULL():
 def test_typeof_function():
     ffi = FFI()
     ffi.cdef("int foo(int, char);")
-    lib = ffi.verify("int foo(int x, char y) { return 42; }")
+    lib = ffi.verify("int foo(int x, char y) { (void)x; (void)y; return 42; }")
     ctype = ffi.typeof(lib.foo)
     assert len(ctype.args) == 2
     assert ctype.result == ffi.typeof("int")

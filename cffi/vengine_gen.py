@@ -235,6 +235,7 @@ class VGenericEngine(object):
         prnt('static void %s(%s *p)' % (checkfuncname, cname))
         prnt('{')
         prnt('  /* only to generate compile-time warnings or errors */')
+        prnt('  (void)p;')
         for fname, ftype, fbitsize in tp.enumfields():
             if (isinstance(ftype, model.PrimitiveType)
                 and ftype.is_integer_type()) or fbitsize >= 0:
