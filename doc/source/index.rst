@@ -435,12 +435,17 @@ can assume to exist are the standard types:
 * *New in version 0.6:* all `common Windows types`_ are defined if you run
   on Windows (``DWORD``, ``LPARAM``, etc.).
 
+* *New in version 0.8.7:* the other standard integer types from stdint.h,
+  as long as they map to integers of 1, 2, 4 or 8 bytes.  Larger integers
+  are not supported.
+
 .. _`common Windows types`: http://msdn.microsoft.com/en-us/library/windows/desktop/aa383751%28v=vs.85%29.aspx
 
 .. "versionadded:: 0.4": _Bool
 .. "versionadded:: 0.6": bool
 .. "versionadded:: 0.4": FILE
 .. "versionadded:: 0.6": Wintypes
+.. "versionadded:: 0.8.7": intmax_t etc.
 
 As we will see on `the verification step`_ below, the declarations can
 also contain "``...``" at various places; these are placeholders that will
