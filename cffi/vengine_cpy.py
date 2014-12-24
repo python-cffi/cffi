@@ -797,6 +797,24 @@ cffimod_header = r'''
    typedef unsigned __int16 uint16_t;
    typedef unsigned __int32 uint32_t;
    typedef unsigned __int64 uint64_t;
+   typedef __int8 int_least8_t;
+   typedef __int16 int_least16_t;
+   typedef __int32 int_least32_t;
+   typedef __int64 int_least64_t;
+   typedef unsigned __int8 uint_least8_t;
+   typedef unsigned __int16 uint_least16_t;
+   typedef unsigned __int32 uint_least32_t;
+   typedef unsigned __int64 uint_least64_t;
+   typedef __int8 int_fast8_t;
+   typedef __int16 int_fast16_t;
+   typedef __int32 int_fast32_t;
+   typedef __int64 int_fast64_t;
+   typedef unsigned __int8 uint_fast8_t;
+   typedef unsigned __int16 uint_fast16_t;
+   typedef unsigned __int32 uint_fast32_t;
+   typedef unsigned __int64 uint_fast64_t;
+   typedef __int64 intmax_t;
+   typedef unsigned __int64 uintmax_t;
 # else
 #  include <stdint.h>
 # endif
