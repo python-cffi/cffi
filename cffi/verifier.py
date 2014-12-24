@@ -17,7 +17,7 @@ class Verifier(object):
 
     def __init__(self, ffi, preamble, tmpdir=None, modulename=None,
                  ext_package=None, tag='', force_generic_engine=False,
-                 source_extension='.c', flags=None, **kwds):
+                 source_extension='.c', flags=None, relative_to=None, **kwds):
         self.ffi = ffi
         self.preamble = preamble
         if not modulename:
@@ -26,7 +26,7 @@ class Verifier(object):
         self._vengine = vengine_class(self)
         self._vengine.patch_extension_kwds(kwds)
         self.flags = flags
-        self.kwds = kwds
+        self.kwds = self.make_relative_to(kwds, relative_to)
         #
         if modulename:
             if tag:
@@ -108,6 +108,20 @@ class Verifier(object):
 
     def generates_python_module(self):
         return self._vengine._gen_python_module
+
+    def make_relative_to(self, kwds, relative_to):
+        if relative_to and os.path.dirname(relative_to):
+            dirname = os.path.dirname(relative_to)
+            kwds = kwds.copy()
+            for key in ffiplatform.LIST_OF_FILE_NAMES:
+                if key in kwds:
+                    lst = kwds[key]
+                    if not isinstance(lst, (list, tuple)):
+                        raise TypeError("keyword '%s' should be a list or tuple"
+                                        % (key,))
+                    lst = [os.path.join(dirname, fn) for fn in lst]
+                    kwds[key] = lst
+        return kwds
 
     # ----------
 
