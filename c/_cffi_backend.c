@@ -27,6 +27,24 @@
    typedef unsigned __int16 uint16_t;
    typedef unsigned __int32 uint32_t;
    typedef unsigned __int64 uint64_t;
+   typedef __int8 int_least8_t;
+   typedef __int16 int_least16_t;
+   typedef __int32 int_least32_t;
+   typedef __int64 int_least64_t;
+   typedef unsigned __int8 uint_least8_t;
+   typedef unsigned __int16 uint_least16_t;
+   typedef unsigned __int32 uint_least32_t;
+   typedef unsigned __int64 uint_least64_t;
+   typedef __int8 int_fast8_t;
+   typedef __int16 int_fast16_t;
+   typedef __int32 int_fast32_t;
+   typedef __int64 int_fast64_t;
+   typedef unsigned __int8 uint_fast8_t;
+   typedef unsigned __int16 uint_fast16_t;
+   typedef unsigned __int32 uint_fast32_t;
+   typedef unsigned __int64 uint_fast64_t;
+   typedef __int64 intmax_t;
+   typedef unsigned __int64 uintmax_t;
 # else
 #  include <stdint.h>
 # endif
@@ -3323,8 +3341,26 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
        EPTYPE(u32, uint32_t, CT_PRIMITIVE_UNSIGNED)             \
        EPTYPE(i64, int64_t, CT_PRIMITIVE_SIGNED)                \
        EPTYPE(u64, uint64_t, CT_PRIMITIVE_UNSIGNED)             \
+       EPTYPE(il8, int_least8_t, CT_PRIMITIVE_SIGNED)           \
+       EPTYPE(ul8, uint_least8_t, CT_PRIMITIVE_UNSIGNED)        \
+       EPTYPE(il16, int_least16_t, CT_PRIMITIVE_SIGNED)         \
+       EPTYPE(ul16, uint_least16_t, CT_PRIMITIVE_UNSIGNED)      \
+       EPTYPE(il32, int_least32_t, CT_PRIMITIVE_SIGNED)         \
+       EPTYPE(ul32, uint_least32_t, CT_PRIMITIVE_UNSIGNED)      \
+       EPTYPE(il64, int_least64_t, CT_PRIMITIVE_SIGNED)         \
+       EPTYPE(ul64, uint_least64_t, CT_PRIMITIVE_UNSIGNED)      \
+       EPTYPE(if8, int_fast8_t, CT_PRIMITIVE_SIGNED)            \
+       EPTYPE(uf8, uint_fast8_t, CT_PRIMITIVE_UNSIGNED)         \
+       EPTYPE(if16, int_fast16_t, CT_PRIMITIVE_SIGNED)          \
+       EPTYPE(uf16, uint_fast16_t, CT_PRIMITIVE_UNSIGNED)       \
+       EPTYPE(if32, int_fast32_t, CT_PRIMITIVE_SIGNED)          \
+       EPTYPE(uf32, uint_fast32_t, CT_PRIMITIVE_UNSIGNED)       \
+       EPTYPE(if64, int_fast64_t, CT_PRIMITIVE_SIGNED)          \
+       EPTYPE(uf64, uint_fast64_t, CT_PRIMITIVE_UNSIGNED)       \
        EPTYPE(ip, intptr_t, CT_PRIMITIVE_SIGNED)                \
        EPTYPE(up, uintptr_t, CT_PRIMITIVE_UNSIGNED)             \
+       EPTYPE(im, intmax_t, CT_PRIMITIVE_SIGNED)                \
+       EPTYPE(um, uintmax_t, CT_PRIMITIVE_UNSIGNED)             \
        EPTYPE(pd, ptrdiff_t, CT_PRIMITIVE_SIGNED)               \
        EPTYPE(sz, size_t, CT_PRIMITIVE_UNSIGNED)                \
        EPTYPE(ssz, ssize_t, CT_PRIMITIVE_SIGNED)
@@ -3430,7 +3466,8 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 
  bad_ffi_type:
     PyErr_Format(PyExc_NotImplementedError,
-                 "primitive type '%s' with a non-standard size %d",
+                 "primitive type '%s' has size %d; "
+                 "the supported sizes are 1, 2, 4, 8",
                  name, (int)ptypes->size);
     return NULL;
 }
