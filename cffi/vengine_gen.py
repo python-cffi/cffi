@@ -428,14 +428,14 @@ class VGenericEngine(object):
         prnt('int %s(char *out_error)' % funcname)
         prnt('{')
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
-            if enumvalue < 0:
-                prnt('  if ((%s) >= 0 || (long)(%s) != %dL) {' % (
+            if enumvalue <= 0:
+                prnt('  if ((%s) > 0 || (long)(%s) != %dL) {' % (
                     enumerator, enumerator, enumvalue))
             else:
-                prnt('  if ((%s) < 0 || (unsigned long)(%s) != %dUL) {' % (
+                prnt('  if ((%s) <= 0 || (unsigned long)(%s) != %dUL) {' % (
                     enumerator, enumerator, enumvalue))
             prnt('    char buf[64];')
-            prnt('    if ((%s) < 0)' % enumerator)
+            prnt('    if ((%s) <= 0)' % enumerator)
             prnt('        sprintf(buf, "%%ld", (long)(%s));' % enumerator)
             prnt('    else')
             prnt('        sprintf(buf, "%%lu", (unsigned long)(%s));' %
