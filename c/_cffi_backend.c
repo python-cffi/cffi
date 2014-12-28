@@ -5166,7 +5166,7 @@ static PyObject *b_from_buffer(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    if (PyString_Check(x) || PyUnicode_Check(x) ||
+    if (PyBytes_Check(x) || PyText_Check(x) ||
         PyByteArray_Check(x) /* <= this one here for PyPy compatibility */ ) {
         PyErr_SetString(PyExc_TypeError,
                         "from_buffer() cannot return the address of the "
