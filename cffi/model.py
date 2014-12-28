@@ -235,6 +235,8 @@ class ArrayType(BaseType):
         BPtrItem = PointerType(self.item).get_cached_btype(ffi, finishlist)
         return global_cache(self, ffi, 'new_array_type', BPtrItem, self.length)
 
+char_array_type = ArrayType(PrimitiveType('char'), None)
+
 
 class StructOrUnionOrEnum(BaseTypeByIdentity):
     _attrs_ = ('name',)

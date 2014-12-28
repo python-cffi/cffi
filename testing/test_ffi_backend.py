@@ -213,3 +213,12 @@ class TestBitfield:
         code, message = ffi.getwinerror(-1)
         assert code == 2
         assert message == "The system cannot find the file specified"
+
+    def test_from_buffer(self):
+        import array
+        ffi = FFI()
+        a = array.array('H', [10000, 20000, 30000])
+        c = ffi.from_buffer(a)
+        assert ffi.typeof(c) is ffi.typeof("char[]")
+        ffi.cast("unsigned short *", c)[1] += 500
+        assert list(a) == [10000, 20500, 30000]

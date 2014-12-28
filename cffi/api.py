@@ -77,6 +77,7 @@ class FFI(object):
         #
         with self._lock:
             self.BVoidP = self._get_cached_btype(model.voidp_type)
+            self.BCharA = self._get_cached_btype(model.char_array_type)
         if isinstance(backend, types.ModuleType):
             # _cffi_backend: attach these constants to the class
             if not hasattr(FFI, 'NULL'):
@@ -263,6 +264,16 @@ class FFI(object):
             buf[idx] = ...  change the content
         """
         return self._backend.buffer(cdata, size)
+
+    def from_buffer(self, python_buffer):
+        """Return a <cdata 'void *'> that points to the data of the
+        given object, which must support the buffer interface.  Note
+        that this is not meant to be used on the built-in types str,
+        unicode, or bytearray (you can build 'char[]' arrays explicitly)
+        but only on objects containing large quantities of raw data
+        in some other format, like 'array.array' or numpy arrays.
+        """
+        return self._backend.from_buffer(self.BCharA, python_buffer)
 
     def callback(self, cdecl, python_callable=None, error=None):
         """Return a callback object or a decorator making such a
