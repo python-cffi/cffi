@@ -3214,6 +3214,7 @@ def test_from_buffer():
     BCharA = new_array_type(BCharP, None)
     c = from_buffer(BCharA, a)
     assert typeof(c) is BCharA
+    assert len(c) == 6
     assert repr(c) == "<cdata 'char[]' buffer len 6 from 'array.array' object>"
     p = new_pointer_type(new_primitive_type("unsigned short"))
     cast(p, c)[1] += 500
