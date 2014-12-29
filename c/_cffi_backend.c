@@ -3563,8 +3563,8 @@ new_array_type(CTypeDescrObject *ctptr, PyObject *lengthobj)
         sprintf(extra_text, "[]");
         length = -1;
         arraysize = -1;
-        if ((ctptr->ct_flags & CT_CAST_ANYTHING) &&
-                (ctitem->ct_flags & CT_PRIMITIVE_CHAR))
+        if ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
+                ctitem->ct_size == sizeof(char))
             flags |= CT_IS_UNSIZED_CHAR_A;
     }
     else {
