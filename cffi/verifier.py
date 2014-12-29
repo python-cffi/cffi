@@ -1,5 +1,5 @@
 import sys, os, binascii, shutil
-from . import __version__
+from . import __version_verifier_modules__
 from . import ffiplatform
 
 if sys.version_info >= (3, 3):
@@ -32,8 +32,8 @@ class Verifier(object):
             if tag:
                 raise TypeError("can't specify both 'modulename' and 'tag'")
         else:
-            key = '\x00'.join([sys.version[:3], __version__, preamble,
-                               flattened_kwds] +
+            key = '\x00'.join([sys.version[:3], __version_verifier_modules__,
+                               preamble, flattened_kwds] +
                               ffi._cdefsources)
             if sys.version_info >= (3,):
                 key = key.encode('utf-8')
