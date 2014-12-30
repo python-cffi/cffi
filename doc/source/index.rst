@@ -1135,7 +1135,7 @@ used only as a last-resort solution.
 Misc methods on ffi
 -------------------
 
-``ffi.include(other_ffi)``: includes the typedefs, structs, unions and
+**ffi.include(other_ffi)**: includes the typedefs, structs, unions and
 enum types defined in another FFI instance.  Usage is similar to a
 ``#include`` in C, where a part of the program might include types
 defined in another part for its own usage.  Note that the include()
@@ -1151,11 +1151,11 @@ in version 0.5.*
 
 .. "versionadded:: 0.5" --- inlined in the previous paragraph
 
-``ffi.errno``: the value of ``errno`` received from the most recent C call
+**ffi.errno**: the value of ``errno`` received from the most recent C call
 in this thread, and passed to the following C call, is available via
 reads and writes of the property ``ffi.errno``.
 
-``ffi.getwinerror(code=-1)``: on Windows, in addition to ``errno`` we
+**ffi.getwinerror(code=-1)**: on Windows, in addition to ``errno`` we
 also save and restore the ``GetLastError()`` value across function
 calls.  This function returns this error code as a tuple ``(code,
 message)``, adding a readable message like Python does when raising
@@ -1166,7 +1166,7 @@ function as usual.)
 
 .. "versionadded:: 0.8" --- inlined in the previous paragraph
 
-``ffi.string(cdata, [maxlen])``: return a Python string (or unicode
+**ffi.string(cdata, [maxlen])**: return a Python string (or unicode
 string) from the 'cdata'.  *New in version 0.3.*
 
 .. "versionadded:: 0.3" --- inlined in the previous paragraph
@@ -1190,7 +1190,7 @@ string) from the 'cdata'.  *New in version 0.3.*
   integer.
 
 
-``ffi.buffer(cdata, [size])``: return a buffer object that references
+**ffi.buffer(cdata, [size])**: return a buffer object that references
 the raw C data pointed to by the given 'cdata', of 'size' bytes.  The
 'cdata' must be a pointer or an array.  If unspecified, the size of the
 buffer is either the size of what ``cdata`` points to, or the whole size
@@ -1230,7 +1230,7 @@ an array.)
    gives inconsistent results on regular byte strings).  Use ``buf[:]``
    instead.
 
-``ffi.from_buffer(python_buffer)``: return a ``<cdata 'char[]'>`` that
+**ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
 points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
 a (read-write) reference to the existing data, not a copy; for this
@@ -1245,7 +1245,7 @@ of memoryview, locked) as long as the cdata object returned by
 .. "versionadded:: 0.9" --- inlined in the previous paragraph
 
 
-``ffi.typeof("C type" or cdata object)``: return an object of type
+**ffi.typeof("C type" or cdata object)**: return an object of type
 ``<ctype>`` corresponding to the parsed string, or to the C type of the
 cdata instance.  Usually you don't need to call this function or to
 explicitly manipulate ``<ctype>`` objects in your code: any place that
@@ -1259,7 +1259,7 @@ e.g.::
         ...
 
 .. versionadded:: 0.4
-   ``ffi.CData, ffi.CType``: the Python type of the objects referred to
+   **ffi.CData, ffi.CType**: the Python type of the objects referred to
    as ``<cdata>`` and ``<ctype>`` in the rest of this document.  Note
    that some cdata objects may be actually of a subclass of
    ``ffi.CData``, and similarly with ctype, so you should check with
@@ -1269,20 +1269,20 @@ e.g.::
    ``item``, ``length``, ``fields``, ``args``, ``result``, ``ellipsis``,
    ``abi``, ``elements`` and ``relements``.
 
-``ffi.sizeof("C type" or cdata object)``: return the size of the
+**ffi.sizeof("C type" or cdata object)**: return the size of the
 argument in bytes.  The argument can be either a C type, or a cdata object,
 like in the equivalent ``sizeof`` operator in C.
 
-``ffi.alignof("C type")``: return the alignment of the C type.
+**ffi.alignof("C type")**: return the alignment of the C type.
 Corresponds to the ``__alignof__`` operator in GCC.
 
-``ffi.offsetof("C struct type", "fieldname")``: return the offset within
+**ffi.offsetof("C struct type", "fieldname")**: return the offset within
 the struct of the given field.  Corresponds to ``offsetof()`` in C.
 
 .. versionchanged:: 0.9
    ``"fieldname"`` can be ``"x.y"`` in case of nested structures.
 
-``ffi.getctype("C type" or <ctype>, extra="")``: return the string
+**ffi.getctype("C type" or <ctype>, extra="")**: return the string
 representation of the given C type.  If non-empty, the "extra" string is
 appended (or inserted at the right place in more complicated cases); it
 can be the name of a variable to declare, or an extra part of the type
@@ -1291,7 +1291,7 @@ like ``"*"`` or ``"[5]"``.  For example
 of the C type "pointer to the same type than x"; and
 ``ffi.getctype("char[80]", "a") == "char a[80]"``.
 
-``ffi.gc(cdata, destructor)``: return a new cdata object that points to the
+**ffi.gc(cdata, destructor)**: return a new cdata object that points to the
 same data.  Later, when this new cdata object is garbage-collected,
 ``destructor(old_cdata_object)`` will be called.  Example of usage:
 ``ptr = ffi.gc(lib.malloc(42), lib.free)``.  Note that like objects
@@ -1313,10 +1313,10 @@ points in time, and using it in a ``with`` statement.
 
 .. "versionadded:: 0.3" --- inlined in the previous paragraph
 
-``ffi.new_handle(python_object)``: return a non-NULL cdata of type
+**ffi.new_handle(python_object)**: return a non-NULL cdata of type
 ``void *`` that contains an opaque reference to ``python_object``.  You
 can pass it around to C functions or store it into C structures.  Later,
-you can use ``ffi.from_handle(p)`` to retrive the original
+you can use **ffi.from_handle(p)** to retrive the original
 ``python_object`` from a value with the same ``void *`` pointer.
 *Calling ffi.from_handle(p) is invalid and will likely crash if
 the cdata object returned by new_handle() is not kept alive!*
@@ -1333,7 +1333,7 @@ more, then the association ``void * -> python_object`` is dead and
 
 .. "versionadded:: 0.7" --- inlined in the previous paragraph
 
-``ffi.addressof(cdata, field=None)``: from a cdata whose type is
+**ffi.addressof(cdata, field=None)**: from a cdata whose type is
 ``struct foo_s``, return its "address", as a cdata whose type is
 ``struct foo_s *``.  Also works on unions, but not on any other type.
 (It would be difficult because only structs and unions are internally
