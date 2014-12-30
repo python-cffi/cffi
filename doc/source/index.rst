@@ -1230,6 +1230,20 @@ an array.)
    gives inconsistent results on regular byte strings).  Use ``buf[:]``
    instead.
 
+``ffi.from_buffer(python_buffer)``: return a ``<cdata 'char[]'>`` that
+points to the data of the given Python object, which must support the
+buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
+a (read-write) reference to the existing data, not a copy; for this
+reason, and for PyPy compatibility, it does not work with the built-in
+types str or unicode or bytearray.  It is meant to be used on objects
+containing large quantities of raw data, like ``array.array`` or numpy
+arrays.  It supports both the old buffer API (in Python 2.x) and the
+new memoryview API.  The original object is kept alive (and, in case
+of memoryview, locked) as long as the cdata object returned by
+``ffi.from_buffer()`` is alive.  *New in version 0.9.*
+
+.. "versionadded:: 0.9" --- inlined in the previous paragraph
+
 
 ``ffi.typeof("C type" or cdata object)``: return an object of type
 ``<ctype>`` corresponding to the parsed string, or to the C type of the
@@ -1264,10 +1278,9 @@ Corresponds to the ``__alignof__`` operator in GCC.
 
 ``ffi.offsetof("C struct type", "fieldname")``: return the offset within
 the struct of the given field.  Corresponds to ``offsetof()`` in C.
-*New in version 0.9:* ``"fieldname"`` can be ``"x.y"`` in case of nested
-structures.
 
-.. "versionadded:: 0.9" --- inlined in the previous paragraph
+.. versionchanged:: 0.9
+   ``"fieldname"`` can be ``"x.y"`` in case of nested structures.
 
 ``ffi.getctype("C type" or <ctype>, extra="")``: return the string
 representation of the given C type.  If non-empty, the "extra" string is
@@ -1333,11 +1346,10 @@ pointer is only valid as long as the original ``cdata`` object is; be
 sure to keep it alive if it was obtained directly from ``ffi.new()``.
 *New in version 0.4.*
 
-*New in version 0.9:* ``"field"`` can be ``"x.y"`` in case of nested
-structures.
+.. versionchanged:: 0.9
+   ``"field"`` can be ``"x.y"`` in case of nested structures.
 
 .. "versionadded:: 0.4" --- inlined in the previous paragraph
-.. "versionadded:: 0.9" --- inlined in the previous paragraph
 
 
 Unimplemented features
