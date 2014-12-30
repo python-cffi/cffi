@@ -435,7 +435,7 @@ can assume to exist are the standard types:
 * *New in version 0.6:* all `common Windows types`_ are defined if you run
   on Windows (``DWORD``, ``LPARAM``, etc.).
 
-* *New in version 0.8.7:* the other standard integer types from stdint.h,
+* *New in version 0.9:* the other standard integer types from stdint.h,
   as long as they map to integers of 1, 2, 4 or 8 bytes.  Larger integers
   are not supported.
 
@@ -445,7 +445,7 @@ can assume to exist are the standard types:
 .. "versionadded:: 0.6": bool
 .. "versionadded:: 0.4": FILE
 .. "versionadded:: 0.6": Wintypes
-.. "versionadded:: 0.8.7": intmax_t etc.
+.. "versionadded:: 0.9": intmax_t etc.
 
 As we will see on `the verification step`_ below, the declarations can
 also contain "``...``" at various places; these are placeholders that will
@@ -672,7 +672,7 @@ not recommended.
    check.  Be sure to have other means of clearing the ``tmpdir``
    whenever you change your sources.
 
-.. versionadded:: 0.8.7
+.. versionadded:: 0.9
    You can give C++ source code in ``ffi.verify()``::
 
      ext = ffi.verify(r'''
@@ -681,7 +681,7 @@ not recommended.
          }
      ''', source_extension='.cpp', extra_compile_args=['-std=c++11'])
 
-.. versionadded:: 0.8.7
+.. versionadded:: 0.9
    The optional ``flags`` argument has been added, see ``man dlopen`` (ignored
    on Windows).  It defaults to ``ffi.RTLD_NOW``.
 
@@ -1264,6 +1264,10 @@ Corresponds to the ``__alignof__`` operator in GCC.
 
 ``ffi.offsetof("C struct type", "fieldname")``: return the offset within
 the struct of the given field.  Corresponds to ``offsetof()`` in C.
+*New in version 0.9:* ``"fieldname"`` can be ``"x.y"`` in case of nested
+structures.
+
+.. "versionadded:: 0.9" --- inlined in the previous paragraph
 
 ``ffi.getctype("C type" or <ctype>, extra="")``: return the string
 representation of the given C type.  If non-empty, the "extra" string is
@@ -1329,7 +1333,11 @@ pointer is only valid as long as the original ``cdata`` object is; be
 sure to keep it alive if it was obtained directly from ``ffi.new()``.
 *New in version 0.4.*
 
+*New in version 0.9:* ``"field"`` can be ``"x.y"`` in case of nested
+structures.
+
 .. "versionadded:: 0.4" --- inlined in the previous paragraph
+.. "versionadded:: 0.9" --- inlined in the previous paragraph
 
 
 Unimplemented features
