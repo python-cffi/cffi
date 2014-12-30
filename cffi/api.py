@@ -192,11 +192,12 @@ class FFI(object):
 
     def offsetof(self, cdecl, fieldname):
         """Return the offset of the named field inside the given
-        structure, which must be given as a C type name.
+        structure, which must be given as a C type name.  The field
+        may be 'x.y.z' in case of nested structures.
         """
         if isinstance(cdecl, basestring):
             cdecl = self._typeof(cdecl)
-        return self._backend.typeoffsetof(cdecl, fieldname)[1]
+        return self._typeoffsetof(cdecl, fieldname)[1]
 
     def new(self, cdecl, init=None):
         """Allocate an instance according to the specified C type and
@@ -369,11 +370,21 @@ class FFI(object):
     def addressof(self, cdata, field=None):
         """Return the address of a <cdata 'struct-or-union'>.
         If 'field' is specified, return the address of this field.
+        The field may be 'x.y.z' in case of nested structures.
         """
         ctype = self._backend.typeof(cdata)
-        ctype, offset = self._backend.typeoffsetof(ctype, field)
+        ctype, offset = self._typeoffsetof(ctype, field)
         ctypeptr = self._pointer_to(ctype)
         return self._backend.rawaddressof(ctypeptr, cdata, offset)
+
+    def _typeoffsetof(self, ctype, field):
+        if field is not None and '.' in field:
+            offset = 0
+            for field1 in field.split('.'):
+                ctype, offset1 = self._backend.typeoffsetof(ctype, field1)
+                offset += offset1
+            return ctype, offset
+        return self._backend.typeoffsetof(ctype, field)
 
     def include(self, ffi_to_include):
         """Includes the typedefs, structs, unions and enums defined

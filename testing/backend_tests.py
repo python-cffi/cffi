@@ -949,6 +949,15 @@ class BackendTests:
         assert ffi.offsetof("struct foo", "b") == 4
         assert ffi.offsetof("struct foo", "c") == 8
 
+    def test_offsetof_nested(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo { int a, b, c; };"
+                 "struct bar { struct foo d, e; };")
+        assert ffi.offsetof("struct bar", "e") == 12
+        assert ffi.offsetof("struct bar", "e.a") == 12
+        assert ffi.offsetof("struct bar", "e.b") == 16
+        assert ffi.offsetof("struct bar", "e.c") == 20
+
     def test_alignof(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { char a; short b; char c; };")
@@ -1494,6 +1503,16 @@ class BackendTests:
             int(ffi.cast("uintptr_t", p)) + ffi.sizeof("int"))
         assert a == ffi.addressof(p, 'y')
         assert a != ffi.addressof(p, 'x')
+
+    def test_addressof_field_nested(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("struct foo_s { int x, y; };"
+                 "struct bar_s { struct foo_s a, b; };")
+        p = ffi.new("struct bar_s *")
+        a = ffi.addressof(p[0], 'b.y')
+        assert int(ffi.cast("uintptr_t", a)) == (
+            int(ffi.cast("uintptr_t", p)) +
+            ffi.sizeof("struct foo_s") + ffi.sizeof("int"))
 
     def test_addressof_anonymous_struct(self):
         ffi = FFI()
