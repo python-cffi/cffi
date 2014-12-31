@@ -673,7 +673,9 @@ not recommended.
    whenever you change your sources.
 
 .. versionadded:: 0.9
-   You can give C++ source code in ``ffi.verify()``::
+   You can give C++ source code in ``ffi.verify()``:
+
+::
 
      ext = ffi.verify(r'''
          extern "C" {
@@ -684,6 +686,27 @@ not recommended.
 .. versionadded:: 0.9
    The optional ``flags`` argument has been added, see ``man dlopen`` (ignored
    on Windows).  It defaults to ``ffi.RTLD_NOW``.
+
+.. versionadded:: 0.9
+   The optional ``relative_to`` argument is useful if you need to list
+   local files passed to the C compiler:
+
+::
+
+     ext = ffi.verify(..., sources=['foo.c'], relative_to=__file__)
+
+The line above is roughly the same as::
+
+     ext = ffi.verify(..., sources=['/path/to/this/file/foo.c'])
+
+except that the default name of the produced library is built from the
+CRC checkum of the argument ``sources``, as well as most other arguments
+you give to ``ffi.verify()`` -- but not ``relative_to``.  So if you used
+the second line, it would stop finding the already-compiled library
+after your project is installed, because the ``'/path/to/this/file'``
+suddenly changed.  The first line does not have this problem.
+
+---------------------
 
 This function returns a "library" object that gets closed when it goes
 out of scope.  Make sure you keep the library object around as long as
