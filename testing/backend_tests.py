@@ -916,6 +916,16 @@ class BackendTests:
         assert int(invalid_value) == 2
         assert ffi.string(invalid_value) == "2"
 
+    def test_enum_char_hex_oct(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef(r"enum foo{A='!', B='\'', C=0x10, D=010, E=- 0x10, F=-010};")
+        assert ffi.string(ffi.cast("enum foo", ord('!'))) == "A"
+        assert ffi.string(ffi.cast("enum foo", ord("'"))) == "B"
+        assert ffi.string(ffi.cast("enum foo", 16)) == "C"
+        assert ffi.string(ffi.cast("enum foo", 8)) == "D"
+        assert ffi.string(ffi.cast("enum foo", -16)) == "E"
+        assert ffi.string(ffi.cast("enum foo", -8)) == "F"
+
     def test_array_of_struct(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo { int a, b; };")

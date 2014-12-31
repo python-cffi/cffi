@@ -537,7 +537,18 @@ class Parser(object):
         # for now, limited to expressions that are an immediate number
         # or positive/negative number
         if isinstance(exprnode, pycparser.c_ast.Constant):
-            return int(exprnode.value, 0)
+            s = exprnode.value
+            if s.startswith('0'):
+                if s.startswith('0x') or s.startswith('0X'):
+                    return int(s, 16)
+                return int(s, 8)
+            elif '1' <= s[0] <= '9':
+                return int(s, 10)
+            elif s[0] == "'" and s[-1] == "'" and (
+                    len(s) == 3 or (len(s) == 4 and s[1] == "\\")):
+                return ord(s[-2])
+            else:
+                raise api.CDefError("invalid constant %r" % (s,))
         #
         if (isinstance(exprnode, pycparser.c_ast.UnaryOp) and
                 exprnode.op == '+'):
