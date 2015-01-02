@@ -41,6 +41,15 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
             #
             resultlist[:] = res
 
+def no_working_compiler_found():
+    sys.stderr.write("""
+    No working compiler found, or bogus compiler options
+    passed to the compiler from Python's distutils module.
+    See the error messages above.
+    (If they are about -mno-fused-madd and you are on OS/X 10.8,
+    see http://stackoverflow.com/questions/22313407/ .)\n""")
+    sys.exit(1)
+
 def ask_supports_thread():
     from distutils.core import Distribution
     from distutils.sysconfig import get_config_vars
@@ -50,6 +59,9 @@ def ask_supports_thread():
     if ok:
         define_macros.append(('USE__THREAD', None))
     else:
+        ok1 = config.try_compile('int some_regular_variable_42;')
+        if not ok1:
+            no_working_compiler_found()
         sys.stderr.write("Note: will not use '__thread' in the C code\n")
         sys.stderr.write("The above error message can be safely ignored\n")
 
