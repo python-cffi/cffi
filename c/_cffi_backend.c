@@ -4095,24 +4095,26 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
         cf = (CFieldObject *)ct->ct_extra;
         for (i=0; i<n; i++) {
             Py_ssize_t flat;
-            CTypeDescrObject *ct;
+            CTypeDescrObject *ct1;
             assert(cf != NULL);
             if (cf->cf_bitshift >= 0) {
-                PyErr_SetString(PyExc_NotImplementedError,
-                                "cannot pass as argument or return value "
-                                "a struct with bit fields");
+                PyErr_Format(PyExc_NotImplementedError,
+                     "ctype '%s' not supported as argument or return value"
+                     " (it is a struct with bit fields)",
+                     ct->ct_name);
                 return NULL;
             }
             flat = 1;
-            ct = cf->cf_type;
-            while (ct->ct_flags & CT_ARRAY) {
-                flat *= ct->ct_length;
-                ct = ct->ct_itemdescr;
+            ct1 = cf->cf_type;
+            while (ct1->ct_flags & CT_ARRAY) {
+                flat *= ct1->ct_length;
+                ct1 = ct1->ct_itemdescr;
             }
             if (flat <= 0) {
-                PyErr_SetString(PyExc_NotImplementedError,
-                                "cannot pass as argument or return value "
-                                "a struct with a zero-length array");
+                PyErr_Format(PyExc_NotImplementedError,
+                     "ctype '%s' not supported as argument or return value"
+                     " (it is a struct with a zero-length array)",
+                     ct->ct_name);
                 return NULL;
             }
             nflat += flat;
@@ -4382,11 +4384,6 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
                           &fabi))
         return NULL;
 
-    if (fresult->ct_flags & CT_UNION) {
-        PyErr_SetString(PyExc_NotImplementedError,
-                        "function returning a union");
-        return NULL;
-    }
     if ((fresult->ct_size < 0 && !(fresult->ct_flags & CT_VOID)) ||
         (fresult->ct_flags & CT_ARRAY)) {
         char *msg;
@@ -4410,8 +4407,14 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
         cif_description_t *cif_descr;
 
         cif_descr = fb_prepare_cif(fargs, fresult, fabi);
-        if (cif_descr == NULL)
-            goto error;
+        if (cif_descr == NULL) {
+            if (PyErr_ExceptionMatches(PyExc_NotImplementedError)) {
+                PyErr_Clear();   /* will get the exception if we see an
+                                    actual call */
+            }
+            else
+                goto error;
+        }
 
         fct->ct_extra = (char *)cif_descr;
     }
@@ -4646,8 +4649,9 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
 
     cif_descr = (cif_description_t *)ct->ct_extra;
     if (cif_descr == NULL) {
-        PyErr_SetString(PyExc_NotImplementedError,
-                        "callbacks with '...'");
+        PyErr_Format(PyExc_NotImplementedError,
+                     "%s: callback with unsupported argument or "
+                     "return type or with '...'", ct->ct_name);
         goto error;
     }
     if (ffi_prep_closure(closure, &cif_descr->cif,

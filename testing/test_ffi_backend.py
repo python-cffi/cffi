@@ -19,8 +19,8 @@ class TestFFI(backend_tests.BackendTests,
         ffi.cdef("struct foo_s { int a,b,c,d,e; int x:1; };")
         e = py.test.raises(NotImplementedError, ffi.callback,
                            "struct foo_s foo(void)", lambda: 42)
-        assert str(e.value) == ("<struct foo_s(*)(void)>: "
-            "cannot pass as argument or return value a struct with bit fields")
+        assert str(e.value) == ("struct foo_s(*)(): "
+            "callback with unsupported argument or return type or with '...'")
 
     def test_inspecttype(self):
         ffi = FFI(backend=self.Backend())

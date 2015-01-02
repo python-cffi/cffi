@@ -2069,3 +2069,20 @@ def get_second_lib():
     ffi2.cdef("int foo;")
     lib2 = ffi2.verify("int foo;", flags=ffi2.RTLD_GLOBAL | ffi2.RTLD_LAZY)
     return lib2
+
+def test_consider_not_implemented_function_type():
+    ffi = FFI()
+    ffi.cdef("typedef union { int a; float b; } Data;"
+             "typedef struct { int a:2; } MyStr;"
+             "typedef void (*foofunc_t)(Data);"
+             "typedef MyStr (*barfunc_t)(void);")
+    fooptr = ffi.cast("foofunc_t", 123)
+    barptr = ffi.cast("barfunc_t", 123)
+    # assert did not crash so far
+    e = py.test.raises(NotImplementedError, fooptr, ffi.new("Data *"))
+    assert str(e.value) == (
+        "ctype 'Data' not supported as argument or return value")
+    e = py.test.raises(NotImplementedError, barptr)
+    assert str(e.value) == (
+        "ctype 'MyStr' not supported as argument or return value "
+        "(it is a struct with bit fields)")
