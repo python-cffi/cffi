@@ -433,7 +433,9 @@ can assume to exist are the standard types:
   ``c_f``.
 
 * *New in version 0.6:* all `common Windows types`_ are defined if you run
-  on Windows (``DWORD``, ``LPARAM``, etc.).
+  on Windows (``DWORD``, ``LPARAM``, etc.).  *Changed in version 0.9:* the
+  types ``TBYTE TCHAR LPCTSTR PCTSTR LPTSTR PTSTR PTBYTE PTCHAR`` are no
+  longer automatically defined; see ``ffi.set_unicode()`` below.
 
 * *New in version 0.9:* the other standard integer types from stdint.h,
   as long as they map to integers of 1, 2, 4 or 8 bytes.  Larger integers
@@ -1376,9 +1378,10 @@ sure to keep it alive if it was obtained directly from ``ffi.new()``.
 
 **ffi.set_unicode(enabled_flag)**: Windows: if ``enabled_flag`` is
 True, enable the ``UNICODE`` and ``_UNICODE`` defines in C, and
-declare the types like ``TCHAR`` and ``LPTCSTR`` to be (pointers to)
-``wchar_t``.  If ``enabled_flag`` is False, declare these types to be
-(pointers to) plain 8-bit characters.  *New in version 0.9.*
+declare the types ``TBYTE TCHAR LPCTSTR PCTSTR LPTSTR PTSTR PTBYTE
+PTCHAR`` to be (pointers to) ``wchar_t``.  If ``enabled_flag`` is
+False, declare these types to be (pointers to) plain 8-bit characters.
+*New in version 0.9.*
 
 The reason behind this method is that a lot of standard functions have
 two versions, like ``MessageBoxA()`` and ``MessageBoxW()``.  The
