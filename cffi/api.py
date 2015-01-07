@@ -411,16 +411,16 @@ class FFI(object):
     def from_handle(self, x):
         return self._backend.from_handle(x)
 
-    def set_unicode(self, unicode_enabled):
-        """Windows: if 'unicode_enabled' is True, enable the UNICODE and
+    def set_unicode(self, enabled_flag):
+        """Windows: if 'enabled_flag' is True, enable the UNICODE and
         _UNICODE defines in C, and declare the types like TCHAR and LPTCSTR
-        to be (pointers to) wchar_t.  If 'unicode_enabled' is False,
+        to be (pointers to) wchar_t.  If 'enabled_flag' is False,
         declare these types to be (pointers to) plain 8-bit characters.
         This is mostly for backward compatibility; you usually want True.
         """
         if self._windows_unicode is not None:
             raise ValueError("set_unicode() can only be called once")
-        if unicode_enabled:
+        if enabled_flag:
             self.cdef("typedef wchar_t TBYTE;"
                       "typedef wchar_t TCHAR;"
                       "typedef const wchar_t *LPCTSTR;"
@@ -438,7 +438,7 @@ class FFI(object):
                       "typedef char *PTSTR;"
                       "typedef TBYTE *PTBYTE;"
                       "typedef TCHAR *PTCHAR;")
-        self._windows_unicode = unicode_enabled
+        self._windows_unicode = enabled_flag
 
     def _apply_windows_unicode(self, kwds):
         defmacros = kwds.get('define_macros', ())

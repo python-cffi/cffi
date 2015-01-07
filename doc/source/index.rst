@@ -1374,6 +1374,27 @@ sure to keep it alive if it was obtained directly from ``ffi.new()``.
 
 .. "versionadded:: 0.4" --- inlined in the previous paragraph
 
+**ffi.set_unicode(enabled_flag)**: Windows: if ``enabled_flag`` is
+True, enable the ``UNICODE`` and ``_UNICODE`` defines in C, and
+declare the types like ``TCHAR`` and ``LPTCSTR`` to be (pointers to)
+``wchar_t``.  If ``enabled_flag`` is False, declare these types to be
+(pointers to) plain 8-bit characters.  *New in version 0.9.*
+
+The reason behind this method is that a lot of standard functions have
+two versions, like ``MessageBoxA()`` and ``MessageBoxW()``.  The
+official interface is ``MessageBox()`` with arguments like
+``LPTCSTR``.  Depending on whether ``UNICODE`` is defined or not, the
+standard header renames the generic function name to one of the two
+specialized versions, and declares the correct (unicode or not) types.
+
+Usually, the right thing to do is to call this method with True.  Be
+aware (particularly on Python 2) that you then need to pass unicode
+strings as arguments, not byte strings.  (Before cffi version 0.9,
+``TCHAR`` and friends where hard-coded as unicode, but ``UNICODE`` was,
+inconsistently, not defined by default.)
+
+.. "versionadded:: 0.9" --- inlined in the previous paragraph
+
 
 Unimplemented features
 ----------------------
