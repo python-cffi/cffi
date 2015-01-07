@@ -69,6 +69,7 @@ class FFI(object):
         self._function_caches = []
         self._libraries = []
         self._cdefsources = []
+        self._windows_unicode = None
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
         for name in backend.__dict__:
@@ -347,6 +348,8 @@ class FFI(object):
         which requires binary compatibility in the signatures.
         """
         from .verifier import Verifier
+        if self._windows_unicode:
+            self._apply_windows_unicode(kwargs)
         self.verifier = Verifier(self, source, tmpdir, **kwargs)
         lib = self.verifier.load_library()
         self._libraries.append(lib)
@@ -407,6 +410,43 @@ class FFI(object):
 
     def from_handle(self, x):
         return self._backend.from_handle(x)
+
+    def set_unicode(self, unicode_enabled):
+        """Windows: if 'unicode_enabled' is True, enable the UNICODE and
+        _UNICODE defines in C, and declare the types like TCHAR and LPTCSTR
+        to be (pointers to) wchar_t.  If 'unicode_enabled' is False,
+        declare these types to be (pointers to) plain 8-bit characters.
+        This is mostly for backward compatibility; you usually want True.
+        """
+        if self._windows_unicode is not None:
+            raise ValueError("set_unicode() can only be called once")
+        if unicode_enabled:
+            self.cdef("typedef wchar_t TBYTE;"
+                      "typedef wchar_t TCHAR;"
+                      "typedef const wchar_t *LPCTSTR;"
+                      "typedef const wchar_t *PCTSTR;"
+                      "typedef wchar_t *LPTSTR;"
+                      "typedef wchar_t *PTSTR;"
+                      "typedef TBYTE *PTBYTE;"
+                      "typedef TCHAR *PTCHAR;")
+        else:
+            self.cdef("typedef char TBYTE;"
+                      "typedef char TCHAR;"
+                      "typedef const char *LPCTSTR;"
+                      "typedef const char *PCTSTR;"
+                      "typedef char *LPTSTR;"
+                      "typedef char *PTSTR;"
+                      "typedef TBYTE *PTBYTE;"
+                      "typedef TCHAR *PTCHAR;")
+        self._windows_unicode = unicode_enabled
+
+    def _apply_windows_unicode(self, kwds):
+        defmacros = kwds.get('define_macros', ())
+        if not isinstance(defmacros, (list, tuple)):
+            raise TypeError("'define_macros' must be a list or tuple")
+        defmacros = list(defmacros) + [('UNICODE', '1'),
+                                       ('_UNICODE', '1')]
+        kwds['define_macros'] = defmacros
 
 
 def _load_backend_lib(backend, name, flags):

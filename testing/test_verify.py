@@ -2086,3 +2086,31 @@ def test_consider_not_implemented_function_type():
     assert str(e.value) == (
         "ctype 'MyStr' not supported as argument or return value "
         "(it is a struct with bit fields)")
+
+def test_verify_extra_arguments():
+    ffi = FFI()
+    ffi.cdef("#define ABA ...")
+    lib = ffi.verify("", define_macros=[('ABA', '42')])
+    assert lib.ABA == 42
+
+def test_implicit_unicode_on_windows():
+    if sys.platform != 'win32':
+        py.test.skip("win32-only test")
+    for with_unicode in [True, False]:
+        ffi = FFI()
+        ffi.set_unicode(with_unicode)
+        ffi.cdef("""
+            DWORD GetModuleFileName(HMODULE hModule, LPTSTR lpFilename,
+                                    DWORD nSize);
+        """)
+        lib = ffi.verify("""
+            #include <windows.h>
+        """, libraries=['Kernel32'])
+        outbuf = ffi.new("TCHAR[]", 200)
+        n = lib.GetModuleFileName(ffi.NULL, outbuf, 500)
+        assert 0 < n < 500
+        for i in range(n):
+            print repr(outbuf[i])
+            assert ord(outbuf[i]) != 0
+        assert ord(outbuf[n]) == 0
+        assert ord(outbuf[0]) < 128     # should be a letter, or '\'
