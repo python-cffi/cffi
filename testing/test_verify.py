@@ -1,6 +1,6 @@
 import py, re
 import sys, os, math, weakref
-from cffi import FFI, VerificationError, VerificationMissing, model
+from cffi import FFI, VerificationError, VerificationMissing, model, FFIError
 from testing.support import *
 
 
@@ -2096,6 +2096,10 @@ def test_verify_extra_arguments():
 def test_implicit_unicode_on_windows():
     if sys.platform != 'win32':
         py.test.skip("win32-only test")
+    ffi = FFI()
+    e = py.test.raises(FFIError, ffi.cdef, "int foo(LPTSTR);")
+    assert str(e.value) == ("The Windows type 'LPTSTR' is only available after"
+                            " you call ffi.set_unicode()")
     for with_unicode in [True, False]:
         ffi = FFI()
         ffi.set_unicode(with_unicode)

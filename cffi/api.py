@@ -420,6 +420,7 @@ class FFI(object):
         """
         if self._windows_unicode is not None:
             raise ValueError("set_unicode() can only be called once")
+        enabled_flag = bool(enabled_flag)
         if enabled_flag:
             self.cdef("typedef wchar_t TBYTE;"
                       "typedef wchar_t TCHAR;"

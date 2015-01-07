@@ -29,6 +29,9 @@ def resolve_common_type(commontype):
                 result = model.PointerType(resolve_common_type(result[:-2]))
         elif result in model.PrimitiveType.ALL_PRIMITIVE_TYPES:
             result = model.PrimitiveType(result)
+        elif result == 'set-unicode-needed':
+            raise api.FFIError("The Windows type %r is only available after "
+                               "you call ffi.set_unicode()" % (commontype,))
         else:
             if commontype == result:
                 raise api.FFIError("Unsupported type: %r.  Please file a bug "
@@ -232,6 +235,15 @@ def win_common_types(maxsize):
         "USN": "LONGLONG",
         "VOID": model.void_type,
         "WPARAM": "UINT_PTR",
+
+        "TBYTE": "set-unicode-needed",
+        "TCHAR": "set-unicode-needed",
+        "LPCTSTR": "set-unicode-needed",
+        "PCTSTR": "set-unicode-needed",
+        "LPTSTR": "set-unicode-needed",
+        "PTSTR": "set-unicode-needed",
+        "PTBYTE": "set-unicode-needed",
+        "PTCHAR;": "set-unicode-needed",
         })
     return result
 

@@ -1381,7 +1381,8 @@ True, enable the ``UNICODE`` and ``_UNICODE`` defines in C, and
 declare the types ``TBYTE TCHAR LPCTSTR PCTSTR LPTSTR PTSTR PTBYTE
 PTCHAR`` to be (pointers to) ``wchar_t``.  If ``enabled_flag`` is
 False, declare these types to be (pointers to) plain 8-bit characters.
-*New in version 0.9.*
+(These types are not predeclared at all if you don't call
+``set_unicode()``.)  *New in version 0.9.*
 
 The reason behind this method is that a lot of standard functions have
 two versions, like ``MessageBoxA()`` and ``MessageBoxW()``.  The
