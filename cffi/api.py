@@ -347,11 +347,24 @@ class FFI(object):
         (including calling macros).  This is unlike 'ffi.dlopen()',
         which requires binary compatibility in the signatures.
         """
-        from .verifier import Verifier
+        from .verifier import Verifier, _caller_dir_pycache
+        #
+        # If set_unicode(True) was called, insert the UNICODE and
+        # _UNICODE macro declarations
         if self._windows_unicode:
             self._apply_windows_unicode(kwargs)
+        #
+        # Set the tmpdir here, and not in Verifier.__init__: it picks
+        # up the caller's directory, which we want to be the caller of
+        # ffi.verify(), as opposed to the caller of Veritier().
+        tmpdir = tmpdir or _caller_dir_pycache()
+        #
+        # Make a Verifier() and use it to load the library.
         self.verifier = Verifier(self, source, tmpdir, **kwargs)
         lib = self.verifier.load_library()
+        #
+        # Save the loaded library for keep-alive purposes, even
+        # if the caller doesn't keep it alive itself (it should).
         self._libraries.append(lib)
         return lib
 

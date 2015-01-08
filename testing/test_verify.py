@@ -2118,3 +2118,10 @@ def test_implicit_unicode_on_windows():
             assert ord(outbuf[i]) != 0
         assert ord(outbuf[n]) == 0
         assert ord(outbuf[0]) < 128     # should be a letter, or '\'
+
+def test_use_local_dir():
+    ffi = FFI()
+    lib = ffi.verify("", modulename="test_use_local_dir")
+    this_dir = os.path.dirname(__file__)
+    pycache_files = os.listdir(os.path.join(this_dir, '__pycache__'))
+    assert any('test_use_local_dir' in s for s in pycache_files)

@@ -44,7 +44,7 @@ class Verifier(object):
             modulename = '_cffi_%s_%s%s%s' % (tag, self._vengine._class_key,
                                               k1, k2)
         suffix = _get_so_suffixes()[0]
-        self.tmpdir = tmpdir or os.environ.get('CFFI_TMPDIR') or _caller_dir_pycache()
+        self.tmpdir = tmpdir or _caller_dir_pycache()
         self.sourcefilename = os.path.join(self.tmpdir, modulename + source_extension)
         self.modulefilename = os.path.join(self.tmpdir, modulename + suffix)
         self.ext_package = ext_package
@@ -210,6 +210,9 @@ _TMPDIR = None
 def _caller_dir_pycache():
     if _TMPDIR:
         return _TMPDIR
+    result = os.environ.get('CFFI_TMPDIR')
+    if result:
+        return result
     filename = sys._getframe(2).f_code.co_filename
     return os.path.abspath(os.path.join(os.path.dirname(filename),
                            '__pycache__'))
