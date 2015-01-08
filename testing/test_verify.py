@@ -1220,6 +1220,8 @@ def test_opaque_integer_as_function_result():
     import platform
     if platform.machine().startswith('sparc'):
         py.test.skip('Breaks horribly on sparc (SIGILL + corrupted stack)')
+    elif platform.machine() == 'mips64' and sys.maxsize > 2**32:
+        py.test.skip('Segfaults on mips64el')
     # XXX bad abuse of "struct { ...; }".  It only works a bit by chance
     # anyway.  XXX think about something better :-(
     ffi = FFI()
