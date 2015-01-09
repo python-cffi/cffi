@@ -4153,9 +4153,10 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
         return ffistruct;
     }
     else {
+        const char *place = is_result_type ? "return value" : "argument";
         PyErr_Format(PyExc_NotImplementedError,
-                     "ctype '%s' not supported as argument or return value",
-                     ct->ct_name);
+                     "ctype '%s' (size %zd) not supported as %s",
+                     ct->ct_name, ct->ct_size, place);
         return NULL;
     }
 }
