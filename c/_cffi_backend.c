@@ -4836,27 +4836,19 @@ static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
     CTypeDescrObject *ct;
     CFieldObject *cf;
     Py_ssize_t offset;
+    int following = 0;
 
-    if (!PyArg_ParseTuple(args, "O!O:typeoffsetof",
-                          &CTypeDescr_Type, &ct, &fieldname))
+    if (!PyArg_ParseTuple(args, "O!O|i:typeoffsetof",
+                          &CTypeDescr_Type, &ct, &fieldname, &following))
         return NULL;
 
-    if (fieldname == Py_None) {
-        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION))) {
-            PyErr_SetString(PyExc_TypeError,
-                            "expected a struct or union ctype");
-            return NULL;
-        }
-        res = (PyObject *)ct;
-        offset = 0;
-    }
-    else {
-        if (ct->ct_flags & CT_POINTER)
+    if (PyTextAny_Check(fieldname)) {
+        if (!following && (ct->ct_flags & CT_POINTER))
             ct = ct->ct_itemdescr;
         if (!(ct->ct_flags & (CT_STRUCT|CT_UNION)) || ct->ct_stuff == NULL) {
             PyErr_SetString(PyExc_TypeError,
-                            "expected an initialized struct or union ctype, "
-                            "or a pointer to one");
+                            "with a field name argument, expected an "
+                            "initialized struct or union ctype");
             return NULL;
         }
         cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
@@ -4871,6 +4863,29 @@ static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
         res = (PyObject *)cf->cf_type;
         offset = cf->cf_offset;
     }
+    else {
+        ssize_t index = PyInt_AsSsize_t(fieldname);
+        if (index < 0 && PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError,
+                            "field name or array index expected");
+            return NULL;
+        }
+
+        if (!(ct->ct_flags & (CT_ARRAY|CT_POINTER)) ||
+                ct->ct_itemdescr->ct_size < 0) {
+            PyErr_SetString(PyExc_TypeError, "with an integer argument, "
+                                             "expected an array ctype or a "
+                                             "pointer to non-opaque");
+            return NULL;
+        }
+        res = (PyObject *)ct->ct_itemdescr;
+        offset = index * ct->ct_itemdescr->ct_size;
+        if ((offset / ct->ct_itemdescr->ct_size) != index) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "array offset would overflow a Py_ssize_t");
+            return NULL;
+        }
+    }
     return Py_BuildValue("(On)", res, offset);
 }
 
@@ -4878,15 +4893,17 @@ static PyObject *b_rawaddressof(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
     CDataObject *cd;
-    Py_ssize_t offset = 0;
+    Py_ssize_t offset;
+    int accepted_flags;
 
-    if (!PyArg_ParseTuple(args, "O!O!|n:rawaddressof",
+    if (!PyArg_ParseTuple(args, "O!O!n:rawaddressof",
                           &CTypeDescr_Type, &ct,
                           &CData_Type, &cd,
                           &offset))
         return NULL;
 
-    if ((cd->c_type->ct_flags & (CT_STRUCT|CT_UNION|CT_IS_PTR_TO_OWNED)) == 0) {
+    accepted_flags = CT_STRUCT | CT_UNION | CT_ARRAY | CT_POINTER;
+    if ((cd->c_type->ct_flags & accepted_flags) == 0) {
         PyErr_SetString(PyExc_TypeError,
                         "expected a 'cdata struct-or-union' object");
         return NULL;

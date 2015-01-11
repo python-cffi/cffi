@@ -1301,11 +1301,15 @@ like in the equivalent ``sizeof`` operator in C.
 **ffi.alignof("C type")**: return the alignment of the C type.
 Corresponds to the ``__alignof__`` operator in GCC.
 
-**ffi.offsetof("C struct type", "fieldname")**: return the offset within
-the struct of the given field.  Corresponds to ``offsetof()`` in C.
+**ffi.offsetof("C struct or array type", *fields_or_indexes)**: return the
+offset within the struct of the given field.  Corresponds to ``offsetof()``
+in C.
 
 .. versionchanged:: 0.9
-   ``"fieldname"`` can be ``"x.y"`` in case of nested structures.
+   You can give several field names in case of nested structures.  You
+   can also give numeric values which correspond to array items, in case
+   of a pointer or array type.  For example, ``ffi.offsetof("int[5]", 2)``
+   is equal to the size of two integers, as is ``ffi.offsetof("int *", 2)``.
 
 **ffi.getctype("C type" or <ctype>, extra="")**: return the string
 representation of the given C type.  If non-empty, the "extra" string is
@@ -1358,21 +1362,26 @@ more, then the association ``void * -> python_object`` is dead and
 
 .. "versionadded:: 0.7" --- inlined in the previous paragraph
 
-**ffi.addressof(cdata, field=None)**: from a cdata whose type is
-``struct foo_s``, return its "address", as a cdata whose type is
-``struct foo_s *``.  Also works on unions, but not on any other type.
-(It would be difficult because only structs and unions are internally
-stored as an indirect pointer to the data.  If you need a C int whose
-address can be taken, use ``ffi.new("int[1]")`` in the first place;
-similarly, if it's a C pointer, use ``ffi.new("foo_t *[1]")``.)
-If ``field`` is given,
-returns the address of that field in the structure.  The returned
-pointer is only valid as long as the original ``cdata`` object is; be
-sure to keep it alive if it was obtained directly from ``ffi.new()``.
-*New in version 0.4.*
+**ffi.addressof(cdata, *fields_or_indexes)**: equivalent to the C
+expression ``&cdata`` or ``&cdata.field`` or ``&cdata->field`` or
+``&cdata[index]`` (or any combination of fields and indexes).  Works
+with the same ctypes where one of the above expressions would work in
+C, with one exception: if no ``fields_or_indexes`` is specified, it
+cannot be used to take the address of a primitive or pointer (it would
+be difficult to implement because only structs and unions and arrays
+are internally stored as an indirect pointer to the data.  If you need
+a C int whose address can be taken, use ``ffi.new("int[1]")`` in the
+first place; similarly, for a pointer, use ``ffi.new("foo_t *[1]")``.)
+
+The returned pointer is only valid as long as the original ``cdata``
+object is; be sure to keep it alive if it was obtained directly from
+``ffi.new()``.  *New in version 0.4.*
 
 .. versionchanged:: 0.9
-   ``"field"`` can be ``"x.y"`` in case of nested structures.
+   You can give several field names in case of nested structures, and
+   you can give numeric values for array items.  Note that
+   ``&cdata[index]`` can also be expressed as simply ``cdata + index``,
+   both in C and in CFFI.
 
 .. "versionadded:: 0.4" --- inlined in the previous paragraph
 
