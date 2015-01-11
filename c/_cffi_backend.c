@@ -4905,7 +4905,7 @@ static PyObject *b_rawaddressof(PyObject *self, PyObject *args)
     accepted_flags = CT_STRUCT | CT_UNION | CT_ARRAY | CT_POINTER;
     if ((cd->c_type->ct_flags & accepted_flags) == 0) {
         PyErr_SetString(PyExc_TypeError,
-                        "expected a 'cdata struct-or-union' object");
+                        "expected a cdata struct/union/array/pointer object");
         return NULL;
     }
     if ((ct->ct_flags & CT_POINTER) == 0) {

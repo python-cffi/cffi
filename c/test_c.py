@@ -2544,6 +2544,7 @@ def test_typeoffsetof():
     assert typeoffsetof(BStructPtr, 'a2') == (BChar, 1)
     assert typeoffsetof(BStruct, 'a3') == (BChar, 2)
     assert typeoffsetof(BStructPtr, 'a2', 0) == (BChar, 1)
+    assert typeoffsetof(BStruct, u+'a3') == (BChar, 2)
     py.test.raises(TypeError, typeoffsetof, BStructPtr, 'a2', 1)
     py.test.raises(KeyError, typeoffsetof, BStructPtr, 'a4')
     py.test.raises(KeyError, typeoffsetof, BStruct, 'a5')
@@ -2593,6 +2594,15 @@ def test_rawaddressof():
     #
     d = rawaddressof(BCharP, s, 1)
     assert d == cast(BCharP, p) + 1
+    #
+    e = cast(BCharP, 109238)
+    f = rawaddressof(BCharP, e, 42)
+    assert f == e + 42
+    #
+    BCharA = new_array_type(BCharP, None)
+    e = newp(BCharA, 50)
+    f = rawaddressof(BCharP, e, 42)
+    assert f == e + 42
 
 def test_newp_signed_unsigned_char():
     BCharArray = new_array_type(
