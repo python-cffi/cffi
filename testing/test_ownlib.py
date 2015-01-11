@@ -7,33 +7,61 @@ from cffi.backend_ctypes import CTypesBackend
 SOURCE = """\
 #include <errno.h>
 
-int test_getting_errno(void) {
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT export
+#endif
+
+EXPORT int test_getting_errno(void) {
     errno = 123;
     return -1;
 }
 
-int test_setting_errno(void) {
+EXPORT int test_setting_errno(void) {
     return errno;
 }
 
-int my_array[7] = {0, 1, 2, 3, 4, 5, 6};
+EXPORT int my_array[7] = {0, 1, 2, 3, 4, 5, 6};
 """
 
 class TestOwnLib(object):
     Backend = CTypesBackend
 
     def setup_class(cls):
-        if sys.platform == 'win32':
-            return
+        cls.module = None
         from testing.udir import udir
         udir.join('testownlib.c').write(SOURCE)
-        subprocess.check_call(
-            'gcc testownlib.c -shared -fPIC -o testownlib.so',
-            cwd=str(udir), shell=True)
-        cls.module = str(udir.join('testownlib.so'))
+        if sys.platform == 'win32':
+            import os
+            # did we already build it?
+            if os.path.exists(str(udir.join('testownlib.dll'))):
+                cls.module = str(udir.join('testownlib.dll'))
+                return
+            # try (not too hard) to find the version used to compile this python
+            # no mingw
+            from distutils.msvc9compiler import get_build_version
+            version = get_build_version()
+            toolskey = "VS%0.f0COMNTOOLS" % version
+            toolsdir = os.environ.get(toolskey, None)
+            if toolsdir is None:
+                return
+            productdir = os.path.join(toolsdir, os.pardir, os.pardir, "VC")
+            productdir = os.path.abspath(productdir)
+            vcvarsall = os.path.join(productdir, "vcvarsall.bat")
+            if os.path.isfile(vcvarsall):
+                cmd = '"%s"' % vcvarsall + ' & cl testownlib.c /D_USRDLL /D_WINDLL' \
+                        ' /LD /OUT:testownlib.dll'
+                subprocess.check_call(cmd, cwd = str(udir), shell=True)    
+                cls.module = str(udir.join('testownlib.dll'))
+        else:
+            subprocess.check_call(
+                'gcc testownlib.c -shared -fPIC -o testownlib.so',
+                cwd=str(udir), shell=True)
+            cls.module = str(udir.join('testownlib.so'))
 
     def test_getting_errno(self):
-        if sys.platform == 'win32':
+        if self.module is None:
             py.test.skip("fix the auto-generation of the tiny test lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
@@ -45,7 +73,7 @@ class TestOwnLib(object):
         assert ffi.errno == 123
 
     def test_setting_errno(self):
-        if sys.platform == 'win32':
+        if self.module is None:
             py.test.skip("fix the auto-generation of the tiny test lib")
         if self.Backend is CTypesBackend and '__pypy__' in sys.modules:
             py.test.skip("XXX errno issue with ctypes on pypy?")
@@ -60,7 +88,7 @@ class TestOwnLib(object):
         assert ffi.errno == 42
 
     def test_my_array_7(self):
-        if sys.platform == 'win32':
+        if self.module is None:
             py.test.skip("fix the auto-generation of the tiny test lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
@@ -80,7 +108,7 @@ class TestOwnLib(object):
             assert ownlib.my_array[i] == i
 
     def test_my_array_no_length(self):
-        if sys.platform == 'win32':
+        if self.module is None:
             py.test.skip("fix the auto-generation of the tiny test lib")
         if self.Backend is CTypesBackend:
             py.test.skip("not supported by the ctypes backend")
@@ -100,7 +128,7 @@ class TestOwnLib(object):
             assert ownlib.my_array[i] == i
 
     def test_keepalive_lib(self):
-        if sys.platform == 'win32':
+        if self.module is None:
             py.test.skip("fix the auto-generation of the tiny test lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
@@ -118,7 +146,7 @@ class TestOwnLib(object):
         assert res == -1
 
     def test_keepalive_ffi(self):
-        if sys.platform == 'win32':
+        if self.module is None:
             py.test.skip("fix the auto-generation of the tiny test lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
