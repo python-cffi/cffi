@@ -20,6 +20,75 @@ EXPORT int test_getting_errno(void) {
 
 EXPORT int test_setting_errno(void) {
     return errno;
+};
+
+typedef struct {
+    long x;
+    long y;
+} POINT;
+
+typedef struct {
+    long left;
+    long top;
+    long right;
+    long bottom;
+} RECT;
+
+
+EXPORT int PointInRect(RECT *prc, POINT pt)
+{
+    if (pt.x < prc->left)
+        return 0;
+    if (pt.x > prc->right)
+        return 0;
+    if (pt.y < prc->top)
+        return 0;
+    if (pt.y > prc->bottom)
+        return 0;
+    return 1;
+}
+
+EXPORT long left = 10;
+EXPORT long top = 20;
+EXPORT long right = 30;
+EXPORT long bottom = 40;
+
+EXPORT RECT ReturnRect(int i, RECT ar, RECT* br, POINT cp, RECT dr,
+                        RECT *er, POINT fp, RECT gr)
+{
+    /*Check input */
+    if (ar.left + br->left + dr.left + er->left + gr.left != left * 5)
+    {
+        ar.left = 100;
+        return ar;
+    }
+    if (ar.right + br->right + dr.right + er->right + gr.right != right * 5)
+    {
+        ar.right = 100;
+        return ar;
+    }
+    if (cp.x != fp.x)
+    {
+        ar.left = -100;
+    }
+    if (cp.y != fp.y)
+    {
+        ar.left = -200;
+    }
+    switch(i)
+    {
+    case 0:
+        return ar;
+        break;
+    case 1:
+        return dr;
+        break;
+    case 2:
+        return gr;
+        break;
+
+    }
+    return ar;
 }
 
 EXPORT int my_array[7] = {0, 1, 2, 3, 4, 5, 6};
@@ -50,8 +119,8 @@ class TestOwnLib(object):
             productdir = os.path.abspath(productdir)
             vcvarsall = os.path.join(productdir, "vcvarsall.bat")
             if os.path.isfile(vcvarsall):
-                cmd = '"%s"' % vcvarsall + ' & cl testownlib.c /D_USRDLL /D_WINDLL' \
-                        ' /LD /OUT:testownlib.dll'
+                cmd = '"%s"' % vcvarsall + ' & cl.exe testownlib.c ' \
+                        ' /LD /Fetestownlib.dll'
                 subprocess.check_call(cmd, cwd = str(udir), shell=True)    
                 cls.module = str(udir.join('testownlib.dll'))
         else:
@@ -163,3 +232,44 @@ class TestOwnLib(object):
         res = func()
         assert res == -1
         assert ffi.errno == 123
+
+    def test_struct_by_value(self):
+        if self.module is None:
+            py.test.skip("fix the auto-generation of the tiny test lib")
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            typedef struct {
+                long x;
+                long y;
+            } POINT;
+
+            typedef struct {
+                long left;
+                long top;
+                long right;
+                long bottom;
+            } RECT;
+            
+            long left, top, right, bottom;
+
+            RECT ReturnRect(int i, RECT ar, RECT* br, POINT cp, RECT dr,
+                        RECT *er, POINT fp, RECT gr);
+        """)
+        ownlib = ffi.dlopen(self.module)
+
+        rect = ffi.new('RECT[1]')
+        pt = ffi.new('POINT[1]')
+        pt[0].x = 15
+        pt[0].y = 25
+        rect[0].left = ownlib.left
+        rect[0].right = ownlib.right
+        rect[0].top = ownlib.top
+        rect[0].bottom = ownlib.bottom
+        
+        for i in range(4):
+            ret = ownlib.ReturnRect(i, rect[0], rect, pt[0], rect[0],
+                                    rect[0], pt[0], rect[0])
+            assert ret.left == ownlib.left
+            assert ret.right == ownlib.right
+            assert ret.top == ownlib.top
+            assert ret.bottom == ownlib.bottom
