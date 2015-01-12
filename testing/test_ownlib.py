@@ -268,7 +268,7 @@ class TestOwnLib(object):
         
         for i in range(4):
             ret = ownlib.ReturnRect(i, rect[0], rect, pt[0], rect[0],
-                                    rect[0], pt[0], rect[0])
+                                    rect, pt[0], rect[0])
             assert ret.left == ownlib.left
             assert ret.right == ownlib.right
             assert ret.top == ownlib.top
