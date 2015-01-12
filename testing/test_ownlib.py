@@ -10,7 +10,7 @@ SOURCE = """\
 #ifdef _WIN32
 #define EXPORT __declspec(dllexport)
 #else
-#define EXPORT export
+#define EXPORT
 #endif
 
 EXPORT int test_getting_errno(void) {
@@ -46,7 +46,7 @@ EXPORT int PointInRect(RECT *prc, POINT pt)
     if (pt.y > prc->bottom)
         return 0;
     return 1;
-}
+};
 
 EXPORT long left = 10;
 EXPORT long top = 20;
