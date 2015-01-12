@@ -4515,7 +4515,7 @@ static void _my_PyErr_WriteUnraisable(PyObject *obj, char *extra_error_line)
 #endif
     f = PySys_GetObject("stderr");
     if (f != NULL) {
-        PyFile_WriteString("From callback ", f);
+        PyFile_WriteString("From cffi callback ", f);
         PyFile_WriteObject(obj, f, 0);
         PyFile_WriteString(":\n", f);
         if (extra_error_line != NULL)
