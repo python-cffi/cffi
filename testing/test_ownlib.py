@@ -118,8 +118,12 @@ class TestOwnLib(object):
             productdir = os.path.join(toolsdir, os.pardir, os.pardir, "VC")
             productdir = os.path.abspath(productdir)
             vcvarsall = os.path.join(productdir, "vcvarsall.bat")
+            # 64?
+            arch = 'x86'
+            if sys.maxsize > 2**32:
+                arch = 'amd64'
             if os.path.isfile(vcvarsall):
-                cmd = '"%s"' % vcvarsall + ' & cl.exe testownlib.c ' \
+                cmd = '"%s" %s' % (vcvarsall, arch) + ' & cl.exe testownlib.c ' \
                         ' /LD /Fetestownlib.dll'
                 subprocess.check_call(cmd, cwd = str(udir), shell=True)    
                 cls.module = str(udir.join('testownlib.dll'))
