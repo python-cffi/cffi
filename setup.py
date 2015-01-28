@@ -66,11 +66,23 @@ def ask_supports_thread():
         sys.stderr.write("The above error message can be safely ignored\n")
 
 def use_pkg_config():
+    if sys.platform == 'darwin' and os.path.exists('/usr/local/bin/brew'):
+        use_homebrew_for_libffi()
+
     _ask_pkg_config(include_dirs,       '--cflags-only-I', '-I', sysroot=True)
     _ask_pkg_config(extra_compile_args, '--cflags-only-other')
     _ask_pkg_config(library_dirs,       '--libs-only-L', '-L', sysroot=True)
     _ask_pkg_config(extra_link_args,    '--libs-only-other')
     _ask_pkg_config(libraries,          '--libs-only-l', '-l')
+
+def use_homebrew_for_libffi():
+    # We can build by setting:
+    # PKG_CONFIG_PATH = $(brew --prefix libffi)/lib/pkgconfig
+    with os.popen('brew --prefix libffi') as brew_prefix_cmd:
+        prefix = brew_prefix_cmd.read().strip()
+    pkgconfig = os.path.join(prefix, 'lib', 'pkgconfig')
+    os.environ['PKG_CONFIG_PATH'] = (
+        os.environ.get('PKG_CONFIG_PATH', '') + ':' + pkgconfig)
 
 
 if sys.platform == 'win32':
