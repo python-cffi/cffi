@@ -48,8 +48,11 @@ class Verifier(object):
         self.sourcefilename = os.path.join(self.tmpdir, modulename + source_extension)
         self.modulefilename = os.path.join(self.tmpdir, modulename + suffix)
         self.ext_package = ext_package
-        self._has_source = False
         self._has_module = False
+
+    @property
+    def _has_source(self):
+        return os.path.exists(self.sourcefilename)
 
     def write_source(self, file=None):
         """Write the C source code.  It is produced in 'self.sourcefilename',
@@ -156,8 +159,6 @@ class Verifier(object):
             del self._vengine._f
             if must_close:
                 file.close()
-        if must_close:
-            self._has_source = True
 
     def _compile_module(self):
         # compile this C source
