@@ -1,4 +1,4 @@
-import sys, os, binascii, shutil
+import sys, os, binascii, shutil, io
 from . import __version_verifier_modules__
 from . import ffiplatform
 
@@ -11,6 +11,12 @@ else:
     def _extension_suffixes():
         return [suffix for suffix, _, type in imp.get_suffixes()
                 if type == imp.C_EXTENSION]
+
+
+if sys.version_info >= (3,):
+    NativeIO = io.StringIO
+else:
+    NativeIO = io.BytesIO
 
 
 class Verifier(object):
@@ -48,11 +54,8 @@ class Verifier(object):
         self.sourcefilename = os.path.join(self.tmpdir, modulename + source_extension)
         self.modulefilename = os.path.join(self.tmpdir, modulename + suffix)
         self.ext_package = ext_package
+        self._has_source = False
         self._has_module = False
-
-    @property
-    def _has_source(self):
-        return os.path.exists(self.sourcefilename)
 
     def write_source(self, file=None):
         """Write the C source code.  It is produced in 'self.sourcefilename',
@@ -148,17 +151,35 @@ class Verifier(object):
         self._has_module = True
 
     def _write_source(self, file=None):
-        must_close = (file is None)
-        if must_close:
-            _ensure_dir(self.sourcefilename)
-            file = open(self.sourcefilename, 'w')
-        self._vengine._f = file
+        # Write our source file to an in memory file.
+        self._vengine._f = NativeIO()
         try:
             self._vengine.write_source_to_f()
         finally:
+            source_data = self._vengine._f.getvalue()
             del self._vengine._f
+
+        # Determine if this matches the current file
+        if file is None and os.path.exists(self.sourcefilename):
+            with open(self.sourcefilename, "r") as fp:
+                needs_written = not (fp.read() == source_data)
+        else:
+            needs_written = True
+
+        # Actually write the file out if it doesn't match
+        must_close = (file is None)
+        if needs_written:
             if must_close:
-                file.close()
+                _ensure_dir(self.sourcefilename)
+                file = open(self.sourcefilename, "w")
+            try:
+                file.write(source_data)
+            finally:
+                if must_close:
+                    file.close()
+
+        if must_close:
+            self._has_source = True
 
     def _compile_module(self):
         # compile this C source
