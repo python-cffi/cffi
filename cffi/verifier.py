@@ -16,7 +16,11 @@ else:
 if sys.version_info >= (3,):
     NativeIO = io.StringIO
 else:
-    NativeIO = io.BytesIO
+    class NativeIO(io.BytesIO):
+        def write(self, s):
+            if isinstance(s, unicode):
+                s = s.encode('ascii')
+            super(NativeIO, self).write(s)
 
 
 class Verifier(object):
@@ -150,35 +154,36 @@ class Verifier(object):
         self._vengine.collect_types()
         self._has_module = True
 
-    def _write_source(self, file=None):
-        # Write our source file to an in memory file.
-        self._vengine._f = NativeIO()
+    def _write_source_to(self, file):
+        self._vengine._f = file
         try:
             self._vengine.write_source_to_f()
         finally:
-            source_data = self._vengine._f.getvalue()
             del self._vengine._f
 
-        # Determine if this matches the current file
-        if file is None and os.path.exists(self.sourcefilename):
-            with open(self.sourcefilename, "r") as fp:
-                needs_written = not (fp.read() == source_data)
+    def _write_source(self, file=None):
+        if file is not None:
+            self._write_source_to(file)
         else:
-            needs_written = True
+            # Write our source file to an in memory file.
+            f = NativeIO()
+            self._write_source_to(f)
+            source_data = f.getvalue()
 
-        # Actually write the file out if it doesn't match
-        must_close = (file is None)
-        if needs_written:
-            if must_close:
+            # Determine if this matches the current file
+            if os.path.exists(self.sourcefilename):
+                with open(self.sourcefilename, "r") as fp:
+                    needs_written = not (fp.read() == source_data)
+            else:
+                needs_written = True
+
+            # Actually write the file out if it doesn't match
+            if needs_written:
                 _ensure_dir(self.sourcefilename)
-                file = open(self.sourcefilename, "w")
-            try:
-                file.write(source_data)
-            finally:
-                if must_close:
-                    file.close()
+                with open(self.sourcefilename, "w") as fp:
+                    fp.write(source_data)
 
-        if must_close:
+            # Set this flag
             self._has_source = True
 
     def _compile_module(self):
