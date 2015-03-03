@@ -88,13 +88,13 @@ Requirements:
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-0.8.6.tar.gz
+* http://pypi.python.org/packages/source/c/cffi/cffi-0.9.0.tar.gz
 
    - Or grab the most current version by following the instructions below.
 
-   - MD5: 474b5a68299a6f05009171de1dc91be6
+   - MD5: 3a2f6b9f16e8082271aed6dcac51a71a
 
-   - SHA: 4e82390201e6f30e9df8a91cd176df19b8f2d547
+   - SHA: 02e44ecada40cb859e18e0b628cc52deba064a39
 
 * Or get it from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
