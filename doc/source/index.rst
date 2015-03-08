@@ -92,9 +92,9 @@ Download and Installation:
 
    - Or grab the most current version by following the instructions below.
 
-   - MD5: ...
+   - MD5: 8dbdf23c600845b75654024e434601ce
 
-   - SHA: ...
+   - SHA: 6a1b297ee7108803f54bb6333cf1e5630a193756
 
 * Or get it from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
