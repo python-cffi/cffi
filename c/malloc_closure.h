@@ -125,6 +125,7 @@ static void more_core(void)
     if (item == NULL)
         return;
 #else
+    {
     int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
     if (is_emutramp_enabled ())
         prot &= ~PROT_EXEC;
@@ -136,6 +137,7 @@ static void more_core(void)
                         0);
     if (item == (void *)MAP_FAILED)
         return;
+    }
 #endif
 
 #ifdef MALLOC_CLOSURE_DEBUG
