@@ -139,7 +139,7 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='0.9.0',
+        version='0.9.1',
         packages=['cffi'],
         zip_safe=False,
 
