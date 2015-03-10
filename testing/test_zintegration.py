@@ -3,6 +3,9 @@ import imp
 import subprocess
 from testing.udir import udir
 
+if sys.platform == 'win32':
+    py.test.skip('snippets do not run on win32')
+
 def create_venv(name):
     tmpdir = udir.join(name)
     try:
