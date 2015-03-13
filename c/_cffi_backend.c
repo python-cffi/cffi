@@ -5178,6 +5178,7 @@ static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view)
 
 static int invalid_input_buffer_type(PyObject *x)
 {
+#if PY_MAJOR_VERSION < 3
     if (PyBuffer_Check(x)) {
         /* XXX fish fish fish in an inofficial way */
         typedef struct {
@@ -5190,11 +5191,17 @@ static int invalid_input_buffer_type(PyObject *x)
         if (x == NULL)
             return 0;
     }
-    else if (PyMemoryView_Check(x)) {
+    else
+#endif
+#if PY_MAJOR_VERSION > 2 || PY_MINOR_VERSION > 6
+    if (PyMemoryView_Check(x)) {
         x = PyMemoryView_GET_BASE(x);
         if (x == NULL)
             return 0;
     }
+    else
+#endif
+        ;
 
     if (PyBytes_Check(x) || PyUnicode_Check(x))
         return 1;
@@ -5470,6 +5477,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     return PyLong_FromVoidPtr(f);
 }
 
+#if PY_MAJOR_VERSION < 3
 static Py_ssize_t _test_segcountproc(PyObject *o, Py_ssize_t *ignored)
 {
     return 1;
@@ -5492,6 +5500,7 @@ static Py_ssize_t _test_getcharbuf(PyObject *o, Py_ssize_t i, char **r)
     *r = buf;
     return 3;
 }
+#endif
 static int _test_getbuf(PyObject *self, Py_buffer *view, int flags)
 {
     static char buf[] = "GTB";
@@ -5514,12 +5523,14 @@ static PyObject *b__testbuff(PyObject *self, PyObject *args)
 
     assert(obj->tp_as_buffer != NULL);
 
+#if PY_MAJOR_VERSION < 3
     obj->tp_as_buffer->bf_getsegcount = &_test_segcountproc;
     obj->tp_flags |= Py_TPFLAGS_HAVE_GETCHARBUFFER;
     obj->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;
     if (methods & 1)  obj->tp_as_buffer->bf_getreadbuffer  = &_test_getreadbuf;
     if (methods & 2)  obj->tp_as_buffer->bf_getwritebuffer = &_test_getwritebuf;
     if (methods & 4)  obj->tp_as_buffer->bf_getcharbuffer  = &_test_getcharbuf;
+#endif
     if (methods & 8)  obj->tp_as_buffer->bf_getbuffer      = &_test_getbuf;
     if (methods & 16) obj->tp_as_buffer->bf_getbuffer      = &_test_getbuf_ro;
 
