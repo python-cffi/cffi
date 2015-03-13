@@ -3258,6 +3258,56 @@ def test_from_buffer():
     cast(p, c)[1] += 500
     assert list(a) == [10000, 20500, 30000]
 
+def test_from_buffer_more_cases():
+    try:
+        from _cffi_backend import _testbuff
+    except ImportError:
+        py.test.skip("not for pypy")
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BCharA = new_array_type(BCharP, None)
+    #
+    def check1(bufobj, expected):
+        c = from_buffer(BCharA, bufobj)
+        assert typeof(c) is BCharA
+        assert list(c) == list(expected)
+    #
+    def check(methods, expected, expeted_for_memoryview=None):
+        from __builtin__ import buffer, memoryview
+        class X(object):
+            pass
+        _testbuff(X, methods)
+        bufobj = X()
+        check1(bufobj, expected)
+        try:
+            bufobjb = buffer(bufobj)
+        except TypeError:
+            pass
+        else:
+            check1(bufobjb, expected)
+        try:
+            bufobjm = memoryview(bufobj)
+        except TypeError:
+            pass
+        else:
+            check1(bufobjm, expeted_for_memoryview or expected)
+    #
+    check(1, "RDB")
+    check(2, "WRB")
+    check(4, "CHB")
+    check(8, "GTB")
+    check(16, "ROB")
+    #
+    check(1 | 2, "RDB")
+    check(1 | 4, "RDB")
+    check(2 | 4, "CHB")
+    check(1 | 8, "RDB", "GTB")
+    check(1 | 16, "RDB", "ROB")
+    check(2 | 8, "WRB", "GTB")
+    check(2 | 16, "WRB", "ROB")
+    check(4 | 8, "CHB", "GTB")
+    check(4 | 16, "CHB", "ROB")
+
 def test_version():
     # this test is here mostly for PyPy
     assert __version__ == "0.9.1"

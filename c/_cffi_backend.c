@@ -5142,10 +5142,13 @@ static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view)
        'view->obj'. */
     PyBufferProcs *pb = x->ob_type->tp_as_buffer;
     if (pb && !pb->bf_releasebuffer) {
-        /* try all three in some vaguely sensible order */
-        readbufferproc proc = (readbufferproc)pb->bf_getwritebuffer;
+        /* we used to try all three in some vaguely sensible order,
+           i.e. first the write.  But trying to call the write on a
+           read-only buffer fails with TypeError.  So we use a less-
+           sensible order now.  See test_from_buffer_more_cases. */
+        readbufferproc proc = (readbufferproc)pb->bf_getreadbuffer;
         if (!proc)     proc = (readbufferproc)pb->bf_getcharbuffer;
-        if (!proc)     proc = (readbufferproc)pb->bf_getreadbuffer;
+        if (!proc)     proc = (readbufferproc)pb->bf_getwritebuffer;
         if (proc && pb->bf_getsegcount) {
             if ((*pb->bf_getsegcount)(x, NULL) != 1) {
                 PyErr_SetString(PyExc_TypeError,
@@ -5441,6 +5444,63 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     return PyLong_FromVoidPtr(f);
 }
 
+static Py_ssize_t _test_segcountproc(PyObject *o, Py_ssize_t *ignored)
+{
+    return 1;
+}
+static Py_ssize_t _test_getreadbuf(PyObject *o, Py_ssize_t i, void **r)
+{
+    static char buf[] = "RDB";
+    *r = buf;
+    return 3;
+}
+static Py_ssize_t _test_getwritebuf(PyObject *o, Py_ssize_t i, void **r)
+{
+    static char buf[] = "WRB";
+    *r = buf;
+    return 3;
+}
+static Py_ssize_t _test_getcharbuf(PyObject *o, Py_ssize_t i, char **r)
+{
+    static char buf[] = "CHB";
+    *r = buf;
+    return 3;
+}
+static int _test_getbuf(PyObject *self, Py_buffer *view, int flags)
+{
+    static char buf[] = "GTB";
+    return PyBuffer_FillInfo(view, self, buf, 3, /*readonly=*/0, flags);
+}
+static int _test_getbuf_ro(PyObject *self, Py_buffer *view, int flags)
+{
+    static char buf[] = "ROB";
+    return PyBuffer_FillInfo(view, self, buf, 3, /*readonly=*/1, flags);
+}
+
+
+static PyObject *b__testbuff(PyObject *self, PyObject *args)
+{
+    /* for testing only */
+    int methods;
+    PyTypeObject *obj;
+    if (!PyArg_ParseTuple(args, "O!i|_testbuff", &PyType_Type, &obj, &methods))
+        return NULL;
+
+    assert(obj->tp_as_buffer != NULL);
+
+    obj->tp_as_buffer->bf_getsegcount = &_test_segcountproc;
+    obj->tp_flags |= Py_TPFLAGS_HAVE_GETCHARBUFFER;
+    obj->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;
+    if (methods & 1)  obj->tp_as_buffer->bf_getreadbuffer  = &_test_getreadbuf;
+    if (methods & 2)  obj->tp_as_buffer->bf_getwritebuffer = &_test_getwritebuf;
+    if (methods & 4)  obj->tp_as_buffer->bf_getcharbuffer  = &_test_getcharbuf;
+    if (methods & 8)  obj->tp_as_buffer->bf_getbuffer      = &_test_getbuf;
+    if (methods & 16) obj->tp_as_buffer->bf_getbuffer      = &_test_getbuf_ro;
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef FFIBackendMethods[] = {
     {"load_library", b_load_library, METH_VARARGS},
     {"new_primitive_type", b_new_primitive_type, METH_VARARGS},
@@ -5473,6 +5533,7 @@ static PyMethodDef FFIBackendMethods[] = {
 #endif
     {"_get_types", b__get_types, METH_NOARGS},
     {"_testfunc", b__testfunc, METH_VARARGS},
+    {"_testbuff", b__testbuff, METH_VARARGS},
     {NULL,     NULL}    /* Sentinel */
 };
 
