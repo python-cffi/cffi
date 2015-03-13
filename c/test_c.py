@@ -3258,6 +3258,20 @@ def test_from_buffer():
     cast(p, c)[1] += 500
     assert list(a) == [10000, 20500, 30000]
 
+def test_from_buffer_not_str_unicode_bytearray():
+    from __builtin__ import buffer
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BCharA = new_array_type(BCharP, None)
+    py.test.raises(TypeError, from_buffer, BCharA, b"foo")
+    py.test.raises(TypeError, from_buffer, BCharA, u"foo")
+    py.test.raises(TypeError, from_buffer, BCharA, bytearray(b"foo"))
+    py.test.raises(TypeError, from_buffer, BCharA, buffer(b"foo"))
+    py.test.raises(TypeError, from_buffer, BCharA, buffer(u"foo"))
+    py.test.raises(TypeError, from_buffer, BCharA, buffer(bytearray(b"foo")))
+    py.test.raises(TypeError, from_buffer, BCharA, memoryview(b"foo"))
+    py.test.raises(TypeError, from_buffer, BCharA, memoryview(bytearray(b"fo")))
+
 def test_from_buffer_more_cases():
     try:
         from _cffi_backend import _testbuff

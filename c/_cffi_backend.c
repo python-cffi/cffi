@@ -5176,6 +5176,33 @@ static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view)
     return 0;
 }
 
+static int invalid_input_buffer_type(PyObject *x)
+{
+    if (PyBuffer_Check(x)) {
+        /* XXX fish fish fish in an inofficial way */
+        typedef struct {
+            PyObject_HEAD
+            PyObject *b_base;
+        } _my_PyBufferObject;
+
+        _my_PyBufferObject *b = (_my_PyBufferObject *)x;
+        x = b->b_base;
+        if (x == NULL)
+            return 0;
+    }
+    else if (PyMemoryView_Check(x)) {
+        x = PyMemoryView_GET_BASE(x);
+        if (x == NULL)
+            return 0;
+    }
+
+    if (PyBytes_Check(x) || PyUnicode_Check(x))
+        return 1;
+    if (PyByteArray_Check(x)) /* <= this one here for PyPy compatibility */
+        return 1;
+    return 0;
+}
+
 static PyObject *b_from_buffer(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
@@ -5191,8 +5218,7 @@ static PyObject *b_from_buffer(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    if (PyBytes_Check(x) || PyText_Check(x) ||
-        PyByteArray_Check(x) /* <= this one here for PyPy compatibility */ ) {
+    if (invalid_input_buffer_type(x)) {
         PyErr_SetString(PyExc_TypeError,
                         "from_buffer() cannot return the address of the "
                         "raw string within a "STR_OR_BYTES" or unicode or "
