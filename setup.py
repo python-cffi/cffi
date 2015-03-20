@@ -6,7 +6,8 @@ import errno
 sources = ['c/_cffi_backend.c']
 libraries = ['ffi']
 include_dirs = ['/usr/include/ffi',
-                '/usr/include/libffi']    # may be changed by pkg-config
+                '/usr/include/libffi',
+                '/usr/local/include']    # may be changed by pkg-config
 define_macros = []
 library_dirs = []
 extra_compile_args = []
