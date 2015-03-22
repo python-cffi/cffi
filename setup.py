@@ -6,8 +6,7 @@ import errno
 sources = ['c/_cffi_backend.c']
 libraries = ['ffi']
 include_dirs = ['/usr/include/ffi',
-                '/usr/include/libffi',
-                '/usr/local/include']    # may be changed by pkg-config
+                '/usr/include/libffi']    # may be changed by pkg-config
 define_macros = []
 library_dirs = []
 extra_compile_args = []
@@ -109,6 +108,9 @@ if COMPILE_LIBFFI:
 else:
     use_pkg_config()
     ask_supports_thread()
+
+if 'freebsd' in sys.platform:
+    include_dirs.append('/usr/local/include')
 
 
 if __name__ == '__main__':
