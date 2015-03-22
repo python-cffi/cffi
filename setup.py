@@ -109,6 +109,9 @@ else:
     use_pkg_config()
     ask_supports_thread()
 
+if 'freebsd' in sys.platform:
+    include_dirs.append('/usr/local/include')
+
 
 if __name__ == '__main__':
     from setuptools import setup, Extension
