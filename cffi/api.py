@@ -371,6 +371,31 @@ class FFI(object):
         self._libraries.append(lib)
         return lib
 
+    def csource(self, modulename, source='', **kwargs):
+        if hasattr(self, '_csource'):
+            raise ValueError("can't call csource() more than once")
+        self._csource = (modulename, source, kwargs)
+
+    def recompile(self):
+        from .verifier import Verifier
+        if self._windows_unicode:
+            self._apply_windows_unicode(kwargs)
+        modulename, source, kwargs = self._csource
+        verifier = Verifier(self, source, modulename=modulename+'_ffi',
+                            tmpdir='.',  **kwargs)
+        verifier.compile_module()
+        f = open(modulename + '.py', 'w')
+        print >> f, 'import os, cffi as _cffi'
+        print >> f, 'ffi = _cffi.FFI()'
+        for cdef in self._cdefsources:
+            print >> f
+            print >> f, 'ffi.cdef(%r)' % (cdef,)
+        print >> f
+        print >> f, 'lib = ffi.verify('
+        print >> f, '    tmpdir=os.path.dirname(__file__), modulename=%r)' % (
+            modulename + '_ffi',)
+        f.close()
+
     def _get_errno(self):
         return self._backend.get_errno()
     def _set_errno(self, errno):
