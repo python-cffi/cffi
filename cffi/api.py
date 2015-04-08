@@ -378,9 +378,9 @@ class FFI(object):
 
     def recompile(self):
         from .verifier import Verifier
+        modulename, source, kwargs = self._csource
         if self._windows_unicode:
             self._apply_windows_unicode(kwargs)
-        modulename, source, kwargs = self._csource
         verifier = Verifier(self, source, modulename=modulename+'_ffi',
                             tmpdir='.',  **kwargs)
         verifier.compile_module()
