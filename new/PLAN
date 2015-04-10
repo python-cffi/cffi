@@ -94,6 +94,15 @@ struct {
 }
 
 
+_cffi_typenames
+---------------
+
+struct {
+    const char *name;
+    int type_index;          // -> _cffi_types
+}
+
+
 _cffi_constants
 ---------------
 
