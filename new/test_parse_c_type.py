@@ -52,6 +52,8 @@ Pointer = make_getter('POINTER')
 Array = make_getter('ARRAY')
 OpenArray = make_getter('OPEN_ARRAY')
 NoOp = make_getter('NOOP')
+Func = make_getter('FUNCTION')
+FuncEnd = make_getter('FUNCTION_END')
 
 
 def test_simple():
@@ -101,3 +103,25 @@ def test_grouping():
                                     Pointer(0), Pointer(1),
                                     NoOp(6), Pointer(3), '->', Pointer(4),
                                     OpenArray(2)]
+
+def test_simple_function():
+    assert parse("int()") == [Prim(lib._CFFI_PRIM_INT),
+                              '->', Func(0), FuncEnd(0), 0]
+    assert parse("int(int)") == [Prim(lib._CFFI_PRIM_INT),
+                                 '->', Func(0), NoOp(4), FuncEnd(0),
+                                 Prim(lib._CFFI_PRIM_INT)]
+    assert parse("int(long, char)") == [
+                                 Prim(lib._CFFI_PRIM_INT),
+                                 '->', Func(0), NoOp(5), NoOp(6), FuncEnd(0),
+                                 Prim(lib._CFFI_PRIM_LONG),
+                                 Prim(lib._CFFI_PRIM_CHAR)]
+    assert parse("int(int*)") == [Prim(lib._CFFI_PRIM_INT),
+                                  '->', Func(0), NoOp(5), FuncEnd(0),
+                                  Prim(lib._CFFI_PRIM_INT),
+                                  Pointer(4)]
+    assert parse("int*(void)") == [Prim(lib._CFFI_PRIM_INT),
+                                   Pointer(0),
+                                   '->', Func(1), FuncEnd(0), 0]
+    assert parse("int(int, ...)") == [Prim(lib._CFFI_PRIM_INT),
+                                      '->', Func(0), NoOp(5), FuncEnd(1), 0,
+                                      Prim(lib._CFFI_PRIM_INT)]

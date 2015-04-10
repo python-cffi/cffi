@@ -77,6 +77,22 @@ static char get_following_char(token_t *tok)
     return *p;
 }
 
+static int number_of_commas(token_t *tok)
+{
+    const char *p = tok->p;
+    int result = 0;
+    int nesting = 0;
+    while (1) {
+        switch (*p++) {
+        case ',': result++; break;
+        case '(': nesting++; break;
+        case ')': if ((--nesting) < 0) return result; break;
+        case 0:   return result;
+        default:  break;
+        }
+    }
+}
+
 static void next_token(token_t *tok)
 {
     const char *p = tok->p + tok->size;
@@ -237,43 +253,47 @@ static int parse_sequel(token_t *tok, int outer)
             result = _CFFI_OP(_CFFI_GETOP(0), x);
         }
         else {
-            abort();
-#if 0
             /* function type */
-            ds = alloc_ds(tok, 2);
-            if (ds == NULL)
-                return;
-            ds[0] = TOK_OPEN_PAREN;
-            ds[1] = 0;
+            int arg_total, base_index, arg_next, has_ellipsis=0;
+
             if (tok->kind == TOK_VOID && get_following_char(tok) == ')') {
                 next_token(tok);
             }
+
+            /* (over-)estimate 'arg_total'.  May return 1 when it is really 0 */
+            arg_total = number_of_commas(tok) + 1;
+
+            *p_current = _CFFI_OP(_CFFI_GETOP(*p_current), tok->output_index);
+            p_current = tok->output + tok->output_index;
+
+            base_index = write_ds(tok, _CFFI_OP(_CFFI_OP_FUNCTION, 0));
+            if (base_index < 0)
+                return -1;
+            /* reserve (arg_total + 1) slots for the arguments and the
+               final FUNCTION_END */
+            for (arg_next = 0; arg_next <= arg_total; arg_next++)
+                if (write_ds(tok, _CFFI_OP(0, 0)) < 0)
+                    return -1;
+
+            arg_next = base_index + 1;
+
             if (tok->kind != TOK_CLOSE_PAREN) {
                 while (1) {
                     if (tok->kind == TOK_DOTDOTDOT) {
-                        ds[0] = TOK_DOTDOTDOT;
+                        has_ellipsis = 1;
                         next_token(tok);
                         break;
                     }
-                    intptr_t *ds_type = alloc_ds(tok, 2);
-                    if (ds_type == NULL)
-                        return;
-                    assert(ds_type == ds + 2 + 2 * ds[1]);
-                    assert(2 * sizeof(intptr_t) >= sizeof(_crx_qual_type));
-                    parse_complete(tok, (_crx_qual_type *)ds_type);
-                    ds[1]++;
+                    int arg = parse_complete(tok);
+                    assert(arg_next - base_index <= arg_total);
+                    tok->output[arg_next++] = _CFFI_OP(_CFFI_OP_NOOP, arg);
                     if (tok->kind != TOK_COMMA)
                         break;
                     next_token(tok);
                 }
             }
-            intptr_t *ds_next = alloc_ds(tok, 1);
-            if (ds_next == NULL)
-                return;
-            assert(ds_next == ds + 2 + 2 * ds[1]);
-            *ds_next = *jump_slot;
-            *jump_slot = -(ds - tok->all_delay_slots);
-#endif
+            tok->output[arg_next] = _CFFI_OP(_CFFI_OP_FUNCTION_END,
+                                             has_ellipsis);
         }
 
         if (tok->kind != TOK_CLOSE_PAREN)
