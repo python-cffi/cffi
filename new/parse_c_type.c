@@ -181,12 +181,20 @@ static int write_ds(token_t *tok, _cffi_opcode_t ds)
 
 static int parse_complete(token_t *tok);
 
-static int parse_sequel(token_t *tok)
+static int parse_sequel(token_t *tok, int outer)
 {
+    /* Emit opcodes for the "sequel", which is the optional part of a
+       type declaration that follows the type name, i.e. everything
+       with '*', '[ ]', '( )'.  Returns the entry point index pointing
+       the innermost opcode (the one that corresponds to the complete
+       type).  The 'outer' argument is the index of the opcode outside
+       this "sequel".
+     */
+
  header:
     switch (tok->kind) {
     case TOK_STAR:
-        write_ds(tok, _CFFI_OP(_CFFI_OP_POINTER, tok->output_index - 1));
+        outer = write_ds(tok, _CFFI_OP(_CFFI_OP_POINTER, outer));
         next_token(tok);
         goto header;
     case TOK_CONST:
@@ -201,35 +209,36 @@ static int parse_sequel(token_t *tok)
         break;
     }
 
-    _cffi_opcode_t slot_result = _CFFI_OP(0, tok->output_index - 1);
-    _cffi_opcode_t *p_current = &slot_result;
-
-    int check_for_grouping = -1;
+    int check_for_grouping = 1;
     if (tok->kind == TOK_IDENTIFIER) {
         next_token(tok);    /* skip a potential variable name */
-        check_for_grouping = 1;
+        check_for_grouping = 0;
     }
 
- next_right_part:
-    check_for_grouping++;
+    _cffi_opcode_t result = 0;
+    _cffi_opcode_t *p_current = &result;
 
-    switch (tok->kind) {
-
-    case TOK_OPEN_PAREN:
+    while (tok->kind == TOK_OPEN_PAREN) {
         next_token(tok);
 
-        abort();
-#if 0
-        if (check_for_grouping == 0 && (tok->kind == TOK_STAR ||
-                                        tok->kind == TOK_CONST ||
-                                        tok->kind == TOK_VOLATILE ||
-                                        tok->kind == TOK_OPEN_BRACKET)) {
-            /* just parentheses for grouping */
-            ds = tok->delay_slots;
-            parse_sequel(tok, *jump_slot);
-            *jump_slot = -(ds - tok->all_delay_slots);
+        if ((check_for_grouping--) == 1 && (tok->kind == TOK_STAR ||
+                                            tok->kind == TOK_CONST ||
+                                            tok->kind == TOK_VOLATILE ||
+                                            tok->kind == TOK_OPEN_BRACKET)) {
+            /* just parentheses for grouping.  Use a OP_NOOP to simplify */
+            int x;
+            assert(p_current == &result);
+            x = tok->output_index;
+            p_current = tok->output + x;
+
+            write_ds(tok, _CFFI_OP(_CFFI_OP_NOOP, 0));
+
+            x = parse_sequel(tok, x);
+            result = _CFFI_OP(_CFFI_GETOP(0), x);
         }
         else {
+            abort();
+#if 0
             /* function type */
             ds = alloc_ds(tok, 2);
             if (ds == NULL)
@@ -264,21 +273,17 @@ static int parse_sequel(token_t *tok)
             assert(ds_next == ds + 2 + 2 * ds[1]);
             *ds_next = *jump_slot;
             *jump_slot = -(ds - tok->all_delay_slots);
-        }
-
-        if (tok->kind != TOK_CLOSE_PAREN) {
-            parse_error(tok, "expected ')'");
-            return;
-        }
-        next_token(tok);
-        goto next_right_part;
 #endif
+        }
 
-    case TOK_OPEN_BRACKET:
-    {
-        _cffi_opcode_t prev = *p_current;
-        *p_current = _CFFI_OP(_CFFI_GETOP(prev), tok->output_index);
-        p_current = &tok->output[tok->output_index];
+        if (tok->kind != TOK_CLOSE_PAREN)
+            return parse_error(tok, "expected ')'");
+        next_token(tok);
+    }
+
+    while (tok->kind == TOK_OPEN_BRACKET) {
+        *p_current = _CFFI_OP(_CFFI_GETOP(*p_current), tok->output_index);
+        p_current = tok->output + tok->output_index;
 
         next_token(tok);
         if (tok->kind != TOK_CLOSE_BRACKET) {
@@ -293,21 +298,19 @@ static int parse_sequel(token_t *tok)
                 length = strtoul(tok->p, NULL, 10);
             next_token(tok);
 
-            write_ds(tok, _CFFI_OP(_CFFI_OP_ARRAY, _CFFI_GETARG(prev)));
+            write_ds(tok, _CFFI_OP(_CFFI_OP_ARRAY, 0));
             write_ds(tok, (_cffi_opcode_t)length);
         }
         else
-            write_ds(tok, _CFFI_OP(_CFFI_OP_OPEN_ARRAY, _CFFI_GETARG(prev)));
+            write_ds(tok, _CFFI_OP(_CFFI_OP_OPEN_ARRAY, 0));
 
         if (tok->kind != TOK_CLOSE_BRACKET)
             return parse_error(tok, "expected ']'");
         next_token(tok);
-        goto next_right_part;
     }
-    default:
-        break;
-    }
-    return _CFFI_GETARG(slot_result);
+
+    *p_current = _CFFI_OP(_CFFI_GETOP(*p_current), outer);
+    return _CFFI_GETARG(result);
 }
 
 #if 0
@@ -546,8 +549,7 @@ static int parse_complete(token_t *tok)
         next_token(tok);
     }
 
-    write_ds(tok, t1);
-    return parse_sequel(tok);
+    return parse_sequel(tok, write_ds(tok, t1));
 }
 
 

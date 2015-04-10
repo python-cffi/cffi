@@ -15,6 +15,7 @@ typedef void *_cffi_opcode_t;
 #define _CFFI_OP_TYPENAME       13
 #define _CFFI_OP_FUNCTION       15
 #define _CFFI_OP_FUNCTION_END   17
+#define _CFFI_OP_NOOP           19
 
 #define _CFFI_PRIM_VOID          0
 #define _CFFI_PRIM_BOOL          1

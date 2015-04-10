@@ -48,8 +48,10 @@ def make_getter(name):
     return getter
 
 Prim = make_getter('PRIMITIVE')
+Pointer = make_getter('POINTER')
 Array = make_getter('ARRAY')
 OpenArray = make_getter('OPEN_ARRAY')
+NoOp = make_getter('NOOP')
 
 
 def test_simple():
@@ -72,6 +74,30 @@ def test_array():
                                   Array(0),
                                   8]
     assert parse("int[][8]") == [Prim(lib._CFFI_PRIM_INT),
-                                  '->', OpenArray(2),
-                                  Array(0),
-                                  8]
+                                 '->', OpenArray(2),
+                                 Array(0),
+                                 8]
+
+def test_pointer():
+    assert parse("int*") == [Prim(lib._CFFI_PRIM_INT), '->', Pointer(0)]
+    assert parse("int***") == [Prim(lib._CFFI_PRIM_INT),
+                               Pointer(0), Pointer(1), '->', Pointer(2)]
+
+def test_grouping():
+    assert parse("int*[]") == [Prim(lib._CFFI_PRIM_INT),
+                               Pointer(0), '->', OpenArray(1)]
+    assert parse("int**[][8]") == [Prim(lib._CFFI_PRIM_INT),
+                                   Pointer(0), Pointer(1),
+                                   '->', OpenArray(4), Array(2), 8]
+    assert parse("int(*)[]") == [Prim(lib._CFFI_PRIM_INT),
+                                 NoOp(3), '->', Pointer(1), OpenArray(0)]
+    assert parse("int(*)[][8]") == [Prim(lib._CFFI_PRIM_INT),
+                                    NoOp(3), '->', Pointer(1),
+                                    OpenArray(4), Array(0), 8]
+    assert parse("int**(**)") == [Prim(lib._CFFI_PRIM_INT),
+                                  Pointer(0), Pointer(1),
+                                  NoOp(2), Pointer(3), '->', Pointer(4)]
+    assert parse("int**(**)[]") == [Prim(lib._CFFI_PRIM_INT),
+                                    Pointer(0), Pointer(1),
+                                    NoOp(6), Pointer(3), '->', Pointer(4),
+                                    OpenArray(2)]
