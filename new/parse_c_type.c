@@ -286,7 +286,6 @@ static int parse_sequel(token_t *tok, int outer)
                     }
                     int arg = parse_complete(tok);
                     _cffi_opcode_t oarg;
-                    assert(arg_next - base_index <= arg_total);
                     switch (_CFFI_GETOP(tok->output[arg])) {
                     case _CFFI_OP_ARRAY:
                     case _CFFI_OP_OPEN_ARRAY:
@@ -299,6 +298,7 @@ static int parse_sequel(token_t *tok, int outer)
                         oarg = _CFFI_OP(_CFFI_OP_NOOP, arg);
                         break;
                     }
+                    assert(arg_next - base_index <= arg_total);
                     tok->output[arg_next++] = oarg;
                     if (tok->kind != TOK_COMMA)
                         break;
