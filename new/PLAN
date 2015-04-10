@@ -1,0 +1,114 @@
+
+==================================================
+CPython C extension module produced by recompile()
+==================================================
+
+Global variable:
+CTypeDescrObject *_cffi_types[];
+
+Every _cffi_types entry is initially an odd integer and is fixed
+to be a real `CTypeDescrObject *` later.
+
+The generated C functions are listed in _cffi_globals, a sorted array
+of entries which get turned lazily into real <builtin function
+objects>.  Each entry in this array has an index in the _cffi_types
+array, which describe the function type (CTOP_FUNCTION opcode, see
+below).  We turn the odd integers into real CTypeDescrObjects at the
+point where the entry is turned into a real builtin function object.
+
+The odd integers are "opcodes" that contain a type info in the lowest
+byte.  The remaining N-1 bytes of the integer is an "arg" that depends
+on the type info:
+
+CTOP_PRIMITIVE
+    the arg tells which primitive type it is
+
+CTOP_POINTER
+    the arg is the index of the item type in the _cffi_types array.
+
+CTOP_ARRAY
+    the arg is the index of the item type in the _cffi_types array.
+    followed by another opcode that contains (uintptr_t)length_of_array.
+
+CTOP_OPEN_ARRAY
+    for syntax like "int[]".  same as CTOP_ARRAY but without the length
+
+CTOP_STRUCT_UNION
+    the arg is the index of the struct/union in _cffi_structs_unions
+
+CTOP_ENUM
+    the arg is the index of the enum in _cffi_enums
+
+CTOP_TYPENAME
+    the arg is the index of the typename in _cffi_typenames
+
+CTOP_FUNCTION
+    the arg is the index of the result type in _cffi_types.
+    followed by other opcodes for the arguments.
+    terminated by CTOP_FUNCTION_END.
+
+CTOP_FUNCTION_END
+    the arg's lowest bit is set if there is a "..." argument.
+
+
+_cffi_globals
+-------------
+
+Lists global functions (with a type CTOP_FUNCTION), and also global
+variables (with a different type than CTOP_FUNCTION).
+
+struct {
+    const char *name;
+    void *address;
+    int type_index;
+}
+
+
+_cffi_structs_unions
+--------------------
+
+struct {
+    const char *name;
+    size_t size;
+    int alignment;
+    int flags;               // CT_UNION?
+    int num_fields;
+    int first_field_index;   // -> _cffi_fields array
+}
+
+struct _cffi_field_s {
+    const char *name;
+    size_t field_offset;
+    size_t field_size;
+    int field_bit_size;
+    int field_type;          // -> _cffi_types
+}
+
+
+_cffi_enums
+-----------
+
+struct {
+    const char *name;
+    int integer_type;        // -> _cffi_types
+}
+
+
+_cffi_constants
+---------------
+
+struct {
+    const char *name;
+    unsigned long long value;
+    int cinfo_or_type_index;    // CINFO_POSITIVE_INT, CINFO_NONPOSITIVE_INT
+}
+
+
+
+Runtime type parsing
+==================================================
+
+For ffi.new() etc.  This is done by turning the C declaration into an
+array of opcodes like above, and then turning these opcodes into real
+types.  The array of opcodes is then freed.  We use a cache from C
+declaration to final types.
