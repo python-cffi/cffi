@@ -84,7 +84,7 @@ static int number_of_commas(token_t *tok)
     int nesting = 0;
     while (1) {
         switch (*p++) {
-        case ',': result++; break;
+        case ',': result += !nesting; break;
         case '(': nesting++; break;
         case ')': if ((--nesting) < 0) return result; break;
         case 0:   return result;

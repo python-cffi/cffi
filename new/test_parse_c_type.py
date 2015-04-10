@@ -41,6 +41,14 @@ def parse(input):
         result.append(i)
     return result
 
+def parsex(input):
+    result = parse(input)
+    def str_if_int(x):
+        if isinstance(x, str):
+            return x
+        return '%d,%d' % (x & 255, x >> 8)
+    return '  '.join(map(str_if_int, result))
+
 def make_getter(name):
     opcode = getattr(lib, '_CFFI_OP_' + name)
     def getter(value):
@@ -125,3 +133,20 @@ def test_simple_function():
     assert parse("int(int, ...)") == [Prim(lib._CFFI_PRIM_INT),
                                       '->', Func(0), NoOp(5), FuncEnd(1), 0,
                                       Prim(lib._CFFI_PRIM_INT)]
+
+def test_internal_function():
+    assert parse("int(*)()") == [Prim(lib._CFFI_PRIM_INT),
+                                 NoOp(3), '->', Pointer(1),
+                                 Func(0), FuncEnd(0), 0]
+    assert parse("int(*())[]") == [Prim(lib._CFFI_PRIM_INT),
+                                   NoOp(6), Pointer(1),
+                                   '->', Func(2), FuncEnd(0), 0,
+                                   OpenArray(0)]
+    assert parse("int(char(*)(long, short))") == [
+        Prim(lib._CFFI_PRIM_INT),
+        '->', Func(0), NoOp(6), FuncEnd(0),
+        Prim(lib._CFFI_PRIM_CHAR),
+        NoOp(7), Pointer(5),
+        Func(4), NoOp(11), NoOp(12), FuncEnd(0),
+        Prim(lib._CFFI_PRIM_LONG),
+        Prim(lib._CFFI_PRIM_SHORT)]
