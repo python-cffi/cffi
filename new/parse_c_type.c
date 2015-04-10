@@ -285,8 +285,21 @@ static int parse_sequel(token_t *tok, int outer)
                         break;
                     }
                     int arg = parse_complete(tok);
+                    _cffi_opcode_t oarg;
                     assert(arg_next - base_index <= arg_total);
-                    tok->output[arg_next++] = _CFFI_OP(_CFFI_OP_NOOP, arg);
+                    switch (_CFFI_GETOP(tok->output[arg])) {
+                    case _CFFI_OP_ARRAY:
+                    case _CFFI_OP_OPEN_ARRAY:
+                        arg = _CFFI_GETARG(tok->output[arg]);
+                        /* fall-through */
+                    case _CFFI_OP_FUNCTION:
+                        oarg = _CFFI_OP(_CFFI_OP_POINTER, arg);
+                        break;
+                    default:
+                        oarg = _CFFI_OP(_CFFI_OP_NOOP, arg);
+                        break;
+                    }
+                    tok->output[arg_next++] = oarg;
                     if (tok->kind != TOK_COMMA)
                         break;
                     next_token(tok);

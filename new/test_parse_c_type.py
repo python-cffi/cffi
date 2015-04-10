@@ -150,3 +150,17 @@ def test_internal_function():
         Func(4), NoOp(11), NoOp(12), FuncEnd(0),
         Prim(lib._CFFI_PRIM_LONG),
         Prim(lib._CFFI_PRIM_SHORT)]
+
+def test_fix_arg_types():
+    assert parse("int(char(long, short))") == [
+        Prim(lib._CFFI_PRIM_INT),
+        '->', Func(0), Pointer(5), FuncEnd(0),
+        Prim(lib._CFFI_PRIM_CHAR),
+        Func(4), NoOp(9), NoOp(10), FuncEnd(0),
+        Prim(lib._CFFI_PRIM_LONG),
+        Prim(lib._CFFI_PRIM_SHORT)]
+    assert parse("int(char[])") == [
+        Prim(lib._CFFI_PRIM_INT),
+        '->', Func(0), Pointer(4), FuncEnd(0),
+        Prim(lib._CFFI_PRIM_CHAR),
+        OpenArray(4)]
