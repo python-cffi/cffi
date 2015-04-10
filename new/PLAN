@@ -71,7 +71,7 @@ struct {
     const char *name;
     size_t size;
     int alignment;
-    int flags;               // CT_UNION?
+    int flags;               // CT_UNION?  CT_IS_OPAQUE?
     int num_fields;
     int first_field_index;   // -> _cffi_fields array
 }

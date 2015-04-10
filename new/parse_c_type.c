@@ -38,10 +38,12 @@ enum token_e {
 };
 
 typedef struct {
+    struct _cffi_parse_info_s *info;
+    const char *p;
     enum token_e kind;
-    const char *p, **error_location, **error_message;
     size_t size;
-    ctype_opcode_t *opcodes, *opcodes_end;
+    _cffi_opcode_t *output;
+    unsigned long output_index;
 } token_t;
 
 static int is_space(char x)
@@ -153,53 +155,60 @@ static void next_token(token_t *tok)
     }
 }
 
-static void parse_error(token_t *tok, const char *msg)
+static int parse_error(token_t *tok, const char *msg)
 {
     if (tok->kind != TOK_ERROR) {
         tok->kind = TOK_ERROR;
-        if (tok->error_location)
-            *tok->error_location = tok->p;
-        if (tok->error_message)
-            *tok->error_message = msg;
+        if (tok->info->error_location)
+            *tok->info->error_location = tok->p;
+        if (tok->info->error_message)
+            *tok->info->error_message = msg;
     }
+    return -1;
 }
 
-static ctype_opcode_t *alloc_ds(token_t *tok, size_t num)
+static int write_ds(token_t *tok, _cffi_opcode_t ds)
 {
-    ctype_opcode_t *result = tok->opcodes;
-    if (num > tok->opcodes_end - result) {
-        parse_error(tok, "type too lengthy");
-        return NULL;
+    size_t index = tok->output_index;
+    if (index >= tok->info->output_size) {
+        parse_error(tok, "internal type complexity limit reached");
+        return -1;
     }
-    tok->opcodes += num;
-    return result;
+    tok->output[index] = ds;
+    tok->output_index = index + 1;
+    return index;
 }
 
-#if 0
-static void parse_complete(token_t *tok, _crx_qual_type *result);
+static int parse_complete(token_t *tok);
 
-static void parse_sequel(token_t *tok, intptr_t ds_end)
+static int parse_sequel(token_t *tok)
 {
-    intptr_t *ds;
-    while (tok->kind == TOK_STAR || tok->kind == TOK_CONST ||
-           tok->kind == TOK_VOLATILE) {
-        ds = alloc_ds(tok, 1);
-        if (ds == NULL)
-            return;
-        ds[0] = tok->kind;
+ header:
+    switch (tok->kind) {
+    case TOK_STAR:
+        write_ds(tok, _CFFI_OP(_CFFI_OP_POINTER, tok->output_index - 1));
         next_token(tok);
+        goto header;
+    case TOK_CONST:
+        /* ignored for now */
+        next_token(tok);
+        goto header;
+    case TOK_VOLATILE:
+        /* ignored for now */
+        next_token(tok);
+        goto header;
+    default:
+        break;
     }
+
+    _cffi_opcode_t slot_result = _CFFI_OP(0, tok->output_index - 1);
+    _cffi_opcode_t *p_current = &slot_result;
 
     int check_for_grouping = -1;
     if (tok->kind == TOK_IDENTIFIER) {
         next_token(tok);    /* skip a potential variable name */
         check_for_grouping = 1;
     }
-
-    intptr_t *jump_slot = alloc_ds(tok, 1);
-    if (jump_slot == NULL)
-        return;
-    *jump_slot = ds_end;
 
  next_right_part:
     check_for_grouping++;
@@ -209,6 +218,8 @@ static void parse_sequel(token_t *tok, intptr_t ds_end)
     case TOK_OPEN_PAREN:
         next_token(tok);
 
+        abort();
+#if 0
         if (check_for_grouping == 0 && (tok->kind == TOK_STAR ||
                                         tok->kind == TOK_CONST ||
                                         tok->kind == TOK_VOLATILE ||
@@ -261,48 +272,43 @@ static void parse_sequel(token_t *tok, intptr_t ds_end)
         }
         next_token(tok);
         goto next_right_part;
+#endif
 
     case TOK_OPEN_BRACKET:
     {
-        uintptr_t length = (uintptr_t)-1;
+        _cffi_opcode_t prev = *p_current;
+        *p_current = _CFFI_OP(_CFFI_GETOP(prev), tok->output_index);
+        p_current = &tok->output[tok->output_index];
+
         next_token(tok);
         if (tok->kind != TOK_CLOSE_BRACKET) {
-            if (tok->kind != TOK_INTEGER) {
-                parse_error(tok, "expected a positive integer constant");
-                return;
-            }
+            size_t length;
 
-            if (sizeof(uintptr_t) > sizeof(unsigned long))
+            if (tok->kind != TOK_INTEGER)
+                return parse_error(tok, "expected a positive integer constant");
+
+            if (sizeof(length) > sizeof(unsigned long))
                 length = strtoull(tok->p, NULL, 10);
             else
                 length = strtoul(tok->p, NULL, 10);
-            if (length == (uintptr_t)-1) {
-                parse_error(tok, "number too large");
-                return;
-            }
             next_token(tok);
-        }
 
-        if (tok->kind != TOK_CLOSE_BRACKET) {
-            parse_error(tok, "expected ']'");
-            return;
+            write_ds(tok, _CFFI_OP(_CFFI_OP_ARRAY, _CFFI_GETARG(prev)));
+            write_ds(tok, (_cffi_opcode_t)length);
         }
+        else
+            write_ds(tok, _CFFI_OP(_CFFI_OP_OPEN_ARRAY, _CFFI_GETARG(prev)));
+
+        if (tok->kind != TOK_CLOSE_BRACKET)
+            return parse_error(tok, "expected ']'");
         next_token(tok);
-
-        ds = alloc_ds(tok, 3);
-        if (ds == NULL)
-            return;
-        ds[0] = TOK_OPEN_BRACKET;
-        ds[1] = (intptr_t)length;
-        ds[2] = *jump_slot;
-        *jump_slot = -(ds - tok->all_delay_slots);
         goto next_right_part;
     }
     default:
         break;
     }
+    return _CFFI_GETARG(slot_result);
 }
-#endif
 
 #if 0
 static void fetch_delay_slots(token_t *tok, _crx_qual_type *result,
@@ -368,66 +374,55 @@ static void fetch_delay_slots(token_t *tok, _crx_qual_type *result,
 }
 #endif
 
-static void parse_complete(token_t *tok)
+static int parse_complete(token_t *tok)
 {
-    int const_qualifier = 0, volatile_qualifier = 0;
-
  qualifiers:
     switch (tok->kind) {
     case TOK_CONST:
-        const_qualifier = 1;
+        /* ignored for now */
         next_token(tok);
         goto qualifiers;
     case TOK_VOLATILE:
-        volatile_qualifier = 1;
+        /* ignored for now */
         next_token(tok);
         goto qualifiers;
     default:
         ;
     }
 
-    int t1;
+    unsigned int t0;
+    _cffi_opcode_t t1;
     int modifiers_length = 0;
     int modifiers_sign = 0;
  modifiers:
     switch (tok->kind) {
 
     case TOK_SHORT:
-        if (modifiers_length != 0) {
-            parse_error(tok, "'short' after another 'short' or 'long'");
-            return;
-        }
+        if (modifiers_length != 0)
+            return parse_error(tok, "'short' after another 'short' or 'long'");
         modifiers_length--;
         next_token(tok);
         goto modifiers;
 
     case TOK_LONG:
-        if (modifiers_length < 0) {
-            parse_error(tok, "'long' after 'short'");
-            return;
-        }
-        if (modifiers_length >= 2) {
-            parse_error(tok, "'long long long' is too long");
-            return;
-        }
+        if (modifiers_length < 0)
+            return parse_error(tok, "'long' after 'short'");
+        if (modifiers_length >= 2)
+            return parse_error(tok, "'long long long' is too long");
         modifiers_length++;
         next_token(tok);
         goto modifiers;
 
     case TOK_SIGNED:
-        if (modifiers_sign) {
-            parse_error(tok, "multiple 'signed' or 'unsigned'");
-            return;
-        }
+        if (modifiers_sign)
+            return parse_error(tok, "multiple 'signed' or 'unsigned'");
         modifiers_sign++;
         next_token(tok);
         goto modifiers;
 
     case TOK_UNSIGNED:
-        if (modifiers_sign) {
-            parse_error(tok, "multiple 'signed' or 'unsigned'");
-            return;
-        }
+        if (modifiers_sign)
+            return parse_error(tok, "multiple 'signed' or 'unsigned'");
         modifiers_sign--;
         next_token(tok);
         goto modifiers;
@@ -445,23 +440,18 @@ static void parse_complete(token_t *tok)
         case TOK_FLOAT:
         case TOK_STRUCT:
         case TOK_UNION:
-            parse_error(tok, "invalid combination of types");
-            return;
+            return parse_error(tok, "invalid combination of types");
 
         case TOK_DOUBLE:
-            if (modifiers_sign != 0 || modifiers_length != 1) {
-                parse_error(tok, "invalid combination of types");
-                return;
-            }
+            if (modifiers_sign != 0 || modifiers_length != 1)
+                return parse_error(tok, "invalid combination of types");
             next_token(tok);
-            t1 = CTOP_LONGDOUBLE;
+            t0 = _CFFI_PRIM_LONGDOUBLE;
             break;
 
         case TOK_CHAR:
-            if (modifiers_length != 0) {
-                parse_error(tok, "invalid combination of types");
-                return;
-            }
+            if (modifiers_length != 0)
+                return parse_error(tok, "invalid combination of types");
             modifiers_length = -2;
             /* fall-through */
         case TOK_INT:
@@ -470,41 +460,42 @@ static void parse_complete(token_t *tok)
         default:
             if (modifiers_sign >= 0)
                 switch (modifiers_length) {
-                case -2: t1 = CTOP_SCHAR; break;
-                case -1: t1 = CTOP_SHORT; break;
-                case 1:  t1 = CTOP_LONG; break;
-                case 2:  t1 = CTOP_LONGLONG; break;
-                default: t1 = CTOP_INT; break;
+                case -2: t0 = _CFFI_PRIM_SCHAR; break;
+                case -1: t0 = _CFFI_PRIM_SHORT; break;
+                case 1:  t0 = _CFFI_PRIM_LONG; break;
+                case 2:  t0 = _CFFI_PRIM_LONGLONG; break;
+                default: t0 = _CFFI_PRIM_INT; break;
                 }
             else
                 switch (modifiers_length) {
-                case -2: t1 = CTOP_UCHAR; break;
-                case -1: t1 = CTOP_USHORT; break;
-                case 1:  t1 = CTOP_ULONG; break;
-                case 2:  t1 = CTOP_ULONGLONG; break;
-                default: t1 = CTOP_UINT; break;
+                case -2: t0 = _CFFI_PRIM_UCHAR; break;
+                case -1: t0 = _CFFI_PRIM_USHORT; break;
+                case 1:  t0 = _CFFI_PRIM_ULONG; break;
+                case 2:  t0 = _CFFI_PRIM_ULONGLONG; break;
+                default: t0 = _CFFI_PRIM_UINT; break;
                 }
         }
+        t1 = _CFFI_OP(_CFFI_OP_PRIMITIVE, t0);
     }
     else {
         switch (tok->kind) {
         case TOK_INT:
-            t1 = CTOP_INT;
+            t1 = _CFFI_OP(_CFFI_OP_PRIMITIVE, _CFFI_PRIM_INT);
             break;
         case TOK_CHAR:
-            t1 = CTOP_CHAR;
+            t1 = _CFFI_OP(_CFFI_OP_PRIMITIVE, _CFFI_PRIM_CHAR);
             break;
         case TOK_VOID:
-            t1 = CTOP_VOID;
+            t1 = _CFFI_OP(_CFFI_OP_PRIMITIVE, _CFFI_PRIM_VOID);
             break;
         case TOK__BOOL:
-            t1 = CTOP_BOOL;
+            t1 = _CFFI_OP(_CFFI_OP_PRIMITIVE, _CFFI_PRIM_BOOL);
             break;
         case TOK_FLOAT:
-            t1 = CTOP_FLOAT;
+            t1 = _CFFI_OP(_CFFI_OP_PRIMITIVE, _CFFI_PRIM_FLOAT);
             break;
         case TOK_DOUBLE:
-            t1 = CTOP_DOUBLE;
+            t1 = _CFFI_OP(_CFFI_OP_PRIMITIVE, _CFFI_PRIM_DOUBLE);
             break;
         case TOK_IDENTIFIER:
         {
@@ -550,41 +541,32 @@ static void parse_complete(token_t *tok)
 #endif
         }
         default:
-            parse_error(tok, "identifier expected");
-            return;
+            return parse_error(tok, "identifier expected");
         }
         next_token(tok);
     }
-    *alloc_ds(tok, 1) = t1;
-    if (const_qualifier)
-        *alloc_ds(tok, 1) = CTOP_CONST;
-    if (volatile_qualifier)
-        *alloc_ds(tok, 1) = CTOP_VOLATILE;
 
-    //parse_sequel(tok, CTOP_END);
-    *alloc_ds(tok, 1) = CTOP_END;
+    write_ds(tok, t1);
+    return parse_sequel(tok);
 }
 
 
-int parse_c_type(const char *input,
-                 ctype_opcode_t *output, size_t output_size,
-                 const char **error_loc, const char **error_msg)
+int parse_c_type(struct _cffi_parse_info_s *info, const char *input)
 {
+    int result;
     token_t token;
 
+    token.info = info;
     token.kind = TOK_START;
     token.p = input;
-    token.error_location = error_loc;
-    token.error_message = error_msg;
     token.size = 0;
-    token.opcodes = output;
-    token.opcodes_end = output + output_size;
-    next_token(&token);
-    parse_complete(&token);
+    token.output = info->output;
+    token.output_index = 0;
 
-    if (token.kind != TOK_END) {
-        parse_error(&token, "unexpected symbol");
-        return -1;
-    }
-    return 0;
+    next_token(&token);
+    result = parse_complete(&token);
+
+    if (token.kind != TOK_END)
+        return parse_error(&token, "unexpected symbol");
+    return result;
 }

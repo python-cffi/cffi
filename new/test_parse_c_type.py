@@ -1,53 +1,77 @@
+import re
 import os
 import cffi
 
+r_macro = re.compile(r"#define \w+[(][^\n]*")
+r_define = re.compile(r"(#define \w+) [^\n]*")
+header = open('parse_c_type.h').read()
+header = r_macro.sub(r"", header)
+header = r_define.sub(r"\1 ...", header)
+
 ffi = cffi.FFI()
-ffi.cdef("""
-typedef int ctype_opcode_t;
-
-#define CTOP_END         ...
-#define CTOP_CONST       ...
-#define CTOP_VOLATILE    ...
-
-#define CTOP_VOID        ...
-#define CTOP_BOOL        ...
-#define CTOP_CHAR        ...
-#define CTOP_SCHAR       ...
-#define CTOP_UCHAR       ...
-#define CTOP_SHORT       ...
-#define CTOP_USHORT      ...
-#define CTOP_INT         ...
-#define CTOP_UINT        ...
-#define CTOP_LONG        ...
-#define CTOP_ULONG       ...
-#define CTOP_LONGLONG    ...
-#define CTOP_ULONGLONG   ...
-#define CTOP_FLOAT       ...
-#define CTOP_DOUBLE      ...
-#define CTOP_LONGDOUBLE  ...
-
-int parse_c_type(const char *input,
-                 ctype_opcode_t *output, size_t output_size,
-                 const char **error_loc, const char **error_msg);
-""")
+ffi.cdef(header)
 
 lib = ffi.verify(open('parse_c_type.c').read(),
                  include_dirs=[os.getcwd()])
 
+class ParseError(Exception):
+    pass
+
+def parse(input):
+    out = ffi.new("_cffi_opcode_t[]", 100)
+    info = ffi.new("struct _cffi_parse_info_s *")
+    info.output = out
+    info.output_size = len(out)
+    for j in range(len(out)):
+        out[j] = ffi.cast("void *", -424242)
+    c_input = ffi.new("char[]", input)
+    res = lib.parse_c_type(info, c_input)
+    if res < 0:
+        raise ParseError(ffi.string(info.error_message),
+                         ffi.string(info.error_location) - c_input)
+    assert 0 <= res < len(out)
+    result = []
+    for j in range(len(out)):
+        if out[j] == ffi.cast("void *", -424242):
+            assert res < j
+            break
+        i = int(ffi.cast("intptr_t", out[j]))
+        if j == res:
+            result.append('->')
+        result.append(i)
+    return result
+
+def make_getter(name):
+    opcode = getattr(lib, '_CFFI_OP_' + name)
+    def getter(value):
+        return opcode | (value << 8)
+    return getter
+
+Prim = make_getter('PRIMITIVE')
+Array = make_getter('ARRAY')
+OpenArray = make_getter('OPEN_ARRAY')
+
 
 def test_simple():
-    out = ffi.new("ctype_opcode_t[]", 100)
     for simple_type, expected in [
-            ("int", lib.CTOP_INT),
-            ("signed int", lib.CTOP_INT),
-            ("  long  ", lib.CTOP_LONG),
-            ("long int", lib.CTOP_LONG),
-            ("unsigned short", lib.CTOP_USHORT),
-            ("long double", lib.CTOP_LONGDOUBLE),
+            ("int", lib._CFFI_PRIM_INT),
+            ("signed int", lib._CFFI_PRIM_INT),
+            ("  long  ", lib._CFFI_PRIM_LONG),
+            ("long int", lib._CFFI_PRIM_LONG),
+            ("unsigned short", lib._CFFI_PRIM_USHORT),
+            ("long double", lib._CFFI_PRIM_LONGDOUBLE),
             ]:
-        for j in range(len(out)):
-            out[j] = -424242
-        res = lib.parse_c_type(simple_type, out, 100, ffi.NULL, ffi.NULL)
-        assert res == 0
-        assert out[0] == expected
-        assert out[1] == lib.CTOP_END
+        assert parse(simple_type) == ['->', Prim(expected)]
+
+def test_array():
+    assert parse("int[5]") == [Prim(lib._CFFI_PRIM_INT), '->', Array(0), 5]
+    assert parse("int[]") == [Prim(lib._CFFI_PRIM_INT), '->', OpenArray(0)]
+    assert parse("int[5][8]") == [Prim(lib._CFFI_PRIM_INT),
+                                  '->', Array(3),
+                                  5,
+                                  Array(0),
+                                  8]
+    assert parse("int[][8]") == [Prim(lib._CFFI_PRIM_INT),
+                                  '->', OpenArray(2),
+                                  Array(0),
+                                  8]
