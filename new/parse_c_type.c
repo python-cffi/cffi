@@ -432,6 +432,25 @@ static int search_struct_union(struct _cffi_type_context_s *ctx,
     return -1;
 }
 
+static int search_typename(struct _cffi_type_context_s *ctx,
+                           const char *search, size_t search_len)
+{
+    int left = 0, right = ctx->num_typenames;
+
+    while (left < right) {
+        int middle = (left + right) / 2;
+        const char *src = ctx->typenames[middle].name;
+        int diff = strncmp(src, search, search_len);
+        if (diff == 0 && src[search_len] == '\0')
+            return middle;
+        else if (diff >= 0)
+            right = middle;
+        else
+            left = middle + 1;
+    }
+    return -1;
+}
+
 static int parse_complete(token_t *tok)
 {
  qualifiers:
@@ -557,21 +576,12 @@ static int parse_complete(token_t *tok)
             break;
         case TOK_IDENTIFIER:
         {
-            abort();
-#if 0
-            _crx_qual_type qt2;
-            char identifier[1024];
-            if (tok->size >= 1024) {
-                parse_error(tok, "identifier name too long");
-                return;
-            }
-            memcpy(identifier, tok->p, tok->size);
-            identifier[tok->size] = 0;
-            qt2 = tok->cb->get_user_type(tok->cb, identifier);
-            t1 = qt2.type;
-            result->qualifiers |= qt2.qualifiers;
+            int n = search_typename(tok->info->ctx, tok->p, tok->size);
+            if (n < 0)
+                return parse_error(tok, "undefined type name");
+
+            t1 = _CFFI_OP(_CFFI_OP_TYPENAME, n);
             break;
-#endif
         }
         case TOK_STRUCT:
         case TOK_UNION:

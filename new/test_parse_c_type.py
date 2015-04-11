@@ -21,14 +21,24 @@ class ParseError(Exception):
 struct_names = ["bar_s", "foo", "foo_", "foo_s", "foo_s1", "foo_s12"]
 assert struct_names == sorted(struct_names)
 
+identifier_names = ["id", "id0", "id05", "id05b", "tail"]
+assert identifier_names == sorted(identifier_names)
+
 ctx = ffi.new("struct _cffi_type_context_s *")
-c_names = [ffi.new("char[]", _n) for _n in struct_names]
+c_struct_names = [ffi.new("char[]", _n) for _n in struct_names]
 ctx_structs = ffi.new("struct _cffi_struct_union_s[]", len(struct_names))
 for _i in range(len(struct_names)):
-    ctx_structs[_i].name = c_names[_i]
+    ctx_structs[_i].name = c_struct_names[_i]
 ctx_structs[3].flags = lib.CT_UNION
 ctx.structs_unions = ctx_structs
 ctx.num_structs_unions = len(struct_names)
+
+c_identifier_names = [ffi.new("char[]", _n) for _n in identifier_names]
+ctx_identifiers = ffi.new("struct _cffi_typename_s[]", len(identifier_names))
+for _i in range(len(identifier_names)):
+    ctx_identifiers[_i].name = c_identifier_names[_i]
+ctx.typenames = ctx_identifiers
+ctx.num_typenames = len(identifier_names)
 
 
 def parse(input):
@@ -83,6 +93,7 @@ NoOp = make_getter('NOOP')
 Func = make_getter('FUNCTION')
 FuncEnd = make_getter('FUNCTION_END')
 Struct = make_getter('STRUCT_UNION')
+Typename = make_getter('TYPENAME')
 
 
 def test_simple():
@@ -224,3 +235,11 @@ def test_struct():
         else:
             tag = "struct"
         assert parse("%s %s" % (tag, struct_names[i])) == ['->', Struct(i)]
+        assert parse("%s %s*" % (tag, struct_names[i])) == [Struct(i),
+                                                            '->', Pointer(0)]
+
+def test_identifier():
+    for i in range(len(identifier_names)):
+        assert parse("%s" % (identifier_names[i])) == ['->', Typename(i)]
+        assert parse("%s*" % (identifier_names[i])) == [Typename(i),
+                                                        '->', Pointer(0)]

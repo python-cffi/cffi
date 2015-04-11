@@ -44,7 +44,7 @@ struct _cffi_global_s {
 struct _cffi_constant_s {
     const char *name;
     unsigned long long value;
-    int type_index_or_plain;
+    int type_index;          // -> _cffi_types or _CFFI_PLAIN_*_INT
 };
 #define _CFFI_PLAIN_POSITIVE_INT     (-1)
 #define _CFFI_PLAIN_NONPOSITIVE_INT  (-2)
