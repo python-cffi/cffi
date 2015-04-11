@@ -34,6 +34,11 @@ PyObject *realize_c_type(struct _cffi_type_context_s *ctx,
 {
     PyObject *x, *y;
     _cffi_opcode_t op = opcodes[index];
+    if ((((uintptr_t)op) & 1) == 0) {
+        x = (PyObject *)op;
+        Py_INCREF(x);
+        return x;
+    }
 
     switch (_CFFI_GETOP(op)) {
 
@@ -42,7 +47,7 @@ PyObject *realize_c_type(struct _cffi_type_context_s *ctx,
         if (x == NULL)
             x = build_primitive_type(_CFFI_GETARG(op));
         Py_XINCREF(x);
-        return x;
+        break;
 
     case _CFFI_OP_POINTER:
         y = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
@@ -50,16 +55,18 @@ PyObject *realize_c_type(struct _cffi_type_context_s *ctx,
             return NULL;
         x = Py_BuildValue("sO", "pointer", y);
         Py_DECREF(y);
-        return x;
+        break;
 
     default:
         PyErr_Format(PyExc_NotImplementedError, "op=%d", (int)_CFFI_GETOP(op));
         return NULL;
     }
-}
 
-
-struct _cffi_type_context_s global_ctx = {
+    if (opcodes == ctx->types) {
+        Py_INCREF(x);
+        opcodes[index] = x;
+    }
+    return x;
 };
 
 
@@ -70,6 +77,7 @@ static PyObject *b_test(PyObject *self, PyObject *args)
         return NULL;
 
     _cffi_opcode_t opcodes[100];
+    struct _cffi_type_context_s global_ctx = { NULL };
     struct _cffi_parse_info_s parse_info = {
         .ctx = &global_ctx,
         .output = opcodes,

@@ -1,4 +1,4 @@
-#include <stddef.h>
+#include <stdint.h>
 
 
 typedef void *_cffi_opcode_t;

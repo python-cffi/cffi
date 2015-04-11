@@ -1,7 +1,9 @@
 import os
 
 def setup_module():
-    os.system("python setup.py build_ext -i")
+    err = os.system("python setup.py build_ext -i")
+    if err != 0:
+        raise Exception(err)
     global realize_c_type
     import realize_c_type
 
