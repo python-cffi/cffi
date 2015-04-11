@@ -45,7 +45,7 @@ typedef struct {
     enum token_e kind;
     size_t size;
     _cffi_opcode_t *output;
-    unsigned long output_index;
+    size_t output_index;
 } token_t;
 
 static int is_space(char x)
