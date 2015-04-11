@@ -1,5 +1,6 @@
 import re
 import os
+import py
 import cffi
 
 r_macro = re.compile(r"#define \w+[(][^\n]*")
@@ -17,9 +18,23 @@ lib = ffi.verify(open('parse_c_type.c').read(),
 class ParseError(Exception):
     pass
 
+struct_names = ["bar_s", "foo", "foo_", "foo_s", "foo_s1", "foo_s12"]
+assert struct_names == sorted(struct_names)
+
+ctx = ffi.new("struct _cffi_type_context_s *")
+c_names = [ffi.new("char[]", _n) for _n in struct_names]
+ctx_structs = ffi.new("struct _cffi_struct_union_s[]", len(struct_names))
+for _i in range(len(struct_names)):
+    ctx_structs[_i].name = c_names[_i]
+ctx_structs[3].flags = lib.CT_UNION
+ctx.structs_unions = ctx_structs
+ctx.num_structs_unions = len(struct_names)
+
+
 def parse(input):
     out = ffi.new("_cffi_opcode_t[]", 100)
     info = ffi.new("struct _cffi_parse_info_s *")
+    info.ctx = ctx
     info.output = out
     info.output_size = len(out)
     for j in range(len(out)):
@@ -28,7 +43,7 @@ def parse(input):
     res = lib.parse_c_type(info, c_input)
     if res < 0:
         raise ParseError(ffi.string(info.error_message),
-                         ffi.string(info.error_location) - c_input)
+                         info.error_location - c_input)
     assert 0 <= res < len(out)
     result = []
     for j in range(len(out)):
@@ -49,6 +64,11 @@ def parsex(input):
         return '%d,%d' % (x & 255, x >> 8)
     return '  '.join(map(str_if_int, result))
 
+def parse_error(input, expected_msg, expected_location):
+    e = py.test.raises(ParseError, parse, input)
+    assert e.value.args[0] == expected_msg
+    assert e.value.args[1] == expected_location
+
 def make_getter(name):
     opcode = getattr(lib, '_CFFI_OP_' + name)
     def getter(value):
@@ -62,6 +82,7 @@ OpenArray = make_getter('OPEN_ARRAY')
 NoOp = make_getter('NOOP')
 Func = make_getter('FUNCTION')
 FuncEnd = make_getter('FUNCTION_END')
+Struct = make_getter('STRUCT_UNION')
 
 
 def test_simple():
@@ -164,3 +185,14 @@ def test_fix_arg_types():
         '->', Func(0), Pointer(4), FuncEnd(0),
         Prim(lib._CFFI_PRIM_CHAR),
         OpenArray(4)]
+
+def test_error():
+    parse_error("short short int", "'short' after another 'short' or 'long'", 6)
+
+def test_struct():
+    for i in range(len(struct_names)):
+        if i == 3:
+            tag = "union"
+        else:
+            tag = "struct"
+        assert parse("%s %s" % (tag, struct_names[i])) == ['->', Struct(i)]

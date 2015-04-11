@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include "parse_c_type.h"
 
@@ -175,10 +176,8 @@ static int parse_error(token_t *tok, const char *msg)
 {
     if (tok->kind != TOK_ERROR) {
         tok->kind = TOK_ERROR;
-        if (tok->info->error_location)
-            *tok->info->error_location = tok->p;
-        if (tok->info->error_message)
-            *tok->info->error_message = msg;
+        tok->info->error_location = tok->p;
+        tok->info->error_message = msg;
     }
     return -1;
 }
@@ -410,6 +409,25 @@ static void fetch_delay_slots(token_t *tok, _crx_qual_type *result,
 }
 #endif
 
+static int search_struct_union(struct _cffi_type_context_s *ctx,
+                               const char *search, size_t search_len)
+{
+    int left = 0, right = ctx->num_structs_unions;
+
+    while (left < right) {
+        int middle = (left + right) / 2;
+        const char *src = ctx->structs_unions[middle].name;
+        int diff = strncmp(src, search, search_len);
+        if (diff == 0 && src[search_len] == '\0')
+            return middle;
+        else if (diff >= 0)
+            right = middle;
+        else
+            left = middle + 1;
+    }
+    return -1;
+}
+
 static int parse_complete(token_t *tok)
 {
  qualifiers:
@@ -554,27 +572,20 @@ static int parse_complete(token_t *tok)
         case TOK_STRUCT:
         case TOK_UNION:
         {
-            abort();
-#if 0
-            char identifier[1024];
             int kind = tok->kind;
             next_token(tok);
-            if (tok->kind != TOK_IDENTIFIER) {
-                parse_error(tok, "struct or union name expected");
-                return;
-            }
-            if (tok->size >= 1024) {
-                parse_error(tok, "struct or union name too long");
-                return;
-            }
-            memcpy(identifier, tok->p, tok->size);
-            identifier[tok->size] = 0;
-            if (kind == TOK_STRUCT)
-                t1 = tok->cb->get_struct_type(tok->cb, identifier);
-            else
-                t1 = tok->cb->get_union_type(tok->cb, identifier);
+            if (tok->kind != TOK_IDENTIFIER)
+                return parse_error(tok, "struct or union name expected");
+
+            int n = search_struct_union(tok->info->ctx, tok->p, tok->size);
+            if (n < 0)
+                return parse_error(tok, "undefined struct/union name");
+            if (((tok->info->ctx->structs_unions[n].flags & CT_UNION) != 0)
+                ^ (kind == TOK_UNION))
+                return parse_error(tok, "wrong kind of tag: struct vs union");
+
+            t1 = _CFFI_OP(_CFFI_OP_STRUCT_UNION, n);
             break;
-#endif
         }
         default:
             return parse_error(tok, "identifier expected");

@@ -57,6 +57,8 @@ struct _cffi_struct_union_s {
     int num_fields;
     int first_field_index;   // -> _cffi_fields array
 };
+#define CT_UNION            128
+#define CT_IS_OPAQUE        4096
 
 struct _cffi_field_s {
     const char *name;
@@ -94,8 +96,8 @@ struct _cffi_parse_info_s {
     struct _cffi_type_context_s *ctx;
     _cffi_opcode_t *output;
     int output_size;
-    const char **error_location;
-    const char **error_message;
+    const char *error_location;
+    const char *error_message;
 };
 
 int parse_c_type(struct _cffi_parse_info_s *info, const char *input);
