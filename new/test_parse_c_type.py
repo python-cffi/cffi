@@ -188,6 +188,34 @@ def test_fix_arg_types():
 
 def test_error():
     parse_error("short short int", "'short' after another 'short' or 'long'", 6)
+    parse_error("long long long", "'long long long' is too long", 10)
+    parse_error("short long", "'long' after 'short'", 6)
+    parse_error("signed unsigned int", "multiple 'signed' or 'unsigned'", 7)
+    parse_error("unsigned signed int", "multiple 'signed' or 'unsigned'", 9)
+    parse_error("long char", "invalid combination of types", 5)
+    parse_error("short char", "invalid combination of types", 6)
+    parse_error("signed void", "invalid combination of types", 7)
+    parse_error("unsigned struct", "invalid combination of types", 9)
+    #
+    parse_error("", "identifier expected", 0)
+    parse_error("]", "identifier expected", 0)
+    parse_error("*", "identifier expected", 0)
+    parse_error("int ]**", "unexpected symbol", 4)
+    parse_error("char char", "unexpected symbol", 5)
+    parse_error("int(int]", "expected ')'", 7)
+    parse_error("int(*]", "expected ')'", 5)
+    parse_error("int(]", "identifier expected", 4)
+    parse_error("int[?]", "expected a positive integer constant", 4)
+    parse_error("int[24)", "expected ']'", 6)
+    parse_error("struct", "struct or union name expected", 6)
+    parse_error("struct 24", "struct or union name expected", 7)
+    parse_error("int[5](*)", "unexpected symbol", 6)
+    parse_error("int a(*)", "identifier expected", 6)
+    parse_error("int[123456789012345678901234567890]", "number too large", 4)
+
+def test_complexity_limit():
+    parse_error("int" + "[]" * 2500, "internal type complexity limit reached",
+                202)
 
 def test_struct():
     for i in range(len(struct_names)):

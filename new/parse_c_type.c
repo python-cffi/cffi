@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 #include "parse_c_type.h"
 
 
@@ -324,10 +325,13 @@ static int parse_sequel(token_t *tok, int outer)
             if (tok->kind != TOK_INTEGER)
                 return parse_error(tok, "expected a positive integer constant");
 
+            errno = 0;
             if (sizeof(length) > sizeof(unsigned long))
                 length = strtoull(tok->p, NULL, 10);
             else
                 length = strtoul(tok->p, NULL, 10);
+            if (errno == ERANGE)
+                return parse_error(tok, "number too large");
             next_token(tok);
 
             write_ds(tok, _CFFI_OP(_CFFI_OP_ARRAY, 0));
