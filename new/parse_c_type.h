@@ -1,3 +1,4 @@
+#include <stddef.h>
 
 
 typedef void *_cffi_opcode_t;
@@ -33,6 +34,7 @@ typedef void *_cffi_opcode_t;
 #define _CFFI_PRIM_FLOAT        13
 #define _CFFI_PRIM_DOUBLE       14
 #define _CFFI_PRIM_LONGDOUBLE   15
+#define _CFFI__NUM_PRIM         16
 
 
 struct _cffi_global_s {
@@ -79,6 +81,7 @@ struct _cffi_typename_s {
 };
 
 struct _cffi_type_context_s {
+    _cffi_opcode_t *types;
     const struct _cffi_global_s *globals;
     const struct _cffi_constant_s *constants;
     const struct _cffi_struct_union_s *structs_unions;
