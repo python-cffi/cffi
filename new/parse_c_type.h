@@ -17,6 +17,8 @@ typedef void *_cffi_opcode_t;
 #define _CFFI_OP_FUNCTION       15
 #define _CFFI_OP_FUNCTION_END   17
 #define _CFFI_OP_NOOP           19
+#define _CFFI_OP_BITFIELD       21
+#define _CFFI_OP_CPYTHON_BLTN   23
 
 #define _CFFI_PRIM_VOID          0
 #define _CFFI_PRIM_BOOL          1
@@ -40,16 +42,14 @@ typedef void *_cffi_opcode_t;
 struct _cffi_global_s {
     const char *name;
     void *address;
-    int type_index;
+    _cffi_opcode_t type_op;
 };
 
 struct _cffi_constant_s {
     const char *name;
     unsigned long long value;
-    int type_index;          // -> _cffi_types or _CFFI_PLAIN_*_INT
+    _cffi_opcode_t type_op;
 };
-#define _CFFI_PLAIN_POSITIVE_INT     (-1)
-#define _CFFI_PLAIN_NONPOSITIVE_INT  (-2)
 
 struct _cffi_struct_union_s {
     const char *name;
@@ -66,18 +66,17 @@ struct _cffi_field_s {
     const char *name;
     size_t field_offset;
     size_t field_size;
-    int field_bit_size;
-    int field_type;          // -> _cffi_types
+    _cffi_opcode_t field_type_op;
 };
 
 struct _cffi_enum_s {
     const char *name;
-    int integer_type;        // -> _cffi_types
+    _cffi_opcode_t integer_type_op;
 };
 
 struct _cffi_typename_s {
     const char *name;
-    int type_index;          // -> _cffi_types
+    _cffi_opcode_t type_op;   /* 0 if opaque or prebuilt */
 };
 
 struct _cffi_type_context_s {
