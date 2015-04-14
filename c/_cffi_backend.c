@@ -1902,8 +1902,8 @@ _cdata_get_indexed_ptr(CDataObject *cd, PyObject *key)
     return cd->c_data + i * cd->c_type->ct_itemdescr->ct_size;
 }
 
-static PyObject *
-new_array_type(CTypeDescrObject *ctptr, PyObject *lengthobj);   /* forward */
+static CTypeDescrObject *
+new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length);   /* forward */
 
 static CTypeDescrObject *
 _cdata_getslicearg(CDataObject *cd, PySliceObject *slice, Py_ssize_t bounds[])
@@ -1968,7 +1968,7 @@ cdata_slice(CDataObject *cd, PySliceObject *slice)
         return NULL;
 
     if (ct->ct_stuff == NULL) {
-        ct->ct_stuff = new_array_type(ct, Py_None);
+        ct->ct_stuff = (PyObject *)new_array_type(ct, -1);
         if (ct->ct_stuff == NULL)
             return NULL;
     }
@@ -3540,21 +3540,33 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
 static PyObject *b_new_array_type(PyObject *self, PyObject *args)
 {
     PyObject *lengthobj;
+    Py_ssize_t length;
     CTypeDescrObject *ctptr;
 
     if (!PyArg_ParseTuple(args, "O!O:new_array_type",
                           &CTypeDescr_Type, &ctptr, &lengthobj))
         return NULL;
 
-    return new_array_type(ctptr, lengthobj);
+    if (lengthobj == Py_None) {
+        length = -1;
+    }
+    else {
+        length = PyNumber_AsSsize_t(lengthobj, PyExc_OverflowError);
+        if (length < 0) {
+            if (!PyErr_Occurred())
+                PyErr_SetString(PyExc_ValueError, "negative array length");
+            return NULL;
+        }
+    }
+    return (PyObject *)new_array_type(ctptr, length);
 }
 
-static PyObject *
-new_array_type(CTypeDescrObject *ctptr, PyObject *lengthobj)
+static CTypeDescrObject *
+new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length)
 {
     CTypeDescrObject *td, *ctitem;
     char extra_text[32];
-    Py_ssize_t length, arraysize;
+    Py_ssize_t arraysize;
     int flags = CT_ARRAY;
 
     if (!(ctptr->ct_flags & CT_POINTER)) {
@@ -3568,7 +3580,7 @@ new_array_type(CTypeDescrObject *ctptr, PyObject *lengthobj)
         return NULL;
     }
 
-    if (lengthobj == Py_None) {
+    if (length < 0) {
         sprintf(extra_text, "[]");
         length = -1;
         arraysize = -1;
@@ -3577,12 +3589,6 @@ new_array_type(CTypeDescrObject *ctptr, PyObject *lengthobj)
             flags |= CT_IS_UNSIZED_CHAR_A;
     }
     else {
-        length = PyNumber_AsSsize_t(lengthobj, PyExc_OverflowError);
-        if (length < 0) {
-            if (!PyErr_Occurred())
-                PyErr_SetString(PyExc_ValueError, "negative array length");
-            return NULL;
-        }
         sprintf(extra_text, "[%llu]", (unsigned PY_LONG_LONG)length);
         arraysize = length * ctitem->ct_size;
         if (length > 0 && (arraysize / length) != ctitem->ct_size) {
@@ -3600,7 +3606,7 @@ new_array_type(CTypeDescrObject *ctptr, PyObject *lengthobj)
     td->ct_size = arraysize;
     td->ct_length = length;
     td->ct_flags = flags;
-    return (PyObject *)td;
+    return td;
 }
 
 static CTypeDescrObject *new_void_type(void)

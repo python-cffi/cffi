@@ -330,7 +330,7 @@ static int parse_sequel(token_t *tok, int outer)
                 length = strtoull(tok->p, NULL, 10);
             else
                 length = strtoul(tok->p, NULL, 10);
-            if (errno == ERANGE)
+            if (errno == ERANGE || ((ssize_t)length) < 0)
                 return parse_error(tok, "number too large");
             next_token(tok);
 

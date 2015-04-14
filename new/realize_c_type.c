@@ -34,8 +34,9 @@ CTypeDescrObject *realize_c_type(const struct _cffi_type_context_s *ctx,
                                  _cffi_opcode_t opcodes[], int index)
 {
     CTypeDescrObject *ct;
-    CTypeDescrObject *x, *y;
+    CTypeDescrObject *x, *y, *z;
     _cffi_opcode_t op = opcodes[index];
+    Py_ssize_t length = -1;
 
     if ((((uintptr_t)op) & 1) == 0) {
         ct = (CTypeDescrObject *)op;
@@ -58,6 +59,25 @@ CTypeDescrObject *realize_c_type(const struct _cffi_type_context_s *ctx,
             return NULL;
         x = new_pointer_type(y);
         Py_DECREF(y);
+        break;
+
+    case _CFFI_OP_ARRAY:
+        length = (Py_ssize_t)opcodes[_CFFI_GETARG(op) + 1];
+        /* fall-through */
+    case _CFFI_OP_OPEN_ARRAY:
+        y = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
+        if (y == NULL)
+            return NULL;
+        z = new_pointer_type(y);
+        Py_DECREF(y);
+        if (z == NULL)
+            return NULL;
+        x = new_array_type(z, length);
+        Py_DECREF(z);
+        break;
+
+    case _CFFI_OP_NOOP:
+        x = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
         break;
 
     default:

@@ -14,3 +14,10 @@ def test_void():
 def test_int_star():
     check("int")
     check("int *")
+    check("int*", "int *")
+
+def test_noop():
+    check("int(*)", "int *")
+
+def test_array():
+    check("int[5]")
