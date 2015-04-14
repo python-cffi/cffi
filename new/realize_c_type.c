@@ -16,6 +16,10 @@ CTypeDescrObject *build_primitive_type(int num)
         x = new_primitive_type("int");
         break;
 
+    case _CFFI_PRIM_LONG:
+        x = new_primitive_type("long");
+        break;
+
     default:
         PyErr_Format(PyExc_NotImplementedError, "prim=%d", num);
         return NULL;

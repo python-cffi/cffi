@@ -15,6 +15,8 @@ def test_int_star():
     check("int")
     check("int *")
     check("int*", "int *")
+    check("long int", "long")
+    check("long")
 
 def test_noop():
     check("int(*)", "int *")
