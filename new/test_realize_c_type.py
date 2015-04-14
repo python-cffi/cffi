@@ -36,3 +36,8 @@ def test_funcptr():
           " function type, not a pointer-to-function type")
     check("int(void)", expected_ffi_error="the type 'int()' is a"
           " function type, not a pointer-to-function type")
+
+def test_funcptr_rewrite_args():
+    check("int(*)(int(int))", "int(*)(int(*)(int))")
+    check("int(*)(long[])", "int(*)(long *)")
+    check("int(*)(long[5])", "int(*)(long *)")
