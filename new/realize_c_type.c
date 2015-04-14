@@ -51,9 +51,13 @@ realize_c_type(const struct _cffi_type_context_s *ctx,
         PyObject *y;
         assert(PyTuple_Check(x));
         y = PyTuple_GET_ITEM(x, 0);
-        PyErr_Format(FFIError, "the type '%s' is a function type, not a "
-                               "pointer-to-function type",
-                     ((CTypeDescrObject *)y)->ct_name);
+        char *text1 = ((CTypeDescrObject *)y)->ct_name;
+        char *text2 = text1 + ((CTypeDescrObject *)y)->ct_name_position + 1;
+        assert(text2[-3] == '(');
+        text2[-3] = '\0';
+        PyErr_Format(FFIError, "the type '%s%s' is a function type, not a "
+                               "pointer-to-function type", text1, text2);
+        text2[-3] = '(';
         Py_DECREF(x);
         return NULL;
     }
