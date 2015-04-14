@@ -25,6 +25,9 @@ static int init_ffi_lib(PyObject *m)
         return -1;
     if (PyDict_SetItemString(FFI_Type.tp_dict, "error", FFIError) < 0)
         return -1;
+    if (PyDict_SetItemString(FFI_Type.tp_dict, "CType",
+                             (PyObject *)&CTypeDescr_Type) < 0)
+        return -1;
 
     Py_INCREF(&FFI_Type);
     if (PyModule_AddObject(m, "FFI", (PyObject *)&FFI_Type) < 0)

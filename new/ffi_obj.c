@@ -148,21 +148,19 @@ static PyObject *ffi_sizeof(FFIObject *self, PyObject *arg)
     return PyInt_FromSsize_t(ct->ct_size);
 }
 
-#if 0
-static PyObject *ffi_typeof(ZefFFIObject *self, PyObject *arg)
+static PyObject *ffi_typeof(FFIObject *self, PyObject *arg)
 {
     PyObject *x = (PyObject *)_ffi_type(self, arg, ACCEPT_STRING|ACCEPT_CDATA);
     if (x != NULL) {
         Py_INCREF(x);
     }
     else if (PyCFunction_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "typeof(lib.func) not supported: the "
-                        "exact type of functions is unknown (declare that "
-                        "function as a function pointer instead)");
+        abort(); // XXX
     }
     return x;
 }
 
+#if 0
 static PyObject *ffi_new(ZefFFIObject *self, PyObject *args)
 {
     CTypeDescrObject *ct, *ctitem;
@@ -559,8 +557,8 @@ static PyMethodDef ffi_methods[] = {
     {"sizeof",        (PyCFunction)ffi_sizeof,    METH_O},
 #if 0
     {"string",        (PyCFunction)ffi_string,    METH_VARARGS},
-    {"typeof",        (PyCFunction)ffi_typeof,    METH_O},
 #endif
+    {"typeof",        (PyCFunction)ffi_typeof,    METH_O},
     {NULL}
 };
 
