@@ -107,11 +107,34 @@ _realize_c_type(const struct _cffi_type_context_s *ctx,
     case _CFFI_OP_FUNCTION:
     {
         PyObject *fargs;
+        int i, base_index, num_args;
 
         y = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
-        fargs = PyTuple_New(0);  // XXX NULL
+
+        base_index = index + 1;
+        num_args = 0;
+        while (_CFFI_GETOP(opcodes[base_index + num_args]) !=
+                   _CFFI_OP_FUNCTION_END)
+            num_args++;
+
+        fargs = PyTuple_New(num_args);
+        if (fargs == NULL) {
+            Py_DECREF(y);
+            return NULL;
+        }
+
+        for (i = 0; i < num_args; i++) {
+            z = realize_c_type(ctx, opcodes, base_index + i);
+            if (z == NULL) {
+                Py_DECREF(fargs);
+                Py_DECREF(y);
+                return NULL;
+            }
+            PyTuple_SET_ITEM(fargs, i, z);
+        }
+
         z = new_function_type(fargs, (CTypeDescrObject *)y, 0, FFI_DEFAULT_ABI);
         Py_DECREF(fargs);
         Py_DECREF(y);
