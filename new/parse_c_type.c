@@ -349,43 +349,33 @@ static int parse_sequel(token_t *tok, int outer)
     return _CFFI_GETARG(result);
 }
 
-static int search_struct_union(const struct _cffi_type_context_s *ctx,
-                               const char *search, size_t search_len)
-{
-    int left = 0, right = ctx->num_structs_unions;
 
-    while (left < right) {
-        int middle = (left + right) / 2;
-        const char *src = ctx->structs_unions[middle].name;
-        int diff = strncmp(src, search, search_len);
-        if (diff == 0 && src[search_len] == '\0')
-            return middle;
-        else if (diff >= 0)
-            right = middle;
-        else
-            left = middle + 1;
-    }
-    return -1;
-}
+#define MAKE_SEARCH_FUNC(FIELD)                                 \
+  int search_in_##FIELD(const struct _cffi_type_context_s *ctx, \
+                        const char *search, size_t search_len)  \
+  {                                                             \
+      int left = 0, right = ctx->num_##FIELD;                   \
+                                                                \
+      while (left < right) {                                    \
+          int middle = (left + right) / 2;                      \
+          const char *src = ctx->FIELD[middle].name;            \
+          int diff = strncmp(src, search, search_len);          \
+          if (diff == 0 && src[search_len] == '\0')             \
+              return middle;                                    \
+          else if (diff >= 0)                                   \
+              right = middle;                                   \
+          else                                                  \
+              left = middle + 1;                                \
+      }                                                         \
+      return -1;                                                \
+  }
 
-static int search_typename(const struct _cffi_type_context_s *ctx,
-                           const char *search, size_t search_len)
-{
-    int left = 0, right = ctx->num_typenames;
+MAKE_SEARCH_FUNC(globals)
+MAKE_SEARCH_FUNC(structs_unions)
+MAKE_SEARCH_FUNC(typenames)
 
-    while (left < right) {
-        int middle = (left + right) / 2;
-        const char *src = ctx->typenames[middle].name;
-        int diff = strncmp(src, search, search_len);
-        if (diff == 0 && src[search_len] == '\0')
-            return middle;
-        else if (diff >= 0)
-            right = middle;
-        else
-            left = middle + 1;
-    }
-    return -1;
-}
+#undef MAKE_SEARCH_FUNC
+
 
 static int parse_complete(token_t *tok)
 {
@@ -512,7 +502,7 @@ static int parse_complete(token_t *tok)
             break;
         case TOK_IDENTIFIER:
         {
-            int n = search_typename(tok->info->ctx, tok->p, tok->size);
+            int n = search_in_typenames(tok->info->ctx, tok->p, tok->size);
             if (n < 0)
                 return parse_error(tok, "undefined type name");
 
@@ -527,7 +517,7 @@ static int parse_complete(token_t *tok)
             if (tok->kind != TOK_IDENTIFIER)
                 return parse_error(tok, "struct or union name expected");
 
-            int n = search_struct_union(tok->info->ctx, tok->p, tok->size);
+            int n = search_in_structs_unions(tok->info->ctx, tok->p, tok->size);
             if (n < 0)
                 return parse_error(tok, "undefined struct/union name");
             if (((tok->info->ctx->structs_unions[n].flags & CT_UNION) != 0)

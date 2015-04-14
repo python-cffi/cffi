@@ -18,7 +18,9 @@ typedef void *_cffi_opcode_t;
 #define _CFFI_OP_FUNCTION_END   17
 #define _CFFI_OP_NOOP           19
 #define _CFFI_OP_BITFIELD       21
-#define _CFFI_OP_CPYTHON_BLTN   23
+#define _CFFI_OP_CPYTHON_BLTN_V 23   // varargs
+#define _CFFI_OP_CPYTHON_BLTN_N 25   // noargs
+#define _CFFI_OP_CPYTHON_BLTN_O 27   // O  (i.e. a single arg)
 
 #define _CFFI_PRIM_VOID          0
 #define _CFFI_PRIM_BOOL          1
@@ -103,3 +105,5 @@ struct _cffi_parse_info_s {
 };
 
 int parse_c_type(struct _cffi_parse_info_s *info, const char *input);
+int search_in_globals(const struct _cffi_type_context_s *ctx,
+                      const char *search, size_t search_len);

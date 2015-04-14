@@ -10,7 +10,7 @@ static PyTypeObject Lib_Type;   /* forward */
 static PyObject *FFIError;
 
 #include "ffi_obj.c"
-//#include "lib_obj.c"
+#include "lib_obj.c"
 
 
 static int init_ffi_lib(PyObject *m)
@@ -32,6 +32,9 @@ static int init_ffi_lib(PyObject *m)
     Py_INCREF(&FFI_Type);
     if (PyModule_AddObject(m, "FFI", (PyObject *)&FFI_Type) < 0)
         return -1;
+    Py_INCREF(&Lib_Type);
+    if (PyModule_AddObject(m, "Lib", (PyObject *)&Lib_Type) < 0)
+        return -1;
 
     return 0;
 }
@@ -45,6 +48,10 @@ static int _cffi_init_module(char *module_name,
 
     FFIObject *ffi = ffi_internal_new(ctx);
     if (ffi == NULL || PyModule_AddObject(m, "ffi", (PyObject *)ffi) < 0)
+        return -1;
+
+    LibObject *lib = lib_internal_new(ctx, module_name);
+    if (lib == NULL || PyModule_AddObject(m, "lib", (PyObject *)lib) < 0)
         return -1;
 
     return 0;

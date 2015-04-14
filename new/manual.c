@@ -80,8 +80,8 @@ _cffi_f_foo64(PyObject *self, PyObject *arg0)
 }
 
 static const struct _cffi_global_s _cffi_globals[] = {
-    { "foo42", &_cffi_f_foo42, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN, 0) },
-    { "foo64", &_cffi_f_foo64, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN, 4) },
+    { "foo42", &_cffi_f_foo42, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 0) },
+    { "foo64", &_cffi_f_foo64, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 4) },
 };
 
 static const struct _cffi_type_context_s _cffi_type_context = {
@@ -92,7 +92,7 @@ static const struct _cffi_type_context_s _cffi_type_context = {
     NULL,
     NULL,
     NULL,
-    1,  /* num_globals */
+    2,  /* num_globals */
     0,
     0,
     0,
