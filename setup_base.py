@@ -9,9 +9,7 @@ if __name__ == '__main__':
     from distutils.core import setup
     from distutils.extension import Extension
     standard = '__pypy__' not in sys.modules
-    setup(packages=['cffi'],
-          requires=['pycparser'],
-          ext_modules=[Extension(name = '_cffi_backend',
+    setup(ext_modules=[Extension(name = '_cffi1_backend',
                                  include_dirs=include_dirs,
                                  sources=sources,
                                  libraries=libraries,

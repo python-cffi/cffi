@@ -65,9 +65,13 @@ static int ffi_traverse(FFIObject *ffi, visitproc visit, void *arg)
 static PyObject *ffiobj_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     /* user-facing initialization code, for explicit FFI() calls */
-    /* XXX LATER */
-    PyErr_SetString(PyExc_NotImplementedError, "FFI()");
-    return NULL;
+    static const struct _cffi_type_context_s empty_ctx = { 0 };
+
+    char *keywords[] = {NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, ":FFI", keywords))
+        return NULL;
+
+    return (PyObject *)ffi_internal_new(&empty_ctx);
 }
 
 #define ACCEPT_STRING   1

@@ -13,12 +13,8 @@ static PyObject *FFIError;
 //#include "lib_obj.c"
 
 
-static int init_ffi_lib(void)
+static int init_ffi_lib(PyObject *m)
 {
-    static int ffi_lib_ok = 0;
-    if (ffi_lib_ok)
-        return 0;
-
     if (!PyType_Ready(&FFI_Type) < 0)
         return -1;
     if (!PyType_Ready(&Lib_Type) < 0)
@@ -30,16 +26,16 @@ static int init_ffi_lib(void)
     if (PyDict_SetItemString(FFI_Type.tp_dict, "error", FFIError) < 0)
         return -1;
 
-    ffi_lib_ok = 1;
+    Py_INCREF(&FFI_Type);
+    if (PyModule_AddObject(m, "FFI", (PyObject *)&FFI_Type) < 0)
+        return -1;
+
     return 0;
 }
 
 static int _cffi_init_module(char *module_name,
                              const struct _cffi_type_context_s *ctx)
 {
-    if (init_ffi_lib() < 0)
-        return -1;
-
     PyObject *m = Py_InitModule(module_name, NULL);
     if (m == NULL)
         return -1;

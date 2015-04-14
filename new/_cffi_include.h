@@ -161,7 +161,7 @@ static int _cffi_init(void)
     PyObject *module, *c_api_object = NULL;
     void *src;
 
-    module = PyImport_ImportModule("_cffi_backend");
+    module = PyImport_ImportModule("_cffi1_backend");
     if (module == NULL)
         goto failure;
 
@@ -175,7 +175,7 @@ static int _cffi_init(void)
     src = PyCapsule_GetPointer(c_api_object, "cffi");
     if ((uintptr_t)(((void **)src)[0]) < _CFFI_NUM_EXPORTS) {
         PyErr_SetString(PyExc_ImportError,
-                        "the _cffi_backend module is an outdated version");
+                        "the _cffi1_backend module is an outdated version");
         goto failure;
     }
     memcpy(_cffi_exports, src, _CFFI_NUM_EXPORTS * sizeof(void *));

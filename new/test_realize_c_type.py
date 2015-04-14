@@ -1,15 +1,16 @@
-import os
 
-def setup_module():
-    err = os.system("python setup.py build_ext -i")
-    if err != 0:
-        raise Exception(err)
-    global realize_c_type
-    import realize_c_type
 
+def check(input, expected_output=None):
+    import _cffi1_backend
+    ffi = _cffi1_backend.FFI()
+    ct = ffi.typeof(input)
+    assert isinstance(ct, ffi.CType)
+    assert ct.cname == (expected_output or input)
 
 def test_void():
-    assert realize_c_type.test("void") == "VOID"
+    check("void", "void")
+    check("  void  ", "void")
 
 def test_int_star():
-    assert realize_c_type.test("int *") == ("pointer", "INT")
+    check("int")
+    check("int *")
