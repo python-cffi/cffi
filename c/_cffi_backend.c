@@ -1902,7 +1902,7 @@ _cdata_get_indexed_ptr(CDataObject *cd, PyObject *key)
     return cd->c_data + i * cd->c_type->ct_itemdescr->ct_size;
 }
 
-static CTypeDescrObject *
+static PyObject *
 new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length);   /* forward */
 
 static CTypeDescrObject *
@@ -1968,7 +1968,7 @@ cdata_slice(CDataObject *cd, PySliceObject *slice)
         return NULL;
 
     if (ct->ct_stuff == NULL) {
-        ct->ct_stuff = (PyObject *)new_array_type(ct, -1);
+        ct->ct_stuff = new_array_type(ct, -1);
         if (ct->ct_stuff == NULL)
             return NULL;
     }
@@ -2269,18 +2269,13 @@ convert_struct_to_owning_object(char *data, CTypeDescrObject *ct); /*forward*/
 static cif_description_t *
 fb_prepare_cif(PyObject *fargs, CTypeDescrObject *, ffi_abi);      /*forward*/
 
-static PyObject *
-b_new_primitive_type(PyObject *self, PyObject *args);              /*forward*/
+static PyObject *new_primitive_type(const char *name);             /*forward*/
 
 static CTypeDescrObject *_get_ct_int(void)
 {
     static CTypeDescrObject *ct_int = NULL;
     if (ct_int == NULL) {
-        PyObject *args = Py_BuildValue("(s)", "int");
-        if (args == NULL)
-            return NULL;
-        ct_int = (CTypeDescrObject *)b_new_primitive_type(NULL, args);
-        Py_DECREF(args);
+        ct_int = (CTypeDescrObject *)new_primitive_type("int");
     }
     return ct_int;
 }
@@ -3338,7 +3333,7 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
 
 /************************************************************/
 
-static CTypeDescrObject *new_primitive_type(const char *name)
+static PyObject *new_primitive_type(const char *name)
 {
 #define ENUM_PRIMITIVE_TYPES                                    \
        EPTYPE(c, char, CT_PRIMITIVE_CHAR)                       \
@@ -3483,7 +3478,7 @@ static CTypeDescrObject *new_primitive_type(const char *name)
             td->ct_flags |= CT_PRIMITIVE_FITS_LONG;
     }
     td->ct_name_position = strlen(td->ct_name);
-    return td;
+    return (PyObject *)td;
 
  bad_ffi_type:
     PyErr_Format(PyExc_NotImplementedError,
@@ -3498,10 +3493,10 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     char *name;
     if (!PyArg_ParseTuple(args, "s:new_primitive_type", &name))
         return NULL;
-    return (PyObject *)new_primitive_type(name);
+    return new_primitive_type(name);
 }
 
-static CTypeDescrObject *new_pointer_type(CTypeDescrObject *ctitem)
+static PyObject *new_pointer_type(CTypeDescrObject *ctitem)
 {
     CTypeDescrObject *td;
     const char *extra;
@@ -3525,7 +3520,7 @@ static CTypeDescrObject *new_pointer_type(CTypeDescrObject *ctitem)
         ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
          ctitem->ct_size == sizeof(char)))
         td->ct_flags |= CT_CAST_ANYTHING;   /* 'void *' or 'char *' only */
-    return td;
+    return (PyObject *)td;
 }
 
 static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
@@ -3534,7 +3529,7 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!:new_pointer_type",
                           &CTypeDescr_Type, &ctitem))
         return NULL;
-    return (PyObject *)new_pointer_type(ctitem);
+    return new_pointer_type(ctitem);
 }
 
 static PyObject *b_new_array_type(PyObject *self, PyObject *args)
@@ -3558,10 +3553,10 @@ static PyObject *b_new_array_type(PyObject *self, PyObject *args)
             return NULL;
         }
     }
-    return (PyObject *)new_array_type(ctptr, length);
+    return new_array_type(ctptr, length);
 }
 
-static CTypeDescrObject *
+static PyObject *
 new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length)
 {
     CTypeDescrObject *td, *ctitem;
@@ -3606,10 +3601,10 @@ new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length)
     td->ct_size = arraysize;
     td->ct_length = length;
     td->ct_flags = flags;
-    return td;
+    return (PyObject *)td;
 }
 
-static CTypeDescrObject *new_void_type(void)
+static PyObject *new_void_type(void)
 {
     int name_size = strlen("void") + 1;
     CTypeDescrObject *td = ctypedescr_new(name_size);
@@ -3620,12 +3615,12 @@ static CTypeDescrObject *new_void_type(void)
     td->ct_size = -1;
     td->ct_flags = CT_VOID | CT_IS_OPAQUE;
     td->ct_name_position = strlen("void");
-    return td;
+    return (PyObject *)td;
 }
 
 static PyObject *b_new_void_type(PyObject *self, PyObject *args)
 {
-    return (PyObject *)new_void_type();
+    return new_void_type();
 }
 
 static PyObject *_b_struct_or_union_type(const char *name, int flag)
@@ -4389,21 +4384,14 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     return NULL;
 }
 
-static PyObject *b_new_function_type(PyObject *self, PyObject *args)
+static PyObject *new_function_type(PyObject *fargs,   /* tuple */
+                                   CTypeDescrObject *fresult,
+                                   int ellipsis, int fabi)
 {
-    PyObject *fargs, *fabiobj;
-    CTypeDescrObject *fresult;
+    PyObject *fabiobj;
     CTypeDescrObject *fct;
-    int ellipsis = 0, fabi = FFI_DEFAULT_ABI;
     struct funcbuilder_s funcbuilder;
     Py_ssize_t i;
-
-    if (!PyArg_ParseTuple(args, "O!O!|ii:new_function_type",
-                          &PyTuple_Type, &fargs,
-                          &CTypeDescr_Type, &fresult,
-                          &ellipsis,
-                          &fabi))
-        return NULL;
 
     if ((fresult->ct_size < 0 && !(fresult->ct_flags & CT_VOID)) ||
         (fresult->ct_flags & CT_ARRAY)) {
@@ -4466,6 +4454,22 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
  error:
     Py_DECREF(fct);
     return NULL;
+}
+
+static PyObject *b_new_function_type(PyObject *self, PyObject *args)
+{
+    PyObject *fargs;
+    CTypeDescrObject *fresult;
+    int ellipsis = 0, fabi = FFI_DEFAULT_ABI;
+
+    if (!PyArg_ParseTuple(args, "O!O!|ii:new_function_type",
+                          &PyTuple_Type, &fargs,
+                          &CTypeDescr_Type, &fresult,
+                          &ellipsis,
+                          &fabi))
+        return NULL;
+
+    return new_function_type(fargs, fresult, ellipsis, fabi);
 }
 
 static int convert_from_object_fficallback(char *result,

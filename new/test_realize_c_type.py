@@ -23,3 +23,6 @@ def test_noop():
 
 def test_array():
     check("int[5]")
+
+def test_funcptr():
+    check("int(*)(long)")

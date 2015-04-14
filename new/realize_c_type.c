@@ -1,10 +1,10 @@
 
-static CTypeDescrObject *all_primitives[_CFFI__NUM_PRIM];
+static PyObject *all_primitives[_CFFI__NUM_PRIM];
 
 
-CTypeDescrObject *build_primitive_type(int num)
+PyObject *build_primitive_type(int num)
 {
-    CTypeDescrObject *x;
+    PyObject *x;
 
     switch (num) {
 
@@ -30,22 +30,39 @@ CTypeDescrObject *build_primitive_type(int num)
 }
 
 
+static PyObject *
+_realize_c_type(const struct _cffi_type_context_s *ctx,
+                _cffi_opcode_t opcodes[], int index);  /* forward */
+
+
 /* Interpret an opcodes[] array.  If opcodes == ctx->types, store all
    the intermediate types back in the opcodes[].  Returns a new
    reference.
 */
-CTypeDescrObject *realize_c_type(const struct _cffi_type_context_s *ctx,
-                                 _cffi_opcode_t opcodes[], int index)
+static PyObject *
+realize_c_type(const struct _cffi_type_context_s *ctx,
+               _cffi_opcode_t opcodes[], int index)
 {
-    CTypeDescrObject *ct;
-    CTypeDescrObject *x, *y, *z;
+    PyObject *x = _realize_c_type(ctx, opcodes, index);
+    if (x != NULL && !CTypeDescr_Check(x)) {
+        PyErr_SetString(PyExc_NotImplementedError, "unexpected type");
+        x = NULL;
+    }
+    return x;
+}
+
+static PyObject *
+_realize_c_type(const struct _cffi_type_context_s *ctx,
+                _cffi_opcode_t opcodes[], int index)
+{
+    PyObject *x, *y, *z;
     _cffi_opcode_t op = opcodes[index];
     Py_ssize_t length = -1;
 
     if ((((uintptr_t)op) & 1) == 0) {
-        ct = (CTypeDescrObject *)op;
-        Py_INCREF(ct);
-        return ct;
+        x = (PyObject *)op;
+        Py_INCREF(x);
+        return x;
     }
 
     switch (_CFFI_GETOP(op)) {
@@ -58,10 +75,17 @@ CTypeDescrObject *realize_c_type(const struct _cffi_type_context_s *ctx,
         break;
 
     case _CFFI_OP_POINTER:
-        y = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
+        y = _realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
-        x = new_pointer_type(y);
+        if (CTypeDescr_Check(y)) {
+            x = new_pointer_type((CTypeDescrObject *)y);
+        }
+        else {
+            assert(PyTuple_Check(y));   /* from _CFFI_OP_FUNCTION */
+            x = PyTuple_GET_ITEM(y, 0);
+            Py_INCREF(x);
+        }
         Py_DECREF(y);
         break;
 
@@ -72,16 +96,36 @@ CTypeDescrObject *realize_c_type(const struct _cffi_type_context_s *ctx,
         y = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
-        z = new_pointer_type(y);
+        z = new_pointer_type((CTypeDescrObject *)y);
         Py_DECREF(y);
         if (z == NULL)
             return NULL;
-        x = new_array_type(z, length);
+        x = new_array_type((CTypeDescrObject *)z, length);
         Py_DECREF(z);
         break;
 
+    case _CFFI_OP_FUNCTION:
+    {
+        PyObject *fargs;
+
+        y = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
+        if (y == NULL)
+            return NULL;
+        fargs = PyTuple_New(0);  // XXX NULL
+        z = new_function_type(fargs, (CTypeDescrObject *)y, 0, FFI_DEFAULT_ABI);
+        Py_DECREF(fargs);
+        Py_DECREF(y);
+        if (z == NULL)
+            return NULL;
+
+        x = PyTuple_Pack(1, z);   /* hack: hide the CT_FUNCTIONPTR.  it will
+                                     be revealed again by the OP_POINTER */
+        Py_DECREF(z);
+        break;
+    }
+
     case _CFFI_OP_NOOP:
-        x = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
+        x = _realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
         break;
 
     default:

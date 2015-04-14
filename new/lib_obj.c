@@ -66,7 +66,7 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
 
     xfunc->md.ml_meth = (PyCFunction)g->address;
     xfunc->md.ml_flags = flags;
-    xfunc->md.ml_name = strdup(s);
+    xfunc->md.ml_name = g->name;
     /*xfunc->md.ml_doc = ... */
     if (xfunc->md.ml_name == NULL)
         goto no_memory;
