@@ -3338,7 +3338,7 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
 
 /************************************************************/
 
-static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
+static CTypeDescrObject *new_primitive_type(const char *name)
 {
 #define ENUM_PRIMITIVE_TYPES                                    \
        EPTYPE(c, char, CT_PRIMITIVE_CHAR)                       \
@@ -3403,7 +3403,6 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 #undef EPTYPE
 
     CTypeDescrObject *td;
-    const char *name;
     static const struct descr_s { const char *name; int size, align, flags; }
     types[] = {
 #define EPTYPE(code, typename, flags)                   \
@@ -3421,9 +3420,6 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     const struct descr_s *ptypes;
     int name_size;
     ffi_type *ffitype;
-
-    if (!PyArg_ParseTuple(args, "s:new_primitive_type", &name))
-        return NULL;
 
     for (ptypes=types; ; ptypes++) {
         if (ptypes->name == NULL) {
@@ -3487,7 +3483,7 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
             td->ct_flags |= CT_PRIMITIVE_FITS_LONG;
     }
     td->ct_name_position = strlen(td->ct_name);
-    return (PyObject *)td;
+    return td;
 
  bad_ffi_type:
     PyErr_Format(PyExc_NotImplementedError,
@@ -3497,14 +3493,18 @@ static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
     return NULL;
 }
 
-static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
+static PyObject *b_new_primitive_type(PyObject *self, PyObject *args)
 {
-    CTypeDescrObject *td, *ctitem;
-    const char *extra;
-
-    if (!PyArg_ParseTuple(args, "O!:new_pointer_type",
-                          &CTypeDescr_Type, &ctitem))
+    char *name;
+    if (!PyArg_ParseTuple(args, "s:new_primitive_type", &name))
         return NULL;
+    return (PyObject *)new_primitive_type(name);
+}
+
+static CTypeDescrObject *new_pointer_type(CTypeDescrObject *ctitem)
+{
+    CTypeDescrObject *td;
+    const char *extra;
 
     if (ctitem->ct_flags & CT_ARRAY)
         extra = "(*)";   /* obscure case: see test_array_add */
@@ -3525,7 +3525,16 @@ static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
         ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
          ctitem->ct_size == sizeof(char)))
         td->ct_flags |= CT_CAST_ANYTHING;   /* 'void *' or 'char *' only */
-    return (PyObject *)td;
+    return td;
+}
+
+static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ctitem;
+    if (!PyArg_ParseTuple(args, "O!:new_pointer_type",
+                          &CTypeDescr_Type, &ctitem))
+        return NULL;
+    return (PyObject *)new_pointer_type(ctitem);
 }
 
 static PyObject *b_new_array_type(PyObject *self, PyObject *args)
@@ -3594,7 +3603,7 @@ new_array_type(CTypeDescrObject *ctptr, PyObject *lengthobj)
     return (PyObject *)td;
 }
 
-static PyObject *b_new_void_type(PyObject *self, PyObject *args)
+static CTypeDescrObject *new_void_type(void)
 {
     int name_size = strlen("void") + 1;
     CTypeDescrObject *td = ctypedescr_new(name_size);
@@ -3605,7 +3614,12 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *args)
     td->ct_size = -1;
     td->ct_flags = CT_VOID | CT_IS_OPAQUE;
     td->ct_name_position = strlen("void");
-    return (PyObject *)td;
+    return td;
+}
+
+static PyObject *b_new_void_type(PyObject *self, PyObject *args)
+{
+    return (PyObject *)new_void_type();
 }
 
 static PyObject *_b_struct_or_union_type(const char *name, int flag)
@@ -5683,8 +5697,10 @@ static PyObject *_cffi_from_c_wchar_t(wchar_t x) {
 }
 #endif
 
+#include "../new/cffi1_module.c"
+
 static void *cffi_exports[] = {
-    0,
+    (void *)26,
     _cffi_to_c_i8,
     _cffi_to_c_u8,
     _cffi_to_c_i16,
@@ -5714,6 +5730,7 @@ static void *cffi_exports[] = {
     _cffi_to_c__Bool,
     _prepare_pointer_call_argument,
     convert_array_from_object,
+    _cffi_init_module,
 };
 
 /************************************************************/

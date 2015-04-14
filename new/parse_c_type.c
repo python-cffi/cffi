@@ -41,9 +41,9 @@ enum token_e {
 
 typedef struct {
     struct _cffi_parse_info_s *info;
-    const char *p;
+    const char *input, *p;
+    size_t size;              // the next token is at 'p' and of length 'size'
     enum token_e kind;
-    size_t size;
     _cffi_opcode_t *output;
     size_t output_index;
 } token_t;
@@ -177,7 +177,7 @@ static int parse_error(token_t *tok, const char *msg)
 {
     if (tok->kind != TOK_ERROR) {
         tok->kind = TOK_ERROR;
-        tok->info->error_location = tok->p;
+        tok->info->error_location = tok->p - tok->input;
         tok->info->error_message = msg;
     }
     return -1;
@@ -349,7 +349,7 @@ static int parse_sequel(token_t *tok, int outer)
     return _CFFI_GETARG(result);
 }
 
-static int search_struct_union(struct _cffi_type_context_s *ctx,
+static int search_struct_union(const struct _cffi_type_context_s *ctx,
                                const char *search, size_t search_len)
 {
     int left = 0, right = ctx->num_structs_unions;
@@ -368,7 +368,7 @@ static int search_struct_union(struct _cffi_type_context_s *ctx,
     return -1;
 }
 
-static int search_typename(struct _cffi_type_context_s *ctx,
+static int search_typename(const struct _cffi_type_context_s *ctx,
                            const char *search, size_t search_len)
 {
     int left = 0, right = ctx->num_typenames;
@@ -554,6 +554,7 @@ int parse_c_type(struct _cffi_parse_info_s *info, const char *input)
 
     token.info = info;
     token.kind = TOK_START;
+    token.input = input;
     token.p = input;
     token.size = 0;
     token.output = info->output;

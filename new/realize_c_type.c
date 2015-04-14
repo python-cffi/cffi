@@ -1,22 +1,19 @@
-#include <Python.h>
-#include "parse_c_type.h"
+
+static CTypeDescrObject *all_primitives[_CFFI__NUM_PRIM];
 
 
-static PyObject *all_primitives[_CFFI__NUM_PRIM];
-
-
-PyObject *build_primitive_type(int num)
+CTypeDescrObject *build_primitive_type(int num)
 {
-    PyObject *x;
+    CTypeDescrObject *x;
 
     switch (num) {
 
     case _CFFI_PRIM_VOID:
-        x = PyString_FromString("VOID");
+        x = new_void_type();
         break;
 
     case _CFFI_PRIM_INT:
-        x = PyString_FromString("INT");
+        x = new_primitive_type("int");
         break;
 
     default:
@@ -29,15 +26,21 @@ PyObject *build_primitive_type(int num)
 }
 
 
-PyObject *realize_c_type(struct _cffi_type_context_s *ctx,
-                         _cffi_opcode_t opcodes[], int index)
+/* Interpret an opcodes[] array.  If opcodes == ctx->types, store all
+   the intermediate types back in the opcodes[].  Returns a new
+   reference.
+*/
+CTypeDescrObject *realize_c_type(const struct _cffi_type_context_s *ctx,
+                                 _cffi_opcode_t opcodes[], int index)
 {
-    PyObject *x, *y;
+    CTypeDescrObject *ct;
+    CTypeDescrObject *x, *y;
     _cffi_opcode_t op = opcodes[index];
+
     if ((((uintptr_t)op) & 1) == 0) {
-        x = (PyObject *)op;
-        Py_INCREF(x);
-        return x;
+        ct = (CTypeDescrObject *)op;
+        Py_INCREF(ct);
+        return ct;
     }
 
     switch (_CFFI_GETOP(op)) {
@@ -53,7 +56,7 @@ PyObject *realize_c_type(struct _cffi_type_context_s *ctx,
         y = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
-        x = Py_BuildValue("sO", "pointer", y);
+        x = new_pointer_type(y);
         Py_DECREF(y);
         break;
 
@@ -62,44 +65,10 @@ PyObject *realize_c_type(struct _cffi_type_context_s *ctx,
         return NULL;
     }
 
-    if (opcodes == ctx->types) {
+    if (x != NULL && opcodes == ctx->types) {
+        assert((((uintptr_t)x) & 1) == 0);
         Py_INCREF(x);
         opcodes[index] = x;
     }
     return x;
 };
-
-
-static PyObject *b_test(PyObject *self, PyObject *args)
-{
-    char *s;
-    if (!PyArg_ParseTuple(args, "s", &s))
-        return NULL;
-
-    _cffi_opcode_t opcodes[100];
-    struct _cffi_type_context_s global_ctx = { NULL };
-    struct _cffi_parse_info_s parse_info = {
-        .ctx = &global_ctx,
-        .output = opcodes,
-        .output_size = 100,
-    };
-    int res = parse_c_type(&parse_info, s);
-    if (res < 0) {
-        PyErr_SetString(PyExc_ValueError, parse_info.error_message);
-        return NULL;
-    }
-
-    return realize_c_type(&global_ctx, opcodes, res);
-}
-
-static PyMethodDef MyMethods[] = {
-    {"test",   b_test,  METH_VARARGS},
-    {NULL,     NULL}    /* Sentinel */
-};
-
-PyMODINIT_FUNC
-initrealize_c_type(void)
-{
-    PyObject *m = Py_InitModule("realize_c_type", MyMethods);
-    (void)m;
-}

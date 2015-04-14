@@ -95,10 +95,10 @@ struct _cffi_type_context_s {
 };
 
 struct _cffi_parse_info_s {
-    struct _cffi_type_context_s *ctx;
+    const struct _cffi_type_context_s *ctx;
     _cffi_opcode_t *output;
     int output_size;
-    const char *error_location;
+    size_t error_location;
     const char *error_message;
 };
 

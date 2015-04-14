@@ -49,11 +49,10 @@ def parse(input):
     info.output_size = len(out)
     for j in range(len(out)):
         out[j] = ffi.cast("void *", -424242)
-    c_input = ffi.new("char[]", input)
-    res = lib.parse_c_type(info, c_input)
+    res = lib.parse_c_type(info, input)
     if res < 0:
         raise ParseError(ffi.string(info.error_message),
-                         info.error_location - c_input)
+                         info.error_location)
     assert 0 <= res < len(out)
     result = []
     for j in range(len(out)):
