@@ -31,8 +31,8 @@ PyObject *build_primitive_type(int num)
 
 
 static PyObject *
-_realize_c_type(const struct _cffi_type_context_s *ctx,
-                _cffi_opcode_t opcodes[], int index);  /* forward */
+_realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
+                        _cffi_opcode_t opcodes[], int index);  /* forward */
 
 
 /* Interpret an opcodes[] array.  If opcodes == ctx->types, store all
@@ -43,17 +43,25 @@ static PyObject *
 realize_c_type(const struct _cffi_type_context_s *ctx,
                _cffi_opcode_t opcodes[], int index)
 {
-    PyObject *x = _realize_c_type(ctx, opcodes, index);
-    if (x != NULL && !CTypeDescr_Check(x)) {
-        PyErr_SetString(PyExc_NotImplementedError, "unexpected type");
-        x = NULL;
+    PyObject *x = _realize_c_type_or_func(ctx, opcodes, index);
+    if (x == NULL || CTypeDescr_Check(x)) {
+        return x;
     }
-    return x;
+    else {
+        PyObject *y;
+        assert(PyTuple_Check(x));
+        y = PyTuple_GET_ITEM(x, 0);
+        PyErr_Format(FFIError, "the type '%s' is a function type, not a "
+                               "pointer-to-function type",
+                     ((CTypeDescrObject *)y)->ct_name);
+        Py_DECREF(x);
+        return NULL;
+    }
 }
 
 static PyObject *
-_realize_c_type(const struct _cffi_type_context_s *ctx,
-                _cffi_opcode_t opcodes[], int index)
+_realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
+                        _cffi_opcode_t opcodes[], int index)
 {
     PyObject *x, *y, *z;
     _cffi_opcode_t op = opcodes[index];
@@ -75,7 +83,7 @@ _realize_c_type(const struct _cffi_type_context_s *ctx,
         break;
 
     case _CFFI_OP_POINTER:
-        y = _realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
+        y = _realize_c_type_or_func(ctx, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
         if (CTypeDescr_Check(y)) {
@@ -148,7 +156,7 @@ _realize_c_type(const struct _cffi_type_context_s *ctx,
     }
 
     case _CFFI_OP_NOOP:
-        x = _realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
+        x = _realize_c_type_or_func(ctx, opcodes, _CFFI_GETARG(op));
         break;
 
     default:

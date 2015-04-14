@@ -1,3 +1,5 @@
+static PyObject *FFIError;
+
 #include "parse_c_type.c"
 #include "realize_c_type.c"
 
@@ -6,8 +8,6 @@ typedef struct LibObject_s LibObject;
 
 static PyTypeObject FFI_Type;   /* forward */
 static PyTypeObject Lib_Type;   /* forward */
-
-static PyObject *FFIError;
 
 #include "ffi_obj.c"
 #include "lib_obj.c"
