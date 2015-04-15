@@ -11,7 +11,7 @@ class Recompiler:
 
     def collect_type_table(self):
         self._typesdict = {}
-        self._generate('collecttype')
+        self._generate("collecttype")
         #
         all_decls = sorted(self._typesdict, key=str)
         #
@@ -260,6 +260,12 @@ class Recompiler:
                 var, self._gettypenum(tp))
         else:
             raise NotImplementedError(tp)
+
+    # ----------
+    # typedefs
+
+    def _generate_cpy_typedef_collecttype(self, tp, name):
+        self._do_collect_type(tp)
 
     # ----------
     # function declarations

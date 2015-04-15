@@ -506,7 +506,8 @@ static int parse_complete(token_t *tok)
             if (n < 0)
                 return parse_error(tok, "undefined type name");
 
-            t1 = _CFFI_OP(_CFFI_OP_TYPENAME, n);
+            t1 = _CFFI_OP(_CFFI_OP_NOOP,
+                          tok->info->ctx->typenames[n].type_index);
             break;
         }
         case TOK_STRUCT:

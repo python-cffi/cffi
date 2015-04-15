@@ -37,6 +37,7 @@ c_identifier_names = [ffi.new("char[]", _n) for _n in identifier_names]
 ctx_identifiers = ffi.new("struct _cffi_typename_s[]", len(identifier_names))
 for _i in range(len(identifier_names)):
     ctx_identifiers[_i].name = c_identifier_names[_i]
+    ctx_identifiers[_i].type_index = 100 + _i
 ctx.typenames = ctx_identifiers
 ctx.num_typenames = len(identifier_names)
 
@@ -92,7 +93,6 @@ NoOp = make_getter('NOOP')
 Func = make_getter('FUNCTION')
 FuncEnd = make_getter('FUNCTION_END')
 Struct = make_getter('STRUCT_UNION')
-Typename = make_getter('TYPENAME')
 
 
 def test_simple():
@@ -239,12 +239,14 @@ def test_struct():
 
 def test_identifier():
     for i in range(len(identifier_names)):
-        assert parse("%s" % (identifier_names[i])) == ['->', Typename(i)]
-        assert parse("%s*" % (identifier_names[i])) == [Typename(i),
+        assert parse("%s" % (identifier_names[i])) == ['->', NoOp(100 + i)]
+        assert parse("%s*" % (identifier_names[i])) == [NoOp(100 + i),
                                                         '->', Pointer(0)]
 
 def test_cffi_opcode_sync():
-    import cffi_opcode
+    import cffi_opcode, cffi1.model
     for name in dir(lib):
         if name.startswith('_CFFI_'):
             assert getattr(cffi_opcode, name[6:]) == getattr(lib, name)
+    assert sorted(cffi_opcode.PRIMITIVE_TO_INDEX.keys()) == (
+        sorted(cffi1.model.PrimitiveType.ALL_PRIMITIVE_TYPES.keys()))

@@ -13,15 +13,14 @@ typedef void *_cffi_opcode_t;
 #define _CFFI_OP_OPEN_ARRAY      7
 #define _CFFI_OP_STRUCT_UNION    9
 #define _CFFI_OP_ENUM           11
-#define _CFFI_OP_TYPENAME       13
-#define _CFFI_OP_FUNCTION       15
-#define _CFFI_OP_FUNCTION_END   17
-#define _CFFI_OP_NOOP           19
-#define _CFFI_OP_BITFIELD       21
-#define _CFFI_OP_INTEGER_CONST  23
-#define _CFFI_OP_CPYTHON_BLTN_V 25   // varargs
-#define _CFFI_OP_CPYTHON_BLTN_N 27   // noargs
-#define _CFFI_OP_CPYTHON_BLTN_O 29   // O  (i.e. a single arg)
+#define _CFFI_OP_FUNCTION       13
+#define _CFFI_OP_FUNCTION_END   15
+#define _CFFI_OP_NOOP           17
+#define _CFFI_OP_BITFIELD       19
+#define _CFFI_OP_INTEGER_CONST  21
+#define _CFFI_OP_CPYTHON_BLTN_V 23   // varargs
+#define _CFFI_OP_CPYTHON_BLTN_N 25   // noargs
+#define _CFFI_OP_CPYTHON_BLTN_O 27   // O  (i.e. a single arg)
 
 #define _CFFI_PRIM_VOID          0
 #define _CFFI_PRIM_BOOL          1
@@ -39,7 +38,23 @@ typedef void *_cffi_opcode_t;
 #define _CFFI_PRIM_FLOAT        13
 #define _CFFI_PRIM_DOUBLE       14
 #define _CFFI_PRIM_LONGDOUBLE   15
-#define _CFFI__NUM_PRIM         16
+
+#define _CFFI_PRIM_WCHAR        16
+#define _CFFI_PRIM_INT8         17
+#define _CFFI_PRIM_UINT8        18
+#define _CFFI_PRIM_INT16        19
+#define _CFFI_PRIM_UINT16       20
+#define _CFFI_PRIM_INT32        21
+#define _CFFI_PRIM_UINT32       22
+#define _CFFI_PRIM_INT64        23
+#define _CFFI_PRIM_UINT64       24
+#define _CFFI_PRIM_INTPTR       25
+#define _CFFI_PRIM_UINTPTR      26
+#define _CFFI_PRIM_PTRDIFF      27
+#define _CFFI_PRIM_SIZE         28
+#define _CFFI_PRIM_SSIZE        29
+
+#define _CFFI__NUM_PRIM         30
 
 
 struct _cffi_global_s {
@@ -79,7 +94,8 @@ struct _cffi_enum_s {
 
 struct _cffi_typename_s {
     const char *name;
-    _cffi_opcode_t type_op;   /* 0 if opaque or prebuilt */
+    int type_index;   /* if opaque, points to a possibly artificial
+                         OP_STRUCT which is itself opaque */
 };
 
 struct _cffi_type_context_s {

@@ -44,9 +44,21 @@ def test_funcptr_as_argument():
                      "(FUNCTION 7)(POINTER 0)(FUNCTION_END 0)"
                      "(PRIMITIVE 14)(PRIMITIVE 7)")
 
+def test_variadic_function():
+    check_type_table("int sin(int, ...);",
+                     "(FUNCTION 1)(PRIMITIVE 7)(FUNCTION_END 1)")
+
 def test_array():
     check_type_table("int a[100];",
                      "(PRIMITIVE 7)(ARRAY 0)(None 100)")
+
+def test_typedef():
+    check_type_table("typedef int foo_t;",
+                     "(PRIMITIVE 7)")
+
+def test_prebuilt_type():
+    check_type_table("int32_t f(void);",
+                     "(FUNCTION 2)(FUNCTION_END 0)(PRIMITIVE 21)")
 
 
 def test_math_sin():
