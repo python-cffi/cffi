@@ -18,9 +18,10 @@ typedef void *_cffi_opcode_t;
 #define _CFFI_OP_FUNCTION_END   17
 #define _CFFI_OP_NOOP           19
 #define _CFFI_OP_BITFIELD       21
-#define _CFFI_OP_CPYTHON_BLTN_V 23   // varargs
-#define _CFFI_OP_CPYTHON_BLTN_N 25   // noargs
-#define _CFFI_OP_CPYTHON_BLTN_O 27   // O  (i.e. a single arg)
+#define _CFFI_OP_INTEGER_CONST  23
+#define _CFFI_OP_CPYTHON_BLTN_V 25   // varargs
+#define _CFFI_OP_CPYTHON_BLTN_N 27   // noargs
+#define _CFFI_OP_CPYTHON_BLTN_O 29   // O  (i.e. a single arg)
 
 #define _CFFI_PRIM_VOID          0
 #define _CFFI_PRIM_BOOL          1

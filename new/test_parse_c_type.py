@@ -242,3 +242,9 @@ def test_identifier():
         assert parse("%s" % (identifier_names[i])) == ['->', Typename(i)]
         assert parse("%s*" % (identifier_names[i])) == [Typename(i),
                                                         '->', Pointer(0)]
+
+def test_cffi_opcode_sync():
+    import cffi_opcode
+    for name in dir(lib):
+        if name.startswith('_CFFI_'):
+            assert getattr(cffi_opcode, name[6:]) == getattr(lib, name)

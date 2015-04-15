@@ -24,9 +24,10 @@ OP_FUNCTION        = 15
 OP_FUNCTION_END    = 17
 OP_NOOP            = 19
 OP_BITFIELD        = 21
-OP_CPYTHON_BLTN_V  = 23   # varargs
-OP_CPYTHON_BLTN_N  = 25   # noargs
-OP_CPYTHON_BLTN_O  = 27   # O  (i.e. a single arg)
+OP_INTEGER_CONST   = 23
+OP_CPYTHON_BLTN_V  = 25   # varargs
+OP_CPYTHON_BLTN_N  = 27   # noargs
+OP_CPYTHON_BLTN_O  = 29   # O  (i.e. a single arg)
 
 PRIM_VOID          = 0
 PRIM_BOOL          = 1
@@ -44,6 +45,7 @@ PRIM_ULONGLONG     = 12
 PRIM_FLOAT         = 13
 PRIM_DOUBLE        = 14
 PRIM_LONGDOUBLE    = 15
+_NUM_PRIM          = 16
 
 PRIMITIVE_TO_INDEX = {
     'int':    PRIM_INT,
