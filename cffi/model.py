@@ -169,6 +169,9 @@ class FunctionPtrType(BaseFunctionType):
         return global_cache(self, ffi, 'new_function_type',
                             tuple(args), result, self.ellipsis)
 
+    def as_raw_function(self):
+        return RawFunctionType(self.args, self.result, self.ellipsis)
+
 
 class PointerType(BaseType):
     _attrs_ = ('totype',)

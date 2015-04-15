@@ -1,22 +1,14 @@
 
-/* A Lib object is what is returned by any of:
-
-   - the "lib" attribute of a C extension module originally created by
-     recompile()
-
-   - ffi.dlopen()
-
-   - ffi.verify()
+/* A Lib object is what is in the "lib" attribute of a C extension
+   module originally created by recompile().
 
    A Lib object is special in the sense that it has a custom
    __getattr__ which returns C globals, functions and constants.  It
-   raises AttributeError for anything else, like '__class__'.
+   raises AttributeError for anything else, even attrs like '__class__'.
 
    A Lib object has got a reference to the _cffi_type_context_s
    structure, which is used to create lazily the objects returned by
-   __getattr__.  For a dlopen()ed Lib object, all the 'address' fields
-   in _cffi_global_s are NULL, and instead dlsym() is used lazily on
-   the l_dl_lib.
+   __getattr__.
 */
 
 struct CPyExtFunc_s {
@@ -29,17 +21,13 @@ struct LibObject_s {
     PyObject_HEAD
     const struct _cffi_type_context_s *l_ctx;  /* ctx object */
     PyObject *l_dict;           /* content, built lazily */
-    void *l_dl_lib;             /* the result of 'dlopen()', or NULL */
     PyObject *l_libname;        /* some string that gives the name of the lib */
 };
 
 #define LibObject_Check(ob)  ((Py_TYPE(ob) == &Lib_Type))
 
-static int lib_close(LibObject *lib);    /* forward */
-
 static void lib_dealloc(LibObject *lib)
 {
-    (void)lib_close(lib);
     Py_DECREF(lib->l_dict);
     Py_DECREF(lib->l_libname);
     PyObject_Del(lib);
@@ -228,33 +216,6 @@ static PyTypeObject Lib_Type = {
     offsetof(LibObject, l_dict),                /* tp_dictoffset */
 };
 
-
-static void lib_dlerror(LibObject *lib)
-{
-    char *error = dlerror();
-    if (error == NULL)
-        error = "(no error reported)";
-    PyErr_Format(PyExc_OSError, "%s: %s", PyText_AS_UTF8(lib->l_libname),
-                 error);
-}
-
-static int lib_close(LibObject *lib)
-{
-    void *dll;
-    lib->l_ctx = NULL;
-    PyDict_Clear(lib->l_dict);
-
-    dll = lib->l_dl_lib;
-    if (dll != NULL) {
-        lib->l_dl_lib = NULL;
-        if (dlclose(dll) != 0) {
-            lib_dlerror(lib);
-            return -1;
-        }
-    }
-    return 0;
-}
-
 static LibObject *lib_internal_new(const struct _cffi_type_context_s *ctx,
                                    char *module_name)
 {
@@ -275,7 +236,6 @@ static LibObject *lib_internal_new(const struct _cffi_type_context_s *ctx,
 
     lib->l_ctx = ctx;
     lib->l_dict = dict;
-    lib->l_dl_lib = NULL;
     lib->l_libname = libname;
     return lib;
 }

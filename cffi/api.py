@@ -1,5 +1,6 @@
 import sys, types
 from .lock import allocate_lock
+import _cffi1_backend
 
 try:
     callable
@@ -27,7 +28,7 @@ class CDefError(Exception):
         return '%s%s' % (line, self.args[0])
 
 
-class FFI(object):
+class FFI(_cffi1_backend.FFI):
     r'''
     The main top-level class that you instantiate once, or once per module.
 
@@ -45,21 +46,16 @@ class FFI(object):
         C.printf("hello, %s!\n", ffi.new("char[]", "world"))
     '''
 
-    def __init__(self, backend=None):
+    def __init__(self):
         """Create an FFI instance.  The 'backend' argument is used to
         select a non-default backend, mostly for tests.
         """
         from . import cparser, model
-        if backend is None:
-            # You need PyPy (>= 2.0 beta), or a CPython (>= 2.6) with
-            # _cffi_backend.so compiled.
-            import _cffi_backend as backend
-            from . import __version__
-            assert backend.__version__ == __version__, \
-               "version mismatch, %s != %s" % (backend.__version__, __version__)
-            # (If you insist you can also try to pass the option
-            # 'backend=backend_ctypes.CTypesBackend()', but don't
-            # rely on it!  It's probably not going to work well.)
+        from . import __version__
+
+        backend = _cffi1_backend
+        assert backend.__version__ == __version__, \
+            "version mismatch, %s != %s" % (backend.__version__, __version__)
 
         self._backend = backend
         self._lock = allocate_lock()
@@ -80,15 +76,6 @@ class FFI(object):
         with self._lock:
             self.BVoidP = self._get_cached_btype(model.voidp_type)
             self.BCharA = self._get_cached_btype(model.char_array_type)
-        if isinstance(backend, types.ModuleType):
-            # _cffi_backend: attach these constants to the class
-            if not hasattr(FFI, 'NULL'):
-                FFI.NULL = self.cast(self.BVoidP, 0)
-                FFI.CData, FFI.CType = backend._get_types()
-        else:
-            # ctypes backend: attach these constants to the instance
-            self.NULL = self.cast(self.BVoidP, 0)
-            self.CData, self.CType = backend._get_types()
 
     def cdef(self, csource, override=False, packed=False):
         """Parse the given C source.  This registers all declared functions,
@@ -203,7 +190,7 @@ class FFI(object):
             cdecl = self._typeof(cdecl)
         return self._typeoffsetof(cdecl, *fields_or_indexes)[1]
 
-    def new(self, cdecl, init=None):
+    def XXXnew(self, cdecl, init=None):
         """Allocate an instance according to the specified C type and
         return a pointer to it.  The specified C type must be either a
         pointer or an array: ``new('X *')`` allocates an X and returns
