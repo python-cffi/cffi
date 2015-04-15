@@ -30,10 +30,19 @@ def test_use_noop_for_repeated_args():
     check_type_table("double sin(double *, double *);",
                      "(FUNCTION 4)(POINTER 4)(NOOP 1)(FUNCTION_END 0)"
                      "(PRIMITIVE 14)")
+    check_type_table("double sin(double *, double *, double);",
+                     "(FUNCTION 3)(POINTER 3)(NOOP 1)(PRIMITIVE 14)"
+                     "(FUNCTION_END 0)")
 
 def test_dont_use_noop_for_primitives():
     check_type_table("double sin(double, double);",
                      "(FUNCTION 1)(PRIMITIVE 14)(PRIMITIVE 14)(FUNCTION_END 0)")
+
+def test_funcptr_as_argument():
+    check_type_table("int sin(double(float));",
+                     "(FUNCTION 6)(PRIMITIVE 13)(FUNCTION_END 0)"
+                     "(FUNCTION 7)(POINTER 0)(FUNCTION_END 0)"
+                     "(PRIMITIVE 14)(PRIMITIVE 7)")
 
 
 def test_math_sin():

@@ -106,6 +106,10 @@ class Recompiler:
     def _emit_bytecode_PointerType(self, tp, index):
         self.cffi_types[index] = CffiOp(OP_POINTER, self._typesdict[tp.totype])
 
+    def _emit_bytecode_FunctionPtrType(self, tp, index):
+        raw = tp.as_raw_function()
+        self.cffi_types[index] = CffiOp(OP_POINTER, self._typesdict[raw])
+
     # ----------
 
     def _prnt(self, what=''):
