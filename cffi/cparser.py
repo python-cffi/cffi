@@ -266,7 +266,10 @@ class Parser(object):
             #
             if decl.name:
                 tp = self._get_type(node, partial_length_ok=True)
-                if self._is_constant_globalvar(node):
+                if tp.is_raw_function:
+                    tp = self._get_type_pointer(tp)
+                    self._declare('function ' + decl.name, tp)
+                elif self._is_constant_globalvar(node):
                     self._declare('constant ' + decl.name, tp)
                 else:
                     self._declare('variable ' + decl.name, tp)

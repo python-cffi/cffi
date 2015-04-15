@@ -1197,6 +1197,15 @@ def test_typedef_enum_as_function_result():
     """)
     assert lib.foo_func(lib.BB) == lib.BB == 2
 
+def test_function_typedef():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef double func_t(double);
+        func_t sin;
+    """)
+    lib = ffi.verify('#include <math.h>', libraries=lib_m)
+    assert lib.sin(1.23) == math.sin(1.23)
+
 def test_callback_calling_convention():
     py.test.skip("later")
     if sys.platform != 'win32':
