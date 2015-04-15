@@ -164,13 +164,10 @@ static PyObject *ffi_typeof(FFIObject *self, PyObject *arg)
     return x;
 }
 
-#if 0
-static PyObject *ffi_new(ZefFFIObject *self, PyObject *args)
+static PyObject *ffi_new(FFIObject *self, PyObject *args)
 {
-    CTypeDescrObject *ct, *ctitem;
-    CDataObject *cd;
+    CTypeDescrObject *ct;
     PyObject *arg, *init = Py_None;
-    Py_ssize_t dataoffset, datasize, explicitlength;
     if (!PyArg_ParseTuple(args, "O|O:new", &arg, &init))
         return NULL;
 
@@ -178,76 +175,10 @@ static PyObject *ffi_new(ZefFFIObject *self, PyObject *args)
     if (ct == NULL)
         return NULL;
 
-    explicitlength = -1;
-    if (ct->ct_flags & (CT_POINTER | CT_STRUCT | CT_UNION)) {
-        dataoffset = offsetof(CDataObject_own_nolength, alignment);
-        ctitem = (ct->ct_flags & CT_POINTER) ? ct->ct_itemdescr : ct;
-        datasize = ctitem->ct_size;
-        if (datasize < 0) {
-            PyErr_Format(PyExc_TypeError,
-                         "cannot instantiate ctype '%s' of unknown size",
-                         ctitem->ct_name);
-            return NULL;
-        }
-        if (ctitem->ct_flags & CT_PRIMITIVE_CHAR)
-            datasize *= 2;   /* forcefully add another character: a null */
-
-        if ((ctitem->ct_flags & CT_WITH_VAR_ARRAY) && init != Py_None) {
-            Py_ssize_t optvarsize = datasize;
-            if (convert_struct_from_object(NULL,ctitem, init, &optvarsize) < 0)
-                return NULL;
-            datasize = optvarsize;
-        }
-    }
-    else if (ct->ct_flags & CT_ARRAY) {
-        dataoffset = offsetof(CDataObject_own_nolength, alignment);
-        datasize = ct->ct_size;
-        if (datasize < 0) {
-            explicitlength = get_new_array_length(&init);
-            if (explicitlength < 0)
-                return NULL;
-            ctitem = ct->ct_itemdescr;
-            dataoffset = offsetof(CDataObject_own_length, alignment);
-            datasize = explicitlength * ctitem->ct_size;
-            if (explicitlength > 0 &&
-                    (datasize / explicitlength) != ctitem->ct_size) {
-                PyErr_SetString(PyExc_OverflowError,
-                                "array size would overflow a Py_ssize_t");
-                return NULL;
-            }
-        }
-    }
-    else if (ct->ct_flags & CT_PRIMITIVE_ANY) {
-        cd = _new_casted_primitive(ct);
-        datasize = ct->ct_size;
-        goto initialize_casted_primitive;
-    }
-    else {
-        PyErr_Format(PyExc_TypeError,
-                     "cannot create cdata '%s' objects", ct->ct_name);
-        return NULL;
-    }
-
-    cd = allocate_owning_object(dataoffset + datasize, ct);
-    if (cd == NULL)
-        return NULL;
-
-    cd->c_data = ((char *)cd) + dataoffset;
-    if (explicitlength >= 0)
-        ((CDataObject_own_length*)cd)->length = explicitlength;
-
- initialize_casted_primitive:
-    memset(cd->c_data, 0, datasize);
-    if (init != Py_None) {
-        if (convert_from_object(cd->c_data,
-              (ct->ct_flags & CT_POINTER) ? ct->ct_itemdescr : ct, init) < 0) {
-            Py_DECREF(cd);
-            return NULL;
-        }
-    }
-    return (PyObject *)cd;
+    return direct_newp(ct, init);
 }
 
+#if 0
 static PyObject *ffi_cast(ZefFFIObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
@@ -555,7 +486,9 @@ static PyMethodDef ffi_methods[] = {
     {"getctype",      (PyCFunction)ffi_getctype,  METH_VARARGS},
     {"load_library",  (PyCFunction)ffi_load_library,METH_VARARGS|METH_KEYWORDS},
     {"offsetof",      (PyCFunction)ffi_offsetof,  METH_VARARGS},
+#endif
     {"new",           (PyCFunction)ffi_new,       METH_VARARGS},
+#if 0
     {"new_handle",    (PyCFunction)ffi_new_handle,METH_O},
 #endif
     {"sizeof",        (PyCFunction)ffi_sizeof,    METH_O},

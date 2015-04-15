@@ -2796,14 +2796,11 @@ convert_struct_to_owning_object(char *data, CTypeDescrObject *ct)
     return (PyObject *)cd;
 }
 
-static PyObject *b_newp(PyObject *self, PyObject *args)
+static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init)
 {
-    CTypeDescrObject *ct, *ctitem;
+    CTypeDescrObject *ctitem;
     CDataObject *cd;
-    PyObject *init = Py_None;
     Py_ssize_t dataoffset, datasize, explicitlength;
-    if (!PyArg_ParseTuple(args, "O!|O:newp", &CTypeDescr_Type, &ct, &init))
-        return NULL;
 
     explicitlength = -1;
     if (ct->ct_flags & CT_POINTER) {
@@ -2892,6 +2889,15 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
         }
     }
     return (PyObject *)cd;
+}
+
+static PyObject *b_newp(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    PyObject *init = Py_None;
+    if (!PyArg_ParseTuple(args, "O!|O:newp", &CTypeDescr_Type, &ct, &init))
+        return NULL;
+    return direct_newp(ct, init);
 }
 
 static int
