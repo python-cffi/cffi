@@ -377,6 +377,70 @@ MAKE_SEARCH_FUNC(typenames)
 #undef MAKE_SEARCH_FUNC
 
 
+int search_standard_typename(const char *p, size_t size)
+{
+    if (size < 6 || p[size-2] != '_' || p[size-1] != 't')
+        return -1;
+
+    switch (p[4]) {
+
+    case '1':
+        if (size == 8 && !memcmp(p, "uint16", 6)) return _CFFI_PRIM_UINT16;
+        break;
+
+    case '2':
+        if (size == 7 && !memcmp(p, "int32", 5)) return _CFFI_PRIM_INT32;
+        break;
+
+    case '3':
+        if (size == 8 && !memcmp(p, "uint32", 6)) return _CFFI_PRIM_UINT32;
+        break;
+
+    case '4':
+        if (size == 7 && !memcmp(p, "int64", 5)) return _CFFI_PRIM_INT64;
+        break;
+
+    case '6':
+        if (size == 8 && !memcmp(p, "uint64", 6)) return _CFFI_PRIM_UINT64;
+        if (size == 7 && !memcmp(p, "int16", 5)) return _CFFI_PRIM_INT16;
+        break;
+
+    case '8':
+        if (size == 7 && !memcmp(p, "uint8", 5)) return _CFFI_PRIM_UINT8;
+        break;
+
+    case 'e':
+        if (size == 7 && !memcmp(p, "ssize", 5)) return _CFFI_PRIM_SSIZE;
+        break;
+
+    case 'i':
+        if (size == 9 && !memcmp(p, "ptrdiff", 7)) return _CFFI_PRIM_PTRDIFF;
+        break;
+
+    case 'p':
+        if (size == 9 && !memcmp(p, "uintptr", 7)) return _CFFI_PRIM_UINTPTR;
+        break;
+
+    case 'r':
+        if (size == 7 && !memcmp(p, "wchar", 5)) return _CFFI_PRIM_WCHAR;
+        break;
+
+    case 't':
+        if (size == 8 && !memcmp(p, "intptr", 6)) return _CFFI_PRIM_INTPTR;
+        break;
+
+    case '_':
+        if (size == 6 && !memcmp(p, "size", 4)) return _CFFI_PRIM_SIZE;
+        if (size == 6 && !memcmp(p, "int8", 4)) return _CFFI_PRIM_INT8;
+        break;
+
+    default:
+        break;
+    }
+    return -1;
+}
+
+
 static int parse_complete(token_t *tok)
 {
  qualifiers:
@@ -503,12 +567,17 @@ static int parse_complete(token_t *tok)
         case TOK_IDENTIFIER:
         {
             int n = search_in_typenames(tok->info->ctx, tok->p, tok->size);
-            if (n < 0)
-                return parse_error(tok, "undefined type name");
-
-            t1 = _CFFI_OP(_CFFI_OP_NOOP,
-                          tok->info->ctx->typenames[n].type_index);
-            break;
+            if (n >= 0) {
+                t1 = _CFFI_OP(_CFFI_OP_NOOP,
+                              tok->info->ctx->typenames[n].type_index);
+                break;
+            }
+            n = search_standard_typename(tok->p, tok->size);
+            if (n >= 0) {
+                t1 = _CFFI_OP(_CFFI_OP_PRIMITIVE, n);
+                break;
+            }
+            return parse_error(tok, "undefined type name");
         }
         case TOK_STRUCT:
         case TOK_UNION:

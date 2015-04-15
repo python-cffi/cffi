@@ -4,23 +4,50 @@ static PyObject *all_primitives[_CFFI__NUM_PRIM];
 
 PyObject *build_primitive_type(int num)
 {
+    /* XXX too many translations between here and new_primitive_type() */
+    static const char *primitive_name[] = {
+        NULL,
+        "_Bool",
+        "char",
+        "signed char",
+        "unsigned char",
+        "short",
+        "unsigned short",
+        "int",
+        "unsigned int",
+        "long",
+        "unsigned long",
+        "long long",
+        "unsigned long long",
+        "float",
+        "double",
+        "long double",
+        "wchar_t",
+        "int8_t",
+        "uint8_t",
+        "int16_t",
+        "uint16_t",
+        "int32_t",
+        "uint32_t",
+        "int64_t",
+        "uint64_t",
+        "intptr_t",
+        "uintptr_t",
+        "ptrdiff_t",
+        "size_t",
+        "ssize_t",
+    };
     PyObject *x;
 
-    switch (num) {
-
-    case _CFFI_PRIM_VOID:
+    if (num == _CFFI_PRIM_VOID) {
         x = new_void_type();
-        break;
-
-    case _CFFI_PRIM_INT:
-        x = new_primitive_type("int");
-        break;
-
-    case _CFFI_PRIM_LONG:
-        x = new_primitive_type("long");
-        break;
-
-    default:
+    }
+    else if (0 <= num &&
+             num < sizeof(primitive_name) / sizeof(*primitive_name) &&
+             primitive_name[num] != NULL) {
+        x = new_primitive_type(primitive_name[num]);
+    }
+    else {
         PyErr_Format(PyExc_NotImplementedError, "prim=%d", num);
         return NULL;
     }
