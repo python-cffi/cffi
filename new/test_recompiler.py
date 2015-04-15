@@ -44,8 +44,17 @@ def test_funcptr_as_argument():
                      "(FUNCTION 7)(POINTER 0)(FUNCTION_END 0)"
                      "(PRIMITIVE 14)(PRIMITIVE 7)")
 
+def test_array():
+    check_type_table("int a[100];",
+                     "(PRIMITIVE 7)(ARRAY 0)(None 100)")
+
 
 def test_math_sin():
     ffi = FFI()
     ffi.cdef("float sin(double); double cos(double);")
     make_c_source(ffi, str(udir.join('math_sin.c')), '#include <math.h>')
+
+def test_global_var_array():
+    ffi = FFI()
+    ffi.cdef("int a[100];")
+    make_c_source(ffi, str(udir.join('global_var_array.c')), 'int a[100];')

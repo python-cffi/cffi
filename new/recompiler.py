@@ -83,33 +83,6 @@ class Recompiler:
                 model.attach_exception_info(e, name)
                 raise
 
-    def _generate_cpy_function_collecttype(self, tp, name):
-        self._do_collect_type(tp.as_raw_function())
-
-    def _emit_bytecode_PrimitiveType(self, tp, index):
-        prim_index = PRIMITIVE_TO_INDEX[tp.name]
-        self.cffi_types[index] = CffiOp(OP_PRIMITIVE, prim_index)
-
-    def _emit_bytecode_RawFunctionType(self, tp, index):
-        self.cffi_types[index] = CffiOp(OP_FUNCTION, self._typesdict[tp.result])
-        index += 1
-        for tp1 in tp.args:
-            realindex = self._typesdict[tp1]
-            if index != realindex:
-                if isinstance(tp1, model.PrimitiveType):
-                    self._emit_bytecode_PrimitiveType(tp1, index)
-                else:
-                    self.cffi_types[index] = CffiOp(OP_NOOP, realindex)
-            index += 1
-        self.cffi_types[index] = CffiOp(OP_FUNCTION_END, tp.ellipsis)
-
-    def _emit_bytecode_PointerType(self, tp, index):
-        self.cffi_types[index] = CffiOp(OP_POINTER, self._typesdict[tp.totype])
-
-    def _emit_bytecode_FunctionPtrType(self, tp, index):
-        raw = tp.as_raw_function()
-        self.cffi_types[index] = CffiOp(OP_POINTER, self._typesdict[raw])
-
     # ----------
 
     def _prnt(self, what=''):
@@ -291,6 +264,9 @@ class Recompiler:
     # ----------
     # function declarations
 
+    def _generate_cpy_function_collecttype(self, tp, name):
+        self._do_collect_type(tp.as_raw_function())
+
     def _generate_cpy_function_decl(self, tp, name):
         assert isinstance(tp, model.FunctionPtrType)
         if tp.ellipsis:
@@ -379,6 +355,56 @@ class Recompiler:
             '  { "%s", _cffi_f_%s, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_%s, %d)},'
             % (name, name, meth_kind, type_index))
 
+    # ----------
+    # global variables
+
+    def _generate_cpy_variable_collecttype(self, tp, name):
+        self._do_collect_type(tp)
+
+    def _generate_cpy_variable_decl(self, tp, name):
+        pass
+
+    def _generate_cpy_variable_global(self, tp, name):
+        type_index = self._typesdict[tp]
+        self._lst.append(
+            '  { "%s", &%s, _CFFI_OP(_CFFI_OP_NOOP, %d)},'
+            % (name, name, type_index))
+
+    # ----------
+    # emitting the opcodes for individual types
+
+    def _emit_bytecode_PrimitiveType(self, tp, index):
+        prim_index = PRIMITIVE_TO_INDEX[tp.name]
+        self.cffi_types[index] = CffiOp(OP_PRIMITIVE, prim_index)
+
+    def _emit_bytecode_RawFunctionType(self, tp, index):
+        self.cffi_types[index] = CffiOp(OP_FUNCTION, self._typesdict[tp.result])
+        index += 1
+        for tp1 in tp.args:
+            realindex = self._typesdict[tp1]
+            if index != realindex:
+                if isinstance(tp1, model.PrimitiveType):
+                    self._emit_bytecode_PrimitiveType(tp1, index)
+                else:
+                    self.cffi_types[index] = CffiOp(OP_NOOP, realindex)
+            index += 1
+        self.cffi_types[index] = CffiOp(OP_FUNCTION_END, int(tp.ellipsis))
+
+    def _emit_bytecode_PointerType(self, tp, index):
+        self.cffi_types[index] = CffiOp(OP_POINTER, self._typesdict[tp.totype])
+
+    def _emit_bytecode_FunctionPtrType(self, tp, index):
+        raw = tp.as_raw_function()
+        self.cffi_types[index] = CffiOp(OP_POINTER, self._typesdict[raw])
+
+    def _emit_bytecode_ArrayType(self, tp, index):
+        item_index = self._typesdict[tp.item]
+        if tp.length is None:
+            self.cffi_types[index] = CffiOp(OP_OPEN_ARRAY, item_index)
+        else:
+            assert self.cffi_types[index + 1] == 'LEN'
+            self.cffi_types[index] = CffiOp(OP_ARRAY, item_index)
+            self.cffi_types[index + 1] = CffiOp(None, '%d' % (tp.length,))
 
 def make_c_source(ffi, target_c_file, preamble):
     module_name, ext = os.path.splitext(os.path.basename(target_c_file))

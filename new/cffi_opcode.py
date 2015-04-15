@@ -4,11 +4,14 @@ class CffiOp(object):
         self.op = op
         self.arg = arg
     def as_c_expr(self):
+        if self.op is None:
+            assert isinstance(self.arg, str)
+            return '(_cffi_opcode_t)(%s)' % (self.arg,)
         classname = CLASS_NAME[self.op]
         return '_CFFI_OP(_CFFI_OP_%s, %d)' % (classname, self.arg)
     def __str__(self):
         classname = CLASS_NAME.get(self.op, self.op)
-        return '(%s %d)' % (classname, self.arg)
+        return '(%s %s)' % (classname, self.arg)
 
 OP_PRIMITIVE       = 1
 OP_POINTER         = 3
