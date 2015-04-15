@@ -3,8 +3,9 @@ class CffiOp(object):
     def __init__(self, op, arg):
         self.op = op
         self.arg = arg
-    def as_int(self):
-        return self.op | (self.arg << 8)
+    def as_c_expr(self):
+        classname = CLASS_NAME[self.op]
+        return '_CFFI_OP(_CFFI_OP_%s, %d)' % (classname, self.arg)
     def __str__(self):
         classname = CLASS_NAME.get(self.op, self.op)
         return '(%s %d)' % (classname, self.arg)

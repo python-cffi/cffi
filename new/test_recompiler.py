@@ -6,7 +6,7 @@ from udir import udir
 def check_type_table(input, expected_output):
     ffi = FFI()
     ffi.cdef(input)
-    recompiler = Recompiler(ffi)
+    recompiler = Recompiler(ffi, 'testmod')
     recompiler.collect_type_table()
     assert ''.join(map(str, recompiler.cffi_types)) == expected_output
 
@@ -38,5 +38,5 @@ def test_dont_use_noop_for_primitives():
 
 def test_math_sin():
     ffi = FFI()
-    ffi.cdef("double sin(double);")
+    ffi.cdef("float sin(double); double cos(double);")
     make_c_source(ffi, str(udir.join('math_sin.c')), '#include <math.h>')
