@@ -46,7 +46,8 @@ static int _cffi_init_module(char *module_name,
     if (m == NULL)
         return -1;
 
-    FFIObject *ffi = ffi_internal_new(ctx);
+    FFIObject *ffi = ffi_internal_new(NULL, ctx);
+    Py_XINCREF(ffi);    /* make the ffi object really immortal */
     if (ffi == NULL || PyModule_AddObject(m, "ffi", (PyObject *)ffi) < 0)
         return -1;
 

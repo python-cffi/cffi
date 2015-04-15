@@ -26,13 +26,22 @@ struct FFIObject_s {
     _cffi_opcode_t internal_output[FFI_COMPLEXITY_OUTPUT];
 };
 
-static FFIObject *ffi_internal_new(const struct _cffi_type_context_s *ctx)
+static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
+                                   const struct _cffi_type_context_s *ctx)
 {
     PyObject *dict = PyDict_New();
     if (dict == NULL)
         return NULL;
 
-    FFIObject *ffi = PyObject_GC_New(FFIObject, &FFI_Type);
+    FFIObject *ffi;
+    if (ffitype == NULL) {
+        ffi = (FFIObject *)PyObject_New(FFIObject, &FFI_Type);
+        /* we don't call PyObject_GC_Track() here: from _cffi_init_module()
+           it is not needed, because in this case the ffi object is immortal */
+    }
+    else {
+        ffi = (FFIObject *)ffitype->tp_alloc(ffitype, 0);
+    }
     if (ffi == NULL) {
         Py_DECREF(dict);
         return NULL;
@@ -42,8 +51,6 @@ static FFIObject *ffi_internal_new(const struct _cffi_type_context_s *ctx)
     ffi->info.ctx = ctx;
     ffi->info.output = ffi->internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
-
-    PyObject_GC_Track(ffi);
     return ffi;
 }
 
@@ -52,7 +59,23 @@ static void ffi_dealloc(FFIObject *ffi)
     PyObject_GC_UnTrack(ffi);
     Py_DECREF(ffi->types_dict);
     Py_XDECREF(ffi->gc_wrefs);
-    PyObject_GC_Del(ffi);
+
+    {
+        const void *mem[] = {ffi->info.ctx->types,
+                             ffi->info.ctx->globals,
+                             ffi->info.ctx->constants,
+                             ffi->info.ctx->structs_unions,
+                             ffi->info.ctx->fields,
+                             ffi->info.ctx->enums,
+                             ffi->info.ctx->typenames,
+                             ffi->info.ctx};
+        int i;
+        for (i = 0; i < sizeof(mem) / sizeof(*mem); i++) {
+            if (mem[i] != NULL)
+                PyMem_Free((void *)mem[i]);
+        }
+    }
+    Py_TYPE(ffi)->tp_free((PyObject *)ffi);
 }
 
 static int ffi_traverse(FFIObject *ffi, visitproc visit, void *arg)
@@ -65,13 +88,30 @@ static int ffi_traverse(FFIObject *ffi, visitproc visit, void *arg)
 static PyObject *ffiobj_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     /* user-facing initialization code, for explicit FFI() calls */
-    static const struct _cffi_type_context_s empty_ctx = { 0 };
+    struct _cffi_type_context_s *ctx;
+    PyObject *result;
 
+    ctx = PyMem_Malloc(sizeof(struct _cffi_type_context_s));
+    if (ctx == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+    memset(ctx, 0, sizeof(struct _cffi_type_context_s));
+
+    result = (PyObject *)ffi_internal_new(type, ctx);
+    if (result == NULL) {
+        PyMem_Free(ctx);
+        return NULL;
+    }
+    return result;
+}
+
+static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
+{
     char *keywords[] = {NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwds, ":FFI", keywords))
-        return NULL;
-
-    return (PyObject *)ffi_internal_new(&empty_ctx);
+        return -1;
+    return 0;
 }
 
 #define ACCEPT_STRING   1
@@ -519,7 +559,8 @@ static PyTypeObject FFI_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+        Py_TPFLAGS_BASETYPE,                    /* tp_flags */
     0,                                          /* tp_doc */
     (traverseproc)ffi_traverse,                 /* tp_traverse */
     0,                                          /* tp_clear */
@@ -535,7 +576,7 @@ static PyTypeObject FFI_Type = {
     0,                                          /* tp_descr_get */
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
-    0,                                          /* tp_init */
+    ffiobj_init,                                /* tp_init */
     0,                                          /* tp_alloc */
     ffiobj_new,                                 /* tp_new */
     PyObject_GC_Del,                            /* tp_free */
