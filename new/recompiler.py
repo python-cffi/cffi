@@ -116,54 +116,42 @@ class Recompiler:
         # ffi._parser._declarations.  This generates all the functions.
         self._generate("decl")
         #
-        # the declaration of '_cffi_globals'
-        self._lst = []
-        self._generate("global")
-        num_globals = len(self._lst)
-        if num_globals > 0:
-            self._lst.sort()  # sort by name, which is at the start of each line
-            prnt('static const struct _cffi_global_s _cffi_globals[] = {')
-            for line in self._lst:
-                prnt(line)
-            prnt('};')
-            prnt()
+        # the declaration of '_cffi_globals' and '_cffi_typenames'
+        nums = {}
+        self._lsts = {"global": [], "typename": []}
+        self._generate("ctx")
+        for step_name in ["global", "typename"]:
+            lst = self._lsts[step_name]
+            nums[step_name] = len(lst)
+            if nums[step_name] > 0:
+                lst.sort()  # sort by name, which is at the start of each line
+                prnt('static const struct _cffi_%s_s _cffi_%s[] = {' % (
+                    step_name, step_name))
+                for line in lst:
+                    prnt(line)
+                prnt('};')
+                prnt()
         #
         # XXX
-        num_constants = 0
-        num_structs_unions = 0
-        num_enums = 0
-        num_typenames = 0
+        nums['constant'] = 0
+        nums['struct_union'] = 0
+        nums['enum'] = 0
         #
         # the declaration of '_cffi_type_context'
         prnt('static const struct _cffi_type_context_s _cffi_type_context = {')
         prnt('  _cffi_types,')
-        if num_globals > 0:
-            prnt('  _cffi_globals,')
-        else:
-            prnt('  NULL,  /* no globals */')
-        if num_constants > 0:
-            prnt('  _cffi_constants,')
-        else:
-            prnt('  NULL,  /* no constants */')
-        if num_structs_unions > 0:
-            prnt('  _cffi_structs_unions,')
-            prnt('  _cffi_fields,')
-        else:
-            prnt('  NULL,  /* no structs */')
-            prnt('  NULL,  /* no fields */')
-        if num_enums > 0:
-            prnt('  _cffi_enums,')
-        else:
-            prnt('  NULL,  /* no enums */')
-        if num_typenames > 0:
-            prnt('  _cffi_typenames,')
-        else:
-            prnt('  NULL,  /* no typenames */')
-        prnt('  %d,  /* num_globals */' % num_globals)
-        prnt('  %d,  /* num_constants */' % num_constants)
-        prnt('  %d,  /* num_structs_unions */' % num_structs_unions)
-        prnt('  %d,  /* num_enums */' % num_enums)
-        prnt('  %d,  /* num_typenames */' % num_typenames)
+        ALL_STEPS = ["global", "constant", "struct_union", "enum", "typename"]
+        for step_name in ALL_STEPS:
+            if nums[step_name] > 0:
+                prnt('  _cffi_%ss,' % step_name)
+                if step_name == 'struct_union':
+                    prnt('  _cffi_fields,')
+            else:
+                prnt('  NULL,  /* no %ss */' % step_name)
+                if step_name == 'struct_union':
+                    prnt('  NULL,  /* no fields */')
+        for step_name in ALL_STEPS:
+            prnt('  %d,  /* num_%ss */' % (nums[step_name], step_name))
         prnt('};')
         prnt()
         #
@@ -267,6 +255,14 @@ class Recompiler:
     def _generate_cpy_typedef_collecttype(self, tp, name):
         self._do_collect_type(tp)
 
+    def _generate_cpy_typedef_decl(self, tp, name):
+        pass
+
+    def _generate_cpy_typedef_ctx(self, tp, name):
+        type_index = self._typesdict[tp]
+        self._lsts["typename"].append(
+            '  { "%s", %d },' % (name, type_index))
+
     # ----------
     # function declarations
 
@@ -346,7 +342,7 @@ class Recompiler:
         prnt('}')
         prnt()
 
-    def _generate_cpy_function_global(self, tp, name):
+    def _generate_cpy_function_ctx(self, tp, name):
         if tp.ellipsis:
             XXX
         type_index = self._typesdict[tp.as_raw_function()]
@@ -357,7 +353,7 @@ class Recompiler:
             meth_kind = 'O'   # 'METH_O'
         else:
             meth_kind = 'V'   # 'METH_VARARGS'
-        self._lst.append(
+        self._lsts["global"].append(
             '  { "%s", _cffi_f_%s, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_%s, %d)},'
             % (name, name, meth_kind, type_index))
 
@@ -370,9 +366,9 @@ class Recompiler:
     def _generate_cpy_variable_decl(self, tp, name):
         pass
 
-    def _generate_cpy_variable_global(self, tp, name):
+    def _generate_cpy_variable_ctx(self, tp, name):
         type_index = self._typesdict[tp]
-        self._lst.append(
+        self._lsts["global"].append(
             '  { "%s", &%s, _CFFI_OP(_CFFI_OP_NOOP, %d)},'
             % (name, name, type_index))
 

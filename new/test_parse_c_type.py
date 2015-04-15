@@ -30,8 +30,8 @@ ctx_structs = ffi.new("struct _cffi_struct_union_s[]", len(struct_names))
 for _i in range(len(struct_names)):
     ctx_structs[_i].name = c_struct_names[_i]
 ctx_structs[3].flags = lib.CT_UNION
-ctx.structs_unions = ctx_structs
-ctx.num_structs_unions = len(struct_names)
+ctx.struct_unions = ctx_structs
+ctx.num_struct_unions = len(struct_names)
 
 c_identifier_names = [ffi.new("char[]", _n) for _n in identifier_names]
 ctx_identifiers = ffi.new("struct _cffi_typename_s[]", len(identifier_names))

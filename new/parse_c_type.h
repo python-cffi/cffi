@@ -102,13 +102,13 @@ struct _cffi_type_context_s {
     _cffi_opcode_t *types;
     const struct _cffi_global_s *globals;
     const struct _cffi_constant_s *constants;
-    const struct _cffi_struct_union_s *structs_unions;
+    const struct _cffi_struct_union_s *struct_unions;
     const struct _cffi_field_s *fields;
     const struct _cffi_enum_s *enums;
     const struct _cffi_typename_s *typenames;
     int num_globals;
     int num_constants;
-    int num_structs_unions;
+    int num_struct_unions;
     int num_enums;
     int num_typenames;
 };

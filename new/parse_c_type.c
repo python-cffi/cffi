@@ -371,7 +371,7 @@ static int parse_sequel(token_t *tok, int outer)
   }
 
 MAKE_SEARCH_FUNC(globals)
-MAKE_SEARCH_FUNC(structs_unions)
+MAKE_SEARCH_FUNC(struct_unions)
 MAKE_SEARCH_FUNC(typenames)
 
 #undef MAKE_SEARCH_FUNC
@@ -518,10 +518,10 @@ static int parse_complete(token_t *tok)
             if (tok->kind != TOK_IDENTIFIER)
                 return parse_error(tok, "struct or union name expected");
 
-            int n = search_in_structs_unions(tok->info->ctx, tok->p, tok->size);
+            int n = search_in_struct_unions(tok->info->ctx, tok->p, tok->size);
             if (n < 0)
                 return parse_error(tok, "undefined struct/union name");
-            if (((tok->info->ctx->structs_unions[n].flags & CT_UNION) != 0)
+            if (((tok->info->ctx->struct_unions[n].flags & CT_UNION) != 0)
                 ^ (kind == TOK_UNION))
                 return parse_error(tok, "wrong kind of tag: struct vs union");
 

@@ -70,3 +70,8 @@ def test_global_var_array():
     ffi = FFI()
     ffi.cdef("int a[100];")
     make_c_source(ffi, str(udir.join('global_var_array.c')), 'int a[100];')
+
+def test_typedef():
+    ffi = FFI()
+    ffi.cdef("typedef int **foo_t;")
+    make_c_source(ffi, str(udir.join('typedef.c')), 'typedef int **foo_t;')

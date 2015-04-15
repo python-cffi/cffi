@@ -64,7 +64,7 @@ static void ffi_dealloc(FFIObject *ffi)
         const void *mem[] = {ffi->info.ctx->types,
                              ffi->info.ctx->globals,
                              ffi->info.ctx->constants,
-                             ffi->info.ctx->structs_unions,
+                             ffi->info.ctx->struct_unions,
                              ffi->info.ctx->fields,
                              ffi->info.ctx->enums,
                              ffi->info.ctx->typenames,
