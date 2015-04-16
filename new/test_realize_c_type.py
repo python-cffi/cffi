@@ -28,7 +28,7 @@ def test_noop():
     check("int(*)", "int *")
 
 def test_array():
-    check("int[5]")
+    check("int[6]")
 
 def test_funcptr():
     check("int(*)(long)")

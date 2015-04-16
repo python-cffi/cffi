@@ -71,9 +71,9 @@ def test_global_var_array():
     ffi = FFI()
     ffi.cdef("int a[100];")
     lib = verify(ffi, 'test_global_var_array', 'int a[100] = { 9999 };')
-    #lib.a[42] = 123456
-    #assert lib.a[42] == 123456
-    #assert lib.a[0] == 9999
+    lib.a[42] = 123456
+    assert lib.a[42] == 123456
+    assert lib.a[0] == 9999
 
 def test_typedef():
     ffi = FFI()

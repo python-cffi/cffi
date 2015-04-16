@@ -144,23 +144,24 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
                          input_text, spaces);
             return NULL;
         }
-        PyObject *ct = realize_c_type(ffi->info.ctx,
-                                      ffi->info.output, index);
+        CTypeDescrObject *ct = realize_c_type(ffi->info.ctx,
+                                              ffi->info.output, index);
         if (ct == NULL)
             return NULL;
 
-        char *normalized_text = ((CTypeDescrObject *)ct)->ct_name;
+        char *normalized_text = ct->ct_name;
         x = PyDict_GetItemString(ffi->types_dict, normalized_text);
         if (x == NULL) {
-            PyDict_SetItemString(ffi->types_dict, normalized_text, ct);
+            PyDict_SetItemString(ffi->types_dict, normalized_text,
+                                 (PyObject *)ct);
         }
         else {
             Py_INCREF(x);
             Py_DECREF(ct);
-            ct = x;
+            ct = (CTypeDescrObject *)x;
         }
-        PyDict_SetItem(ffi->types_dict, arg, ct);
-        return (CTypeDescrObject *)ct;
+        PyDict_SetItem(ffi->types_dict, arg, (PyObject *)ct);
+        return ct;
     }
     else if ((accept & ACCEPT_CTYPE) && CTypeDescr_Check(arg)) {
         return (CTypeDescrObject *)arg;

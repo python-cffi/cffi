@@ -95,6 +95,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
 
     const struct _cffi_global_s *g = &lib->l_ctx->globals[index];
     PyObject *x;
+    CTypeDescrObject *ct;
 
     switch (_CFFI_GETOP(g->type_op)) {
 
@@ -108,6 +109,17 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
 
     case _CFFI_OP_CPYTHON_BLTN_O:
         x = lib_build_cpython_func(lib, g, s, METH_O);
+        break;
+
+    case _CFFI_OP_NOOP:
+        /* this is used for global variables, of the exact type specified
+           here */
+        ct = realize_c_type(lib->l_ctx, lib->l_ctx->types,
+                            _CFFI_GETARG(g->type_op));
+        if (ct == NULL)
+            return NULL;
+        x = make_global_var(ct, g->address);
+        Py_DECREF(ct);
         break;
 
     default:
@@ -130,9 +142,9 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
     if (x == NULL)
         x = lib_build_and_cache_attr(lib, name);
 
-    //if (ZefGlobSupport_Check(x)) {
-    //    return read_global_var((ZefGlobSupportObject *)x);
-    //}
+    if (GlobSupport_Check(x)) {
+        return read_global_var((GlobSupportObject *)x);
+    }
     return x;
 }
 

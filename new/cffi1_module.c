@@ -10,6 +10,7 @@ static PyTypeObject FFI_Type;   /* forward */
 static PyTypeObject Lib_Type;   /* forward */
 
 #include "ffi_obj.c"
+#include "cglob.c"
 #include "lib_obj.c"
 
 

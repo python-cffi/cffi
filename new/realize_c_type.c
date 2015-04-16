@@ -66,13 +66,13 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
    the intermediate types back in the opcodes[].  Returns a new
    reference.
 */
-static PyObject *
+static CTypeDescrObject *
 realize_c_type(const struct _cffi_type_context_s *ctx,
                _cffi_opcode_t opcodes[], int index)
 {
     PyObject *x = _realize_c_type_or_func(ctx, opcodes, index);
     if (x == NULL || CTypeDescr_Check(x)) {
-        return x;
+        return (CTypeDescrObject *)x;
     }
     else {
         PyObject *y;
@@ -129,10 +129,10 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         break;
 
     case _CFFI_OP_ARRAY:
-        length = (Py_ssize_t)opcodes[_CFFI_GETARG(op) + 1];
+        length = (Py_ssize_t)opcodes[index + 1];
         /* fall-through */
     case _CFFI_OP_OPEN_ARRAY:
-        y = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
+        y = (PyObject *)realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
         z = new_pointer_type((CTypeDescrObject *)y);
@@ -148,7 +148,7 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         PyObject *fargs;
         int i, base_index, num_args;
 
-        y = realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
+        y = (PyObject *)realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
 
@@ -165,7 +165,7 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         }
 
         for (i = 0; i < num_args; i++) {
-            z = realize_c_type(ctx, opcodes, base_index + i);
+            z = (PyObject *)realize_c_type(ctx, opcodes, base_index + i);
             if (z == NULL) {
                 Py_DECREF(fargs);
                 Py_DECREF(y);
