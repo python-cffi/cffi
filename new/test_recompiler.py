@@ -60,6 +60,20 @@ def test_prebuilt_type():
     check_type_table("int32_t f(void);",
                      "(FUNCTION 2)(FUNCTION_END 0)(PRIMITIVE 21)")
 
+def test_struct():
+    check_type_table("struct foo_s { int a; long b; };",
+                     "(PRIMITIVE 7)(PRIMITIVE 9)")
+
+def test_union():
+    check_type_table("union foo_u { int a; long b; };",
+                     "(PRIMITIVE 7)(PRIMITIVE 9)")
+
+def test_struct_used():
+    check_type_table("struct foo_s { int a; long b; }; int f(struct foo_s*);",
+                     "(FUNCTION 3)(POINTER 5)(FUNCTION_END 0)"
+                     "(PRIMITIVE 7)(PRIMITIVE 9)"
+                     "(STRUCT_UNION 0)")
+
 
 def test_math_sin():
     import math

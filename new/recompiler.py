@@ -42,6 +42,15 @@ class Recompiler:
                     self.cffi_types.append('LEN') # placeholder
         assert None not in self._typesdict.values()
         #
+        # collect all structs and unions
+        self._struct_unions = {}
+        for tp in all_decls:
+            if isinstance(tp, model.StructOrUnion):
+                self._struct_unions[tp] = None
+        for i, tp in enumerate(sorted(self._struct_unions,
+                                      key=lambda tp: tp.name)):
+            self._struct_unions[tp] = i
+        #
         # emit all bytecode sequences now
         for tp in all_decls:
             method = getattr(self, '_emit_bytecode_' + tp.__class__.__name__)
@@ -118,9 +127,10 @@ class Recompiler:
         #
         # the declaration of '_cffi_globals' and '_cffi_typenames'
         nums = {}
-        self._lsts = {"global": [], "typename": []}
+        self._lsts = {"global": [], "typename": [],
+                      "struct_union": [], "enum": []}
         self._generate("ctx")
-        for step_name in ["global", "typename"]:
+        for step_name in ["global", "typename", "struct_union", "enum"]:
             lst = self._lsts[step_name]
             nums[step_name] = len(lst)
             if nums[step_name] > 0:
@@ -131,10 +141,6 @@ class Recompiler:
                     prnt(line)
                 prnt('};')
                 prnt()
-        #
-        # XXX
-        nums['struct_union'] = 0
-        nums['enum'] = 0
         #
         # the declaration of '_cffi_type_context'
         prnt('static const struct _cffi_type_context_s _cffi_type_context = {')
@@ -357,6 +363,15 @@ class Recompiler:
             % (name, name, meth_kind, type_index))
 
     # ----------
+    # named structs or unions
+
+    def _generate_cpy_struct_collecttype(self, tp, name):
+        for tp1 in tp.fldtypes:
+            self._do_collect_type(tp1)
+
+    _generate_cpy_union_collecttype = _generate_cpy_struct_collecttype
+
+    # ----------
     # constants, declared with "static const ..."
 
     def _generate_cpy_const(self, is_int, name, tp=None, category='const',
@@ -467,6 +482,10 @@ class Recompiler:
             assert self.cffi_types[index + 1] == 'LEN'
             self.cffi_types[index] = CffiOp(OP_ARRAY, item_index)
             self.cffi_types[index + 1] = CffiOp(None, '%d' % (tp.length,))
+
+    def _emit_bytecode_StructType(self, tp, index):
+        struct_index = self._struct_unions[tp]
+        self.cffi_types[index] = CffiOp(OP_STRUCT_UNION, struct_index)
 
 def make_c_source(ffi, module_name, preamble, target_c_file):
     recompiler = Recompiler(ffi, module_name)
