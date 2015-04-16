@@ -568,8 +568,7 @@ static int parse_complete(token_t *tok)
         {
             int n = search_in_typenames(tok->info->ctx, tok->p, tok->size);
             if (n >= 0) {
-                t1 = _CFFI_OP(_CFFI_OP_NOOP,
-                              tok->info->ctx->typenames[n].type_index);
+                t1 = _CFFI_OP(_CFFI_OP_TYPENAME, n);
                 break;
             }
             n = search_standard_typename(tok->p, tok->size);

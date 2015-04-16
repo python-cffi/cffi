@@ -93,6 +93,7 @@ NoOp = make_getter('NOOP')
 Func = make_getter('FUNCTION')
 FuncEnd = make_getter('FUNCTION_END')
 Struct = make_getter('STRUCT_UNION')
+Typename = make_getter('TYPENAME')
 
 
 def test_simple():
@@ -239,8 +240,8 @@ def test_struct():
 
 def test_identifier():
     for i in range(len(identifier_names)):
-        assert parse("%s" % (identifier_names[i])) == ['->', NoOp(100 + i)]
-        assert parse("%s*" % (identifier_names[i])) == [NoOp(100 + i),
+        assert parse("%s" % (identifier_names[i])) == ['->', Typename(i)]
+        assert parse("%s*" % (identifier_names[i])) == [Typename(i),
                                                         '->', Pointer(0)]
 
 def test_cffi_opcode_sync():

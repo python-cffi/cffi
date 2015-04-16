@@ -27,6 +27,7 @@ OP_INTEGER_CONST   = 21
 OP_CPYTHON_BLTN_V  = 23   # varargs
 OP_CPYTHON_BLTN_N  = 25   # noargs
 OP_CPYTHON_BLTN_O  = 27   # O  (i.e. a single arg)
+OP_TYPENAME        = 29
 
 PRIM_VOID          = 0
 PRIM_BOOL          = 1

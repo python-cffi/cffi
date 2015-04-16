@@ -431,11 +431,15 @@ def recompile(ffi, module_name, preamble, tmpdir=None, **kwds):
     outputfilename = ffiplatform.compile(tmpdir, ext)
     return outputfilename
 
-def verify(ffi, module_name, preamble, *args, **kwds):
+def verify2(ffi, module_name, preamble, *args, **kwds):
     import imp
     assert module_name not in sys.modules, "module name conflict: %r" % (
         module_name,)
     outputfilename = recompile(ffi, module_name, preamble, *args, **kwds)
     module = imp.load_dynamic(module_name, outputfilename)
-    ffi._verified(module.ffi)
-    return module.lib
+    return module.ffi, module.lib
+
+def verify(ffi, module_name, preamble, *args, **kwds):
+    ffi2, lib = verify2(ffi, module_name, preamble, *args, **kwds)
+    ffi._verified(ffi2)
+    return lib

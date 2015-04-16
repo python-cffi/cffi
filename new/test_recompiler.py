@@ -1,5 +1,5 @@
 import py
-from recompiler import Recompiler, verify
+from recompiler import Recompiler, verify, verify2
 from cffi1 import FFI
 
 
@@ -79,7 +79,8 @@ def test_global_var_array():
 def test_verify_typedef():
     ffi = FFI()
     ffi.cdef("typedef int **foo_t;")
-    lib = verify(ffi, 'test_verify_typedef', 'typedef int **foo_t;')
+    ffi2, lib = verify2(ffi, 'test_verify_typedef', 'typedef int **foo_t;')
+    assert ffi2.sizeof("foo_t") == ffi.sizeof("void *")
 
 def test_global_var_int():
     ffi = FFI()

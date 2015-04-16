@@ -190,6 +190,16 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         x = _realize_c_type_or_func(ctx, opcodes, _CFFI_GETARG(op));
         break;
 
+    case _CFFI_OP_TYPENAME:
+    {
+        /* essential: the TYPENAME opcode resolves the type index looked
+           up in the 'ctx->typenames' array, but it does so in 'ctx->types'
+           instead of in 'opcodes'! */
+        int type_index = ctx->typenames[_CFFI_GETARG(op)].type_index;
+        x = _realize_c_type_or_func(ctx, ctx->types, type_index);
+        break;
+    }
+
     default:
         PyErr_Format(PyExc_NotImplementedError, "op=%d", (int)_CFFI_GETOP(op));
         return NULL;
