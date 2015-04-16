@@ -167,6 +167,16 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
             }
             strcat(name, s->name);
             x = new_struct_or_union_type(name, flags);
+
+            if (s->first_field_index >= 0) {
+                CTypeDescrObject *ct = (CTypeDescrObject *)x;
+                ct->ct_size = s->size;
+                ct->ct_length = s->alignment;
+                ct->ct_flags &= ~CT_IS_OPAQUE;
+                ct->ct_flags |= CT_LAZY_FIELD_LIST;
+                ct->ct_extra = (void *)ctx;
+            }
+
             /* We are going to update the "primary" OP_STRUCT_OR_UNION
                slot below, which may be the same or a different one as
                the "current" slot.  If it is a different one, the
@@ -250,3 +260,89 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
     }
     return x;
 };
+
+static int do_realize_lazy_struct(CTypeDescrObject *ct)
+{
+    assert(ct->ct_flags & (CT_STRUCT | CT_UNION));
+
+    if (ct->ct_flags & CT_LAZY_FIELD_LIST) {
+        assert(!(ct->ct_flags & CT_IS_OPAQUE));
+
+        const struct _cffi_type_context_s *ctx = ct->ct_extra;
+        assert(ctx != NULL);
+
+        char *p = ct->ct_name;
+        if (memcmp(p, "struct ", 7) == 0)
+            p += 7;
+        else if (memcmp(p, "union ", 6) == 0)
+            p += 6;
+
+        int n = search_in_struct_unions(ctx, p, strlen(p));
+        if (n < 0)
+            Py_FatalError("lost a struct/union!");
+
+        const struct _cffi_struct_union_s *s = &ctx->struct_unions[n];
+        const struct _cffi_field_s *fld = &ctx->fields[s->first_field_index];
+
+        /* XXX painfully build all the Python objects that are the args
+           to b_complete_struct_or_union() */
+
+        PyObject *fields = PyList_New(s->num_fields);
+        if (fields == NULL)
+            return -1;
+
+        int i;
+        for (i = 0; i < s->num_fields; i++, fld++) {
+            _cffi_opcode_t op = fld->field_type_op;
+            PyObject *f;
+            CTypeDescrObject *ctf;
+
+            switch (_CFFI_GETOP(op)) {
+
+            case _CFFI_OP_NOOP:
+                ctf = realize_c_type(ctx, ctx->types, _CFFI_GETARG(op));
+                break;
+
+            default:
+                PyErr_Format(PyExc_NotImplementedError, "field op=%d",
+                             (int)_CFFI_GETOP(op));
+                return -1;
+            }
+
+            f = Py_BuildValue("(sOin)", fld->name, ctf,
+                              (int)-1, (Py_ssize_t)fld->field_offset);
+            if (f == NULL) {
+                Py_DECREF(fields);
+                return -1;
+            }
+            PyList_SET_ITEM(fields, i, f);
+        }
+
+        PyObject *args = Py_BuildValue("(OOOnn)", ct, fields,
+                                       Py_None,
+                                       (Py_ssize_t)s->size,
+                                       (Py_ssize_t)s->alignment);
+        Py_DECREF(fields);
+        if (args == NULL)
+            return -1;
+
+        ct->ct_extra = NULL;
+        ct->ct_flags |= CT_IS_OPAQUE;
+        PyObject *res = b_complete_struct_or_union(NULL, args);
+        ct->ct_flags &= ~CT_IS_OPAQUE;
+        Py_DECREF(args);
+        if (res == NULL) {
+            ct->ct_extra = (void *)ctx;
+            return -1;
+        }
+
+        assert(ct->ct_stuff != NULL);
+        ct->ct_flags &= ~CT_LAZY_FIELD_LIST;
+        Py_DECREF(res);
+        return 1;
+    }
+    else {
+        assert(ct->ct_flags & CT_IS_OPAQUE);
+        return 0;
+    }
+}

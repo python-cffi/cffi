@@ -131,6 +131,7 @@
 #define CT_IS_VOID_PTR         524288
 #define CT_WITH_VAR_ARRAY     1048576
 #define CT_IS_UNSIZED_CHAR_A  2097152
+#define CT_LAZY_FIELD_LIST    4194304
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -420,12 +421,21 @@ static PyObject *ctypeget_length(CTypeDescrObject *ct, void *context)
 static PyObject *
 get_field_name(CTypeDescrObject *ct, CFieldObject *cf);   /* forward */
 
+#define force_lazy_struct(ct)                                           \
+    ((ct)->ct_stuff != NULL ? 1 : do_realize_lazy_struct(ct))
+
+static int do_realize_lazy_struct(CTypeDescrObject *ct);
+/* forward, implemented in realize_c_type.c */
+
 static PyObject *ctypeget_fields(CTypeDescrObject *ct, void *context)
 {
     if (ct->ct_flags & (CT_STRUCT | CT_UNION)) {
         if (!(ct->ct_flags & CT_IS_OPAQUE)) {
             CFieldObject *cf;
-            PyObject *res = PyList_New(0);
+            PyObject *res;
+            if (force_lazy_struct(ct) < 0)
+                return NULL;
+            res = PyList_New(0);
             if (res == NULL)
                 return NULL;
             for (cf = (CFieldObject *)ct->ct_extra;
@@ -1216,6 +1226,9 @@ convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
                            Py_ssize_t *optvarsize)
 {
     const char *expected;
+
+    if (force_lazy_struct(ct) < 0)
+        return -1;
 
     if (ct->ct_flags & CT_UNION) {
         Py_ssize_t n = PyObject_Size(init);
@@ -2220,18 +2233,25 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
     if (ct->ct_flags & CT_POINTER)
         ct = ct->ct_itemdescr;
 
-    if ((ct->ct_flags & (CT_STRUCT|CT_UNION)) && ct->ct_stuff != NULL) {
-        cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
-        if (cf != NULL) {
-            /* read the field 'cf' */
-            char *data = cd->c_data + cf->cf_offset;
-            if (cf->cf_bitshift == BS_REGULAR)
-                return convert_to_object(data, cf->cf_type);
-            else if (cf->cf_bitshift == BS_EMPTY_ARRAY)
-                return new_simple_cdata(data,
-                    (CTypeDescrObject *)cf->cf_type->ct_stuff);
-            else
-                return convert_to_object_bitfield(data, cf);
+    if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
+        switch (force_lazy_struct(ct)) {
+        case 1:
+            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
+            if (cf != NULL) {
+                /* read the field 'cf' */
+                char *data = cd->c_data + cf->cf_offset;
+                if (cf->cf_bitshift == BS_REGULAR)
+                    return convert_to_object(data, cf->cf_type);
+                else if (cf->cf_bitshift == BS_EMPTY_ARRAY)
+                    return new_simple_cdata(data,
+                        (CTypeDescrObject *)cf->cf_type->ct_stuff);
+                else
+                    return convert_to_object_bitfield(data, cf);
+            }
+        case -1:
+            return NULL;
+        default:
+            ;
         }
     }
     return PyObject_GenericGetAttr((PyObject *)cd, attr);
@@ -2246,18 +2266,25 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
     if (ct->ct_flags & CT_POINTER)
         ct = ct->ct_itemdescr;
 
-    if ((ct->ct_flags & (CT_STRUCT|CT_UNION)) && ct->ct_stuff != NULL) {
-        cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
-        if (cf != NULL) {
-            /* write the field 'cf' */
-            if (value != NULL) {
-                return convert_field_from_object(cd->c_data, cf, value);
+    if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
+        switch (force_lazy_struct(ct)) {
+        case 1:
+            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
+            if (cf != NULL) {
+                /* write the field 'cf' */
+                if (value != NULL) {
+                    return convert_field_from_object(cd->c_data, cf, value);
+                }
+                else {
+                    PyErr_SetString(PyExc_AttributeError,
+                                    "cannot delete struct field");
+                    return -1;
+                }
             }
-            else {
-                PyErr_SetString(PyExc_AttributeError,
-                                "cannot delete struct field");
-                return -1;
-            }
+        case -1:
+            return -1;
+        default:
+            ;
         }
     }
     return PyObject_GenericSetAttr((PyObject *)cd, attr, value);
@@ -3639,6 +3666,7 @@ static PyObject *new_struct_or_union_type(const char *name, int flag)
     td->ct_size = -1;
     td->ct_length = -1;
     td->ct_flags = flag | CT_IS_OPAQUE;
+    td->ct_extra = NULL;
     memcpy(td->ct_name, name, namelen + 1);
     td->ct_name_position = namelen;
     return (PyObject *)td;
@@ -4102,6 +4130,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
            here, so better safe (and forbid it) than sorry (and maybe
            crash).
         */
+        if (force_lazy_struct(ct) < 0)
+            return NULL;
         if (ct->ct_flags & CT_CUSTOM_FIELD_POS) {
             PyErr_SetString(PyExc_TypeError,
                 "cannot pass as an argument a struct that was completed "
@@ -4876,10 +4906,12 @@ static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
     if (PyTextAny_Check(fieldname)) {
         if (!following && (ct->ct_flags & CT_POINTER))
             ct = ct->ct_itemdescr;
-        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION)) || ct->ct_stuff == NULL) {
-            PyErr_SetString(PyExc_TypeError,
-                            "with a field name argument, expected an "
-                            "initialized struct or union ctype");
+        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION)) ||
+                force_lazy_struct(ct) <= 0) {
+            if (!PyErr_Occurred())
+                PyErr_SetString(PyExc_TypeError,
+                                "with a field name argument, expected an "
+                                "initialized struct or union ctype");
             return NULL;
         }
         cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);

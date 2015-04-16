@@ -170,13 +170,17 @@ def test_verify_opaque_union():
     assert ffi.typeof("union foo_s").cname == "union foo_s"
 
 def test_verify_struct():
-    py.test.skip("XXX in-progress:")
     ffi = FFI()
-    ffi.cdef("struct foo_s { int b; short a; };")
+    ffi.cdef("""struct foo_s { int b; short a; };
+                struct bar_s { struct foo_s *f; };""")
     lib = verify(ffi, 'test_verify_struct',
-                 "struct foo_s { short a; int b; };")
+                 """struct foo_s { short a; int b; };
+                    struct bar_s { struct foo_s *f; };""")
     p = ffi.new("struct foo_s *", {'a': -32768, 'b': -2147483648})
     assert p.a == -32768
     assert p.b == -2147483648
     py.test.raises(OverflowError, "p.a -= 1")
     py.test.raises(OverflowError, "p.b -= 1")
+    py.test.skip("XXX in-progress:")
+    q = ffi.new("struct bar_s *", {'f': p})
+    assert q.f == p

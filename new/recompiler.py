@@ -126,7 +126,7 @@ class Recompiler:
         self._generate("decl")
         #
         # the declaration of '_cffi_globals' and '_cffi_typenames'
-        ALL_STEPS = ["global", "struct_union", "field", "enum", "typename"]
+        ALL_STEPS = ["global", "field", "struct_union", "enum", "typename"]
         nums = {}
         self._lsts = {}
         for step_name in ALL_STEPS:
@@ -139,6 +139,8 @@ class Recompiler:
                 lst.sort()  # sort by name, which is at the start of each line
                 prnt('static const struct _cffi_%s_s _cffi_%ss[] = {' % (
                     step_name, step_name))
+                if step_name == 'field':
+                    self._fix_final_field_list(lst)
                 for line in lst:
                     prnt(line)
                 prnt('};')
@@ -382,14 +384,34 @@ class Recompiler:
         if isinstance(tp, model.UnionType):
             flags = 'CT_UNION'
         if tp.fldtypes is not None:
+            c_field = [name]
+            for fldname, fldtype in zip(tp.fldnames, tp.fldtypes):
+                spaces = " " * len(fldname)
+                c_field.append(
+                    '  { "%s", offsetof(%s, %s),\n' % (
+                            fldname, tp.get_c_name(''), fldname) +
+                    '     %s   sizeof(((%s)0)->%s),\n' % (
+                            spaces, tp.get_c_name('*'), fldname) +
+                    '     %s   _CFFI_OP(_CFFI_OP_NOOP, %s) },' % (
+                            spaces, self._typesdict[fldtype]))
+            self._lsts["field"].append('\n'.join(c_field))
             size_align = ('\n' +
                 '    sizeof(%s %s),\n' % (tp.kind, name) +
                 '    offsetof(struct _cffi_align_%s, y),\n' % (name,) +
-                '    0, 0 },')
+                '    _cffi_FIELDS_FOR_%s, %d },' % (name, len(tp.fldtypes),))
         else:
             size_align = ' -1, -1, -1, 0 /* opaque */ },'
         self._lsts["struct_union"].append(
             '  { "%s", %d, %s,' % (name, type_index, flags) + size_align)
+
+    def _fix_final_field_list(self, lst):
+        count = 0
+        for i in range(len(lst)):
+            struct_fields = lst[i]
+            name = struct_fields.split('\n')[0]
+            define_macro = '#define _cffi_FIELDS_FOR_%s  %d' % (name, count)
+            lst[i] = define_macro + struct_fields[len(name):]
+            count += lst[i].count('\n  { "')
 
     _generate_cpy_union_collecttype = _generate_cpy_struct_collecttype
     _generate_cpy_union_decl = _generate_cpy_struct_decl

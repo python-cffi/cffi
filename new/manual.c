@@ -124,8 +124,8 @@ static const struct _cffi_field_s _cffi_fields[] = {
 static const struct _cffi_type_context_s _cffi_type_context = {
     _cffi_types,
     _cffi_globals,
-    _cffi_struct_unions,
     _cffi_fields,
+    _cffi_struct_unions,
     NULL,
     NULL,
     5,  /* num_globals */

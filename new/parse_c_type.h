@@ -99,8 +99,8 @@ struct _cffi_typename_s {
 struct _cffi_type_context_s {
     _cffi_opcode_t *types;
     const struct _cffi_global_s *globals;
-    const struct _cffi_struct_union_s *struct_unions;
     const struct _cffi_field_s *fields;
+    const struct _cffi_struct_union_s *struct_unions;
     const struct _cffi_enum_s *enums;
     const struct _cffi_typename_s *typenames;
     int num_globals;
@@ -120,3 +120,5 @@ struct _cffi_parse_info_s {
 int parse_c_type(struct _cffi_parse_info_s *info, const char *input);
 int search_in_globals(const struct _cffi_type_context_s *ctx,
                       const char *search, size_t search_len);
+int search_in_struct_unions(const struct _cffi_type_context_s *ctx,
+                            const char *search, size_t search_len);

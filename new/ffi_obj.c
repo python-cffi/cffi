@@ -301,7 +301,7 @@ static PyObject *ffi_string(ZefFFIObject *self, PyObject *args)
 static CFieldObject *_ffi_field(CTypeDescrObject *ct, const char *fieldname)
 {
     CFieldObject *cf;
-    if (ct->ct_stuff == NULL) {
+    if (force_lazy_struct(ct) == NULL) {
         PyErr_Format(PyExc_TypeError, "'%s' is incomplete", ct->ct_name);
         return NULL;
     }
