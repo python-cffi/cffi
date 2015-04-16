@@ -37,7 +37,7 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
 
     FFIObject *ffi;
     if (ctx_is_static) {
-        ffi = (FFIObject *)PyObject_New(FFIObject, ffitype);
+        ffi = (FFIObject *)PyObject_GC_New(FFIObject, ffitype);
         /* we don't call PyObject_GC_Track() here: from _cffi_init_module()
            it is not needed, because in this case the ffi object is immortal */
     }

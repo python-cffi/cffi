@@ -185,6 +185,7 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
     if (GlobSupport_Check(x)) {
         return read_global_var((GlobSupportObject *)x);
     }
+    Py_INCREF(x);
     return x;
 }
 
