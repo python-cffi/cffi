@@ -133,14 +133,13 @@ class Recompiler:
                 prnt()
         #
         # XXX
-        nums['constant'] = 0
         nums['struct_union'] = 0
         nums['enum'] = 0
         #
         # the declaration of '_cffi_type_context'
         prnt('static const struct _cffi_type_context_s _cffi_type_context = {')
         prnt('  _cffi_types,')
-        ALL_STEPS = ["global", "constant", "struct_union", "enum", "typename"]
+        ALL_STEPS = ["global", "struct_union", "enum", "typename"]
         for step_name in ALL_STEPS:
             if nums[step_name] > 0:
                 prnt('  _cffi_%ss,' % step_name)
@@ -354,8 +353,67 @@ class Recompiler:
         else:
             meth_kind = 'V'   # 'METH_VARARGS'
         self._lsts["global"].append(
-            '  { "%s", _cffi_f_%s, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_%s, %d)},'
+            '  { "%s", _cffi_f_%s, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_%s, %d) },'
             % (name, name, meth_kind, type_index))
+
+    # ----------
+    # constants, declared with "static const ..."
+
+    def _generate_cpy_const(self, is_int, name, tp=None, category='const',
+                            check_value=None):
+        assert check_value is None # XXX
+        prnt = self._prnt
+        funcname = '_cffi_%s_%s' % (category, name)
+        if is_int:
+            prnt('static int %s(unsigned long long *o)' % funcname)
+            prnt('{')
+            prnt('  *o = (unsigned long long)((%s) << 0);'
+                 '  /* check that we get an integer */' % (name,))
+            prnt('  return (%s) <= 0;' % (name,))
+            prnt('}')
+        else:
+            prnt('static void %s(char *o)' % funcname)
+            prnt('{')
+            prnt('  *(%s)o = %s;' % (tp.get_c_name('*'), name))
+            prnt('}')
+        prnt()
+
+    def _generate_cpy_constant_collecttype(self, tp, name):
+        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
+        if not is_int:
+            self._do_collect_type(tp)
+
+    def _generate_cpy_constant_decl(self, tp, name):
+        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
+        self._generate_cpy_const(is_int, name, tp)
+
+    def _generate_cpy_constant_ctx(self, tp, name):
+        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
+        if not is_int:
+            type_index = self._typesdict[tp]
+            type_op = '_CFFI_OP(_CFFI_OP_CONSTANT, %d)' % type_index
+        else:
+            type_op = '_CFFI_OP(_CFFI_OP_CONSTANT_INT, 0)'
+        self._lsts["global"].append(
+            '  { "%s", _cffi_const_%s, %s },' % (name, name, type_op))
+
+    # ----------
+    # macros: for now only for integers
+
+    def _generate_cpy_macro_collecttype(self, tp, name):
+        pass
+
+    def _generate_cpy_macro_decl(self, tp, name):
+        if tp == '...':
+            check_value = None
+        else:
+            check_value = tp     # an integer
+        self._generate_cpy_const(True, name, check_value=check_value)
+
+    def _generate_cpy_macro_ctx(self, tp, name):
+        self._lsts["global"].append(
+            '  { "%s", _cffi_const_%s, _CFFI_OP(_CFFI_OP_CONSTANT_INT, 0) },' %
+            (name, name))
 
     # ----------
     # global variables
@@ -369,7 +427,7 @@ class Recompiler:
     def _generate_cpy_variable_ctx(self, tp, name):
         type_index = self._typesdict[tp]
         self._lsts["global"].append(
-            '  { "%s", &%s, _CFFI_OP(_CFFI_OP_NOOP, %d)},'
+            '  { "%s", &%s, _CFFI_OP(_CFFI_OP_GLOBAL_VAR, %d)},'
             % (name, name, type_index))
 
     # ----------
@@ -394,6 +452,8 @@ class Recompiler:
 
     def _emit_bytecode_PointerType(self, tp, index):
         self.cffi_types[index] = CffiOp(OP_POINTER, self._typesdict[tp.totype])
+
+    _emit_bytecode_ConstPointerType = _emit_bytecode_PointerType
 
     def _emit_bytecode_FunctionPtrType(self, tp, index):
         raw = tp.as_raw_function()

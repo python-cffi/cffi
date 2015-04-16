@@ -23,11 +23,13 @@ OP_FUNCTION        = 13
 OP_FUNCTION_END    = 15
 OP_NOOP            = 17
 OP_BITFIELD        = 19
-OP_INTEGER_CONST   = 21
+OP_TYPENAME        = 21
 OP_CPYTHON_BLTN_V  = 23   # varargs
 OP_CPYTHON_BLTN_N  = 25   # noargs
 OP_CPYTHON_BLTN_O  = 27   # O  (i.e. a single arg)
-OP_TYPENAME        = 29
+OP_CONSTANT        = 29
+OP_CONSTANT_INT    = 31
+OP_GLOBAL_VAR      = 33
 
 PRIM_VOID          = 0
 PRIM_BOOL          = 1

@@ -17,11 +17,13 @@ typedef void *_cffi_opcode_t;
 #define _CFFI_OP_FUNCTION_END   15
 #define _CFFI_OP_NOOP           17
 #define _CFFI_OP_BITFIELD       19
-#define _CFFI_OP_INTEGER_CONST  21
+#define _CFFI_OP_TYPENAME       21
 #define _CFFI_OP_CPYTHON_BLTN_V 23   // varargs
 #define _CFFI_OP_CPYTHON_BLTN_N 25   // noargs
 #define _CFFI_OP_CPYTHON_BLTN_O 27   // O  (i.e. a single arg)
-#define _CFFI_OP_TYPENAME       29
+#define _CFFI_OP_CONSTANT       29
+#define _CFFI_OP_CONSTANT_INT   31
+#define _CFFI_OP_GLOBAL_VAR     33
 
 #define _CFFI_PRIM_VOID          0
 #define _CFFI_PRIM_BOOL          1
@@ -64,12 +66,6 @@ struct _cffi_global_s {
     _cffi_opcode_t type_op;
 };
 
-struct _cffi_constant_s {
-    const char *name;
-    unsigned long long value;
-    _cffi_opcode_t type_op;
-};
-
 struct _cffi_struct_union_s {
     const char *name;
     size_t size;
@@ -102,13 +98,11 @@ struct _cffi_typename_s {
 struct _cffi_type_context_s {
     _cffi_opcode_t *types;
     const struct _cffi_global_s *globals;
-    const struct _cffi_constant_s *constants;
     const struct _cffi_struct_union_s *struct_unions;
     const struct _cffi_field_s *fields;
     const struct _cffi_enum_s *enums;
     const struct _cffi_typename_s *typenames;
     int num_globals;
-    int num_constants;
     int num_struct_unions;
     int num_enums;
     int num_typenames;

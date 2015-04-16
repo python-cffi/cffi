@@ -111,9 +111,46 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
         x = lib_build_cpython_func(lib, g, s, METH_O);
         break;
 
-    case _CFFI_OP_NOOP:
-        /* this is used for global variables, of the exact type specified
-           here */
+    case _CFFI_OP_CONSTANT_INT:
+    {
+        /* a constant integer whose value, in an "unsigned long long",
+           is obtained by calling the function at g->address */
+        unsigned long long value;
+        int neg = ((int(*)(unsigned long long*))g->address)(&value);
+        if (!neg) {
+            if (value <= (unsigned long long)LONG_MAX)
+                x = PyInt_FromLong((long)value);
+            else
+                x = PyLong_FromUnsignedLongLong(value);
+        }
+        else {
+            if ((long long)value >= (long long)LONG_MIN)
+                x = PyInt_FromLong((long)value);
+            else
+                x = PyLong_FromLongLong((long long)value);
+        }
+        break;
+    }
+
+    case _CFFI_OP_CONSTANT:
+    {
+        /* a constant which is not of integer type */
+        char *data;
+        ct = realize_c_type(lib->l_ctx, lib->l_ctx->types,
+                            _CFFI_GETARG(g->type_op));
+        if (ct == NULL)
+            return NULL;
+
+        assert(ct->ct_size > 0);
+        data = alloca(ct->ct_size);
+        ((void(*)(char*))g->address)(data);
+        x = convert_to_object(data, ct);
+        Py_DECREF(ct);
+        break;
+    }
+
+    case _CFFI_OP_GLOBAL_VAR:
+        /* global variable of the exact type specified here */
         ct = realize_c_type(lib->l_ctx, lib->l_ctx->types,
                             _CFFI_GETARG(g->type_op));
         if (ct == NULL)

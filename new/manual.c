@@ -1,6 +1,10 @@
 #include "_cffi_include.h"
 
 
+#define AA  (42)
+#define BB  (&bb)
+static int bb = 16261;
+
 int foo42(int a, int *b)
 {
     return a - *b;
@@ -79,7 +83,21 @@ _cffi_f_foo64(PyObject *self, PyObject *arg0)
   return _cffi_from_c_int(result, int);
 }
 
+static int _cffi_const_AA(unsigned long long *output)
+{
+    *output = (unsigned long long)((AA) << 0);   // integer
+    return (AA) <= 0;
+}
+
+static void _cffi_const_BB(char *output)
+{
+    *(int **)output = BB;
+}
+
 static const struct _cffi_global_s _cffi_globals[] = {
+    { "AA",    &_cffi_const_AA, _CFFI_OP(_CFFI_OP_CONSTANT_INT, 0) },
+    { "BB",    &_cffi_const_BB, _CFFI_OP(_CFFI_OP_CONSTANT, 2) },
+    { "bb",    &bb, _CFFI_OP(_CFFI_OP_VARIABLE, 2) },
     { "foo42", &_cffi_f_foo42, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 0) },
     { "foo64", &_cffi_f_foo64, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 4) },
 };
@@ -92,7 +110,7 @@ static const struct _cffi_type_context_s _cffi_type_context = {
     NULL,
     NULL,
     NULL,
-    2,  /* num_globals */
+    5,  /* num_globals */
     0,
     0,
     0,

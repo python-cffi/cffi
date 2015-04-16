@@ -99,12 +99,42 @@ def test_global_var_int():
     py.test.raises(AttributeError, "del lib.c")
     py.test.raises(AttributeError, "del lib.foobarbaz")
 
+def test_macro():
+    ffi = FFI()
+    ffi.cdef("#define FOOBAR ...")
+    lib = verify(ffi, 'test_macro', "#define FOOBAR (-6912)")
+    assert lib.FOOBAR == -6912
+    py.test.raises(AttributeError, "lib.FOOBAR = 2")
+
+def test_constant():
+    ffi = FFI()
+    ffi.cdef("static const int FOOBAR;")
+    lib = verify(ffi, 'test_constant', "#define FOOBAR (-6912)")
+    assert lib.FOOBAR == -6912
+    py.test.raises(AttributeError, "lib.FOOBAR = 2")
+
+def test_constant_nonint():
+    ffi = FFI()
+    ffi.cdef("static const double FOOBAR;")
+    lib = verify(ffi, 'test_constant_nonint', "#define FOOBAR (-6912.5)")
+    assert lib.FOOBAR == -6912.5
+    py.test.raises(AttributeError, "lib.FOOBAR = 2")
+
+def test_constant_ptr():
+    ffi = FFI()
+    ffi.cdef("static double *const FOOBAR;")
+    lib = verify(ffi, 'test_constant_ptr', "#define FOOBAR NULL")
+    py.test.skip("XXX in-progress:")
+    assert lib.FOOBAR == ffi.NULL
+    assert ffi.typeof(lib.FOOBAR) == ffi.typeof("double *")
+
 def test_dir():
     ffi = FFI()
-    ffi.cdef("int ff(int); int aa;")
+    ffi.cdef("int ff(int); int aa; static const int my_constant;")
     lib = verify(ffi, 'test_dir', """
+        #define my_constant  (-45)
         int aa;
         int ff(int x) { return x+aa; }
     """)
     lib.aa = 5
-    assert dir(lib) == ['aa', 'ff']
+    assert dir(lib) == ['aa', 'ff', 'my_constant']
