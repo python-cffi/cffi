@@ -55,12 +55,12 @@ static PyObject *read_global_var(GlobSupportObject *gs)
     return convert_to_object(gs->gs_data, gs->gs_type);
 }
 
-#if 0
 static int write_global_var(GlobSupportObject *gs, PyObject *obj)
 {
     return convert_from_object(gs->gs_data, gs->gs_type, obj);
 }
 
+#if 0
 static PyObject *addressof_global_var(GlobSupportObject *gs)
 {
     return new_simple_cdata(gs->gs_data, gs->gs_type);

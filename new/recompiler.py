@@ -1,4 +1,4 @@
-import os
+import os, sys
 from cffi1 import ffiplatform, model
 from cffi_opcode import *
 
@@ -433,6 +433,8 @@ def recompile(ffi, module_name, preamble, tmpdir=None, **kwds):
 
 def verify(ffi, module_name, preamble, *args, **kwds):
     import imp
+    assert module_name not in sys.modules, "module name conflict: %r" % (
+        module_name,)
     outputfilename = recompile(ffi, module_name, preamble, *args, **kwds)
     module = imp.load_dynamic(module_name, outputfilename)
     ffi._verified(module.ffi)

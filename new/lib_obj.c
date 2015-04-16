@@ -139,8 +139,11 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
 static PyObject *lib_getattr(LibObject *lib, PyObject *name)
 {
     PyObject *x = PyDict_GetItem(lib->l_dict, name);
-    if (x == NULL)
+    if (x == NULL) {
         x = lib_build_and_cache_attr(lib, name);
+        if (x == NULL)
+            return NULL;
+    }
 
     if (GlobSupport_Check(x)) {
         return read_global_var((GlobSupportObject *)x);
@@ -148,21 +151,22 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
     return x;
 }
 
-#if 0
-static int lib_setattr(ZefLibObject *lib, PyObject *name, PyObject *val)
+static int lib_setattr(LibObject *lib, PyObject *name, PyObject *val)
 {
-    PyObject *x = lib_findattr(lib, name, PyExc_AttributeError);
-    if (x == NULL)
-        return -1;
+    PyObject *x = PyDict_GetItem(lib->l_dict, name);
+    if (x == NULL) {
+        x = lib_build_and_cache_attr(lib, name);
+        if (x == NULL)
+            return -1;
+    }
 
     if (val == NULL) {
-        PyErr_SetString(PyExc_AttributeError,
-                        "cannot delete attributes from Lib object");
+        PyErr_SetString(PyExc_AttributeError, "C attribute cannot be deleted");
         return -1;
     }
 
-    if (ZefGlobSupport_Check(x)) {
-        return write_global_var((ZefGlobSupportObject *)x, val);
+    if (GlobSupport_Check(x)) {
+        return write_global_var((GlobSupportObject *)x, val);
     }
 
     PyErr_Format(PyExc_AttributeError,
@@ -171,16 +175,31 @@ static int lib_setattr(ZefLibObject *lib, PyObject *name, PyObject *val)
     return -1;
 }
 
-static PyObject *lib_dir(PyObject *lib, PyObject *noarg)
+static PyObject *lib_dir(LibObject *lib, PyObject *noarg)
 {
-    return PyDict_Keys(((ZefLibObject *)lib)->l_dict);
+    const struct _cffi_global_s *g = lib->l_ctx->globals;
+    int total = lib->l_ctx->num_globals;
+
+    PyObject *lst = PyList_New(total);
+    if (lst == NULL)
+        return NULL;
+
+    int i;
+    for (i = 0; i < total; i++) {
+        PyObject *s = PyString_FromString(g[i].name);
+        if (s == NULL) {
+            Py_DECREF(lst);
+            return NULL;
+        }
+        PyList_SET_ITEM(lst, i, s);
+    }
+    return lst;
 }
 
 static PyMethodDef lib_methods[] = {
-    {"__dir__",   lib_dir,  METH_NOARGS},
+    {"__dir__",   (PyCFunction)lib_dir,  METH_NOARGS},
     {NULL,        NULL}           /* sentinel */
 };
-#endif
 
 static PyTypeObject Lib_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
@@ -200,11 +219,7 @@ static PyTypeObject Lib_Type = {
     0,                                          /* tp_call */
     0,                                          /* tp_str */
     (getattrofunc)lib_getattr,                  /* tp_getattro */
-#if 0 // XXX
     (setattrofunc)lib_setattr,                  /* tp_setattro */
-#else
-    0,
-#endif
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,                         /* tp_flags */
     0,                                          /* tp_doc */
@@ -214,11 +229,7 @@ static PyTypeObject Lib_Type = {
     0,                                          /* tp_weaklistoffset */
     0,                                          /* tp_iter */
     0,                                          /* tp_iternext */
-#if 0 // XXX
     lib_methods,                                /* tp_methods */
-#else
-    0,
-#endif
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
     0,                                          /* tp_base */

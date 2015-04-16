@@ -1,3 +1,4 @@
+import py
 from recompiler import Recompiler, verify
 from cffi1 import FFI
 
@@ -79,3 +80,27 @@ def test_typedef():
     ffi = FFI()
     ffi.cdef("typedef int **foo_t;")
     lib = verify(ffi, 'test_typedef', 'typedef int **foo_t;')
+
+def test_global_var_int():
+    ffi = FFI()
+    ffi.cdef("int a, b;")
+    lib = verify(ffi, 'test_global_var_int', 'int a = 999, b;')
+    assert lib.a == 999
+    lib.a -= 1001
+    assert lib.a == -2
+    lib.a = -2147483648
+    assert lib.a == -2147483648
+    py.test.raises(OverflowError, "lib.a = 2147483648")
+    py.test.raises(OverflowError, "lib.a = -2147483649")
+    lib.b = 525      # try with the first access being in setattr, too
+    assert lib.b == 525
+
+def test_dir():
+    ffi = FFI()
+    ffi.cdef("int ff(int); int aa;")
+    lib = verify(ffi, 'test_dir', """
+        int aa;
+        int ff(int x) { return x+aa; }
+    """)
+    lib.aa = 5
+    assert dir(lib) == ['aa', 'ff']
