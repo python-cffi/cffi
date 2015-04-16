@@ -83,8 +83,8 @@ def test_verify_typedef():
 
 def test_global_var_int():
     ffi = FFI()
-    ffi.cdef("int a, b;")
-    lib = verify(ffi, 'test_global_var_int', 'int a = 999, b;')
+    ffi.cdef("int a, b, c;")
+    lib = verify(ffi, 'test_global_var_int', 'int a = 999, b, c;')
     assert lib.a == 999
     lib.a -= 1001
     assert lib.a == -2
@@ -94,6 +94,9 @@ def test_global_var_int():
     py.test.raises(OverflowError, "lib.a = -2147483649")
     lib.b = 525      # try with the first access being in setattr, too
     assert lib.b == 525
+    py.test.raises(AttributeError, "del lib.a")
+    py.test.raises(AttributeError, "del lib.c")
+    py.test.raises(AttributeError, "del lib.foobarbaz")
 
 def test_dir():
     ffi = FFI()
