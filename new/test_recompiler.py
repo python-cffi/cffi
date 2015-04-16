@@ -76,10 +76,10 @@ def test_global_var_array():
     assert lib.a[42] == 123456
     assert lib.a[0] == 9999
 
-def test_typedef():
+def test_verify_typedef():
     ffi = FFI()
     ffi.cdef("typedef int **foo_t;")
-    lib = verify(ffi, 'test_typedef', 'typedef int **foo_t;')
+    lib = verify(ffi, 'test_verify_typedef', 'typedef int **foo_t;')
 
 def test_global_var_int():
     ffi = FFI()
