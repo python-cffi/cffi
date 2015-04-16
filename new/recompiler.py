@@ -369,6 +369,13 @@ class Recompiler:
         for tp1 in tp.fldtypes:
             self._do_collect_type(tp1)
 
+    def _generate_cpy_struct_decl(self, tp, name):
+        pass
+
+    def _generate_cpy_struct_ctx(self, tp, name):
+        self._lsts["struct_union"].append(
+            '  { "%s",  ')
+
     _generate_cpy_union_collecttype = _generate_cpy_struct_collecttype
 
     # ----------

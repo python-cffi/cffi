@@ -15,6 +15,10 @@ int foo64(int a)
     return ~a;
 }
 
+struct foo_s {
+    int a;
+};
+
 /************************************************************/
 
 static void *_cffi_types[] = {
@@ -97,22 +101,35 @@ static void _cffi_const_BB(char *output)
 static const struct _cffi_global_s _cffi_globals[] = {
     { "AA",    &_cffi_const_AA, _CFFI_OP(_CFFI_OP_CONSTANT_INT, 0) },
     { "BB",    &_cffi_const_BB, _CFFI_OP(_CFFI_OP_CONSTANT, 2) },
-    { "bb",    &bb, _CFFI_OP(_CFFI_OP_VARIABLE, 2) },
+    { "bb",    &bb, _CFFI_OP(_CFFI_OP_GLOBAL_VAR, 1) },
     { "foo42", &_cffi_f_foo42, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 0) },
     { "foo64", &_cffi_f_foo64, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 4) },
+};
+
+struct _cffi_align_foo_s { char x; struct foo_s y; };
+
+static const struct _cffi_struct_union_s _cffi_struct_unions[] = {
+    { "foo_s",
+      sizeof(struct foo_s),
+      offsetof(struct _cffi_align_foo_s, y),
+      0,
+      1, 0 },
+};
+
+static const struct _cffi_field_s _cffi_fields[] = {
+    { "a", offsetof(struct foo_s, a), sizeof(((struct foo_s *)0)->a),
+      _CFFI_OP(_CFFI_OP_NOOP, 1) },
 };
 
 static const struct _cffi_type_context_s _cffi_type_context = {
     _cffi_types,
     _cffi_globals,
-    NULL,  /* no constants */
-    NULL,
-    NULL,
+    _cffi_struct_unions,
+    _cffi_fields,
     NULL,
     NULL,
     5,  /* num_globals */
-    0,
-    0,
+    1,  /* num_struct_unions */
     0,
     0,
 };

@@ -152,3 +152,14 @@ def test_dir():
     """)
     lib.aa = 5
     assert dir(lib) == ['aa', 'ff', 'my_constant']
+
+def test_verify_struct():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int b; short a; };")
+    lib = verify(ffi, 'test_verify_struct',
+                 "struct foo_s { short a; int b; };")
+    p = ffi.new("struct foo_s *", {'a': -32768, 'b': -2147483648})
+    assert p.a == -32768
+    assert p.b == -2147483648
+    py.test.raises(OverflowError, "p.a -= 1")
+    py.test.raises(OverflowError, "p.b -= 1")
