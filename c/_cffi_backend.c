@@ -3761,9 +3761,10 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     for (i=0; i<nb_fields; i++) {
         PyObject *fname;
         CTypeDescrObject *ftype;
-        int fbitsize = -1, falign, do_align, foffset = -1;
+        int fbitsize = -1, falign, do_align;
+        Py_ssize_t foffset = -1;
 
-        if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!|ii:list item",
+        if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!|in:list item",
                               &PyText_Type, &fname,
                               &CTypeDescr_Type, &ftype,
                               &fbitsize, &foffset))
