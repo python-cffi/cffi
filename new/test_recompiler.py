@@ -1,6 +1,5 @@
-from recompiler import Recompiler, make_c_source
+from recompiler import Recompiler, verify
 from cffi1 import FFI
-from udir import udir
 
 
 def check_type_table(input, expected_output):
@@ -62,16 +61,21 @@ def test_prebuilt_type():
 
 
 def test_math_sin():
+    import math
     ffi = FFI()
     ffi.cdef("float sin(double); double cos(double);")
-    make_c_source(ffi, str(udir.join('math_sin.c')), '#include <math.h>')
+    lib = verify(ffi, 'test_math_sin', '#include <math.h>')
+    assert lib.cos(1.43) == math.cos(1.43)
 
 def test_global_var_array():
     ffi = FFI()
     ffi.cdef("int a[100];")
-    make_c_source(ffi, str(udir.join('global_var_array.c')), 'int a[100];')
+    lib = verify(ffi, 'test_global_var_array', 'int a[100] = { 9999 };')
+    #lib.a[42] = 123456
+    #assert lib.a[42] == 123456
+    #assert lib.a[0] == 9999
 
 def test_typedef():
     ffi = FFI()
     ffi.cdef("typedef int **foo_t;")
-    make_c_source(ffi, str(udir.join('typedef.c')), 'typedef int **foo_t;')
+    lib = verify(ffi, 'test_typedef', 'typedef int **foo_t;')

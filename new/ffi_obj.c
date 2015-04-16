@@ -23,19 +23,21 @@ struct FFIObject_s {
     PyObject *types_dict;
     PyObject *gc_wrefs;
     struct _cffi_parse_info_s info;
+    int ctx_is_static;
     _cffi_opcode_t internal_output[FFI_COMPLEXITY_OUTPUT];
 };
 
 static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
-                                   const struct _cffi_type_context_s *ctx)
+                                   const struct _cffi_type_context_s *ctx,
+                                   int ctx_is_static)
 {
     PyObject *dict = PyDict_New();
     if (dict == NULL)
         return NULL;
 
     FFIObject *ffi;
-    if (ffitype == NULL) {
-        ffi = (FFIObject *)PyObject_New(FFIObject, &FFI_Type);
+    if (ctx_is_static) {
+        ffi = (FFIObject *)PyObject_New(FFIObject, ffitype);
         /* we don't call PyObject_GC_Track() here: from _cffi_init_module()
            it is not needed, because in this case the ffi object is immortal */
     }
@@ -51,6 +53,7 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
     ffi->info.ctx = ctx;
     ffi->info.output = ffi->internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
+    ffi->ctx_is_static = ctx_is_static;
     return ffi;
 }
 
@@ -60,7 +63,7 @@ static void ffi_dealloc(FFIObject *ffi)
     Py_DECREF(ffi->types_dict);
     Py_XDECREF(ffi->gc_wrefs);
 
-    {
+    if (!ffi->ctx_is_static) {
         const void *mem[] = {ffi->info.ctx->types,
                              ffi->info.ctx->globals,
                              ffi->info.ctx->constants,
@@ -98,7 +101,7 @@ static PyObject *ffiobj_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     }
     memset(ctx, 0, sizeof(struct _cffi_type_context_s));
 
-    result = (PyObject *)ffi_internal_new(type, ctx);
+    result = (PyObject *)ffi_internal_new(type, ctx, 0);
     if (result == NULL) {
         PyMem_Free(ctx);
         return NULL;
@@ -516,7 +519,40 @@ static PyObject *ffi_gc(ZefFFIObject *self, PyObject *args)
 }
 #endif
 
+static PyObject *ffi__verified(FFIObject *self, PyObject *args)
+{
+    FFIObject *srcffi;
+
+    if (!PyArg_ParseTuple(args, "O!:_verified", &FFI_Type, &srcffi))
+        return NULL;
+
+    if (!srcffi->ctx_is_static)
+        goto invalid;
+
+    if (self->ctx_is_static)
+        goto invalid;
+
+    size_t i;
+    const char *p = (const char *)self->info.ctx;
+    for (i = 0; i < sizeof(struct _cffi_type_context_s); i++) {
+        if (*p++ != '\0')
+            goto invalid;
+    }
+
+    PyMem_Free((void *)self->info.ctx);
+    self->ctx_is_static = 1;
+    self->info.ctx = srcffi->info.ctx;
+
+    Py_INCREF(Py_None);
+    return Py_None;
+
+ invalid:
+    PyErr_SetString(PyExc_ValueError, "XXX invalid source or destination");
+    return NULL;
+}
+
 static PyMethodDef ffi_methods[] = {
+    {"_verified",     (PyCFunction)ffi__verified, METH_VARARGS},
 #if 0
     {"addressof",     (PyCFunction)ffi_addressof, METH_VARARGS},
     {"cast",          (PyCFunction)ffi_cast,      METH_VARARGS},

@@ -125,7 +125,7 @@ class Recompiler:
             nums[step_name] = len(lst)
             if nums[step_name] > 0:
                 lst.sort()  # sort by name, which is at the start of each line
-                prnt('static const struct _cffi_%s_s _cffi_%s[] = {' % (
+                prnt('static const struct _cffi_%s_s _cffi_%ss[] = {' % (
                     step_name, step_name))
                 for line in lst:
                     prnt(line)
@@ -408,10 +408,32 @@ class Recompiler:
             self.cffi_types[index] = CffiOp(OP_ARRAY, item_index)
             self.cffi_types[index + 1] = CffiOp(None, '%d' % (tp.length,))
 
-def make_c_source(ffi, target_c_file, preamble):
-    module_name, ext = os.path.splitext(os.path.basename(target_c_file))
-    assert ext, "no extension!"
+def make_c_source(ffi, module_name, preamble, target_c_file):
     recompiler = Recompiler(ffi, module_name)
     recompiler.collect_type_table()
     with open(target_c_file, 'w') as f:
         recompiler.write_source_to_f(f, preamble)
+
+def _get_extension(module_name, c_file, kwds):
+    source_name = ffiplatform.maybe_relative_path(c_file)
+    include_dirs = kwds.setdefault('include_dirs', [])
+    include_dirs.insert(0, '.')   # XXX
+    return ffiplatform.get_extension(source_name, module_name, **kwds)
+
+def recompile(ffi, module_name, preamble, tmpdir=None, **kwds):
+    if tmpdir is None:
+        tmpdir = 'build'
+        if not os.path.isdir(tmpdir):
+            os.mkdir(tmpdir)
+    c_file = os.path.join(tmpdir, module_name + '.c')
+    ext = _get_extension(module_name, c_file, kwds)
+    make_c_source(ffi, module_name, preamble, c_file)
+    outputfilename = ffiplatform.compile(tmpdir, ext)
+    return outputfilename
+
+def verify(ffi, module_name, preamble, *args, **kwds):
+    import imp
+    outputfilename = recompile(ffi, module_name, preamble, *args, **kwds)
+    module = imp.load_dynamic(module_name, outputfilename)
+    ffi._verified(module.ffi)
+    return module.lib
