@@ -1,13 +1,10 @@
 __all__ = ['FFI', 'VerificationError', 'VerificationMissing', 'CDefError',
            'FFIError']
 
-from .api import FFI, CDefError, FFIError
+from .api import FFI, CDefError
 from .ffiplatform import VerificationError, VerificationMissing
 
-__version__ = "0.9.2"
-__version_info__ = (0, 9, 2)
+FFIError = FFI.error    # backward compatibility
 
-# The verifier module file names are based on the CRC32 of a string that
-# contains the following version number.  It may be older than __version__
-# if nothing is clearly incompatible.
-__version_verifier_modules__ = "0.8.6"
+__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)

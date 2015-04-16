@@ -16,9 +16,6 @@ except NameError:
     basestring = str
 
 
-class FFIError(Exception):
-    pass
-
 class CDefError(Exception):
     def __str__(self):
         try:
