@@ -60,13 +60,17 @@ def test_prebuilt_type():
     check_type_table("int32_t f(void);",
                      "(FUNCTION 2)(FUNCTION_END 0)(PRIMITIVE 21)")
 
+def test_struct_opaque():
+    check_type_table("struct foo_s;",
+                     "(STRUCT_UNION 0)")
+
 def test_struct():
     check_type_table("struct foo_s { int a; long b; };",
-                     "(PRIMITIVE 7)(PRIMITIVE 9)")
+                     "(PRIMITIVE 7)(PRIMITIVE 9)(STRUCT_UNION 0)")
 
 def test_union():
     check_type_table("union foo_u { int a; long b; };",
-                     "(PRIMITIVE 7)(PRIMITIVE 9)")
+                     "(PRIMITIVE 7)(PRIMITIVE 9)(STRUCT_UNION 0)")
 
 def test_struct_used():
     check_type_table("struct foo_s { int a; long b; }; int f(struct foo_s*);",
@@ -153,7 +157,14 @@ def test_dir():
     lib.aa = 5
     assert dir(lib) == ['aa', 'ff', 'my_constant']
 
+def test_verify_opaque_struct():
+    ffi = FFI()
+    ffi.cdef("struct foo_s;")
+    lib = verify(ffi, 'test_verify_opaque_struct', "struct foo_s;")
+    ffi.new("struct foo_s **")
+
 def test_verify_struct():
+    py.test.skip("XXX in-progress:")
     ffi = FFI()
     ffi.cdef("struct foo_s { int b; short a; };")
     lib = verify(ffi, 'test_verify_struct',

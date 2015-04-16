@@ -29,6 +29,7 @@ static void *_cffi_types[] = {
     _CFFI_OP(_CFFI_OP_FUNCTION, 1),
     _CFFI_OP(_CFFI_OP_PRIMITIVE, _CFFI_PRIM_INT),
     _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+    _CFFI_OP(_CFFI_OP_STRUCT_UNION, 0),
 };
 
 static PyObject *
@@ -109,10 +110,9 @@ static const struct _cffi_global_s _cffi_globals[] = {
 struct _cffi_align_foo_s { char x; struct foo_s y; };
 
 static const struct _cffi_struct_union_s _cffi_struct_unions[] = {
-    { "foo_s",
+    { "foo_s", 7, 0,
       sizeof(struct foo_s),
       offsetof(struct _cffi_align_foo_s, y),
-      0,
       1, 0 },
 };
 

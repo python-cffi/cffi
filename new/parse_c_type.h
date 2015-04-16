@@ -68,11 +68,12 @@ struct _cffi_global_s {
 
 struct _cffi_struct_union_s {
     const char *name;
-    size_t size;
-    int alignment;
+    int type_index;          // -> _cffi_types, on a OP_STRUCT_UNION
     int flags;               // CT_UNION?  CT_IS_OPAQUE?
-    int num_fields;
+    size_t size;
+    size_t alignment;
     int first_field_index;   // -> _cffi_fields array
+    int num_fields;
 };
 #define CT_UNION            128
 #define CT_IS_OPAQUE        4096

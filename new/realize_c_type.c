@@ -143,6 +143,25 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         Py_DECREF(z);
         break;
 
+    case _CFFI_OP_STRUCT_UNION:
+    {
+        const struct _cffi_struct_union_s *s;
+        _cffi_opcode_t op2;
+
+        s = &ctx->struct_unions[_CFFI_GETARG(op)];
+        op2 = ctx->types[s->type_index];
+        if ((((uintptr_t)op2) & 1) == 0) {
+            x = (PyObject *)op2;
+            Py_INCREF(x);
+        }
+        else {
+            opcodes = ctx->types;
+            index = s->type_index;
+            x = new_struct_or_union_type(s->name, CT_STRUCT);
+        }
+        break;
+    }
+
     case _CFFI_OP_FUNCTION:
     {
         PyObject *fargs;
@@ -207,6 +226,7 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
 
     if (x != NULL && opcodes == ctx->types) {
         assert((((uintptr_t)x) & 1) == 0);
+        assert((((uintptr_t)opcodes[index]) & 1) == 1);
         Py_INCREF(x);
         opcodes[index] = x;
     }

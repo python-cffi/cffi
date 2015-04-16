@@ -251,15 +251,11 @@ class Parser(object):
             self._declare('function ' + decl.name, tp)
         else:
             if isinstance(node, pycparser.c_ast.Struct):
-                # XXX do we need self._declare in any of those?
-                if node.decls is not None:
-                    self._get_struct_union_enum_type('struct', node)
+                self._get_struct_union_enum_type('struct', node)
             elif isinstance(node, pycparser.c_ast.Union):
-                if node.decls is not None:
-                    self._get_struct_union_enum_type('union', node)
+                self._get_struct_union_enum_type('union', node)
             elif isinstance(node, pycparser.c_ast.Enum):
-                if node.values is not None:
-                    self._get_struct_union_enum_type('enum', node)
+                self._get_struct_union_enum_type('enum', node)
             elif not decl.name:
                 raise api.CDefError("construct does not declare any variable",
                                     decl)

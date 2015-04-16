@@ -3629,7 +3629,7 @@ static PyObject *b_new_void_type(PyObject *self, PyObject *args)
     return new_void_type();
 }
 
-static PyObject *_b_struct_or_union_type(const char *name, int flag)
+static PyObject *new_struct_or_union_type(const char *name, int flag)
 {
     int namelen = strlen(name);
     CTypeDescrObject *td = ctypedescr_new(namelen + 1);
@@ -3654,7 +3654,7 @@ static PyObject *b_new_struct_type(PyObject *self, PyObject *args)
     flag = CT_STRUCT;
     if (strcmp(name, "struct _IO_FILE") == 0 || strcmp(name, "FILE") == 0)
         flag |= CT_IS_FILE;
-    return _b_struct_or_union_type(name, flag);
+    return new_struct_or_union_type(name, flag);
 }
 
 static PyObject *b_new_union_type(PyObject *self, PyObject *args)
@@ -3662,7 +3662,7 @@ static PyObject *b_new_union_type(PyObject *self, PyObject *args)
     char *name;
     if (!PyArg_ParseTuple(args, "s:new_union_type", &name))
         return NULL;
-    return _b_struct_or_union_type(name, CT_UNION);
+    return new_struct_or_union_type(name, CT_UNION);
 }
 
 static CFieldObject *

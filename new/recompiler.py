@@ -126,11 +126,13 @@ class Recompiler:
         self._generate("decl")
         #
         # the declaration of '_cffi_globals' and '_cffi_typenames'
+        ALL_STEPS = ["global", "struct_union", "field", "enum", "typename"]
         nums = {}
-        self._lsts = {"global": [], "typename": [],
-                      "struct_union": [], "enum": []}
+        self._lsts = {}
+        for step_name in ALL_STEPS:
+            self._lsts[step_name] = []
         self._generate("ctx")
-        for step_name in ["global", "typename", "struct_union", "enum"]:
+        for step_name in ALL_STEPS:
             lst = self._lsts[step_name]
             nums[step_name] = len(lst)
             if nums[step_name] > 0:
@@ -145,18 +147,14 @@ class Recompiler:
         # the declaration of '_cffi_type_context'
         prnt('static const struct _cffi_type_context_s _cffi_type_context = {')
         prnt('  _cffi_types,')
-        ALL_STEPS = ["global", "struct_union", "enum", "typename"]
         for step_name in ALL_STEPS:
             if nums[step_name] > 0:
                 prnt('  _cffi_%ss,' % step_name)
-                if step_name == 'struct_union':
-                    prnt('  _cffi_fields,')
             else:
                 prnt('  NULL,  /* no %ss */' % step_name)
-                if step_name == 'struct_union':
-                    prnt('  NULL,  /* no fields */')
         for step_name in ALL_STEPS:
-            prnt('  %d,  /* num_%ss */' % (nums[step_name], step_name))
+            if step_name != "field":
+                prnt('  %d,  /* num_%ss */' % (nums[step_name], step_name))
         prnt('};')
         prnt()
         #
@@ -366,15 +364,29 @@ class Recompiler:
     # named structs or unions
 
     def _generate_cpy_struct_collecttype(self, tp, name):
-        for tp1 in tp.fldtypes:
-            self._do_collect_type(tp1)
+        self._do_collect_type(tp)
+        if tp.fldtypes is not None:
+            for tp1 in tp.fldtypes:
+                self._do_collect_type(tp1)
 
     def _generate_cpy_struct_decl(self, tp, name):
-        pass
+        if tp.fldtypes is not None:
+            prnt = self._prnt
+            prnt("struct _cffi_align_%s { char x; %s %s y; };" % (
+                name, tp.kind, name))
+            prnt()
 
     def _generate_cpy_struct_ctx(self, tp, name):
+        type_index = self._typesdict[tp]
+        if tp.fldtypes is not None:
+            size_align = ('\n' +
+                '    sizeof(%s %s),\n' % (tp.kind, name) +
+                '    offsetof(struct _cffi_align_%s, y),\n' % (name,) +
+                '    0, 0 },')
+        else:
+            size_align = ' -1, -1, -1, 0 /* opaque */ },'
         self._lsts["struct_union"].append(
-            '  { "%s",  ')
+            '  { "%s", %d, 0,' % (name, type_index) + size_align)
 
     _generate_cpy_union_collecttype = _generate_cpy_struct_collecttype
 
@@ -493,6 +505,8 @@ class Recompiler:
     def _emit_bytecode_StructType(self, tp, index):
         struct_index = self._struct_unions[tp]
         self.cffi_types[index] = CffiOp(OP_STRUCT_UNION, struct_index)
+
+    _emit_bytecode_UnionType = _emit_bytecode_StructType
 
 def make_c_source(ffi, module_name, preamble, target_c_file):
     recompiler = Recompiler(ffi, module_name)
