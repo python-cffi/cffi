@@ -155,9 +155,16 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
             Py_INCREF(x);
         }
         else {
+            x = new_struct_or_union_type(s->name, CT_STRUCT);
+            /* We are going to update the "primary" OP_STRUCT_OR_UNION
+               slot below, which may be the same or a different one as
+               the "current" slot.  If it is a different one, the
+               current slot is not updated.  But in this case, the
+               next time we walk the same current slot, we'll find the
+               'x' object in the primary slot (op2, above) and then we
+               will update the current slot. */
             opcodes = ctx->types;
             index = s->type_index;
-            x = new_struct_or_union_type(s->name, CT_STRUCT);
         }
         break;
     }
