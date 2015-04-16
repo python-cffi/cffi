@@ -160,8 +160,14 @@ def test_dir():
 def test_verify_opaque_struct():
     ffi = FFI()
     ffi.cdef("struct foo_s;")
-    lib = verify(ffi, 'test_verify_opaque_struct', "struct foo_s;")
-    ffi.new("struct foo_s **")
+    ffi, lib = verify2(ffi, 'test_verify_opaque_struct', "struct foo_s;")
+    assert ffi.typeof("struct foo_s").cname == "struct foo_s"
+
+def test_verify_opaque_union():
+    ffi = FFI()
+    ffi.cdef("union foo_s;")
+    ffi, lib = verify2(ffi, 'test_verify_opaque_union', "union foo_s;")
+    assert ffi.typeof("union foo_s").cname == "union foo_s"
 
 def test_verify_struct():
     py.test.skip("XXX in-progress:")

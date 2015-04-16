@@ -155,7 +155,18 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
             Py_INCREF(x);
         }
         else {
-            x = new_struct_or_union_type(s->name, CT_STRUCT);
+            int flags;
+            char *name = alloca(8 + strlen(s->name));
+            if (s->flags & CT_UNION) {
+                strcpy(name, "union ");
+                flags = CT_UNION;
+            }
+            else {
+                strcpy(name, "struct ");
+                flags = CT_STRUCT;
+            }
+            strcat(name, s->name);
+            x = new_struct_or_union_type(name, flags);
             /* We are going to update the "primary" OP_STRUCT_OR_UNION
                slot below, which may be the same or a different one as
                the "current" slot.  If it is a different one, the

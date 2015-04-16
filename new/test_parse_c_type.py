@@ -238,6 +238,12 @@ def test_struct():
         assert parse("%s %s*" % (tag, struct_names[i])) == [Struct(i),
                                                             '->', Pointer(0)]
 
+def test_exchanging_struct_union():
+    parse_error("union %s" % (struct_names[0],),
+                "wrong kind of tag: struct vs union", 6)
+    parse_error("struct %s" % (struct_names[3],),
+                "wrong kind of tag: struct vs union", 7)
+
 def test_identifier():
     for i in range(len(identifier_names)):
         assert parse("%s" % (identifier_names[i])) == ['->', Typename(i)]

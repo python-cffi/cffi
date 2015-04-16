@@ -378,6 +378,9 @@ class Recompiler:
 
     def _generate_cpy_struct_ctx(self, tp, name):
         type_index = self._typesdict[tp]
+        flags = '0'
+        if isinstance(tp, model.UnionType):
+            flags = 'CT_UNION'
         if tp.fldtypes is not None:
             size_align = ('\n' +
                 '    sizeof(%s %s),\n' % (tp.kind, name) +
@@ -386,9 +389,11 @@ class Recompiler:
         else:
             size_align = ' -1, -1, -1, 0 /* opaque */ },'
         self._lsts["struct_union"].append(
-            '  { "%s", %d, 0,' % (name, type_index) + size_align)
+            '  { "%s", %d, %s,' % (name, type_index, flags) + size_align)
 
     _generate_cpy_union_collecttype = _generate_cpy_struct_collecttype
+    _generate_cpy_union_decl = _generate_cpy_struct_decl
+    _generate_cpy_union_ctx = _generate_cpy_struct_ctx
 
     # ----------
     # constants, declared with "static const ..."
