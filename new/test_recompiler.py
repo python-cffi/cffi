@@ -97,6 +97,13 @@ def test_funcarg_ptr():
     lib = verify(ffi, 'test_funcarg_ptr', 'int foo(int *p) { return *p; }')
     assert lib.foo([-12345]) == -12345
 
+def test_funcres_ptr():
+    ffi = FFI()
+    ffi.cdef("int *foo(void);")
+    lib = verify(ffi, 'test_funcres_ptr',
+                 'int *foo(void) { static int x=-12345; return &x; }')
+    assert lib.foo()[0] == -12345
+
 def test_global_var_array():
     ffi = FFI()
     ffi.cdef("int a[100];")
