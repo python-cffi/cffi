@@ -168,6 +168,10 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
     }
 }
 
+PyDoc_STRVAR(ffi_sizeof_doc,
+"Return the size in bytes of the argument.\n"
+"It can be a string naming a C type, or a 'cdata' instance.");
+
 static PyObject *ffi_sizeof(FFIObject *self, PyObject *arg)
 {
     CTypeDescrObject *ct = _ffi_type(self, arg, ACCEPT_ALL);
@@ -182,6 +186,11 @@ static PyObject *ffi_sizeof(FFIObject *self, PyObject *arg)
     return PyInt_FromSsize_t(ct->ct_size);
 }
 
+PyDoc_STRVAR(ffi_typeof_doc,
+"Parse the C type given as a string and return the\n"
+"corresponding <ctype> object.\n"
+"It can also be used on 'cdata' instance to get its C type.");
+
 static PyObject *ffi_typeof(FFIObject *self, PyObject *arg)
 {
     PyObject *x = (PyObject *)_ffi_type(self, arg, ACCEPT_STRING|ACCEPT_CDATA);
@@ -193,6 +202,27 @@ static PyObject *ffi_typeof(FFIObject *self, PyObject *arg)
     }
     return x;
 }
+
+PyDoc_STRVAR(ffi_new_doc,
+"Allocate an instance according to the specified C type and return a\n"
+"pointer to it.  The specified C type must be either a pointer or an\n"
+"array: ``new('X *')`` allocates an X and returns a pointer to it,\n"
+"whereas ``new('X[n]')`` allocates an array of n X'es and returns an\n"
+"array referencing it (which works mostly like a pointer, like in C).\n"
+"You can also use ``new('X[]', n)`` to allocate an array of a\n"
+"non-constant length n.\n"
+"\n"
+"The memory is initialized following the rules of declaring a global\n"
+"variable in C: by default it is zero-initialized, but an explicit\n"
+"initializer can be given which can be used to fill all or part of the\n"
+"memory.\n"
+"\n"
+"When the returned <cdata> object goes out of scope, the memory is\n"
+"freed.  In other words the returned <cdata> object has ownership of\n"
+"the value of type 'cdecl' that it points to.  This means that the raw\n"
+"data can be used as long as this object is kept alive, but must not be\n"
+"used for a longer time.  Be careful about that when copying the\n"
+"pointer to the memory somewhere else, e.g. into another structure.");
 
 static PyObject *ffi_new(FFIObject *self, PyObject *args)
 {
@@ -550,15 +580,15 @@ static PyMethodDef ffi_methods[] = {
     {"load_library",  (PyCFunction)ffi_load_library,METH_VARARGS|METH_KEYWORDS},
     {"offsetof",      (PyCFunction)ffi_offsetof,  METH_VARARGS},
 #endif
-    {"new",           (PyCFunction)ffi_new,       METH_VARARGS},
+    {"new",           (PyCFunction)ffi_new,       METH_VARARGS, ffi_new_doc},
 #if 0
     {"new_handle",    (PyCFunction)ffi_new_handle,METH_O},
 #endif
-    {"sizeof",        (PyCFunction)ffi_sizeof,    METH_O},
+    {"sizeof",        (PyCFunction)ffi_sizeof,    METH_O, ffi_sizeof_doc},
 #if 0
     {"string",        (PyCFunction)ffi_string,    METH_VARARGS},
 #endif
-    {"typeof",        (PyCFunction)ffi_typeof,    METH_O},
+    {"typeof",        (PyCFunction)ffi_typeof,    METH_O, ffi_typeof_doc},
     {NULL}
 };
 

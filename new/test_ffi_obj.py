@@ -40,3 +40,13 @@ def test_ffi_invalid():
     ffi = _cffi1_backend.FFI()
     # array of 10 times an "int[]" is invalid
     py.test.raises(ValueError, ffi.typeof, "int[10][]")
+
+def test_ffi_docstrings():
+    # check that all methods of the FFI class have a docstring.
+    check_type = type(_cffi1_backend.FFI.new)
+    for methname in dir(_cffi1_backend.FFI):
+        if not methname.startswith('_'):
+            method = getattr(_cffi1_backend.FFI, methname)
+            if isinstance(method, check_type):
+                assert method.__doc__, "method FFI.%s() has no docstring" % (
+                    methname,)
