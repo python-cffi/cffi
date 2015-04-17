@@ -1,8 +1,118 @@
 
+typedef struct {
+    struct _cffi_type_context_s ctx;   /* inlined substructure */
+    PyObject *types_dict;
+} builder_c_t;
+
+
 static PyObject *all_primitives[_CFFI__NUM_PRIM];
 
+static PyObject *fetch_global_types_dict(void)
+{
+    static PyObject *result = NULL;
+    if (!result)
+        result = PyDict_New();
+    return result;
+}
 
-PyObject *build_primitive_type(int num)
+static void free_builder_c(builder_c_t *builder)
+{
+    Py_XDECREF(builder->types_dict);
+
+    const void *mem[] = {builder->ctx.types,
+                         builder->ctx.globals,
+                         builder->ctx.struct_unions,
+                         builder->ctx.fields,
+                         builder->ctx.enums,
+                         builder->ctx.typenames};
+    int i;
+    for (i = 0; i < sizeof(mem) / sizeof(*mem); i++) {
+        if (mem[i] != NULL)
+            PyMem_Free((void *)mem[i]);
+    }
+    PyMem_Free(builder);
+}
+
+static builder_c_t *new_builder_c(const struct _cffi_type_context_s *ctx)
+{
+    PyObject *ldict = PyDict_New();
+    if (ldict == NULL)
+        return NULL;
+
+    builder_c_t *builder = PyMem_Malloc(sizeof(builder_c_t));
+    if (builder == NULL) {
+        Py_DECREF(ldict);
+        PyErr_NoMemory();
+        return NULL;
+    }
+    builder->ctx = *ctx;
+    builder->types_dict = ldict;
+    return builder;
+}
+
+static PyObject *get_unique_type(builder_c_t *builder, PyObject *x)
+{
+    /* Replace the CTypeDescrObject 'x' with a standardized one.
+       This either just returns x, or x is decrefed and a new reference
+       to the standard equivalent is returned.
+
+       In this function, 'x' always contains a reference that must be
+       decrefed, and 'y' never does.
+    */
+    CTypeDescrObject *ct = (CTypeDescrObject *)x;
+
+    /* XXX maybe change the type of ct_name to be a real 'PyObject *'? */
+    PyObject *name = PyString_FromString(ct->ct_name);
+    if (name == NULL)
+        goto no_memory;
+
+    PyObject *y = PyDict_GetItem(builder->types_dict, name);
+    if (y != NULL) {
+        /* Already found the same ct_name in the dict.  Return the old one. */
+        Py_INCREF(y);
+        Py_DECREF(x);
+        x = y;
+        goto done;
+    }
+
+    if (!(ct->ct_flags & CT_USES_LOCAL)) {
+        /* The type is not "local", i.e. does not make use of any struct,
+           union or enum.  This means it should be shared across independent
+           ffi instances.  Look it up and possibly add it to the global
+           types dict.
+        */
+        PyObject *gdict = fetch_global_types_dict();
+        if (gdict == NULL)
+            goto no_memory;
+
+        y = PyDict_GetItem(gdict, name);
+        if (y != NULL) {
+            Py_INCREF(y);
+            Py_DECREF(x);
+            x = y;
+        }
+        else {
+            /* Not found in the global dictionary.  Put it there. */
+            if (PyDict_SetItem(gdict, name, x) < 0)
+                goto no_memory;
+        }
+    }
+
+    /* Set x in the local dict. */
+    if (PyDict_SetItem(builder->types_dict, name, x) < 0)
+        goto no_memory;
+
+ done:
+    Py_DECREF(name);
+    return x;
+
+ no_memory:
+    Py_XDECREF(name);
+    Py_DECREF(x);
+    return NULL;
+}
+
+static PyObject *build_primitive_type(int num)
 {
     /* XXX too many translations between here and new_primitive_type() */
     static const char *primitive_name[] = {
@@ -58,7 +168,7 @@ PyObject *build_primitive_type(int num)
 
 
 static PyObject *
-_realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
+_realize_c_type_or_func(builder_c_t *builder,
                         _cffi_opcode_t opcodes[], int index);  /* forward */
 
 
@@ -67,10 +177,9 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
    reference.
 */
 static CTypeDescrObject *
-realize_c_type(const struct _cffi_type_context_s *ctx,
-               _cffi_opcode_t opcodes[], int index)
+realize_c_type(builder_c_t *builder, _cffi_opcode_t opcodes[], int index)
 {
-    PyObject *x = _realize_c_type_or_func(ctx, opcodes, index);
+    PyObject *x = _realize_c_type_or_func(builder, opcodes, index);
     if (x == NULL || CTypeDescr_Check(x)) {
         return (CTypeDescrObject *)x;
     }
@@ -91,7 +200,7 @@ realize_c_type(const struct _cffi_type_context_s *ctx,
 }
 
 static PyObject *
-_realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
+_realize_c_type_or_func(builder_c_t *builder,
                         _cffi_opcode_t opcodes[], int index)
 {
     PyObject *x, *y, *z;
@@ -114,11 +223,12 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         break;
 
     case _CFFI_OP_POINTER:
-        y = _realize_c_type_or_func(ctx, opcodes, _CFFI_GETARG(op));
+        y = _realize_c_type_or_func(builder, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
         if (CTypeDescr_Check(y)) {
             x = new_pointer_type((CTypeDescrObject *)y);
+            x = get_unique_type(builder, x);
         }
         else {
             assert(PyTuple_Check(y));   /* from _CFFI_OP_FUNCTION */
@@ -132,14 +242,16 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         length = (Py_ssize_t)opcodes[index + 1];
         /* fall-through */
     case _CFFI_OP_OPEN_ARRAY:
-        y = (PyObject *)realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
+        y = (PyObject *)realize_c_type(builder, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
         z = new_pointer_type((CTypeDescrObject *)y);
+        z = get_unique_type(builder, z);
         Py_DECREF(y);
         if (z == NULL)
             return NULL;
         x = new_array_type((CTypeDescrObject *)z, length);
+        x = get_unique_type(builder, x);
         Py_DECREF(z);
         break;
 
@@ -148,8 +260,8 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         const struct _cffi_struct_union_s *s;
         _cffi_opcode_t op2;
 
-        s = &ctx->struct_unions[_CFFI_GETARG(op)];
-        op2 = ctx->types[s->type_index];
+        s = &builder->ctx.struct_unions[_CFFI_GETARG(op)];
+        op2 = builder->ctx.types[s->type_index];
         if ((((uintptr_t)op2) & 1) == 0) {
             x = (PyObject *)op2;
             Py_INCREF(x);
@@ -174,7 +286,7 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
                 ct->ct_length = s->alignment;
                 ct->ct_flags &= ~CT_IS_OPAQUE;
                 ct->ct_flags |= CT_LAZY_FIELD_LIST;
-                ct->ct_extra = (void *)ctx;
+                ct->ct_extra = builder;
             }
 
             /* We are going to update the "primary" OP_STRUCT_OR_UNION
@@ -184,7 +296,7 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
                next time we walk the same current slot, we'll find the
                'x' object in the primary slot (op2, above) and then we
                will update the current slot. */
-            opcodes = ctx->types;
+            opcodes = builder->ctx.types;
             index = s->type_index;
         }
         break;
@@ -195,7 +307,7 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         PyObject *fargs;
         int i, base_index, num_args;
 
-        y = (PyObject *)realize_c_type(ctx, opcodes, _CFFI_GETARG(op));
+        y = (PyObject *)realize_c_type(builder, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
 
@@ -212,7 +324,7 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         }
 
         for (i = 0; i < num_args; i++) {
-            z = (PyObject *)realize_c_type(ctx, opcodes, base_index + i);
+            z = (PyObject *)realize_c_type(builder, opcodes, base_index + i);
             if (z == NULL) {
                 Py_DECREF(fargs);
                 Py_DECREF(y);
@@ -222,6 +334,7 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         }
 
         z = new_function_type(fargs, (CTypeDescrObject *)y, 0, FFI_DEFAULT_ABI);
+        z = get_unique_type(builder, z);
         Py_DECREF(fargs);
         Py_DECREF(y);
         if (z == NULL)
@@ -234,7 +347,7 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
     }
 
     case _CFFI_OP_NOOP:
-        x = _realize_c_type_or_func(ctx, opcodes, _CFFI_GETARG(op));
+        x = _realize_c_type_or_func(builder, opcodes, _CFFI_GETARG(op));
         break;
 
     case _CFFI_OP_TYPENAME:
@@ -242,8 +355,8 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         /* essential: the TYPENAME opcode resolves the type index looked
            up in the 'ctx->typenames' array, but it does so in 'ctx->types'
            instead of in 'opcodes'! */
-        int type_index = ctx->typenames[_CFFI_GETARG(op)].type_index;
-        x = _realize_c_type_or_func(ctx, ctx->types, type_index);
+        int type_index = builder->ctx.typenames[_CFFI_GETARG(op)].type_index;
+        x = _realize_c_type_or_func(builder, builder->ctx.types, type_index);
         break;
     }
 
@@ -252,7 +365,7 @@ _realize_c_type_or_func(const struct _cffi_type_context_s *ctx,
         return NULL;
     }
 
-    if (x != NULL && opcodes == ctx->types) {
+    if (x != NULL && opcodes == builder->ctx.types) {
         assert((((uintptr_t)x) & 1) == 0);
         assert((((uintptr_t)opcodes[index]) & 1) == 1);
         Py_INCREF(x);
@@ -268,8 +381,8 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
     if (ct->ct_flags & CT_LAZY_FIELD_LIST) {
         assert(!(ct->ct_flags & CT_IS_OPAQUE));
 
-        const struct _cffi_type_context_s *ctx = ct->ct_extra;
-        assert(ctx != NULL);
+        builder_c_t *builder = ct->ct_extra;
+        assert(builder != NULL);
 
         char *p = ct->ct_name;
         if (memcmp(p, "struct ", 7) == 0)
@@ -277,12 +390,13 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
         else if (memcmp(p, "union ", 6) == 0)
             p += 6;
 
-        int n = search_in_struct_unions(ctx, p, strlen(p));
+        int n = search_in_struct_unions(&builder->ctx, p, strlen(p));
         if (n < 0)
             Py_FatalError("lost a struct/union!");
 
-        const struct _cffi_struct_union_s *s = &ctx->struct_unions[n];
-        const struct _cffi_field_s *fld = &ctx->fields[s->first_field_index];
+        const struct _cffi_struct_union_s *s = &builder->ctx.struct_unions[n];
+        const struct _cffi_field_s *fld =
+            &builder->ctx.fields[s->first_field_index];
 
         /* XXX painfully build all the Python objects that are the args
            to b_complete_struct_or_union() */
@@ -300,7 +414,8 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
             switch (_CFFI_GETOP(op)) {
 
             case _CFFI_OP_NOOP:
-                ctf = realize_c_type(ctx, ctx->types, _CFFI_GETARG(op));
+                ctf = realize_c_type(builder, builder->ctx.types,
+                                     _CFFI_GETARG(op));
                 break;
 
             default:
@@ -332,7 +447,7 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
         ct->ct_flags &= ~CT_IS_OPAQUE;
         Py_DECREF(args);
         if (res == NULL) {
-            ct->ct_extra = (void *)ctx;
+            ct->ct_extra = builder;
             return -1;
         }
 

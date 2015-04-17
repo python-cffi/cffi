@@ -19,3 +19,19 @@ def test_ffi_subclass():
 
 def test_ffi_no_argument():
     py.test.raises(TypeError, _cffi1_backend.FFI, 42)
+
+def test_ffi_cache_type():
+    ffi = _cffi1_backend.FFI()
+    t1 = ffi.typeof("int **")
+    t2 = ffi.typeof("int *")
+    assert t2.item is t1.item.item
+    assert t2 is t1.item
+    assert ffi.typeof("int[][10]") is ffi.typeof("int[][10]")
+    assert ffi.typeof("int(*)()") is ffi.typeof("int(*)()")
+
+def test_ffi_cache_type_globally():
+    ffi1 = _cffi1_backend.FFI()
+    ffi2 = _cffi1_backend.FFI()
+    t1 = ffi1.typeof("int *")
+    t2 = ffi2.typeof("int *")
+    assert t1 is t2

@@ -71,7 +71,7 @@ struct _cffi_struct_union_s {
     int type_index;          // -> _cffi_types, on a OP_STRUCT_UNION
     int flags;               // CT_UNION?  CT_IS_OPAQUE?
     size_t size;
-    size_t alignment;
+    int alignment;
     int first_field_index;   // -> _cffi_fields array
     int num_fields;
 };

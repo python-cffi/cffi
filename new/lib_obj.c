@@ -13,13 +13,13 @@
 
 struct CPyExtFunc_s {
     PyMethodDef md;
-    const struct _cffi_type_context_s *ctx;
+    builder_c_t *types_builder;
     int type_index;
 };
 
 struct LibObject_s {
     PyObject_HEAD
-    const struct _cffi_type_context_s *l_ctx;  /* ctx object */
+    builder_c_t *l_types_builder; /* same as the one on the ffi object */
     PyObject *l_dict;           /* content, built lazily */
     PyObject *l_libname;        /* some string that gives the name of the lib */
 };
@@ -59,7 +59,7 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
     if (xfunc->md.ml_name == NULL)
         goto no_memory;
 
-    xfunc->ctx = lib->l_ctx;
+    xfunc->types_builder = lib->l_types_builder;
     xfunc->type_index = _CFFI_GETARG(g->type_op);
 
     return PyCFunction_NewEx(&xfunc->md, NULL, lib->l_libname);
@@ -73,17 +73,11 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
 {
     /* does not return a new reference! */
 
-    if (lib->l_ctx == NULL) {
-        PyErr_Format(FFIError, "lib '%.200s' is already closed",
-                     PyText_AS_UTF8(lib->l_libname));
-        return NULL;
-    }
-
     char *s = PyText_AsUTF8(name);
     if (s == NULL)
         return NULL;
 
-    int index = search_in_globals(lib->l_ctx, s, strlen(s));
+    int index = search_in_globals(&lib->l_types_builder->ctx, s, strlen(s));
     if (index < 0) {
         PyErr_Format(PyExc_AttributeError,
                      "lib '%.200s' has no function,"
@@ -93,7 +87,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
         return NULL;
     }
 
-    const struct _cffi_global_s *g = &lib->l_ctx->globals[index];
+    const struct _cffi_global_s *g = &lib->l_types_builder->ctx.globals[index];
     PyObject *x;
     CTypeDescrObject *ct;
 
@@ -136,7 +130,8 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
     {
         /* a constant which is not of integer type */
         char *data;
-        ct = realize_c_type(lib->l_ctx, lib->l_ctx->types,
+        ct = realize_c_type(lib->l_types_builder,
+                            lib->l_types_builder->ctx.types,
                             _CFFI_GETARG(g->type_op));
         if (ct == NULL)
             return NULL;
@@ -151,7 +146,8 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
 
     case _CFFI_OP_GLOBAL_VAR:
         /* global variable of the exact type specified here */
-        ct = realize_c_type(lib->l_ctx, lib->l_ctx->types,
+        ct = realize_c_type(lib->l_types_builder,
+                            lib->l_types_builder->ctx.types,
                             _CFFI_GETARG(g->type_op));
         if (ct == NULL)
             return NULL;
@@ -215,8 +211,8 @@ static int lib_setattr(LibObject *lib, PyObject *name, PyObject *val)
 
 static PyObject *lib_dir(LibObject *lib, PyObject *noarg)
 {
-    const struct _cffi_global_s *g = lib->l_ctx->globals;
-    int total = lib->l_ctx->num_globals;
+    const struct _cffi_global_s *g = lib->l_types_builder->ctx.globals;
+    int total = lib->l_types_builder->ctx.num_globals;
 
     PyObject *lst = PyList_New(total);
     if (lst == NULL)
@@ -277,7 +273,7 @@ static PyTypeObject Lib_Type = {
     offsetof(LibObject, l_dict),                /* tp_dictoffset */
 };
 
-static LibObject *lib_internal_new(const struct _cffi_type_context_s *ctx,
+static LibObject *lib_internal_new(builder_c_t *types_builder,
                                    char *module_name)
 {
     LibObject *lib;
@@ -295,7 +291,7 @@ static LibObject *lib_internal_new(const struct _cffi_type_context_s *ctx,
     if (lib == NULL)
         return NULL;
 
-    lib->l_ctx = ctx;
+    lib->l_types_builder = types_builder;
     lib->l_dict = dict;
     lib->l_libname = libname;
     return lib;

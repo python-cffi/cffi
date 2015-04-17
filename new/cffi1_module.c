@@ -55,7 +55,7 @@ static int _cffi_init_module(char *module_name,
     if (ffi == NULL || PyModule_AddObject(m, "ffi", (PyObject *)ffi) < 0)
         return -1;
 
-    LibObject *lib = lib_internal_new(ctx, module_name);
+    LibObject *lib = lib_internal_new(ffi->types_builder, module_name);
     if (lib == NULL || PyModule_AddObject(m, "lib", (PyObject *)lib) < 0)
         return -1;
 

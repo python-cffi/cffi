@@ -20,10 +20,10 @@
 
 struct FFIObject_s {
     PyObject_HEAD
-    PyObject *types_dict;
     PyObject *gc_wrefs;
     struct _cffi_parse_info_s info;
     int ctx_is_static;
+    builder_c_t *types_builder;
     _cffi_opcode_t internal_output[FFI_COMPLEXITY_OUTPUT];
 };
 
@@ -31,10 +31,6 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
                                    const struct _cffi_type_context_s *ctx,
                                    int ctx_is_static)
 {
-    PyObject *dict = PyDict_New();
-    if (dict == NULL)
-        return NULL;
-
     FFIObject *ffi;
     if (ctx_is_static) {
         ffi = (FFIObject *)PyObject_GC_New(FFIObject, ffitype);
@@ -44,11 +40,14 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
     else {
         ffi = (FFIObject *)ffitype->tp_alloc(ffitype, 0);
     }
-    if (ffi == NULL) {
-        Py_DECREF(dict);
+    if (ffi == NULL)
+        return NULL;
+
+    ffi->types_builder = new_builder_c(ctx);
+    if (ffi->types_builder == NULL) {
+        Py_DECREF(ffi);
         return NULL;
     }
-    ffi->types_dict = dict;
     ffi->gc_wrefs = NULL;
     ffi->info.ctx = ctx;
     ffi->info.output = ffi->internal_output;
@@ -60,29 +59,17 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
 static void ffi_dealloc(FFIObject *ffi)
 {
     PyObject_GC_UnTrack(ffi);
-    Py_DECREF(ffi->types_dict);
     Py_XDECREF(ffi->gc_wrefs);
 
-    if (!ffi->ctx_is_static) {
-        const void *mem[] = {ffi->info.ctx->types,
-                             ffi->info.ctx->globals,
-                             ffi->info.ctx->struct_unions,
-                             ffi->info.ctx->fields,
-                             ffi->info.ctx->enums,
-                             ffi->info.ctx->typenames,
-                             ffi->info.ctx};
-        int i;
-        for (i = 0; i < sizeof(mem) / sizeof(*mem); i++) {
-            if (mem[i] != NULL)
-                PyMem_Free((void *)mem[i]);
-        }
-    }
+    if (!ffi->ctx_is_static)
+        free_builder_c(ffi->types_builder);
+
     Py_TYPE(ffi)->tp_free((PyObject *)ffi);
 }
 
 static int ffi_traverse(FFIObject *ffi, visitproc visit, void *arg)
 {
-    Py_VISIT(ffi->types_dict);
+    Py_VISIT(ffi->types_builder->types_dict);
     Py_VISIT(ffi->gc_wrefs);
     return 0;
 }
@@ -128,9 +115,12 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
        Does not return a new reference!
     */
     if ((accept & ACCEPT_STRING) && PyText_Check(arg)) {
-        PyObject *x = PyDict_GetItem(ffi->types_dict, arg);
-        if (x != NULL && CTypeDescr_Check(x))
+        PyObject *types_dict = ffi->types_builder->types_dict;
+        PyObject *x = PyDict_GetItem(types_dict, arg);
+        if (x != NULL) {
+            assert(CTypeDescr_Check(x));
             return (CTypeDescrObject *)x;
+        }
 
         char *input_text = PyText_AS_UTF8(arg);
         int index = parse_c_type(&ffi->info, input_text);
@@ -143,23 +133,20 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
                          input_text, spaces);
             return NULL;
         }
-        CTypeDescrObject *ct = realize_c_type(ffi->info.ctx,
+        CTypeDescrObject *ct = realize_c_type(ffi->types_builder,
                                               ffi->info.output, index);
-        if (ct == NULL)
-            return NULL;
-
-        char *normalized_text = ct->ct_name;
-        x = PyDict_GetItemString(ffi->types_dict, normalized_text);
-        if (x == NULL) {
-            PyDict_SetItemString(ffi->types_dict, normalized_text,
-                                 (PyObject *)ct);
+        if (ct != NULL) {
+            /* Cache under the name given by 'arg', in addition to the
+               fact that the same ct is probably already cached under
+               its standardized name.  In a few cases, it is not, e.g.
+               if it is a primitive; for the purpose of this function,
+               the important point is the following line, which makes
+               sure that in any case the next _ffi_type() with the same
+               'arg' will succeed early, in PyDict_GetItem() above.
+            */
+            if (PyDict_SetItem(types_dict, arg, (PyObject *)ct) < 0)
+                return NULL;
         }
-        else {
-            Py_INCREF(x);
-            Py_DECREF(ct);
-            ct = (CTypeDescrObject *)x;
-        }
-        PyDict_SetItem(ffi->types_dict, arg, (PyObject *)ct);
         return ct;
     }
     else if ((accept & ACCEPT_CTYPE) && CTypeDescr_Check(arg)) {

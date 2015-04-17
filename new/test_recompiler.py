@@ -173,14 +173,31 @@ def test_verify_struct():
     ffi = FFI()
     ffi.cdef("""struct foo_s { int b; short a; };
                 struct bar_s { struct foo_s *f; };""")
-    lib = verify(ffi, 'test_verify_struct',
+    ffi, lib = verify2(ffi, 'test_verify_struct',
                  """struct foo_s { short a; int b; };
                     struct bar_s { struct foo_s *f; };""")
+    ffi.typeof("struct bar_s *")
     p = ffi.new("struct foo_s *", {'a': -32768, 'b': -2147483648})
     assert p.a == -32768
     assert p.b == -2147483648
     py.test.raises(OverflowError, "p.a -= 1")
     py.test.raises(OverflowError, "p.b -= 1")
-    py.test.skip("XXX in-progress:")
     q = ffi.new("struct bar_s *", {'f': p})
     assert q.f == p
+
+def test_type_caching():
+    ffi1 = FFI(); ffi1.cdef("struct foo_s;")
+    ffi2 = FFI(); ffi2.cdef("struct foo_s;")    # different one!
+    ffi1, lib1 = verify2(ffi1, 'test_type_caching_1', 'struct foo_s;')
+    ffi2, lib2 = verify2(ffi2, 'test_type_caching_2', 'struct foo_s;')
+    # shared types
+    assert ffi1.typeof("long") is ffi2.typeof("long")
+    assert ffi1.typeof("long**") is ffi2.typeof("long * *")
+    assert ffi1.typeof("long(*)(int, ...)") is ffi2.typeof("long(*)(int, ...)")
+    # non-shared types
+    assert ffi1.typeof("struct foo_s") is not ffi2.typeof("struct foo_s")
+    assert ffi1.typeof("struct foo_s *") is not ffi2.typeof("struct foo_s *")
+    assert ffi1.typeof("struct foo_s*(*)()") is not (
+        ffi2.typeof("struct foo_s*(*)()"))
+    assert ffi1.typeof("void(*)(struct foo_s*)") is not (
+        ffi2.typeof("void(*)(struct foo_s*)"))

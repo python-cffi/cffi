@@ -132,6 +132,7 @@
 #define CT_WITH_VAR_ARRAY     1048576
 #define CT_IS_UNSIZED_CHAR_A  2097152
 #define CT_LAZY_FIELD_LIST    4194304
+#define CT_USES_LOCAL         8388608
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -3544,7 +3545,7 @@ static PyObject *new_pointer_type(CTypeDescrObject *ctitem)
 
     td->ct_size = sizeof(void *);
     td->ct_length = -1;
-    td->ct_flags = CT_POINTER;
+    td->ct_flags = CT_POINTER | (ctitem->ct_flags & CT_USES_LOCAL);
     if (ctitem->ct_flags & (CT_STRUCT|CT_UNION))
         td->ct_flags |= CT_IS_PTR_TO_OWNED;
     if (ctitem->ct_flags & CT_VOID)
@@ -3633,7 +3634,7 @@ new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length)
     td->ct_stuff = (PyObject *)ctptr;
     td->ct_size = arraysize;
     td->ct_length = length;
-    td->ct_flags = flags;
+    td->ct_flags = flags | (ctptr->ct_flags & CT_USES_LOCAL);
     return (PyObject *)td;
 }
 
@@ -3665,7 +3666,7 @@ static PyObject *new_struct_or_union_type(const char *name, int flag)
 
     td->ct_size = -1;
     td->ct_length = -1;
-    td->ct_flags = flag | CT_IS_OPAQUE;
+    td->ct_flags = flag | CT_IS_OPAQUE | CT_USES_LOCAL;
     td->ct_extra = NULL;
     memcpy(td->ct_name, name, namelen + 1);
     td->ct_name_position = namelen;
@@ -4348,6 +4349,8 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
                                           int ellipsis)
 {
     CTypeDescrObject *fct;
+    Py_ssize_t i, nargs;
+    int all_flags;
 
     fb->nb_bytes = 0;
     fb->bufferp = NULL;
@@ -4369,9 +4372,16 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
         goto error;
     assert(fb->bufferp == fct->ct_name + fb->nb_bytes);
 
+    all_flags = fresult->ct_flags;
+    nargs = PyTuple_GET_SIZE(fargs);
+    for (i = 0; i < nargs; i++) {
+        CTypeDescrObject *farg = (CTypeDescrObject *)PyTuple_GET_ITEM(fargs, i);
+        all_flags |= farg->ct_flags;
+    }
+
     fct->ct_extra = NULL;
     fct->ct_size = sizeof(void(*)(void));
-    fct->ct_flags = CT_FUNCTIONPTR;
+    fct->ct_flags = CT_FUNCTIONPTR | (all_flags & CT_USES_LOCAL);
     return fct;
 
  error:
@@ -4484,8 +4494,6 @@ static PyObject *new_function_type(PyObject *fargs,   /* tuple */
         Py_INCREF(o);
         PyTuple_SET_ITEM(fct->ct_stuff, 2 + i, o);
     }
-    fct->ct_size = sizeof(void(*)(void));
-    fct->ct_flags = CT_FUNCTIONPTR;
     return (PyObject *)fct;
 
  error:
@@ -4825,7 +4833,7 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
     td->ct_size = basetd->ct_size;
     td->ct_length = basetd->ct_length;   /* alignment */
     td->ct_extra = basetd->ct_extra;     /* ffi type  */
-    td->ct_flags = basetd->ct_flags | CT_IS_ENUM;
+    td->ct_flags = basetd->ct_flags | CT_IS_ENUM | CT_USES_LOCAL;
     td->ct_name_position = name_size - 1;
     return (PyObject *)td;
 
