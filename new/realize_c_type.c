@@ -60,6 +60,8 @@ static PyObject *get_unique_type(builder_c_t *builder, PyObject *x)
        decrefed, and 'y' never does.
     */
     CTypeDescrObject *ct = (CTypeDescrObject *)x;
+    if (ct == NULL)
+        return NULL;
 
     /* XXX maybe change the type of ct_name to be a real 'PyObject *'? */
     PyObject *name = PyString_FromString(ct->ct_name);

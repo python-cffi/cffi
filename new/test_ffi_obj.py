@@ -35,3 +35,8 @@ def test_ffi_cache_type_globally():
     t1 = ffi1.typeof("int *")
     t2 = ffi2.typeof("int *")
     assert t1 is t2
+
+def test_ffi_invalid():
+    ffi = _cffi1_backend.FFI()
+    # array of 10 times an "int[]" is invalid
+    py.test.raises(ValueError, ffi.typeof, "int[10][]")
