@@ -43,6 +43,32 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
                                         const struct _cffi_global_s *g,
                                         const char *s, int flags)
 {
+    /* First make sure the argument types and return type are really
+       built.  The C extension code can then assume that they are,
+       by calling _cffi_type().
+    */
+    CTypeDescrObject *ct;
+    int type_index = _CFFI_GETARG(g->type_op);
+    _cffi_opcode_t *opcodes = lib->l_types_builder->ctx.types;
+    assert(_CFFI_GETOP(opcodes[type_index]) == _CFFI_OP_FUNCTION);
+
+    /* return type: */
+    ct = realize_c_type(lib->l_types_builder, opcodes,
+                        _CFFI_GETARG(opcodes[type_index]));
+    if (ct == NULL)
+        return NULL;
+    Py_DECREF(ct);
+
+    /* argument types: */
+    int i = type_index + 1;
+    while (_CFFI_GETOP(opcodes[i]) != _CFFI_OP_FUNCTION_END) {
+        ct = realize_c_type(lib->l_types_builder, opcodes, i);
+        if (ct == NULL)
+            return NULL;
+        Py_DECREF(ct);
+        i++;
+    }
+
     /* xxx the few bytes of memory we allocate here leak, but it's a
        minor concern because it should only occur for CPYTHON_BLTN.
        There is one per real C function in a CFFI C extension module.
@@ -60,7 +86,7 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
         goto no_memory;
 
     xfunc->types_builder = lib->l_types_builder;
-    xfunc->type_index = _CFFI_GETARG(g->type_op);
+    xfunc->type_index = type_index;
 
     return PyCFunction_NewEx(&xfunc->md, NULL, lib->l_libname);
 

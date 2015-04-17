@@ -215,7 +215,7 @@ class Recompiler:
     def _convert_funcarg_to_c_ptr_or_array(self, tp, fromvar, tovar, errcode):
         self._prnt('  datasize = _cffi_prepare_pointer_call_argument(')
         self._prnt('      _cffi_type(%d), %s, (char **)&%s);' % (
-            self._gettypenum(tp), fromvar, tovar))
+            self._typesdict[tp], fromvar, tovar))
         self._prnt('  if (datasize != 0) {')
         self._prnt('    if (datasize < 0)')
         self._prnt('      %s;' % errcode)
@@ -223,7 +223,7 @@ class Recompiler:
         self._prnt('    memset((void *)%s, 0, (size_t)datasize);' % (tovar,))
         self._prnt('    if (_cffi_convert_array_from_object('
                    '(char *)%s, _cffi_type(%d), %s) < 0)' % (
-            tovar, self._gettypenum(tp), fromvar))
+            tovar, self._typesdict[tp], fromvar))
         self._prnt('      %s;' % errcode)
         self._prnt('  }')
 

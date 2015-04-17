@@ -155,6 +155,10 @@ typedef struct _ctypedescr CTypeDescrObject;
 
 static void *_cffi_exports[_CFFI_NUM_EXPORTS];
 
+#define _cffi_type(index)   (                           \
+    assert((((uintptr_t)_cffi_types[index]) & 1) == 0), \
+    (CTypeDescrObject *)_cffi_types[index])
+
 
 static int _cffi_init(void)
 {

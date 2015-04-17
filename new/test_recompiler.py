@@ -1,14 +1,19 @@
 import py
-from recompiler import Recompiler, verify
+import recompiler
 from cffi1 import FFI
 
 
 def check_type_table(input, expected_output):
     ffi = FFI()
     ffi.cdef(input)
-    recompiler = Recompiler(ffi, 'testmod')
-    recompiler.collect_type_table()
-    assert ''.join(map(str, recompiler.cffi_types)) == expected_output
+    recomp = recompiler.Recompiler(ffi, 'testmod')
+    recomp.collect_type_table()
+    assert ''.join(map(str, recomp.cffi_types)) == expected_output
+
+def verify(*args, **kwds):
+    kwds.setdefault('undef_macros', ['NDEBUG'])
+    return recompiler.verify(*args, **kwds)
+
 
 def test_type_table_func():
     check_type_table("double sin(double);",
@@ -85,6 +90,12 @@ def test_math_sin():
     ffi.cdef("float sin(double); double cos(double);")
     lib = verify(ffi, 'test_math_sin', '#include <math.h>')
     assert lib.cos(1.43) == math.cos(1.43)
+
+def test_funcarg_ptr():
+    ffi = FFI()
+    ffi.cdef("int foo(int *);")
+    lib = verify(ffi, 'test_funcarg_ptr', 'int foo(int *p) { return *p; }')
+    assert lib.foo([-12345]) == -12345
 
 def test_global_var_array():
     ffi = FFI()
