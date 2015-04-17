@@ -558,15 +558,18 @@ def recompile(ffi, module_name, preamble, tmpdir=None, **kwds):
     outputfilename = ffiplatform.compile(tmpdir, ext)
     return outputfilename
 
-def verify2(ffi, module_name, preamble, *args, **kwds):
+def verify(ffi, module_name, preamble, *args, **kwds):
     import imp
     assert module_name not in sys.modules, "module name conflict: %r" % (
         module_name,)
     outputfilename = recompile(ffi, module_name, preamble, *args, **kwds)
     module = imp.load_dynamic(module_name, outputfilename)
-    return module.ffi, module.lib
-
-def verify(ffi, module_name, preamble, *args, **kwds):
-    ffi2, lib = verify2(ffi, module_name, preamble, *args, **kwds)
-    ffi._verified(ffi2)
-    return lib
+    #
+    # hack hack hack: copy all *bound methods* from module.ffi back to the
+    # ffi instance.  Then calls like ffi.new() will invoke module.ffi.new().
+    for name in dir(module.ffi):
+        if not name.startswith('_'):
+            attr = getattr(module.ffi, name)
+            if attr is not getattr(ffi, name):
+                setattr(ffi, name, attr)
+    return module.lib

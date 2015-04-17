@@ -536,40 +536,7 @@ static PyObject *ffi_gc(ZefFFIObject *self, PyObject *args)
 }
 #endif
 
-static PyObject *ffi__verified(FFIObject *self, PyObject *args)
-{
-    FFIObject *srcffi;
-
-    if (!PyArg_ParseTuple(args, "O!:_verified", &FFI_Type, &srcffi))
-        return NULL;
-
-    if (!srcffi->ctx_is_static)
-        goto invalid;
-
-    if (self->ctx_is_static)
-        goto invalid;
-
-    size_t i;
-    const char *p = (const char *)self->info.ctx;
-    for (i = 0; i < sizeof(struct _cffi_type_context_s); i++) {
-        if (*p++ != '\0')
-            goto invalid;
-    }
-
-    PyMem_Free((void *)self->info.ctx);
-    self->ctx_is_static = 1;
-    self->info.ctx = srcffi->info.ctx;
-
-    Py_INCREF(Py_None);
-    return Py_None;
-
- invalid:
-    PyErr_SetString(PyExc_ValueError, "XXX invalid source or destination");
-    return NULL;
-}
-
 static PyMethodDef ffi_methods[] = {
-    {"_verified",     (PyCFunction)ffi__verified, METH_VARARGS},
 #if 0
     {"addressof",     (PyCFunction)ffi_addressof, METH_VARARGS},
     {"cast",          (PyCFunction)ffi_cast,      METH_VARARGS},

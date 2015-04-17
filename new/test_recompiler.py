@@ -1,5 +1,5 @@
 import py
-from recompiler import Recompiler, verify, verify2
+from recompiler import Recompiler, verify
 from cffi1 import FFI
 
 
@@ -97,8 +97,8 @@ def test_global_var_array():
 def test_verify_typedef():
     ffi = FFI()
     ffi.cdef("typedef int **foo_t;")
-    ffi2, lib = verify2(ffi, 'test_verify_typedef', 'typedef int **foo_t;')
-    assert ffi2.sizeof("foo_t") == ffi.sizeof("void *")
+    lib = verify(ffi, 'test_verify_typedef', 'typedef int **foo_t;')
+    assert ffi.sizeof("foo_t") == ffi.sizeof("void *")
 
 def test_global_var_int():
     ffi = FFI()
@@ -160,20 +160,20 @@ def test_dir():
 def test_verify_opaque_struct():
     ffi = FFI()
     ffi.cdef("struct foo_s;")
-    ffi, lib = verify2(ffi, 'test_verify_opaque_struct', "struct foo_s;")
+    lib = verify(ffi, 'test_verify_opaque_struct', "struct foo_s;")
     assert ffi.typeof("struct foo_s").cname == "struct foo_s"
 
 def test_verify_opaque_union():
     ffi = FFI()
     ffi.cdef("union foo_s;")
-    ffi, lib = verify2(ffi, 'test_verify_opaque_union', "union foo_s;")
+    lib = verify(ffi, 'test_verify_opaque_union', "union foo_s;")
     assert ffi.typeof("union foo_s").cname == "union foo_s"
 
 def test_verify_struct():
     ffi = FFI()
     ffi.cdef("""struct foo_s { int b; short a; };
                 struct bar_s { struct foo_s *f; };""")
-    ffi, lib = verify2(ffi, 'test_verify_struct',
+    lib = verify(ffi, 'test_verify_struct',
                  """struct foo_s { short a; int b; };
                     struct bar_s { struct foo_s *f; };""")
     ffi.typeof("struct bar_s *")
@@ -188,8 +188,8 @@ def test_verify_struct():
 def test_type_caching():
     ffi1 = FFI(); ffi1.cdef("struct foo_s;")
     ffi2 = FFI(); ffi2.cdef("struct foo_s;")    # different one!
-    ffi1, lib1 = verify2(ffi1, 'test_type_caching_1', 'struct foo_s;')
-    ffi2, lib2 = verify2(ffi2, 'test_type_caching_2', 'struct foo_s;')
+    lib1 = verify(ffi1, 'test_type_caching_1', 'struct foo_s;')
+    lib2 = verify(ffi2, 'test_type_caching_2', 'struct foo_s;')
     # shared types
     assert ffi1.typeof("long") is ffi2.typeof("long")
     assert ffi1.typeof("long**") is ffi2.typeof("long * *")
