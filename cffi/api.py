@@ -2,6 +2,9 @@ import sys, types
 from .lock import allocate_lock
 import _cffi1_backend
 
+class DeprecatedError(Exception):
+    pass
+
 try:
     callable
 except NameError:
@@ -70,9 +73,9 @@ class FFI(_cffi1_backend.FFI):
             if name.startswith('RTLD_'):
                 setattr(self, name, getattr(backend, name))
         #
-        with self._lock:
-            self.BVoidP = self._get_cached_btype(model.voidp_type)
-            self.BCharA = self._get_cached_btype(model.char_array_type)
+        #with self._lock:
+        #    self.BVoidP = self._get_cached_btype(model.voidp_type)
+        #    self.BCharA = self._get_cached_btype(model.char_array_type)
 
     def cdef(self, csource, override=False, packed=False):
         """Parse the given C source.  This registers all declared functions,
@@ -314,16 +317,7 @@ class FFI(_cffi1_backend.FFI):
             return gc_weakrefs.build(cdata, destructor)
 
     def _get_cached_btype(self, type):
-        assert self._lock.acquire(False) is False
-        # call me with the lock!
-        try:
-            BType = self._cached_btypes[type]
-        except KeyError:
-            finishlist = []
-            BType = type.get_cached_btype(self, finishlist)
-            for type in finishlist:
-                type.finish_backend_type(self, finishlist)
-        return BType
+        raise DeprecatedError
 
     def verify(self, source='', tmpdir=None, **kwargs):
         """Verify that the current ffi signatures compile on this
