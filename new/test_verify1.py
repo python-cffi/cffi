@@ -2,6 +2,27 @@ import sys, math, py
 from cffi1 import FFI, VerificationError, model
 
 lib_m = ['m']
+if sys.platform == 'win32':
+    #there is a small chance this fails on Mingw via environ $CC
+    import distutils.ccompiler
+    if distutils.ccompiler.get_default_compiler() == 'msvc':
+        lib_m = ['msvcrt']
+    pass      # no obvious -Werror equivalent on MSVC
+else:
+    if (sys.platform == 'darwin' and
+          [int(x) for x in os.uname()[2].split('.')] >= [11, 0, 0]):
+        # assume a standard clang or gcc
+        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
+        # special things for clang
+        extra_compile_args.append('-Qunused-arguments')
+    else:
+        # assume a standard gcc
+        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
+
+    class FFI(FFI):
+        def verify(self, *args, **kwds):
+            return super(FFI, self).verify(
+                *args, extra_compile_args=extra_compile_args, **kwds)
 
 
 def test_missing_function(ffi=None):
