@@ -244,8 +244,7 @@ static PyObject *ffi_new(FFIObject *self, PyObject *args)
     return direct_newp(ct, init);
 }
 
-#if 0
-static PyObject *ffi_cast(ZefFFIObject *self, PyObject *args)
+static PyObject *ffi_cast(FFIObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
     PyObject *ob, *arg;
@@ -258,7 +257,6 @@ static PyObject *ffi_cast(ZefFFIObject *self, PyObject *args)
 
     return do_cast(ct, ob);
 }
-#endif
 
 PyDoc_STRVAR(ffi_string_doc,
 "Return a Python string (or unicode string) from the 'cdata'.  If\n"
@@ -522,7 +520,9 @@ static int ffi_set_errno(PyObject *self, PyObject *newval, void *closure)
 static PyMethodDef ffi_methods[] = {
 #if 0
     {"addressof",     (PyCFunction)ffi_addressof, METH_VARARGS},
+#endif
     {"cast",          (PyCFunction)ffi_cast,      METH_VARARGS},
+#if 0
     {"close_library", ffi_close_library,          METH_VARARGS | METH_STATIC},
     {"from_handle",   (PyCFunction)ffi_from_handle,METH_O},
     {"gc",            (PyCFunction)ffi_gc,        METH_VARARGS},

@@ -3062,13 +3062,9 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
     return cd;
 }
 
-static PyObject *b_cast(PyObject *self, PyObject *args)
+static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
 {
-    CTypeDescrObject *ct;
     CDataObject *cd;
-    PyObject *ob;
-    if (!PyArg_ParseTuple(args, "O!O:cast", &CTypeDescr_Type, &ct, &ob))
-        return NULL;
 
     if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY) &&
         ct->ct_size >= 0) {
@@ -3183,6 +3179,16 @@ static PyObject *b_cast(PyObject *self, PyObject *args)
                      "cannot cast %.200s object to ctype '%s'",
                      Py_TYPE(ob)->tp_name, ct->ct_name);
     return NULL;
+}
+
+static PyObject *b_cast(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    PyObject *ob;
+    if (!PyArg_ParseTuple(args, "O!O:cast", &CTypeDescr_Type, &ct, &ob))
+        return NULL;
+
+    return do_cast(ct, ob);
 }
 
 /************************************************************/
