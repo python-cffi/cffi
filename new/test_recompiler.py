@@ -271,3 +271,13 @@ def test_open_array_in_struct():
     assert ffi.sizeof("struct foo_s") == 4
     p = ffi.new("struct foo_s *", [5, [10, 20, 30]])
     assert p.a[2] == 30
+
+def test_math_sin_type():
+    ffi = FFI()
+    ffi.cdef("double sin(double);")
+    lib = verify(ffi, 'test_math_sin_type', '#include <math.h>')
+    # 'lib.sin' is typed as a <built-in method> object on lib
+    assert ffi.typeof(lib.sin).cname == "double(*)(double)"
+    # 'x' is another <built-in method> object on lib, made very indirectly
+    x = type(lib).__dir__.__get__(lib)
+    py.test.raises(TypeError, ffi.typeof, x)

@@ -195,14 +195,16 @@ PyDoc_STRVAR(ffi_typeof_doc,
 "corresponding <ctype> object.\n"
 "It can also be used on 'cdata' instance to get its C type.");
 
+static PyObject *_cpyextfunc_type_index(PyObject *x);  /* forward */
+
 static PyObject *ffi_typeof(FFIObject *self, PyObject *arg)
 {
     PyObject *x = (PyObject *)_ffi_type(self, arg, ACCEPT_STRING|ACCEPT_CDATA);
     if (x != NULL) {
         Py_INCREF(x);
     }
-    else if (PyCFunction_Check(arg)) {
-        abort(); // XXX
+    else {
+        x = _cpyextfunc_type_index(arg);
     }
     return x;
 }

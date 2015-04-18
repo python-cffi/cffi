@@ -13,9 +13,10 @@
 
 struct CPyExtFunc_s {
     PyMethodDef md;
-    builder_c_t *types_builder;
     int type_index;
 };
+
+#define METH_CPYEXTFUNC   0x40000000
 
 struct LibObject_s {
     PyObject_HEAD
@@ -25,6 +26,38 @@ struct LibObject_s {
 };
 
 #define LibObject_Check(ob)  ((Py_TYPE(ob) == &Lib_Type))
+
+static PyObject *_cpyextfunc_type_index(PyObject *x)
+{
+    assert(PyErr_Occurred());
+
+    if (!PyCFunction_Check(x))
+        return NULL;
+    if (!LibObject_Check(PyCFunction_GET_SELF(x)))
+        return NULL;
+    if (!(PyCFunction_GET_FLAGS(x) & METH_CPYEXTFUNC))
+        return NULL;
+
+    PyErr_Clear();
+
+    LibObject *lib = (LibObject *)PyCFunction_GET_SELF(x);
+    struct CPyExtFunc_s *exf;
+    PyObject *tuple, *result;
+
+    exf = (struct CPyExtFunc_s *)(((PyCFunctionObject *)x) -> m_ml);
+    tuple = _realize_c_type_or_func(lib->l_types_builder,
+                                    lib->l_types_builder->ctx.types,
+                                    exf->type_index);
+    if (tuple == NULL)
+        return NULL;
+
+    /* 'tuple' is a tuple of length 1 containing the real CT_FUNCTIONPTR
+       object */
+    result = PyTuple_GetItem(tuple, 0);
+    Py_XINCREF(result);
+    Py_DECREF(tuple);
+    return result;
+}
 
 static void lib_dealloc(LibObject *lib)
 {
@@ -79,16 +112,15 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
         goto no_memory;
 
     xfunc->md.ml_meth = (PyCFunction)g->address;
-    xfunc->md.ml_flags = flags;
+    xfunc->md.ml_flags = flags | METH_CPYEXTFUNC;
     xfunc->md.ml_name = g->name;
     /*xfunc->md.ml_doc = ... */
     if (xfunc->md.ml_name == NULL)
         goto no_memory;
 
-    xfunc->types_builder = lib->l_types_builder;
     xfunc->type_index = type_index;
 
-    return PyCFunction_NewEx(&xfunc->md, NULL, lib->l_libname);
+    return PyCFunction_NewEx(&xfunc->md, (PyObject *)lib, lib->l_libname);
 
  no_memory:
     PyErr_NoMemory();
