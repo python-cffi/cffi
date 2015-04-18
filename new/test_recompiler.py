@@ -219,3 +219,26 @@ def test_type_caching():
         ffi2.typeof("struct foo_s*(*)()"))
     assert ffi1.typeof("void(*)(struct foo_s*)") is not (
         ffi2.typeof("void(*)(struct foo_s*)"))
+
+def test_dotdotdot_length_of_array_field():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int a[...]; int b[...]; };")
+    verify(ffi, 'test_dotdotdot_length_of_array_field',
+           "struct foo_s { int a[42]; int b[11]; };")
+    assert ffi.sizeof("struct foo_s") == (42 + 11) * 4
+    p = ffi.new("struct foo_s *")
+    assert p.a[41] == p.b[10] == 0
+    py.test.raises(IndexError, "p.a[42]")
+    py.test.raises(IndexError, "p.b[11]")
+
+def test_dotdotdot_global_array():
+    ffi = FFI()
+    ffi.cdef("int aa[...]; int bb[...];")
+    lib = verify(ffi, 'test_dotdotdot_global_array',
+                 "int aa[41]; int bb[12];")
+    assert ffi.sizeof(lib.aa) == 41 * 4
+    assert ffi.sizeof(lib.bb) == 12 * 4
+    assert lib.aa[40] == lib.bb[11] == 0
+    py.test.raises(IndexError, "lib.aa[41]")
+    py.test.raises(IndexError, "lib.bb[12]")
+

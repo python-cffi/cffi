@@ -369,11 +369,19 @@ class Recompiler:
     # ----------
     # named structs or unions
 
+    def _field_type(self, tp_struct, field_name, tp_field):
+        if isinstance(tp_field, model.ArrayType) and tp_field.length == '...':
+            ptr_struct_name = tp_struct.get_c_name('*')
+            actual_length = '_cffi_array_len(((%s)0)->%s)' % (
+                ptr_struct_name, field_name)
+            tp_field = model.ArrayType(tp_field.item, actual_length)
+        return tp_field
+
     def _generate_cpy_struct_collecttype(self, tp, name):
         self._do_collect_type(tp)
         if tp.fldtypes is not None:
-            for tp1 in tp.fldtypes:
-                self._do_collect_type(tp1)
+            for name1, tp1 in zip(tp.fldnames, tp.fldtypes):
+                self._do_collect_type(self._field_type(tp, name1, tp1))
 
     def _generate_cpy_struct_decl(self, tp, name):
         if tp.fldtypes is not None:
@@ -390,6 +398,7 @@ class Recompiler:
         if tp.fldtypes is not None:
             c_field = [name]
             for fldname, fldtype in zip(tp.fldnames, tp.fldtypes):
+                fldtype = self._field_type(tp, fldname, fldtype)
                 spaces = " " * len(fldname)
                 c_field.append(
                     '  { "%s", offsetof(%s, %s),\n' % (
@@ -483,13 +492,20 @@ class Recompiler:
     # ----------
     # global variables
 
+    def _global_type(self, tp, global_name):
+        if isinstance(tp, model.ArrayType) and tp.length == '...':
+            actual_length = '_cffi_array_len(%s)' % (global_name,)
+            tp = model.ArrayType(tp.item, actual_length)
+        return tp
+
     def _generate_cpy_variable_collecttype(self, tp, name):
-        self._do_collect_type(tp)
+        self._do_collect_type(self._global_type(tp, name))
 
     def _generate_cpy_variable_decl(self, tp, name):
         pass
 
     def _generate_cpy_variable_ctx(self, tp, name):
+        tp = self._global_type(tp, name)
         type_index = self._typesdict[tp]
         self._lsts["global"].append(
             '  { "%s", &%s, _CFFI_OP(_CFFI_OP_GLOBAL_VAR, %d)},'
@@ -528,10 +544,15 @@ class Recompiler:
         item_index = self._typesdict[tp.item]
         if tp.length is None:
             self.cffi_types[index] = CffiOp(OP_OPEN_ARRAY, item_index)
+        elif tp.length == '...':
+            raise ffiplatform.VerificationError(
+                "type %s badly placed: the '...' array length can only be "
+                "used on global arrays or on fields of structures" % (
+                    str(tp).replace('/*...*/', '...'),))
         else:
             assert self.cffi_types[index + 1] == 'LEN'
             self.cffi_types[index] = CffiOp(OP_ARRAY, item_index)
-            self.cffi_types[index + 1] = CffiOp(None, '%d' % (tp.length,))
+            self.cffi_types[index + 1] = CffiOp(None, str(tp.length))
 
     def _emit_bytecode_StructType(self, tp, index):
         struct_index = self._struct_unions[tp]

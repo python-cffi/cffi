@@ -222,7 +222,7 @@ class ArrayType(BaseType):
         elif length == '...':
             brackets = '&[/*...*/]'
         else:
-            brackets = '&[%d]' % length
+            brackets = '&[%s]' % length
         self.c_name_with_marker = (
             self.item.c_name_with_marker.replace('&', brackets))
 

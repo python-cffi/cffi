@@ -159,6 +159,8 @@ static void *_cffi_exports[_CFFI_NUM_EXPORTS];
     assert((((uintptr_t)_cffi_types[index]) & 1) == 0), \
     (CTypeDescrObject *)_cffi_types[index])
 
+#define _cffi_array_len(array)   (sizeof(array) / sizeof((array)[0]))
+
 
 static int _cffi_init(void)
 {
