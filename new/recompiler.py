@@ -118,8 +118,8 @@ class Recompiler:
         #
         # the declaration of '_cffi_types'
         prnt('static void *_cffi_types[] = {')
-        for op in self.cffi_types:
-            prnt('  %s,' % (op.as_c_expr(),))
+        for i, op in enumerate(self.cffi_types):
+            prnt('/* %2d */ %s,' % (i, op.as_c_expr()))
         if not self.cffi_types:
             prnt('  0')
         prnt('};')
