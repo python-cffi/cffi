@@ -534,6 +534,9 @@ class Recompiler:
     # ----------
     # emitting the opcodes for individual types
 
+    def _emit_bytecode_VoidType(self, tp, index):
+        self.cffi_types[index] = CffiOp(OP_PRIMITIVE, PRIM_VOID)
+
     def _emit_bytecode_PrimitiveType(self, tp, index):
         prim_index = PRIMITIVE_TO_INDEX[tp.name]
         self.cffi_types[index] = CffiOp(OP_PRIMITIVE, prim_index)

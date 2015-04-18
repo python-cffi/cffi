@@ -1,5 +1,7 @@
-import sys
+import sys, math, py
 from cffi1 import FFI, VerificationError, model
+
+lib_m = ['m']
 
 
 def test_missing_function(ffi=None):
@@ -9,7 +11,7 @@ def test_missing_function(ffi=None):
     ffi.cdef("void some_completely_unknown_function();")
     try:
         lib = ffi.verify()
-    except (VerificationError, OSError):
+    except (VerificationError, OSError, ImportError):
         pass     # expected case: we get a VerificationError
     else:
         # but depending on compiler and loader details, maybe
@@ -20,8 +22,8 @@ def test_missing_function(ffi=None):
 
 def test_missing_function_import_error():
     # uses the original FFI that just gives a warning during compilation
-    import cffi
-    test_missing_function(ffi=cffi.FFI())
+    import cffi1
+    test_missing_function(ffi=cffi1.FFI())
 
 def test_simple_case():
     ffi = FFI()

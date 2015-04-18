@@ -321,7 +321,9 @@ class FFI(_cffi1_backend.FFI):
 
     def verify(self, source='', **kwargs):
         from recompiler import verify    # XXX must be in the current dir
-        return verify(self, 'verify', source, **kwargs)
+        FFI._verify_counter += 1
+        return verify(self, 'verify%d' % FFI._verify_counter, source, **kwargs)
+    _verify_counter = 0
 
     def XXXverify(self, source='', tmpdir=None, **kwargs):
         """Verify that the current ffi signatures compile on this
