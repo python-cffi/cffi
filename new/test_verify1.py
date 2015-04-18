@@ -472,7 +472,8 @@ def _check_field_match(typename, real, expect_mismatch):
     ffi.cdef("struct foo_s { %s x; ...; };" % typename)
     try:
         ffi.verify("struct foo_s { %s x; };" % real)
-    except VerificationError:
+        ffi.new("struct foo_s *")    # because some mismatches show up lazily
+    except (VerificationError, ffi.error):
         if not expect_mismatch:
             if testing_by_size and typename != real:
                 print("ignoring mismatch between %s* and %s* even though "
