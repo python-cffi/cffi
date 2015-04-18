@@ -150,6 +150,14 @@ class Recompiler:
                 prnt('};')
                 prnt()
         #
+        # check for a possible internal inconsistency: _cffi_struct_unions
+        # should have been generated with exactly self._struct_unions
+        lst = self._lsts["struct_union"]
+        for tp, i in self._struct_unions.items():
+            assert i < len(lst)
+            assert lst[i].startswith('  { "%s"' % tp.name)
+        assert len(lst) == len(self._struct_unions)
+        #
         # the declaration of '_cffi_type_context'
         prnt('static const struct _cffi_type_context_s _cffi_type_context = {')
         prnt('  _cffi_types,')
@@ -271,6 +279,10 @@ class Recompiler:
         type_index = self._typesdict[tp]
         self._lsts["typename"].append(
             '  { "%s", %d },' % (name, type_index))
+        if getattr(tp, "origin", None) == "unknown_type":
+            self._generate_cpy_struct_ctx(tp, tp.name)
+        elif isinstance(tp, model.NamedPointerType):
+            self._generate_cpy_struct_ctx(tp.totype, tp.totype.name)
 
     # ----------
     # function declarations
@@ -539,6 +551,7 @@ class Recompiler:
         self.cffi_types[index] = CffiOp(OP_POINTER, self._typesdict[tp.totype])
 
     _emit_bytecode_ConstPointerType = _emit_bytecode_PointerType
+    _emit_bytecode_NamedPointerType = _emit_bytecode_PointerType
 
     def _emit_bytecode_FunctionPtrType(self, tp, index):
         raw = tp.as_raw_function()

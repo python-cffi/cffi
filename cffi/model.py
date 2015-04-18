@@ -454,6 +454,7 @@ def unknown_type(name, structname=None):
         structname = '$%s' % name
     tp = StructType(structname, None, None, None)
     tp.force_the_name(name)
+    tp.origin = "unknown_type"
     return tp
 
 def unknown_ptr_type(name, structname=None):

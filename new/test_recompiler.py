@@ -118,6 +118,16 @@ def test_verify_typedef():
     lib = verify(ffi, 'test_verify_typedef', 'typedef int **foo_t;')
     assert ffi.sizeof("foo_t") == ffi.sizeof("void *")
 
+def test_verify_typedef_dotdotdot():
+    ffi = FFI()
+    ffi.cdef("typedef ... foo_t;")
+    verify(ffi, 'test_verify_typedef_dotdotdot', 'typedef int **foo_t;')
+
+def test_verify_typedef_star_dotdotdot():
+    ffi = FFI()
+    ffi.cdef("typedef ... *foo_t;")
+    verify(ffi, 'test_verify_typedef_star_dotdotdot', 'typedef int **foo_t;')
+
 def test_global_var_int():
     ffi = FFI()
     ffi.cdef("int a, b, c;")
