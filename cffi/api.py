@@ -319,7 +319,11 @@ class FFI(_cffi1_backend.FFI):
     def _get_cached_btype(self, type):
         raise DeprecatedError
 
-    def verify(self, source='', tmpdir=None, **kwargs):
+    def verify(self, source='', **kwargs):
+        from recompiler import verify    # XXX must be in the current dir
+        return verify(self, 'verify', source, **kwargs)
+
+    def XXXverify(self, source='', tmpdir=None, **kwargs):
         """Verify that the current ffi signatures compile on this
         machine, and return a dynamic library object.  The dynamic
         library can be used to call functions and access global
