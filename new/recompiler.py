@@ -433,7 +433,7 @@ class Recompiler:
                 '    offsetof(struct _cffi_align_%s, y),\n' % (name,) +
                 '    _cffi_FIELDS_FOR_%s, %d },' % (name, len(tp.fldtypes),))
         else:
-            size_align = ' -1, -1, -1, 0 /* opaque */ },'
+            size_align = ' (size_t)-1, -1, -1, 0 /* opaque */ },'
         self._lsts["struct_union"].append(
             '  { "%s", %d, %s,' % (name, type_index, flags) + size_align)
 
