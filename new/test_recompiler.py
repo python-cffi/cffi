@@ -242,3 +242,13 @@ def test_dotdotdot_global_array():
     py.test.raises(IndexError, "lib.aa[41]")
     py.test.raises(IndexError, "lib.bb[12]")
 
+def test_misdeclared_field_1():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int a[5]; };")
+    verify(ffi, 'test_misdeclared_field_1',
+           "struct foo_s { int a[6]; };")
+    assert ffi.sizeof("struct foo_s") == 24  # found by the actual C code
+    p = ffi.new("struct foo_s *")
+    e = py.test.raises(ffi.error, "p.a")     # lazily build the fields and boom
+    assert str(e.value) == ("struct foo_s field 'a' was declared in the "
+                            "cdef to be 20 bytes, but is actually 24 bytes")

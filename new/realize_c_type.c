@@ -451,6 +451,15 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
                 return -1;
             }
 
+            if (ctf->ct_size != fld->field_size) {
+                PyErr_Format(FFIError,
+                             "%s field '%s' was declared in the cdef to be"
+                             " %zd bytes, but is actually %zd bytes",
+                             ct->ct_name, fld->name,
+                             ctf->ct_size, fld->field_size);
+                return -1;
+            }
+
             f = Py_BuildValue("(sOin)", fld->name, ctf,
                               (int)-1, (Py_ssize_t)fld->field_offset);
             if (f == NULL) {
