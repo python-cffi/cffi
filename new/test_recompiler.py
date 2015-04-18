@@ -252,3 +252,12 @@ def test_misdeclared_field_1():
     e = py.test.raises(ffi.error, "p.a")     # lazily build the fields and boom
     assert str(e.value) == ("struct foo_s field 'a' was declared in the "
                             "cdef to be 20 bytes, but is actually 24 bytes")
+
+def test_open_array_in_struct():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int b; int a[]; };")
+    verify(ffi, 'test_open_array_in_struct',
+           "struct foo_s { int b; int a[]; };")
+    assert ffi.sizeof("struct foo_s") == 4
+    p = ffi.new("struct foo_s *", [5, [10, 20, 30]])
+    assert p.a[2] == 30

@@ -374,7 +374,7 @@ class Recompiler:
             ptr_struct_name = tp_struct.get_c_name('*')
             actual_length = '_cffi_array_len(((%s)0)->%s)' % (
                 ptr_struct_name, field_name)
-            tp_field = model.ArrayType(tp_field.item, actual_length)
+            tp_field = tp_field.resolve_length(actual_length)
         return tp_field
 
     def _generate_cpy_struct_collecttype(self, tp, name):
@@ -400,11 +400,15 @@ class Recompiler:
             for fldname, fldtype in zip(tp.fldnames, tp.fldtypes):
                 fldtype = self._field_type(tp, fldname, fldtype)
                 spaces = " " * len(fldname)
+                if (isinstance(fldtype, model.ArrayType) and
+                       fldtype.length is None):
+                    size = '-1'
+                else:
+                    size = 'sizeof(((%s)0)->%s)' % (tp.get_c_name('*'), fldname)
                 c_field.append(
                     '  { "%s", offsetof(%s, %s),\n' % (
                             fldname, tp.get_c_name(''), fldname) +
-                    '     %s   sizeof(((%s)0)->%s),\n' % (
-                            spaces, tp.get_c_name('*'), fldname) +
+                    '     %s   %s,\n' % (spaces, size) +
                     '     %s   _CFFI_OP(_CFFI_OP_NOOP, %s) },' % (
                             spaces, self._typesdict[fldtype]))
             self._lsts["field"].append('\n'.join(c_field))
@@ -495,7 +499,7 @@ class Recompiler:
     def _global_type(self, tp, global_name):
         if isinstance(tp, model.ArrayType) and tp.length == '...':
             actual_length = '_cffi_array_len(%s)' % (global_name,)
-            tp = model.ArrayType(tp.item, actual_length)
+            tp = tp.resolve_length(actual_length)
         return tp
 
     def _generate_cpy_variable_collecttype(self, tp, name):
