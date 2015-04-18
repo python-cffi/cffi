@@ -54,3 +54,8 @@ def test_ffi_docstrings():
 def test_ffi_NULL():
     NULL = _cffi1_backend.FFI.NULL
     assert _cffi1_backend.FFI().typeof(NULL).cname == "void *"
+
+def test_ffi_string():
+    ffi = _cffi1_backend.FFI()
+    p = ffi.new("char[]", "foobar\x00baz")
+    assert ffi.string(p) == "foobar"

@@ -256,69 +256,28 @@ static PyObject *ffi_cast(ZefFFIObject *self, PyObject *args)
 
     return do_cast(ct, ob);
 }
+#endif
 
-static PyObject *ffi_string(ZefFFIObject *self, PyObject *args)
-{
-    CDataObject *cd;
-    Py_ssize_t maxlen = -1;
-    if (!PyArg_ParseTuple(args, "O!|n:string",
-                          &CData_Type, &cd, &maxlen))
-        return NULL;
+PyDoc_STRVAR(ffi_string_doc,
+"Return a Python string (or unicode string) from the 'cdata'.  If\n"
+"'cdata' is a pointer or array of characters or bytes, returns the\n"
+"null-terminated string.  The returned string extends until the first\n"
+"null character, or at most 'maxlen' characters.  If 'cdata' is an\n"
+"array then 'maxlen' defaults to its length.\n"
+"\n"
+"If 'cdata' is a pointer or array of wchar_t, returns a unicode string\n"
+"following the same rules.\n"
+"\n"
+"If 'cdata' is a single character or byte or a wchar_t, returns it as a\n"
+"string or unicode string.\n"
+"\n"
+"If 'cdata' is an enum, returns the value of the enumerator as a\n"
+"string, or 'NUMBER' if the value is out of range.\n");
 
-    if (cd->c_type->ct_itemdescr != NULL &&
-        cd->c_type->ct_itemdescr->ct_flags & (CT_PRIMITIVE_CHAR |
-                                              CT_PRIMITIVE_SIGNED |
-                                              CT_PRIMITIVE_UNSIGNED)) {
-        Py_ssize_t length = maxlen;
-        if (cd->c_data == NULL) {
-            PyObject *s = cdata_repr(cd);
-            if (s != NULL) {
-                PyErr_Format(PyExc_RuntimeError,
-                             "cannot use string() on %s",
-                             PyText_AS_UTF8(s));
-                Py_DECREF(s);
-            }
-            return NULL;
-        }
-        if (length < 0 && cd->c_type->ct_flags & CT_ARRAY) {
-            length = get_array_length(cd);
-        }
-        if (cd->c_type->ct_itemdescr->ct_size == sizeof(char)) {
-            const char *start = cd->c_data;
-            if (length < 0) {
-                /*READ(start, 1)*/
-                length = strlen(start);
-                /*READ(start, length)*/
-            }
-            else {
-                const char *end;
-                /*READ(start, length)*/
-                end = (const char *)memchr(start, 0, length);
-                if (end != NULL)
-                    length = end - start;
-            }
-            return PyBytes_FromStringAndSize(start, length);
-        }
-    }
-    else if (cd->c_type->ct_flags & CT_IS_ENUM) {
-        abort();
-        //return convert_cdata_to_enum_string(cd, 0);
-    }
-    else if (cd->c_type->ct_flags & CT_IS_BOOL) {
-        /* fall through to TypeError */
-    }
-    else if (cd->c_type->ct_flags & (CT_PRIMITIVE_CHAR |
-                                     CT_PRIMITIVE_SIGNED |
-                                     CT_PRIMITIVE_UNSIGNED)) {
-        /*READ(cd->c_data, cd->c_type->ct_size)*/
-        if (cd->c_type->ct_size == sizeof(char))
-            return PyBytes_FromStringAndSize(cd->c_data, 1);
-    }
-    PyErr_Format(PyExc_TypeError, "string(): unexpected cdata '%s' argument",
-                 cd->c_type->ct_name);
-    return NULL;
-}
+#define ffi_string  b_string     /* ffi_string() => b_string()
+                                    from _cffi_backend.c */
 
+#if 0
 static CFieldObject *_ffi_field(CTypeDescrObject *ct, const char *fieldname)
 {
     CFieldObject *cf;
@@ -555,11 +514,9 @@ static PyMethodDef ffi_methods[] = {
 #if 0
     {"new_handle",    (PyCFunction)ffi_new_handle,METH_O},
 #endif
-    {"sizeof",        (PyCFunction)ffi_sizeof,    METH_O, ffi_sizeof_doc},
-#if 0
-    {"string",        (PyCFunction)ffi_string,    METH_VARARGS},
-#endif
-    {"typeof",        (PyCFunction)ffi_typeof,    METH_O, ffi_typeof_doc},
+    {"sizeof",        (PyCFunction)ffi_sizeof,    METH_O,       ffi_sizeof_doc},
+    {"string",        (PyCFunction)ffi_string,    METH_VARARGS, ffi_string_doc},
+    {"typeof",        (PyCFunction)ffi_typeof,    METH_O,       ffi_typeof_doc},
     {NULL}
 };
 

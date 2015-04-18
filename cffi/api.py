@@ -226,7 +226,7 @@ class FFI(_cffi1_backend.FFI):
             cdecl = self._typeof(cdecl)
         return self._backend.cast(cdecl, source)
 
-    def string(self, cdata, maxlen=-1):
+    def XXXstring(self, cdata, maxlen=-1):
         """Return a Python string (or unicode string) from the 'cdata'.
         If 'cdata' is a pointer or array of characters or bytes, returns
         the null-terminated string.  The returned string extends until
