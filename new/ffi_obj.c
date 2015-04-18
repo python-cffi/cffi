@@ -244,6 +244,11 @@ static PyObject *ffi_new(FFIObject *self, PyObject *args)
     return direct_newp(ct, init);
 }
 
+PyDoc_STRVAR(ffi_cast_doc,
+"Similar to a C cast: returns an instance of the named C\n"
+"type initialized with the given 'source'.  The source is\n"
+"casted between integers or pointers of any type.");
+
 static PyObject *ffi_cast(FFIObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
@@ -521,7 +526,7 @@ static PyMethodDef ffi_methods[] = {
 #if 0
     {"addressof",     (PyCFunction)ffi_addressof, METH_VARARGS},
 #endif
-    {"cast",          (PyCFunction)ffi_cast,      METH_VARARGS},
+    {"cast",          (PyCFunction)ffi_cast,      METH_VARARGS, ffi_cast_doc},
 #if 0
     {"close_library", ffi_close_library,          METH_VARARGS | METH_STATIC},
     {"from_handle",   (PyCFunction)ffi_from_handle,METH_O},
