@@ -24,6 +24,12 @@ else:
             return super(FFI, self).verify(
                 *args, extra_compile_args=extra_compile_args, **kwds)
 
+class U(object):
+    def __add__(self, other):
+        return eval('u'+repr(other).replace(r'\\u', r'\u')
+                                   .replace(r'\\U', r'\U'))
+u = U()
+
 
 def test_missing_function(ffi=None):
     # uses the FFI hacked above with '-Werror'
