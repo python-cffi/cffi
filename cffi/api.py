@@ -142,7 +142,7 @@ class FFI(_cffi1_backend.FFI):
                             "pointer-to-function type" % (cdecl,))
         return btype
 
-    def typeof(self, cdecl):
+    def XXXtypeof(self, cdecl):
         """Parse the C type given as a string and return the
         corresponding <ctype> object.
         It can also be used on 'cdata' instance to get its C type.
@@ -161,7 +161,7 @@ class FFI(_cffi1_backend.FFI):
                 return self._get_cached_btype(cdecl._cffi_base_type)
         raise TypeError(type(cdecl))
 
-    def sizeof(self, cdecl):
+    def XXXsizeof(self, cdecl):
         """Return the size in bytes of the argument.  It can be a
         string naming a C type, or a 'cdata' instance.
         """
@@ -171,7 +171,7 @@ class FFI(_cffi1_backend.FFI):
         else:
             return self._backend.sizeof(cdecl)
 
-    def alignof(self, cdecl):
+    def XXXalignof(self, cdecl):
         """Return the natural alignment size in bytes of the C type
         given as a string.
         """
@@ -179,7 +179,7 @@ class FFI(_cffi1_backend.FFI):
             cdecl = self._typeof(cdecl)
         return self._backend.alignof(cdecl)
 
-    def offsetof(self, cdecl, *fields_or_indexes):
+    def XXXoffsetof(self, cdecl, *fields_or_indexes):
         """Return the offset of the named field inside the given
         structure or array, which must be given as a C type name.  
         You can give several field names in case of nested structures.
@@ -217,7 +217,7 @@ class FFI(_cffi1_backend.FFI):
             cdecl = self._typeof(cdecl)
         return self._backend.newp(cdecl, init)
 
-    def cast(self, cdecl, source):
+    def XXXcast(self, cdecl, source):
         """Similar to a C cast: returns an instance of the named C
         type initialized with the given 'source'.  The source is
         casted between integers or pointers of any type.
@@ -244,7 +244,7 @@ class FFI(_cffi1_backend.FFI):
         """
         return self._backend.string(cdata, maxlen)
 
-    def buffer(self, cdata, size=-1):
+    def XXXbuffer(self, cdata, size=-1):
         """Return a read-write buffer object that references the raw C data
         pointed to by the given 'cdata'.  The 'cdata' must be a pointer or
         an array.  Can be passed to functions expecting a buffer, or directly
@@ -257,7 +257,7 @@ class FFI(_cffi1_backend.FFI):
         """
         return self._backend.buffer(cdata, size)
 
-    def from_buffer(self, python_buffer):
+    def XXXfrom_buffer(self, python_buffer):
         """Return a <cdata 'char[]'> that points to the data of the
         given Python object, which must support the buffer interface.
         Note that this is not meant to be used on the built-in types str,
@@ -267,7 +267,7 @@ class FFI(_cffi1_backend.FFI):
         """
         return self._backend.from_buffer(self.BCharA, python_buffer)
 
-    def callback(self, cdecl, python_callable=None, error=None):
+    def XXXcallback(self, cdecl, python_callable=None, error=None):
         """Return a callback object or a decorator making such a
         callback object.  'cdecl' must name a C function pointer type.
         The callback invokes the specified 'python_callable' (which may
@@ -287,7 +287,7 @@ class FFI(_cffi1_backend.FFI):
         else:
             return callback_decorator_wrap(python_callable)  # direct mode
 
-    def getctype(self, cdecl, replace_with=''):
+    def XXXgetctype(self, cdecl, replace_with=''):
         """Return a string giving the C type 'cdecl', which may be itself
         a string or a <ctype> object.  If 'replace_with' is given, it gives
         extra text to append (or insert for more complicated C types), like
@@ -303,7 +303,7 @@ class FFI(_cffi1_backend.FFI):
             replace_with = ' ' + replace_with
         return self._backend.getcname(cdecl, replace_with)
 
-    def gc(self, cdata, destructor):
+    def XXXgc(self, cdata, destructor):
         """Return a new cdata object that points to the same
         data.  Later, when this new cdata object is garbage-collected,
         'destructor(old_cdata_object)' will be called.
@@ -355,39 +355,14 @@ class FFI(_cffi1_backend.FFI):
         self._libraries.append(lib)
         return lib
 
-    def csource(self, modulename, source='', **kwargs):
-        if hasattr(self, '_csource'):
-            raise ValueError("can't call csource() more than once")
-        self._csource = (modulename, source, kwargs)
-
-    def recompile(self):
-        from .verifier import Verifier
-        modulename, source, kwargs = self._csource
-        if self._windows_unicode:
-            self._apply_windows_unicode(kwargs)
-        verifier = Verifier(self, source, modulename=modulename+'_ffi',
-                            tmpdir='.',  **kwargs)
-        verifier.compile_module()
-        f = open(modulename + '.py', 'w')
-        print >> f, 'import os, cffi as _cffi'
-        print >> f, 'ffi = _cffi.FFI()'
-        for cdef in self._cdefsources:
-            print >> f
-            print >> f, 'ffi.cdef(%r)' % (cdef,)
-        print >> f
-        print >> f, 'lib = ffi.verify('
-        print >> f, '    tmpdir=os.path.dirname(__file__), modulename=%r)' % (
-            modulename + '_ffi',)
-        f.close()
-
     def _get_errno(self):
         return self._backend.get_errno()
     def _set_errno(self, errno):
         self._backend.set_errno(errno)
-    errno = property(_get_errno, _set_errno, None,
+    XXXerrno = property(_get_errno, _set_errno, None,
                      "the value of 'errno' from/to the C calls")
 
-    def getwinerror(self, code=-1):
+    def XXXgetwinerror(self, code=-1):
         return self._backend.getwinerror(code)
 
     def _pointer_to(self, ctype):
@@ -395,7 +370,7 @@ class FFI(_cffi1_backend.FFI):
         with self._lock:
             return model.pointer_cache(self, ctype)
 
-    def addressof(self, cdata, *fields_or_indexes):
+    def XXXaddressof(self, cdata, *fields_or_indexes):
         """Return the address of a <cdata 'struct-or-union'>.
         If 'fields_or_indexes' are given, returns the address of that
         field or array item in the structure or array, recursively in
@@ -427,6 +402,7 @@ class FFI(_cffi1_backend.FFI):
         variables, which must anyway be accessed directly from the
         lib object returned by the original FFI instance.
         """
+        XXX
         with ffi_to_include._lock:
             with self._lock:
                 self._parser.include(ffi_to_include._parser)
@@ -434,10 +410,10 @@ class FFI(_cffi1_backend.FFI):
                 self._cdefsources.extend(ffi_to_include._cdefsources)
                 self._cdefsources.append(']')
 
-    def new_handle(self, x):
+    def XXXnew_handle(self, x):
         return self._backend.newp_handle(self.BVoidP, x)
 
-    def from_handle(self, x):
+    def XXXfrom_handle(self, x):
         return self._backend.from_handle(x)
 
     def set_unicode(self, enabled_flag):
@@ -447,6 +423,7 @@ class FFI(_cffi1_backend.FFI):
         declare these types to be (pointers to) plain 8-bit characters.
         This is mostly for backward compatibility; you usually want True.
         """
+        XXX
         if self._windows_unicode is not None:
             raise ValueError("set_unicode() can only be called once")
         enabled_flag = bool(enabled_flag)
