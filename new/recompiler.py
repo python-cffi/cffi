@@ -118,8 +118,12 @@ class Recompiler:
         #
         # the declaration of '_cffi_types'
         prnt('static void *_cffi_types[] = {')
+        typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
         for i, op in enumerate(self.cffi_types):
-            prnt('/* %2d */ %s,' % (i, op.as_c_expr()))
+            comment = ''
+            if i in typeindex2type:
+                comment = ' // ' + typeindex2type[i]._get_c_name()
+            prnt('/* %2d */ %s,%s' % (i, op.as_c_expr(), comment))
         if not self.cffi_types:
             prnt('  0')
         prnt('};')
