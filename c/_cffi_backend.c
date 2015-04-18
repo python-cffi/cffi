@@ -2844,6 +2844,10 @@ static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init)
         if (ctitem->ct_flags & CT_PRIMITIVE_CHAR)
             datasize *= 2;   /* forcefully add another character: a null */
 
+        if (ctitem->ct_flags & (CT_STRUCT | CT_UNION)) {
+            if (force_lazy_struct(ctitem) < 0)   /* for CT_WITH_VAR_ARRAY */
+                return NULL;
+        }
         if ((ctitem->ct_flags & CT_WITH_VAR_ARRAY) && init != Py_None) {
             Py_ssize_t optvarsize = datasize;
             if (convert_struct_from_object(NULL,ctitem, init, &optvarsize) < 0)

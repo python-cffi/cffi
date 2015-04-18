@@ -258,8 +258,8 @@ def test_misdeclared_field_1():
     verify(ffi, 'test_misdeclared_field_1',
            "struct foo_s { int a[6]; };")
     assert ffi.sizeof("struct foo_s") == 24  # found by the actual C code
-    p = ffi.new("struct foo_s *")
-    e = py.test.raises(ffi.error, "p.a")     # lazily build the fields and boom
+    # lazily build the fields and boom:
+    e = py.test.raises(ffi.error, ffi.new, "struct foo_s *")
     assert str(e.value) == ("struct foo_s field 'a' was declared in the "
                             "cdef to be 20 bytes, but is actually 24 bytes")
 
