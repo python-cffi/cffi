@@ -6,13 +6,42 @@ typedef struct {
 
 
 static PyObject *all_primitives[_CFFI__NUM_PRIM];
+static PyObject *global_types_dict;
 
-static PyObject *fetch_global_types_dict(void)
+static PyObject *build_primitive_type(int num);   /* forward */
+
+static int init_global_types_dict(PyObject *ffi_type_dict)
 {
-    static PyObject *result = NULL;
-    if (!result)
-        result = PyDict_New();
-    return result;
+    int err;
+    PyObject *ct, *ct2, *pnull;
+
+    global_types_dict = PyDict_New();
+    if (global_types_dict == NULL)
+        return -1;
+
+    ct = build_primitive_type(_CFFI_PRIM_VOID);         // 'void'
+    if (ct == NULL)
+        return -1;
+    if (PyDict_SetItemString(global_types_dict,
+                             ((CTypeDescrObject *)ct)->ct_name, ct) < 0) {
+        return -1;
+    }
+    ct2 = new_pointer_type((CTypeDescrObject *)ct);     // 'void *'
+    if (ct2 == NULL)
+        return -1;
+    if (PyDict_SetItemString(global_types_dict,
+                             ((CTypeDescrObject *)ct2)->ct_name, ct2) < 0) {
+        Py_DECREF(ct2);
+        return -1;
+    }
+
+    pnull = new_simple_cdata(NULL, (CTypeDescrObject *)ct2);
+    Py_DECREF(ct2);
+    if (pnull == NULL)
+        return -1;
+    err = PyDict_SetItemString(ffi_type_dict, "NULL", pnull);
+    Py_DECREF(pnull);
+    return err;
 }
 
 static void free_builder_c(builder_c_t *builder)
@@ -83,11 +112,7 @@ static PyObject *get_unique_type(builder_c_t *builder, PyObject *x)
            ffi instances.  Look it up and possibly add it to the global
            types dict.
         */
-        PyObject *gdict = fetch_global_types_dict();
-        if (gdict == NULL)
-            goto no_memory;
-
-        y = PyDict_GetItem(gdict, name);
+        y = PyDict_GetItem(global_types_dict, name);
         if (y != NULL) {
             Py_INCREF(y);
             Py_DECREF(x);
@@ -95,7 +120,7 @@ static PyObject *get_unique_type(builder_c_t *builder, PyObject *x)
         }
         else {
             /* Not found in the global dictionary.  Put it there. */
-            if (PyDict_SetItem(gdict, name, x) < 0)
+            if (PyDict_SetItem(global_types_dict, name, x) < 0)
                 goto no_memory;
         }
     }

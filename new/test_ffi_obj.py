@@ -50,3 +50,7 @@ def test_ffi_docstrings():
             if isinstance(method, check_type):
                 assert method.__doc__, "method FFI.%s() has no docstring" % (
                     methname,)
+
+def test_ffi_NULL():
+    NULL = _cffi1_backend.FFI.NULL
+    assert _cffi1_backend.FFI().typeof(NULL).cname == "void *"

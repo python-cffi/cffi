@@ -20,6 +20,8 @@ static int init_ffi_lib(PyObject *m)
         return -1;
     if (!PyType_Ready(&Lib_Type) < 0)
         return -1;
+    if (init_global_types_dict(FFI_Type.tp_dict) < 0)
+        return -1;
 
     FFIError = PyErr_NewException("ffi.error", NULL, NULL);
     if (FFIError == NULL)
