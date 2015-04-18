@@ -5139,12 +5139,16 @@ static PyObject *b_get_errno(PyObject *self, PyObject *noarg)
     return PyInt_FromLong(err);
 }
 
-static PyObject *b_set_errno(PyObject *self, PyObject *args)
+static PyObject *b_set_errno(PyObject *self, PyObject *arg)
 {
-    int i;
-    if (!PyArg_ParseTuple(args, "i:set_errno", &i))
+    long ival = PyInt_AsLong(arg);
+    if (ival == -1 && PyErr_Occurred())
         return NULL;
-    errno = i;
+    else if (ival < INT_MIN || ival > INT_MAX) {
+        PyErr_SetString(PyExc_OverflowError, "errno value too large");
+        return NULL;
+    }
+    errno = (int)ival;
     save_errno_only();
     errno = 0;
     Py_INCREF(Py_None);
@@ -5626,7 +5630,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"string", b_string, METH_VARARGS},
     {"buffer", b_buffer, METH_VARARGS},
     {"get_errno", b_get_errno, METH_NOARGS},
-    {"set_errno", b_set_errno, METH_VARARGS},
+    {"set_errno", b_set_errno, METH_O},
     {"newp_handle", b_newp_handle, METH_VARARGS},
     {"from_handle", b_from_handle, METH_O},
     {"from_buffer", b_from_buffer, METH_VARARGS},

@@ -59,3 +59,9 @@ def test_ffi_string():
     ffi = _cffi1_backend.FFI()
     p = ffi.new("char[]", "foobar\x00baz")
     assert ffi.string(p) == "foobar"
+
+def test_ffi_errno():
+    # xxx not really checking errno, just checking that we can read/write it
+    ffi = _cffi1_backend.FFI()
+    ffi.errno = 42
+    assert ffi.errno == 42

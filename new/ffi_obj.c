@@ -499,6 +499,24 @@ static PyObject *ffi_gc(ZefFFIObject *self, PyObject *args)
 }
 #endif
 
+PyDoc_STRVAR(ffi_errno_doc, "the value of 'errno' from/to the C calls");
+
+static PyObject *ffi_get_errno(PyObject *self, void *closure)
+{
+    /* xxx maybe think about how to make the saved errno local
+       to an ffi instance */
+    return b_get_errno(NULL, NULL);
+}
+
+static int ffi_set_errno(PyObject *self, PyObject *newval, void *closure)
+{
+    PyObject *x = b_set_errno(NULL, newval);
+    if (x == NULL)
+        return -1;
+    Py_DECREF(x);
+    return 0;
+}
+
 static PyMethodDef ffi_methods[] = {
 #if 0
     {"addressof",     (PyCFunction)ffi_addressof, METH_VARARGS},
@@ -517,6 +535,11 @@ static PyMethodDef ffi_methods[] = {
     {"sizeof",        (PyCFunction)ffi_sizeof,    METH_O,       ffi_sizeof_doc},
     {"string",        (PyCFunction)ffi_string,    METH_VARARGS, ffi_string_doc},
     {"typeof",        (PyCFunction)ffi_typeof,    METH_O,       ffi_typeof_doc},
+    {NULL}
+};
+
+static PyGetSetDef ffi_getsets[] = {
+    {"errno",  ffi_get_errno,  ffi_set_errno,  ffi_errno_doc},
     {NULL}
 };
 
@@ -551,7 +574,7 @@ static PyTypeObject FFI_Type = {
     0,                                          /* tp_iternext */
     ffi_methods,                                /* tp_methods */
     0,                                          /* tp_members */
-    0,                                          /* tp_getset */
+    ffi_getsets,                                /* tp_getset */
     0,                                          /* tp_base */
     0,                                          /* tp_dict */
     0,                                          /* tp_descr_get */
