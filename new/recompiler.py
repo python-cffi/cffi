@@ -400,11 +400,31 @@ class Recompiler:
                 self._do_collect_type(self._field_type(tp, name1, tp1))
 
     def _generate_cpy_struct_decl(self, tp, name):
-        if tp.fldtypes is not None:
-            prnt = self._prnt
-            prnt("struct _cffi_align_%s { char x; %s %s y; };" % (
-                name, tp.kind, name))
-            prnt()
+        if tp.fldtypes is None:
+            return
+        cname = ('%s %s' % (tp.kind, name)).strip()
+        prnt = self._prnt
+        checkfuncname = '_cffi_checkfld_%s' % (name,)
+        prnt('__attribute__((unused))')
+        prnt('static void %s(%s *p)' % (checkfuncname, cname))
+        prnt('{')
+        prnt('  /* only to generate compile-time warnings or errors */')
+        prnt('  (void)p;')
+        for fname, ftype, fbitsize in tp.enumfields():
+            if (isinstance(ftype, model.PrimitiveType)
+                and ftype.is_integer_type()) or fbitsize >= 0:
+                # accept all integers, but complain on float or double
+                prnt('  (void)((p->%s) << 1);' % fname)
+            else:
+                # only accept exactly the type declared.
+                try:
+                    prnt('  { %s = &p->%s; (void)tmp; }' % (
+                        ftype.get_c_name('*tmp', 'field %r'%fname), fname))
+                except ffiplatform.VerificationError as e:
+                    prnt('  /* %s */' % str(e))   # cannot verify it, ignore
+        prnt('}')
+        prnt('struct _cffi_align_%s { char x; %s y; };' % (name, cname))
+        prnt()
 
     def _generate_cpy_struct_ctx(self, tp, name):
         type_index = self._typesdict[tp]
