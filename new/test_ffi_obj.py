@@ -72,3 +72,13 @@ def test_ffi_alignof():
     assert ffi.alignof("int[]") == 4
     assert ffi.alignof("int[41]") == 4
     assert ffi.alignof("short[41]") == 2
+    assert ffi.alignof(ffi.new("int[41]")) == 4
+    assert ffi.alignof(ffi.new("int[]", 41)) == 4
+
+def test_ffi_sizeof():
+    ffi = _cffi1_backend.FFI()
+    assert ffi.sizeof("int") == 4
+    py.test.raises(ffi.error, ffi.sizeof, "int[]")
+    assert ffi.sizeof("int[41]") == 41 * 4
+    assert ffi.sizeof(ffi.new("int[41]")) == 41 * 4
+    assert ffi.sizeof(ffi.new("int[]", 41)) == 41 * 4

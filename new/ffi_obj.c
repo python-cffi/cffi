@@ -178,16 +178,25 @@ PyDoc_STRVAR(ffi_sizeof_doc,
 
 static PyObject *ffi_sizeof(FFIObject *self, PyObject *arg)
 {
+    Py_ssize_t size;
     CTypeDescrObject *ct = _ffi_type(self, arg, ACCEPT_ALL);
     if (ct == NULL)
         return NULL;
 
-    if (ct->ct_size < 0) {
+    size = ct->ct_size;
+
+    if (CData_Check(arg)) {
+        CDataObject *cd = (CDataObject *)arg;
+        if (cd->c_type->ct_flags & CT_ARRAY)
+            size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
+    }
+
+    if (size < 0) {
         PyErr_Format(FFIError, "don't know the size of ctype '%s'",
                      ct->ct_name);
         return NULL;
     }
-    return PyInt_FromSsize_t(ct->ct_size);
+    return PyInt_FromSsize_t(size);
 }
 
 PyDoc_STRVAR(ffi_alignof_doc,
