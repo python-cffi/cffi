@@ -1,5 +1,5 @@
 import sys, math, py
-from cffi1 import FFI, VerificationError, model
+from cffi1 import FFI, VerificationError, VerificationMissing, model
 
 lib_m = ['m']
 if sys.platform == 'win32':

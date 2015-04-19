@@ -441,7 +441,7 @@ class Recompiler:
                 spaces = " " * len(fldname)
                 if (isinstance(fldtype, model.ArrayType) and
                        fldtype.length is None):
-                    size = '-1'
+                    size = '(size_t)-1'
                 else:
                     size = 'sizeof(((%s)0)->%s)' % (tp.get_c_name('*'), fldname)
                 c_field.append(
