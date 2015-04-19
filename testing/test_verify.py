@@ -657,9 +657,9 @@ def test_global_constants():
     # case the 'static' is completely ignored.
     ffi.cdef("static const int AA, BB, CC, DD;")
     lib = ffi.verify("#define AA 42\n"
-                     "#define BB (-43)\n"
-                     "#define CC (22*2)\n"
-                     "#define DD ((unsigned int)142)\n")
+                     "#define BB (-43)   // blah\n"
+                     "#define CC (22*2)  /* foobar */\n"
+                     "#define DD ((unsigned int)142)  /* foo\nbar */\n")
     assert lib.AA == 42
     assert lib.BB == -43
     assert lib.CC == 44
