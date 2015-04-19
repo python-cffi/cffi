@@ -190,6 +190,23 @@ static PyObject *ffi_sizeof(FFIObject *self, PyObject *arg)
     return PyInt_FromSsize_t(ct->ct_size);
 }
 
+PyDoc_STRVAR(ffi_alignof_doc,
+"Return the natural alignment size in bytes of the argument.\n"
+"It can be a string naming a C type, or a 'cdata' instance.");
+
+static PyObject *ffi_alignof(FFIObject *self, PyObject *arg)
+{
+    int align;
+    CTypeDescrObject *ct = _ffi_type(self, arg, ACCEPT_ALL);
+    if (ct == NULL)
+        return NULL;
+
+    align = get_alignment(ct);
+    if (align < 0)
+        return NULL;
+    return PyInt_FromLong(align);
+}
+
 PyDoc_STRVAR(ffi_typeof_doc,
 "Parse the C type given as a string and return the\n"
 "corresponding <ctype> object.\n"
@@ -526,6 +543,7 @@ static PyMethodDef ffi_methods[] = {
 #if 0
     {"addressof",     (PyCFunction)ffi_addressof, METH_VARARGS},
 #endif
+    {"alignof",       (PyCFunction)ffi_alignof,   METH_O,      ffi_alignof_doc},
     {"cast",          (PyCFunction)ffi_cast,      METH_VARARGS, ffi_cast_doc},
 #if 0
     {"close_library", ffi_close_library,          METH_VARARGS | METH_STATIC},

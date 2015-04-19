@@ -65,3 +65,10 @@ def test_ffi_errno():
     ffi = _cffi1_backend.FFI()
     ffi.errno = 42
     assert ffi.errno == 42
+
+def test_ffi_alignof():
+    ffi = _cffi1_backend.FFI()
+    assert ffi.alignof("int") == 4
+    assert ffi.alignof("int[]") == 4
+    assert ffi.alignof("int[41]") == 4
+    assert ffi.alignof("short[41]") == 2
