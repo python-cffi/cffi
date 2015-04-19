@@ -428,9 +428,12 @@ class Recompiler:
 
     def _generate_cpy_struct_ctx(self, tp, name):
         type_index = self._typesdict[tp]
-        flags = '0'
+        flags = []
+        if tp.partial:
+            flags.append('CT_CUSTOM_FIELD_POS')
         if isinstance(tp, model.UnionType):
-            flags = 'CT_UNION'
+            flags.append('CT_UNION')
+        flags = ('|'.join(flags)) or '0'
         if tp.fldtypes is not None:
             c_field = [name]
             for fldname, fldtype in zip(tp.fldnames, tp.fldtypes):

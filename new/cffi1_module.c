@@ -1,4 +1,3 @@
-static PyObject *FFIError;
 
 #include "parse_c_type.c"
 #include "realize_c_type.c"

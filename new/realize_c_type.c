@@ -451,14 +451,11 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
                 return -1;
             }
 
-            if (ctf->ct_size != fld->field_size) {
-                PyErr_Format(FFIError,
-                             "%s field '%s' was declared in the cdef to be"
-                             " %zd bytes, but is actually %zd bytes",
-                             ct->ct_name, fld->name,
-                             ctf->ct_size, fld->field_size);
+            if (detect_custom_layout(ct, SF_STD_FIELD_POS,
+                                     ctf->ct_size, fld->field_size,
+                                     "wrong size for field '",
+                                     fld->name, "'") < 0)
                 return -1;
-            }
 
             f = Py_BuildValue("(sOin)", fld->name, ctf,
                               (int)-1, (Py_ssize_t)fld->field_offset);
@@ -469,19 +466,24 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
             PyList_SET_ITEM(fields, i, f);
         }
 
-        PyObject *args = Py_BuildValue("(OOOnn)", ct, fields,
+        int sflags = (s->flags & CT_CUSTOM_FIELD_POS) ? 0 : SF_STD_FIELD_POS;
+
+        PyObject *args = Py_BuildValue("(OOOnni)", ct, fields,
                                        Py_None,
                                        (Py_ssize_t)s->size,
-                                       (Py_ssize_t)s->alignment);
+                                       (Py_ssize_t)s->alignment,
+                                       sflags);
         Py_DECREF(fields);
         if (args == NULL)
             return -1;
 
         ct->ct_extra = NULL;
         ct->ct_flags |= CT_IS_OPAQUE;
+        ct->ct_flags &= ~CT_CUSTOM_FIELD_POS;
         PyObject *res = b_complete_struct_or_union(NULL, args);
         ct->ct_flags &= ~CT_IS_OPAQUE;
         Py_DECREF(args);
+
         if (res == NULL) {
             ct->ct_extra = builder;
             return -1;

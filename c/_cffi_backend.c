@@ -272,6 +272,8 @@ static void init_errno(void) { }
 # include "wchar_helper.h"
 #endif
 
+static PyObject *FFIError;
+
 /************************************************************/
 
 static CTypeDescrObject *
@@ -3745,6 +3747,7 @@ _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
 #define SF_GCC_LITTLE_ENDIAN  0x40
 
 #define SF_PACKED             0x08
+#define SF_STD_FIELD_POS      0x80
 
 static int complete_sflags(int sflags)
 {
@@ -3770,6 +3773,28 @@ static int complete_sflags(int sflags)
             sflags |= SF_GCC_LITTLE_ENDIAN;
     }
     return sflags;
+}
+
+static int detect_custom_layout(CTypeDescrObject *ct, int sflags,
+                                Py_ssize_t cdef_value,
+                                Py_ssize_t compiler_value,
+                                const char *msg1, const char *txt,
+                                const char *msg2)
+{
+    if (compiler_value != cdef_value) {
+        if (sflags & SF_STD_FIELD_POS) {
+            PyErr_Format(FFIError,
+                         "%s: %s%s%s (cdef says %zd, but C compiler says %zd)."
+                         " fix it or use \"...;\" in the cdef for %s to "
+                         "make it flexible",
+                         ct->ct_name, msg1, txt, msg2,
+                         cdef_value, compiler_value,
+                         ct->ct_name);
+            return -1;
+        }
+        ct->ct_flags |= CT_CUSTOM_FIELD_POS;
+    }
+    return 0;
 }
 
 static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
@@ -3805,6 +3830,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                   "first arg must be a non-initialized struct or union ctype");
         return NULL;
     }
+    ct->ct_flags &= ~CT_CUSTOM_FIELD_POS;
 
     alignment = 1;
     boffset = 0;         /* this number is in *bits*, not bytes! */
@@ -3882,8 +3908,10 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             if (foffset >= 0) {
                 /* a forced field position: ignore the offset just computed,
                    except to know if we must set CT_CUSTOM_FIELD_POS */
-                if (boffset != foffset * 8)
-                    ct->ct_flags |= CT_CUSTOM_FIELD_POS;
+                if (detect_custom_layout(ct, sflags, boffset / 8, foffset,
+                                         "wrong offset for field '",
+                                         PyText_AS_UTF8(fname), "'") < 0)
+                    goto error;
                 boffset = foffset * 8;
             }
 
@@ -4061,14 +4089,28 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         if (totalsize == 0)
             totalsize = 1;
     }
-    else if (totalsize < boffsetmax) {
-        PyErr_Format(PyExc_TypeError,
-                     "%s cannot be of size %zd: there are fields at least "
-                     "up to %zd", ct->ct_name, totalsize, boffsetmax);
-        goto error;
+    else {
+        if (detect_custom_layout(ct, sflags, boffsetmax, totalsize,
+                                 "wrong total size", "", "") < 0)
+            goto error;
+        if (totalsize < boffsetmax) {
+            PyErr_Format(PyExc_TypeError,
+                         "%s cannot be of size %zd: there are fields at least "
+                         "up to %zd", ct->ct_name, totalsize, boffsetmax);
+            goto error;
+        }
     }
+    if (totalalignment < 0) {
+        totalalignment = alignment;
+    }
+    else {
+        if (detect_custom_layout(ct, sflags, alignment, totalalignment,
+                                 "wrong total alignment", "", "") < 0)
+            goto error;
+    }
+
     ct->ct_size = totalsize;
-    ct->ct_length = totalalignment < 0 ? alignment : totalalignment;
+    ct->ct_length = totalalignment;
     ct->ct_stuff = interned_fields;
     ct->ct_flags &= ~CT_IS_OPAQUE;
 
@@ -4076,6 +4118,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     return Py_None;
 
  error:
+    ct->ct_extra = NULL;
     Py_DECREF(interned_fields);
     return NULL;
 }

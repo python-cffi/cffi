@@ -199,7 +199,7 @@ def test_verify_opaque_union():
 
 def test_verify_struct():
     ffi = FFI()
-    ffi.cdef("""struct foo_s { int b; short a; };
+    ffi.cdef("""struct foo_s { int b; short a; ...; };
                 struct bar_s { struct foo_s *f; };""")
     lib = verify(ffi, 'test_verify_struct',
                  """struct foo_s { short a; int b; };
@@ -212,6 +212,16 @@ def test_verify_struct():
     py.test.raises(OverflowError, "p.b -= 1")
     q = ffi.new("struct bar_s *", {'f': p})
     assert q.f == p
+
+def test_verify_exact_field_offset():
+    ffi = FFI()
+    ffi.cdef("""struct foo_s { int b; short a; };""")
+    lib = verify(ffi, 'test_verify_exact_field_offset',
+                 """struct foo_s { short a; int b; };""")
+    e = py.test.raises(ffi.error, ffi.new, "struct foo_s *")    # lazily
+    assert str(e.value) == ("struct foo_s: wrong offset for field 'b' (cdef "
+                       'says 0, but C compiler says 4). fix it or use "...;" '
+                       "in the cdef for struct foo_s to make it flexible")
 
 def test_type_caching():
     ffi1 = FFI(); ffi1.cdef("struct foo_s;")
@@ -260,8 +270,8 @@ def test_misdeclared_field_1():
     assert ffi.sizeof("struct foo_s") == 24  # found by the actual C code
     # lazily build the fields and boom:
     e = py.test.raises(ffi.error, ffi.new, "struct foo_s *")
-    assert str(e.value) == ("struct foo_s field 'a' was declared in the "
-                            "cdef to be 20 bytes, but is actually 24 bytes")
+    assert str(e.value).startswith("struct foo_s: wrong size for field 'a' "
+                                   "(cdef says 20, but C compiler says 24)")
 
 def test_open_array_in_struct():
     ffi = FFI()

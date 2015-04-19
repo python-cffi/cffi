@@ -75,8 +75,11 @@ struct _cffi_struct_union_s {
     int first_field_index;   // -> _cffi_fields array
     int num_fields;
 };
-#define CT_UNION            128
-#define CT_IS_OPAQUE        4096
+#define CT_UNION              128
+#define CT_IS_OPAQUE          4096
+#define CT_CUSTOM_FIELD_POS   32768
+/* ^^^ if not CUSTOM_FIELD_POS, complain if fields are not in the
+   "standard layout" and/or if some are missing */
 
 struct _cffi_field_s {
     const char *name;

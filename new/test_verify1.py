@@ -402,41 +402,45 @@ def test_nondecl_struct():
     assert lib.bar(ffi.NULL) == 42
 
 def test_ffi_full_struct():
-    ffi = FFI()
-    ffi.cdef("struct foo_s { char x; int y; long *z; };")
-    ffi.verify("struct foo_s { char x; int y; long *z; };")
+    def check(verified_code):
+        ffi = FFI()
+        ffi.cdef("struct foo_s { char x; int y; long *z; };")
+        ffi.verify(verified_code)
+        ffi.new("struct foo_s *")
+
+    check("struct foo_s { char x; int y; long *z; };")
     #
     if sys.platform != 'win32':  # XXX fixme: only gives warnings
-        py.test.raises(VerificationError, ffi.verify,
+        py.test.raises(VerificationError, check,
             "struct foo_s { char x; int y; int *z; };")
     #
-    py.test.raises(VerificationError, ffi.verify,
-        "struct foo_s { int y; long *z; };")
+    py.test.raises(VerificationError, check,
+        "struct foo_s { int y; long *z; };")     # cdef'ed field x is missing
     #
-    e = py.test.raises(VerificationError, ffi.verify,
-        "struct foo_s { int y; char x; long *z; };")
-    assert str(e.value) == (
+    e = py.test.raises(FFI.error, check,
+                       "struct foo_s { int y; char x; long *z; };")
+    assert str(e.value).startswith(
         "struct foo_s: wrong offset for field 'x'"
-        " (we have 0, but C compiler says 4)")
+        " (cdef says 0, but C compiler says 4)")
     #
-    e = py.test.raises(VerificationError, ffi.verify,
+    e = py.test.raises(FFI.error, check,
         "struct foo_s { char x; int y; long *z; char extra; };")
-    assert str(e.value) == (
+    assert str(e.value).startswith(
         "struct foo_s: wrong total size"
-        " (we have %d, but C compiler says %d)" % (
-            ffi.sizeof("struct foo_s"),
-            ffi.sizeof("struct foo_s") + ffi.sizeof("long*")))
+        " (cdef says %d, but C compiler says %d)" % (
+            8 + FFI().sizeof('long *'),
+            8 + FFI().sizeof('long *') * 2))
     #
     # a corner case that we cannot really detect, but where it has no
     # bad consequences: the size is the same, but there is an extra field
     # that replaces what is just padding in our declaration above
-    ffi.verify("struct foo_s { char x, extra; int y; long *z; };")
+    check("struct foo_s { char x, extra; int y; long *z; };")
     #
-    e = py.test.raises(VerificationError, ffi.verify,
+    e = py.test.raises(FFI.error, check,
         "struct foo_s { char x; short pad; short y; long *z; };")
-    assert str(e.value) == (
+    assert str(e.value).startswith(
         "struct foo_s: wrong size for field 'y'"
-        " (we have 4, but C compiler says 2)")
+        " (cdef says 4, but C compiler says 2)")
 
 def test_ffi_nonfull_struct():
     ffi = FFI()
