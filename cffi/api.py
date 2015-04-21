@@ -19,6 +19,8 @@ except NameError:
     basestring = str
 
 
+FFIError = _cffi1_backend.FFI.error
+
 class CDefError(Exception):
     def __str__(self):
         try:

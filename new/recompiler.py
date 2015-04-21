@@ -70,6 +70,10 @@ class Recompiler:
             self._typesdict[tp] = None
             if isinstance(tp, model.FunctionPtrType):
                 self._do_collect_type(tp.as_raw_function())
+            elif isinstance(tp, model.StructOrUnion):
+                if tp.fldtypes is not None:
+                    for name1, tp1 in zip(tp.fldnames, tp.fldtypes):
+                        self._do_collect_type(self._field_type(tp, name1, tp1))
             else:
                 for _, x in tp._get_items():
                     self._do_collect_type(x)
@@ -118,6 +122,7 @@ class Recompiler:
         #
         # the declaration of '_cffi_types'
         prnt('static void *_cffi_types[] = {')
+        self.cffi_types = tuple(self.cffi_types)    # don't change any more
         typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
         for i, op in enumerate(self.cffi_types):
             comment = ''
@@ -139,7 +144,9 @@ class Recompiler:
         self._lsts = {}
         for step_name in ALL_STEPS:
             self._lsts[step_name] = []
+        self._seen_struct_unions = set()
         self._generate("ctx")
+        self._add_missing_struct_unions()
         for step_name in ALL_STEPS:
             lst = self._lsts[step_name]
             nums[step_name] = len(lst)
@@ -284,9 +291,9 @@ class Recompiler:
         self._lsts["typename"].append(
             '  { "%s", %d },' % (name, type_index))
         if getattr(tp, "origin", None) == "unknown_type":
-            self._generate_cpy_struct_ctx(tp, tp.name)
+            self._struct_ctx(tp, tp.name, approxname=None)
         elif isinstance(tp, model.NamedPointerType):
-            self._generate_cpy_struct_ctx(tp.totype, tp.totype.name)
+            self._struct_ctx(tp.totype, tp.totype.name, approxname=None)
 
     # ----------
     # function declarations
@@ -393,18 +400,14 @@ class Recompiler:
             tp_field = tp_field.resolve_length(actual_length)
         return tp_field
 
-    def _generate_cpy_struct_collecttype(self, tp, name):
+    def _struct_collecttype(self, tp):
         self._do_collect_type(tp)
-        if tp.fldtypes is not None:
-            for name1, tp1 in zip(tp.fldnames, tp.fldtypes):
-                self._do_collect_type(self._field_type(tp, name1, tp1))
 
-    def _generate_cpy_struct_decl(self, tp, name):
+    def _struct_decl(self, tp, cname, approxname):
         if tp.fldtypes is None:
             return
-        cname = ('%s %s' % (tp.kind, name)).strip()
         prnt = self._prnt
-        checkfuncname = '_cffi_checkfld_%s' % (name,)
+        checkfuncname = '_cffi_checkfld_%s' % (approxname,)
         prnt('__attribute__((unused))')
         prnt('static void %s(%s *p)' % (checkfuncname, cname))
         prnt('{')
@@ -423,10 +426,10 @@ class Recompiler:
                 except ffiplatform.VerificationError as e:
                     prnt('  /* %s */' % str(e))   # cannot verify it, ignore
         prnt('}')
-        prnt('struct _cffi_align_%s { char x; %s y; };' % (name, cname))
+        prnt('struct _cffi_align_%s { char x; %s y; };' % (approxname, cname))
         prnt()
 
-    def _generate_cpy_struct_ctx(self, tp, name):
+    def _struct_ctx(self, tp, cname, approxname):
         type_index = self._typesdict[tp]
         flags = []
         if tp.partial:
@@ -435,43 +438,102 @@ class Recompiler:
             flags.append('CT_UNION')
         flags = ('|'.join(flags)) or '0'
         if tp.fldtypes is not None:
-            c_field = [name]
+            c_field = [approxname]
             for fldname, fldtype in zip(tp.fldnames, tp.fldtypes):
                 fldtype = self._field_type(tp, fldname, fldtype)
                 spaces = " " * len(fldname)
-                if (isinstance(fldtype, model.ArrayType) and
-                       fldtype.length is None):
+                # cname is None for _add_missing_struct_unions() only
+                if cname is None or (
+                        isinstance(fldtype, model.ArrayType) and
+                        fldtype.length is None):
                     size = '(size_t)-1'
                 else:
                     size = 'sizeof(((%s)0)->%s)' % (tp.get_c_name('*'), fldname)
+                if cname is None:
+                    offset = '(size_t)-1'
+                else:
+                    offset = 'offsetof(%s, %s)' % (tp.get_c_name(''), fldname)
                 c_field.append(
-                    '  { "%s", offsetof(%s, %s),\n' % (
-                            fldname, tp.get_c_name(''), fldname) +
+                    '  { "%s", %s,\n' % (fldname, offset) +
                     '     %s   %s,\n' % (spaces, size) +
                     '     %s   _CFFI_OP(_CFFI_OP_NOOP, %s) },' % (
                             spaces, self._typesdict[fldtype]))
             self._lsts["field"].append('\n'.join(c_field))
-            size_align = ('\n' +
-                '    sizeof(%s %s),\n' % (tp.kind, name) +
-                '    offsetof(struct _cffi_align_%s, y),\n' % (name,) +
-                '    _cffi_FIELDS_FOR_%s, %d },' % (name, len(tp.fldtypes),))
+            #
+            if cname is None:  # unknown name, for _add_missing_struct_unions
+                size_align = (' (size_t)-2, -2, /* unnamed */\n' +
+                    '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
+                                                        len(tp.fldtypes),))
+            else:
+                size_align = ('\n' +
+                    '    sizeof(%s),\n' % (cname,) +
+                    '    offsetof(struct _cffi_align_%s, y),\n'% (approxname,) +
+                    '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
+                                                        len(tp.fldtypes),))
         else:
             size_align = ' (size_t)-1, -1, -1, 0 /* opaque */ },'
         self._lsts["struct_union"].append(
-            '  { "%s", %d, %s,' % (name, type_index, flags) + size_align)
+            '  { "%s", %d, %s,' % (tp.name, type_index, flags) + size_align)
+        self._seen_struct_unions.add(tp)
+
+    def _add_missing_struct_unions(self):
+        # not very nice, but some struct declarations might be missing
+        # because they don't have any known C name.  Check that they are
+        # not partial (we can't complete or verify them!) and emit them
+        # anonymously.
+        for tp in list(self._struct_unions):
+            if tp not in self._seen_struct_unions:
+                if tp.partial:
+                    raise NotImplementedError("internal inconsistency: %r is "
+                                              "partial but was not seen at "
+                                              "this point" % (tp,))
+                assert tp.name.startswith('$') and tp.name[1:].isdigit()
+                self._struct_ctx(tp, None, tp.name[1:])
 
     def _fix_final_field_list(self, lst):
         count = 0
         for i in range(len(lst)):
             struct_fields = lst[i]
-            name = struct_fields.split('\n')[0]
-            define_macro = '#define _cffi_FIELDS_FOR_%s  %d' % (name, count)
-            lst[i] = define_macro + struct_fields[len(name):]
+            pname = struct_fields.split('\n')[0]
+            define_macro = '#define _cffi_FIELDS_FOR_%s  %d' % (pname, count)
+            lst[i] = define_macro + struct_fields[len(pname):]
             count += lst[i].count('\n  { "')
 
+    def _generate_cpy_struct_collecttype(self, tp, name):
+        self._struct_collecttype(tp)
     _generate_cpy_union_collecttype = _generate_cpy_struct_collecttype
+
+    def _generate_cpy_struct_decl(self, tp, name):
+        cname = tp.get_c_name('')
+        self._struct_decl(tp, cname, cname.replace(' ', '_'))
     _generate_cpy_union_decl = _generate_cpy_struct_decl
+
+    def _generate_cpy_struct_ctx(self, tp, name, prefix='s'):
+        cname = tp.get_c_name('')
+        self._struct_ctx(tp, cname, cname.replace(' ', '_'))
     _generate_cpy_union_ctx = _generate_cpy_struct_ctx
+
+    # ----------
+    # 'anonymous' declarations.  These are produced for anonymous structs
+    # or unions; the 'name' is obtained by a typedef.
+
+    def _generate_cpy_anonymous_collecttype(self, tp, name):
+        if isinstance(tp, model.EnumType):
+            self._generate_cpy_enum_collecttype(tp, name)
+        else:
+            self._struct_collecttype(tp)
+
+    def _generate_cpy_anonymous_decl(self, tp, name):
+        if isinstance(tp, model.EnumType):
+            self._generate_cpy_enum_decl(tp, name, '')
+        else:
+            self._struct_decl(tp, name, 'typedef_' + name)
+
+    def _generate_cpy_anonymous_ctx(self, tp, name):
+        if isinstance(tp, model.EnumType):
+            self._generate_cpy_enum_ctx(tp, name, '')
+        else:
+            self._struct_ctx(tp, name, 'typedef_' + name)
 
     # ----------
     # constants, declared with "static const ..."

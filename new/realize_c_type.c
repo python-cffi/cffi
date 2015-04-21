@@ -307,24 +307,38 @@ _realize_c_type_or_func(builder_c_t *builder,
             strcat(name, s->name);
             x = new_struct_or_union_type(name, flags);
 
+            CTypeDescrObject *ct = NULL;
             if (s->first_field_index >= 0) {
-                CTypeDescrObject *ct = (CTypeDescrObject *)x;
-                ct->ct_size = s->size;
+                ct = (CTypeDescrObject *)x;
+                ct->ct_size = (Py_ssize_t)s->size;
                 ct->ct_length = s->alignment;
                 ct->ct_flags &= ~CT_IS_OPAQUE;
                 ct->ct_flags |= CT_LAZY_FIELD_LIST;
                 ct->ct_extra = builder;
             }
 
-            /* We are going to update the "primary" OP_STRUCT_OR_UNION
-               slot below, which may be the same or a different one as
-               the "current" slot.  If it is a different one, the
-               current slot is not updated.  But in this case, the
-               next time we walk the same current slot, we'll find the
-               'x' object in the primary slot (op2, above) and then we
-               will update the current slot. */
-            opcodes = builder->ctx.types;
-            index = s->type_index;
+            /* Update the "primary" OP_STRUCT_OR_UNION slot, which
+               may be the same or a different slot than the "current" one */
+            assert((((uintptr_t)x) & 1) == 0);
+            assert(builder->ctx.types[s->type_index] == op2);
+            Py_INCREF(x);
+            builder->ctx.types[s->type_index] = x;
+
+            if (s->size == (size_t)-2) {
+                /* oops, this struct is unnamed and we couldn't generate
+                   a C expression to get its size.  We have to rely on
+                   complete_struct_or_union() to compute it now. */
+                assert(ct != NULL);
+                if (do_realize_lazy_struct(ct) < 0) {
+                    builder->ctx.types[s->type_index] = op2;
+                    return NULL;
+                }
+            }
+
+            /* Done, leave without updating the "current" slot because
+               it may be done already above.  If not, never mind, the
+               next call to realize_c_type() will do it. */
+            return x;
         }
         break;
     }
@@ -451,7 +465,12 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
                 return -1;
             }
 
-            if (detect_custom_layout(ct, SF_STD_FIELD_POS,
+            if (fld->field_offset == (size_t)-1) {
+                /* unnamed struct, with field positions and sizes entirely
+                   determined by complete_struct_or_union() and not checked */
+                assert(fld->field_size == -1);
+            }
+            else if (detect_custom_layout(ct, SF_STD_FIELD_POS,
                                      ctf->ct_size, fld->field_size,
                                      "wrong size for field '",
                                      fld->name, "'") < 0)
