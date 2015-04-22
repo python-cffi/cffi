@@ -573,14 +573,14 @@ static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
             goto bad_usage;
         struct_unions[i].name = PyString_AS_STRING(x);
         struct_unions[i].type_index = i;
-        //struct_unions[i].flags = ...;
-        struct_unions[i].size = (size_t)-2;
-        struct_unions[i].alignment = -2;
 
         x = PyList_GET_ITEM(lst1, i * 2 + 1);
         if (!CTypeDescr_Check(x))
             goto bad_usage;
         types[i] = x;
+        struct_unions[i].flags = ((CTypeDescrObject *)x)->ct_flags & CT_UNION;
+        struct_unions[i].size = (size_t)-2;
+        struct_unions[i].alignment = -2;
     }
     for (i = 0; i < lst_length; i++) {
         PyObject *x = (PyObject *)types[i];

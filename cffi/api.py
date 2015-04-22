@@ -571,9 +571,12 @@ def _set_cdef_types(ffi):
     struct_unions = []
     pending_completion = []
     for name, tp in sorted(ffi._parser._declarations.items()):
-        if name.startswith('struct '):
-            basename = name[7:]
-            BType = _cffi1_backend.new_struct_type(basename)
+        kind, basename = name.split(' ', 1)
+        if kind == 'struct' or kind == 'union':
+            if kind == 'struct':
+                BType = _cffi1_backend.new_struct_type(basename)
+            else:
+                BType = _cffi1_backend.new_union_type(basename)
             struct_unions.append(basename)
             struct_unions.append(BType)
             if not tp.partial and tp.fldtypes is not None:
