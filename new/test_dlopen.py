@@ -3,6 +3,11 @@ from cffi1 import FFI
 import math
 
 
+def test_cdef_struct():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int a, b; };")
+    assert ffi.sizeof("struct foo_s") == 8
+
 def test_math_sin():
     py.test.skip("XXX redo!")
     ffi = FFI()

@@ -24,15 +24,15 @@ struct FFIObject_s {
     struct _cffi_parse_info_s info;
     int ctx_is_static;
     builder_c_t *types_builder;
+    PyObject *dynamic_types;
     _cffi_opcode_t internal_output[FFI_COMPLEXITY_OUTPUT];
 };
 
 static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
-                                   const struct _cffi_type_context_s *ctx,
-                                   int ctx_is_static)
+                                 const struct _cffi_type_context_s *static_ctx)
 {
     FFIObject *ffi;
-    if (ctx_is_static) {
+    if (static_ctx != NULL) {
         ffi = (FFIObject *)PyObject_GC_New(FFIObject, ffitype);
         /* we don't call PyObject_GC_Track() here: from _cffi_init_module()
            it is not needed, because in this case the ffi object is immortal */
@@ -43,16 +43,17 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
     if (ffi == NULL)
         return NULL;
 
-    ffi->types_builder = new_builder_c(ctx);
+    ffi->types_builder = new_builder_c(static_ctx);
     if (ffi->types_builder == NULL) {
         Py_DECREF(ffi);
         return NULL;
     }
     ffi->gc_wrefs = NULL;
-    ffi->info.ctx = ctx;
+    ffi->info.ctx = &ffi->types_builder->ctx;
     ffi->info.output = ffi->internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
-    ffi->ctx_is_static = ctx_is_static;
+    ffi->ctx_is_static = (static_ctx != NULL);
+    ffi->dynamic_types = NULL;
     return ffi;
 }
 
@@ -60,6 +61,7 @@ static void ffi_dealloc(FFIObject *ffi)
 {
     PyObject_GC_UnTrack(ffi);
     Py_XDECREF(ffi->gc_wrefs);
+    Py_XDECREF(ffi->dynamic_types);
 
     if (!ffi->ctx_is_static)
         free_builder_c(ffi->types_builder);
@@ -77,22 +79,7 @@ static int ffi_traverse(FFIObject *ffi, visitproc visit, void *arg)
 static PyObject *ffiobj_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     /* user-facing initialization code, for explicit FFI() calls */
-    struct _cffi_type_context_s *ctx;
-    PyObject *result;
-
-    ctx = PyMem_Malloc(sizeof(struct _cffi_type_context_s));
-    if (ctx == NULL) {
-        PyErr_NoMemory();
-        return NULL;
-    }
-    memset(ctx, 0, sizeof(struct _cffi_type_context_s));
-
-    result = (PyObject *)ffi_internal_new(type, ctx, 0);
-    if (result == NULL) {
-        PyMem_Free(ctx);
-        return NULL;
-    }
-    return result;
+    return (PyObject *)ffi_internal_new(type, NULL);
 }
 
 static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
@@ -548,7 +535,72 @@ static int ffi_set_errno(PyObject *self, PyObject *newval, void *closure)
     return 0;
 }
 
+static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
+{
+    PyObject *lst1;
+    _cffi_opcode_t *types = NULL;
+    struct _cffi_struct_union_s *struct_unions = NULL;
+
+    if (!PyArg_ParseTuple(args, "O!", &PyList_Type, &lst1))
+        return NULL;
+
+    if (self->ctx_is_static) {
+     bad_usage:
+        PyMem_Free(struct_unions);
+        PyMem_Free(types);
+        if (!PyErr_Occurred())
+            PyErr_SetString(PyExc_RuntimeError, "internal error");
+        return NULL;
+    }
+
+    cleanup_builder_c(self->types_builder);
+
+    int i, lst_length = PyList_GET_SIZE(lst1) / 2;
+    Py_ssize_t new_size_1 = sizeof(_cffi_opcode_t) * lst_length;
+    Py_ssize_t new_size_2 = sizeof(struct _cffi_struct_union_s) * lst_length;
+    types = PyMem_Malloc(new_size_1);
+    struct_unions = PyMem_Malloc(new_size_2);
+    if (!types || !struct_unions) {
+        PyErr_NoMemory();
+        goto bad_usage;
+    }
+    memset(types, 0, new_size_1);
+    memset(struct_unions, 0, new_size_2);
+
+    for (i = 0; i < lst_length; i++) {
+        PyObject *x = PyList_GET_ITEM(lst1, i * 2);
+        if (!PyString_Check(x))
+            goto bad_usage;
+        struct_unions[i].name = PyString_AS_STRING(x);
+        struct_unions[i].type_index = i;
+        //struct_unions[i].flags = ...;
+        struct_unions[i].size = (size_t)-2;
+        struct_unions[i].alignment = -2;
+
+        x = PyList_GET_ITEM(lst1, i * 2 + 1);
+        if (!CTypeDescr_Check(x))
+            goto bad_usage;
+        types[i] = x;
+    }
+    for (i = 0; i < lst_length; i++) {
+        PyObject *x = (PyObject *)types[i];
+        Py_INCREF(x);
+    }
+
+    Py_INCREF(lst1);     /* to keep alive the strings in '.name' */
+    Py_XDECREF(self->dynamic_types);
+    self->dynamic_types = lst1;
+    self->types_builder->ctx.types = types;
+    self->types_builder->num_types_imported = lst_length;
+    self->types_builder->ctx.struct_unions = struct_unions;
+    self->types_builder->ctx.num_struct_unions = lst_length;
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef ffi_methods[] = {
+    {"__set_types",   (PyCFunction)ffi__set_types,METH_VARARGS},
 #if 0
     {"addressof",     (PyCFunction)ffi_addressof, METH_VARARGS},
 #endif

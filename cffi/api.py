@@ -97,6 +97,7 @@ class FFI(_cffi1_backend.FFI):
             if override:
                 for cache in self._function_caches:
                     cache.clear()
+        _set_cdef_types(self)
 
     def dlopen(self, name, flags=0):
         """Load and return a dynamic library identified by 'name'.
@@ -565,3 +566,27 @@ def _builtin_function_type(func):
     else:
         with ffi._lock:
             return ffi._get_cached_btype(tp)
+
+def _set_cdef_types(ffi):
+    struct_unions = []
+    pending_completion = []
+    for name, tp in sorted(ffi._parser._declarations.items()):
+        if name.startswith('struct '):
+            tp.check_not_partial()
+            basename = name[7:]
+            BType = _cffi1_backend.new_struct_type(basename)
+            struct_unions.append(basename)
+            struct_unions.append(BType)
+            if tp.fldtypes is not None:
+                pending_completion.append((tp, BType))
+    #
+    ffi.__set_types(struct_unions)
+    #
+    for tp, BType in pending_completion:
+        fldtypes = [ffi.typeof(ftp._get_c_name()) for ftp in tp.fldtypes]
+        lst = list(zip(tp.fldnames, fldtypes, tp.fldbitsize))
+        sflags = 0
+        if tp.packed:
+            sflags = 8    # SF_PACKED
+        _cffi1_backend.complete_struct_or_union(BType, lst, ffi,
+                                                -1, -1, sflags)

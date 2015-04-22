@@ -2,6 +2,7 @@
 typedef struct {
     struct _cffi_type_context_s ctx;   /* inlined substructure */
     PyObject *types_dict;
+    int num_types_imported;
 } builder_c_t;
 
 
@@ -44,9 +45,15 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
     return err;
 }
 
-static void free_builder_c(builder_c_t *builder)
+static void cleanup_builder_c(builder_c_t *builder)
 {
-    Py_XDECREF(builder->types_dict);
+    int i;
+    for (i = builder->num_types_imported; (--i) >= 0; ) {
+        _cffi_opcode_t x = builder->ctx.types[i];
+        if ((((uintptr_t)x) & 1) == 0) {
+            Py_XDECREF((PyObject *)x);
+        }
+    }
 
     const void *mem[] = {builder->ctx.types,
                          builder->ctx.globals,
@@ -54,11 +61,16 @@ static void free_builder_c(builder_c_t *builder)
                          builder->ctx.fields,
                          builder->ctx.enums,
                          builder->ctx.typenames};
-    int i;
     for (i = 0; i < sizeof(mem) / sizeof(*mem); i++) {
         if (mem[i] != NULL)
             PyMem_Free((void *)mem[i]);
     }
+}
+
+static void free_builder_c(builder_c_t *builder)
+{
+    Py_XDECREF(builder->types_dict);
+    cleanup_builder_c(builder);
     PyMem_Free(builder);
 }
 
@@ -74,8 +86,13 @@ static builder_c_t *new_builder_c(const struct _cffi_type_context_s *ctx)
         PyErr_NoMemory();
         return NULL;
     }
-    builder->ctx = *ctx;
+    if (ctx)
+        builder->ctx = *ctx;
+    else
+        memset(&builder->ctx, 0, sizeof(builder->ctx));
+
     builder->types_dict = ldict;
+    builder->num_types_imported = 0;
     return builder;
 }
 
