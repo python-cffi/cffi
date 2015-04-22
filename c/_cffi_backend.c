@@ -4952,27 +4952,26 @@ static PyObject *b_typeof(PyObject *self, PyObject *arg)
     return res;
 }
 
-static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
+static CTypeDescrObject *direct_typeoffsetof(CTypeDescrObject *ct,
+                                             PyObject *fieldname,
+                                             int following, Py_ssize_t *offset)
 {
-    PyObject *res, *fieldname;
-    CTypeDescrObject *ct;
+    /* Does not return a new reference! */
+    CTypeDescrObject *res;
     CFieldObject *cf;
-    Py_ssize_t offset;
-    int following = 0;
-
-    if (!PyArg_ParseTuple(args, "O!O|i:typeoffsetof",
-                          &CTypeDescr_Type, &ct, &fieldname, &following))
-        return NULL;
 
     if (PyTextAny_Check(fieldname)) {
         if (!following && (ct->ct_flags & CT_POINTER))
             ct = ct->ct_itemdescr;
-        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION)) ||
-                force_lazy_struct(ct) <= 0) {
+        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION))) {
+            PyErr_SetString(PyExc_TypeError,
+                            "with a field name argument, expected a "
+                            "struct or union ctype");
+            return NULL;
+        }
+        if (force_lazy_struct(ct) <= 0) {
             if (!PyErr_Occurred())
-                PyErr_SetString(PyExc_TypeError,
-                                "with a field name argument, expected an "
-                                "initialized struct or union ctype");
+                PyErr_SetString(PyExc_TypeError, "struct/union is opaque");
             return NULL;
         }
         cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
@@ -4984,8 +4983,8 @@ static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
             PyErr_SetString(PyExc_TypeError, "not supported for bitfields");
             return NULL;
         }
-        res = (PyObject *)cf->cf_type;
-        offset = cf->cf_offset;
+        res = cf->cf_type;
+        *offset = cf->cf_offset;
     }
     else {
         ssize_t index = PyInt_AsSsize_t(fieldname);
@@ -5002,14 +5001,32 @@ static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
                                              "pointer to non-opaque");
             return NULL;
         }
-        res = (PyObject *)ct->ct_itemdescr;
-        offset = index * ct->ct_itemdescr->ct_size;
-        if ((offset / ct->ct_itemdescr->ct_size) != index) {
+        res = ct->ct_itemdescr;
+        *offset = index * ct->ct_itemdescr->ct_size;
+        if ((*offset / ct->ct_itemdescr->ct_size) != index) {
             PyErr_SetString(PyExc_OverflowError,
                             "array offset would overflow a Py_ssize_t");
             return NULL;
         }
     }
+    return res;
+}
+
+static PyObject *b_typeoffsetof(PyObject *self, PyObject *args)
+{
+    PyObject *res, *fieldname;
+    CTypeDescrObject *ct;
+    Py_ssize_t offset;
+    int following = 0;
+
+    if (!PyArg_ParseTuple(args, "O!O|i:typeoffsetof",
+                          &CTypeDescr_Type, &ct, &fieldname, &following))
+        return NULL;
+
+    res = (PyObject *)direct_typeoffsetof(ct, fieldname, following, &offset);
+    if (res == NULL)
+        return NULL;
+
     return Py_BuildValue("(On)", res, offset);
 }
 

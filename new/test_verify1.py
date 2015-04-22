@@ -451,8 +451,8 @@ def test_ffi_nonfull_struct():
     };
     """)
     py.test.raises(ffi.error, ffi.sizeof, 'struct foo_s')
-    py.test.raises(ffi.error, ffi.offsetof, 'struct foo_s', 'x')
-    py.test.raises(ffi.error, ffi.new, 'struct foo_s *')
+    py.test.raises(TypeError, ffi.offsetof, 'struct foo_s', 'x')
+    py.test.raises(TypeError, ffi.new, 'struct foo_s *')
     ffi.verify("""
     struct foo_s {
        int a, b, x, c, d, e;

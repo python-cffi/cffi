@@ -216,6 +216,9 @@ def test_verify_struct():
     py.test.raises(OverflowError, "p.b -= 1")
     q = ffi.new("struct bar_s *", {'f': p})
     assert q.f == p
+    #
+    assert ffi.offsetof("struct foo_s", "a") == 0
+    assert ffi.offsetof("struct foo_s", "b") == 4
 
 def test_verify_exact_field_offset():
     ffi = FFI()

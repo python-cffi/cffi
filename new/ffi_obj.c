@@ -290,58 +290,46 @@ PyDoc_STRVAR(ffi_string_doc,
 "string or unicode string.\n"
 "\n"
 "If 'cdata' is an enum, returns the value of the enumerator as a\n"
-"string, or 'NUMBER' if the value is out of range.\n");
+"string, or 'NUMBER' if the value is out of range.");
 
 #define ffi_string  b_string     /* ffi_string() => b_string()
                                     from _cffi_backend.c */
 
-#if 0
-static CFieldObject *_ffi_field(CTypeDescrObject *ct, const char *fieldname)
-{
-    CFieldObject *cf;
-    if (force_lazy_struct(ct) == NULL) {
-        PyErr_Format(PyExc_TypeError, "'%s' is incomplete", ct->ct_name);
-        return NULL;
-    }
-    cf = (CFieldObject *)PyDict_GetItemString(ct->ct_stuff, fieldname);
-    if (cf == NULL) {
-        PyErr_Format(PyExc_KeyError, "'%s' has got no field '%s'",
-                     ct->ct_name, fieldname);
-        return NULL;
-    }
-    if (cf->cf_bitshift >= 0) {
-        PyErr_SetString(PyExc_TypeError, "not supported for bitfields");
-        return NULL;
-    }
-    return cf;
-}
+PyDoc_STRVAR(ffi_offsetof_doc,
+"Return the offset of the named field inside the given structure or\n"
+"array, which must be given as a C type name.  You can give several\n"
+"field names in case of nested structures.  You can also give numeric\n"
+"values which correspond to array items, in case of an array type.");
 
-static PyObject *ffi_offsetof(ZefFFIObject *self, PyObject *args)
+static PyObject *ffi_offsetof(FFIObject *self, PyObject *args)
 {
     PyObject *arg;
-    char *fieldname;
     CTypeDescrObject *ct;
-    CFieldObject *cf;
+    Py_ssize_t i, offset;
 
-    if (!PyArg_ParseTuple(args, "Os:offsetof", &arg, &fieldname))
+    if (PyTuple_Size(args) < 2) {
+        PyErr_SetString(PyExc_TypeError,
+                        "offsetof() expects at least 2 arguments");
         return NULL;
+    }
 
+    arg = PyTuple_GET_ITEM(args, 0);
     ct = _ffi_type(self, arg, ACCEPT_STRING|ACCEPT_CTYPE);
     if (ct == NULL)
         return NULL;
 
-    if (!(ct->ct_flags & (CT_STRUCT|CT_UNION))) {
-        PyErr_Format(PyExc_TypeError,
-                     "expected a struct or union ctype, got '%s'",
-                     ct->ct_name);
-        return NULL;
+    offset = 0;
+    for (i = 1; i < PyTuple_GET_SIZE(args); i++) {
+        Py_ssize_t ofs1;
+        ct = direct_typeoffsetof(ct, PyTuple_GET_ITEM(args, i), i > 1, &ofs1);
+        if (ct == NULL)
+            return NULL;
+        offset += ofs1;
     }
-    cf = _ffi_field(ct, fieldname);
-    if (cf == NULL)
-        return NULL;
-    return PyInt_FromSsize_t(cf->cf_offset);
+    return PyInt_FromSsize_t(offset);
 }
 
+#if 0
 static PyObject *ffi_addressof(ZefFFIObject *self, PyObject *args)
 {
     PyObject *obj;
@@ -612,8 +600,8 @@ static PyMethodDef ffi_methods[] = {
     {"gc",            (PyCFunction)ffi_gc,        METH_VARARGS},
     {"getctype",      (PyCFunction)ffi_getctype,  METH_VARARGS},
     {"load_library",  (PyCFunction)ffi_load_library,METH_VARARGS|METH_KEYWORDS},
-    {"offsetof",      (PyCFunction)ffi_offsetof,  METH_VARARGS},
 #endif
+    {"offsetof",      (PyCFunction)ffi_offsetof, METH_VARARGS,ffi_offsetof_doc},
     {"new",           (PyCFunction)ffi_new,       METH_VARARGS, ffi_new_doc},
 #if 0
     {"new_handle",    (PyCFunction)ffi_new_handle,METH_O},
