@@ -466,11 +466,16 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
         int i;
         for (i = 0; i < s->num_fields; i++, fld++) {
             _cffi_opcode_t op = fld->field_type_op;
+            int fbitsize = -1;
             PyObject *f;
             CTypeDescrObject *ctf;
 
             switch (_CFFI_GETOP(op)) {
 
+            case _CFFI_OP_BITFIELD:
+                assert(fld->field_size >= 0);
+                fbitsize = (int)fld->field_size;
+                /* fall-through */
             case _CFFI_OP_NOOP:
                 ctf = realize_c_type(builder, builder->ctx.types,
                                      _CFFI_GETARG(op));
@@ -484,8 +489,9 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
 
             if (fld->field_offset == (size_t)-1) {
                 /* unnamed struct, with field positions and sizes entirely
-                   determined by complete_struct_or_union() and not checked */
-                assert(fld->field_size == -1);
+                   determined by complete_struct_or_union() and not checked.
+                   Or, bitfields (field_size >= 0), similarly not checked. */
+                assert(fld->field_size == (size_t)-1 || fbitsize >= 0);
             }
             else if (detect_custom_layout(ct, SF_STD_FIELD_POS,
                                      ctf->ct_size, fld->field_size,
@@ -494,7 +500,7 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
                 return -1;
 
             f = Py_BuildValue("(sOin)", fld->name, ctf,
-                              (int)-1, (Py_ssize_t)fld->field_offset);
+                              fbitsize, (Py_ssize_t)fld->field_offset);
             if (f == NULL) {
                 Py_DECREF(fields);
                 return -1;

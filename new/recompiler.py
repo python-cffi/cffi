@@ -439,25 +439,29 @@ class Recompiler:
         flags = ('|'.join(flags)) or '0'
         if tp.fldtypes is not None:
             c_field = [approxname]
-            for fldname, fldtype in zip(tp.fldnames, tp.fldtypes):
+            for fldname, fldtype, fbitsize in tp.enumfields():
                 fldtype = self._field_type(tp, fldname, fldtype)
                 spaces = " " * len(fldname)
                 # cname is None for _add_missing_struct_unions() only
-                if cname is None or (
+                op = '_CFFI_OP_NOOP'
+                if fbitsize >= 0:
+                    op = '_CFFI_OP_BITFIELD'
+                    size = '%d /* bits */' % fbitsize
+                elif cname is None or (
                         isinstance(fldtype, model.ArrayType) and
                         fldtype.length is None):
                     size = '(size_t)-1'
                 else:
                     size = 'sizeof(((%s)0)->%s)' % (tp.get_c_name('*'), fldname)
-                if cname is None:
+                if cname is None or fbitsize >= 0:
                     offset = '(size_t)-1'
                 else:
                     offset = 'offsetof(%s, %s)' % (tp.get_c_name(''), fldname)
                 c_field.append(
                     '  { "%s", %s,\n' % (fldname, offset) +
                     '     %s   %s,\n' % (spaces, size) +
-                    '     %s   _CFFI_OP(_CFFI_OP_NOOP, %s) },' % (
-                            spaces, self._typesdict[fldtype]))
+                    '     %s   _CFFI_OP(%s, %s) },' % (
+                            spaces, op, self._typesdict[fldtype]))
             self._lsts["field"].append('\n'.join(c_field))
             #
             if cname is None:  # unknown name, for _add_missing_struct_unions
