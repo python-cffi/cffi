@@ -4084,8 +4084,9 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
        as 1 instead.  But for ctypes support, we allow the manually-
        specified totalsize to be zero in this case. */
     boffsetmax = (boffsetmax + 7) / 8;        /* bits -> bytes */
+    boffsetmax = (boffsetmax + alignment - 1) & ~(alignment-1);
     if (totalsize < 0) {
-        totalsize = (boffsetmax + alignment - 1) & ~(alignment-1);
+        totalsize = boffsetmax;
         if (totalsize == 0)
             totalsize = 1;
     }
