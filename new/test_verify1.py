@@ -1,5 +1,5 @@
 import sys, math, py
-from cffi1 import FFI, VerificationError, VerificationMissing, model
+from cffi1 import FFI, VerificationError, model
 
 lib_m = ['m']
 if sys.platform == 'win32':
@@ -450,9 +450,9 @@ def test_ffi_nonfull_struct():
        ...;
     };
     """)
-    py.test.raises(VerificationMissing, ffi.sizeof, 'struct foo_s')
-    py.test.raises(VerificationMissing, ffi.offsetof, 'struct foo_s', 'x')
-    py.test.raises(VerificationMissing, ffi.new, 'struct foo_s *')
+    py.test.raises(ffi.error, ffi.sizeof, 'struct foo_s')
+    py.test.raises(ffi.error, ffi.offsetof, 'struct foo_s', 'x')
+    py.test.raises(ffi.error, ffi.new, 'struct foo_s *')
     ffi.verify("""
     struct foo_s {
        int a, b, x, c, d, e;
