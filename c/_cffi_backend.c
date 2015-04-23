@@ -4086,13 +4086,11 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     boffsetmax = (boffsetmax + 7) / 8;        /* bits -> bytes */
     boffsetmax = (boffsetmax + alignment - 1) & ~(alignment-1);
     if (totalsize < 0) {
-        totalsize = boffsetmax;
-        if (totalsize == 0)
-            totalsize = 1;
+        totalsize = boffsetmax ? boffsetmax : 1;
     }
     else {
-        if (detect_custom_layout(ct, sflags, boffsetmax, totalsize,
-                                 "wrong total size", "", "") < 0)
+        if (detect_custom_layout(ct, sflags, boffsetmax ? boffsetmax : 1,
+                                 totalsize, "wrong total size", "", "") < 0)
             goto error;
         if (totalsize < boffsetmax) {
             PyErr_Format(PyExc_TypeError,

@@ -570,7 +570,9 @@ def _builtin_function_type(func):
 def _set_cdef_types(ffi):
     struct_unions = []
     pending_completion = []
-    for name, tp in sorted(ffi._parser._declarations.items()):
+    lst = ffi._parser._declarations.items()
+    lst = sorted(lst, key=lambda x: x[0].split(' ', 1)[1])
+    for name, tp in lst:
         kind, basename = name.split(' ', 1)
         if kind == 'struct' or kind == 'union':
             if kind == 'struct':

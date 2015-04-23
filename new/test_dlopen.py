@@ -13,6 +13,12 @@ def test_cdef_union():
     ffi.cdef("union foo_s { int a, b; };")
     assert ffi.sizeof("union foo_s") == 4
 
+def test_cdef_struct_union():
+    ffi = FFI()
+    ffi.cdef("union bar_s { int a; }; struct foo_s { int b; };")
+    assert ffi.sizeof("union bar_s") == 4
+    assert ffi.sizeof("struct foo_s") == 4
+
 def test_math_sin():
     py.test.skip("XXX redo!")
     ffi = FFI()
