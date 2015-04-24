@@ -550,13 +550,13 @@ class Recompiler:
 
     def _generate_cpy_anonymous_decl(self, tp, name):
         if isinstance(tp, model.EnumType):
-            self._generate_cpy_enum_decl(tp, name, '')
+            self._generate_cpy_enum_decl(tp)
         else:
             self._struct_decl(tp, name, 'typedef_' + name)
 
     def _generate_cpy_anonymous_ctx(self, tp, name):
         if isinstance(tp, model.EnumType):
-            self._generate_cpy_enum_ctx(tp, name, '')
+            self._enum_ctx(tp, name)
         else:
             self._struct_ctx(tp, name, 'typedef_' + name)
 
@@ -589,21 +589,48 @@ class Recompiler:
         is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
         self._generate_cpy_const(is_int, name, tp)
 
+    def _generate_const_int_ctx(self, name):
+        self._lsts["global"].append(
+            '  { "%s", _cffi_const_%s, _CFFI_OP(_CFFI_OP_CONSTANT_INT, 0) },' %
+            (name, name))
+
     def _generate_cpy_constant_ctx(self, tp, name):
-        is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
-        if not is_int:
+        if isinstance(tp, model.PrimitiveType) and tp.is_integer_type():
+            self._generate_const_int_ctx(name)
+        else:
             type_index = self._typesdict[tp]
             type_op = '_CFFI_OP(_CFFI_OP_CONSTANT, %d)' % type_index
-        else:
-            type_op = '_CFFI_OP(_CFFI_OP_CONSTANT_INT, 0)'
-        self._lsts["global"].append(
-            '  { "%s", _cffi_const_%s, %s },' % (name, name, type_op))
+            self._lsts["global"].append(
+                '  { "%s", _cffi_const_%s, %s },' % (name, name, type_op))
 
     # ----------
     # enums
 
     def _generate_cpy_enum_collecttype(self, tp, name):
         self._do_collect_type(tp)
+
+    def _generate_cpy_enum_decl(self, tp, name=None):
+        for enumerator in tp.enumerators:
+            self._generate_cpy_const(True, enumerator)
+
+    def _enum_ctx(self, tp, cname):
+        for enumerator in tp.enumerators:
+            self._generate_const_int_ctx(enumerator)
+        if cname is not None:
+            size = "sizeof(%s)" % cname
+            signed = "((%s)-1) <= 0" % cname
+            prim = "_cffi_prim_int(%s, %s)" % (size, signed)
+        else:
+            size = xxxx
+        self._lsts["enum"].append(
+            '  { "%s", %s },' % (tp.name, prim))
+
+    def _generate_cpy_enum_ctx(self, tp, name):
+        if tp.has_c_name():
+            cname = tp.get_c_name('')
+        else:
+            cname = None
+        self._enum_ctx(tp, cname)
 
     # ----------
     # macros: for now only for integers

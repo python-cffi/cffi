@@ -360,6 +360,18 @@ _realize_c_type_or_func(builder_c_t *builder,
         break;
     }
 
+    case _CFFI_OP_ENUM:
+    {
+        const struct _cffi_enum_s *e;
+
+        e = &builder->ctx.enums[_CFFI_GETARG(op)];
+        x = all_primitives[e->type_prim];
+        if (x == NULL)
+            x = build_primitive_type(e->type_prim);
+        Py_XINCREF(x);
+        break;
+    }
+
     case _CFFI_OP_FUNCTION:
     {
         PyObject *fargs;

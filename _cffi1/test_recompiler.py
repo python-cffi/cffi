@@ -264,16 +264,20 @@ def test_type_caching():
         ffi2.typeof("void(*)(struct foo_s*)"))
 
 def test_verify_enum():
-    py.test.skip("in-progress")
     ffi = FFI()
-    ffi.cdef("""enum e1 { B1, A1, ... };""")
+    ffi.cdef("""enum e1 { B1, A1, ... }; enum e2 { B2, A2, ... };""")
     lib = verify(ffi, 'test_verify_enum',
-                 "enum e1 { A1, B1, C1=%d };" % sys.maxint)
+                 "enum e1 { A1, B1, C1=%d };" % sys.maxint +
+                 "enum e2 { A2, B2, C2 };")
     ffi.typeof("enum e1")
+    ffi.typeof("enum e2")
     assert lib.A1 == 0
-    assert lib.B1 == 0
+    assert lib.B1 == 1
+    assert lib.A2 == 0
+    assert lib.B2 == 1
     assert ffi.sizeof("enum e1") == ffi.sizeof("long")
-
+    assert ffi.sizeof("enum e2") == ffi.sizeof("int")
+ 
 def test_dotdotdot_length_of_array_field():
     ffi = FFI()
     ffi.cdef("struct foo_s { int a[...]; int b[...]; };")
@@ -341,3 +345,18 @@ def test_verify_anonymous_struct_with_star_typedef():
            "typedef struct { int a; long b; } *foo_t;")
     p = ffi.new("foo_t", {'b': 42})
     assert p.b == 42
+
+def test_verify_anonymous_enum_with_typedef():
+    ffi = FFI()
+    ffi.cdef("typedef enum { AA, ... } e1;")
+    lib = verify(ffi, 'test_verify_anonymous_enum_with_typedef1',
+                 "typedef enum { BB, CC, AA } e1;")
+    assert lib.AA == 2
+    assert ffi.sizeof("e1") == ffi.sizeof("int")
+    #
+    ffi = FFI()
+    ffi.cdef("typedef enum { AA=%d } e1;" % sys.maxint)
+    lib = verify(ffi, 'test_verify_anonymous_enum_with_typedef2',
+                 "typedef enum { AA=%d } e1;" % sys.maxint)
+    assert lib.AA == sys.maxint
+    assert ffi.sizeof("e1") == ffi.sizeof("long")
