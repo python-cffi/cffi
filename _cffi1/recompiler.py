@@ -527,6 +527,28 @@ class Recompiler:
     _generate_cpy_union_ctx = _generate_cpy_struct_ctx
 
     # ----------
+    # 'anonymous' declarations.  These are produced for anonymous structs
+    # or unions; the 'name' is obtained by a typedef.
+
+    def _generate_cpy_anonymous_collecttype(self, tp, name):
+        if isinstance(tp, model.EnumType):
+            self._generate_cpy_enum_collecttype(tp, name)
+        else:
+            self._struct_collecttype(tp)
+
+    def _generate_cpy_anonymous_decl(self, tp, name):
+        if isinstance(tp, model.EnumType):
+            self._generate_cpy_enum_decl(tp, name, '')
+        else:
+            self._struct_decl(tp, name, 'typedef_' + name)
+
+    def _generate_cpy_anonymous_ctx(self, tp, name):
+        if isinstance(tp, model.EnumType):
+            self._generate_cpy_enum_ctx(tp, name, '')
+        else:
+            self._struct_ctx(tp, name, 'typedef_' + name)
+
+    # ----------
     # constants, declared with "static const ..."
 
     def _generate_cpy_const(self, is_int, name, tp=None, category='const',
