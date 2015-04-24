@@ -214,6 +214,25 @@ static PyObject *build_primitive_type(int num)
     return x;
 }
 
+static PyObject *realize_global_int(const struct _cffi_global_s *g)
+{
+    PyObject *x;
+    unsigned long long value;
+    int neg = ((int(*)(unsigned long long*))g->address)(&value);
+    if (!neg) {
+        if (value <= (unsigned long long)LONG_MAX)
+            x = PyInt_FromLong((long)value);
+        else
+            x = PyLong_FromUnsignedLongLong(value);
+    }
+    else {
+        if ((long long)value >= (long long)LONG_MIN)
+            x = PyInt_FromLong((long)value);
+        else
+            x = PyLong_FromLongLong((long long)value);
+    }
+    return x;
+}
 
 static PyObject *
 _realize_c_type_or_func(builder_c_t *builder,
@@ -378,7 +397,51 @@ _realize_c_type_or_func(builder_c_t *builder,
             if (basetd == NULL)
                 return NULL;
 
-            PyObject *args = Py_BuildValue("(s()()O)", e->name, basetd);
+            PyObject *enumerators = NULL, *enumvalues = NULL, *tmp;
+            Py_ssize_t i, j, n = 0;
+            const char *p;
+            const struct _cffi_global_s *g;
+            int gindex;
+
+            if (*e->enumerators != '\0') {
+                n++;
+                for (p = e->enumerators; *p != '\0'; p++)
+                    n += (*p == ',');
+            }
+            enumerators = PyTuple_New(n);
+            if (enumerators == NULL)
+                return NULL;
+
+            enumvalues = PyTuple_New(n);
+            if (enumvalues == NULL) {
+                Py_DECREF(enumerators);
+                return NULL;
+            }
+
+            p = e->enumerators;
+            for (i = 0; i < n; i++) {
+                j = 0;
+                while (p[j] != ',' && p[j] != '\0')
+                    j++;
+                tmp = PyString_FromStringAndSize(p, j);
+                PyTuple_SET_ITEM(enumerators, i, tmp);
+
+                gindex = search_in_globals(&builder->ctx, p, j);
+                g = &builder->ctx.globals[gindex];
+                assert(gindex >= 0 && g->type_op == op);
+
+                tmp = realize_global_int(g);
+                PyTuple_SET_ITEM(enumvalues, i, tmp);
+
+                p += j + 1;
+            }
+
+            PyObject *args = NULL;
+            if (!PyErr_Occurred())
+                args = Py_BuildValue("(sOOO)", e->name, enumerators,
+                                     enumvalues, basetd);
+            Py_DECREF(enumerators);
+            Py_DECREF(enumvalues);
             if (args == NULL)
                 return NULL;
 

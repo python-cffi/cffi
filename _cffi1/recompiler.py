@@ -620,10 +620,12 @@ class Recompiler:
             size = "sizeof(%s)" % cname
             signed = "((%s)-1) <= 0" % cname
             prim = "_cffi_prim_int(%s, %s)" % (size, signed)
+            allenums = ",".join(tp.enumerators)
         else:
             size = xxxx
         self._lsts["enum"].append(
-            '  { "%s", %d, %s },' % (tp.name, type_index, prim))
+            '  { "%s", %d, %s,\n    "%s" },' % (tp.name, type_index,
+                                                prim, allenums))
 
     def _generate_cpy_enum_ctx(self, tp, name):
         if tp.has_c_name():

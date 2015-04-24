@@ -92,6 +92,7 @@ struct _cffi_enum_s {
     const char *name;
     int type_index;          // -> _cffi_types, on a OP_ENUM
     int type_prim;           // _CFFI_PRIM_xxx
+    const char *enumerators; // comma-delimited string
 };
 
 struct _cffi_typename_s {

@@ -703,6 +703,9 @@ def test_nonfull_enum():
     # try again
     ffi.verify("enum ee { EE1=10, EE2, EE3=-10, EE4 };")
     assert ffi.string(ffi.cast('enum ee', 11)) == "EE2"
+    #
+    assert ffi.typeof("enum ee").relements == {'EE1': 10, 'EE2': 11, 'EE3': -10}
+    assert ffi.typeof("enum ee").elements == {10: 'EE1', 11: 'EE2', -10: 'EE3'}
 
 def test_full_enum():
     ffi = FFI()
