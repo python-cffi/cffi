@@ -2251,10 +2251,11 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
                 else
                     return convert_to_object_bitfield(data, cf);
             }
+            break;
         case -1:
             return NULL;
         default:
-            ;
+            break;
         }
     }
     return PyObject_GenericGetAttr((PyObject *)cd, attr);
@@ -2284,10 +2285,11 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
                     return -1;
                 }
             }
+            break;
         case -1:
             return -1;
         default:
-            ;
+            break;
         }
     }
     return PyObject_GenericSetAttr((PyObject *)cd, attr, value);
