@@ -525,15 +525,18 @@ static int ffi_set_errno(PyObject *self, PyObject *newval, void *closure)
 
 static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
 {
-    PyObject *lst1;
+    PyObject *lst1, *lst2;
     _cffi_opcode_t *types = NULL;
     struct _cffi_struct_union_s *struct_unions = NULL;
+    struct _cffi_typename_s *typenames = NULL;
 
-    if (!PyArg_ParseTuple(args, "O!", &PyList_Type, &lst1))
+    if (!PyArg_ParseTuple(args, "O!O!",
+                          &PyList_Type, &lst1, &PyList_Type, &lst2))
         return NULL;
 
     if (self->ctx_is_static) {
      bad_usage:
+        PyMem_Free(typenames);
         PyMem_Free(struct_unions);
         PyMem_Free(types);
         if (!PyErr_Occurred())
@@ -543,19 +546,24 @@ static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
 
     cleanup_builder_c(self->types_builder);
 
-    int i, lst_length = PyList_GET_SIZE(lst1) / 2;
-    Py_ssize_t new_size_1 = sizeof(_cffi_opcode_t) * lst_length;
-    Py_ssize_t new_size_2 = sizeof(struct _cffi_struct_union_s) * lst_length;
-    types = PyMem_Malloc(new_size_1);
-    struct_unions = PyMem_Malloc(new_size_2);
-    if (!types || !struct_unions) {
+    int i;
+    int lst1_length = PyList_GET_SIZE(lst1) / 2;
+    int lst2_length = PyList_GET_SIZE(lst2) / 2;
+    Py_ssize_t newsize0 = sizeof(_cffi_opcode_t) * (lst1_length + lst2_length);
+    Py_ssize_t newsize1 = sizeof(struct _cffi_struct_union_s) * lst1_length;
+    Py_ssize_t newsize2 = sizeof(struct _cffi_typename_s) * lst2_length;
+    types = PyMem_Malloc(newsize0);
+    struct_unions = PyMem_Malloc(newsize1);
+    typenames = PyMem_Malloc(newsize2);
+    if (!types || !struct_unions || !typenames) {
         PyErr_NoMemory();
         goto bad_usage;
     }
-    memset(types, 0, new_size_1);
-    memset(struct_unions, 0, new_size_2);
+    memset(types, 0, newsize0);
+    memset(struct_unions, 0, newsize1);
+    memset(typenames, 0, newsize2);
 
-    for (i = 0; i < lst_length; i++) {
+    for (i = 0; i < lst1_length; i++) {
         PyObject *x = PyList_GET_ITEM(lst1, i * 2);
         if (!PyString_Check(x))
             goto bad_usage;
@@ -570,18 +578,32 @@ static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
         struct_unions[i].size = (size_t)-2;
         struct_unions[i].alignment = -2;
     }
-    for (i = 0; i < lst_length; i++) {
+    for (i = 0; i < lst2_length; i++) {
+        PyObject *x = PyList_GET_ITEM(lst2, i * 2);
+        if (!PyString_Check(x))
+            goto bad_usage;
+        typenames[i].name = PyString_AS_STRING(x);
+        typenames[i].type_index = lst1_length + i;
+
+        x = PyList_GET_ITEM(lst2, i * 2 + 1);
+        if (!CTypeDescr_Check(x))
+            goto bad_usage;
+        types[lst1_length + i] = x;
+    }
+    for (i = 0; i < lst1_length + lst2_length; i++) {
         PyObject *x = (PyObject *)types[i];
         Py_INCREF(x);
     }
 
-    Py_INCREF(lst1);     /* to keep alive the strings in '.name' */
+    Py_INCREF(args);     /* to keep alive the strings in '.name' */
     Py_XDECREF(self->dynamic_types);
-    self->dynamic_types = lst1;
+    self->dynamic_types = args;
     self->types_builder->ctx.types = types;
-    self->types_builder->num_types_imported = lst_length;
+    self->types_builder->num_types_imported = lst1_length + lst2_length;
     self->types_builder->ctx.struct_unions = struct_unions;
-    self->types_builder->ctx.num_struct_unions = lst_length;
+    self->types_builder->ctx.num_struct_unions = lst1_length;
+    self->types_builder->ctx.typenames = typenames;
+    self->types_builder->ctx.num_typenames = lst2_length;
 
     Py_INCREF(Py_None);
     return Py_None;

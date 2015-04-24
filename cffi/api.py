@@ -568,23 +568,48 @@ def _builtin_function_type(func):
             return ffi._get_cached_btype(tp)
 
 def _set_cdef_types(ffi):
+    from . import model
+
+    all_structs = {}
+    all_typedefs = {}
+    for name, tp in ffi._parser._declarations.items():
+        kind, basename = name.split(' ', 1)
+        if kind == 'struct' or kind == 'union' or kind == 'anonymous':
+            all_structs[tp.name] = tp
+        elif kind == 'typedef':
+            all_typedefs[basename] = tp
+            if getattr(tp, "origin", None) == "unknown_type":
+                all_structs[tp.name] = tp
+            elif isinstance(tp, model.NamedPointerType):
+                all_structs[tp.totype.name] = tp.totype
+
     struct_unions = []
     pending_completion = []
-    lst = ffi._parser._declarations.items()
-    lst = sorted(lst, key=lambda x: x[0].split(' ', 1)[1])
-    for name, tp in lst:
-        kind, basename = name.split(' ', 1)
-        if kind == 'struct' or kind == 'union':
-            if kind == 'struct':
-                BType = _cffi1_backend.new_struct_type(basename)
-            else:
-                BType = _cffi1_backend.new_union_type(basename)
-            struct_unions.append(basename)
-            struct_unions.append(BType)
-            if not tp.partial and tp.fldtypes is not None:
-                pending_completion.append((tp, BType))
+    for name, tp in sorted(all_structs.items()):
+        if not isinstance(tp, model.UnionType):
+            BType = _cffi1_backend.new_struct_type(name)
+        else:
+            BType = _cffi1_backend.new_union_type(name)
+        struct_unions.append(name)
+        struct_unions.append(BType)
+        if not tp.partial and tp.fldtypes is not None:
+            pending_completion.append((tp, BType))
     #
-    ffi.__set_types(struct_unions)
+    typenames = []
+    for name, tp in sorted(all_typedefs.items()):
+        cname = tp._get_c_name()
+        if cname == name:
+            assert isinstance(tp, model.StructOrUnionOrEnum)
+            cname = '%s %s' % (tp.kind, tp.name)
+        try:
+            BType = ffi.typeof(cname)
+        except ffi.error:
+            ffi.__set_types(struct_unions, typenames)
+            BType = ffi.typeof(cname)
+        typenames.append(name)
+        typenames.append(BType)
+    #
+    ffi.__set_types(struct_unions, typenames)
     #
     for tp, BType in pending_completion:
         fldtypes = [ffi.typeof(ftp._get_c_name()) for ftp in tp.fldtypes]

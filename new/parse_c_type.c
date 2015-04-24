@@ -56,7 +56,9 @@ static int is_space(char x)
 
 static int is_ident_first(char x)
 {
-    return (('A' <= x && x <= 'Z') || ('a' <= x && x <= 'z') || x == '_');
+    return (('A' <= x && x <= 'Z') || ('a' <= x && x <= 'z') || x == '_' ||
+            x == '$');   /* '$' in names is supported here, for the struct
+                            names invented by cparser */
 }
 
 static int is_digit(char x)

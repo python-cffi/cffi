@@ -508,36 +508,23 @@ class Recompiler:
     _generate_cpy_union_collecttype = _generate_cpy_struct_collecttype
 
     def _generate_cpy_struct_decl(self, tp, name):
-        cname = tp.get_c_name('')
-        self._struct_decl(tp, cname, cname.replace(' ', '_'))
+        cname = tp._get_c_name()
+        if ' ' in cname:
+            prefix, declname = cname.split(' ', 1)
+        else:
+            prefix, declname = '', cname
+        while declname.startswith('$'):
+            prefix += 'D'
+            declname = declname[1:]
+        approxname = prefix + '_' + declname
+        assert '$' not in approxname
+        self._struct_decl(tp, cname, approxname)
     _generate_cpy_union_decl = _generate_cpy_struct_decl
 
     def _generate_cpy_struct_ctx(self, tp, name, prefix='s'):
         cname = tp.get_c_name('')
         self._struct_ctx(tp, cname, cname.replace(' ', '_'))
     _generate_cpy_union_ctx = _generate_cpy_struct_ctx
-
-    # ----------
-    # 'anonymous' declarations.  These are produced for anonymous structs
-    # or unions; the 'name' is obtained by a typedef.
-
-    def _generate_cpy_anonymous_collecttype(self, tp, name):
-        if isinstance(tp, model.EnumType):
-            self._generate_cpy_enum_collecttype(tp, name)
-        else:
-            self._struct_collecttype(tp)
-
-    def _generate_cpy_anonymous_decl(self, tp, name):
-        if isinstance(tp, model.EnumType):
-            self._generate_cpy_enum_decl(tp, name, '')
-        else:
-            self._struct_decl(tp, name, 'typedef_' + name)
-
-    def _generate_cpy_anonymous_ctx(self, tp, name):
-        if isinstance(tp, model.EnumType):
-            self._generate_cpy_enum_ctx(tp, name, '')
-        else:
-            self._struct_ctx(tp, name, 'typedef_' + name)
 
     # ----------
     # constants, declared with "static const ..."
