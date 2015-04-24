@@ -190,6 +190,10 @@ class VGenericEngine(object):
                     indirect_args.append(typ)
                 indirect_result = tp.result
                 if isinstance(indirect_result, model.StructOrUnion):
+                    if indirect_result.fldtypes is None:
+                        raise TypeError("'%s' is used as result type, "
+                                        "but is opaque" % (
+                                            indirect_result._get_c_name(),))
                     indirect_result = model.PointerType(indirect_result)
                     indirect_args.insert(0, indirect_result)
                     indirections.insert(0, ("result", indirect_result))

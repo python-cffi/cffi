@@ -1680,9 +1680,8 @@ def test_struct_returned_by_func():
     e = py.test.raises(TypeError, ffi.verify,
                        "typedef struct { int x; } foo_t; "
                        "foo_t myfunc(void) { foo_t x = { 42 }; return x; }")
-    assert str(e.value) in [
-        "function myfunc: 'foo_t' is used as result type, but is opaque",
-        "function myfunc: result type 'foo_t' is opaque"]
+    assert str(e.value) == (
+        "function myfunc: 'foo_t' is used as result type, but is opaque")
 
 def test_include():
     ffi1 = FFI()
