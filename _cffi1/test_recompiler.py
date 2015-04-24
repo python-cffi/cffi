@@ -1,4 +1,4 @@
-import py
+import sys, py
 from cffi import FFI
 from _cffi1 import recompiler
 
@@ -160,6 +160,18 @@ def test_macro():
     assert lib.FOOBAR == -6912
     py.test.raises(AttributeError, "lib.FOOBAR = 2")
 
+def test_macro_check_value_ok():
+    ffi = FFI()
+    ffi.cdef("#define FOOBAR 42")
+    lib = verify(ffi, 'test_macro_check_value_ok', "#define FOOBAR 42")
+    assert lib.FOOBAR == 42
+
+def test_macro_check_value_fail():
+    ffi = FFI()
+    ffi.cdef("#define FOOBAR 42")
+    lib = verify(ffi, 'test_macro_check_value_fail', "#define FOOBAR 43")
+    assert lib.FOOBAR == 43      # for now, we don't check the cdef value
+
 def test_constant():
     ffi = FFI()
     ffi.cdef("static const int FOOBAR;")
@@ -250,6 +262,17 @@ def test_type_caching():
         ffi2.typeof("struct foo_s*(*)()"))
     assert ffi1.typeof("void(*)(struct foo_s*)") is not (
         ffi2.typeof("void(*)(struct foo_s*)"))
+
+def test_verify_enum():
+    py.test.skip("in-progress")
+    ffi = FFI()
+    ffi.cdef("""enum e1 { B1, A1, ... };""")
+    lib = verify(ffi, 'test_verify_enum',
+                 "enum e1 { A1, B1, C1=%d };" % sys.maxint)
+    ffi.typeof("enum e1")
+    assert lib.A1 == 0
+    assert lib.B1 == 0
+    assert ffi.sizeof("enum e1") == ffi.sizeof("long")
 
 def test_dotdotdot_length_of_array_field():
     ffi = FFI()

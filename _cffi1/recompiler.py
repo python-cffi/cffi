@@ -563,9 +563,7 @@ class Recompiler:
     # ----------
     # constants, declared with "static const ..."
 
-    def _generate_cpy_const(self, is_int, name, tp=None, category='const',
-                            check_value=None):
-        assert check_value is None # XXX
+    def _generate_cpy_const(self, is_int, name, tp=None, category='const'):
         prnt = self._prnt
         funcname = '_cffi_%s_%s' % (category, name)
         if is_int:
@@ -603,7 +601,7 @@ class Recompiler:
 
     # ----------
     # enums
-    
+
     def _generate_cpy_enum_collecttype(self, tp, name):
         self._do_collect_type(tp)
 
@@ -614,11 +612,9 @@ class Recompiler:
         pass
 
     def _generate_cpy_macro_decl(self, tp, name):
-        if tp == '...':
-            check_value = None
-        else:
-            check_value = tp     # an integer
-        self._generate_cpy_const(True, name, check_value=check_value)
+        # for now, we ignore the value (if != ',,,') given in the cdef
+        # and always trust the value coming from the C compiler
+        self._generate_cpy_const(True, name)
 
     def _generate_cpy_macro_ctx(self, tp, name):
         self._lsts["global"].append(
