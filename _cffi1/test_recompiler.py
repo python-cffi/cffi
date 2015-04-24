@@ -87,6 +87,10 @@ def test_type_table_anonymous_struct_with_typedef():
     check_type_table("typedef struct { int a; long b; } foo_t;",
                      "(STRUCT_UNION 0)(PRIMITIVE 7)(PRIMITIVE 9)")
 
+def test_type_table_enum():
+    check_type_table("enum foo_e { AA, BB, ... };",
+                     "(ENUM 0)")
+
 
 def test_math_sin():
     import math

@@ -90,7 +90,7 @@ struct _cffi_field_s {
 
 struct _cffi_enum_s {
     const char *name;
-    _cffi_opcode_t integer_type_op;
+    int size_and_sign;
 };
 
 struct _cffi_typename_s {

@@ -42,14 +42,20 @@ class Recompiler:
                     self.cffi_types.append('LEN') # placeholder
         assert None not in self._typesdict.values()
         #
-        # collect all structs and unions
+        # collect all structs and unions and enums
         self._struct_unions = {}
+        self._enums = {}
         for tp in all_decls:
             if isinstance(tp, model.StructOrUnion):
                 self._struct_unions[tp] = None
+            elif isinstance(tp, model.EnumType):
+                self._enums[tp] = None
         for i, tp in enumerate(sorted(self._struct_unions,
                                       key=lambda tp: tp.name)):
             self._struct_unions[tp] = i
+        for i, tp in enumerate(sorted(self._enums,
+                                      key=lambda tp: tp.name)):
+            self._enums[tp] = i
         #
         # emit all bytecode sequences now
         for tp in all_decls:
@@ -89,7 +95,7 @@ class Recompiler:
                                                                 step_name))
             except AttributeError:
                 raise ffiplatform.VerificationError(
-                    "not implemented in verify(): %r" % name)
+                    "not implemented in recompile(): %r" % name)
             try:
                 method(tp, realname)
             except Exception as e:
@@ -168,6 +174,12 @@ class Recompiler:
             assert i < len(lst)
             assert lst[i].startswith('  { "%s"' % tp.name)
         assert len(lst) == len(self._struct_unions)
+        # same with enums
+        lst = self._lsts["enum"]
+        for tp, i in self._enums.items():
+            assert i < len(lst)
+            assert lst[i].startswith('  { "%s"' % tp.name)
+        assert len(lst) == len(self._enums)
         #
         # the declaration of '_cffi_type_context'
         prnt('static const struct _cffi_type_context_s _cffi_type_context = {')
@@ -590,6 +602,12 @@ class Recompiler:
             '  { "%s", _cffi_const_%s, %s },' % (name, name, type_op))
 
     # ----------
+    # enums
+    
+    def _generate_cpy_enum_collecttype(self, tp, name):
+        self._do_collect_type(tp)
+
+    # ----------
     # macros: for now only for integers
 
     def _generate_cpy_macro_collecttype(self, tp, name):
@@ -679,8 +697,12 @@ class Recompiler:
     def _emit_bytecode_StructType(self, tp, index):
         struct_index = self._struct_unions[tp]
         self.cffi_types[index] = CffiOp(OP_STRUCT_UNION, struct_index)
-
     _emit_bytecode_UnionType = _emit_bytecode_StructType
+
+    def _emit_bytecode_EnumType(self, tp, index):
+        enum_index = self._enums[tp]
+        self.cffi_types[index] = CffiOp(OP_ENUM, enum_index)
+
 
 def make_c_source(ffi, module_name, preamble, target_c_file):
     recompiler = Recompiler(ffi, module_name)
