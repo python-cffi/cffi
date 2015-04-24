@@ -2,8 +2,8 @@ import py
 
 
 def check(input, expected_output=None, expected_ffi_error=False):
-    import _cffi1_backend
-    ffi = _cffi1_backend.FFI()
+    import _cffi_backend
+    ffi = _cffi_backend.FFI()
     if not expected_ffi_error:
         ct = ffi.typeof(input)
         assert isinstance(ct, ffi.CType)

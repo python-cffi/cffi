@@ -251,9 +251,9 @@ def test_identifier():
                                                         '->', Pointer(0)]
 
 def test_cffi_opcode_sync():
-    import cffi_opcode, cffi1.model
+    import cffi_opcode, cffi.model
     for name in dir(lib):
         if name.startswith('_CFFI_'):
             assert getattr(cffi_opcode, name[6:]) == getattr(lib, name)
     assert sorted(cffi_opcode.PRIMITIVE_TO_INDEX.keys()) == (
-        sorted(cffi1.model.PrimitiveType.ALL_PRIMITIVE_TYPES.keys()))
+        sorted(cffi.model.PrimitiveType.ALL_PRIMITIVE_TYPES.keys()))

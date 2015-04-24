@@ -1,6 +1,6 @@
 import py
-import recompiler
-from cffi1 import FFI
+from cffi import FFI
+from _cffi1 import recompiler
 
 
 def check_type_table(input, expected_output):

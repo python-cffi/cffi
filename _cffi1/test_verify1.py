@@ -1,5 +1,6 @@
 import sys, math, py
-from cffi1 import FFI, VerificationError, model
+from cffi import FFI, VerificationError, model
+from _cffi1 import recompiler
 
 lib_m = ['m']
 if sys.platform == 'win32':
@@ -7,7 +8,7 @@ if sys.platform == 'win32':
     import distutils.ccompiler
     if distutils.ccompiler.get_default_compiler() == 'msvc':
         lib_m = ['msvcrt']
-    pass      # no obvious -Werror equivalent on MSVC
+    extra_compile_args = []      # no obvious -Werror equivalent on MSVC
 else:
     if (sys.platform == 'darwin' and
           [int(x) for x in os.uname()[2].split('.')] >= [11, 0, 0]):
@@ -19,10 +20,13 @@ else:
         # assume a standard gcc
         extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
 
-    class FFI(FFI):
-        def verify(self, *args, **kwds):
-            return super(FFI, self).verify(
-                *args, extra_compile_args=extra_compile_args, **kwds)
+class FFI(FFI):
+    _verify_counter = 0
+    def verify(self, preamble='', *args, **kwds):
+        FFI._verify_counter += 1
+        return recompiler.verify(self, 'verify%d' % FFI._verify_counter,
+                                 preamble, *args,
+                                extra_compile_args=extra_compile_args, **kwds)
 
 class U(object):
     def __add__(self, other):
@@ -49,8 +53,8 @@ def test_missing_function(ffi=None):
 
 def test_missing_function_import_error():
     # uses the original FFI that just gives a warning during compilation
-    import cffi1
-    test_missing_function(ffi=cffi1.FFI())
+    import cffi
+    test_missing_function(ffi=cffi.FFI())
 
 def test_simple_case():
     ffi = FFI()

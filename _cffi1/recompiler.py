@@ -1,5 +1,5 @@
 import os, sys
-from cffi1 import ffiplatform, model
+from cffi import ffiplatform, model
 from cffi_opcode import *
 
 
@@ -183,7 +183,7 @@ class Recompiler:
         prnt('};')
         prnt()
         #
-        # the init function, loading _cffi1_backend and calling a method there
+        # the init function, loading _cffi_backend and calling a method there
         prnt('PyMODINIT_FUNC')
         prnt('init%s(void)' % (self.module_name,))
         prnt('{')
@@ -695,6 +695,6 @@ def verify(ffi, module_name, preamble, *args, **kwds):
     for name in dir(module.ffi):
         if not name.startswith('_'):
             attr = getattr(module.ffi, name)
-            if attr is not getattr(ffi, name):
+            if attr is not getattr(ffi, name, object()):
                 setattr(ffi, name, attr)
     return module.lib
