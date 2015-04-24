@@ -672,11 +672,7 @@ def _get_extension(module_name, c_file, kwds):
     include_dirs.insert(0, '.')   # XXX
     return ffiplatform.get_extension(source_name, module_name, **kwds)
 
-def recompile(ffi, module_name, preamble, tmpdir=None, **kwds):
-    if tmpdir is None:
-        tmpdir = 'build'
-        if not os.path.isdir(tmpdir):
-            os.mkdir(tmpdir)
+def recompile(ffi, module_name, preamble, tmpdir='.', **kwds):
     c_file = os.path.join(tmpdir, module_name + '.c')
     ext = _get_extension(module_name, c_file, kwds)
     make_c_source(ffi, module_name, preamble, c_file)

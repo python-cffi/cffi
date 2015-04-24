@@ -1,5 +1,5 @@
-from cffi1 import FFI
-from recompiler import recompile
+from cffi import FFI
+from _cffi1 import recompile
 
 ffi = FFI()
 ffi.cdef("""
