@@ -616,23 +616,20 @@ class Recompiler:
                 '  { "%s", _cffi_const_%s, %s },' % (enumerator, enumerator,
                                                      type_op))
         #
-        if cname is not None:
+        if cname is not None and '$' not in cname:
             size = "sizeof(%s)" % cname
             signed = "((%s)-1) <= 0" % cname
-            prim = "_cffi_prim_int(%s, %s)" % (size, signed)
-            allenums = ",".join(tp.enumerators)
         else:
-            size = xxxx
+            basetp = tp.build_baseinttype(self.ffi, [])
+            size = self.ffi.sizeof(basetp)
+            signed = int(int(self.ffi.cast(basetp, -1)) < 0)
+        allenums = ",".join(tp.enumerators)
         self._lsts["enum"].append(
-            '  { "%s", %d, %s,\n    "%s" },' % (tp.name, type_index,
-                                                prim, allenums))
+            '  { "%s", %d, _cffi_prim_int(%s, %s),\n'
+            '    "%s" },' % (tp.name, type_index, size, signed, allenums))
 
     def _generate_cpy_enum_ctx(self, tp, name):
-        if tp.has_c_name():
-            cname = tp.get_c_name('')
-        else:
-            cname = None
-        self._enum_ctx(tp, cname)
+        self._enum_ctx(tp, tp._get_c_name())
 
     # ----------
     # macros: for now only for integers

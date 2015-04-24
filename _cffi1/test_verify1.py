@@ -697,9 +697,10 @@ def test_full_enum():
     ffi.cdef("enum ee { EE1, EE2, EE3 };")
     ffi.verify("enum ee { EE1, EE2, EE3 };")
     py.test.raises(VerificationError, ffi.verify, "enum ee { EE1, EE2 };")
-    e = py.test.raises(VerificationError, ffi.verify,
-                       "enum ee { EE1, EE3, EE2 };")
-    assert str(e.value) == 'enum ee: EE2 has the real value 2, not 1'
+    # disabled: for now, we always accept and fix transparently constant values
+    #e = py.test.raises(VerificationError, ffi.verify,
+    #                   "enum ee { EE1, EE3, EE2 };")
+    #assert str(e.value) == 'enum ee: EE2 has the real value 2, not 1'
     # extra items cannot be seen and have no bad consequence anyway
     lib = ffi.verify("enum ee { EE1, EE2, EE3, EE4 };")
     assert lib.EE3 == 2
