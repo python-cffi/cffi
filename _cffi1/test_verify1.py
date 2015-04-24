@@ -639,9 +639,9 @@ def test_global_constants():
     # case the 'static' is completely ignored.
     ffi.cdef("static const int AA, BB, CC, DD;")
     lib = ffi.verify("#define AA 42\n"
-                     "#define BB (-43)\n"
-                     "#define CC (22*2)\n"
-                     "#define DD ((unsigned int)142)\n")
+                     "#define BB (-43)   // blah\n"
+                     "#define CC (22*2)  /* foobar */\n"
+                     "#define DD ((unsigned int)142)  /* foo\nbar */\n")
     assert lib.AA == 42
     assert lib.BB == -43
     assert lib.CC == 44
@@ -1208,11 +1208,11 @@ def test_callback_calling_convention():
     xxx
 
 def test_opaque_integer_as_function_result():
-    import platform
-    if platform.machine().startswith('sparc'):
-        py.test.skip('Breaks horribly on sparc (SIGILL + corrupted stack)')
-    elif platform.machine() == 'mips64' and sys.maxsize > 2**32:
-        py.test.skip('Segfaults on mips64el')
+    #import platform
+    #if platform.machine().startswith('sparc'):
+    #    py.test.skip('Breaks horribly on sparc (SIGILL + corrupted stack)')
+    #elif platform.machine() == 'mips64' and sys.maxsize > 2**32:
+    #    py.test.skip('Segfaults on mips64el')
     # XXX bad abuse of "struct { ...; }".  It only works a bit by chance
     # anyway.  XXX think about something better :-(
     ffi = FFI()
@@ -1226,6 +1226,40 @@ def test_opaque_integer_as_function_result():
     """)
     h = lib.foo()
     assert ffi.sizeof(h) == ffi.sizeof("short")
+
+def test_return_partial_struct():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef struct { int x; ...; } foo_t;
+        foo_t foo(void);
+    """)
+    lib = ffi.verify("""
+        typedef struct { int y, x; } foo_t;
+        foo_t foo(void) { foo_t r = { 45, 81 }; return r; }
+    """)
+    h = lib.foo()
+    assert ffi.sizeof(h) == 2 * ffi.sizeof("int")
+    assert h.x == 81
+
+def test_take_and_return_partial_structs():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef struct { int x; ...; } foo_t;
+        foo_t foo(foo_t, foo_t);
+    """)
+    lib = ffi.verify("""
+        typedef struct { int y, x; } foo_t;
+        foo_t foo(foo_t a, foo_t b) {
+            foo_t r = { 100, a.x * 5 + b.x * 7 };
+            return r;
+        }
+    """)
+    args = ffi.new("foo_t[3]")
+    args[0].x = 1000
+    args[2].x = -498
+    h = lib.foo(args[0], args[2])
+    assert ffi.sizeof(h) == 2 * ffi.sizeof("int")
+    assert h.x == 1000 * 5 - 498 * 7
 
 def test_cannot_name_struct_type():
     ffi = FFI()
@@ -1628,9 +1662,8 @@ def test_struct_returned_by_func():
     e = py.test.raises(TypeError, ffi.verify,
                        "typedef struct { int x; } foo_t; "
                        "foo_t myfunc(void) { foo_t x = { 42 }; return x; }")
-    assert str(e.value) in [
-        "function myfunc: 'foo_t' is used as result type, but is opaque",
-        "function myfunc: result type 'foo_t' is opaque"]
+    assert str(e.value) == (
+        "function myfunc: 'foo_t' is used as result type, but is opaque")
 
 def test_include():
     ffi1 = FFI()
