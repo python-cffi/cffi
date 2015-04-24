@@ -1,6 +1,7 @@
 import sys, math, py
-from cffi import FFI, VerificationError, model
+from cffi import FFI, VerificationError, VerificationMissing, model
 from _cffi1 import recompiler
+import _cffi_backend
 
 lib_m = ['m']
 if sys.platform == 'win32':
@@ -21,8 +22,10 @@ else:
         extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
 
 class FFI(FFI):
+    error = _cffi_backend.FFI.error
     _extra_compile_args = extra_compile_args
     _verify_counter = 0
+
     def verify(self, preamble='', *args, **kwds):
         from _cffi1.udir import udir
         FFI._verify_counter += 1
@@ -459,9 +462,9 @@ def test_ffi_nonfull_struct():
        ...;
     };
     """)
-    py.test.raises(ffi.error, ffi.sizeof, 'struct foo_s')
-    py.test.raises(TypeError, ffi.offsetof, 'struct foo_s', 'x')
-    py.test.raises(TypeError, ffi.new, 'struct foo_s *')
+    py.test.raises(VerificationMissing, ffi.sizeof, 'struct foo_s')
+    py.test.raises(VerificationMissing, ffi.offsetof, 'struct foo_s', 'x')
+    py.test.raises(VerificationMissing, ffi.new, 'struct foo_s *')
     ffi.verify("""
     struct foo_s {
        int a, b, x, c, d, e;
