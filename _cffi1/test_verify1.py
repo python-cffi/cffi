@@ -21,12 +21,18 @@ else:
         extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
 
 class FFI(FFI):
+    _extra_compile_args = extra_compile_args
     _verify_counter = 0
     def verify(self, preamble='', *args, **kwds):
+        from _cffi1.udir import udir
         FFI._verify_counter += 1
         return recompiler.verify(self, 'verify%d' % FFI._verify_counter,
                                  preamble, *args,
-                                extra_compile_args=extra_compile_args, **kwds)
+                                 extra_compile_args=self._extra_compile_args,
+                                 tmp=str(udir), **kwds)
+
+class FFI_warnings_not_error(FFI):
+    _extra_compile_args = []
 
 class U(object):
     def __add__(self, other):
@@ -53,8 +59,7 @@ def test_missing_function(ffi=None):
 
 def test_missing_function_import_error():
     # uses the original FFI that just gives a warning during compilation
-    import cffi
-    test_missing_function(ffi=cffi.FFI())
+    test_missing_function(ffi=FFI_warnings_not_error())
 
 def test_simple_case():
     ffi = FFI()
@@ -1855,8 +1860,7 @@ def test_bug_const_char_ptr_array_1():
     assert repr(ffi.typeof(lib.a)) == "<ctype 'char *[5]'>"
 
 def test_bug_const_char_ptr_array_2():
-    from cffi import FFI     # ignore warnings
-    ffi = FFI()
+    ffi = FFI_warnings_not_error()    # ignore warnings
     ffi.cdef("""const int a[];""")
     lib = ffi.verify("""const int a[5];""")
     assert repr(ffi.typeof(lib.a)) == "<ctype 'int *'>"

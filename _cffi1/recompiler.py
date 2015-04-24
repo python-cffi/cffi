@@ -702,10 +702,13 @@ def recompile(ffi, module_name, preamble, tmpdir='.', **kwds):
     return outputfilename
 
 def verify(ffi, module_name, preamble, *args, **kwds):
+    from _cffi1.udir import udir
     import imp
     assert module_name not in sys.modules, "module name conflict: %r" % (
         module_name,)
-    outputfilename = recompile(ffi, module_name, preamble, *args, **kwds)
+    outputfilename = recompile(ffi, module_name, preamble,
+                               tmpdir=str(udir),
+                               *args, **kwds)
     module = imp.load_dynamic(module_name, outputfilename)
     #
     # hack hack hack: copy all *bound methods* from module.ffi back to the
