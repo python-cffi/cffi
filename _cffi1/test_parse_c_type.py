@@ -21,6 +21,9 @@ class ParseError(Exception):
 struct_names = ["bar_s", "foo", "foo_", "foo_s", "foo_s1", "foo_s12"]
 assert struct_names == sorted(struct_names)
 
+enum_names = ["ebar_s", "efoo", "efoo_", "efoo_s", "efoo_s1", "efoo_s12"]
+assert enum_names == sorted(enum_names)
+
 identifier_names = ["id", "id0", "id05", "id05b", "tail"]
 assert identifier_names == sorted(identifier_names)
 
@@ -32,6 +35,13 @@ for _i in range(len(struct_names)):
 ctx_structs[3].flags = lib.CT_UNION
 ctx.struct_unions = ctx_structs
 ctx.num_struct_unions = len(struct_names)
+
+c_enum_names = [ffi.new("char[]", _n) for _n in enum_names]
+ctx_enums = ffi.new("struct _cffi_enum_s[]", len(enum_names))
+for _i in range(len(enum_names)):
+    ctx_enums[_i].name = c_enum_names[_i]
+ctx.enums = ctx_enums
+ctx.num_enums = len(enum_names)
 
 c_identifier_names = [ffi.new("char[]", _n) for _n in identifier_names]
 ctx_identifiers = ffi.new("struct _cffi_typename_s[]", len(identifier_names))
@@ -93,6 +103,7 @@ NoOp = make_getter('NOOP')
 Func = make_getter('FUNCTION')
 FuncEnd = make_getter('FUNCTION_END')
 Struct = make_getter('STRUCT_UNION')
+Enum = make_getter('ENUM')
 Typename = make_getter('TYPENAME')
 
 
@@ -196,6 +207,12 @@ def test_fix_arg_types():
         '->', Func(0), Pointer(4), FuncEnd(0),
         Prim(lib._CFFI_PRIM_CHAR),
         OpenArray(4)]
+
+def test_enum():
+    for i in range(len(enum_names)):
+        assert parse("enum %s" % (enum_names[i],)) == ['->', Enum(i)]
+        assert parse("enum %s*" % (enum_names[i],)) == [Enum(i),
+                                                        '->', Pointer(0)]
 
 def test_error():
     parse_error("short short int", "'short' after another 'short' or 'long'", 6)

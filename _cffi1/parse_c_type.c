@@ -26,6 +26,7 @@ enum token_e {
     //TOK__COMPLEX,
     TOK_CONST,
     TOK_DOUBLE,
+    TOK_ENUM,
     TOK_FLOAT,
     //TOK__IMAGINARY,
     TOK_INT,
@@ -149,6 +150,9 @@ static void next_token(token_t *tok)
         break;
     case 'd':
         if (tok->size == 6 && !memcmp(p, "double", 6)) tok->kind = TOK_DOUBLE;
+        break;
+    case 'e':
+        if (tok->size == 4 && !memcmp(p, "enum", 4))   tok->kind = TOK_ENUM;
         break;
     case 'f':
         if (tok->size == 5 && !memcmp(p, "float", 5))  tok->kind = TOK_FLOAT;
@@ -375,6 +379,7 @@ static int parse_sequel(token_t *tok, int outer)
 MAKE_SEARCH_FUNC(globals)
 MAKE_SEARCH_FUNC(struct_unions)
 MAKE_SEARCH_FUNC(typenames)
+MAKE_SEARCH_FUNC(enums)
 
 #undef MAKE_SEARCH_FUNC
 
@@ -509,6 +514,7 @@ static int parse_complete(token_t *tok)
         case TOK_FLOAT:
         case TOK_STRUCT:
         case TOK_UNION:
+        case TOK_ENUM:
             return parse_error(tok, "invalid combination of types");
 
         case TOK_DOUBLE:
@@ -596,6 +602,19 @@ static int parse_complete(token_t *tok)
                 return parse_error(tok, "wrong kind of tag: struct vs union");
 
             t1 = _CFFI_OP(_CFFI_OP_STRUCT_UNION, n);
+            break;
+        }
+        case TOK_ENUM:
+        {
+            next_token(tok);
+            if (tok->kind != TOK_IDENTIFIER)
+                return parse_error(tok, "enum name expected");
+
+            int n = search_in_enums(tok->info->ctx, tok->p, tok->size);
+            if (n < 0)
+                return parse_error(tok, "undefined enum name");
+
+            t1 = _CFFI_OP(_CFFI_OP_ENUM, n);
             break;
         }
         default:
