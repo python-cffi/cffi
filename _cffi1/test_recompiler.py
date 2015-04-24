@@ -31,7 +31,7 @@ def test_type_table_func():
                      "(FUNCTION 4)(PRIMITIVE 14)(FUNCTION_END 0)"   # sin
                      "(FUNCTION 4)(PRIMITIVE 13)(FUNCTION_END 0)")  # cos
 
-def test_use_noop_for_repeated_args():
+def test_type_table_use_noop_for_repeated_args():
     check_type_table("double sin(double *, double *);",
                      "(FUNCTION 4)(POINTER 4)(NOOP 1)(FUNCTION_END 0)"
                      "(PRIMITIVE 14)")
@@ -39,51 +39,51 @@ def test_use_noop_for_repeated_args():
                      "(FUNCTION 3)(POINTER 3)(NOOP 1)(PRIMITIVE 14)"
                      "(FUNCTION_END 0)")
 
-def test_dont_use_noop_for_primitives():
+def test_type_table_dont_use_noop_for_primitives():
     check_type_table("double sin(double, double);",
                      "(FUNCTION 1)(PRIMITIVE 14)(PRIMITIVE 14)(FUNCTION_END 0)")
 
-def test_funcptr_as_argument():
+def test_type_table_funcptr_as_argument():
     check_type_table("int sin(double(float));",
                      "(FUNCTION 6)(PRIMITIVE 13)(FUNCTION_END 0)"
                      "(FUNCTION 7)(POINTER 0)(FUNCTION_END 0)"
                      "(PRIMITIVE 14)(PRIMITIVE 7)")
 
-def test_variadic_function():
+def test_type_table_variadic_function():
     check_type_table("int sin(int, ...);",
                      "(FUNCTION 1)(PRIMITIVE 7)(FUNCTION_END 1)")
 
-def test_array():
+def test_type_table_array():
     check_type_table("int a[100];",
                      "(PRIMITIVE 7)(ARRAY 0)(None 100)")
 
-def test_typedef():
+def test_type_table_typedef():
     check_type_table("typedef int foo_t;",
                      "(PRIMITIVE 7)")
 
-def test_prebuilt_type():
+def test_type_table_prebuilt_type():
     check_type_table("int32_t f(void);",
                      "(FUNCTION 2)(FUNCTION_END 0)(PRIMITIVE 21)")
 
-def test_struct_opaque():
+def test_type_table_struct_opaque():
     check_type_table("struct foo_s;",
                      "(STRUCT_UNION 0)")
 
-def test_struct():
+def test_type_table_struct():
     check_type_table("struct foo_s { int a; long b; };",
                      "(PRIMITIVE 7)(PRIMITIVE 9)(STRUCT_UNION 0)")
 
-def test_union():
+def test_type_table_union():
     check_type_table("union foo_u { int a; long b; };",
                      "(PRIMITIVE 7)(PRIMITIVE 9)(STRUCT_UNION 0)")
 
-def test_struct_used():
+def test_type_table_struct_used():
     check_type_table("struct foo_s { int a; long b; }; int f(struct foo_s*);",
                      "(FUNCTION 3)(POINTER 5)(FUNCTION_END 0)"
                      "(PRIMITIVE 7)(PRIMITIVE 9)"
                      "(STRUCT_UNION 0)")
 
-def test_anonymous_struct_with_typedef():
+def test_type_table_anonymous_struct_with_typedef():
     check_type_table("typedef struct { int a; long b; } foo_t;",
                      "(STRUCT_UNION 0)(PRIMITIVE 7)(PRIMITIVE 9)")
 
