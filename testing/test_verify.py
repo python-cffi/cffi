@@ -1233,13 +1233,11 @@ def test_opaque_integer_as_function_result():
         py.test.skip('Segfaults on mips64el')
     # XXX bad abuse of "struct { ...; }".  It only works a bit by chance
     # anyway.  XXX think about something better :-(
-    # ...in fact, it is no longer supported: likely crashes in vgen
     ffi = FFI()
-    py.test.raises(VerificationError, ffi.cdef, """
+    ffi.cdef("""
         typedef struct { ...; } myhandle_t;
         myhandle_t foo(void);
     """)
-    py.test.skip("XXX reimplement maybe?")
     lib = ffi.verify("""
         typedef short myhandle_t;
         myhandle_t foo(void) { return 42; }
@@ -1248,7 +1246,6 @@ def test_opaque_integer_as_function_result():
     assert ffi.sizeof(h) == ffi.sizeof("short")
 
 def test_return_partial_struct():
-    py.test.skip("not implemented")
     ffi = FFI()
     ffi.cdef("""
         typedef struct { int x; ...; } foo_t;
@@ -1261,6 +1258,26 @@ def test_return_partial_struct():
     h = lib.foo()
     assert ffi.sizeof(h) == 2 * ffi.sizeof("int")
     assert h.x == 81
+
+def test_take_and_return_partial_structs():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef struct { int x; ...; } foo_t;
+        foo_t foo(foo_t, foo_t);
+    """)
+    lib = ffi.verify("""
+        typedef struct { int y, x; } foo_t;
+        foo_t foo(foo_t a, foo_t b) {
+            foo_t r = { 100, a.x * 5 + b.x * 7 };
+            return r;
+        }
+    """)
+    args = ffi.new("foo_t[3]")
+    args[0].x = 1000
+    args[2].x = -498
+    h = lib.foo(args[0], args[2])
+    assert ffi.sizeof(h) == 2 * ffi.sizeof("int")
+    assert h.x == 1000 * 5 - 498 * 7
 
 def test_cannot_name_struct_type():
     ffi = FFI()
