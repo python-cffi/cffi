@@ -1233,17 +1233,34 @@ def test_opaque_integer_as_function_result():
         py.test.skip('Segfaults on mips64el')
     # XXX bad abuse of "struct { ...; }".  It only works a bit by chance
     # anyway.  XXX think about something better :-(
+    # ...in fact, it is no longer supported: likely crashes in vgen
     ffi = FFI()
-    ffi.cdef("""
+    py.test.raises(VerificationError, ffi.cdef, """
         typedef struct { ...; } myhandle_t;
         myhandle_t foo(void);
     """)
+    py.test.skip("XXX reimplement maybe?")
     lib = ffi.verify("""
         typedef short myhandle_t;
         myhandle_t foo(void) { return 42; }
     """)
     h = lib.foo()
     assert ffi.sizeof(h) == ffi.sizeof("short")
+
+def test_return_partial_struct():
+    py.test.skip("not implemented")
+    ffi = FFI()
+    ffi.cdef("""
+        typedef struct { int x; ...; } foo_t;
+        foo_t foo(void);
+    """)
+    lib = ffi.verify("""
+        typedef struct { int y, x; } foo_t;
+        foo_t foo(void) { foo_t r = { 45, 81 }; return r; }
+    """)
+    h = lib.foo()
+    assert ffi.sizeof(h) == 2 * ffi.sizeof("int")
+    assert h.x == 81
 
 def test_cannot_name_struct_type():
     ffi = FFI()
