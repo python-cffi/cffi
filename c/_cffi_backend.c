@@ -5402,6 +5402,12 @@ static PyObject *b_from_buffer(PyObject *self, PyObject *args)
     return NULL;
 }
 
+static PyObject *b__get_types(PyObject *self, PyObject *noarg)
+{
+    return PyTuple_Pack(2, (PyObject *)&CData_Type,
+                           (PyObject *)&CTypeDescr_Type);
+}
+
 /************************************************************/
 
 static char _testfunc0(char a, char b)
@@ -5706,6 +5712,7 @@ static PyMethodDef FFIBackendMethods[] = {
 #ifdef MS_WIN32
     {"getwinerror", b_getwinerror, METH_VARARGS},
 #endif
+    {"_get_types", b__get_types, METH_NOARGS},
     {"_testfunc", b__testfunc, METH_VARARGS},
     {"_testbuff", b__testbuff, METH_VARARGS},
     {NULL,     NULL}    /* Sentinel */
@@ -5820,7 +5827,7 @@ static PyObject *_cffi_from_c_wchar_t(wchar_t x) {
 }
 #endif
 
-#include "../new/cffi1_module.c"
+#include "../_cffi1/cffi1_module.c"
 
 static void *cffi_exports[] = {
     (void *)26,
@@ -5861,7 +5868,7 @@ static void *cffi_exports[] = {
 #if PY_MAJOR_VERSION >= 3
 static struct PyModuleDef FFIBackendModuleDef = {
   PyModuleDef_HEAD_INIT,
-  "_cffi1_backend",
+  "_cffi_backend",
   NULL,
   -1,
   FFIBackendMethods,
@@ -5875,7 +5882,7 @@ PyInit__cffi_backend(void)
 #define INITERROR return
 
 PyMODINIT_FUNC
-init_cffi1_backend(void)
+init_cffi_backend(void)
 #endif
 {
     PyObject *m, *v;
@@ -5892,7 +5899,7 @@ init_cffi1_backend(void)
 #if PY_MAJOR_VERSION >= 3
     m = PyModule_Create(&FFIBackendModuleDef);
 #else
-    m = Py_InitModule("_cffi1_backend", FFIBackendMethods);
+    m = Py_InitModule("_cffi_backend", FFIBackendMethods);
 #endif
 
     if (m == NULL)

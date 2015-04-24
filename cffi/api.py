@@ -1,9 +1,5 @@
 import sys, types
 from .lock import allocate_lock
-import _cffi1_backend
-
-class DeprecatedError(Exception):
-    pass
 
 try:
     callable
@@ -19,7 +15,8 @@ except NameError:
     basestring = str
 
 
-FFIError = _cffi1_backend.FFI.error
+class FFIError(Exception):
+    pass
 
 class CDefError(Exception):
     def __str__(self):
@@ -30,7 +27,7 @@ class CDefError(Exception):
         return '%s%s' % (line, self.args[0])
 
 
-class FFI(_cffi1_backend.FFI):
+class FFI(object):
     r'''
     The main top-level class that you instantiate once, or once per module.
 
@@ -48,16 +45,21 @@ class FFI(_cffi1_backend.FFI):
         C.printf("hello, %s!\n", ffi.new("char[]", "world"))
     '''
 
-    def __init__(self):
+    def __init__(self, backend=None):
         """Create an FFI instance.  The 'backend' argument is used to
         select a non-default backend, mostly for tests.
         """
         from . import cparser, model
-        from . import __version__
-
-        backend = _cffi1_backend
-        assert backend.__version__ == __version__, \
-            "version mismatch, %s != %s" % (backend.__version__, __version__)
+        if backend is None:
+            # You need PyPy (>= 2.0 beta), or a CPython (>= 2.6) with
+            # _cffi_backend.so compiled.
+            import _cffi_backend as backend
+            from . import __version__
+            assert backend.__version__ == __version__, \
+               "version mismatch, %s != %s" % (backend.__version__, __version__)
+            # (If you insist you can also try to pass the option
+            # 'backend=backend_ctypes.CTypesBackend()', but don't
+            # rely on it!  It's probably not going to work well.)
 
         self._backend = backend
         self._lock = allocate_lock()
@@ -75,9 +77,18 @@ class FFI(_cffi1_backend.FFI):
             if name.startswith('RTLD_'):
                 setattr(self, name, getattr(backend, name))
         #
-        #with self._lock:
-        #    self.BVoidP = self._get_cached_btype(model.voidp_type)
-        #    self.BCharA = self._get_cached_btype(model.char_array_type)
+        with self._lock:
+            self.BVoidP = self._get_cached_btype(model.voidp_type)
+            self.BCharA = self._get_cached_btype(model.char_array_type)
+        if isinstance(backend, types.ModuleType):
+            # _cffi_backend: attach these constants to the class
+            if not hasattr(FFI, 'NULL'):
+                FFI.NULL = self.cast(self.BVoidP, 0)
+                FFI.CData, FFI.CType = backend._get_types()
+        else:
+            # ctypes backend: attach these constants to the instance
+            self.NULL = self.cast(self.BVoidP, 0)
+            self.CData, self.CType = backend._get_types()
 
     def cdef(self, csource, override=False, packed=False):
         """Parse the given C source.  This registers all declared functions,
@@ -97,7 +108,6 @@ class FFI(_cffi1_backend.FFI):
             if override:
                 for cache in self._function_caches:
                     cache.clear()
-        _set_cdef_types(self)
 
     def dlopen(self, name, flags=0):
         """Load and return a dynamic library identified by 'name'.
@@ -145,7 +155,7 @@ class FFI(_cffi1_backend.FFI):
                             "pointer-to-function type" % (cdecl,))
         return btype
 
-    def XXXtypeof(self, cdecl):
+    def typeof(self, cdecl):
         """Parse the C type given as a string and return the
         corresponding <ctype> object.
         It can also be used on 'cdata' instance to get its C type.
@@ -164,7 +174,7 @@ class FFI(_cffi1_backend.FFI):
                 return self._get_cached_btype(cdecl._cffi_base_type)
         raise TypeError(type(cdecl))
 
-    def XXXsizeof(self, cdecl):
+    def sizeof(self, cdecl):
         """Return the size in bytes of the argument.  It can be a
         string naming a C type, or a 'cdata' instance.
         """
@@ -174,7 +184,7 @@ class FFI(_cffi1_backend.FFI):
         else:
             return self._backend.sizeof(cdecl)
 
-    def XXXalignof(self, cdecl):
+    def alignof(self, cdecl):
         """Return the natural alignment size in bytes of the C type
         given as a string.
         """
@@ -182,7 +192,7 @@ class FFI(_cffi1_backend.FFI):
             cdecl = self._typeof(cdecl)
         return self._backend.alignof(cdecl)
 
-    def XXXoffsetof(self, cdecl, *fields_or_indexes):
+    def offsetof(self, cdecl, *fields_or_indexes):
         """Return the offset of the named field inside the given
         structure or array, which must be given as a C type name.  
         You can give several field names in case of nested structures.
@@ -193,7 +203,7 @@ class FFI(_cffi1_backend.FFI):
             cdecl = self._typeof(cdecl)
         return self._typeoffsetof(cdecl, *fields_or_indexes)[1]
 
-    def XXXnew(self, cdecl, init=None):
+    def new(self, cdecl, init=None):
         """Allocate an instance according to the specified C type and
         return a pointer to it.  The specified C type must be either a
         pointer or an array: ``new('X *')`` allocates an X and returns
@@ -220,7 +230,7 @@ class FFI(_cffi1_backend.FFI):
             cdecl = self._typeof(cdecl)
         return self._backend.newp(cdecl, init)
 
-    def XXXcast(self, cdecl, source):
+    def cast(self, cdecl, source):
         """Similar to a C cast: returns an instance of the named C
         type initialized with the given 'source'.  The source is
         casted between integers or pointers of any type.
@@ -229,7 +239,7 @@ class FFI(_cffi1_backend.FFI):
             cdecl = self._typeof(cdecl)
         return self._backend.cast(cdecl, source)
 
-    def XXXstring(self, cdata, maxlen=-1):
+    def string(self, cdata, maxlen=-1):
         """Return a Python string (or unicode string) from the 'cdata'.
         If 'cdata' is a pointer or array of characters or bytes, returns
         the null-terminated string.  The returned string extends until
@@ -247,7 +257,7 @@ class FFI(_cffi1_backend.FFI):
         """
         return self._backend.string(cdata, maxlen)
 
-    def XXXbuffer(self, cdata, size=-1):
+    def buffer(self, cdata, size=-1):
         """Return a read-write buffer object that references the raw C data
         pointed to by the given 'cdata'.  The 'cdata' must be a pointer or
         an array.  Can be passed to functions expecting a buffer, or directly
@@ -260,7 +270,7 @@ class FFI(_cffi1_backend.FFI):
         """
         return self._backend.buffer(cdata, size)
 
-    def XXXfrom_buffer(self, python_buffer):
+    def from_buffer(self, python_buffer):
         """Return a <cdata 'char[]'> that points to the data of the
         given Python object, which must support the buffer interface.
         Note that this is not meant to be used on the built-in types str,
@@ -270,7 +280,7 @@ class FFI(_cffi1_backend.FFI):
         """
         return self._backend.from_buffer(self.BCharA, python_buffer)
 
-    def XXXcallback(self, cdecl, python_callable=None, error=None):
+    def callback(self, cdecl, python_callable=None, error=None):
         """Return a callback object or a decorator making such a
         callback object.  'cdecl' must name a C function pointer type.
         The callback invokes the specified 'python_callable' (which may
@@ -290,7 +300,7 @@ class FFI(_cffi1_backend.FFI):
         else:
             return callback_decorator_wrap(python_callable)  # direct mode
 
-    def XXXgetctype(self, cdecl, replace_with=''):
+    def getctype(self, cdecl, replace_with=''):
         """Return a string giving the C type 'cdecl', which may be itself
         a string or a <ctype> object.  If 'replace_with' is given, it gives
         extra text to append (or insert for more complicated C types), like
@@ -306,7 +316,7 @@ class FFI(_cffi1_backend.FFI):
             replace_with = ' ' + replace_with
         return self._backend.getcname(cdecl, replace_with)
 
-    def XXXgc(self, cdata, destructor):
+    def gc(self, cdata, destructor):
         """Return a new cdata object that points to the same
         data.  Later, when this new cdata object is garbage-collected,
         'destructor(old_cdata_object)' will be called.
@@ -320,15 +330,18 @@ class FFI(_cffi1_backend.FFI):
             return gc_weakrefs.build(cdata, destructor)
 
     def _get_cached_btype(self, type):
-        raise DeprecatedError
+        assert self._lock.acquire(False) is False
+        # call me with the lock!
+        try:
+            BType = self._cached_btypes[type]
+        except KeyError:
+            finishlist = []
+            BType = type.get_cached_btype(self, finishlist)
+            for type in finishlist:
+                type.finish_backend_type(self, finishlist)
+        return BType
 
-    def verify(self, source='', **kwargs):
-        from recompiler import verify    # XXX must be in the current dir
-        FFI._verify_counter += 1
-        return verify(self, 'verify%d' % FFI._verify_counter, source, **kwargs)
-    _verify_counter = 0
-
-    def XXXverify(self, source='', tmpdir=None, **kwargs):
+    def verify(self, source='', tmpdir=None, **kwargs):
         """Verify that the current ffi signatures compile on this
         machine, and return a dynamic library object.  The dynamic
         library can be used to call functions and access global
@@ -362,10 +375,10 @@ class FFI(_cffi1_backend.FFI):
         return self._backend.get_errno()
     def _set_errno(self, errno):
         self._backend.set_errno(errno)
-    XXXerrno = property(_get_errno, _set_errno, None,
+    errno = property(_get_errno, _set_errno, None,
                      "the value of 'errno' from/to the C calls")
 
-    def XXXgetwinerror(self, code=-1):
+    def getwinerror(self, code=-1):
         return self._backend.getwinerror(code)
 
     def _pointer_to(self, ctype):
@@ -373,7 +386,7 @@ class FFI(_cffi1_backend.FFI):
         with self._lock:
             return model.pointer_cache(self, ctype)
 
-    def XXXaddressof(self, cdata, *fields_or_indexes):
+    def addressof(self, cdata, *fields_or_indexes):
         """Return the address of a <cdata 'struct-or-union'>.
         If 'fields_or_indexes' are given, returns the address of that
         field or array item in the structure or array, recursively in
@@ -405,7 +418,6 @@ class FFI(_cffi1_backend.FFI):
         variables, which must anyway be accessed directly from the
         lib object returned by the original FFI instance.
         """
-        XXX
         with ffi_to_include._lock:
             with self._lock:
                 self._parser.include(ffi_to_include._parser)
@@ -413,10 +425,10 @@ class FFI(_cffi1_backend.FFI):
                 self._cdefsources.extend(ffi_to_include._cdefsources)
                 self._cdefsources.append(']')
 
-    def XXXnew_handle(self, x):
+    def new_handle(self, x):
         return self._backend.newp_handle(self.BVoidP, x)
 
-    def XXXfrom_handle(self, x):
+    def from_handle(self, x):
         return self._backend.from_handle(x)
 
     def set_unicode(self, enabled_flag):
@@ -426,7 +438,6 @@ class FFI(_cffi1_backend.FFI):
         declare these types to be (pointers to) plain 8-bit characters.
         This is mostly for backward compatibility; you usually want True.
         """
-        XXX
         if self._windows_unicode is not None:
             raise ValueError("set_unicode() can only be called once")
         enabled_flag = bool(enabled_flag)
@@ -566,56 +577,3 @@ def _builtin_function_type(func):
     else:
         with ffi._lock:
             return ffi._get_cached_btype(tp)
-
-def _set_cdef_types(ffi):
-    from . import model
-
-    all_structs = {}
-    all_typedefs = {}
-    for name, tp in ffi._parser._declarations.items():
-        kind, basename = name.split(' ', 1)
-        if kind == 'struct' or kind == 'union' or kind == 'anonymous':
-            all_structs[tp.name] = tp
-        elif kind == 'typedef':
-            all_typedefs[basename] = tp
-            if getattr(tp, "origin", None) == "unknown_type":
-                all_structs[tp.name] = tp
-            elif isinstance(tp, model.NamedPointerType):
-                all_structs[tp.totype.name] = tp.totype
-
-    struct_unions = []
-    pending_completion = []
-    for name, tp in sorted(all_structs.items()):
-        if not isinstance(tp, model.UnionType):
-            BType = _cffi1_backend.new_struct_type(name)
-        else:
-            BType = _cffi1_backend.new_union_type(name)
-        struct_unions.append(name)
-        struct_unions.append(BType)
-        if not tp.partial and tp.fldtypes is not None:
-            pending_completion.append((tp, BType))
-    #
-    typenames = []
-    for name, tp in sorted(all_typedefs.items()):
-        cname = tp._get_c_name()
-        if cname == name:
-            assert isinstance(tp, model.StructOrUnionOrEnum)
-            cname = '%s %s' % (tp.kind, tp.name)
-        try:
-            BType = ffi.typeof(cname)
-        except ffi.error:
-            ffi.__set_types(struct_unions, typenames)
-            BType = ffi.typeof(cname)
-        typenames.append(name)
-        typenames.append(BType)
-    #
-    ffi.__set_types(struct_unions, typenames)
-    #
-    for tp, BType in pending_completion:
-        fldtypes = [ffi.typeof(ftp._get_c_name()) for ftp in tp.fldtypes]
-        lst = list(zip(tp.fldnames, fldtypes, tp.fldbitsize))
-        sflags = 0
-        if tp.packed:
-            sflags = 8    # SF_PACKED
-        _cffi1_backend.complete_struct_or_union(BType, lst, ffi,
-                                                -1, -1, sflags)
