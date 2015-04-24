@@ -589,19 +589,14 @@ class Recompiler:
         is_int = isinstance(tp, model.PrimitiveType) and tp.is_integer_type()
         self._generate_cpy_const(is_int, name, tp)
 
-    def _generate_const_int_ctx(self, name):
-        self._lsts["global"].append(
-            '  { "%s", _cffi_const_%s, _CFFI_OP(_CFFI_OP_CONSTANT_INT, 0) },' %
-            (name, name))
-
     def _generate_cpy_constant_ctx(self, tp, name):
         if isinstance(tp, model.PrimitiveType) and tp.is_integer_type():
-            self._generate_const_int_ctx(name)
+            type_op = '_CFFI_OP(_CFFI_OP_CONSTANT_INT, 0)'
         else:
             type_index = self._typesdict[tp]
             type_op = '_CFFI_OP(_CFFI_OP_CONSTANT, %d)' % type_index
-            self._lsts["global"].append(
-                '  { "%s", _cffi_const_%s, %s },' % (name, name, type_op))
+        self._lsts["global"].append(
+            '  { "%s", _cffi_const_%s, %s },' % (name, name, type_op))
 
     # ----------
     # enums
@@ -614,8 +609,13 @@ class Recompiler:
             self._generate_cpy_const(True, enumerator)
 
     def _enum_ctx(self, tp, cname):
+        type_index = self._typesdict[tp]
+        type_op = '_CFFI_OP(_CFFI_OP_ENUM, %d)' % type_index
         for enumerator in tp.enumerators:
-            self._generate_const_int_ctx(enumerator)
+            self._lsts["global"].append(
+                '  { "%s", _cffi_const_%s, %s },' % (enumerator, enumerator,
+                                                     type_op))
+        #
         if cname is not None:
             size = "sizeof(%s)" % cname
             signed = "((%s)-1) <= 0" % cname
@@ -623,7 +623,7 @@ class Recompiler:
         else:
             size = xxxx
         self._lsts["enum"].append(
-            '  { "%s", %s },' % (tp.name, prim))
+            '  { "%s", %d, %s },' % (tp.name, type_index, prim))
 
     def _generate_cpy_enum_ctx(self, tp, name):
         if tp.has_c_name():

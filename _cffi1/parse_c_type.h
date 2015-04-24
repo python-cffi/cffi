@@ -90,7 +90,8 @@ struct _cffi_field_s {
 
 struct _cffi_enum_s {
     const char *name;
-    int type_prim;    /* _CFFI_PRIM_xxx */
+    int type_index;          // -> _cffi_types, on a OP_ENUM
+    int type_prim;           // _CFFI_PRIM_xxx
 };
 
 struct _cffi_typename_s {

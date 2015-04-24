@@ -11,6 +11,10 @@ static PyObject *global_types_dict;
 
 static PyObject *build_primitive_type(int num);   /* forward */
 
+#define get_primitive_type(num)                                 \
+    (all_primitives[num] != NULL ? all_primitives[num]          \
+                                 : build_primitive_type(num))
+
 static int init_global_types_dict(PyObject *ffi_type_dict)
 {
     int err;
@@ -20,7 +24,7 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
     if (global_types_dict == NULL)
         return -1;
 
-    ct = build_primitive_type(_CFFI_PRIM_VOID);         // 'void'
+    ct = get_primitive_type(_CFFI_PRIM_VOID);         // 'void'
     if (ct == NULL)
         return -1;
     if (PyDict_SetItemString(global_types_dict,
@@ -260,9 +264,7 @@ _realize_c_type_or_func(builder_c_t *builder,
     switch (_CFFI_GETOP(op)) {
 
     case _CFFI_OP_PRIMITIVE:
-        x = all_primitives[_CFFI_GETARG(op)];
-        if (x == NULL)
-            x = build_primitive_type(_CFFI_GETARG(op));
+        x = get_primitive_type(_CFFI_GETARG(op));
         Py_XINCREF(x);
         break;
 
@@ -334,7 +336,7 @@ _realize_c_type_or_func(builder_c_t *builder,
                 ct->ct_extra = builder;
             }
 
-            /* Update the "primary" OP_STRUCT_OR_UNION slot, which
+            /* Update the "primary" OP_STRUCT_UNION slot, which
                may be the same or a different slot than the "current" one */
             assert((((uintptr_t)x) & 1) == 0);
             assert(builder->ctx.types[s->type_index] == op2);
@@ -363,12 +365,40 @@ _realize_c_type_or_func(builder_c_t *builder,
     case _CFFI_OP_ENUM:
     {
         const struct _cffi_enum_s *e;
+        _cffi_opcode_t op2;
 
         e = &builder->ctx.enums[_CFFI_GETARG(op)];
-        x = all_primitives[e->type_prim];
-        if (x == NULL)
-            x = build_primitive_type(e->type_prim);
-        Py_XINCREF(x);
+        op2 = builder->ctx.types[e->type_index];
+        if ((((uintptr_t)op2) & 1) == 0) {
+            x = (PyObject *)op2;
+            Py_INCREF(x);
+        }
+        else {
+            PyObject *basetd = get_primitive_type(e->type_prim);
+            if (basetd == NULL)
+                return NULL;
+
+            PyObject *args = Py_BuildValue("(s()()O)", e->name, basetd);
+            if (args == NULL)
+                return NULL;
+
+            x = b_new_enum_type(NULL, args);
+            Py_DECREF(args);
+            if (x == NULL)
+                return NULL;
+
+            /* Update the "primary" _CFFI_OP_ENUM slot, which
+               may be the same or a different slot than the "current" one */
+            assert((((uintptr_t)x) & 1) == 0);
+            assert(builder->ctx.types[e->type_index] == op2);
+            Py_INCREF(x);
+            builder->ctx.types[e->type_index] = x;
+
+            /* Done, leave without updating the "current" slot because
+               it may be done already above.  If not, never mind, the
+               next call to realize_c_type() will do it. */
+            return x;
+        }
         break;
     }
 
