@@ -140,6 +140,16 @@ class BaseFunctionType(BaseType):
         replace_with = self._base_pattern % (', '.join(reprargs),)
         self.c_name_with_marker = (
             self.result.c_name_with_marker.replace('&', replace_with))
+        #
+        if isinstance(result, StructOrUnion) and result.partial:
+            from .ffiplatform import VerificationError
+            raise VerificationError(
+                '%s: the %s is a struct with "...;", which is not '
+                'supported as return type (how to call it with '
+                'libffi depends on possibly-omitted fields).  '
+                'Workaround: write a wrapper function which takes '
+                'a pointer-to-struct as extra argument and writes '
+                'the result there' % (self, result))
 
 
 class RawFunctionType(BaseFunctionType):
