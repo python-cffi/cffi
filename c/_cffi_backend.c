@@ -3802,7 +3802,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     CTypeDescrObject *ct;
     PyObject *fields, *interned_fields, *ignored;
     int is_union, alignment;
-    Py_ssize_t boffset, i, nb_fields, boffsetmax;
+    Py_ssize_t boffset, i, nb_fields, boffsetmax, alignedsize;
     Py_ssize_t totalsize = -1;
     int totalalignment = -1;
     CFieldObject **previous;
@@ -4084,12 +4084,15 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
        as 1 instead.  But for ctypes support, we allow the manually-
        specified totalsize to be zero in this case. */
     boffsetmax = (boffsetmax + 7) / 8;        /* bits -> bytes */
-    boffsetmax = (boffsetmax + alignment - 1) & ~(alignment-1);
+    alignedsize = (boffsetmax + alignment - 1) & ~(alignment-1);
+    if (alignedsize == 0)
+        alignedsize = 1;
+
     if (totalsize < 0) {
-        totalsize = boffsetmax ? boffsetmax : 1;
+        totalsize = alignedsize;
     }
     else {
-        if (detect_custom_layout(ct, sflags, boffsetmax ? boffsetmax : 1,
+        if (detect_custom_layout(ct, sflags, alignedsize,
                                  totalsize, "wrong total size", "", "") < 0)
             goto error;
         if (totalsize < boffsetmax) {
