@@ -272,6 +272,8 @@ class StructOrUnion(StructOrUnionOrEnum):
         self.build_c_name_with_marker()
 
     def has_anonymous_struct_fields(self):
+        if self.fldtypes is None:
+            return False
         for name, type in zip(self.fldnames, self.fldtypes):
             if name == '' and isinstance(type, StructOrUnion):
                 return True
