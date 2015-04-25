@@ -2,6 +2,8 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+
+#define _CFFI_INTERNAL
 #include "parse_c_type.h"
 
 

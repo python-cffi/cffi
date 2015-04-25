@@ -69,17 +69,18 @@ struct _cffi_global_s {
 struct _cffi_struct_union_s {
     const char *name;
     int type_index;          // -> _cffi_types, on a OP_STRUCT_UNION
-    int flags;               // CT_UNION?  CT_IS_OPAQUE?
+    int flags;               // CT_UNION?  CT_CUSTOM_FIELD_POS?
     size_t size;
     int alignment;
     int first_field_index;   // -> _cffi_fields array
     int num_fields;
 };
+#ifdef _CFFI_INTERNAL
 #define CT_UNION              128
-#define CT_IS_OPAQUE          4096
 #define CT_CUSTOM_FIELD_POS   32768
 /* ^^^ if not CUSTOM_FIELD_POS, complain if fields are not in the
    "standard layout" and/or if some are missing */
+#endif
 
 struct _cffi_field_s {
     const char *name;
@@ -122,8 +123,10 @@ struct _cffi_parse_info_s {
     const char *error_message;
 };
 
+#ifdef _CFFI_INTERNAL
 int parse_c_type(struct _cffi_parse_info_s *info, const char *input);
 int search_in_globals(const struct _cffi_type_context_s *ctx,
                       const char *search, size_t search_len);
 int search_in_struct_unions(const struct _cffi_type_context_s *ctx,
                             const char *search, size_t search_len);
+#endif

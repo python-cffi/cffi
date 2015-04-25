@@ -111,12 +111,21 @@ class Recompiler:
         # a KeyError here is a bug.  please report it! :-)
         return self._typesdict[type]
 
+    def _rel_readlines(self, filename):
+        g = open(os.path.join(os.path.dirname(__file__), filename), 'r')
+        lines = g.readlines()
+        g.close()
+        return lines
+
     def write_source_to_f(self, f, preamble):
         self._f = f
         prnt = self._prnt
         #
-        # first the '#include'
-        prnt('#include "_cffi_include.h"')
+        # first the '#include' (actually done by inlining the file's content)
+        lines = self._rel_readlines('_cffi_include.h')
+        i = lines.index('#include "parse_c_type.h"\n')
+        lines[i:i+1] = self._rel_readlines('parse_c_type.h')
+        prnt(''.join(lines))
         #
         # then paste the C source given by the user, verbatim.
         prnt('/************************************************************/')
@@ -447,12 +456,11 @@ class Recompiler:
 
     def _struct_ctx(self, tp, cname, approxname):
         type_index = self._typesdict[tp]
-        flags = []
+        flags = 0
         if tp.partial or tp.has_anonymous_struct_fields():
-            flags.append('CT_CUSTOM_FIELD_POS')
+            flags |= 32768  # CT_CUSTOM_FIELD_POS
         if isinstance(tp, model.UnionType):
-            flags.append('CT_UNION')
-        flags = ('|'.join(flags)) or '0'
+            flags |= 128    # CT_UNION
         if tp.fldtypes is not None:
             c_field = [approxname]
             enumfields = list(tp.enumfields())
@@ -494,7 +502,7 @@ class Recompiler:
         else:
             size_align = ' (size_t)-1, -1, -1, 0 /* opaque */ },'
         self._lsts["struct_union"].append(
-            '  { "%s", %d, %s,' % (tp.name, type_index, flags) + size_align)
+            '  { "%s", %d, 0x%x,' % (tp.name, type_index, flags) + size_align)
         self._seen_struct_unions.add(tp)
 
     def _add_missing_struct_unions(self):
@@ -744,8 +752,6 @@ def make_c_source(ffi, module_name, preamble, target_c_file):
 
 def _get_extension(module_name, c_file, kwds):
     source_name = ffiplatform.maybe_relative_path(c_file)
-    include_dirs = kwds.setdefault('include_dirs', [])
-    include_dirs.insert(0, '.')   # XXX
     return ffiplatform.get_extension(source_name, module_name, **kwds)
 
 def recompile(ffi, module_name, preamble, tmpdir='.', **kwds):

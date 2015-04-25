@@ -5,9 +5,11 @@ import cffi
 
 r_macro = re.compile(r"#define \w+[(][^\n]*|#include [^\n]*")
 r_define = re.compile(r"(#define \w+) [^\n]*")
+r_ifdefs = re.compile(r"(#ifdef |#endif)[^\n]*")
 header = open('parse_c_type.h').read()
 header = r_macro.sub(r"", header)
 header = r_define.sub(r"\1 ...", header)
+header = r_ifdefs.sub(r"", header)
 
 ffi = cffi.FFI()
 ffi.cdef(header)
