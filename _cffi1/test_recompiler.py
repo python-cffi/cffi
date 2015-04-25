@@ -1,5 +1,5 @@
 import sys, py
-from cffi import FFI
+from cffi import FFI, VerificationError
 from _cffi1 import recompiler
 
 
@@ -277,7 +277,13 @@ def test_verify_enum():
     assert lib.B2 == 1
     assert ffi.sizeof("enum e1") == ffi.sizeof("long")
     assert ffi.sizeof("enum e2") == ffi.sizeof("int")
- 
+
+def test_duplicate_enum():
+    ffi = FFI()
+    ffi.cdef("enum e1 { A1, ... }; enum e2 { A1, ... };")
+    py.test.raises(VerificationError, verify, ffi, 'test_duplicate_enum',
+                    "enum e1 { A1 }; enum e2 { B1 };")
+
 def test_dotdotdot_length_of_array_field():
     ffi = FFI()
     ffi.cdef("struct foo_s { int a[...]; int b[...]; };")

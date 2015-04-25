@@ -142,6 +142,7 @@ class Recompiler:
         #
         # call generate_cpy_xxx_decl(), for every xxx found from
         # ffi._parser._declarations.  This generates all the functions.
+        self._seen_constants = set()
         self._generate("decl")
         #
         # the declaration of '_cffi_globals' and '_cffi_typenames'
@@ -567,6 +568,11 @@ class Recompiler:
     # constants, declared with "static const ..."
 
     def _generate_cpy_const(self, is_int, name, tp=None, category='const'):
+        if (category, name) in self._seen_constants:
+            raise ffiplatform.VerificationError(
+                "duplicate declaration of %s '%s'" % (category, name))
+        self._seen_constants.add((category, name))
+        #
         prnt = self._prnt
         funcname = '_cffi_%s_%s' % (category, name)
         if is_int:
