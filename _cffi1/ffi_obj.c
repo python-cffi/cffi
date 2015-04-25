@@ -414,8 +414,36 @@ static PyObject *ffi_addressof(ZefFFIObject *self, PyObject *args)
         return NULL;
     }
 }
+#endif
 
-static PyObject *ffi_getctype(ZefFFIObject *self, PyObject *args)
+static PyObject *_combine_type_name_l(CTypeDescrObject *ct,
+                                      size_t extra_text_len)
+{
+    size_t base_name_len;
+    PyObject *result;
+    char *p;
+
+    base_name_len = strlen(ct->ct_name);
+    result = PyString_FromStringAndSize(NULL, base_name_len + extra_text_len);
+    if (result == NULL)
+        return NULL;
+
+    p = PyString_AS_STRING(result);
+    memcpy(p, ct->ct_name, ct->ct_name_position);
+    p += ct->ct_name_position;
+    p += extra_text_len;
+    memcpy(p, ct->ct_name + ct->ct_name_position,
+           base_name_len - ct->ct_name_position);
+    return result;
+}
+
+PyDoc_STRVAR(ffi_getctype_doc,
+"Return a string giving the C type 'cdecl', which may be itself a\n"
+"string or a <ctype> object.  If 'replace_with' is given, it gives\n"
+"extra text to append (or insert for more complicated C types), like a\n"
+"variable name, or '*' to get actually the C type 'pointer-to-cdecl'.");
+
+static PyObject *ffi_getctype(FFIObject *self, PyObject *args)
 {
     PyObject *cdecl, *res;
     char *p, *replace_with = "";
@@ -437,11 +465,11 @@ static PyObject *ffi_getctype(ZefFFIObject *self, PyObject *args)
         replace_with_len--;
 
     add_paren = (replace_with[0] == '*' &&
-                 ((ct->ct_flags & (CT_ARRAY | CT_FUNCTION)) != 0));
+                 ((ct->ct_flags & CT_ARRAY) != 0));
     add_space = (!add_paren && replace_with_len > 0 &&
                  replace_with[0] != '[' && replace_with[0] != '(');
 
-    res = combine_type_name_l(ct, replace_with_len + add_space + 2 * add_paren);
+    res = _combine_type_name_l(ct, replace_with_len + add_space + 2*add_paren);
     if (res == NULL)
         return NULL;
 
@@ -456,6 +484,7 @@ static PyObject *ffi_getctype(ZefFFIObject *self, PyObject *args)
     return res;
 }
 
+#if 0
 static PyObject *ffi_new_handle(ZefFFIObject *self, PyObject *arg)
 {
     CTypeDescrObject *ct = ZefNULL->c_type;   // <ctype 'void *'>
@@ -677,8 +706,8 @@ static PyMethodDef ffi_methods[] = {
 #if 0
     {"from_handle",(PyCFunction)ffi_from_handle,METH_O},
     {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS},
-    {"getctype",   (PyCFunction)ffi_getctype,   METH_VARARGS},
 #endif
+    {"getctype",   (PyCFunction)ffi_getctype,   METH_VARARGS, ffi_getctype_doc},
     {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
     {"new",        (PyCFunction)ffi_new,        METH_VARARGS, ffi_new_doc},
 #if 0

@@ -96,3 +96,8 @@ def test_ffi_callback_decorator():
     deco = ffi.callback("int(int)", error=-66)
     assert deco(lambda x: x + "")(10) == -66
     assert deco(lambda x: x + 42)(10) == 52
+
+def test_ffi_getctype():
+    ffi = _cffi1_backend.FFI()
+    assert ffi.getctype("int*") == "int *"
+    assert ffi.getctype("int[5]", "a") == "int a[5]"
