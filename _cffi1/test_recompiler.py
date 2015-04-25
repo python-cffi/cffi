@@ -51,7 +51,7 @@ def test_type_table_funcptr_as_argument():
 
 def test_type_table_variadic_function():
     check_type_table("int sin(int, ...);",
-                     "(FUNCTION 1)(PRIMITIVE 7)(FUNCTION_END 1)")
+                     "(FUNCTION 1)(PRIMITIVE 7)(FUNCTION_END 1)(POINTER 0)")
 
 def test_type_table_array():
     check_type_table("int a[100];",
