@@ -99,5 +99,18 @@ def test_ffi_callback_decorator():
 
 def test_ffi_getctype():
     ffi = _cffi1_backend.FFI()
+    assert ffi.getctype("int") == "int"
+    assert ffi.getctype("int", 'x') == "int x"
     assert ffi.getctype("int*") == "int *"
-    assert ffi.getctype("int[5]", "a") == "int a[5]"
+    assert ffi.getctype("int*", '') == "int *"
+    assert ffi.getctype("int*", 'x') == "int * x"
+    assert ffi.getctype("int", '*') == "int *"
+    assert ffi.getctype("int", ' * x ') == "int * x"
+    assert ffi.getctype(ffi.typeof("int*"), '*') == "int * *"
+    assert ffi.getctype("int", '[5]') == "int[5]"
+    assert ffi.getctype("int[5]", '[6]') == "int[6][5]"
+    assert ffi.getctype("int[5]", '(*)') == "int(*)[5]"
+    # special-case for convenience: automatically put '()' around '*'
+    assert ffi.getctype("int[5]", '*') == "int(*)[5]"
+    assert ffi.getctype("int[5]", '*foo') == "int(*foo)[5]"
+    assert ffi.getctype("int[5]", ' ** foo ') == "int(** foo)[5]"
