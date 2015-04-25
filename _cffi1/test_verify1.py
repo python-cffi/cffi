@@ -27,12 +27,11 @@ class FFI(FFI):
     _verify_counter = 0
 
     def verify(self, preamble='', *args, **kwds):
-        from _cffi1.udir import udir
         FFI._verify_counter += 1
         return recompiler.verify(self, 'verify%d' % FFI._verify_counter,
                                  preamble, *args,
                                  extra_compile_args=self._extra_compile_args,
-                                 tmp=str(udir), **kwds)
+                                 **kwds)
 
 class FFI_warnings_not_error(FFI):
     _extra_compile_args = []
@@ -1390,6 +1389,7 @@ def test_tmpdir():
     assert lib.foo(100) == 142
 
 def test_relative_to():
+    py.test.skip("not available")
     import tempfile, os
     from testing.udir import udir
     tmpdir = tempfile.mkdtemp(dir=str(udir))
