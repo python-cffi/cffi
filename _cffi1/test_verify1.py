@@ -1027,7 +1027,7 @@ def test_autofilled_struct_as_argument_dynamic():
     ffi = FFI()
     ffi.cdef("struct foo_s { long a; ...; };\n"
              "int (*foo)(struct foo_s);")
-    e = py.test.raises(TypeError, ffi.verify, """
+    lib = ffi.verify("""
         struct foo_s {
             double b;
             long a;
@@ -1037,6 +1037,7 @@ def test_autofilled_struct_as_argument_dynamic():
         }
         int (*foo)(struct foo_s s) = &foo1;
     """)
+    e = py.test.raises(TypeError, "lib.foo")    # lazily
     msg ='cannot pass as an argument a struct that was completed with verify()'
     assert msg in str(e.value)
 
