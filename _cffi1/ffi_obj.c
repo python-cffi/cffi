@@ -336,85 +336,65 @@ static PyObject *ffi_offsetof(FFIObject *self, PyObject *args)
     return PyInt_FromSsize_t(offset);
 }
 
-#if 0
-static PyObject *ffi_addressof(ZefFFIObject *self, PyObject *args)
+PyDoc_STRVAR(ffi_addressof_doc,
+"With a single arg, return the address of a <cdata 'struct-or-union'>.\n"
+"If 'fields_or_indexes' are given, returns the address of that field or\n"
+"array item in the structure or array, recursively in case of nested\n"
+"structures.");
+
+static PyObject *ffi_addressof(FFIObject *self, PyObject *args)
 {
-    PyObject *obj;
-    char *fieldname = NULL;
+    PyObject *arg, *z, *result;
+    CTypeDescrObject *ct;
+    Py_ssize_t i, offset = 0;
+    int accepted_flags;
 
-    if (!PyArg_ParseTuple(args, "O|z:addressof", &obj, &fieldname))
+    if (PyTuple_Size(args) < 1) {
+        PyErr_SetString(PyExc_TypeError,
+                        "addressof() expects at least 1 argument");
         return NULL;
-
-    if (CData_Check(obj)) {
-        CDataObject *cd = (CDataObject *)obj;
-        CTypeDescrObject *ct;
-        Py_ssize_t offset;
-
-        ct = cd->c_type;
-        if (fieldname != NULL && ct->ct_flags & CT_POINTER)
-            ct = ct->ct_itemdescr;
-
-        if (!(ct->ct_flags & (CT_STRUCT|CT_UNION))) {
-            PyErr_Format(PyExc_TypeError,
-                         "expected a struct or union cdata, got '%s'",
-                         ct->ct_name);
-            return NULL;
-        }
-
-        if (fieldname == NULL) {
-            offset = 0;
-        }
-        else {
-            CFieldObject *cf = _ffi_field(ct, fieldname);
-            if (cf == NULL)
-                return NULL;
-            offset = cf->cf_offset;
-            ct = cf->cf_type;
-        }
-        ct = fetch_pointer_type(self->types_dict, ct);
-        if (ct == NULL)
-            return NULL;
-        return new_simple_cdata(cd->c_data + offset, ct);
     }
-    else if (ZefLib_Check(obj)) {
-        PyObject *attr, *name;
-        char *reason;
 
-        if (fieldname == NULL) {
-            PyErr_SetString(PyExc_TypeError, "addressof(Lib, fieldname) "
-                            "cannot be used with only one argument");
-            return NULL;
-        }
-        name = PyString_FromString(fieldname);
-        if (name == NULL)
-            return NULL;
-        attr = lib_findattr((ZefLibObject *)obj, name, ZefError);
-        Py_DECREF(name);
-        if (attr == NULL)
-            return NULL;
-
-        if (ZefGlobSupport_Check(attr)) {
-            return addressof_global_var((ZefGlobSupportObject *)attr);
-        }
-
-        if (PyCFunction_Check(attr))
-            reason = "declare that function as a function pointer instead";
-        else
-            reason = "numeric constants don't have addresses";
-
-        PyErr_Format(PyExc_TypeError,
-                     "cannot take the address of '%s' (%s)",
-                     fieldname, reason);
+    arg = PyTuple_GET_ITEM(args, 0);
+    ct = _ffi_type(self, arg, ACCEPT_CDATA);
+    if (ct == NULL)
         return NULL;
+
+    if (PyTuple_GET_SIZE(args) == 1) {
+        accepted_flags = CT_STRUCT | CT_UNION | CT_ARRAY;
+        if ((ct->ct_flags & accepted_flags) == 0) {
+            PyErr_SetString(PyExc_TypeError,
+                            "expected a cdata struct/union/array object");
+            return NULL;
+        }
     }
     else {
-        PyErr_SetString(PyExc_TypeError, "addressof() first argument must be "
-                        "a cdata struct or union, a pointer to one, or a Lib "
-                        "object");
-        return NULL;
+        accepted_flags = CT_STRUCT | CT_UNION | CT_ARRAY | CT_POINTER;
+        if ((ct->ct_flags & accepted_flags) == 0) {
+            PyErr_SetString(PyExc_TypeError,
+                        "expected a cdata struct/union/array/pointer object");
+            return NULL;
+        }
+        for (i = 1; i < PyTuple_GET_SIZE(args); i++) {
+            Py_ssize_t ofs1;
+            ct = direct_typeoffsetof(ct, PyTuple_GET_ITEM(args, i),
+                                     i > 1, &ofs1);
+            if (ct == NULL)
+                return NULL;
+            offset += ofs1;
+        }
     }
+
+    z = new_pointer_type(ct);
+    z = get_unique_type(self->types_builder, z);
+    if (z == NULL)
+        return NULL;
+
+    result = new_simple_cdata(((CDataObject *)arg)->c_data + offset,
+                              (CTypeDescrObject *)z);
+    Py_DECREF(z);
+    return result;
 }
-#endif
 
 static PyObject *_combine_type_name_l(CTypeDescrObject *ct,
                                       size_t extra_text_len)
@@ -695,28 +675,26 @@ static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
 }
 
 static PyMethodDef ffi_methods[] = {
-    {"__set_types",(PyCFunction)ffi__set_types, METH_VARARGS},
+ {"__set_types",(PyCFunction)ffi__set_types, METH_VARARGS},
+ {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS, ffi_addressof_doc},
+ {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
+ {"callback",   (PyCFunction)ffi_callback,   METH_VARARGS |
+                                             METH_KEYWORDS,ffi_callback_doc},
+ {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
 #if 0
-    {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS},
+ {"from_handle",(PyCFunction)ffi_from_handle,METH_O},
+ {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS},
 #endif
-    {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
-    {"callback",   (PyCFunction)ffi_callback,   METH_VARARGS |
-                                                METH_KEYWORDS,ffi_callback_doc},
-    {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
+ {"getctype",   (PyCFunction)ffi_getctype,   METH_VARARGS, ffi_getctype_doc},
+ {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
+ {"new",        (PyCFunction)ffi_new,        METH_VARARGS, ffi_new_doc},
 #if 0
-    {"from_handle",(PyCFunction)ffi_from_handle,METH_O},
-    {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS},
+ {"new_handle", (PyCFunction)ffi_new_handle, METH_O},
 #endif
-    {"getctype",   (PyCFunction)ffi_getctype,   METH_VARARGS, ffi_getctype_doc},
-    {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
-    {"new",        (PyCFunction)ffi_new,        METH_VARARGS, ffi_new_doc},
-#if 0
-    {"new_handle", (PyCFunction)ffi_new_handle, METH_O},
-#endif
-    {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
-    {"string",     (PyCFunction)ffi_string,     METH_VARARGS, ffi_string_doc},
-    {"typeof",     (PyCFunction)ffi_typeof,     METH_O,       ffi_typeof_doc},
-    {NULL}
+ {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
+ {"string",     (PyCFunction)ffi_string,     METH_VARARGS, ffi_string_doc},
+ {"typeof",     (PyCFunction)ffi_typeof,     METH_O,       ffi_typeof_doc},
+ {NULL}
 };
 
 static PyGetSetDef ffi_getsets[] = {

@@ -235,6 +235,12 @@ def test_verify_struct():
     #
     assert ffi.offsetof("struct foo_s", "a") == 0
     assert ffi.offsetof("struct foo_s", "b") == 4
+    #
+    py.test.raises(TypeError, ffi.addressof, p)
+    assert ffi.addressof(p[0]) == p
+    assert ffi.typeof(ffi.addressof(p[0])) is ffi.typeof("struct foo_s *")
+    assert ffi.typeof(ffi.addressof(p, "b")) is ffi.typeof("int *")
+    assert ffi.addressof(p, "b")[0] == p.b
 
 def test_verify_exact_field_offset():
     ffi = FFI()

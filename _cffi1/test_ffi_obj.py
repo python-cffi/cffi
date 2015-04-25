@@ -114,3 +114,10 @@ def test_ffi_getctype():
     assert ffi.getctype("int[5]", '*') == "int(*)[5]"
     assert ffi.getctype("int[5]", '*foo') == "int(*foo)[5]"
     assert ffi.getctype("int[5]", ' ** foo ') == "int(** foo)[5]"
+
+def test_addressof():
+    ffi = _cffi1_backend.FFI()
+    a = ffi.new("int[10]")
+    b = ffi.addressof(a, 5)
+    b[2] = -123
+    assert a[7] == -123
