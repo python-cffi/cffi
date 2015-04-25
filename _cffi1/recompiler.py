@@ -532,23 +532,19 @@ class Recompiler:
         self._struct_collecttype(tp)
     _generate_cpy_union_collecttype = _generate_cpy_struct_collecttype
 
-    def _generate_cpy_struct_decl(self, tp, name):
-        cname = tp._get_c_name()
+    def _struct_names(self, tp):
+        cname = tp.get_c_name('')
         if ' ' in cname:
-            prefix, declname = cname.split(' ', 1)
+            return cname, cname.replace(' ', '_')
         else:
-            prefix, declname = '', cname
-        while declname.startswith('$'):
-            prefix += 'D'
-            declname = declname[1:]
-        approxname = prefix + '_' + declname
-        assert '$' not in approxname
-        self._struct_decl(tp, cname, approxname)
+            return cname, '_' + cname
+
+    def _generate_cpy_struct_decl(self, tp, name):
+        self._struct_decl(tp, *self._struct_names(tp))
     _generate_cpy_union_decl = _generate_cpy_struct_decl
 
-    def _generate_cpy_struct_ctx(self, tp, name, prefix='s'):
-        cname = tp.get_c_name('')
-        self._struct_ctx(tp, cname, cname.replace(' ', '_'))
+    def _generate_cpy_struct_ctx(self, tp, name):
+        self._struct_ctx(tp, *self._struct_names(tp))
     _generate_cpy_union_ctx = _generate_cpy_struct_ctx
 
     # ----------
