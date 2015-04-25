@@ -266,6 +266,27 @@ realize_c_type(builder_c_t *builder, _cffi_opcode_t opcodes[], int index)
     }
 }
 
+/* Same as realize_c_type(), but if it's a function type, return the
+   corresponding function pointer ctype instead of complaining.
+*/
+static CTypeDescrObject *
+realize_c_type_fn_as_fnptr(builder_c_t *builder,
+                           _cffi_opcode_t opcodes[], int index)
+{
+    PyObject *x = _realize_c_type_or_func(builder, opcodes, index);
+    if (x == NULL || CTypeDescr_Check(x)) {
+        return (CTypeDescrObject *)x;
+    }
+    else {
+        PyObject *y;
+        assert(PyTuple_Check(x));
+        y = PyTuple_GET_ITEM(x, 0);
+        Py_INCREF(y);
+        Py_DECREF(x);
+        return (CTypeDescrObject *)y;
+    }
+}
+
 static PyObject *
 _realize_c_type_or_func(builder_c_t *builder,
                         _cffi_opcode_t opcodes[], int index)

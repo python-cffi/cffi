@@ -762,4 +762,7 @@ def verify(ffi, module_name, preamble, *args, **kwds):
             attr = getattr(module.ffi, name)
             if attr is not getattr(ffi, name, object()):
                 setattr(ffi, name, attr)
+    def typeof_disabled(*args, **kwds):
+        raise NotImplementedError
+    ffi._typeof = typeof_disabled
     return module.lib

@@ -94,6 +94,7 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
 #define ACCEPT_CTYPE    2
 #define ACCEPT_CDATA    4
 #define ACCEPT_ALL      (ACCEPT_STRING | ACCEPT_CTYPE | ACCEPT_CDATA)
+#define CONSIDER_FN_AS_FNPTR  8
 
 static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
                                    int accept)
@@ -120,8 +121,14 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
                          input_text, spaces);
             return NULL;
         }
-        CTypeDescrObject *ct = realize_c_type(ffi->types_builder,
-                                              ffi->info.output, index);
+        CTypeDescrObject *ct;
+        if (accept & CONSIDER_FN_AS_FNPTR) {
+            ct = realize_c_type_fn_as_fnptr(ffi->types_builder,
+                                            ffi->info.output, index);
+        }
+        else {
+            ct = realize_c_type(ffi->types_builder, ffi->info.output, index);
+        }
         if (ct == NULL)
             return NULL;
 
@@ -505,6 +512,55 @@ static PyObject *ffi_gc(ZefFFIObject *self, PyObject *args)
 }
 #endif
 
+PyDoc_STRVAR(ffi_callback_doc,
+"Return a callback object or a decorator making such a callback object.\n"
+"'cdecl' must name a C function pointer type.  The callback invokes the\n"
+"specified 'python_callable' (which may be provided either directly or\n"
+"via a decorator).  Important: the callback object must be manually\n"
+"kept alive for as long as the callback may be invoked from the C code.");
+
+static PyObject *_ffi_callback_decorator(PyObject *outer_args, PyObject *fn)
+{
+    PyObject *res, *old;
+
+    old = PyTuple_GET_ITEM(outer_args, 1);
+    PyTuple_SET_ITEM(outer_args, 1, fn);
+    res = b_callback(NULL, outer_args);
+    PyTuple_SET_ITEM(outer_args, 1, old);
+    return res;
+}
+
+static PyObject *ffi_callback(FFIObject *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *cdecl, *python_callable = Py_None, *error = Py_None;
+    PyObject *res;
+    static char *keywords[] = {"cdecl", "python_callable", "error", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OO", keywords,
+                                     &cdecl, &python_callable, &error))
+        return NULL;
+
+    cdecl = (PyObject *)_ffi_type(self, cdecl, ACCEPT_STRING | ACCEPT_CDATA |
+                                               CONSIDER_FN_AS_FNPTR);
+    if (cdecl == NULL)
+        return NULL;
+
+    args = Py_BuildValue("(OOO)", cdecl, python_callable, error);
+    if (args == NULL)
+        return NULL;
+
+    if (python_callable != Py_None) {
+        res = b_callback(NULL, args);
+    }
+    else {
+        static PyMethodDef md = {"callback_decorator",
+                                 (PyCFunction)_ffi_callback_decorator, METH_O};
+        res = PyCFunction_New(&md, args);
+    }
+    Py_DECREF(args);
+    return res;
+}
+
 PyDoc_STRVAR(ffi_errno_doc, "the value of 'errno' from/to the C calls");
 
 static PyObject *ffi_get_errno(PyObject *self, void *closure)
@@ -610,27 +666,27 @@ static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
 }
 
 static PyMethodDef ffi_methods[] = {
-    {"__set_types",   (PyCFunction)ffi__set_types,METH_VARARGS},
+    {"__set_types",(PyCFunction)ffi__set_types, METH_VARARGS},
 #if 0
-    {"addressof",     (PyCFunction)ffi_addressof, METH_VARARGS},
+    {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS},
 #endif
-    {"alignof",       (PyCFunction)ffi_alignof,   METH_O,      ffi_alignof_doc},
-    {"cast",          (PyCFunction)ffi_cast,      METH_VARARGS, ffi_cast_doc},
+    {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
+    {"callback",   (PyCFunction)ffi_callback,   METH_VARARGS |
+                                                METH_KEYWORDS,ffi_callback_doc},
+    {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
 #if 0
-    {"close_library", ffi_close_library,          METH_VARARGS | METH_STATIC},
-    {"from_handle",   (PyCFunction)ffi_from_handle,METH_O},
-    {"gc",            (PyCFunction)ffi_gc,        METH_VARARGS},
-    {"getctype",      (PyCFunction)ffi_getctype,  METH_VARARGS},
-    {"load_library",  (PyCFunction)ffi_load_library,METH_VARARGS|METH_KEYWORDS},
+    {"from_handle",(PyCFunction)ffi_from_handle,METH_O},
+    {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS},
+    {"getctype",   (PyCFunction)ffi_getctype,   METH_VARARGS},
 #endif
-    {"offsetof",      (PyCFunction)ffi_offsetof, METH_VARARGS,ffi_offsetof_doc},
-    {"new",           (PyCFunction)ffi_new,       METH_VARARGS, ffi_new_doc},
+    {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
+    {"new",        (PyCFunction)ffi_new,        METH_VARARGS, ffi_new_doc},
 #if 0
-    {"new_handle",    (PyCFunction)ffi_new_handle,METH_O},
+    {"new_handle", (PyCFunction)ffi_new_handle, METH_O},
 #endif
-    {"sizeof",        (PyCFunction)ffi_sizeof,    METH_O,       ffi_sizeof_doc},
-    {"string",        (PyCFunction)ffi_string,    METH_VARARGS, ffi_string_doc},
-    {"typeof",        (PyCFunction)ffi_typeof,    METH_O,       ffi_typeof_doc},
+    {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
+    {"string",     (PyCFunction)ffi_string,     METH_VARARGS, ffi_string_doc},
+    {"typeof",     (PyCFunction)ffi_typeof,     METH_O,       ffi_typeof_doc},
     {NULL}
 };
 

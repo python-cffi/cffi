@@ -82,3 +82,17 @@ def test_ffi_sizeof():
     assert ffi.sizeof("int[41]") == 41 * 4
     assert ffi.sizeof(ffi.new("int[41]")) == 41 * 4
     assert ffi.sizeof(ffi.new("int[]", 41)) == 41 * 4
+
+def test_ffi_callback():
+    ffi = _cffi1_backend.FFI()
+    assert ffi.callback("int(int)", lambda x: x + 42)(10) == 52
+    assert ffi.callback("int(*)(int)", lambda x: x + 42)(10) == 52
+    assert ffi.callback("int(int)", lambda x: x + "", -66)(10) == -66
+    assert ffi.callback("int(int)", lambda x: x + "", error=-66)(10) == -66
+
+def test_ffi_callback_decorator():
+    ffi = _cffi1_backend.FFI()
+    assert ffi.callback("int(*)(int)")(lambda x: x + 42)(10) == 52
+    deco = ffi.callback("int(int)", error=-66)
+    assert deco(lambda x: x + "")(10) == -66
+    assert deco(lambda x: x + 42)(10) == 52
