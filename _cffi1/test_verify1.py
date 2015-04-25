@@ -1139,10 +1139,12 @@ def test_typedef_complete_enum():
     assert lib.BB == 1
 
 def test_typedef_broken_complete_enum():
+    # xxx this is broken in old cffis, but works with recompiler.py
     ffi = FFI()
     ffi.cdef("typedef enum { AA, BB } enum1_t;")
-    py.test.raises(VerificationError, ffi.verify,
-                   "typedef enum { AA, CC, BB } enum1_t;")
+    lib = ffi.verify("typedef enum { AA, CC, BB } enum1_t;")
+    assert lib.AA == 0
+    assert lib.BB == 2
 
 def test_typedef_incomplete_enum():
     ffi = FFI()
@@ -1723,18 +1725,17 @@ def test_enum_size():
 
 def test_enum_bug118():
     maxulong = 256 ** FFI().sizeof("unsigned long") - 1
-    for c1, c2, c2c in [(0xffffffff, -1, ''),
-                        (maxulong, -1, ''),
-                        (-1, 0xffffffff, 'U'),
-                        (-1, maxulong, 'UL')]:
+    for c2, c2c in [(-1, ''),
+                    (-1, ''),
+                    (0xffffffff, 'U'),
+                    (maxulong, 'UL'),
+                    (-maxulong / 3, 'L')]:
         if c2c and sys.platform == 'win32':
             continue     # enums may always be signed with MSVC
         ffi = FFI()
-        ffi.cdef("enum foo_e { AA=%s };" % c1)
-        e = py.test.raises(VerificationError, ffi.verify,
-                           "enum foo_e { AA=%s%s };" % (c2, c2c))
-        assert str(e.value) == ('enum foo_e: AA has the real value %d, not %d'
-                                % (c2, c1))
+        ffi.cdef("enum foo_e { AA };")
+        lib = ffi.verify("enum foo_e { AA=%s%s };" % (c2, c2c))
+        assert lib.AA == c2
 
 def test_string_to_voidp_arg():
     ffi = FFI()
