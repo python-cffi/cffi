@@ -448,8 +448,9 @@ _realize_c_type_or_func(builder_c_t *builder,
                 PyTuple_SET_ITEM(enumerators, i, tmp);
 
                 gindex = search_in_globals(&builder->ctx, p, j);
+                assert(gindex >= 0);
                 g = &builder->ctx.globals[gindex];
-                assert(gindex >= 0 && g->type_op == op);
+                assert(g->type_op == _CFFI_OP(_CFFI_OP_ENUM, -1));
 
                 tmp = realize_global_int(g);
                 PyTuple_SET_ITEM(enumvalues, i, tmp);

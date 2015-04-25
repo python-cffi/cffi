@@ -619,7 +619,7 @@ class Recompiler:
 
     def _enum_ctx(self, tp, cname):
         type_index = self._typesdict[tp]
-        type_op = '_CFFI_OP(_CFFI_OP_ENUM, %d)' % type_index
+        type_op = '_CFFI_OP(_CFFI_OP_ENUM, -1)'
         for enumerator in tp.enumerators:
             self._lsts["global"].append(
                 '  { "%s", _cffi_const_%s, %s },' % (enumerator, enumerator,
