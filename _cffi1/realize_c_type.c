@@ -8,6 +8,7 @@ typedef struct {
 
 static PyObject *all_primitives[_CFFI__NUM_PRIM];
 static PyObject *global_types_dict;
+static CTypeDescrObject *g_ct_voidp;
 
 static PyObject *build_primitive_type(int num);   /* forward */
 
@@ -39,9 +40,9 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
         Py_DECREF(ct2);
         return -1;
     }
+    g_ct_voidp = (CTypeDescrObject *)ct2;
 
     pnull = new_simple_cdata(NULL, (CTypeDescrObject *)ct2);
-    Py_DECREF(ct2);
     if (pnull == NULL)
         return -1;
     err = PyDict_SetItemString(ffi_type_dict, "NULL", pnull);

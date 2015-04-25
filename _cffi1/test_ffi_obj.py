@@ -121,3 +121,12 @@ def test_addressof():
     b = ffi.addressof(a, 5)
     b[2] = -123
     assert a[7] == -123
+
+def test_handle():
+    ffi = _cffi1_backend.FFI()
+    x = [2, 4, 6]
+    xp = ffi.new_handle(x)
+    assert ffi.typeof(xp) == ffi.typeof("void *")
+    assert ffi.from_handle(xp) is x
+    yp = ffi.new_handle([6, 4, 2])
+    assert ffi.from_handle(yp) == [6, 4, 2]

@@ -464,23 +464,33 @@ static PyObject *ffi_getctype(FFIObject *self, PyObject *args)
     return res;
 }
 
-#if 0
-static PyObject *ffi_new_handle(ZefFFIObject *self, PyObject *arg)
+PyDoc_STRVAR(ffi_new_handle_doc,
+"Return a non-NULL cdata of type 'void *' that contains an opaque\n"
+"reference to the argument, which can be any Python object.  To cast it\n"
+"back to the original object, use from_handle().  You must keep alive\n"
+"the cdata object returned by new_handle()!");
+
+static PyObject *ffi_new_handle(FFIObject *self, PyObject *arg)
 {
-    CTypeDescrObject *ct = ZefNULL->c_type;   // <ctype 'void *'>
     CDataObject *cd;
 
     cd = (CDataObject *)PyObject_GC_New(CDataObject, &CDataOwningGC_Type);
     if (cd == NULL)
         return NULL;
-    Py_INCREF(ct);
-    cd->c_type = ct;
+    Py_INCREF(g_ct_voidp);     // <ctype 'void *'>
+    cd->c_type = g_ct_voidp;
     Py_INCREF(arg);
     cd->c_data = ((char *)arg) - 42;
     cd->c_weakreflist = NULL;
     PyObject_GC_Track(cd);
     return (PyObject *)cd;
 }
+
+PyDoc_STRVAR(ffi_from_handle_doc,
+"Cast a 'void *' back to a Python object.  Must be used *only* on the\n"
+"pointers returned by new_handle(), and *only* as long as the exact\n"
+"cdata object returned by new_handle() is still alive (somewhere else\n"
+"in the program).  Failure to follow these rules will crash.");
 
 static PyObject *ffi_from_handle(PyObject *self, PyObject *arg)
 {
@@ -509,6 +519,7 @@ static PyObject *ffi_from_handle(PyObject *self, PyObject *arg)
     return x;
 }
 
+#if 0
 static PyObject *ffi_gc(ZefFFIObject *self, PyObject *args)
 {
     CDataObject *cd;
@@ -681,16 +692,14 @@ static PyMethodDef ffi_methods[] = {
  {"callback",   (PyCFunction)ffi_callback,   METH_VARARGS |
                                              METH_KEYWORDS,ffi_callback_doc},
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
+ {"from_handle",(PyCFunction)ffi_from_handle,METH_O,       ffi_from_handle_doc},
 #if 0
- {"from_handle",(PyCFunction)ffi_from_handle,METH_O},
  {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS},
 #endif
  {"getctype",   (PyCFunction)ffi_getctype,   METH_VARARGS, ffi_getctype_doc},
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
  {"new",        (PyCFunction)ffi_new,        METH_VARARGS, ffi_new_doc},
-#if 0
- {"new_handle", (PyCFunction)ffi_new_handle, METH_O},
-#endif
+ {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},
  {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
  {"string",     (PyCFunction)ffi_string,     METH_VARARGS, ffi_string_doc},
  {"typeof",     (PyCFunction)ffi_typeof,     METH_O,       ffi_typeof_doc},
