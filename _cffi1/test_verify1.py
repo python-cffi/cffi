@@ -1282,6 +1282,8 @@ def test_nested_anonymous_struct_exact():
     ffi.cdef("""
         struct foo_s { struct { int a; char b; }; union { char c, d; }; };
     """)
+    assert ffi.offsetof("struct foo_s", "c") == 2 * ffi.sizeof("int")
+    assert ffi.sizeof("struct foo_s") == 3 * ffi.sizeof("int")
     ffi.verify("""
         struct foo_s { struct { int a; char b; }; union { char c, d; }; };
     """)
@@ -1305,9 +1307,10 @@ def test_nested_anonymous_struct_exact_error():
     py.test.raises(VerificationError, ffi.verify, """
         struct foo_s { struct { int a; short b; }; union { char c, d; }; };
     """)
-    py.test.raises(VerificationError, ffi.verify, """
-        struct foo_s { struct { int a; char e, b; }; union { char c, d; }; };
-    """)
+    # works fine now
+    #py.test.raises(VerificationError, ffi.verify, """
+    #    struct foo_s { struct { int a; char e, b; }; union { char c, d; }; };
+    #""")
 
 def test_nested_anonymous_struct_inexact_1():
     ffi = FFI()

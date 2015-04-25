@@ -271,6 +271,12 @@ class StructOrUnion(StructOrUnionOrEnum):
         self.fldbitsize = fldbitsize
         self.build_c_name_with_marker()
 
+    def has_anonymous_struct_fields(self):
+        for name, type in zip(self.fldnames, self.fldtypes):
+            if name == '' and isinstance(type, StructOrUnion):
+                return True
+        return False
+
     def enumfields(self):
         for name, type, bitsize in zip(self.fldnames, self.fldtypes,
                                        self.fldbitsize):

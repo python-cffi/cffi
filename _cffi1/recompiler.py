@@ -78,7 +78,7 @@ class Recompiler:
                 self._do_collect_type(tp.as_raw_function())
             elif isinstance(tp, model.StructOrUnion):
                 if tp.fldtypes is not None:
-                    for name1, tp1 in zip(tp.fldnames, tp.fldtypes):
+                    for name1, tp1, _ in tp.enumfields():
                         self._do_collect_type(self._field_type(tp, name1, tp1))
             else:
                 for _, x in tp._get_items():
@@ -448,14 +448,15 @@ class Recompiler:
     def _struct_ctx(self, tp, cname, approxname):
         type_index = self._typesdict[tp]
         flags = []
-        if tp.partial:
+        if tp.partial or tp.has_anonymous_struct_fields():
             flags.append('CT_CUSTOM_FIELD_POS')
         if isinstance(tp, model.UnionType):
             flags.append('CT_UNION')
         flags = ('|'.join(flags)) or '0'
         if tp.fldtypes is not None:
             c_field = [approxname]
-            for fldname, fldtype, fbitsize in tp.enumfields():
+            enumfields = list(tp.enumfields())
+            for fldname, fldtype, fbitsize in enumfields:
                 fldtype = self._field_type(tp, fldname, fldtype)
                 spaces = " " * len(fldname)
                 # cname is None for _add_missing_struct_unions() only
@@ -483,13 +484,13 @@ class Recompiler:
             if cname is None:  # unknown name, for _add_missing_struct_unions
                 size_align = (' (size_t)-2, -2, /* unnamed */\n' +
                     '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
-                                                        len(tp.fldtypes),))
+                                                        len(enumfields),))
             else:
                 size_align = ('\n' +
                     '    sizeof(%s),\n' % (cname,) +
                     '    offsetof(struct _cffi_align_%s, y),\n'% (approxname,) +
                     '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
-                                                        len(tp.fldtypes),))
+                                                        len(enumfields),))
         else:
             size_align = ' (size_t)-1, -1, -1, 0 /* opaque */ },'
         self._lsts["struct_union"].append(
