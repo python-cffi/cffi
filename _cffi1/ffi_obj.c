@@ -569,7 +569,7 @@ static PyObject *ffi_callback(FFIObject *self, PyObject *args, PyObject *kwds)
                                      &cdecl, &python_callable, &error))
         return NULL;
 
-    cdecl = (PyObject *)_ffi_type(self, cdecl, ACCEPT_STRING | ACCEPT_CDATA |
+    cdecl = (PyObject *)_ffi_type(self, cdecl, ACCEPT_STRING | ACCEPT_CTYPE |
                                                CONSIDER_FN_AS_FNPTR);
     if (cdecl == NULL)
         return NULL;

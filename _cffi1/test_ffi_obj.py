@@ -92,7 +92,7 @@ def test_ffi_callback():
 
 def test_ffi_callback_decorator():
     ffi = _cffi1_backend.FFI()
-    assert ffi.callback("int(*)(int)")(lambda x: x + 42)(10) == 52
+    assert ffi.callback(ffi.typeof("int(*)(int)"))(lambda x: x + 42)(10) == 52
     deco = ffi.callback("int(int)", error=-66)
     assert deco(lambda x: x + "")(10) == -66
     assert deco(lambda x: x + 42)(10) == 52
