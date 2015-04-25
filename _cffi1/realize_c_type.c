@@ -489,7 +489,7 @@ _realize_c_type_or_func(builder_c_t *builder,
     case _CFFI_OP_FUNCTION:
     {
         PyObject *fargs;
-        int i, base_index, num_args;
+        int i, base_index, num_args, ellipsis;
 
         y = (PyObject *)realize_c_type(builder, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
@@ -500,6 +500,8 @@ _realize_c_type_or_func(builder_c_t *builder,
         while (_CFFI_GETOP(opcodes[base_index + num_args]) !=
                    _CFFI_OP_FUNCTION_END)
             num_args++;
+
+        ellipsis = _CFFI_GETARG(opcodes[base_index + num_args]) & 1;
 
         fargs = PyTuple_New(num_args);
         if (fargs == NULL) {
@@ -517,7 +519,8 @@ _realize_c_type_or_func(builder_c_t *builder,
             PyTuple_SET_ITEM(fargs, i, z);
         }
 
-        z = new_function_type(fargs, (CTypeDescrObject *)y, 0, FFI_DEFAULT_ABI);
+        z = new_function_type(fargs, (CTypeDescrObject *)y, ellipsis,
+                              FFI_DEFAULT_ABI);
         z = get_unique_type(builder, z);
         Py_DECREF(fargs);
         Py_DECREF(y);

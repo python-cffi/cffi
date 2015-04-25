@@ -312,6 +312,8 @@ class Recompiler:
 
     def _generate_cpy_function_collecttype(self, tp, name):
         self._do_collect_type(tp.as_raw_function())
+        if tp.ellipsis:
+            self._do_collect_type(tp)
 
     def _generate_cpy_function_decl(self, tp, name):
         assert isinstance(tp, model.FunctionPtrType)
@@ -319,7 +321,7 @@ class Recompiler:
             # cannot support vararg functions better than this: check for its
             # exact type (including the fixed arguments), and build it as a
             # constant function pointer (no CPython wrapper)
-            self._generate_cpy_const(False, name, tp)
+            self._generate_cpy_constant_decl(tp, name)
             return
         prnt = self._prnt
         numargs = len(tp.args)
@@ -388,7 +390,8 @@ class Recompiler:
 
     def _generate_cpy_function_ctx(self, tp, name):
         if tp.ellipsis:
-            XXX
+            self._generate_cpy_constant_ctx(tp, name)
+            return
         type_index = self._typesdict[tp.as_raw_function()]
         numargs = len(tp.args)
         if numargs == 0:
