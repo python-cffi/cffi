@@ -60,6 +60,10 @@ def setup_module():
             struct { int a, b; };
             union { int c, d; };
         };
+        struct nested_field_ofs_s {
+            struct { int a; char b; };
+            union { char c; };
+        };
         union nested_anon_u {
             struct { int a, b; };
             union { int c, d; };
@@ -81,7 +85,7 @@ def setup_module():
     ffi = module.ffi
 
 
-class TestOldFFI1:
+class TestNewFFI1:
 
     def test_integer_ranges(self):
         for (c_type, size) in [('char', 1),
@@ -1327,6 +1331,14 @@ class TestOldFFI1:
         assert p.b == 12
         assert p.c == 14
         assert p.d == 14
+
+    def test_nested_field_offset_align(self):
+        # struct nested_field_ofs_s {
+        #    struct { int a; char b; };
+        #    union { char c; };
+        # };
+        assert ffi.offsetof("struct nested_field_ofs_s", "c") == 2 * SIZE_OF_INT
+        assert ffi.sizeof("struct nested_field_ofs_s") == 3 * SIZE_OF_INT
 
     def test_nested_anonymous_union(self):
         # union nested_anon_u {
