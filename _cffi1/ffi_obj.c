@@ -533,6 +533,19 @@ static PyObject *ffi_from_handle(PyObject *self, PyObject *arg)
     return x;
 }
 
+PyDoc_STRVAR(ffi_from_buffer_doc,
+"Return a <cdata 'char[]'> that points to the data of the given Python\n"
+"object, which must support the buffer interface.  Note that this is\n"
+"not meant to be used on the built-in types str, unicode, or bytearray\n"
+"(you can build 'char[]' arrays explicitly) but only on objects\n"
+"containing large quantities of raw data in some other format, like\n"
+"'array.array' or numpy arrays.");
+
+static PyObject *ffi_from_buffer(PyObject *self, PyObject *arg)
+{
+    return direct_from_buffer(g_ct_chararray, arg);
+}
+
 #if 0
 static PyObject *ffi_gc(ZefFFIObject *self, PyObject *args)
 {
@@ -716,9 +729,7 @@ static PyMethodDef ffi_methods[] = {
  {"callback",   (PyCFunction)ffi_callback,   METH_VARARGS |
                                              METH_KEYWORDS,ffi_callback_doc},
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
-#if 0
  {"from_buffer",(PyCFunction)ffi_from_buffer,METH_O,       ffi_from_buffer_doc},
-#endif
  {"from_handle",(PyCFunction)ffi_from_handle,METH_O,       ffi_from_handle_doc},
 #if 0
  {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS},

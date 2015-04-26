@@ -8,7 +8,7 @@ typedef struct {
 
 static PyObject *all_primitives[_CFFI__NUM_PRIM];
 static PyObject *global_types_dict;
-static CTypeDescrObject *g_ct_voidp;
+static CTypeDescrObject *g_ct_voidp, *g_ct_chararray;
 
 static PyObject *build_primitive_type(int num);   /* forward */
 
@@ -16,33 +16,49 @@ static PyObject *build_primitive_type(int num);   /* forward */
     (all_primitives[num] != NULL ? all_primitives[num]          \
                                  : build_primitive_type(num))
 
+static int _add_to_global_types_dict(PyObject *ct)
+{
+    if (ct == NULL)
+        return -1;
+    return PyDict_SetItemString(global_types_dict,
+                                ((CTypeDescrObject *)ct)->ct_name, ct);
+}
+
 static int init_global_types_dict(PyObject *ffi_type_dict)
 {
     int err;
-    PyObject *ct, *ct2, *pnull;
+    PyObject *ct_void, *ct_char, *ct2, *pnull;
+    /* XXX some leaks in case these functions fail, but well,
+       MemoryErrors during importing an extension module are kind
+       of bad anyway */
 
     global_types_dict = PyDict_New();
     if (global_types_dict == NULL)
         return -1;
 
-    ct = get_primitive_type(_CFFI_PRIM_VOID);         // 'void'
-    if (ct == NULL)
+    ct_void = get_primitive_type(_CFFI_PRIM_VOID);         // 'void'
+    if (_add_to_global_types_dict(ct_void) < 0)
         return -1;
-    if (PyDict_SetItemString(global_types_dict,
-                             ((CTypeDescrObject *)ct)->ct_name, ct) < 0) {
+
+    ct2 = new_pointer_type((CTypeDescrObject *)ct_void);   // 'void *'
+    if (_add_to_global_types_dict(ct2) < 0)
         return -1;
-    }
-    ct2 = new_pointer_type((CTypeDescrObject *)ct);     // 'void *'
-    if (ct2 == NULL)
-        return -1;
-    if (PyDict_SetItemString(global_types_dict,
-                             ((CTypeDescrObject *)ct2)->ct_name, ct2) < 0) {
-        Py_DECREF(ct2);
-        return -1;
-    }
     g_ct_voidp = (CTypeDescrObject *)ct2;
 
-    pnull = new_simple_cdata(NULL, (CTypeDescrObject *)ct2);
+    ct_char = get_primitive_type(_CFFI_PRIM_CHAR);         // 'char'
+    if (_add_to_global_types_dict(ct_char) < 0)
+        return -1;
+
+    ct2 = new_pointer_type((CTypeDescrObject *)ct_char);   // 'char *'
+    if (_add_to_global_types_dict(ct2) < 0)
+        return -1;
+
+    ct2 = new_array_type((CTypeDescrObject *)ct2, -1);     // 'char[]'
+    if (_add_to_global_types_dict(ct2) < 0)
+        return -1;
+    g_ct_chararray = (CTypeDescrObject *)ct2;
+
+    pnull = new_simple_cdata(NULL, g_ct_voidp);
     if (pnull == NULL)
         return -1;
     err = PyDict_SetItemString(ffi_type_dict, "NULL", pnull);

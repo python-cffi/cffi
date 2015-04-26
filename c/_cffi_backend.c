@@ -5359,20 +5359,10 @@ static int invalid_input_buffer_type(PyObject *x)
     return 0;
 }
 
-static PyObject *b_from_buffer(PyObject *self, PyObject *args)
+static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x)
 {
-    CTypeDescrObject *ct;
     CDataObject *cd;
-    PyObject *x;
     Py_buffer *view;
-
-    if (!PyArg_ParseTuple(args, "O!O", &CTypeDescr_Type, &ct, &x))
-        return NULL;
-
-    if (!(ct->ct_flags & CT_IS_UNSIZED_CHAR_A)) {
-        PyErr_Format(PyExc_TypeError, "needs 'char[]', got '%s'", ct->ct_name);
-        return NULL;
-    }
 
     if (invalid_input_buffer_type(x)) {
         PyErr_SetString(PyExc_TypeError,
@@ -5405,6 +5395,21 @@ static PyObject *b_from_buffer(PyObject *self, PyObject *args)
  error1:
     PyObject_Free(view);
     return NULL;
+}
+
+static PyObject *b_from_buffer(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    PyObject *x;
+
+    if (!PyArg_ParseTuple(args, "O!O", &CTypeDescr_Type, &ct, &x))
+        return NULL;
+
+    if (!(ct->ct_flags & CT_IS_UNSIZED_CHAR_A)) {
+        PyErr_Format(PyExc_TypeError, "needs 'char[]', got '%s'", ct->ct_name);
+        return NULL;
+    }
+    return direct_from_buffer(ct, x);
 }
 
 static PyObject *b__get_types(PyObject *self, PyObject *noarg)
