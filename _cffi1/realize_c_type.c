@@ -460,9 +460,13 @@ _realize_c_type_or_func(builder_c_t *builder,
             }
 
             PyObject *args = NULL;
-            if (!PyErr_Occurred())
-                args = Py_BuildValue("(sOOO)", e->name, enumerators,
+            if (!PyErr_Occurred()) {
+                char *name = alloca(6 + strlen(e->name));
+                strcpy(name, "enum ");
+                strcat(name, e->name);
+                args = Py_BuildValue("(sOOO)", name, enumerators,
                                      enumvalues, basetd);
+            }
             Py_DECREF(enumerators);
             Py_DECREF(enumvalues);
             if (args == NULL)
