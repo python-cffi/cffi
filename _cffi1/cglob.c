@@ -15,7 +15,7 @@ static void glob_support_dealloc(GlobSupportObject *gs)
 
 static PyTypeObject GlobSupport_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "cffi.GlobSupport",
+    "FFIGlobSupport",
     sizeof(GlobSupportObject),
     0,
     (destructor)glob_support_dealloc,           /* tp_dealloc */

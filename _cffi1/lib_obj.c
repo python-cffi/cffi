@@ -69,7 +69,7 @@ static void lib_dealloc(LibObject *lib)
 
 static PyObject *lib_repr(LibObject *lib)
 {
-    return PyText_FromFormat("<cffi.Lib object for '%.200s'>",
+    return PyText_FromFormat("<Lib object for '%.200s'>",
                              PyText_AS_UTF8(lib->l_libname));
 }
 
@@ -284,7 +284,7 @@ static PyMethodDef lib_methods[] = {
 
 static PyTypeObject Lib_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "cffi.Lib",
+    "Lib",
     sizeof(LibObject),
     0,
     (destructor)lib_dealloc,                    /* tp_dealloc */
