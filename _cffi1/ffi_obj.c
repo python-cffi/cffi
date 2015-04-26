@@ -302,6 +302,20 @@ PyDoc_STRVAR(ffi_string_doc,
 #define ffi_string  b_string     /* ffi_string() => b_string()
                                     from _cffi_backend.c */
 
+PyDoc_STRVAR(ffi_buffer_doc,
+"Return a read-write buffer object that references the raw C data\n"
+"pointed to by the given 'cdata'.  The 'cdata' must be a pointer or an\n"
+"array.  Can be passed to functions expecting a buffer, or directly\n"
+"manipulated with:\n"
+"\n"
+"    buf[:]          get a copy of it in a regular string, or\n"
+"    buf[idx]        as a single character\n"
+"    buf[:] = ...\n"
+"    buf[idx] = ...  change the content");
+
+#define ffi_buffer  b_buffer     /* ffi_buffer() => b_buffer()
+                                    from _cffi_backend.c */
+
 PyDoc_STRVAR(ffi_offsetof_doc,
 "Return the offset of the named field inside the given structure or\n"
 "array, which must be given as a C type name.  You can give several\n"
@@ -698,9 +712,7 @@ static PyMethodDef ffi_methods[] = {
  {"__set_types",(PyCFunction)ffi__set_types, METH_VARARGS},
  {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS, ffi_addressof_doc},
  {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
-#if 0
  {"buffer",     (PyCFunction)ffi_buffer,     METH_VARARGS, ffi_buffer_doc},
-#endif
  {"callback",   (PyCFunction)ffi_callback,   METH_VARARGS |
                                              METH_KEYWORDS,ffi_callback_doc},
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
