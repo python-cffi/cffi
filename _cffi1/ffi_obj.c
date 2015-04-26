@@ -689,14 +689,23 @@ static PyMethodDef ffi_methods[] = {
  {"__set_types",(PyCFunction)ffi__set_types, METH_VARARGS},
  {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS, ffi_addressof_doc},
  {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
+#if 0
+ {"buffer",     (PyCFunction)ffi_buffer,     METH_VARARGS, ffi_buffer_doc},
+#endif
  {"callback",   (PyCFunction)ffi_callback,   METH_VARARGS |
                                              METH_KEYWORDS,ffi_callback_doc},
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
+#if 0
+ {"from_buffer",(PyCFunction)ffi_from_buffer,METH_O,       ffi_from_buffer_doc},
+#endif
  {"from_handle",(PyCFunction)ffi_from_handle,METH_O,       ffi_from_handle_doc},
 #if 0
  {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS},
 #endif
  {"getctype",   (PyCFunction)ffi_getctype,   METH_VARARGS, ffi_getctype_doc},
+#if 0
+ {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VARARGS, ffi_getwinerror_doc},
+#endif
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
  {"new",        (PyCFunction)ffi_new,        METH_VARARGS, ffi_new_doc},
  {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},
