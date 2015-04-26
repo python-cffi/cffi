@@ -316,3 +316,21 @@ def test_array_length_from_constant():
     assert parse("int[FIVE]") == [Prim(lib._CFFI_PRIM_INT), '->', Array(0), 5]
     assert parse("int[ZERO]") == [Prim(lib._CFFI_PRIM_INT), '->', Array(0), 0]
     parse_error("int[NEG]", "expected a positive integer constant", 4)
+
+def test_various_constant_exprs():
+    def array(n):
+        return [Prim(lib._CFFI_PRIM_CHAR), '->', Array(0), n]
+    assert parse("char[21]") == array(21)
+    assert parse("char[0x10]") == array(16)
+    assert parse("char[0X21]") == array(33)
+    assert parse("char[0Xb]") == array(11)
+    assert parse("char[0x1C]") == array(0x1C)
+    assert parse("char[0xc6]") == array(0xC6)
+    assert parse("char[010]") == array(8)
+    assert parse("char[021]") == array(17)
+    parse_error("char[08]", "invalid number", 5)
+    parse_error("char[1C]", "invalid number", 5)
+    parse_error("char[0C]", "invalid number", 5)
+    # not supported (really obscure):
+    #    "char[+5]"
+    #    "char['A']"

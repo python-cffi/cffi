@@ -69,6 +69,13 @@ static int is_digit(char x)
     return ('0' <= x && x <= '9');
 }
 
+static int is_hex_digit(char x)
+{
+    return (('0' <= x && x <= '9') ||
+            ('A' <= x && x <= 'F') ||
+            ('a' <= x && x <= 'f'));
+}
+
 static int is_ident_next(char x)
 {
     return (is_ident_first(x) || is_digit(x));
@@ -113,7 +120,9 @@ static void next_token(token_t *tok)
             tok->kind = TOK_INTEGER;
             tok->p = p;
             tok->size = 1;
-            while (is_digit(p[tok->size]))
+            if (p[1] == 'x' || p[1] == 'X')
+                tok->size = 2;
+            while (is_hex_digit(p[tok->size]))
                 tok->size++;
             return;
         }
@@ -332,15 +341,18 @@ static int parse_sequel(token_t *tok, int outer)
         if (tok->kind != TOK_CLOSE_BRACKET) {
             size_t length;
             int gindex;
+            char *endptr;
 
             switch (tok->kind) {
 
             case TOK_INTEGER:
                 errno = 0;
                 if (sizeof(length) > sizeof(unsigned long))
-                    length = strtoull(tok->p, NULL, 10);
+                    length = strtoull(tok->p, &endptr, 0);
                 else
-                    length = strtoul(tok->p, NULL, 10);
+                    length = strtoul(tok->p, &endptr, 0);
+                if (endptr != tok->p + tok->size)
+                    return parse_error(tok, "invalid number");
                 if (errno == ERANGE || length > MAX_SSIZE_T)
                     return parse_error(tok, "number too large");
                 break;
