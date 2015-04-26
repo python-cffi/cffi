@@ -8,6 +8,9 @@ class Recompiler:
     def __init__(self, ffi, module_name):
         self.ffi = ffi
         self.module_name = module_name
+        #
+        if ']' in self.ffi._cdefsources:
+            raise NotImplementedError("ffi.include()")
 
     def collect_type_table(self):
         self._typesdict = {}
