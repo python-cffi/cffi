@@ -2,7 +2,6 @@ import py
 import platform, imp
 import sys, ctypes
 import cffi
-from cffi import CDefError, FFIError
 from .udir import udir
 from .recompiler import recompile
 from .support import *
@@ -1230,8 +1229,8 @@ class TestOldFFI1:
     def test_array_of_func_ptr(self):
         f = ffi.cast("int(*)(int)", 42)
         assert f != ffi.NULL
-        py.test.raises(CDefError, ffi.cast, "int(int)", 42)
-        py.test.raises(CDefError, ffi.new, "int([5])(int)")
+        py.test.raises(ffi.error, ffi.cast, "int(int)", 42)
+        py.test.raises(ffi.error, ffi.new, "int([5])(int)")
         a = ffi.new("int(*[5])(int)", [f])
         assert ffi.getctype(ffi.typeof(a)) == "int(*[5])(int)"
         assert len(a) == 5
