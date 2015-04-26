@@ -190,7 +190,6 @@ def test_constant_ptr():
     ffi = FFI()
     ffi.cdef("static double *const FOOBAR;")
     lib = verify(ffi, 'test_constant_ptr', "#define FOOBAR NULL")
-    py.test.skip("XXX in-progress:")
     assert lib.FOOBAR == ffi.NULL
     assert ffi.typeof(lib.FOOBAR) == ffi.typeof("double *")
 

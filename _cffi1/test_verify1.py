@@ -1,6 +1,7 @@
 import sys, math, py
 from cffi import FFI, VerificationError, VerificationMissing, model
-from _cffi1 import recompiler
+from . import recompiler
+from .support import *
 import _cffi_backend
 
 lib_m = ['m']
@@ -35,12 +36,6 @@ class FFI(FFI):
 
 class FFI_warnings_not_error(FFI):
     _extra_compile_args = []
-
-class U(object):
-    def __add__(self, other):
-        return eval('u'+repr(other).replace(r'\\u', r'\u')
-                                   .replace(r'\\U', r'\U'))
-u = U()
 
 
 def test_missing_function(ffi=None):
@@ -1540,7 +1535,7 @@ def test_addressof():
     py.test.raises(TypeError, lib.sum_coord, res2)
 
 def test_callback_in_thread():
-    py.test.skip("adapt or remove")
+    py.test.xfail("adapt or remove")
     if sys.platform == 'win32':
         py.test.skip("pthread only")
     import os, subprocess, imp
@@ -1551,7 +1546,7 @@ def test_callback_in_thread():
     assert result == 0
 
 def test_keepalive_lib():
-    py.test.skip("adapt or remove")
+    py.test.xfail("adapt or remove")
     ffi = FFI()
     ffi.cdef("int foobar(void);")
     lib = ffi.verify("int foobar(void) { return 42; }")
@@ -1565,7 +1560,7 @@ def test_keepalive_lib():
     assert func() == 42
 
 def test_keepalive_ffi():
-    py.test.skip("adapt or remove")
+    py.test.xfail("adapt or remove")
     ffi = FFI()
     ffi.cdef("int foobar(void);")
     lib = ffi.verify("int foobar(void) { return 42; }")
