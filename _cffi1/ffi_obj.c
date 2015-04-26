@@ -546,8 +546,15 @@ static PyObject *ffi_from_buffer(PyObject *self, PyObject *arg)
     return direct_from_buffer(g_ct_chararray, arg);
 }
 
-#if 0
-static PyObject *ffi_gc(ZefFFIObject *self, PyObject *args)
+PyDoc_STRVAR(ffi_gc_doc,
+"Return a new cdata object that points to the same data.\n"
+"Later, when this new cdata object is garbage-collected,\n"
+"'destructor(old_cdata_object)' will be called.");
+
+static PyObject *gc_weakrefs_build(FFIObject *ffi, CDataObject *cd,
+                                   PyObject *destructor);   /* forward */
+
+static PyObject *ffi_gc(FFIObject *self, PyObject *args)
 {
     CDataObject *cd;
     PyObject *destructor;
@@ -557,7 +564,6 @@ static PyObject *ffi_gc(ZefFFIObject *self, PyObject *args)
 
     return gc_weakrefs_build(self, cd, destructor);
 }
-#endif
 
 PyDoc_STRVAR(ffi_callback_doc,
 "Return a callback object or a decorator making such a callback object.\n"
@@ -731,9 +737,7 @@ static PyMethodDef ffi_methods[] = {
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
  {"from_buffer",(PyCFunction)ffi_from_buffer,METH_O,       ffi_from_buffer_doc},
  {"from_handle",(PyCFunction)ffi_from_handle,METH_O,       ffi_from_handle_doc},
-#if 0
- {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS},
-#endif
+ {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS, ffi_gc_doc},
  {"getctype",   (PyCFunction)ffi_getctype,   METH_VARARGS, ffi_getctype_doc},
 #ifdef MS_WIN32
  {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VARARGS, ffi_getwinerror_doc},
