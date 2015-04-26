@@ -462,7 +462,9 @@ class Recompiler:
         flags = []
         if isinstance(tp, model.UnionType):
             flags.append("_CFFI_F_UNION")
-        if tp.partial or tp.has_anonymous_struct_fields():
+        if tp.fldtypes is None:
+            pass    # opaque
+        elif tp.partial or tp.has_anonymous_struct_fields():
             pass    # the field layout is obtained silently from the C compiler
         else:
             flags.append("_CFFI_F_CHECK_FIELDS")
