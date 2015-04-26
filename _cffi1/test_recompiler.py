@@ -1,6 +1,7 @@
-import sys, py
+import sys, os, py
 from cffi import FFI, VerificationError
 from _cffi1 import recompiler
+from _cffi1.udir import udir
 
 
 def check_type_table(input, expected_output):
@@ -400,3 +401,22 @@ def test_unique_types():
         assert ffi1.typeof(name) is not ffi2.typeof(name)
     # sanity check: twice 'ffi1'
     assert ffi1.typeof("struct foo_s*") is ffi1.typeof("struct foo_s *")
+
+def test_module_name_in_package():
+    ffi = FFI()
+    ffi.cdef("int foo(int);")
+    recompiler.recompile(ffi, "test_module_name_in_package.mymod",
+                         "int foo(int x) { return x + 32; }",
+                         tmpdir=str(udir))
+    old_sys_path = sys.path[:]
+    try:
+        package_dir = udir.join('test_module_name_in_package')
+        assert os.path.isdir(str(package_dir))
+        assert len(os.listdir(str(package_dir))) > 0
+        package_dir.join('__init__.py').write('')
+        #
+        sys.path.insert(0, str(udir))
+        import test_module_name_in_package.mymod
+        assert test_module_name_in_package.mymod.lib.foo(10) == 42
+    finally:
+        sys.path[:] = old_sys_path
