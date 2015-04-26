@@ -1278,26 +1278,6 @@ class TestOldFFI1:
         sz = ffi.sizeof("long")
         assert cb((1 << (sz*8-1)) - 1, -10) == 42
 
-    def test_unique_types(self):
-        xxxx
-        ffi1 = FFI(backend=self.Backend())
-        ffi2 = FFI(backend=self.Backend())
-        assert ffi1.typeof("char") is ffi2.typeof("char ")
-        assert ffi1.typeof("long") is ffi2.typeof("signed long int")
-        assert ffi1.typeof("double *") is ffi2.typeof("double*")
-        assert ffi1.typeof("int ***") is ffi2.typeof(" int * * *")
-        assert ffi1.typeof("int[]") is ffi2.typeof("signed int[]")
-        assert ffi1.typeof("signed int*[17]") is ffi2.typeof("int *[17]")
-        assert ffi1.typeof("void") is ffi2.typeof("void")
-        assert ffi1.typeof("int(*)(int,int)") is ffi2.typeof("int(*)(int,int)")
-        #
-        # these depend on user-defined data, so should not be shared
-        assert ffi1.typeof("struct foo") is not ffi2.typeof("struct foo")
-        assert ffi1.typeof("union foo *") is not ffi2.typeof("union foo*")
-        assert ffi1.typeof("enum foo") is not ffi2.typeof("enum foo")
-        # sanity check: twice 'ffi1'
-        assert ffi1.typeof("struct foo*") is ffi1.typeof("struct foo *")
-
     def test_anonymous_enum(self):
         # typedef enum { Value0 = 0 } e_t, *pe_t;
         assert ffi.getctype("e_t*") == 'e_t *'

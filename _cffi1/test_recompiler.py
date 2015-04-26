@@ -374,3 +374,29 @@ def test_verify_anonymous_enum_with_typedef():
                  "typedef enum { AA=%d } e1;" % sys.maxint)
     assert lib.AA == sys.maxint
     assert ffi.sizeof("e1") == ffi.sizeof("long")
+
+def test_unique_types():
+    CDEF = "struct foo_s; union foo_u; enum foo_e { AA };"
+    ffi1 = FFI(); ffi1.cdef(CDEF); verify(ffi1, "test_unique_types_1", CDEF)
+    ffi2 = FFI(); ffi2.cdef(CDEF); verify(ffi2, "test_unique_types_2", CDEF)
+    #
+    assert ffi1.typeof("char") is ffi2.typeof("char ")
+    assert ffi1.typeof("long") is ffi2.typeof("signed long int")
+    assert ffi1.typeof("double *") is ffi2.typeof("double*")
+    assert ffi1.typeof("int ***") is ffi2.typeof(" int * * *")
+    assert ffi1.typeof("int[]") is ffi2.typeof("signed int[]")
+    assert ffi1.typeof("signed int*[17]") is ffi2.typeof("int *[17]")
+    assert ffi1.typeof("void") is ffi2.typeof("void")
+    assert ffi1.typeof("int(*)(int,int)") is ffi2.typeof("int(*)(int,int)")
+    #
+    # these depend on user-defined data, so should not be shared
+    for name in ["struct foo_s",
+                 "union foo_u *",
+                 "enum foo_e",
+                 "struct foo_s *(*)()",
+                 "void(*)(struct foo_s *)",
+                 "struct foo_s *(*[5])[8]",
+                 ]:
+        assert ffi1.typeof(name) is not ffi2.typeof(name)
+    # sanity check: twice 'ffi1'
+    assert ffi1.typeof("struct foo_s*") is ffi1.typeof("struct foo_s *")
