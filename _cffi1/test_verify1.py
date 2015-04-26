@@ -2079,6 +2079,7 @@ def test_getlasterror_working_even_with_pypys_jit():
             assert ffi.getwinerror()[0] == n
 
 def test_verify_dlopen_flags():
+    py.test.xfail("dlopen flags")
     # Careful with RTLD_GLOBAL.  If by chance the FFI is not deleted
     # promptly, like on PyPy, then other tests may see the same
     # exported symbols as well.  So we must not export a simple name
@@ -2157,13 +2158,6 @@ def test_implicit_unicode_on_windows():
         assert ord(outbuf[n]) == 0
         assert ord(outbuf[0]) < 128     # should be a letter, or '\'
 
-def test_use_local_dir():
-    ffi = FFI()
-    lib = ffi.verify("", modulename="test_use_local_dir")
-    this_dir = os.path.dirname(__file__)
-    pycache_files = os.listdir(os.path.join(this_dir, '__pycache__'))
-    assert any('test_use_local_dir' in s for s in pycache_files)
-
 def test_define_known_value():
     ffi = FFI()
     ffi.cdef("#define FOO 0x123")
@@ -2173,5 +2167,5 @@ def test_define_known_value():
 def test_define_wrong_value():
     ffi = FFI()
     ffi.cdef("#define FOO 123")
-    e = py.test.raises(VerificationError, ffi.verify, "#define FOO 124")
-    assert str(e.value).endswith("FOO has the real value 124, not 123")
+    lib = ffi.verify("#define FOO 124")     # used to complain
+    assert lib.FOO == 124
