@@ -349,7 +349,7 @@ def test_verify_anonymous_struct_with_typedef():
            "typedef struct { long b; int hidden, a; } foo_t;")
     p = ffi.new("foo_t *", {'b': 42})
     assert p.b == 42
-    assert repr(p).startswith("<cdata 'struct $foo_t *' ")
+    assert repr(p).startswith("<cdata 'foo_t *' ")
 
 def test_verify_anonymous_struct_with_star_typedef():
     ffi = FFI()
@@ -366,7 +366,7 @@ def test_verify_anonymous_enum_with_typedef():
                  "typedef enum { BB, CC, AA } e1;")
     assert lib.AA == 2
     assert ffi.sizeof("e1") == ffi.sizeof("int")
-    assert repr(ffi.cast("e1", 2)) == "<cdata 'enum $e1' 2: AA>"
+    assert repr(ffi.cast("e1", 2)) == "<cdata 'e1' 2: AA>"
     #
     ffi = FFI()
     ffi.cdef("typedef enum { AA=%d } e1;" % sys.maxint)

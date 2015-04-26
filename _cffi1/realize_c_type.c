@@ -288,6 +288,38 @@ realize_c_type_fn_as_fnptr(builder_c_t *builder,
     }
 }
 
+static void _realize_name(char *target, const char *prefix, const char *srcname)
+{
+    /* "xyz" => "struct xyz"
+       "$xyz" => "xyz"
+    */
+    if (srcname[0] == '$' && srcname[1] != '$') {
+        strcpy(target, &srcname[1]);
+    }
+    else {
+        strcpy(target, prefix);
+        strcat(target, srcname);
+    }
+}
+
+static void _unrealize_name(char *target, const char *srcname)
+{
+    /* reverse of _realize_name() */
+    if (strncmp(srcname, "struct ", 7) == 0) {
+        strcpy(target, &srcname[7]);
+    }
+    else if (strncmp(srcname, "union ", 6) == 0) {
+        strcpy(target, &srcname[6]);
+    }
+    else if (strncmp(srcname, "enum ", 5) == 0) {
+        strcpy(target, &srcname[5]);
+    }
+    else {
+        strcpy(target, "$");
+        strcat(target, srcname);
+    }
+}
+
 static PyObject *
 _realize_c_type_or_func(builder_c_t *builder,
                         _cffi_opcode_t opcodes[], int index)
@@ -354,17 +386,11 @@ _realize_c_type_or_func(builder_c_t *builder,
             Py_INCREF(x);
         }
         else {
-            int flags;
+            int flags = (s->flags & CT_UNION) ? CT_UNION : CT_STRUCT;
             char *name = alloca(8 + strlen(s->name));
-            if (s->flags & CT_UNION) {
-                strcpy(name, "union ");
-                flags = CT_UNION;
-            }
-            else {
-                strcpy(name, "struct ");
-                flags = CT_STRUCT;
-            }
-            strcat(name, s->name);
+            _realize_name(name,
+                          (s->flags & CT_UNION) ? "union " : "struct ",
+                          s->name);
             x = new_struct_or_union_type(name, flags);
 
             CTypeDescrObject *ct = NULL;
@@ -462,8 +488,7 @@ _realize_c_type_or_func(builder_c_t *builder,
             PyObject *args = NULL;
             if (!PyErr_Occurred()) {
                 char *name = alloca(6 + strlen(e->name));
-                strcpy(name, "enum ");
-                strcat(name, e->name);
+                _realize_name(name, "enum ", e->name);
                 args = Py_BuildValue("(sOOO)", name, enumerators,
                                      enumvalues, basetd);
             }
@@ -577,11 +602,8 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
         builder_c_t *builder = ct->ct_extra;
         assert(builder != NULL);
 
-        char *p = ct->ct_name;
-        if (memcmp(p, "struct ", 7) == 0)
-            p += 7;
-        else if (memcmp(p, "union ", 6) == 0)
-            p += 6;
+        char *p = alloca(2 + strlen(ct->ct_name));
+        _unrealize_name(p, ct->ct_name);
 
         int n = search_in_struct_unions(&builder->ctx, p, strlen(p));
         if (n < 0)
