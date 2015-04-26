@@ -409,6 +409,9 @@ _realize_c_type_or_func(builder_c_t *builder,
             _realize_name(name,
                           (s->flags & _CFFI_F_UNION) ? "union " : "struct ",
                           s->name);
+            if (strcmp(name, "struct _IO_FILE") == 0)
+                flags |= CT_IS_FILE;
+
             x = new_struct_or_union_type(name, flags);
 
             CTypeDescrObject *ct = NULL;

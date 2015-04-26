@@ -308,10 +308,13 @@ class Recompiler:
     def _generate_cpy_typedef_decl(self, tp, name):
         pass
 
-    def _generate_cpy_typedef_ctx(self, tp, name):
+    def _typedef_ctx(self, tp, name):
         type_index = self._typesdict[tp]
         self._lsts["typename"].append(
             '  { "%s", %d },' % (name, type_index))
+
+    def _generate_cpy_typedef_ctx(self, tp, name):
+        self._typedef_ctx(tp, name)
         if getattr(tp, "origin", None) == "unknown_type":
             self._struct_ctx(tp, tp.name, approxname=None)
         elif isinstance(tp, model.NamedPointerType):
@@ -521,8 +524,15 @@ class Recompiler:
                     raise NotImplementedError("internal inconsistency: %r is "
                                               "partial but was not seen at "
                                               "this point" % (tp,))
-                assert tp.name.startswith('$') and tp.name[1:].isdigit()
-                self._struct_ctx(tp, None, tp.name[1:])
+                if tp.name.startswith('$') and tp.name[1:].isdigit():
+                    approxname = tp.name[1:]
+                elif tp.name == '_IO_FILE' and tp.forcename == 'FILE':
+                    approxname = 'FILE'
+                    self._typedef_ctx(tp, 'FILE')
+                else:
+                    raise NotImplementedError("internal inconsistency: %r" %
+                                              (tp,))
+                self._struct_ctx(tp, None, approxname)
 
     def _fix_final_field_list(self, lst):
         count = 0
