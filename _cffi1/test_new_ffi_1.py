@@ -54,6 +54,7 @@ def setup_module():
         typedef struct { int a; } unnamed_foo_t, *unnamed_foo_p;
         struct nonpacked { char a; int b; };
         struct array0 { int len; short data[0]; };
+        struct array_no_length { int x; int a[]; };
 
         struct nested_anon {
             struct { int a, b; };
@@ -1603,3 +1604,20 @@ class TestOldFFI1:
         assert ffi.from_handle(p) is o
         assert ffi.from_handle(ffi.cast("char *", p)) is o
         py.test.raises(RuntimeError, ffi.from_handle, ffi.NULL)
+
+    def test_struct_array_no_length(self):
+        # struct array_no_length { int x; int a[]; };
+        p = ffi.new("struct array_no_length *", [100, [200, 300, 400]])
+        assert p.x == 100
+        assert ffi.typeof(p.a) is ffi.typeof("int *")   # no length available
+        assert p.a[0] == 200
+        assert p.a[1] == 300
+        assert p.a[2] == 400
+
+    def test_from_buffer(self):
+        import array
+        a = array.array('H', [10000, 20000, 30000])
+        c = ffi.from_buffer(a)
+        assert ffi.typeof(c) is ffi.typeof("char[]")
+        ffi.cast("unsigned short *", c)[1] += 500
+        assert list(a) == [10000, 20500, 30000]
