@@ -64,6 +64,7 @@ def setup_module():
             union { int c, d; };
         };
         struct abc50 { int a, b; int c[50]; };
+        struct ints_and_bitfield { int a,b,c,d,e; int x:1; };
     """
     DEFS_PACKED = """
         struct is_packed { char a; int b; } /*here*/;
@@ -1581,3 +1582,24 @@ class TestOldFFI1:
         assert s[0].a == b'X'
         assert s[1].b == -4892220
         assert s[1].a == b'Y'
+
+    def test_not_supported_bitfield_in_result(self):
+        # struct ints_and_bitfield { int a,b,c,d,e; int x:1; };
+        e = py.test.raises(NotImplementedError, ffi.callback,
+                           "struct ints_and_bitfield foo(void)", lambda: 42)
+        assert str(e.value) == ("struct ints_and_bitfield(*)(): "
+            "callback with unsupported argument or return type or with '...'")
+
+    def test_inspecttype(self):
+        assert ffi.typeof("long").kind == "primitive"
+        assert ffi.typeof("long(*)(long, long**, ...)").cname == (
+            "long(*)(long, long * *, ...)")
+        assert ffi.typeof("long(*)(long, long**, ...)").ellipsis is True
+
+    def test_new_handle(self):
+        o = [2, 3, 4]
+        p = ffi.new_handle(o)
+        assert ffi.typeof(p) == ffi.typeof("void *")
+        assert ffi.from_handle(p) is o
+        assert ffi.from_handle(ffi.cast("char *", p)) is o
+        py.test.raises(RuntimeError, ffi.from_handle, ffi.NULL)
