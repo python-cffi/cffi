@@ -219,6 +219,8 @@ static PyObject *realize_global_int(const struct _cffi_global_s *g)
 {
     PyObject *x;
     unsigned long long value;
+    /* note: we cast g->address to this function type; we do the same
+       in parse_c_type:parse_sequel() too */
     int neg = ((int(*)(unsigned long long*))g->address)(&value);
     if (!neg) {
         if (value <= (unsigned long long)LONG_MAX)

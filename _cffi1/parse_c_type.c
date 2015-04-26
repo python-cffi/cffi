@@ -203,6 +203,8 @@ static int write_ds(token_t *tok, _cffi_opcode_t ds)
     return index;
 }
 
+#define MAX_SSIZE_T  (((size_t)-1) >> 1)
+
 static int parse_complete(token_t *tok);
 
 static int parse_sequel(token_t *tok, int outer)
@@ -329,17 +331,44 @@ static int parse_sequel(token_t *tok, int outer)
         next_token(tok);
         if (tok->kind != TOK_CLOSE_BRACKET) {
             size_t length;
+            int gindex;
 
-            if (tok->kind != TOK_INTEGER)
+            switch (tok->kind) {
+
+            case TOK_INTEGER:
+                errno = 0;
+                if (sizeof(length) > sizeof(unsigned long))
+                    length = strtoull(tok->p, NULL, 10);
+                else
+                    length = strtoul(tok->p, NULL, 10);
+                if (errno == ERANGE || length > MAX_SSIZE_T)
+                    return parse_error(tok, "number too large");
+                break;
+
+            case TOK_IDENTIFIER:
+                gindex = search_in_globals(tok->info->ctx, tok->p, tok->size);
+                if (gindex >= 0) {
+                    const struct _cffi_global_s *g;
+                    g = &tok->info->ctx->globals[gindex];
+                    if (_CFFI_GETOP(g->type_op) == _CFFI_OP_CONSTANT_INT ||
+                        _CFFI_GETOP(g->type_op) == _CFFI_OP_ENUM) {
+                        unsigned long long value;
+                        int neg = ((int(*)(unsigned long long*))g->address)
+                            (&value);
+                        if (!neg && value > MAX_SSIZE_T)
+                            return parse_error(tok,
+                                               "integer constant too large");
+                        if (!neg || value == 0) {
+                            length = (size_t)value;
+                            break;
+                        }
+                    }
+                }
+                /* fall-through to the default case */
+            default:
                 return parse_error(tok, "expected a positive integer constant");
+            }
 
-            errno = 0;
-            if (sizeof(length) > sizeof(unsigned long))
-                length = strtoull(tok->p, NULL, 10);
-            else
-                length = strtoul(tok->p, NULL, 10);
-            if (errno == ERANGE || ((ssize_t)length) < 0)
-                return parse_error(tok, "number too large");
             next_token(tok);
 
             write_ds(tok, _CFFI_OP(_CFFI_OP_ARRAY, 0));

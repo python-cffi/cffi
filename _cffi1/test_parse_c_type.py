@@ -1,7 +1,6 @@
-import re
-import os
-import py
+import sys, re, os, py
 import cffi
+from . import cffi_opcode
 
 r_macro = re.compile(r"#define \w+[(][^\n]*|#include [^\n]*")
 r_define = re.compile(r"(#define \w+) [^\n]*")
@@ -29,6 +28,9 @@ assert enum_names == sorted(enum_names)
 identifier_names = ["id", "id0", "id05", "id05b", "tail"]
 assert identifier_names == sorted(identifier_names)
 
+global_names = ["FIVE", "NEG", "ZERO"]
+assert global_names == sorted(global_names)
+
 ctx = ffi.new("struct _cffi_type_context_s *")
 c_struct_names = [ffi.new("char[]", _n) for _n in struct_names]
 ctx_structs = ffi.new("struct _cffi_struct_union_s[]", len(struct_names))
@@ -52,6 +54,32 @@ for _i in range(len(identifier_names)):
     ctx_identifiers[_i].type_index = 100 + _i
 ctx.typenames = ctx_identifiers
 ctx.num_typenames = len(identifier_names)
+
+@ffi.callback("int(unsigned long long *)")
+def fetch_constant_five(p):
+    p[0] = 5
+    return 0
+@ffi.callback("int(unsigned long long *)")
+def fetch_constant_zero(p):
+    p[0] = 0
+    return 1
+@ffi.callback("int(unsigned long long *)")
+def fetch_constant_neg(p):
+    p[0] = 123321
+    return 1
+
+ctx_globals = ffi.new("struct _cffi_global_s[]", len(global_names))
+c_glob_names = [ffi.new("char[]", _n) for _n in global_names]
+for _i, _fn in enumerate([fetch_constant_five,
+                          fetch_constant_neg,
+                          fetch_constant_zero]):
+    ctx_globals[_i].name = c_glob_names[_i]
+    ctx_globals[_i].address = _fn
+    ctx_globals[_i].type_op = ffi.cast("_cffi_opcode_t",
+                                       cffi_opcode.OP_CONSTANT_INT if _i != 1
+                                       else cffi_opcode.OP_ENUM)
+ctx.globals = ctx_globals
+ctx.num_globals = len(global_names)
 
 
 def parse(input):
@@ -243,6 +271,12 @@ def test_error():
     parse_error("int a(*)", "identifier expected", 6)
     parse_error("int[123456789012345678901234567890]", "number too large", 4)
 
+def test_number_too_large():
+    num_max = sys.maxsize
+    assert parse("char[%d]" % num_max) == [Prim(lib._CFFI_PRIM_CHAR),
+                                          '->', Array(0), num_max]
+    parse_error("char[%d]" % (num_max + 1), "number too large", 5)
+
 def test_complexity_limit():
     parse_error("int" + "[]" * 2500, "internal type complexity limit reached",
                 202)
@@ -270,9 +304,15 @@ def test_identifier():
                                                         '->', Pointer(0)]
 
 def test_cffi_opcode_sync():
-    import cffi_opcode, cffi.model
+    import cffi.model
     for name in dir(lib):
         if name.startswith('_CFFI_'):
             assert getattr(cffi_opcode, name[6:]) == getattr(lib, name)
     assert sorted(cffi_opcode.PRIMITIVE_TO_INDEX.keys()) == (
         sorted(cffi.model.PrimitiveType.ALL_PRIMITIVE_TYPES.keys()))
+
+def test_array_length_from_constant():
+    parse_error("int[UNKNOWN]", "expected a positive integer constant", 4)
+    assert parse("int[FIVE]") == [Prim(lib._CFFI_PRIM_INT), '->', Array(0), 5]
+    assert parse("int[ZERO]") == [Prim(lib._CFFI_PRIM_INT), '->', Array(0), 0]
+    parse_error("int[NEG]", "expected a positive integer constant", 4)
