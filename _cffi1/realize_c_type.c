@@ -657,6 +657,7 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
                 break;
 
             default:
+                Py_DECREF(fields);
                 PyErr_Format(PyExc_NotImplementedError, "field op=%d",
                              (int)_CFFI_GETOP(op));
                 return -1;
@@ -671,8 +672,10 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
             else if (detect_custom_layout(ct, SF_STD_FIELD_POS,
                                      ctf->ct_size, fld->field_size,
                                      "wrong size for field '",
-                                     fld->name, "'") < 0)
+                                     fld->name, "'") < 0) {
+                Py_DECREF(fields);
                 return -1;
+            }
 
             f = Py_BuildValue("(sOin)", fld->name, ctf,
                               fbitsize, (Py_ssize_t)fld->field_offset);
