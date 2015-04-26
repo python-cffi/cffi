@@ -692,7 +692,8 @@ static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
         if (!CTypeDescr_Check(x))
             goto bad_usage;
         types[i] = x;
-        struct_unions[i].flags = ((CTypeDescrObject *)x)->ct_flags & CT_UNION;
+        struct_unions[i].flags = ((CTypeDescrObject *)x)->ct_flags & CT_UNION ?
+            _CFFI_F_UNION : 0;
         struct_unions[i].size = (size_t)-2;
         struct_unions[i].alignment = -2;
     }

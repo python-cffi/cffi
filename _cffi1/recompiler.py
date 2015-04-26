@@ -456,11 +456,16 @@ class Recompiler:
 
     def _struct_ctx(self, tp, cname, approxname):
         type_index = self._typesdict[tp]
-        flags = 0
-        if tp.partial or tp.has_anonymous_struct_fields():
-            flags |= 32768  # CT_CUSTOM_FIELD_POS
+        flags = []
         if isinstance(tp, model.UnionType):
-            flags |= 128    # CT_UNION
+            flags.append("_CFFI_F_UNION")
+        if tp.partial or tp.has_anonymous_struct_fields():
+            pass    # the field layout is obtained silently from the C compiler
+        else:
+            flags.append("_CFFI_F_CHECK_FIELDS")
+        if tp.packed:
+            flags.append("_CFFI_F_PACKED")
+        flags = '|'.join(flags) or '0'
         if tp.fldtypes is not None:
             c_field = [approxname]
             enumfields = list(tp.enumfields())
@@ -502,7 +507,7 @@ class Recompiler:
         else:
             size_align = ' (size_t)-1, -1, -1, 0 /* opaque */ },'
         self._lsts["struct_union"].append(
-            '  { "%s", %d, 0x%x,' % (tp.name, type_index, flags) + size_align)
+            '  { "%s", %d, %s,' % (tp.name, type_index, flags) + size_align)
         self._seen_struct_unions.add(tp)
 
     def _add_missing_struct_unions(self):

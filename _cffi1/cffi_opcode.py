@@ -97,6 +97,10 @@ PRIMITIVE_TO_INDEX = {
     'ssize_t':            PRIM_SSIZE,
     }
 
+F_UNION         = 0x01
+F_CHECK_FIELDS  = 0x02
+F_PACKED        = 0x04
+
 CLASS_NAME = {}
 for _name, _value in globals().items():
     if _name.startswith('OP_') and isinstance(_value, int):

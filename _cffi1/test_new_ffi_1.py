@@ -75,9 +75,9 @@ def setup_module():
     ffi1.cdef(DEFS)
     ffi1.cdef(DEFS_PACKED, packed=True)
 
-    outputfilename = recompile(ffi1, "test_old_ffi1", CCODE,
+    outputfilename = recompile(ffi1, "test_new_ffi_1", CCODE,
                                tmpdir=str(udir))
-    module = imp.load_dynamic("test_old_ffi1", outputfilename)
+    module = imp.load_dynamic("test_new_ffi_1", outputfilename)
     ffi = module.ffi
 
 

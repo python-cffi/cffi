@@ -404,10 +404,10 @@ _realize_c_type_or_func(builder_c_t *builder,
             Py_INCREF(x);
         }
         else {
-            int flags = (s->flags & CT_UNION) ? CT_UNION : CT_STRUCT;
+            int flags = (s->flags & _CFFI_F_UNION) ? CT_UNION : CT_STRUCT;
             char *name = alloca(8 + strlen(s->name));
             _realize_name(name,
-                          (s->flags & CT_UNION) ? "union " : "struct ",
+                          (s->flags & _CFFI_F_UNION) ? "union " : "struct ",
                           s->name);
             x = new_struct_or_union_type(name, flags);
 
@@ -683,7 +683,11 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
             PyList_SET_ITEM(fields, i, f);
         }
 
-        int sflags = (s->flags & CT_CUSTOM_FIELD_POS) ? 0 : SF_STD_FIELD_POS;
+        int sflags = 0;
+        if (s->flags & _CFFI_F_CHECK_FIELDS)
+            sflags |= SF_STD_FIELD_POS;
+        if (s->flags & _CFFI_F_PACKED)
+            sflags |= SF_PACKED;
 
         PyObject *args = Py_BuildValue("(OOOnni)", ct, fields,
                                        Py_None,
@@ -696,7 +700,6 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
 
         ct->ct_extra = NULL;
         ct->ct_flags |= CT_IS_OPAQUE;
-        ct->ct_flags &= ~CT_CUSTOM_FIELD_POS;
         PyObject *res = b_complete_struct_or_union(NULL, args);
         ct->ct_flags &= ~CT_IS_OPAQUE;
         Py_DECREF(args);

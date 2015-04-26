@@ -628,7 +628,7 @@ static int parse_complete(token_t *tok)
             int n = search_in_struct_unions(tok->info->ctx, tok->p, tok->size);
             if (n < 0)
                 return parse_error(tok, "undefined struct/union name");
-            if (((tok->info->ctx->struct_unions[n].flags & CT_UNION) != 0)
+            if (((tok->info->ctx->struct_unions[n].flags & _CFFI_F_UNION) != 0)
                 ^ (kind == TOK_UNION))
                 return parse_error(tok, "wrong kind of tag: struct vs union");
 

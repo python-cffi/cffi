@@ -69,18 +69,16 @@ struct _cffi_global_s {
 struct _cffi_struct_union_s {
     const char *name;
     int type_index;          // -> _cffi_types, on a OP_STRUCT_UNION
-    int flags;               // CT_UNION?  CT_CUSTOM_FIELD_POS?
+    int flags;               // _CFFI_F_* flags below
     size_t size;
     int alignment;
     int first_field_index;   // -> _cffi_fields array
     int num_fields;
 };
-#ifdef _CFFI_INTERNAL
-#define CT_UNION              128
-#define CT_CUSTOM_FIELD_POS   32768
-/* ^^^ if not CUSTOM_FIELD_POS, complain if fields are not in the
-   "standard layout" and/or if some are missing */
-#endif
+#define _CFFI_F_UNION         0x01   // is a union, not a struct
+#define _CFFI_F_CHECK_FIELDS  0x02   // complain if fields are not in the
+                                     // "standard layout" or if some are missing
+#define _CFFI_F_PACKED        0x04   // for CHECK_FIELDS, assume a packed struct
 
 struct _cffi_field_s {
     const char *name;
