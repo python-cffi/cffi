@@ -581,6 +581,15 @@ static PyObject *ffi_callback(FFIObject *self, PyObject *args, PyObject *kwds)
     return res;
 }
 
+#ifdef MS_WIN32
+PyDoc_STRVAR(ffi_getwinerror_doc,
+"Return either the GetLastError() or the error number given by the\n"
+"optional 'code' argument, as a tuple '(code, message)'.");
+
+#define ffi_getwinerror  b_getwinerror  /* ffi_getwinerror() => b_getwinerror()
+                                           from misc_win32.h */
+#endif
+
 PyDoc_STRVAR(ffi_errno_doc, "the value of 'errno' from/to the C calls");
 
 static PyObject *ffi_get_errno(PyObject *self, void *closure)
@@ -703,7 +712,7 @@ static PyMethodDef ffi_methods[] = {
  {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS},
 #endif
  {"getctype",   (PyCFunction)ffi_getctype,   METH_VARARGS, ffi_getctype_doc},
-#if 0
+#ifdef MS_WIN32
  {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VARARGS, ffi_getwinerror_doc},
 #endif
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
