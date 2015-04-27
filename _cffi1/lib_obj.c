@@ -141,8 +141,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
         PyErr_Format(PyExc_AttributeError,
                      "lib '%.200s' has no function,"
                      " global variable or constant named '%.200s'",
-                     PyText_AS_UTF8(lib->l_libname),
-                     PyText_Check(name) ? PyText_AS_UTF8(name) : "?");
+                     PyText_AS_UTF8(lib->l_libname), s);
         return NULL;
     }
 
@@ -198,12 +197,23 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
                             _CFFI_GETARG(g->type_op));
         if (ct == NULL)
             return NULL;
-        x = make_global_var(ct, g->address);
+        if (g->size != ct->ct_size &&
+                g->size != (size_t)-1 && ct->ct_size != -1) {
+            PyErr_Format(FFIError,
+                         "global variable '%.200s' should be %zd bytes "
+                         "according to the cdef, but is actually %zd",
+                         s, ct->ct_size, g->size);
+            x = NULL;
+        }
+        else {
+            x = make_global_var(ct, g->address);
+        }
         Py_DECREF(ct);
         break;
 
     default:
-        PyErr_SetString(PyExc_NotImplementedError, "in lib_build_attr");
+        PyErr_Format(PyExc_NotImplementedError, "in lib_build_attr: op=%d",
+                     (int)_CFFI_GETOP(g->type_op));
         return NULL;
     }
 

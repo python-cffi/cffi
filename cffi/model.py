@@ -31,6 +31,9 @@ class BaseTypeByIdentity(object):
 
     def has_c_name(self):
         return '$' not in self._get_c_name()
+    
+    def sizeof_enabled(self):
+        return False
 
     def get_cached_btype(self, ffi, finishlist, can_delay=False):
         try:
@@ -121,6 +124,9 @@ class PrimitiveType(BaseType):
     def is_float_type(self):
         return self.ALL_PRIMITIVE_TYPES[self.name] == 'f'
 
+    def sizeof_enabled(self):
+        return True
+
     def build_backend_type(self, ffi, finishlist):
         return global_cache(self, ffi, 'new_primitive_type', self.name)
 
@@ -161,6 +167,9 @@ class RawFunctionType(BaseFunctionType):
 class FunctionPtrType(BaseFunctionType):
     _base_pattern = '(*&)(%s)'
 
+    def sizeof_enabled(self):
+        return True
+
     def build_backend_type(self, ffi, finishlist):
         result = self.result.get_cached_btype(ffi, finishlist)
         args = []
@@ -185,6 +194,9 @@ class PointerType(BaseType):
         else:
             extra = self._base_pattern
         self.c_name_with_marker = totype.c_name_with_marker.replace('&', extra)
+
+    def sizeof_enabled(self):
+        return True
 
     def build_backend_type(self, ffi, finishlist):
         BItem = self.totype.get_cached_btype(ffi, finishlist, can_delay=True)
@@ -225,6 +237,9 @@ class ArrayType(BaseType):
             brackets = '&[%s]' % length
         self.c_name_with_marker = (
             self.item.c_name_with_marker.replace('&', brackets))
+
+    def sizeof_enabled(self):
+        return self.item.sizeof_enabled() and self.length is not None
 
     def resolve_length(self, newlength):
         return ArrayType(self.item, newlength)
@@ -379,6 +394,9 @@ class StructOrUnion(StructOrUnionOrEnum):
             from . import ffiplatform
             raise ffiplatform.VerificationMissing(self._get_c_name())
 
+    def sizeof_enabled(self):
+        return self.fldtypes is not None
+
     def build_backend_type(self, ffi, finishlist):
         self.check_not_partial()
         finishlist.append(self)
@@ -406,6 +424,9 @@ class EnumType(StructOrUnionOrEnum):
         self.enumvalues = enumvalues
         self.baseinttype = baseinttype
         self.build_c_name_with_marker()
+
+    def sizeof_enabled(self):
+        return True     # not strictly true, but external enums are obscure
 
     def force_the_name(self, forcename):
         StructOrUnionOrEnum.force_the_name(self, forcename)

@@ -418,7 +418,8 @@ class Recompiler:
         else:
             meth_kind = 'V'   # 'METH_VARARGS'
         self._lsts["global"].append(
-            '  { "%s", _cffi_f_%s, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_%s, %d) },'
+            '  { "%s", _cffi_f_%s, (size_t)-1, '
+            '_CFFI_OP(_CFFI_OP_CPYTHON_BLTN_%s, %d) },'
             % (name, name, meth_kind, type_index))
 
     # ----------
@@ -631,7 +632,8 @@ class Recompiler:
             type_index = self._typesdict[tp]
             type_op = '_CFFI_OP(_CFFI_OP_CONSTANT, %d)' % type_index
         self._lsts["global"].append(
-            '  { "%s", _cffi_const_%s, %s },' % (name, name, type_op))
+            '  { "%s", _cffi_const_%s, (size_t)-1, %s },' % 
+            (name, name, type_op))
 
     # ----------
     # enums
@@ -648,8 +650,8 @@ class Recompiler:
         type_op = '_CFFI_OP(_CFFI_OP_ENUM, -1)'
         for enumerator in tp.enumerators:
             self._lsts["global"].append(
-                '  { "%s", _cffi_const_%s, %s },' % (enumerator, enumerator,
-                                                     type_op))
+                '  { "%s", _cffi_const_%s, (size_t)-1, %s },' %
+                (enumerator, enumerator, type_op))
         #
         if cname is not None and '$' not in cname:
             size = "sizeof(%s)" % cname
@@ -679,7 +681,8 @@ class Recompiler:
 
     def _generate_cpy_macro_ctx(self, tp, name):
         self._lsts["global"].append(
-            '  { "%s", _cffi_const_%s, _CFFI_OP(_CFFI_OP_CONSTANT_INT, 0) },' %
+            '  { "%s", _cffi_const_%s, (size_t)-1,'
+            ' _CFFI_OP(_CFFI_OP_CONSTANT_INT, 0) },' %
             (name, name))
 
     # ----------
@@ -700,9 +703,13 @@ class Recompiler:
     def _generate_cpy_variable_ctx(self, tp, name):
         tp = self._global_type(tp, name)
         type_index = self._typesdict[tp]
+        if tp.sizeof_enabled():
+            size = "sizeof(%s)" % (name,)
+        else:
+            size = "(size_t)-1"
         self._lsts["global"].append(
-            '  { "%s", &%s, _CFFI_OP(_CFFI_OP_GLOBAL_VAR, %d)},'
-            % (name, name, type_index))
+            '  { "%s", &%s, %s, _CFFI_OP(_CFFI_OP_GLOBAL_VAR, %d)},'
+            % (name, name, size, type_index))
 
     # ----------
     # emitting the opcodes for individual types

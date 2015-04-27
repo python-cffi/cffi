@@ -63,6 +63,7 @@ typedef void *_cffi_opcode_t;
 struct _cffi_global_s {
     const char *name;
     void *address;
+    size_t size;             // -1 if unknown
     _cffi_opcode_t type_op;
 };
 

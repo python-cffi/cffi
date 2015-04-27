@@ -420,3 +420,23 @@ def test_module_name_in_package():
         assert test_module_name_in_package.mymod.lib.foo(10) == 42
     finally:
         sys.path[:] = old_sys_path
+
+def test_bad_size_of_global_1():
+    ffi = FFI()
+    ffi.cdef("short glob;")
+    lib = verify(ffi, "test_bad_size_of_global_1", "long glob;")
+    py.test.raises(ffi.error, "lib.glob")
+
+def test_bad_size_of_global_2():
+    ffi = FFI()
+    ffi.cdef("int glob[10];")
+    lib = verify(ffi, "test_bad_size_of_global_2", "int glob[9];")
+    e = py.test.raises(ffi.error, "lib.glob")
+    assert str(e.value) == ("global variable 'glob' should be 40 bytes "
+                            "according to the cdef, but is actually 36")
+
+def test_unspecified_size_of_global():
+    ffi = FFI()
+    ffi.cdef("int glob[];")
+    lib = verify(ffi, "test_unspecified_size_of_global", "int glob[10];")
+    lib.glob    # does not crash
