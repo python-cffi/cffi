@@ -400,7 +400,6 @@ static PyObject *ffi_addressof(FFIObject *self, PyObject *args)
     }
 
     z = new_pointer_type(ct);
-    z = get_unique_type(self->types_builder, z);
     if (z == NULL)
         return NULL;
 

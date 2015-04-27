@@ -7,7 +7,6 @@ typedef struct {
 
 
 static PyObject *all_primitives[_CFFI__NUM_PRIM];
-static PyObject *global_types_dict;
 static CTypeDescrObject *g_ct_voidp, *g_ct_chararray;
 
 static PyObject *build_primitive_type(int num);   /* forward */
@@ -15,14 +14,6 @@ static PyObject *build_primitive_type(int num);   /* forward */
 #define get_primitive_type(num)                                 \
     (all_primitives[num] != NULL ? all_primitives[num]          \
                                  : build_primitive_type(num))
-
-static int _add_to_global_types_dict(PyObject *ct)
-{
-    if (ct == NULL)
-        return -1;
-    return PyDict_SetItemString(global_types_dict,
-                                ((CTypeDescrObject *)ct)->ct_name, ct);
-}
 
 static int init_global_types_dict(PyObject *ffi_type_dict)
 {
@@ -32,29 +23,25 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
        MemoryErrors during importing an extension module are kind
        of bad anyway */
 
-    global_types_dict = PyDict_New();
-    if (global_types_dict == NULL)
-        return -1;
-
     ct_void = get_primitive_type(_CFFI_PRIM_VOID);         // 'void'
-    if (_add_to_global_types_dict(ct_void) < 0)
+    if (ct_void == NULL)
         return -1;
 
     ct2 = new_pointer_type((CTypeDescrObject *)ct_void);   // 'void *'
-    if (_add_to_global_types_dict(ct2) < 0)
+    if (ct2 == NULL)
         return -1;
     g_ct_voidp = (CTypeDescrObject *)ct2;
 
     ct_char = get_primitive_type(_CFFI_PRIM_CHAR);         // 'char'
-    if (_add_to_global_types_dict(ct_char) < 0)
+    if (ct_char == NULL)
         return -1;
 
     ct2 = new_pointer_type((CTypeDescrObject *)ct_char);   // 'char *'
-    if (_add_to_global_types_dict(ct2) < 0)
+    if (ct2 == NULL)
         return -1;
 
     ct2 = new_array_type((CTypeDescrObject *)ct2, -1);     // 'char[]'
-    if (_add_to_global_types_dict(ct2) < 0)
+    if (ct2 == NULL)
         return -1;
     g_ct_chararray = (CTypeDescrObject *)ct2;
 
@@ -115,66 +102,6 @@ static builder_c_t *new_builder_c(const struct _cffi_type_context_s *ctx)
     builder->types_dict = ldict;
     builder->num_types_imported = 0;
     return builder;
-}
-
-static PyObject *get_unique_type(builder_c_t *builder, PyObject *x)
-{
-    /* Replace the CTypeDescrObject 'x' with a standardized one.
-       This either just returns x, or x is decrefed and a new reference
-       to the standard equivalent is returned.
-
-       In this function, 'x' always contains a reference that must be
-       decrefed, and 'y' never does.
-    */
-    CTypeDescrObject *ct = (CTypeDescrObject *)x;
-    if (ct == NULL)
-        return NULL;
-
-    /* XXX maybe change the type of ct_name to be a real 'PyObject *'? */
-    PyObject *name = PyString_FromString(ct->ct_name);
-    if (name == NULL)
-        goto no_memory;
-
-    PyObject *y = PyDict_GetItem(builder->types_dict, name);
-    if (y != NULL) {
-        /* Already found the same ct_name in the dict.  Return the old one. */
-        Py_INCREF(y);
-        Py_DECREF(x);
-        x = y;
-        goto done;
-    }
-
-    if (!(ct->ct_flags & CT_USES_LOCAL)) {
-        /* The type is not "local", i.e. does not make use of any struct,
-           union or enum.  This means it should be shared across independent
-           ffi instances.  Look it up and possibly add it to the global
-           types dict.
-        */
-        y = PyDict_GetItem(global_types_dict, name);
-        if (y != NULL) {
-            Py_INCREF(y);
-            Py_DECREF(x);
-            x = y;
-        }
-        else {
-            /* Not found in the global dictionary.  Put it there. */
-            if (PyDict_SetItem(global_types_dict, name, x) < 0)
-                goto no_memory;
-        }
-    }
-
-    /* Set x in the local dict. */
-    if (PyDict_SetItem(builder->types_dict, name, x) < 0)
-        goto no_memory;
-
- done:
-    Py_DECREF(name);
-    return x;
-
- no_memory:
-    Py_XDECREF(name);
-    Py_DECREF(x);
-    return NULL;
 }
 
 static PyObject *build_primitive_type(int num)
@@ -365,7 +292,6 @@ _realize_c_type_or_func(builder_c_t *builder,
             return NULL;
         if (CTypeDescr_Check(y)) {
             x = new_pointer_type((CTypeDescrObject *)y);
-            x = get_unique_type(builder, x);
         }
         else {
             assert(PyTuple_Check(y));   /* from _CFFI_OP_FUNCTION */
@@ -383,12 +309,10 @@ _realize_c_type_or_func(builder_c_t *builder,
         if (y == NULL)
             return NULL;
         z = new_pointer_type((CTypeDescrObject *)y);
-        z = get_unique_type(builder, z);
         Py_DECREF(y);
         if (z == NULL)
             return NULL;
         x = new_array_type((CTypeDescrObject *)z, length);
-        x = get_unique_type(builder, x);
         Py_DECREF(z);
         break;
 
@@ -573,7 +497,6 @@ _realize_c_type_or_func(builder_c_t *builder,
 
         z = new_function_type(fargs, (CTypeDescrObject *)y, ellipsis,
                               FFI_DEFAULT_ABI);
-        z = get_unique_type(builder, z);
         Py_DECREF(fargs);
         Py_DECREF(y);
         if (z == NULL)

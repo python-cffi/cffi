@@ -132,7 +132,6 @@
 #define CT_WITH_VAR_ARRAY     1048576
 #define CT_IS_UNSIZED_CHAR_A  2097152
 #define CT_LAZY_FIELD_LIST    4194304
-#define CT_USES_LOCAL         8388608
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -3381,6 +3380,57 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
 
 /************************************************************/
 
+static PyObject *unique_cache;
+
+static PyObject *get_unique_type(CTypeDescrObject *x,
+                                 const void *unique_key[], long keylength)
+{
+    /* Replace the CTypeDescrObject 'x' with a standardized one.
+       This either just returns x, or x is decrefed and a new reference
+       to the already-existing equivalent is returned.
+
+       In this function, 'x' always contains a reference that must be
+       either decrefed or returned.
+
+       Keys:
+           void       ["void"]
+           primitive  [&static_struct]
+           pointer    [ctype]
+           array      [ctype, length]
+           funcptr    [ctresult, ellipsis+abi, num_args, ctargs...]
+    */
+    long i;
+    PyObject *key, *y;
+    const void **pkey;
+    int err;
+
+    key = PyString_FromStringAndSize(NULL, keylength * sizeof(void *));
+    if (key == NULL)
+        goto error;
+
+    pkey = (const void **)PyString_AS_STRING(key);
+    for (i = 0; i < keylength; i++)
+        pkey[i] = unique_key[i];
+
+    y = PyDict_GetItem(unique_cache, key);
+    if (y != NULL) {
+        Py_DECREF(key);
+        Py_INCREF(y);
+        Py_DECREF(x);
+        return y;
+    }
+    err = PyDict_SetItem(unique_cache, key, (PyObject *)x);
+    Py_DECREF(key);
+    if (err < 0)
+        goto error;
+
+    return (PyObject *)x;
+
+ error:
+    Py_DECREF(x);
+    return NULL;
+}
+
 static PyObject *new_primitive_type(const char *name)
 {
 #define ENUM_PRIMITIVE_TYPES                                    \
@@ -3461,6 +3511,7 @@ static PyObject *new_primitive_type(const char *name)
         { NULL }
     };
     const struct descr_s *ptypes;
+    const void *unique_key[1];
     int name_size;
     ffi_type *ffitype;
 
@@ -3526,7 +3577,8 @@ static PyObject *new_primitive_type(const char *name)
             td->ct_flags |= CT_PRIMITIVE_FITS_LONG;
     }
     td->ct_name_position = strlen(td->ct_name);
-    return (PyObject *)td;
+    unique_key[0] = ptypes;
+    return get_unique_type(td, unique_key, 1);
 
  bad_ffi_type:
     PyErr_Format(PyExc_NotImplementedError,
@@ -3548,6 +3600,7 @@ static PyObject *new_pointer_type(CTypeDescrObject *ctitem)
 {
     CTypeDescrObject *td;
     const char *extra;
+    const void *unique_key[1];
 
     if (ctitem->ct_flags & CT_ARRAY)
         extra = "(*)";   /* obscure case: see test_array_add */
@@ -3559,7 +3612,7 @@ static PyObject *new_pointer_type(CTypeDescrObject *ctitem)
 
     td->ct_size = sizeof(void *);
     td->ct_length = -1;
-    td->ct_flags = CT_POINTER | (ctitem->ct_flags & CT_USES_LOCAL);
+    td->ct_flags = CT_POINTER;
     if (ctitem->ct_flags & (CT_STRUCT|CT_UNION))
         td->ct_flags |= CT_IS_PTR_TO_OWNED;
     if (ctitem->ct_flags & CT_VOID)
@@ -3568,7 +3621,8 @@ static PyObject *new_pointer_type(CTypeDescrObject *ctitem)
         ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
          ctitem->ct_size == sizeof(char)))
         td->ct_flags |= CT_CAST_ANYTHING;   /* 'void *' or 'char *' only */
-    return (PyObject *)td;
+    unique_key[0] = ctitem;
+    return get_unique_type(td, unique_key, 1);
 }
 
 static PyObject *b_new_pointer_type(PyObject *self, PyObject *args)
@@ -3611,6 +3665,7 @@ new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length)
     char extra_text[32];
     Py_ssize_t arraysize;
     int flags = CT_ARRAY;
+    const void *unique_key[2];
 
     if (!(ctptr->ct_flags & CT_POINTER)) {
         PyErr_SetString(PyExc_TypeError, "first arg must be a pointer ctype");
@@ -3648,13 +3703,16 @@ new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length)
     td->ct_stuff = (PyObject *)ctptr;
     td->ct_size = arraysize;
     td->ct_length = length;
-    td->ct_flags = flags | (ctptr->ct_flags & CT_USES_LOCAL);
-    return (PyObject *)td;
+    td->ct_flags = flags;
+    unique_key[0] = ctptr;
+    unique_key[1] = (void *)length;
+    return get_unique_type(td, unique_key, 2);
 }
 
 static PyObject *new_void_type(void)
 {
     int name_size = strlen("void") + 1;
+    const void *unique_key[1];
     CTypeDescrObject *td = ctypedescr_new(name_size);
     if (td == NULL)
         return NULL;
@@ -3663,7 +3721,8 @@ static PyObject *new_void_type(void)
     td->ct_size = -1;
     td->ct_flags = CT_VOID | CT_IS_OPAQUE;
     td->ct_name_position = strlen("void");
-    return (PyObject *)td;
+    unique_key[0] = "void";
+    return get_unique_type(td, unique_key, 1);
 }
 
 static PyObject *b_new_void_type(PyObject *self, PyObject *args)
@@ -3680,7 +3739,7 @@ static PyObject *new_struct_or_union_type(const char *name, int flag)
 
     td->ct_size = -1;
     td->ct_length = -1;
-    td->ct_flags = flag | CT_IS_OPAQUE | CT_USES_LOCAL;
+    td->ct_flags = flag | CT_IS_OPAQUE;
     td->ct_extra = NULL;
     memcpy(td->ct_name, name, namelen + 1);
     td->ct_name_position = namelen;
@@ -4406,8 +4465,6 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
                                           int ellipsis)
 {
     CTypeDescrObject *fct;
-    Py_ssize_t i, nargs;
-    int all_flags;
 
     fb->nb_bytes = 0;
     fb->bufferp = NULL;
@@ -4429,16 +4486,9 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
         goto error;
     assert(fb->bufferp == fct->ct_name + fb->nb_bytes);
 
-    all_flags = fresult->ct_flags;
-    nargs = PyTuple_GET_SIZE(fargs);
-    for (i = 0; i < nargs; i++) {
-        CTypeDescrObject *farg = (CTypeDescrObject *)PyTuple_GET_ITEM(fargs, i);
-        all_flags |= farg->ct_flags;
-    }
-
     fct->ct_extra = NULL;
     fct->ct_size = sizeof(void(*)(void));
-    fct->ct_flags = CT_FUNCTIONPTR | (all_flags & CT_USES_LOCAL);
+    fct->ct_flags = CT_FUNCTIONPTR;
     return fct;
 
  error:
@@ -4496,6 +4546,7 @@ static PyObject *new_function_type(PyObject *fargs,   /* tuple */
     CTypeDescrObject *fct;
     struct funcbuilder_s funcbuilder;
     Py_ssize_t i;
+    const void **unique_key;
 
     if ((fresult->ct_size < 0 && !(fresult->ct_flags & CT_VOID)) ||
         (fresult->ct_flags & CT_ARRAY)) {
@@ -4551,7 +4602,15 @@ static PyObject *new_function_type(PyObject *fargs,   /* tuple */
         Py_INCREF(o);
         PyTuple_SET_ITEM(fct->ct_stuff, 2 + i, o);
     }
-    return (PyObject *)fct;
+
+    /* [ctresult, ellipsis+abi, num_args, ctargs...] */
+    unique_key = alloca((3 + funcbuilder.nargs) * sizeof(void *));
+    unique_key[0] = fresult;
+    unique_key[1] = (const void *)(Py_ssize_t)((fabi << 1) | !!ellipsis);
+    unique_key[2] = (const void *)(Py_ssize_t)(funcbuilder.nargs);
+    for (i=0; i<funcbuilder.nargs; i++)
+        unique_key[3 + i] = PyTuple_GET_ITEM(fct->ct_stuff, 2 + i);
+    return get_unique_type(fct, unique_key, 3 + funcbuilder.nargs);
 
  error:
     Py_DECREF(fct);
@@ -4890,7 +4949,7 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
     td->ct_size = basetd->ct_size;
     td->ct_length = basetd->ct_length;   /* alignment */
     td->ct_extra = basetd->ct_extra;     /* ffi type  */
-    td->ct_flags = basetd->ct_flags | CT_IS_ENUM | CT_USES_LOCAL;
+    td->ct_flags = basetd->ct_flags | CT_IS_ENUM;
     td->ct_name_position = name_size - 1;
     return (PyObject *)td;
 
@@ -5914,6 +5973,11 @@ init_cffi_backend(void)
 
     if (m == NULL)
         INITERROR;
+
+    unique_cache = PyDict_New();
+    if (unique_cache == NULL)
+        INITERROR;
+
     if (PyType_Ready(&dl_type) < 0)
         INITERROR;
     if (PyType_Ready(&CTypeDescr_Type) < 0)
