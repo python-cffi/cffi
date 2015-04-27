@@ -231,8 +231,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
                             _CFFI_GETARG(g->type_op));
         if (ct == NULL)
             return NULL;
-        if (g->size != ct->ct_size &&
-                g->size != (size_t)-1 && ct->ct_size != -1) {
+        if (g->size != ct->ct_size && g->size != 0 && ct->ct_size > 0) {
             PyErr_Format(FFIError,
                          "global variable '%.200s' should be %zd bytes "
                          "according to the cdef, but is actually %zd",
