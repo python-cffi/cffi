@@ -437,9 +437,9 @@ can assume to exist are the standard types:
   types ``TBYTE TCHAR LPCTSTR PCTSTR LPTSTR PTSTR PTBYTE PTCHAR`` are no
   longer automatically defined; see ``ffi.set_unicode()`` below.
 
-* *New in version 0.9:* the other standard integer types from stdint.h,
+* *New in version 0.9.3:* the other standard integer types from stdint.h,
   as long as they map to integers of 1, 2, 4 or 8 bytes.  Larger integers
-  are not supported.
+  are not supported.  (Actually added in version 0.9 but this was buggy.)
 
 .. _`common Windows types`: http://msdn.microsoft.com/en-us/library/windows/desktop/aa383751%28v=vs.85%29.aspx
 
