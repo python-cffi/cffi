@@ -24,7 +24,6 @@ struct FFIObject_s {
     struct _cffi_parse_info_s info;
     int ctx_is_static;
     builder_c_t *types_builder;
-    PyObject *dynamic_types;
     _cffi_opcode_t internal_output[FFI_COMPLEXITY_OUTPUT];
 };
 
@@ -53,7 +52,9 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
     ffi->info.output = ffi->internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
     ffi->ctx_is_static = (static_ctx != NULL);
+#if 0
     ffi->dynamic_types = NULL;
+#endif
     return ffi;
 }
 
@@ -61,7 +62,9 @@ static void ffi_dealloc(FFIObject *ffi)
 {
     PyObject_GC_UnTrack(ffi);
     Py_XDECREF(ffi->gc_wrefs);
+#if 0
     Py_XDECREF(ffi->dynamic_types);
+#endif
 
     if (!ffi->ctx_is_static)
         free_builder_c(ffi->types_builder);
@@ -640,6 +643,7 @@ static int ffi_set_errno(PyObject *self, PyObject *newval, void *closure)
     return 0;
 }
 
+#if 0
 static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
 {
     PyObject *lst1, *lst2;
@@ -726,9 +730,9 @@ static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
     Py_INCREF(Py_None);
     return Py_None;
 }
+#endif
 
 static PyMethodDef ffi_methods[] = {
- {"__set_types",(PyCFunction)ffi__set_types, METH_VARARGS},
  {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS, ffi_addressof_doc},
  {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
  {"buffer",     (PyCFunction)ffi_buffer,     METH_VARARGS, ffi_buffer_doc},

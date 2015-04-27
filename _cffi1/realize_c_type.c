@@ -2,7 +2,6 @@
 typedef struct {
     struct _cffi_type_context_s ctx;   /* inlined substructure */
     PyObject *types_dict;
-    int num_types_imported;
 } builder_c_t;
 
 
@@ -56,12 +55,14 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
 static void cleanup_builder_c(builder_c_t *builder)
 {
     int i;
+#if 0
     for (i = builder->num_types_imported; (--i) >= 0; ) {
         _cffi_opcode_t x = builder->ctx.types[i];
         if ((((uintptr_t)x) & 1) == 0) {
             Py_XDECREF((PyObject *)x);
         }
     }
+#endif
 
     const void *mem[] = {builder->ctx.types,
                          builder->ctx.globals,
@@ -100,7 +101,9 @@ static builder_c_t *new_builder_c(const struct _cffi_type_context_s *ctx)
         memset(&builder->ctx, 0, sizeof(builder->ctx));
 
     builder->types_dict = ldict;
+#if 0
     builder->num_types_imported = 0;
+#endif
     return builder;
 }
 
