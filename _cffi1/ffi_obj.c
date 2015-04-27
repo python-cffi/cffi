@@ -18,12 +18,15 @@
 
 #define FFI_COMPLEXITY_OUTPUT   1200     /* xxx should grow as needed */
 
+#define FFIObject_Check(op) PyObject_TypeCheck(op, &FFI_Type)
+
 struct FFIObject_s {
     PyObject_HEAD
     PyObject *gc_wrefs;
     struct _cffi_parse_info_s info;
     int ctx_is_static;
     builder_c_t *types_builder;
+    PyObject *included_ffis;
 };
 
 static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
@@ -53,6 +56,7 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
     ffi->info.output = internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
     ffi->ctx_is_static = (static_ctx != NULL);
+    ffi->included_ffis = NULL;
 #if 0
     ffi->dynamic_types = NULL;
 #endif
@@ -70,6 +74,7 @@ static void ffi_dealloc(FFIObject *ffi)
     if (!ffi->ctx_is_static)
         free_builder_c(ffi->types_builder);
 
+    Py_XDECREF(ffi->included_ffis);
     Py_TYPE(ffi)->tp_free((PyObject *)ffi);
 }
 
@@ -77,6 +82,7 @@ static int ffi_traverse(FFIObject *ffi, visitproc visit, void *arg)
 {
     Py_VISIT(ffi->types_builder->types_dict);
     Py_VISIT(ffi->gc_wrefs);
+    Py_VISIT(ffi->included_ffis);
     return 0;
 }
 

@@ -113,7 +113,7 @@ struct _cffi_type_context_s {
     int num_struct_unions;
     int num_enums;
     int num_typenames;
-    const char * const *includes;
+    const char *const *includes;
 };
 
 struct _cffi_parse_info_s {

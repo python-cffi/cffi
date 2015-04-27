@@ -23,6 +23,7 @@ struct LibObject_s {
     builder_c_t *l_types_builder; /* same as the one on the ffi object */
     PyObject *l_dict;           /* content, built lazily */
     PyObject *l_libname;        /* some string that gives the name of the lib */
+    PyObject *l_includes;       /* tuple of LibObjects included here */
 };
 
 #define LibObject_Check(ob)  ((Py_TYPE(ob) == &Lib_Type))
@@ -64,6 +65,7 @@ static void lib_dealloc(LibObject *lib)
 {
     Py_DECREF(lib->l_dict);
     Py_DECREF(lib->l_libname);
+    Py_XDECREF(lib->l_includes);
     PyObject_Del(lib);
 }
 
@@ -128,9 +130,11 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
     return NULL;
 }
 
-static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
+static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
+                                          int recursion)
 {
     /* does not return a new reference! */
+    PyObject *x;
 
     char *s = PyText_AsUTF8(name);
     if (s == NULL)
@@ -138,15 +142,45 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
 
     int index = search_in_globals(&lib->l_types_builder->ctx, s, strlen(s));
     if (index < 0) {
+
+        if (lib->l_includes != NULL) {
+
+            if (recursion > 100) {
+                PyErr_SetString(PyExc_RuntimeError,
+                    "recursion overflow in ffi.include() delegations");
+                return NULL;
+            }
+
+            Py_ssize_t i;
+            for (i = 0; i < PyTuple_GET_SIZE(lib->l_includes); i++) {
+                LibObject *lib1;
+                lib1 = (LibObject *)PyTuple_GET_ITEM(lib->l_includes, i);
+                x = PyDict_GetItem(lib1->l_dict, name);
+                if (x != NULL) {
+                    Py_INCREF(x);
+                    goto found;
+                }
+                x = lib_build_and_cache_attr(lib1, name, recursion + 1);
+                if (x != NULL) {
+                    Py_INCREF(x);
+                    goto found;
+                }
+                if (PyErr_Occurred())
+                    return NULL;
+            }
+        }
+
+        if (recursion > 0)
+            return NULL;  /* no error set, continue looking elsewhere */
+
         PyErr_Format(PyExc_AttributeError,
-                     "lib '%.200s' has no function,"
+                     "cffi lib '%.200s' has no function,"
                      " global variable or constant named '%.200s'",
                      PyText_AS_UTF8(lib->l_libname), s);
         return NULL;
     }
 
     const struct _cffi_global_s *g = &lib->l_types_builder->ctx.globals[index];
-    PyObject *x;
     CTypeDescrObject *ct;
 
     switch (_CFFI_GETOP(g->type_op)) {
@@ -217,6 +251,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name)
         return NULL;
     }
 
+ found:
     if (x != NULL) {
         int err = PyDict_SetItem(lib->l_dict, name, x);
         Py_DECREF(x);
@@ -230,7 +265,7 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
 {
     PyObject *x = PyDict_GetItem(lib->l_dict, name);
     if (x == NULL) {
-        x = lib_build_and_cache_attr(lib, name);
+        x = lib_build_and_cache_attr(lib, name, 0);
         if (x == NULL)
             return NULL;
     }
@@ -246,7 +281,7 @@ static int lib_setattr(LibObject *lib, PyObject *name, PyObject *val)
 {
     PyObject *x = PyDict_GetItem(lib->l_dict, name);
     if (x == NULL) {
-        x = lib_build_and_cache_attr(lib, name);
+        x = lib_build_and_cache_attr(lib, name, 0);
         if (x == NULL)
             return -1;
     }
@@ -351,5 +386,6 @@ static LibObject *lib_internal_new(builder_c_t *types_builder,
     lib->l_types_builder = types_builder;
     lib->l_dict = dict;
     lib->l_libname = libname;
+    lib->l_includes = NULL;
     return lib;
 }
