@@ -24,12 +24,13 @@ struct FFIObject_s {
     struct _cffi_parse_info_s info;
     int ctx_is_static;
     builder_c_t *types_builder;
-    _cffi_opcode_t internal_output[FFI_COMPLEXITY_OUTPUT];
 };
 
 static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
                                  const struct _cffi_type_context_s *static_ctx)
 {
+    static _cffi_opcode_t internal_output[FFI_COMPLEXITY_OUTPUT];
+
     FFIObject *ffi;
     if (static_ctx != NULL) {
         ffi = (FFIObject *)PyObject_GC_New(FFIObject, ffitype);
@@ -49,7 +50,7 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
     }
     ffi->gc_wrefs = NULL;
     ffi->info.ctx = &ffi->types_builder->ctx;
-    ffi->info.output = ffi->internal_output;
+    ffi->info.output = internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
     ffi->ctx_is_static = (static_ctx != NULL);
 #if 0
