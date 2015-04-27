@@ -1703,5 +1703,3 @@ class BackendTests:
         assert lib.DOT_HEX == 0x100
         assert lib.DOT_HEX2 == 0x10
         assert lib.DOT_UL == 1000
-
-
