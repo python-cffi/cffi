@@ -4,8 +4,12 @@ from _cffi1 import recompiler
 from _cffi1.udir import udir
 
 
-def check_type_table(input, expected_output):
+def check_type_table(input, expected_output, included=None):
     ffi = FFI()
+    if included:
+        ffi1 = FFI()
+        ffi1.cdef(included)
+        ffi.include(ffi1)
     ffi.cdef(input)
     recomp = recompiler.Recompiler(ffi, 'testmod')
     recomp.collect_type_table()
@@ -91,6 +95,16 @@ def test_type_table_anonymous_struct_with_typedef():
 def test_type_table_enum():
     check_type_table("enum foo_e { AA, BB, ... };",
                      "(ENUM 0)")
+
+def test_type_table_include_1():
+    check_type_table("foo_t sin(foo_t);",
+                     "(FUNCTION 1)(PRIMITIVE 14)(FUNCTION_END 0)",
+                     included="typedef double foo_t;")
+
+def test_type_table_include_2():
+    check_type_table("struct foo_s *sin(struct foo_s *);",
+                     "(FUNCTION 1)(POINTER 3)(FUNCTION_END 0)(STRUCT_UNION 0)",
+                     included="struct foo_s { int x, y; };")
 
 
 def test_math_sin():
@@ -440,3 +454,25 @@ def test_unspecified_size_of_global():
     ffi.cdef("int glob[];")
     lib = verify(ffi, "test_unspecified_size_of_global", "int glob[10];")
     lib.glob    # does not crash
+
+def test_include_1():
+    ffi1 = FFI(); ffi1.cdef("typedef double foo_t;")
+    ffi = FFI()
+    ffi.include(ffi1)
+    ffi.cdef("foo_t ff1(foo_t);")
+    lib = verify(ffi, "test_include_1", "double ff1(double x) { return 42.5; }")
+    assert lib.ff1(0) == 42.5
+
+def test_include_2():
+    ffi1 = FFI(); ffi1.cdef("struct foo_s { int x, y; };")
+    ffi = FFI()
+    ffi.include(ffi1)
+    ffi.cdef("struct foo_s *ff2(struct foo_s *);")
+    lib = verify(ffi, "test_include_2",
+                 "struct foo_s { int x, y; };\n"
+                 "struct foo_s *ff2(struct foo_s *p) { p->y++; return p; }")
+    p = ffi.new("struct foo_s *")
+    p.y = 41
+    q = lib.ff2(p)
+    assert q == p
+    assert p.y == 42

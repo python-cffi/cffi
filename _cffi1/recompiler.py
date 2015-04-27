@@ -8,9 +8,6 @@ class Recompiler:
     def __init__(self, ffi, module_name):
         self.ffi = ffi
         self.module_name = module_name
-        #
-        if ']' in self.ffi._cdefsources:
-            raise NotImplementedError("ffi.include()")
 
     def collect_type_table(self):
         self._typesdict = {}
@@ -80,7 +77,8 @@ class Recompiler:
             if isinstance(tp, model.FunctionPtrType):
                 self._do_collect_type(tp.as_raw_function())
             elif isinstance(tp, model.StructOrUnion):
-                if tp.fldtypes is not None:
+                if tp.fldtypes is not None and (
+                        tp not in self.ffi._parser._included_declarations):
                     for name1, tp1, _ in tp.enumfields():
                         self._do_collect_type(self._field_type(tp, name1, tp1))
             else:
@@ -464,19 +462,24 @@ class Recompiler:
 
     def _struct_ctx(self, tp, cname, approxname):
         type_index = self._typesdict[tp]
+        reason_for_not_expanding = None
         flags = []
         if isinstance(tp, model.UnionType):
             flags.append("_CFFI_F_UNION")
-        if tp.fldtypes is None:
-            pass    # opaque
-        elif tp.partial or tp.has_anonymous_struct_fields():
-            pass    # the field layout is obtained silently from the C compiler
+        if tp not in self.ffi._parser._included_declarations:
+            if tp.fldtypes is None:
+                reason_for_not_expanding = "opaque"
+            elif tp.partial or tp.has_anonymous_struct_fields():
+                pass    # field layout obtained silently from the C compiler
+            else:
+                flags.append("_CFFI_F_CHECK_FIELDS")
+            if tp.packed:
+                flags.append("_CFFI_F_PACKED")
         else:
-            flags.append("_CFFI_F_CHECK_FIELDS")
-        if tp.packed:
-            flags.append("_CFFI_F_PACKED")
+            flags.append("_CFFI_F_EXTERNAL")
+            reason_for_not_expanding = "external"
         flags = '|'.join(flags) or '0'
-        if tp.fldtypes is not None:
+        if reason_for_not_expanding is None:
             c_field = [approxname]
             enumfields = list(tp.enumfields())
             for fldname, fldtype, fbitsize in enumfields:
@@ -515,7 +518,8 @@ class Recompiler:
                     '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
                                                         len(enumfields),))
         else:
-            size_align = ' (size_t)-1, -1, -1, 0 /* opaque */ },'
+            size_align = ' (size_t)-1, -1, -1, 0 /* %s */ },' % (
+                reason_for_not_expanding,)
         self._lsts["struct_union"].append(
             '  { "%s", %d, %s,' % (tp.name, type_index, flags) + size_align)
         self._seen_struct_unions.add(tp)

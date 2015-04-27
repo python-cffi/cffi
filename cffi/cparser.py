@@ -95,6 +95,7 @@ class Parser(object):
 
     def __init__(self):
         self._declarations = {}
+        self._included_declarations = set()
         self._anonymous_counter = 0
         self._structnode2type = weakref.WeakKeyDictionary()
         self._override = False
@@ -278,7 +279,7 @@ class Parser(object):
             raise api.CDefError("unknown identifier '%s'" % (exprnode.name,))
         return self._get_type(exprnode.type)
 
-    def _declare(self, name, obj):
+    def _declare(self, name, obj, included=False):
         if name in self._declarations:
             if self._declarations[name] is obj:
                 return
@@ -288,6 +289,8 @@ class Parser(object):
                     "try cdef(xx, override=True))" % (name,))
         assert '__dotdotdot__' not in name.split()
         self._declarations[name] = obj
+        if included:
+            self._included_declarations.add(obj)
 
     def _get_type_pointer(self, type, const=False):
         if isinstance(type, model.RawFunctionType):
@@ -601,7 +604,9 @@ class Parser(object):
     def include(self, other):
         for name, tp in other._declarations.items():
             kind = name.split(' ', 1)[0]
-            if kind in ('typedef', 'struct', 'union', 'enum'):
+            if kind in ('struct', 'union', 'enum'):
+                self._declare(name, tp, included=True)
+            elif kind == 'typedef':
                 self._declare(name, tp)
         for k, v in other._int_constants.items():
             self._add_constants(k, v)
