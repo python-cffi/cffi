@@ -484,7 +484,7 @@ def test_include_2():
     ffi.include(ffi1)
     ffi.cdef("struct foo_s *ff2(struct foo_s *);")
     lib = verify(ffi, "test_include_2",
-                 "struct foo_s { int x, y; };\n"
+                 "struct foo_s { int x, y; }; //usually from a #include\n"
                  "struct foo_s *ff2(struct foo_s *p) { p->y++; return p; }")
     p = ffi.new("struct foo_s *")
     p.y = 41

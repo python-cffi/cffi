@@ -2,6 +2,7 @@
 typedef struct {
     struct _cffi_type_context_s ctx;   /* inlined substructure */
     PyObject *types_dict;
+    PyObject *included_ffis;
 } builder_c_t;
 
 
@@ -74,6 +75,9 @@ static void cleanup_builder_c(builder_c_t *builder)
         if (mem[i] != NULL)
             PyMem_Free((void *)mem[i]);
     }
+
+    Py_XDECREF(builder->included_ffis);
+    builder->included_ffis = NULL;
 }
 
 static void free_builder_c(builder_c_t *builder)
@@ -101,6 +105,7 @@ static builder_c_t *new_builder_c(const struct _cffi_type_context_s *ctx)
         memset(&builder->ctx, 0, sizeof(builder->ctx));
 
     builder->types_dict = ldict;
+    builder->included_ffis = NULL;
 #if 0
     builder->num_types_imported = 0;
 #endif
@@ -268,6 +273,79 @@ static void _unrealize_name(char *target, const char *srcname)
     }
 }
 
+static PyObject *                                              /* forward */
+_fetch_external_struct_or_union(const struct _cffi_struct_union_s *s,
+                                PyObject *included_ffis, int recursion);
+
+static PyObject *
+_realize_c_struct_or_union(builder_c_t *builder, int sindex)
+{
+    PyObject *x;
+    _cffi_opcode_t op2;
+    const struct _cffi_struct_union_s *s;
+
+    s = &builder->ctx.struct_unions[sindex];
+    op2 = builder->ctx.types[s->type_index];
+    if ((((uintptr_t)op2) & 1) == 0) {
+        x = (PyObject *)op2;     /* found already in the "primary" slot */
+        Py_INCREF(x);
+    }
+    else {
+        CTypeDescrObject *ct = NULL;
+
+        if (!(s->flags & _CFFI_F_EXTERNAL)) {
+            int flags = (s->flags & _CFFI_F_UNION) ? CT_UNION : CT_STRUCT;
+            char *name = alloca(8 + strlen(s->name));
+            _realize_name(name,
+                          (s->flags & _CFFI_F_UNION) ? "union " : "struct ",
+                          s->name);
+            if (strcmp(name, "struct _IO_FILE") == 0)
+                flags |= CT_IS_FILE;
+
+            x = new_struct_or_union_type(name, flags);
+            if (x == NULL)
+                return NULL;
+
+            if (s->first_field_index >= 0) {
+                ct = (CTypeDescrObject *)x;
+                ct->ct_size = (Py_ssize_t)s->size;
+                ct->ct_length = s->alignment;
+                ct->ct_flags &= ~CT_IS_OPAQUE;
+                ct->ct_flags |= CT_LAZY_FIELD_LIST;
+                ct->ct_extra = builder;
+            }
+        }
+        else {
+            x = _fetch_external_struct_or_union(s, builder->included_ffis, 0);
+            if (x == NULL) {
+                if (!PyErr_Occurred())
+                    PyErr_Format(FFIError, "'%s %.200s' should come from "
+                                 "ffi.include() but was not found",
+                                 (s->flags & _CFFI_F_UNION) ? "union"
+                                 : "struct", s->name);
+                return NULL;
+            }
+        }
+
+        /* Update the "primary" OP_STRUCT_UNION slot */
+        assert((((uintptr_t)x) & 1) == 0);
+        assert(builder->ctx.types[s->type_index] == op2);
+        Py_INCREF(x);
+        builder->ctx.types[s->type_index] = x;
+
+        if (ct != NULL && s->size == (size_t)-2) {
+            /* oops, this struct is unnamed and we couldn't generate
+               a C expression to get its size.  We have to rely on
+               complete_struct_or_union() to compute it now. */
+            if (do_realize_lazy_struct(ct) < 0) {
+                builder->ctx.types[s->type_index] = op2;
+                return NULL;
+            }
+        }
+    }
+    return x;
+}
+
 static PyObject *
 _realize_c_type_or_func(builder_c_t *builder,
                         _cffi_opcode_t opcodes[], int index)
@@ -320,62 +398,8 @@ _realize_c_type_or_func(builder_c_t *builder,
         break;
 
     case _CFFI_OP_STRUCT_UNION:
-    {
-        const struct _cffi_struct_union_s *s;
-        _cffi_opcode_t op2;
-
-        s = &builder->ctx.struct_unions[_CFFI_GETARG(op)];
-        op2 = builder->ctx.types[s->type_index];
-        if ((((uintptr_t)op2) & 1) == 0) {
-            x = (PyObject *)op2;
-            Py_INCREF(x);
-        }
-        else {
-            int flags = (s->flags & _CFFI_F_UNION) ? CT_UNION : CT_STRUCT;
-            char *name = alloca(8 + strlen(s->name));
-            _realize_name(name,
-                          (s->flags & _CFFI_F_UNION) ? "union " : "struct ",
-                          s->name);
-            if (strcmp(name, "struct _IO_FILE") == 0)
-                flags |= CT_IS_FILE;
-
-            x = new_struct_or_union_type(name, flags);
-
-            CTypeDescrObject *ct = NULL;
-            if (s->first_field_index >= 0) {
-                ct = (CTypeDescrObject *)x;
-                ct->ct_size = (Py_ssize_t)s->size;
-                ct->ct_length = s->alignment;
-                ct->ct_flags &= ~CT_IS_OPAQUE;
-                ct->ct_flags |= CT_LAZY_FIELD_LIST;
-                ct->ct_extra = builder;
-            }
-
-            /* Update the "primary" OP_STRUCT_UNION slot, which
-               may be the same or a different slot than the "current" one */
-            assert((((uintptr_t)x) & 1) == 0);
-            assert(builder->ctx.types[s->type_index] == op2);
-            Py_INCREF(x);
-            builder->ctx.types[s->type_index] = x;
-
-            if (s->size == (size_t)-2) {
-                /* oops, this struct is unnamed and we couldn't generate
-                   a C expression to get its size.  We have to rely on
-                   complete_struct_or_union() to compute it now. */
-                assert(ct != NULL);
-                if (do_realize_lazy_struct(ct) < 0) {
-                    builder->ctx.types[s->type_index] = op2;
-                    return NULL;
-                }
-            }
-
-            /* Done, leave without updating the "current" slot because
-               it may be done already above.  If not, never mind, the
-               next call to realize_c_type() will do it. */
-            return x;
-        }
+        x = _realize_c_struct_or_union(builder, _CFFI_GETARG(op));
         break;
-    }
 
     case _CFFI_OP_ENUM:
     {
@@ -530,7 +554,7 @@ _realize_c_type_or_func(builder_c_t *builder,
         return NULL;
     }
 
-    if (x != NULL && opcodes == builder->ctx.types) {
+    if (x != NULL && opcodes == builder->ctx.types && opcodes[index] != x) {
         assert((((uintptr_t)x) & 1) == 0);
         assert((((uintptr_t)opcodes[index]) & 1) == 1);
         Py_INCREF(x);

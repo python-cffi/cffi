@@ -114,7 +114,7 @@ static int _cffi_init_module(char *module_name,
     if (lib == NULL || PyModule_AddObject(m, "lib", (PyObject *)lib) < 0)
         return -1;
 
-    if (make_included_tuples(ctx->includes, &ffi->included_ffis,
+    if (make_included_tuples(ctx->includes, &ffi->types_builder->included_ffis,
                              &lib->l_includes) < 0)
         return -1;
 
