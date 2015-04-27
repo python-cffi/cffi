@@ -192,6 +192,19 @@ class Recompiler:
             assert lst[i].startswith('  { "%s"' % tp.name)
         assert len(lst) == len(self._enums)
         #
+        # the declaration of '_cffi_includes'
+        if self.ffi._included_ffis:
+            prnt('static const char * const _cffi_includes[] = {')
+            for ffi_to_include in self.ffi._included_ffis:
+                if not hasattr(ffi_to_include, '_recompiler_module_name'):
+                    raise ffiplatform.VerificationError(
+                        "this ffi includes %r, but the latter has not been "
+                        "turned into a C module" % (ffi_to_include,))
+                prnt('  "%s",' % (ffi_to_include._recompiler_module_name,))
+            prnt('  NULL')
+            prnt('};')
+            prnt()
+        #
         # the declaration of '_cffi_type_context'
         prnt('static const struct _cffi_type_context_s _cffi_type_context = {')
         prnt('  _cffi_types,')
@@ -203,6 +216,10 @@ class Recompiler:
         for step_name in ALL_STEPS:
             if step_name != "field":
                 prnt('  %d,  /* num_%ss */' % (nums[step_name], step_name))
+        if self.ffi._included_ffis:
+            prnt('  _cffi_includes,')
+        else:
+            prnt('  NULL,  /* no includes */')
         prnt('};')
         prnt()
         #
@@ -216,6 +233,7 @@ class Recompiler:
         prnt('  _cffi_init_module("%s", &_cffi_type_context);' % (
             self.module_name,))
         prnt('}')
+        self.ffi._recompiler_module_name = self.module_name
 
     # ----------
 

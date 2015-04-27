@@ -456,7 +456,9 @@ def test_unspecified_size_of_global():
     lib.glob    # does not crash
 
 def test_include_1():
-    ffi1 = FFI(); ffi1.cdef("typedef double foo_t;")
+    ffi1 = FFI()
+    ffi1.cdef("typedef double foo_t;")
+    verify(ffi1, "test_include_1_parent", "typedef double foo_t;")
     ffi = FFI()
     ffi.include(ffi1)
     ffi.cdef("foo_t ff1(foo_t);")
@@ -464,7 +466,9 @@ def test_include_1():
     assert lib.ff1(0) == 42.5
 
 def test_include_2():
-    ffi1 = FFI(); ffi1.cdef("struct foo_s { int x, y; };")
+    ffi1 = FFI()
+    ffi1.cdef("struct foo_s { int x, y; };")
+    verify(ffi1, "test_include_2_parent", "struct foo_s { int x, y; };")
     ffi = FFI()
     ffi.include(ffi1)
     ffi.cdef("struct foo_s *ff2(struct foo_s *);")

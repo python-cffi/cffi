@@ -70,6 +70,7 @@ class FFI(object):
         self._function_caches = []
         self._libraries = []
         self._cdefsources = []
+        self._included_ffis = []
         self._windows_unicode = None
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
@@ -424,6 +425,7 @@ class FFI(object):
                 self._cdefsources.append('[')
                 self._cdefsources.extend(ffi_to_include._cdefsources)
                 self._cdefsources.append(']')
+                self._included_ffis.append(ffi_to_include)
 
     def new_handle(self, x):
         return self._backend.newp_handle(self.BVoidP, x)
