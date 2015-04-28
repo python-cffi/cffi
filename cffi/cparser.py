@@ -608,7 +608,7 @@ class Parser(object):
     def include(self, other):
         for name, tp in other._declarations.items():
             kind = name.split(' ', 1)[0]
-            if kind in ('struct', 'union', 'enum'):
+            if kind in ('struct', 'union', 'enum', 'anonymous'):
                 self._declare(name, tp, included=True)
             elif kind == 'typedef':
                 self._declare(name, tp)
