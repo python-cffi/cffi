@@ -56,8 +56,26 @@ typedef void *_cffi_opcode_t;
 #define _CFFI_PRIM_PTRDIFF      27
 #define _CFFI_PRIM_SIZE         28
 #define _CFFI_PRIM_SSIZE        29
+#define _CFFI_PRIM_INT_LEAST8   30
+#define _CFFI_PRIM_UINT_LEAST8  31
+#define _CFFI_PRIM_INT_LEAST16  32
+#define _CFFI_PRIM_UINT_LEAST16 33
+#define _CFFI_PRIM_INT_LEAST32  34
+#define _CFFI_PRIM_UINT_LEAST32 35
+#define _CFFI_PRIM_INT_LEAST64  36
+#define _CFFI_PRIM_UINT_LEAST64 37
+#define _CFFI_PRIM_INT_FAST8    38
+#define _CFFI_PRIM_UINT_FAST8   39
+#define _CFFI_PRIM_INT_FAST16   40
+#define _CFFI_PRIM_UINT_FAST16  41
+#define _CFFI_PRIM_INT_FAST32   42
+#define _CFFI_PRIM_UINT_FAST32  43
+#define _CFFI_PRIM_INT_FAST64   44
+#define _CFFI_PRIM_UINT_FAST64  45
+#define _CFFI_PRIM_INTMAX       46
+#define _CFFI_PRIM_UINTMAX      47
 
-#define _CFFI__NUM_PRIM         30
+#define _CFFI__NUM_PRIM         48
 
 
 struct _cffi_global_s {

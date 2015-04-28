@@ -459,12 +459,34 @@ int search_standard_typename(const char *p, size_t size)
         if (size == 7 && !memcmp(p, "uint8", 5)) return _CFFI_PRIM_UINT8;
         break;
 
+    case 'a':
+        if (size == 8 && !memcmp(p, "intmax", 6)) return _CFFI_PRIM_INTMAX;
+        break;
+
     case 'e':
         if (size == 7 && !memcmp(p, "ssize", 5)) return _CFFI_PRIM_SSIZE;
         break;
 
+    case 'f':
+        if (size == 11 && !memcmp(p, "int_fast8",   9)) return _CFFI_PRIM_INT_FAST8;
+        if (size == 12 && !memcmp(p, "int_fast16", 10)) return _CFFI_PRIM_INT_FAST16;
+        if (size == 12 && !memcmp(p, "int_fast32", 10)) return _CFFI_PRIM_INT_FAST32;
+        if (size == 12 && !memcmp(p, "int_fast64", 10)) return _CFFI_PRIM_INT_FAST64;
+        break;
+
     case 'i':
         if (size == 9 && !memcmp(p, "ptrdiff", 7)) return _CFFI_PRIM_PTRDIFF;
+        break;
+
+    case 'l':
+        if (size == 12 && !memcmp(p, "int_least8",  10)) return _CFFI_PRIM_INT_LEAST8;
+        if (size == 13 && !memcmp(p, "int_least16", 11)) return _CFFI_PRIM_INT_LEAST16;
+        if (size == 13 && !memcmp(p, "int_least32", 11)) return _CFFI_PRIM_INT_LEAST32;
+        if (size == 13 && !memcmp(p, "int_least64", 11)) return _CFFI_PRIM_INT_LEAST64;
+        break;
+
+    case 'm':
+        if (size == 9 && !memcmp(p, "uintmax", 7)) return _CFFI_PRIM_UINTMAX;
         break;
 
     case 'p':
@@ -482,6 +504,34 @@ int search_standard_typename(const char *p, size_t size)
     case '_':
         if (size == 6 && !memcmp(p, "size", 4)) return _CFFI_PRIM_SIZE;
         if (size == 6 && !memcmp(p, "int8", 4)) return _CFFI_PRIM_INT8;
+        if (size >= 12) {
+            switch (p[10]) {
+            case '1':
+                if (size == 14 && !memcmp(p, "uint_least16", 12)) return _CFFI_PRIM_UINT_LEAST16;
+                break;
+            case '2':
+                if (size == 13 && !memcmp(p, "uint_fast32", 11)) return _CFFI_PRIM_UINT_FAST32;
+                break;
+            case '3':
+                if (size == 14 && !memcmp(p, "uint_least32", 12)) return _CFFI_PRIM_UINT_LEAST32;
+                break;
+            case '4':
+                if (size == 13 && !memcmp(p, "uint_fast64", 11)) return _CFFI_PRIM_UINT_FAST64;
+                break;
+            case '6':
+                if (size == 14 && !memcmp(p, "uint_least64", 12)) return _CFFI_PRIM_UINT_LEAST64;
+                if (size == 13 && !memcmp(p, "uint_fast16", 11)) return _CFFI_PRIM_UINT_FAST16;
+                break;
+            case '8':
+                if (size == 13 && !memcmp(p, "uint_least8", 11)) return _CFFI_PRIM_UINT_LEAST8;
+                break;
+            case '_':
+                if (size == 12 && !memcmp(p, "uint_fast8", 10)) return _CFFI_PRIM_UINT_FAST8;
+                break;
+            default:
+                break;
+            }
+        }
         break;
 
     default:

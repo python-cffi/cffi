@@ -62,8 +62,26 @@ PRIM_UINTPTR       = 26
 PRIM_PTRDIFF       = 27
 PRIM_SIZE          = 28
 PRIM_SSIZE         = 29
+PRIM_INT_LEAST8    = 30
+PRIM_UINT_LEAST8   = 31
+PRIM_INT_LEAST16   = 32
+PRIM_UINT_LEAST16  = 33
+PRIM_INT_LEAST32   = 34
+PRIM_UINT_LEAST32  = 35
+PRIM_INT_LEAST64   = 36
+PRIM_UINT_LEAST64  = 37
+PRIM_INT_FAST8     = 38
+PRIM_UINT_FAST8    = 39
+PRIM_INT_FAST16    = 40
+PRIM_UINT_FAST16   = 41
+PRIM_INT_FAST32    = 42
+PRIM_UINT_FAST32   = 43
+PRIM_INT_FAST64    = 44
+PRIM_UINT_FAST64   = 45
+PRIM_INTMAX        = 46
+PRIM_UINTMAX       = 47
 
-_NUM_PRIM          = 30
+_NUM_PRIM          = 48
 
 PRIMITIVE_TO_INDEX = {
     'char':               PRIM_CHAR,
@@ -95,6 +113,24 @@ PRIMITIVE_TO_INDEX = {
     'ptrdiff_t':          PRIM_PTRDIFF,
     'size_t':             PRIM_SIZE,
     'ssize_t':            PRIM_SSIZE,
+    'int_least8_t':       PRIM_INT_LEAST8,
+    'uint_least8_t':      PRIM_UINT_LEAST8,
+    'int_least16_t':      PRIM_INT_LEAST16,
+    'uint_least16_t':     PRIM_UINT_LEAST16,
+    'int_least32_t':      PRIM_INT_LEAST32,
+    'uint_least32_t':     PRIM_UINT_LEAST32,
+    'int_least64_t':      PRIM_INT_LEAST64,
+    'uint_least64_t':     PRIM_UINT_LEAST64,
+    'int_fast8_t':        PRIM_INT_FAST8,
+    'uint_fast8_t':       PRIM_UINT_FAST8,
+    'int_fast16_t':       PRIM_INT_FAST16,
+    'uint_fast16_t':      PRIM_UINT_FAST16,
+    'int_fast32_t':       PRIM_INT_FAST32,
+    'uint_fast32_t':      PRIM_UINT_FAST32,
+    'int_fast64_t':       PRIM_INT_FAST64,
+    'uint_fast64_t':      PRIM_UINT_FAST64,
+    'intmax_t':           PRIM_INTMAX,
+    'uintmax_t':          PRIM_UINTMAX,
     }
 
 F_UNION         = 0x01
