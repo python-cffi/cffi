@@ -19,7 +19,7 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
         p = subprocess.Popen([pkg_config, option, 'libffi'],
                              stdout=subprocess.PIPE)
     except OSError as e:
-        if e.errno != errno.ENOENT:
+        if e.errno not in [errno.ENOENT, errno.EACCES]:
             raise
     else:
         t = p.stdout.read().decode().strip()
