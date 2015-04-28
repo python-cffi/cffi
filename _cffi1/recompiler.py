@@ -615,7 +615,8 @@ class Recompiler:
     # ----------
     # constants, declared with "static const ..."
 
-    def _generate_cpy_const(self, is_int, name, tp=None, category='const'):
+    def _generate_cpy_const(self, is_int, name, tp=None, category='const',
+                            check_value=None):
         if (category, name) in self._seen_constants:
             raise ffiplatform.VerificationError(
                 "duplicate declaration of %s '%s'" % (category, name))
@@ -626,11 +627,16 @@ class Recompiler:
         if is_int:
             prnt('static int %s(unsigned long long *o)' % funcname)
             prnt('{')
+            prnt('  int n = (%s) <= 0;' % (name,))
             prnt('  *o = (unsigned long long)((%s) << 0);'
                  '  /* check that we get an integer */' % (name,))
-            prnt('  return (%s) <= 0;' % (name,))
+            if check_value is not None:
+                prnt('  if (!_cffi_check_int(*o, n, %s))' % (check_value,))
+                prnt('    n |= 2;')
+            prnt('  return n;')
             prnt('}')
         else:
+            assert check_value is None
             prnt('static void %s(char *o)' % funcname)
             prnt('{')
             prnt('  *(%s)o = %s;' % (tp.get_c_name('*'), name))
@@ -695,9 +701,11 @@ class Recompiler:
         pass
 
     def _generate_cpy_macro_decl(self, tp, name):
-        # for now, we ignore the value (if != ',,,') given in the cdef
-        # and always trust the value coming from the C compiler
-        self._generate_cpy_const(True, name)
+        if tp == '...':
+            check_value = None
+        else:
+            check_value = tp     # an integer
+        self._generate_cpy_const(True, name, check_value=check_value)
 
     def _generate_cpy_macro_ctx(self, tp, name):
         self._lsts["global"].append(

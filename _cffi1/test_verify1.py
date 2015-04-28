@@ -2171,4 +2171,6 @@ def test_define_wrong_value():
     ffi = FFI()
     ffi.cdef("#define FOO 123")
     lib = ffi.verify("#define FOO 124")     # used to complain
-    assert lib.FOO == 124
+    e = py.test.raises(ffi.error, "lib.FOO")
+    assert str(e.value) == ("the C compiler says 'FOO' is equal to 124 (0x7c),"
+                            " but the cdef disagrees")

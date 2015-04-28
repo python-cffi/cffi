@@ -170,6 +170,10 @@ static void *_cffi_exports[_CFFI_NUM_EXPORTS];
      (size) == 8           ? ((sign) ? _CFFI_PRIM_INT64 : _CFFI_PRIM_UINT64) : \
      0)
 
+#define _cffi_check_int(got, got_nonpos, expected)      \
+    ((got_nonpos) == (expected <= 0) &&                 \
+     (got) == (unsigned long long)expected)
+
 
 static int _cffi_init(void)
 {

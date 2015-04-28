@@ -23,7 +23,7 @@ _r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _r_partial_array = re.compile(r"\[\s*\.\.\.\s*\]")
 _r_words = re.compile(r"\w+|\S")
 _parser_cache = None
-_r_int_literal = re.compile(r"^0?x?[0-9a-f]+u?l?$", re.IGNORECASE)
+_r_int_literal = re.compile(r"^0?x?[0-9a-f]+[lu]*$", re.IGNORECASE)
 
 def _get_parser():
     global _parser_cache
@@ -218,6 +218,9 @@ class Parser(object):
     def _process_macros(self, macros):
         for key, value in macros.items():
             value = value.strip()
+            neg = value.startswith('-')
+            if neg:
+                value = value[1:].strip()
             match = _r_int_literal.search(value)
             if match is not None:
                 int_str = match.group(0).lower().rstrip("ul")
@@ -229,6 +232,7 @@ class Parser(object):
                     int_str = "0o" + int_str[1:]
 
                 pyvalue = int(int_str, 0)
+                if neg: pyvalue = -pyvalue
                 self._add_constants(key, pyvalue)
                 self._declare('macro ' + key, pyvalue)
             elif value == '...':

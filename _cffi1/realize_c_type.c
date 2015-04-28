@@ -186,24 +186,37 @@ static PyObject *build_primitive_type(int num)
 
 static PyObject *realize_global_int(const struct _cffi_global_s *g)
 {
-    PyObject *x;
     unsigned long long value;
     /* note: we cast g->address to this function type; we do the same
        in parse_c_type:parse_sequel() too */
     int neg = ((int(*)(unsigned long long*))g->address)(&value);
-    if (!neg) {
+
+    switch (neg) {
+
+    case 0:
         if (value <= (unsigned long long)LONG_MAX)
-            x = PyInt_FromLong((long)value);
+            return PyInt_FromLong((long)value);
         else
-            x = PyLong_FromUnsignedLongLong(value);
-    }
-    else {
+            return PyLong_FromUnsignedLongLong(value);
+
+    case 1:
         if ((long long)value >= (long long)LONG_MIN)
-            x = PyInt_FromLong((long)value);
+            return PyInt_FromLong((long)value);
         else
-            x = PyLong_FromLongLong((long long)value);
+            return PyLong_FromLongLong((long long)value);
+
+    default:
+        break;
     }
-    return x;
+
+    char got[64];
+    if (neg == 2)
+        sprintf(got, "%llu (0x%llx)", value, value);
+    else
+        sprintf(got, "%lld", (long long)value);
+    PyErr_Format(FFIError, "the C compiler says '%.200s' is equal to %s, "
+                           "but the cdef disagrees", g->name, got);
+    return NULL;
 }
 
 static PyObject *
@@ -462,6 +475,8 @@ _realize_c_type_or_func(builder_c_t *builder,
                 while (p[j] != ',' && p[j] != '\0')
                     j++;
                 tmp = PyString_FromStringAndSize(p, j);
+                if (tmp == NULL)
+                    break;
                 PyTuple_SET_ITEM(enumerators, i, tmp);
 
                 gindex = search_in_globals(&builder->ctx, p, j);
@@ -470,6 +485,8 @@ _realize_c_type_or_func(builder_c_t *builder,
                 assert(g->type_op == _CFFI_OP(_CFFI_OP_ENUM, -1));
 
                 tmp = realize_global_int(g);
+                if (tmp == NULL)
+                    break;
                 PyTuple_SET_ITEM(enumvalues, i, tmp);
 
                 p += j + 1;

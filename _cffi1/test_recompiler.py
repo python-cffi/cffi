@@ -175,17 +175,40 @@ def test_macro():
     assert lib.FOOBAR == -6912
     py.test.raises(AttributeError, "lib.FOOBAR = 2")
 
-def test_macro_check_value_ok():
+def test_macro_check_value():
+    # the value '-0x80000000' in C sources does not have a clear meaning
+    # to me; it appears to have a different effect than '-2147483648'...
+    vals = ['42', '-42', '0x80000000', '-2147483648',
+            '0', '9223372036854775809ULL',
+            '-9223372036854775807LL']
     ffi = FFI()
-    ffi.cdef("#define FOOBAR 42")
-    lib = verify(ffi, 'test_macro_check_value_ok', "#define FOOBAR 42")
-    assert lib.FOOBAR == 42
+    cdef_lines = ['#define FOO_%d_%d %s' % (i, j, vals[i])
+                  for i in range(len(vals))
+                  for j in range(len(vals))]
+    ffi.cdef('\n'.join(cdef_lines))
 
-def test_macro_check_value_fail():
-    ffi = FFI()
-    ffi.cdef("#define FOOBAR 42")
-    lib = verify(ffi, 'test_macro_check_value_fail', "#define FOOBAR 43")
-    assert lib.FOOBAR == 43      # for now, we don't check the cdef value
+    verify_lines = ['#define FOO_%d_%d %s' % (i, j, vals[j])  # [j], not [i]
+                    for i in range(len(vals))
+                    for j in range(len(vals))]
+    lib = verify(ffi, 'test_macro_check_value_ok',
+                 '\n'.join(verify_lines))
+    #
+    for j in range(len(vals)):
+        c_got = int(vals[j].replace('U', '').replace('L', ''), 0)
+        c_compiler_msg = str(c_got)
+        if c_got > 0:
+            c_compiler_msg += ' (0x%x)' % (c_got,)
+        #
+        for i in range(len(vals)):
+            attrname = 'FOO_%d_%d' % (i, j)
+            if i == j:
+                x = getattr(lib, attrname)
+                assert x == c_got
+            else:
+                e = py.test.raises(ffi.error, getattr, lib, attrname)
+                assert str(e.value) == (
+                    "the C compiler says '%s' is equal to "
+                    "%s, but the cdef disagrees" % (attrname, c_compiler_msg))
 
 def test_constant():
     ffi = FFI()
