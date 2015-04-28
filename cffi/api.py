@@ -419,6 +419,10 @@ class FFI(object):
         variables, which must anyway be accessed directly from the
         lib object returned by the original FFI instance.
         """
+        if not isinstance(ffi_to_include, FFI):
+            raise TypeError("ffi.include() expects an argument that is also of"
+                            " type cffi.FFI, not %r" % (
+                                type(ffi_to_include).__name__,))
         with ffi_to_include._lock:
             with self._lock:
                 self._parser.include(ffi_to_include._parser)

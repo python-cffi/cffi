@@ -14,7 +14,7 @@ SIZE_OF_WCHAR = ctypes.sizeof(ctypes.c_wchar)
 
 
 def setup_module():
-    global ffi
+    global ffi, ffi1
     ffi1 = cffi.FFI()
     DEFS = r"""
         struct repr { short a, b, c; };
@@ -1500,64 +1500,32 @@ class TestNewFFI1:
         assert foo2.a == 20
         assert foo2.b == 30
 
-    def test_missing_include(self):
+    def test_include_struct_union_enum_typedef(self):
         py.test.xfail("ffi.include")
-        backend = self.Backend()
-        ffi1 = FFI(backend=backend)
-        ffi2 = FFI(backend=backend)
-        ffi1.cdef("typedef signed char schar_t;")
-        py.test.raises(CDefError, ffi2.cast, "schar_t", 142)
-
-    def test_include_typedef(self):
-        py.test.xfail("ffi.include")
-        backend = self.Backend()
-        ffi1 = FFI(backend=backend)
-        ffi2 = FFI(backend=backend)
-        ffi1.cdef("typedef signed char schar_t;")
+        ffi2 = cffi.FFI()
         ffi2.include(ffi1)
-        p = ffi2.cast("schar_t", 142)
-        assert int(p) == 142 - 256
-
-    def test_include_struct(self):
-        py.test.xfail("ffi.include")
-        backend = self.Backend()
-        ffi1 = FFI(backend=backend)
-        ffi2 = FFI(backend=backend)
-        ffi1.cdef("struct foo { int x; };")
-        ffi2.include(ffi1)
-        p = ffi2.new("struct foo *", [142])
-        assert p.x == 142
-
-    def test_include_union(self):
-        py.test.xfail("ffi.include")
-        backend = self.Backend()
-        ffi1 = FFI(backend=backend)
-        ffi2 = FFI(backend=backend)
-        ffi1.cdef("union foo { int x; };")
-        ffi2.include(ffi1)
-        p = ffi2.new("union foo *", [142])
-        assert p.x == 142
-
-    def test_include_enum(self):
-        py.test.xfail("ffi.include")
-        backend = self.Backend()
-        ffi1 = FFI(backend=backend)
-        ffi2 = FFI(backend=backend)
-        ffi1.cdef("enum foo { FA, FB, FC };")
-        ffi2.include(ffi1)
-        p = ffi2.cast("enum foo", 1)
-        assert ffi2.string(p) == "FB"
-        assert ffi2.sizeof("char[FC]") == 2
-
-    def test_include_typedef_2(self):
-        py.test.xfail("ffi.include")
-        backend = self.Backend()
-        ffi1 = FFI(backend=backend)
-        ffi2 = FFI(backend=backend)
-        ffi1.cdef("typedef struct { int x; } *foo_p;")
-        ffi2.include(ffi1)
-        p = ffi2.new("foo_p", [142])
-        assert p.x == 142
+        outputfilename = recompile(ffi2,
+                                   "test_include_struct_union_enum_typedef",
+                                   "", tmpdir=str(udir))
+        module = imp.load_dynamic("test_include_struct_union_enum_typedef",
+                                  outputfilename)
+        ffi2 = module.ffi
+        #
+        p = ffi2.new("struct nonpacked *", ['A', -43141])
+        assert p.a == 'A'
+        assert p.b == -43141
+        #
+        p = ffi.new("union simple_u", [-52525])
+        assert p.a == -52525
+        #
+        p = ffi.cast("enum foq", 2)
+        assert ffi.string(p) == "CC0"
+        assert ffi2.sizeof("char[CC0]") == 2
+        #
+        p = ffi.new("anon_foo_t *", [-52526])
+        assert p.a == -52526
+        p = ffi.new("named_foo_p", [-52527])
+        assert p.a == -52527
 
     def test_struct_packed(self):
         # struct nonpacked { char a; int b; };

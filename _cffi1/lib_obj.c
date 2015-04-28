@@ -328,7 +328,7 @@ static PyMethodDef lib_methods[] = {
 
 static PyTypeObject Lib_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "Lib",
+    "CompiledLib",
     sizeof(LibObject),
     0,
     (destructor)lib_dealloc,                    /* tp_dealloc */

@@ -766,7 +766,7 @@ static PyGetSetDef ffi_getsets[] = {
 
 static PyTypeObject FFI_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "FFI",
+    "CompiledFFI",
     sizeof(FFIObject),
     0,
     (destructor)ffi_dealloc,                    /* tp_dealloc */
