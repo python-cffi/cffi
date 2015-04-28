@@ -14,7 +14,7 @@ SIZE_OF_WCHAR = ctypes.sizeof(ctypes.c_wchar)
 
 
 def setup_module():
-    global ffi, ffi1
+    global ffi, construction_params
     ffi1 = cffi.FFI()
     DEFS = r"""
         struct repr { short a, b, c; };
@@ -83,6 +83,7 @@ def setup_module():
                                tmpdir=str(udir))
     module = imp.load_dynamic("test_new_ffi_1", outputfilename)
     ffi = module.ffi
+    construction_params = (ffi1, CCODE)
 
 
 class TestNewFFI1:
@@ -1501,12 +1502,13 @@ class TestNewFFI1:
         assert foo2.b == 30
 
     def test_include_struct_union_enum_typedef(self):
-        py.test.xfail("ffi.include")
+        #py.test.xfail("ffi.include")
+        ffi1, CCODE = construction_params
         ffi2 = cffi.FFI()
         ffi2.include(ffi1)
         outputfilename = recompile(ffi2,
                                    "test_include_struct_union_enum_typedef",
-                                   "", tmpdir=str(udir))
+                                   CCODE, tmpdir=str(udir))
         module = imp.load_dynamic("test_include_struct_union_enum_typedef",
                                   outputfilename)
         ffi2 = module.ffi
@@ -1515,7 +1517,7 @@ class TestNewFFI1:
         assert p.a == 'A'
         assert p.b == -43141
         #
-        p = ffi.new("union simple_u", [-52525])
+        p = ffi.new("union simple_u *", [-52525])
         assert p.a == -52525
         #
         p = ffi.cast("enum foq", 2)
