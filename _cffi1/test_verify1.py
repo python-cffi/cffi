@@ -1733,7 +1733,7 @@ def test_enum_bug118():
                     (-1, ''),
                     (0xffffffff, 'U'),
                     (maxulong, 'UL'),
-                    (-maxulong / 3, 'L')]:
+                    (-int(maxulong / 3), 'L')]:
         if c2c and sys.platform == 'win32':
             continue     # enums may always be signed with MSVC
         ffi = FFI()
