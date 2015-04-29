@@ -475,6 +475,22 @@ class FFI(object):
                                        ('_UNICODE', '1')]
         kwds['define_macros'] = defmacros
 
+    def set_source(self, module_name, source, **kwds):
+        if hasattr(self, '_assigned_source'):
+            raise ValueError("set_source() cannot be called several times "
+                             "per ffi object")
+        self._recompiler_module_name = module_name
+        self._assigned_source = (source, kwds)
+
+    def compile(self, tmpdir='.'):
+        from _cffi1 import recompile
+        #
+        if not hasattr(self, '_assigned_source'):
+            raise ValueError("set_source() must be called before compile()")
+        source, kwds = self._assigned_source
+        return recompile(self, self._recompiler_module_name,
+                         source, tmpdir=tmpdir, **kwds)
+
 
 def _load_backend_lib(backend, name, flags):
     if name is None:

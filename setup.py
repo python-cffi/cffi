@@ -142,8 +142,9 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='0.9.2',
-        packages=['cffi'],
+        version='1.0.0',
+        packages=['cffi', '_cffi1'],
+        package_data={'_cffi1': ['_cffi_include.h', 'parse_c_type.h']},
         zip_safe=False,
 
         url='http://cffi.readthedocs.org',
@@ -157,6 +158,13 @@ Contact
         install_requires=[
             'pycparser',
         ],
+
+        entry_points = {
+            "distutils.setup_keywords": [
+                "cffi_modules = _cffi1.setuptools_ext:cffi_modules",
+            ],
+        },
+
         classifiers=[
             'Programming Language :: Python',
             'Programming Language :: Python :: 2',

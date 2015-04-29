@@ -1,5 +1,4 @@
 from cffi import FFI
-from _cffi1 import recompile
 
 ffi = FFI()
 ffi.cdef("""
@@ -15,7 +14,10 @@ ffi.cdef("""
     static const int DT_BLK, DT_CHR, DT_DIR, DT_FIFO, DT_LNK, DT_REG, DT_SOCK;
 """)
 
-recompile(ffi, "_bsdopendirtype", """
+ffi.set_source("_bsdopendirtype", """
     #include <sys/types.h>
     #include <dirent.h>
 """)
+
+if __name__ == '__main__':
+    ffi.compile()
