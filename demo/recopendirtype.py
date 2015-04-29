@@ -16,10 +16,10 @@ _dtype_to_smode = {
 
 def opendir(dir):
     if len(dir) == 0:
-        dir = '.'
+        dir = b'.'
     dirname = dir
-    if not dirname.endswith('/'):
-        dirname += '/'
+    if not dirname.endswith(b'/'):
+        dirname += b'/'
     dirp = lib.opendir(dir)
     if dirp == ffi.NULL:
         raise _posix_error()
@@ -34,7 +34,7 @@ def opendir(dir):
             if result[0] == ffi.NULL:
                 return    # 
             name = ffi.string(dirent.d_name)
-            if name == '.' or name == '..':
+            if name == b'.' or name == b'..':
                 continue
             name = dirname + name
             try:
@@ -46,5 +46,5 @@ def opendir(dir):
         lib.closedir(dirp)
 
 if __name__ == '__main__':
-    for name, smode in opendir('/tmp'):
-        print hex(smode), name
+    for name, smode in opendir(b'/tmp'):
+        print(hex(smode), name)
