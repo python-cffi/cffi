@@ -1078,6 +1078,16 @@ if necessary with ``ffi.cast()``::
     C.printf("hello, %f\n", ffi.cast("double", 42))
     C.printf("hello, %s\n", ffi.new("char[]", "world"))
 
+Note that if you are using ``dlopen()``, the function declaration in the
+``cdef()`` must match the original one in C exactly, as usual --- in
+particular, if this function is variadic in C, then its ``cdef()``
+declaration must also be variadic.  You cannot declare it in the
+``cdef()`` with fixed arguments instead, even if you plan to only call
+it with these argument types.  The reason is that some architectures
+have a different calling convention depending on whether the function
+signature is fixed or not.  (On x86-64, the difference can sometimes be
+seen in PyPy's JIT-generated code if some arguments are ``double``.)
+
 
 Callbacks
 ---------
