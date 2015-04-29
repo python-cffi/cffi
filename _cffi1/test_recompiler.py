@@ -178,9 +178,13 @@ def test_macro():
 def test_macro_check_value():
     # the value '-0x80000000' in C sources does not have a clear meaning
     # to me; it appears to have a different effect than '-2147483648'...
+    # Moreover, on 32-bits, -2147483648 is actually equal to
+    # -2147483648U, which in turn is equal to 2147483648U and so positive.
     vals = ['42', '-42', '0x80000000', '-2147483648',
             '0', '9223372036854775809ULL',
             '-9223372036854775807LL']
+    if sys.maxsize <= 2**32:
+        vals.remove('-2147483648')
     ffi = FFI()
     cdef_lines = ['#define FOO_%d_%d %s' % (i, j, vals[i])
                   for i in range(len(vals))
