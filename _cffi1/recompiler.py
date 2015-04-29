@@ -467,7 +467,7 @@ class Recompiler:
             return
         prnt = self._prnt
         checkfuncname = '_cffi_checkfld_%s' % (approxname,)
-        prnt('__attribute__((unused))')
+        prnt('_CFFI_UNUSED_FN')
         prnt('static void %s(%s *p)' % (checkfuncname, cname))
         prnt('{')
         prnt('  /* only to generate compile-time warnings or errors */')

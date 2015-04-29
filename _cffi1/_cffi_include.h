@@ -175,6 +175,12 @@ static void *_cffi_exports[_CFFI_NUM_EXPORTS];
     ((got_nonpos) == (expected <= 0) &&                 \
      (got) == (unsigned long long)expected)
 
+#ifdef __GNUC__
+# define _CFFI_UNUSED_FN  __attribute__((unused))
+#else
+# define _CFFI_UNUSED_FN  /* nothing */
+#endif
+
 
 static int _cffi_init(void)
 {

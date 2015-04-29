@@ -74,7 +74,13 @@ def setup_module():
     DEFS_PACKED = """
         struct is_packed { char a; int b; } /*here*/;
     """
-    CCODE = DEFS + DEFS_PACKED.replace('/*here*/', '__attribute__((packed))')
+    if sys.platform == "win32":
+        DEFS = DEFS.replace('data[0]', 'data[1]')   # not supported
+        CCODE = (DEFS + "\n#pragma pack(push,1)\n" + DEFS_PACKED +
+                 "\n#pragma pack(pop)\n")
+    else:
+        CCODE = (DEFS +
+                 DEFS_PACKED.replace('/*here*/', '__attribute__((packed))'))
 
     ffi1.cdef(DEFS)
     ffi1.cdef(DEFS_PACKED, packed=True)
@@ -884,7 +890,8 @@ class TestNewFFI1:
         assert ffi.cast("enum bar", 0) != ffi.cast("int", 0)
         assert repr(ffi.cast("enum bar", -1)) == "<cdata 'enum bar' -1: CC1>"
         assert repr(ffi.cast("enum foq", -1)) == (  # enums are unsigned, if
-            "<cdata 'enum foq' 4294967295>")        # they contain no neg value
+            "<cdata 'enum foq' 4294967295>") or (   # they contain no neg value
+                sys.platform == "win32")            # (but not on msvc)
         # enum baz { A2=0x1000, B2=0x2000 };
         assert ffi.string(ffi.cast("enum baz", 0x1000)) == "A2"
         assert ffi.string(ffi.cast("enum baz", 0x2000)) == "B2"
@@ -902,8 +909,8 @@ class TestNewFFI1:
         assert s.e == 2
         assert s[0].e == 2
         s.e = ffi.cast("enum foo2", -1)
-        assert s.e == 4294967295
-        assert s[0].e == 4294967295
+        assert s.e in (4294967295, -1)     # two choices
+        assert s[0].e in (4294967295, -1)
         s.e = s.e
         py.test.raises(TypeError, "s.e = 'B3'")
         py.test.raises(TypeError, "s.e = '2'")
@@ -1000,6 +1007,8 @@ class TestNewFFI1:
     def test_bitfield_enum(self):
         # typedef enum { AA1, BB1, CC1 } foo_e_t;
         # typedef struct { foo_e_t f:2; } bfenum_t;
+        if sys.platform == "win32":
+            py.test.skip("enums are not unsigned")
         s = ffi.new("bfenum_t *")
         s.f = 2
         assert s.f == 2
@@ -1198,6 +1207,8 @@ class TestNewFFI1:
         assert repr(p.a).startswith("<cdata 'int[2]' 0x")
 
     def test_struct_containing_array_varsize_workaround(self):
+        if sys.platform == "win32":
+            py.test.skip("array of length 0 not supported")
         # struct array0 { int len; short data[0]; };
         p = ffi.new("char[]", ffi.sizeof("struct array0") + 7 * SIZE_OF_SHORT)
         q = ffi.cast("struct array0 *", p)
