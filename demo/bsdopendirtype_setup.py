@@ -1,22 +1,13 @@
-from cffi import FFI
+from setuptools import setup
 
-ffi = FFI()
-ffi.csource("_bsdopendirtype", """
-    #include <sys/types.h>
-    #include <dirent.h>
-""")
-ffi.cdef("""
-    typedef ... DIR;
-    struct dirent {
-        unsigned char d_type;   /* type of file */
-        char d_name[];          /* filename */
-        ...;
-    };
-    DIR *opendir(const char *name);
-    int closedir(DIR *dirp);
-    struct dirent *readdir(DIR *dirp);
-    static const int DT_BLK, DT_CHR, DT_DIR, DT_FIFO, DT_LNK, DT_REG, DT_SOCK;
-""")
-
-if __name__ == '__main__':
-    ffi.recompile()
+setup(
+    name="example",
+    version="0.1",
+    py_modules=["bsdopendirtype"],
+    setup_requires=["cffi>=1.0"],
+    cffi_modules=[
+        "bsdopendirtype_build:ffi",
+    ],
+    install_requires=["cffi>=1.0"],   # should maybe be "cffi-backend" only?
+    zip_safe=False,
+)
