@@ -89,11 +89,12 @@ static void free_builder_c(builder_c_t *builder)
 
 static builder_c_t *new_builder_c(const struct _cffi_type_context_s *ctx)
 {
+    builder_c_t *builder;
     PyObject *ldict = PyDict_New();
     if (ldict == NULL)
         return NULL;
 
-    builder_c_t *builder = PyMem_Malloc(sizeof(builder_c_t));
+    builder = PyMem_Malloc(sizeof(builder_c_t));
     if (builder == NULL) {
         Py_DECREF(ldict);
         PyErr_NoMemory();
@@ -186,6 +187,7 @@ static PyObject *build_primitive_type(int num)
 
 static PyObject *realize_global_int(const struct _cffi_global_s *g)
 {
+    char got[64];
     unsigned long long value;
     /* note: we cast g->address to this function type; we do the same
        in parse_c_type:parse_sequel() too */
@@ -208,8 +210,6 @@ static PyObject *realize_global_int(const struct _cffi_global_s *g)
     default:
         break;
     }
-
-    char got[64];
     if (neg == 2)
         sprintf(got, "%llu (0x%llx)", value, value);
     else
@@ -236,11 +236,12 @@ realize_c_type(builder_c_t *builder, _cffi_opcode_t opcodes[], int index)
         return (CTypeDescrObject *)x;
     }
     else {
+        char *text1, *text2;
         PyObject *y;
         assert(PyTuple_Check(x));
         y = PyTuple_GET_ITEM(x, 0);
-        char *text1 = ((CTypeDescrObject *)y)->ct_name;
-        char *text2 = text1 + ((CTypeDescrObject *)y)->ct_name_position + 1;
+        text1 = ((CTypeDescrObject *)y)->ct_name;
+        text2 = text1 + ((CTypeDescrObject *)y)->ct_name_position + 1;
         assert(text2[-3] == '(');
         text2[-3] = '\0';
         PyErr_Format(FFIError, "the type '%s%s' is a function type, not a "
@@ -444,15 +445,15 @@ _realize_c_type_or_func(builder_c_t *builder,
             Py_INCREF(x);
         }
         else {
-            PyObject *basetd = get_primitive_type(e->type_prim);
-            if (basetd == NULL)
-                return NULL;
-
             PyObject *enumerators = NULL, *enumvalues = NULL, *tmp;
             Py_ssize_t i, j, n = 0;
             const char *p;
             const struct _cffi_global_s *g;
             int gindex;
+            PyObject *args;
+            PyObject *basetd = get_primitive_type(e->type_prim);
+            if (basetd == NULL)
+                return NULL;
 
             if (*e->enumerators != '\0') {
                 n++;
@@ -492,7 +493,7 @@ _realize_c_type_or_func(builder_c_t *builder,
                 p += j + 1;
             }
 
-            PyObject *args = NULL;
+            args = NULL;
             if (!PyErr_Occurred()) {
                 char *name = alloca(6 + strlen(e->name));
                 _realize_name(name, "enum ", e->name);
@@ -603,30 +604,35 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
     assert(ct->ct_flags & (CT_STRUCT | CT_UNION));
 
     if (ct->ct_flags & CT_LAZY_FIELD_LIST) {
+        builder_c_t *builder;
+        char *p;
+        int n, i, sflags;
+        const struct _cffi_struct_union_s *s;
+        const struct _cffi_field_s *fld;
+        PyObject *fields, *args, *res;
+
         assert(!(ct->ct_flags & CT_IS_OPAQUE));
 
-        builder_c_t *builder = ct->ct_extra;
+        builder = ct->ct_extra;
         assert(builder != NULL);
 
-        char *p = alloca(2 + strlen(ct->ct_name));
+        p = alloca(2 + strlen(ct->ct_name));
         _unrealize_name(p, ct->ct_name);
 
-        int n = search_in_struct_unions(&builder->ctx, p, strlen(p));
+        n = search_in_struct_unions(&builder->ctx, p, strlen(p));
         if (n < 0)
             Py_FatalError("lost a struct/union!");
 
-        const struct _cffi_struct_union_s *s = &builder->ctx.struct_unions[n];
-        const struct _cffi_field_s *fld =
-            &builder->ctx.fields[s->first_field_index];
+        s = &builder->ctx.struct_unions[n];
+        fld = &builder->ctx.fields[s->first_field_index];
 
         /* XXX painfully build all the Python objects that are the args
            to b_complete_struct_or_union() */
 
-        PyObject *fields = PyList_New(s->num_fields);
+        fields = PyList_New(s->num_fields);
         if (fields == NULL)
             return -1;
 
-        int i;
         for (i = 0; i < s->num_fields; i++, fld++) {
             _cffi_opcode_t op = fld->field_type_op;
             int fbitsize = -1;
@@ -674,24 +680,23 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
             PyList_SET_ITEM(fields, i, f);
         }
 
-        int sflags = 0;
+        sflags = 0;
         if (s->flags & _CFFI_F_CHECK_FIELDS)
             sflags |= SF_STD_FIELD_POS;
         if (s->flags & _CFFI_F_PACKED)
             sflags |= SF_PACKED;
 
-        PyObject *args = Py_BuildValue("(OOOnni)", ct, fields,
-                                       Py_None,
-                                       (Py_ssize_t)s->size,
-                                       (Py_ssize_t)s->alignment,
-                                       sflags);
+        args = Py_BuildValue("(OOOnni)", ct, fields, Py_None,
+                             (Py_ssize_t)s->size,
+                             (Py_ssize_t)s->alignment,
+                             sflags);
         Py_DECREF(fields);
         if (args == NULL)
             return -1;
 
         ct->ct_extra = NULL;
         ct->ct_flags |= CT_IS_OPAQUE;
-        PyObject *res = b_complete_struct_or_union(NULL, args);
+        res = b_complete_struct_or_union(NULL, args);
         ct->ct_flags &= ~CT_IS_OPAQUE;
         Py_DECREF(args);
 

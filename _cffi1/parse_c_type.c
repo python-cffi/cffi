@@ -225,6 +225,8 @@ static int parse_sequel(token_t *tok, int outer)
        type).  The 'outer' argument is the index of the opcode outside
        this "sequel".
      */
+    int check_for_grouping;
+    _cffi_opcode_t result, *p_current;
 
  header:
     switch (tok->kind) {
@@ -244,14 +246,14 @@ static int parse_sequel(token_t *tok, int outer)
         break;
     }
 
-    int check_for_grouping = 1;
+    check_for_grouping = 1;
     if (tok->kind == TOK_IDENTIFIER) {
         next_token(tok);    /* skip a potential variable name */
         check_for_grouping = 0;
     }
 
-    _cffi_opcode_t result = 0;
-    _cffi_opcode_t *p_current = &result;
+    result = 0;
+    p_current = &result;
 
     while (tok->kind == TOK_OPEN_PAREN) {
         next_token(tok);
@@ -298,13 +300,15 @@ static int parse_sequel(token_t *tok, int outer)
 
             if (tok->kind != TOK_CLOSE_PAREN) {
                 while (1) {
+                    int arg;
+                    _cffi_opcode_t oarg;
+
                     if (tok->kind == TOK_DOTDOTDOT) {
                         has_ellipsis = 1;
                         next_token(tok);
                         break;
                     }
-                    int arg = parse_complete(tok);
-                    _cffi_opcode_t oarg;
+                    arg = parse_complete(tok);
                     switch (_CFFI_GETOP(tok->output[arg])) {
                     case _CFFI_OP_ARRAY:
                     case _CFFI_OP_OPEN_ARRAY:
@@ -543,6 +547,10 @@ int search_standard_typename(const char *p, size_t size)
 
 static int parse_complete(token_t *tok)
 {
+    unsigned int t0;
+    _cffi_opcode_t t1;
+    int modifiers_length, modifiers_sign;
+
  qualifiers:
     switch (tok->kind) {
     case TOK_CONST:
@@ -557,10 +565,8 @@ static int parse_complete(token_t *tok)
         ;
     }
 
-    unsigned int t0;
-    _cffi_opcode_t t1;
-    int modifiers_length = 0;
-    int modifiers_sign = 0;
+    modifiers_length = 0;
+    modifiers_sign = 0;
  modifiers:
     switch (tok->kind) {
 
@@ -682,12 +688,12 @@ static int parse_complete(token_t *tok)
         case TOK_STRUCT:
         case TOK_UNION:
         {
-            int kind = tok->kind;
+            int n, kind = tok->kind;
             next_token(tok);
             if (tok->kind != TOK_IDENTIFIER)
                 return parse_error(tok, "struct or union name expected");
 
-            int n = search_in_struct_unions(tok->info->ctx, tok->p, tok->size);
+            n = search_in_struct_unions(tok->info->ctx, tok->p, tok->size);
             if (n < 0)
                 return parse_error(tok, "undefined struct/union name");
             if (((tok->info->ctx->struct_unions[n].flags & _CFFI_F_UNION) != 0)
@@ -699,11 +705,12 @@ static int parse_complete(token_t *tok)
         }
         case TOK_ENUM:
         {
+            int n;
             next_token(tok);
             if (tok->kind != TOK_IDENTIFIER)
                 return parse_error(tok, "enum name expected");
 
-            int n = search_in_enums(tok->info->ctx, tok->p, tok->size);
+            n = search_in_enums(tok->info->ctx, tok->p, tok->size);
             if (n < 0)
                 return parse_error(tok, "undefined enum name");
 

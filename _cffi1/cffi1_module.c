@@ -102,22 +102,22 @@ static PyObject *_cffi_init_module(char *module_name,
                                    const struct _cffi_type_context_s *ctx)
 {
     PyObject *m;
+    FFIObject *ffi;
+    LibObject *lib;
 
 #if PY_MAJOR_VERSION >= 3
     /* note: the module_def leaks, but anyway the C extension module cannot
        be unloaded */
-    struct PyModuleDef *module_def;
-    module_def = PyObject_Malloc(sizeof(struct PyModuleDef));
-    if (module_def == NULL)
-        return PyErr_NoMemory();
-
-    struct PyModuleDef local_module_def = {
+    struct PyModuleDef *module_def, local_module_def = {
         PyModuleDef_HEAD_INIT,
         module_name,
         NULL,
         -1,
         NULL, NULL, NULL, NULL, NULL
     };
+    module_def = PyMem_Malloc(sizeof(struct PyModuleDef));
+    if (module_def == NULL)
+        return PyErr_NoMemory();
     *module_def = local_module_def;
     m = PyModule_Create(module_def);
 #else
@@ -126,12 +126,12 @@ static PyObject *_cffi_init_module(char *module_name,
     if (m == NULL)
         return NULL;
 
-    FFIObject *ffi = ffi_internal_new(&FFI_Type, ctx);
+    ffi = ffi_internal_new(&FFI_Type, ctx);
     Py_XINCREF(ffi);    /* make the ffi object really immortal */
     if (ffi == NULL || PyModule_AddObject(m, "ffi", (PyObject *)ffi) < 0)
         return NULL;
 
-    LibObject *lib = lib_internal_new(ffi->types_builder, module_name);
+    lib = lib_internal_new(ffi->types_builder, module_name);
     if (lib == NULL || PyModule_AddObject(m, "lib", (PyObject *)lib) < 0)
         return NULL;
 

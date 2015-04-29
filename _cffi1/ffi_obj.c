@@ -110,6 +110,9 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
        Does not return a new reference!
     */
     if ((accept & ACCEPT_STRING) && PyText_Check(arg)) {
+        int index, err;
+        char *input_text;
+        CTypeDescrObject *ct;
         PyObject *types_dict = ffi->types_builder->types_dict;
         PyObject *x = PyDict_GetItem(types_dict, arg);
         if (x != NULL) {
@@ -117,8 +120,8 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
             return (CTypeDescrObject *)x;
         }
 
-        char *input_text = PyText_AS_UTF8(arg);
-        int index = parse_c_type(&ffi->info, input_text);
+        input_text = PyText_AS_UTF8(arg);
+        index = parse_c_type(&ffi->info, input_text);
         if (index < 0) {
             size_t num_spaces = ffi->info.error_location;
             char spaces[num_spaces + 1];
@@ -128,7 +131,6 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
                          input_text, spaces);
             return NULL;
         }
-        CTypeDescrObject *ct;
         if (accept & CONSIDER_FN_AS_FNPTR) {
             ct = realize_c_type_fn_as_fnptr(ffi->types_builder,
                                             ffi->info.output, index);
@@ -147,7 +149,7 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
            sure that in any case the next _ffi_type() with the same
            'arg' will succeed early, in PyDict_GetItem() above.
         */
-        int err = PyDict_SetItem(types_dict, arg, (PyObject *)ct);
+        err = PyDict_SetItem(types_dict, arg, (PyObject *)ct);
         Py_DECREF(ct);   /* we know it was written in types_dict (unless we got
                      out of memory), so there is at least this reference left */
         if (err < 0)
@@ -822,6 +824,8 @@ static PyObject *
 _fetch_external_struct_or_union(const struct _cffi_struct_union_s *s,
                                 PyObject *included_ffis, int recursion)
 {
+    Py_ssize_t i;
+
     if (included_ffis == NULL)
         return NULL;
 
@@ -831,7 +835,6 @@ _fetch_external_struct_or_union(const struct _cffi_struct_union_s *s,
         return NULL;
     }
 
-    Py_ssize_t i;
     for (i = 0; i < PyTuple_GET_SIZE(included_ffis); i++) {
         FFIObject *ffi1;
         const struct _cffi_struct_union_s *s1;

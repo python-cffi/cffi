@@ -31,6 +31,9 @@ struct LibObject_s {
 static PyObject *_cpyextfunc_type_index(PyObject *x)
 {
     struct CPyExtFunc_s *exf;
+    LibObject *lib;
+    PyObject *tuple, *result;
+
     assert(PyErr_Occurred());
 
     if (!PyCFunction_Check(x))
@@ -44,9 +47,7 @@ static PyObject *_cpyextfunc_type_index(PyObject *x)
 
     PyErr_Clear();
 
-    LibObject *lib = (LibObject *)PyCFunction_GET_SELF(x);
-    PyObject *tuple, *result;
-
+    lib = (LibObject *)PyCFunction_GET_SELF(x);
     tuple = _realize_c_type_or_func(lib->l_types_builder,
                                     lib->l_types_builder->ctx.types,
                                     exf->type_index);
@@ -84,7 +85,8 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
        by calling _cffi_type().
     */
     CTypeDescrObject *ct;
-    int type_index = _CFFI_GETARG(g->type_op);
+    struct CPyExtFunc_s *xfunc;
+    int i, type_index = _CFFI_GETARG(g->type_op);
     _cffi_opcode_t *opcodes = lib->l_types_builder->ctx.types;
     assert(_CFFI_GETOP(opcodes[type_index]) == _CFFI_OP_FUNCTION);
 
@@ -96,7 +98,7 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
     Py_DECREF(ct);
 
     /* argument types: */
-    int i = type_index + 1;
+    i = type_index + 1;
     while (_CFFI_GETOP(opcodes[i]) != _CFFI_OP_FUNCTION_END) {
         ct = realize_c_type(lib->l_types_builder, opcodes, i);
         if (ct == NULL)
@@ -110,10 +112,11 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
        There is one per real C function in a CFFI C extension module.
        CPython never unloads its C extension modules anyway.
     */
-    struct CPyExtFunc_s *xfunc = calloc(1, sizeof(struct CPyExtFunc_s));
+    xfunc = PyMem_Malloc(sizeof(struct CPyExtFunc_s));
     if (xfunc == NULL)
         goto no_memory;
 
+    memset((char *)xfunc, 0, sizeof(struct CPyExtFunc_s));
     xfunc->md.ml_meth = (PyCFunction)g->address;
     xfunc->md.ml_flags = flags;
     xfunc->md.ml_name = g->name;
@@ -135,15 +138,18 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
 {
     /* does not return a new reference! */
     PyObject *x;
-
+    int index;
+    const struct _cffi_global_s *g;
+    CTypeDescrObject *ct;
     char *s = PyText_AsUTF8(name);
     if (s == NULL)
         return NULL;
 
-    int index = search_in_globals(&lib->l_types_builder->ctx, s, strlen(s));
+    index = search_in_globals(&lib->l_types_builder->ctx, s, strlen(s));
     if (index < 0) {
 
         if (lib->l_includes != NULL) {
+            Py_ssize_t i;
 
             if (recursion > 100) {
                 PyErr_SetString(PyExc_RuntimeError,
@@ -151,7 +157,6 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
                 return NULL;
             }
 
-            Py_ssize_t i;
             for (i = 0; i < PyTuple_GET_SIZE(lib->l_includes); i++) {
                 LibObject *lib1;
                 lib1 = (LibObject *)PyTuple_GET_ITEM(lib->l_includes, i);
@@ -180,8 +185,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         return NULL;
     }
 
-    const struct _cffi_global_s *g = &lib->l_types_builder->ctx.globals[index];
-    CTypeDescrObject *ct;
+    g = &lib->l_types_builder->ctx.globals[index];
 
     switch (_CFFI_GETOP(g->type_op)) {
 
@@ -303,13 +307,11 @@ static int lib_setattr(LibObject *lib, PyObject *name, PyObject *val)
 static PyObject *lib_dir(LibObject *lib, PyObject *noarg)
 {
     const struct _cffi_global_s *g = lib->l_types_builder->ctx.globals;
-    int total = lib->l_types_builder->ctx.num_globals;
-
+    int i, total = lib->l_types_builder->ctx.num_globals;
     PyObject *lst = PyList_New(total);
     if (lst == NULL)
         return NULL;
 
-    int i;
     for (i = 0; i < total; i++) {
         PyObject *s = PyText_FromString(g[i].name);
         if (s == NULL) {
