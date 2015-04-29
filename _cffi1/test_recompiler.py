@@ -568,11 +568,31 @@ def test_include_6():
            "typedef struct _mystruct_s mystruct_t;")
     ffi = FFI()
     ffi.include(ffi1)
-    ffi.cdef("mystruct_t *ff6(void);")
+    ffi.cdef("mystruct_t *ff6(void); int ff6b(mystruct_t *);")
     lib = verify(ffi, "test_include_6",
            "typedef struct _mystruct_s mystruct_t; //usually from a #include\n"
            "struct _mystruct_s { int x; };\n"
            "static mystruct_t result_struct = { 42 };\n"
-           "mystruct_t *ff6(void) { return &result_struct; }")
+           "mystruct_t *ff6(void) { return &result_struct; }\n"
+           "int ff6b(mystruct_t *p) { return p->x; }")
     p = lib.ff6()
     assert ffi.cast("int *", p)[0] == 42
+    assert lib.ff6b(p) == 42
+
+def test_include_7():
+    ffi1 = FFI()
+    ffi1.cdef("typedef ... mystruct_t;\n"
+              "int ff7b(mystruct_t *);")
+    verify(ffi1, "test_include_7_parent",
+           "typedef struct { int x; } mystruct_t;\n"
+           "int ff7b(mystruct_t *p) { return p->x; }")
+    ffi = FFI()
+    ffi.include(ffi1)
+    ffi.cdef("mystruct_t *ff7(void);")
+    lib = verify(ffi, "test_include_7",
+           "typedef struct { int x; } mystruct_t; //usually from a #include\n"
+           "static mystruct_t result_struct = { 42 };"
+           "mystruct_t *ff7(void) { return &result_struct; }")
+    p = lib.ff7()
+    assert ffi.cast("int *", p)[0] == 42
+    assert lib.ff7b(p) == 42

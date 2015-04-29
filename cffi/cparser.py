@@ -611,6 +611,6 @@ class Parser(object):
             if kind in ('struct', 'union', 'enum', 'anonymous'):
                 self._declare(name, tp, included=True)
             elif kind == 'typedef':
-                self._declare(name, tp)
+                self._declare(name, tp, included=True)
         for k, v in other._int_constants.items():
             self._add_constants(k, v)
