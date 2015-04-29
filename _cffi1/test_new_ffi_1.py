@@ -1513,8 +1513,8 @@ class TestNewFFI1:
                                   outputfilename)
         ffi2 = module.ffi
         #
-        p = ffi2.new("struct nonpacked *", ['A', -43141])
-        assert p.a == 'A'
+        p = ffi2.new("struct nonpacked *", [b'A', -43141])
+        assert p.a == b'A'
         assert p.b == -43141
         #
         p = ffi.new("union simple_u *", [-52525])

@@ -1,1 +1,1 @@
-from recompiler import make_c_source, recompile
+from .recompiler import make_c_source, recompile

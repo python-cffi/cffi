@@ -148,7 +148,8 @@
 #define _cffi_convert_array_from_object                                  \
     ((int(*)(char *, CTypeDescrObject *, PyObject *))_cffi_exports[24])
 #define _cffi_init_module                                                \
-    ((int(*)(char *, const struct _cffi_type_context_s *))_cffi_exports[25])
+    ((PyObject *(*)(char *, const struct _cffi_type_context_s *))        \
+                                                      _cffi_exports[25])
 #define _CFFI_NUM_EXPORTS 26
 
 typedef struct _ctypedescr CTypeDescrObject;

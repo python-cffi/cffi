@@ -1,6 +1,6 @@
 import os, sys
 from cffi import ffiplatform, model
-from cffi_opcode import *
+from .cffi_opcode import *
 
 
 class Recompiler:
@@ -225,6 +225,16 @@ class Recompiler:
         #
         # the init function, loading _cffi_backend and calling a method there
         base_module_name = self.module_name.split('.')[-1]
+        prnt('#if PY_MAJOR_VERSION >= 3')
+        prnt('PyMODINIT_FUNC')
+        prnt('PyInit_%s(void)' % (base_module_name,))
+        prnt('{')
+        prnt('  if (_cffi_init() < 0)')
+        prnt('    return NULL;')
+        prnt('  return _cffi_init_module("%s", &_cffi_type_context);' % (
+            self.module_name,))
+        prnt('}')
+        prnt('#else')
         prnt('PyMODINIT_FUNC')
         prnt('init%s(void)' % (base_module_name,))
         prnt('{')
@@ -233,6 +243,7 @@ class Recompiler:
         prnt('  _cffi_init_module("%s", &_cffi_type_context);' % (
             self.module_name,))
         prnt('}')
+        prnt('#endif')
         self.ffi._recompiler_module_name = self.module_name
 
     # ----------

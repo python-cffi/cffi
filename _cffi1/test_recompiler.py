@@ -310,7 +310,7 @@ def test_verify_enum():
     ffi = FFI()
     ffi.cdef("""enum e1 { B1, A1, ... }; enum e2 { B2, A2, ... };""")
     lib = verify(ffi, 'test_verify_enum',
-                 "enum e1 { A1, B1, C1=%d };" % sys.maxint +
+                 "enum e1 { A1, B1, C1=%d };" % sys.maxsize +
                  "enum e2 { A2, B2, C2 };")
     ffi.typeof("enum e1")
     ffi.typeof("enum e2")
@@ -407,10 +407,10 @@ def test_verify_anonymous_enum_with_typedef():
     assert repr(ffi.cast("e1", 2)) == "<cdata 'e1' 2: AA>"
     #
     ffi = FFI()
-    ffi.cdef("typedef enum { AA=%d } e1;" % sys.maxint)
+    ffi.cdef("typedef enum { AA=%d } e1;" % sys.maxsize)
     lib = verify(ffi, 'test_verify_anonymous_enum_with_typedef2',
-                 "typedef enum { AA=%d } e1;" % sys.maxint)
-    assert lib.AA == sys.maxint
+                 "typedef enum { AA=%d } e1;" % sys.maxsize)
+    assert lib.AA == sys.maxsize
     assert ffi.sizeof("e1") == ffi.sizeof("long")
 
 def test_unique_types():

@@ -57,8 +57,8 @@ def test_ffi_NULL():
 
 def test_ffi_string():
     ffi = _cffi1_backend.FFI()
-    p = ffi.new("char[]", "foobar\x00baz")
-    assert ffi.string(p) == "foobar"
+    p = ffi.new("char[]", b"foobar\x00baz")
+    assert ffi.string(p) == b"foobar"
 
 def test_ffi_errno():
     # xxx not really checking errno, just checking that we can read/write it

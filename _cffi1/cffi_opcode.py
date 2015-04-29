@@ -139,6 +139,6 @@ F_PACKED        = 0x04
 F_EXTERNAL      = 0x08
 
 CLASS_NAME = {}
-for _name, _value in globals().items():
+for _name, _value in list(globals().items()):
     if _name.startswith('OP_') and isinstance(_value, int):
         CLASS_NAME[_value] = _name[3:]

@@ -32,7 +32,7 @@ global_names = ["FIVE", "NEG", "ZERO"]
 assert global_names == sorted(global_names)
 
 ctx = ffi.new("struct _cffi_type_context_s *")
-c_struct_names = [ffi.new("char[]", _n) for _n in struct_names]
+c_struct_names = [ffi.new("char[]", _n.encode('ascii')) for _n in struct_names]
 ctx_structs = ffi.new("struct _cffi_struct_union_s[]", len(struct_names))
 for _i in range(len(struct_names)):
     ctx_structs[_i].name = c_struct_names[_i]
@@ -40,14 +40,15 @@ ctx_structs[3].flags = lib._CFFI_F_UNION
 ctx.struct_unions = ctx_structs
 ctx.num_struct_unions = len(struct_names)
 
-c_enum_names = [ffi.new("char[]", _n) for _n in enum_names]
+c_enum_names = [ffi.new("char[]", _n.encode('ascii')) for _n in enum_names]
 ctx_enums = ffi.new("struct _cffi_enum_s[]", len(enum_names))
 for _i in range(len(enum_names)):
     ctx_enums[_i].name = c_enum_names[_i]
 ctx.enums = ctx_enums
 ctx.num_enums = len(enum_names)
 
-c_identifier_names = [ffi.new("char[]", _n) for _n in identifier_names]
+c_identifier_names = [ffi.new("char[]", _n.encode('ascii'))
+                      for _n in identifier_names]
 ctx_identifiers = ffi.new("struct _cffi_typename_s[]", len(identifier_names))
 for _i in range(len(identifier_names)):
     ctx_identifiers[_i].name = c_identifier_names[_i]
@@ -69,7 +70,7 @@ def fetch_constant_neg(p):
     return 1
 
 ctx_globals = ffi.new("struct _cffi_global_s[]", len(global_names))
-c_glob_names = [ffi.new("char[]", _n) for _n in global_names]
+c_glob_names = [ffi.new("char[]", _n.encode('ascii')) for _n in global_names]
 for _i, _fn in enumerate([fetch_constant_five,
                           fetch_constant_neg,
                           fetch_constant_zero]):
@@ -90,9 +91,9 @@ def parse(input):
     info.output_size = len(out)
     for j in range(len(out)):
         out[j] = ffi.cast("void *", -424242)
-    res = lib.parse_c_type(info, input)
+    res = lib.parse_c_type(info, input.encode('ascii'))
     if res < 0:
-        raise ParseError(ffi.string(info.error_message),
+        raise ParseError(ffi.string(info.error_message).decode('ascii'),
                          info.error_location)
     assert 0 <= res < len(out)
     result = []

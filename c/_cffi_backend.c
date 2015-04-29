@@ -72,6 +72,7 @@
 # define PyText_FromString PyUnicode_FromString
 # define PyText_FromStringAndSize PyUnicode_FromStringAndSize
 # define PyText_InternInPlace PyUnicode_InternInPlace
+# define PyText_InternFromString PyUnicode_InternFromString
 # define PyIntOrLong_Check PyLong_Check
 #else
 # define STR_OR_BYTES "str"
@@ -85,6 +86,7 @@
 # define PyText_FromString PyString_FromString
 # define PyText_FromStringAndSize PyString_FromStringAndSize
 # define PyText_InternInPlace PyString_InternInPlace
+# define PyText_InternFromString PyString_InternFromString
 # define PyIntOrLong_Check(op) (PyInt_Check(op) || PyLong_Check(op))
 #endif
 
@@ -92,6 +94,7 @@
 # define PyInt_FromLong PyLong_FromLong
 # define PyInt_FromSsize_t PyLong_FromSsize_t
 # define PyInt_AsSsize_t PyLong_AsSsize_t
+# define PyInt_AsLong PyLong_AsLong
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -3404,11 +3407,11 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
     const void **pkey;
     int err;
 
-    key = PyString_FromStringAndSize(NULL, keylength * sizeof(void *));
+    key = PyBytes_FromStringAndSize(NULL, keylength * sizeof(void *));
     if (key == NULL)
         goto error;
 
-    pkey = (const void **)PyString_AS_STRING(key);
+    pkey = (const void **)PyBytes_AS_STRING(key);
     for (i = 0; i < keylength; i++)
         pkey[i] = unique_key[i];
 

@@ -39,7 +39,7 @@ static PyObject *gc_weakrefs_build(FFIObject *ffi, CDataObject *cd,
         PyObject *data;
 
         if (const_name_pop == NULL) {
-            const_name_pop = PyString_InternFromString("pop");
+            const_name_pop = PyText_InternFromString("pop");
             if (const_name_pop == NULL)
                 return NULL;
         }

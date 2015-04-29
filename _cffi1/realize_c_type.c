@@ -474,7 +474,7 @@ _realize_c_type_or_func(builder_c_t *builder,
                 j = 0;
                 while (p[j] != ',' && p[j] != '\0')
                     j++;
-                tmp = PyString_FromStringAndSize(p, j);
+                tmp = PyText_FromStringAndSize(p, j);
                 if (tmp == NULL)
                     break;
                 PyTuple_SET_ITEM(enumerators, i, tmp);

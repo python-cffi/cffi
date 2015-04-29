@@ -424,11 +424,11 @@ static PyObject *_combine_type_name_l(CTypeDescrObject *ct,
     char *p;
 
     base_name_len = strlen(ct->ct_name);
-    result = PyString_FromStringAndSize(NULL, base_name_len + extra_text_len);
+    result = PyBytes_FromStringAndSize(NULL, base_name_len + extra_text_len);
     if (result == NULL)
         return NULL;
 
-    p = PyString_AS_STRING(result);
+    p = PyBytes_AS_STRING(result);
     memcpy(p, ct->ct_name, ct->ct_name_position);
     p += ct->ct_name_position;
     p += extra_text_len;
@@ -473,7 +473,7 @@ static PyObject *ffi_getctype(FFIObject *self, PyObject *args)
     if (res == NULL)
         return NULL;
 
-    p = PyString_AS_STRING(res) + ct->ct_name_position;
+    p = PyBytes_AS_STRING(res) + ct->ct_name_position;
     if (add_paren)
         *p++ = '(';
     if (add_space)
@@ -481,6 +481,16 @@ static PyObject *ffi_getctype(FFIObject *self, PyObject *args)
     memcpy(p, replace_with, replace_with_len);
     if (add_paren)
         p[replace_with_len] = ')';
+
+#if PY_MAJOR_VERSION >= 3
+    /* bytes -> unicode string */
+    PyObject *u = PyUnicode_DecodeLatin1(PyBytes_AS_STRING(res),
+                                         PyBytes_GET_SIZE(res),
+                                         NULL);
+    Py_DECREF(res);
+    res = u;
+#endif
+
     return res;
 }
 

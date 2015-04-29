@@ -311,7 +311,7 @@ static PyObject *lib_dir(LibObject *lib, PyObject *noarg)
 
     int i;
     for (i = 0; i < total; i++) {
-        PyObject *s = PyString_FromString(g[i].name);
+        PyObject *s = PyText_FromString(g[i].name);
         if (s == NULL) {
             Py_DECREF(lst);
             return NULL;
@@ -370,7 +370,7 @@ static LibObject *lib_internal_new(builder_c_t *types_builder,
     LibObject *lib;
     PyObject *libname, *dict;
 
-    libname = PyString_FromString(module_name);
+    libname = PyText_FromString(module_name);
     dict = PyDict_New();
     if (libname == NULL || dict == NULL) {
         Py_XDECREF(dict);

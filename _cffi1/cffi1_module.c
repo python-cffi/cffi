@@ -98,25 +98,46 @@ static int make_included_tuples(const char *const *ctx_includes,
     return -1;
 }
 
-static int _cffi_init_module(char *module_name,
-                             const struct _cffi_type_context_s *ctx)
+static PyObject *_cffi_init_module(char *module_name,
+                                   const struct _cffi_type_context_s *ctx)
 {
-    PyObject *m = Py_InitModule(module_name, NULL);
+    PyObject *m;
+
+#if PY_MAJOR_VERSION >= 3
+    /* note: the module_def leaks, but anyway the C extension module cannot
+       be unloaded */
+    struct PyModuleDef *module_def;
+    module_def = PyObject_Malloc(sizeof(struct PyModuleDef));
+    if (module_def == NULL)
+        return PyErr_NoMemory();
+
+    struct PyModuleDef local_module_def = {
+        PyModuleDef_HEAD_INIT,
+        module_name,
+        NULL,
+        -1,
+        NULL, NULL, NULL, NULL, NULL
+    };
+    *module_def = local_module_def;
+    m = PyModule_Create(module_def);
+#else
+    m = Py_InitModule(module_name, NULL);
+#endif
     if (m == NULL)
-        return -1;
+        return NULL;
 
     FFIObject *ffi = ffi_internal_new(&FFI_Type, ctx);
     Py_XINCREF(ffi);    /* make the ffi object really immortal */
     if (ffi == NULL || PyModule_AddObject(m, "ffi", (PyObject *)ffi) < 0)
-        return -1;
+        return NULL;
 
     LibObject *lib = lib_internal_new(ffi->types_builder, module_name);
     if (lib == NULL || PyModule_AddObject(m, "lib", (PyObject *)lib) < 0)
-        return -1;
+        return NULL;
 
     if (make_included_tuples(ctx->includes, &ffi->types_builder->included_ffis,
                              &lib->l_includes) < 0)
-        return -1;
+        return NULL;
 
-    return 0;
+    return m;
 }
