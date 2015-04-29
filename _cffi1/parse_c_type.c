@@ -351,9 +351,11 @@ static int parse_sequel(token_t *tok, int outer)
 
             case TOK_INTEGER:
                 errno = 0;
+#ifndef MS_WIN32
                 if (sizeof(length) > sizeof(unsigned long))
                     length = strtoull(tok->p, &endptr, 0);
                 else
+#endif
                     length = strtoul(tok->p, &endptr, 0);
                 if (endptr != tok->p + tok->size)
                     return parse_error(tok, "invalid number");

@@ -124,7 +124,7 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
         index = parse_c_type(&ffi->info, input_text);
         if (index < 0) {
             size_t num_spaces = ffi->info.error_location;
-            char spaces[num_spaces + 1];
+            char *spaces = alloca(num_spaces + 1);
             memset(spaces, ' ', num_spaces);
             spaces[num_spaces] = '\0';
             PyErr_Format(FFIError, "%s\n%s\n%s^", ffi->info.error_message,
@@ -447,16 +447,16 @@ PyDoc_STRVAR(ffi_getctype_doc,
 
 static PyObject *ffi_getctype(FFIObject *self, PyObject *args)
 {
-    PyObject *cdecl, *res;
+    PyObject *c_decl, *res;
     char *p, *replace_with = "";
     int add_paren, add_space;
     CTypeDescrObject *ct;
     size_t replace_with_len;
 
-    if (!PyArg_ParseTuple(args, "O|s:getctype", &cdecl, &replace_with))
+    if (!PyArg_ParseTuple(args, "O|s:getctype", &c_decl, &replace_with))
         return NULL;
 
-    ct = _ffi_type(self, cdecl, ACCEPT_STRING|ACCEPT_CTYPE);
+    ct = _ffi_type(self, c_decl, ACCEPT_STRING|ACCEPT_CTYPE);
     if (ct == NULL)
         return NULL;
 
@@ -603,20 +603,20 @@ static PyObject *_ffi_callback_decorator(PyObject *outer_args, PyObject *fn)
 
 static PyObject *ffi_callback(FFIObject *self, PyObject *args, PyObject *kwds)
 {
-    PyObject *cdecl, *python_callable = Py_None, *error = Py_None;
+    PyObject *c_decl, *python_callable = Py_None, *error = Py_None;
     PyObject *res;
     static char *keywords[] = {"cdecl", "python_callable", "error", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OO", keywords,
-                                     &cdecl, &python_callable, &error))
+                                     &c_decl, &python_callable, &error))
         return NULL;
 
-    cdecl = (PyObject *)_ffi_type(self, cdecl, ACCEPT_STRING | ACCEPT_CTYPE |
-                                               CONSIDER_FN_AS_FNPTR);
-    if (cdecl == NULL)
+    c_decl = (PyObject *)_ffi_type(self, c_decl, ACCEPT_STRING | ACCEPT_CTYPE |
+                                                 CONSIDER_FN_AS_FNPTR);
+    if (c_decl == NULL)
         return NULL;
 
-    args = Py_BuildValue("(OOO)", cdecl, python_callable, error);
+    args = Py_BuildValue("(OOO)", c_decl, python_callable, error);
     if (args == NULL)
         return NULL;
 

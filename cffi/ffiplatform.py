@@ -24,6 +24,7 @@ def _hack_at_distutils():
             pass
 
 def get_extension(srcfilename, modname, sources=(), **kwds):
+    _hack_at_distutils()   # *before* the following import
     from distutils.core import Extension
     allsources = [srcfilename]
     allsources.extend(sources)

@@ -1,5 +1,3 @@
-#include <stdint.h>
-
 
 typedef void *_cffi_opcode_t;
 
@@ -137,7 +135,7 @@ struct _cffi_type_context_s {
 struct _cffi_parse_info_s {
     const struct _cffi_type_context_s *ctx;
     _cffi_opcode_t *output;
-    int output_size;
+    unsigned int output_size;
     size_t error_location;
     const char *error_message;
 };
