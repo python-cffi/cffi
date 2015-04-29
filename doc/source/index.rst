@@ -1088,6 +1088,13 @@ have a different calling convention depending on whether the function
 signature is fixed or not.  (On x86-64, the difference can sometimes be
 seen in PyPy's JIT-generated code if some arguments are ``double``.)
 
+Note that the function signature ``int foo();`` is interpreted by CFFI
+as equivalent to ``int foo(void);``.  This differs from the C standard,
+in which ``int foo();`` is really like ``int foo(...);`` and can be
+called with any arguments.  (This feature of C is a pre-C89 relic: the
+arguments cannot be accessed at all in the body of ``foo()`` without
+relying on compiler-specific extensions.)
+
 
 Callbacks
 ---------
