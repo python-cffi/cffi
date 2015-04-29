@@ -1,5 +1,4 @@
 from cffi import FFI
-from _cffi1 import recompile
 
 ffi = FFI()
 ffi.cdef("""
@@ -21,7 +20,7 @@ ffi.cdef("""
     static const int DT_DIR;
 
 """)
-recompile(ffi, "_readdir2", """
+ffi.set_source("_readdir2", """
 #ifndef _ATFILE_SOURCE
 #  define _ATFILE_SOURCE
 #endif
@@ -32,3 +31,6 @@ recompile(ffi, "_readdir2", """
 #include <sys/types.h>
 #include <dirent.h>
 """)
+
+if __name__ == '__main__':
+    ffi.compile()

@@ -4,7 +4,6 @@ if sys.platform == 'win32':
     raise ImportError('No module named _curses')
 
 from cffi import FFI
-from _cffi1 import recompile
 
 ffi = FFI()
 
@@ -283,7 +282,7 @@ void _m_getsyx(int *yx);
 """)
 
 
-recompile(ffi, "_curses_cffi", """
+ffi.set_source("_curses_cffi", """
 #ifdef __APPLE__
 /* the following define is necessary for OS X 10.6+; without it, the
    Apple-supplied ncurses.h sets NCURSES_OPAQUE to 1, and then Python
@@ -323,3 +322,6 @@ void _m_getsyx(int *yx) {
     getsyx(yx[0], yx[1]);
 }
 """, libraries=['ncurses', 'panel'])
+
+if __name__ == '__main__':
+    ffi.compile()
