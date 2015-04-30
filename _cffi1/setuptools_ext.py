@@ -40,22 +40,20 @@ def add_cffi_module(dist, mod_spec):
     ext = Extension(name=module_name, sources=allsources, **kwds)
 
     def make_mod(tmpdir):
-        mkpath(tmpdir)
         file_name = module_name + '.c'
         log.info("generating cffi module %r" % file_name)
+        output = recompiler.make_c_source(ffi, module_name, source)
+        mkpath(tmpdir)
         c_file = os.path.join(tmpdir, file_name)
-        c_tmp = '%s.%s' % (c_file, os.getpid())
-        recompiler.make_c_source(ffi, module_name, source, c_tmp)
         try:
             with open(c_file, 'r') as f1:
-                with open(c_tmp, 'r') as f2:
-                    if f1.read() != f2.read():
-                        raise IOError
+                if f1.read() != output:
+                    raise IOError
         except IOError:
-            os.rename(c_tmp, c_file)
+            with open(c_file, 'w') as f1:
+                f1.write(output)
         else:
             log.info("already up-to-date")
-            os.unlink(c_tmp)
         return c_file
 
     if dist.ext_modules is None:

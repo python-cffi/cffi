@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, io
 from cffi import ffiplatform, model
 from .cffi_opcode import *
 
@@ -806,11 +806,26 @@ class Recompiler:
         self.cffi_types[index] = CffiOp(OP_ENUM, enum_index)
 
 
-def make_c_source(ffi, module_name, preamble, target_c_file):
+if sys.version_info >= (3,):
+    NativeIO = io.StringIO
+else:
+    class NativeIO(io.BytesIO):
+        def write(self, s):
+            if isinstance(s, unicode):
+                s = s.encode('ascii')
+            super(NativeIO, self).write(s)
+
+def make_c_source(ffi, module_name, preamble, target_c_file=NativeIO):
     recompiler = Recompiler(ffi, module_name)
     recompiler.collect_type_table()
-    with open(target_c_file, 'w') as f:
+    if target_c_file is NativeIO:
+        f = NativeIO()
         recompiler.write_source_to_f(f, preamble)
+        return f.getvalue()
+    else:
+        with open(target_c_file, 'w') as f:
+            recompiler.write_source_to_f(f, preamble)
+        return None
 
 def _get_extension(module_name, c_file, kwds):
     source_name = ffiplatform.maybe_relative_path(c_file)
