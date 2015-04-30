@@ -46,6 +46,11 @@
 # endif
 #endif
 
+
+/**********  CPython-specific section  **********/
+#ifndef PYPY_VERSION
+
+
 #if PY_MAJOR_VERSION < 3
 # undef PyCapsule_CheckExact
 # undef PyCapsule_GetPointer
@@ -67,15 +72,6 @@
 
 #define _cffi_to_c_double PyFloat_AsDouble
 #define _cffi_to_c_float PyFloat_AsDouble
-
-#define _cffi_from_c_int_const(x)                                        \
-    (((x) > 0) ?                                                         \
-        ((unsigned long long)(x) <= (unsigned long long)LONG_MAX) ?      \
-            PyInt_FromLong((long)(x)) :                                  \
-            PyLong_FromUnsignedLongLong((unsigned long long)(x)) :       \
-        ((long long)(x) >= (long long)LONG_MIN) ?                        \
-            PyInt_FromLong((long)(x)) :                                  \
-            PyLong_FromLongLong((long long)(x)))
 
 #define _cffi_from_c_int(x, type)                                        \
     (((type)-1) > 0 ? /* unsigned */                                     \
@@ -122,7 +118,7 @@
 #define _cffi_to_c_pointer                                               \
     ((char *(*)(PyObject *, CTypeDescrObject *))_cffi_exports[11])
 #define _cffi_get_struct_layout                                          \
-    ((PyObject *(*)(Py_ssize_t[]))_cffi_exports[12])
+    not used any more
 #define _cffi_restore_errno                                              \
     ((void(*)(void))_cffi_exports[13])
 #define _cffi_save_errno                                                 \
@@ -160,28 +156,6 @@ static void *_cffi_exports[_CFFI_NUM_EXPORTS];
     assert((((uintptr_t)_cffi_types[index]) & 1) == 0), \
     (CTypeDescrObject *)_cffi_types[index])
 
-#define _cffi_array_len(array)   (sizeof(array) / sizeof((array)[0]))
-
-#define _cffi_prim_int(size, sign)                                      \
-    ((size) == sizeof(int) ? ((sign) ? _CFFI_PRIM_INT   : _CFFI_PRIM_UINT)   : \
-     (size) == sizeof(long)? ((sign) ? _CFFI_PRIM_LONG  : _CFFI_PRIM_ULONG)  : \
-     (size) == 1           ? ((sign) ? _CFFI_PRIM_INT8  : _CFFI_PRIM_UINT8)  : \
-     (size) == 2           ? ((sign) ? _CFFI_PRIM_INT16 : _CFFI_PRIM_UINT16) : \
-     (size) == 4           ? ((sign) ? _CFFI_PRIM_INT32 : _CFFI_PRIM_UINT32) : \
-     (size) == 8           ? ((sign) ? _CFFI_PRIM_INT64 : _CFFI_PRIM_UINT64) : \
-     0)
-
-#define _cffi_check_int(got, got_nonpos, expected)      \
-    ((got_nonpos) == (expected <= 0) &&                 \
-     (got) == (unsigned long long)expected)
-
-#ifdef __GNUC__
-# define _CFFI_UNUSED_FN  __attribute__((unused))
-#else
-# define _CFFI_UNUSED_FN  /* nothing */
-#endif
-
-
 static int _cffi_init(void)
 {
     PyObject *module, *c_api_object = NULL;
@@ -215,3 +189,29 @@ static int _cffi_init(void)
     Py_XDECREF(c_api_object);
     return -1;
 }
+
+
+#endif
+/**********  end CPython-specific section  **********/
+
+
+#define _cffi_array_len(array)   (sizeof(array) / sizeof((array)[0]))
+
+#define _cffi_prim_int(size, sign)                                      \
+    ((size) == sizeof(int) ? ((sign) ? _CFFI_PRIM_INT   : _CFFI_PRIM_UINT)   : \
+     (size) == sizeof(long)? ((sign) ? _CFFI_PRIM_LONG  : _CFFI_PRIM_ULONG)  : \
+     (size) == 1           ? ((sign) ? _CFFI_PRIM_INT8  : _CFFI_PRIM_UINT8)  : \
+     (size) == 2           ? ((sign) ? _CFFI_PRIM_INT16 : _CFFI_PRIM_UINT16) : \
+     (size) == 4           ? ((sign) ? _CFFI_PRIM_INT32 : _CFFI_PRIM_UINT32) : \
+     (size) == 8           ? ((sign) ? _CFFI_PRIM_INT64 : _CFFI_PRIM_UINT64) : \
+     0)
+
+#define _cffi_check_int(got, got_nonpos, expected)      \
+    ((got_nonpos) == (expected <= 0) &&                 \
+     (got) == (unsigned long long)expected)
+
+#ifdef __GNUC__
+# define _CFFI_UNUSED_FN  __attribute__((unused))
+#else
+# define _CFFI_UNUSED_FN  /* nothing */
+#endif

@@ -32,6 +32,7 @@ static void *_cffi_types[] = {
     _CFFI_OP(_CFFI_OP_STRUCT_UNION, 0),
 };
 
+#ifndef PYPY_VERSION
 static PyObject *
 _cffi_f_foo42(PyObject *self, PyObject *args)
 {
@@ -68,7 +69,14 @@ _cffi_f_foo42(PyObject *self, PyObject *args)
 
   return _cffi_from_c_int(result, int);
 }
+#else
+static int _cffi_f_foo42(int x0, int *x1)
+{
+  return foo42(x0, x1);
+}
+#endif
 
+#ifndef PYPY_VERSION
 static PyObject *
 _cffi_f_foo64(PyObject *self, PyObject *arg0)
 {
@@ -87,6 +95,12 @@ _cffi_f_foo64(PyObject *self, PyObject *arg0)
 
   return _cffi_from_c_int(result, int);
 }
+#else
+static int _cffi_f_foo64(int x0)
+{
+  return foo64(x0);
+}
+#endif
 
 static int _cffi_const_AA(unsigned long long *output)
 {
@@ -134,6 +148,7 @@ static const struct _cffi_type_context_s _cffi_type_context = {
     0,
 };
 
+#ifndef PYPY_VERSION
 PyMODINIT_FUNC
 initmanual(void)
 {
@@ -142,3 +157,10 @@ initmanual(void)
 
     _cffi_init_module("manual", &_cffi_type_context);
 }
+#else
+PyMODINIT_FUNC
+_cffi_pypyinit_manual(const struct _cffi_type_context_s **p)
+{
+    *p = &_cffi_type_context;
+}
+#endif
