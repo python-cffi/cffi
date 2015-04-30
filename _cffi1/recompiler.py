@@ -832,6 +832,8 @@ def _get_extension(module_name, c_file, kwds):
     return ffiplatform.get_extension(source_name, module_name, **kwds)
 
 def recompile(ffi, module_name, preamble, tmpdir='.', **kwds):
+    if not isinstance(module_name, str):
+        module_name = module_name.encode('ascii')
     c_file = os.path.join(tmpdir, module_name + '.c')
     ext = _get_extension(module_name, c_file, kwds)
     make_c_source(ffi, module_name, preamble, c_file)
