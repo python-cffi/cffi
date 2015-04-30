@@ -3,4 +3,5 @@ recursive-include c *.c *.h *.asm *.py win64.obj
 recursive-include testing *.py
 recursive-include doc *.py *.rst Makefile *.bat
 recursive-include demo py.cleanup *.py
+recursive-include _cffi1 *.py *.h
 include LICENSE setup_base.py
