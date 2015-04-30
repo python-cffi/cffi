@@ -2081,22 +2081,27 @@ def test_getlasterror_working_even_with_pypys_jit():
             assert ffi.getwinerror()[0] == n
 
 def test_verify_dlopen_flags():
-    py.test.xfail("dlopen flags")
+    if not hasattr(sys, 'setdlopenflags'):
+        py.test.skip("requires sys.setdlopenflags()")
     # Careful with RTLD_GLOBAL.  If by chance the FFI is not deleted
     # promptly, like on PyPy, then other tests may see the same
     # exported symbols as well.  So we must not export a simple name
     # like 'foo'!
-    ffi1 = FFI()
-    ffi1.cdef("int foo_verify_dlopen_flags;")
+    old = sys.getdlopenflags()
+    try:
+        ffi1 = FFI()
+        ffi1.cdef("int foo_verify_dlopen_flags;")
 
-    lib1 = ffi1.verify("int foo_verify_dlopen_flags;",
-                       flags=ffi1.RTLD_GLOBAL | ffi1.RTLD_LAZY)
-    lib2 = get_second_lib()
+        sys.setdlopenflags(ffi1.RTLD_GLOBAL | ffi1.RTLD_LAZY)
+        lib1 = ffi1.verify("int foo_verify_dlopen_flags;")
+        lib2 = get_second_lib()
 
-    lib1.foo_verify_dlopen_flags = 42
-    assert lib2.foo_verify_dlopen_flags == 42
-    lib2.foo_verify_dlopen_flags += 1
-    assert lib1.foo_verify_dlopen_flags == 43
+        lib1.foo_verify_dlopen_flags = 42
+        assert lib2.foo_verify_dlopen_flags == 42
+        lib2.foo_verify_dlopen_flags += 1
+        assert lib1.foo_verify_dlopen_flags == 43
+    finally:
+        sys.setdlopenflags(old)
 
 def get_second_lib():
     # Hack, using modulename makes the test fail
