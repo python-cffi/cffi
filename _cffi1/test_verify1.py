@@ -1670,7 +1670,6 @@ def test_struct_returned_by_func():
         "function myfunc: 'foo_t' is used as result type, but is opaque")
 
 def test_include():
-    py.test.xfail("test_include")
     ffi1 = FFI()
     ffi1.cdef("typedef struct { int x; ...; } foo_t;")
     ffi1.verify("typedef struct { int y, x; } foo_t;")
