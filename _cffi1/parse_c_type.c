@@ -406,6 +406,7 @@ static int parse_sequel(token_t *tok, int outer)
 
 
 #define MAKE_SEARCH_FUNC(FIELD)                                 \
+  static                                                        \
   int search_in_##FIELD(const struct _cffi_type_context_s *ctx, \
                         const char *search, size_t search_len)  \
   {                                                             \
@@ -433,6 +434,7 @@ MAKE_SEARCH_FUNC(enums)
 #undef MAKE_SEARCH_FUNC
 
 
+static
 int search_standard_typename(const char *p, size_t size)
 {
     if (size < 6 || p[size-2] != '_' || p[size-1] != 't')
@@ -729,6 +731,7 @@ static int parse_complete(token_t *tok)
 }
 
 
+static
 int parse_c_type(struct _cffi_parse_info_s *info, const char *input)
 {
     int result;

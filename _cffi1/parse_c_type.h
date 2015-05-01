@@ -141,9 +141,9 @@ struct _cffi_parse_info_s {
 };
 
 #ifdef _CFFI_INTERNAL
-int parse_c_type(struct _cffi_parse_info_s *info, const char *input);
-int search_in_globals(const struct _cffi_type_context_s *ctx,
-                      const char *search, size_t search_len);
-int search_in_struct_unions(const struct _cffi_type_context_s *ctx,
-                            const char *search, size_t search_len);
+static int parse_c_type(struct _cffi_parse_info_s *info, const char *input);
+static int search_in_globals(const struct _cffi_type_context_s *ctx,
+                             const char *search, size_t search_len);
+static int search_in_struct_unions(const struct _cffi_type_context_s *ctx,
+                                   const char *search, size_t search_len);
 #endif
