@@ -55,6 +55,12 @@ def test_ffi_NULL():
     NULL = _cffi1_backend.FFI.NULL
     assert _cffi1_backend.FFI().typeof(NULL).cname == "void *"
 
+def test_ffi_no_attr():
+    ffi = _cffi1_backend.FFI()
+    py.test.raises(AttributeError, "ffi.no_such_name")
+    py.test.raises(AttributeError, "ffi.no_such_name = 42")
+    py.test.raises(AttributeError, "del ffi.no_such_name")
+
 def test_ffi_string():
     ffi = _cffi1_backend.FFI()
     p = ffi.new("char[]", b"foobar\x00baz")
