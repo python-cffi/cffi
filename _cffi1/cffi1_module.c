@@ -16,6 +16,8 @@ static PyTypeObject Lib_Type;   /* forward */
 
 static int init_ffi_lib(PyObject *m)
 {
+    PyObject *x;
+
     if (!PyType_Ready(&FFI_Type) < 0)
         return -1;
     if (!PyType_Ready(&Lib_Type) < 0)
@@ -35,11 +37,13 @@ static int init_ffi_lib(PyObject *m)
                              (PyObject *)&CData_Type) < 0)
         return -1;
 
-    Py_INCREF(&FFI_Type);
-    if (PyModule_AddObject(m, "FFI", (PyObject *)&FFI_Type) < 0)
+    x = (PyObject *)&FFI_Type;
+    Py_INCREF(x);
+    if (PyModule_AddObject(m, "FFI", x) < 0)
         return -1;
-    Py_INCREF(&Lib_Type);
-    if (PyModule_AddObject(m, "Lib", (PyObject *)&Lib_Type) < 0)
+    x = (PyObject *)&Lib_Type;
+    Py_INCREF(x);
+    if (PyModule_AddObject(m, "Lib", x) < 0)
         return -1;
 
     return 0;
