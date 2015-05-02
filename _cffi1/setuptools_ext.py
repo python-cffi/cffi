@@ -42,17 +42,10 @@ def add_cffi_module(dist, mod_spec):
     def make_mod(tmpdir):
         file_name = module_name + '.c'
         log.info("generating cffi module %r" % file_name)
-        output = recompiler.make_c_source(ffi, module_name, source)
         mkpath(tmpdir)
         c_file = os.path.join(tmpdir, file_name)
-        try:
-            with open(c_file, 'r') as f1:
-                if f1.read() != output:
-                    raise IOError
-        except IOError:
-            with open(c_file, 'w') as f1:
-                f1.write(output)
-        else:
+        updated = recompiler.make_c_source(ffi, module_name, source, c_file)
+        if not updated:
             log.info("already up-to-date")
         return c_file
 

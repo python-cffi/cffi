@@ -815,30 +815,38 @@ else:
                 s = s.encode('ascii')
             super(NativeIO, self).write(s)
 
-def make_c_source(ffi, module_name, preamble, target_c_file=NativeIO):
+def make_c_source(ffi, module_name, preamble, target_c_file):
     recompiler = Recompiler(ffi, module_name)
     recompiler.collect_type_table()
-    if target_c_file is NativeIO:
-        f = NativeIO()
-        recompiler.write_source_to_f(f, preamble)
-        return f.getvalue()
-    else:
-        with open(target_c_file, 'w') as f:
-            recompiler.write_source_to_f(f, preamble)
-        return None
+    f = NativeIO()
+    recompiler.write_source_to_f(f, preamble)
+    output = f.getvalue()
+    try:
+        with open(target_c_file, 'r') as f1:
+            if f1.read(len(output) + 1) != output:
+                raise IOError
+        return False     # already up-to-date
+    except IOError:
+        with open(target_c_file, 'w') as f1:
+            f1.write(output)
+        return True
 
 def _get_extension(module_name, c_file, kwds):
     source_name = ffiplatform.maybe_relative_path(c_file)
     return ffiplatform.get_extension(source_name, module_name, **kwds)
 
-def recompile(ffi, module_name, preamble, tmpdir='.', **kwds):
+def recompile(ffi, module_name, preamble, tmpdir='.',
+              call_c_compiler=True, **kwds):
     if not isinstance(module_name, str):
         module_name = module_name.encode('ascii')
     c_file = os.path.join(tmpdir, module_name + '.c')
     ext = _get_extension(module_name, c_file, kwds)
-    make_c_source(ffi, module_name, preamble, c_file)
-    outputfilename = ffiplatform.compile(tmpdir, ext)
-    return outputfilename
+    updated = make_c_source(ffi, module_name, preamble, c_file)
+    if call_c_compiler:
+        outputfilename = ffiplatform.compile(tmpdir, ext)
+        return outputfilename
+    else:
+        return ext, updated
 
 def verify(ffi, module_name, preamble, *args, **kwds):
     from _cffi1.udir import udir

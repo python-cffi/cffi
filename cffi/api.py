@@ -482,6 +482,22 @@ class FFI(object):
         self._recompiler_module_name = module_name
         self._assigned_source = (source, kwds)
 
+    def distutils_extension(self, tmpdir='.'):
+        from distutils.dir_util import mkpath
+        from _cffi1 import recompile
+        #
+        if not hasattr(self, '_assigned_source'):
+            raise ValueError("set_source() must be called before"
+                             " distutils_extension()")
+        source, kwds = self._assigned_source
+        mkpath(tmpdir)
+        ext, updated = recompile(self, self._recompiler_module_name,
+                                 source, tmpdir=tmpdir,
+                                 call_c_compiler=False, **kwds)
+        if updated:
+            sys.stderr.write("generated %r\n" % (ext.sources[0],))
+        return ext
+
     def compile(self, tmpdir='.'):
         from _cffi1 import recompile
         #
