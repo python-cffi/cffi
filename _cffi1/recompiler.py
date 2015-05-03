@@ -175,6 +175,8 @@ class Recompiler:
                     self._fix_final_field_list(lst)
                 for line in lst:
                     prnt(line)
+                if all(line.startswith('#') for line in lst):
+                    prnt('  { 0 }')
                 prnt('};')
                 prnt()
         #
