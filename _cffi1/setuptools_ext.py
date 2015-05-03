@@ -34,6 +34,9 @@ def add_cffi_module(dist, mod_spec):
         error("%r: the set_source() method was not called" % (mod_spec,))
     module_name = ffi._recompiler_module_name
     source, kwds = ffi._assigned_source
+    if ffi._windows_unicode:
+        kwds = kwds.copy()
+        ffi._apply_windows_unicode(kwds)
 
     allsources = ['$PLACEHOLDER']
     allsources.extend(kwds.get('sources', []))

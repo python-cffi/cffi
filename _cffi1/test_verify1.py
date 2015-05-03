@@ -1721,7 +1721,8 @@ def test_enum_size():
         assert lib.AA == 0
         assert lib.BB == eval(hidden_value.replace('U', '').replace('L', ''))
         assert ffi.sizeof("enum foo_e") == expected_size
-        assert int(ffi.cast("enum foo_e", -1)) == expected_minus1
+        if sys.platform != 'win32':
+            assert int(ffi.cast("enum foo_e", -1)) == expected_minus1
     # test with the large value hidden:
     # disabled so far, doesn't work
 ##    for hidden_value, expected_size, expected_minus1 in cases:
@@ -2146,6 +2147,7 @@ def test_verify_extra_arguments():
     assert lib.ABA == 42
 
 def test_implicit_unicode_on_windows():
+    from cffi import FFIError
     if sys.platform != 'win32':
         py.test.skip("win32-only test")
     ffi = FFI()
