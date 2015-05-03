@@ -624,7 +624,10 @@ def test_struct_with_bitfield_enum():
     s = ffi.new("foo_s *")
     s.f = 1
     assert s.f == 1
-    two = int(ffi.cast("foo_e", 2))     # may be 2 or -2 based on the sign
+    if int(ffi.cast("foo_e", -1)) < 0:
+        two = -2
+    else:
+        two = 2
     s.f = two
     assert s.f == two
 
