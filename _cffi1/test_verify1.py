@@ -622,8 +622,11 @@ def test_struct_with_bitfield_enum():
     ffi.cdef(code)
     ffi.verify(code)
     s = ffi.new("foo_s *")
-    s.f = 2
-    assert s.f == 2
+    s.f = 1
+    assert s.f == 1
+    two = int(ffi.cast("foo_e", 2))     # may be 2 or -2 based on the sign
+    s.f = two
+    assert s.f == two
 
 def test_unsupported_struct_with_bitfield_ellipsis():
     ffi = FFI()
