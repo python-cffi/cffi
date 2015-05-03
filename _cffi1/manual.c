@@ -146,6 +146,8 @@ static const struct _cffi_type_context_s _cffi_type_context = {
     1,  /* num_struct_unions */
     0,
     0,
+    NULL,
+    8,  /* num_types */
 };
 
 #ifndef PYPY_VERSION
