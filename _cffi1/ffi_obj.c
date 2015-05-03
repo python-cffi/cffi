@@ -110,51 +110,47 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
        Does not return a new reference!
     */
     if ((accept & ACCEPT_STRING) && PyText_Check(arg)) {
-        int index, err;
-        char *input_text;
-        CTypeDescrObject *ct;
         PyObject *types_dict = ffi->types_builder->types_dict;
         PyObject *x = PyDict_GetItem(types_dict, arg);
-        if (x != NULL) {
-            assert(CTypeDescr_Check(x));
+
+        if (x == NULL) {
+            char *input_text = PyText_AS_UTF8(arg);
+            int err, index = parse_c_type(&ffi->info, input_text);
+            if (index < 0) {
+                size_t num_spaces = ffi->info.error_location;
+                char *spaces = alloca(num_spaces + 1);
+                memset(spaces, ' ', num_spaces);
+                spaces[num_spaces] = '\0';
+                PyErr_Format(FFIError, "%s\n%s\n%s^", ffi->info.error_message,
+                             input_text, spaces);
+                return NULL;
+            }
+            x = realize_c_type_or_func(ffi->types_builder,
+                                       ffi->info.output, index);
+            if (x == NULL)
+                return NULL;
+
+            /* Cache under the name given by 'arg', in addition to the
+               fact that the same ct is probably already cached under
+               its standardized name.  In a few cases, it is not, e.g.
+               if it is a primitive; for the purpose of this function,
+               the important point is the following line, which makes
+               sure that in any case the next _ffi_type() with the same
+               'arg' will succeed early, in PyDict_GetItem() above.
+            */
+            err = PyDict_SetItem(types_dict, arg, x);
+            Py_DECREF(x); /* we know it was written in types_dict (unless out
+                             of mem), so there is at least that ref left */
+            if (err < 0)
+                return NULL;
+        }
+
+        if (CTypeDescr_Check(x))
             return (CTypeDescrObject *)x;
-        }
-
-        input_text = PyText_AS_UTF8(arg);
-        index = parse_c_type(&ffi->info, input_text);
-        if (index < 0) {
-            size_t num_spaces = ffi->info.error_location;
-            char *spaces = alloca(num_spaces + 1);
-            memset(spaces, ' ', num_spaces);
-            spaces[num_spaces] = '\0';
-            PyErr_Format(FFIError, "%s\n%s\n%s^", ffi->info.error_message,
-                         input_text, spaces);
-            return NULL;
-        }
-        if (accept & CONSIDER_FN_AS_FNPTR) {
-            ct = realize_c_type_fn_as_fnptr(ffi->types_builder,
-                                            ffi->info.output, index);
-        }
-        else {
-            ct = realize_c_type(ffi->types_builder, ffi->info.output, index);
-        }
-        if (ct == NULL)
-            return NULL;
-
-        /* Cache under the name given by 'arg', in addition to the
-           fact that the same ct is probably already cached under
-           its standardized name.  In a few cases, it is not, e.g.
-           if it is a primitive; for the purpose of this function,
-           the important point is the following line, which makes
-           sure that in any case the next _ffi_type() with the same
-           'arg' will succeed early, in PyDict_GetItem() above.
-        */
-        err = PyDict_SetItem(types_dict, arg, (PyObject *)ct);
-        Py_DECREF(ct);   /* we know it was written in types_dict (unless we got
-                     out of memory), so there is at least this reference left */
-        if (err < 0)
-            return NULL;
-        return ct;
+        else if (accept & CONSIDER_FN_AS_FNPTR)
+            return unwrap_fn_as_fnptr(x);
+        else
+            return unexpected_fn_type(x);
     }
     else if ((accept & ACCEPT_CTYPE) && CTypeDescr_Check(arg)) {
         return (CTypeDescrObject *)arg;

@@ -219,9 +219,30 @@ static PyObject *realize_global_int(const struct _cffi_global_s *g)
     return NULL;
 }
 
+static CTypeDescrObject *
+unwrap_fn_as_fnptr(PyObject *x)
+{
+    assert(PyTuple_Check(x));
+    return (CTypeDescrObject *)PyTuple_GET_ITEM(x, 0);
+}
+
+static CTypeDescrObject *
+unexpected_fn_type(PyObject *x)
+{
+    CTypeDescrObject *ct = unwrap_fn_as_fnptr(x);
+    char *text1 = ct->ct_name;
+    char *text2 = text1 + ct->ct_name_position + 1;
+    assert(text2[-3] == '(');
+    text2[-3] = '\0';
+    PyErr_Format(FFIError, "the type '%s%s' is a function type, not a "
+                           "pointer-to-function type", text1, text2);
+    text2[-3] = '(';
+    return NULL;
+}
+
 static PyObject *
-_realize_c_type_or_func(builder_c_t *builder,
-                        _cffi_opcode_t opcodes[], int index);  /* forward */
+realize_c_type_or_func(builder_c_t *builder,
+                       _cffi_opcode_t opcodes[], int index);  /* forward */
 
 
 /* Interpret an opcodes[] array.  If opcodes == ctx->types, store all
@@ -231,46 +252,11 @@ _realize_c_type_or_func(builder_c_t *builder,
 static CTypeDescrObject *
 realize_c_type(builder_c_t *builder, _cffi_opcode_t opcodes[], int index)
 {
-    PyObject *x = _realize_c_type_or_func(builder, opcodes, index);
-    if (x == NULL || CTypeDescr_Check(x)) {
+    PyObject *x = realize_c_type_or_func(builder, opcodes, index);
+    if (x == NULL || CTypeDescr_Check(x))
         return (CTypeDescrObject *)x;
-    }
-    else {
-        char *text1, *text2;
-        PyObject *y;
-        assert(PyTuple_Check(x));
-        y = PyTuple_GET_ITEM(x, 0);
-        text1 = ((CTypeDescrObject *)y)->ct_name;
-        text2 = text1 + ((CTypeDescrObject *)y)->ct_name_position + 1;
-        assert(text2[-3] == '(');
-        text2[-3] = '\0';
-        PyErr_Format(FFIError, "the type '%s%s' is a function type, not a "
-                               "pointer-to-function type", text1, text2);
-        text2[-3] = '(';
-        Py_DECREF(x);
-        return NULL;
-    }
-}
-
-/* Same as realize_c_type(), but if it's a function type, return the
-   corresponding function pointer ctype instead of complaining.
-*/
-static CTypeDescrObject *
-realize_c_type_fn_as_fnptr(builder_c_t *builder,
-                           _cffi_opcode_t opcodes[], int index)
-{
-    PyObject *x = _realize_c_type_or_func(builder, opcodes, index);
-    if (x == NULL || CTypeDescr_Check(x)) {
-        return (CTypeDescrObject *)x;
-    }
-    else {
-        PyObject *y;
-        assert(PyTuple_Check(x));
-        y = PyTuple_GET_ITEM(x, 0);
-        Py_INCREF(y);
-        Py_DECREF(x);
-        return (CTypeDescrObject *)y;
-    }
+    else
+        return unexpected_fn_type(x);
 }
 
 static void _realize_name(char *target, const char *prefix, const char *srcname)
@@ -379,7 +365,7 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
 }
 
 static PyObject *
-_realize_c_type_or_func(builder_c_t *builder,
+realize_c_type_or_func(builder_c_t *builder,
                         _cffi_opcode_t opcodes[], int index)
 {
     PyObject *x, *y, *z;
@@ -400,7 +386,7 @@ _realize_c_type_or_func(builder_c_t *builder,
         break;
 
     case _CFFI_OP_POINTER:
-        y = _realize_c_type_or_func(builder, opcodes, _CFFI_GETARG(op));
+        y = realize_c_type_or_func(builder, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
             return NULL;
         if (CTypeDescr_Check(y)) {
@@ -572,7 +558,7 @@ _realize_c_type_or_func(builder_c_t *builder,
     }
 
     case _CFFI_OP_NOOP:
-        x = _realize_c_type_or_func(builder, opcodes, _CFFI_GETARG(op));
+        x = realize_c_type_or_func(builder, opcodes, _CFFI_GETARG(op));
         break;
 
     case _CFFI_OP_TYPENAME:
@@ -581,7 +567,7 @@ _realize_c_type_or_func(builder_c_t *builder,
            up in the 'ctx->typenames' array, but it does so in 'ctx->types'
            instead of in 'opcodes'! */
         int type_index = builder->ctx.typenames[_CFFI_GETARG(op)].type_index;
-        x = _realize_c_type_or_func(builder, builder->ctx.types, type_index);
+        x = realize_c_type_or_func(builder, builder->ctx.types, type_index);
         break;
     }
 

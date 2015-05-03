@@ -136,3 +136,9 @@ def test_handle():
     assert ffi.from_handle(xp) is x
     yp = ffi.new_handle([6, 4, 2])
     assert ffi.from_handle(yp) == [6, 4, 2]
+
+def test_ffi_cast():
+    ffi = _cffi1_backend.FFI()
+    assert ffi.cast("int(*)(int)", 0) == ffi.NULL
+    ffi.callback("int(int)")      # side-effect of registering this string
+    py.test.raises(ffi.error, ffi.cast, "int(int)", 0)

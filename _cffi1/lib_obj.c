@@ -48,9 +48,9 @@ static PyObject *_cpyextfunc_type_index(PyObject *x)
     PyErr_Clear();
 
     lib = (LibObject *)PyCFunction_GET_SELF(x);
-    tuple = _realize_c_type_or_func(lib->l_types_builder,
-                                    lib->l_types_builder->ctx.types,
-                                    exf->type_index);
+    tuple = realize_c_type_or_func(lib->l_types_builder,
+                                   lib->l_types_builder->ctx.types,
+                                   exf->type_index);
     if (tuple == NULL)
         return NULL;
 
