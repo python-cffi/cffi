@@ -487,6 +487,8 @@ class FFI(object):
         from _cffi1 import recompile
         #
         if not hasattr(self, '_assigned_source'):
+            if hasattr(self, 'verifier'):     # fallback, 'tmpdir' ignored
+                return self.verifier.get_extension()
             raise ValueError("set_source() must be called before"
                              " distutils_extension()")
         source, kwds = self._assigned_source
