@@ -482,7 +482,7 @@ class FFI(object):
         self._recompiler_module_name = module_name
         self._assigned_source = (source, kwds)
 
-    def distutils_extension(self, tmpdir='.'):
+    def distutils_extension(self, tmpdir='build'):
         from distutils.dir_util import mkpath
         from _cffi1 import recompile
         #
