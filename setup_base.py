@@ -8,7 +8,7 @@ from setup import library_dirs, extra_compile_args, extra_link_args
 if __name__ == '__main__':
     from distutils.core import setup
     from distutils.extension import Extension
-    standard = '__pypy__' not in sys.modules
+    standard = '__pypy__' not in sys.builtin_module_names
     setup(packages=['cffi'],
           requires=['pycparser'],
           ext_modules=[Extension(name = '_cffi_backend',
