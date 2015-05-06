@@ -5797,7 +5797,7 @@ static PyMethodDef FFIBackendMethods[] = {
 static RETURNTYPE _cffi_to_c_i##SIZE(PyObject *obj) {                   \
     PY_LONG_LONG tmp = _my_PyLong_AsLongLong(obj);                      \
     if ((tmp > (PY_LONG_LONG)((1ULL<<(SIZE-1)) - 1)) ||                 \
-        (tmp < (PY_LONG_LONG)(-(1ULL<<(SIZE-1)))))                      \
+        (tmp < (PY_LONG_LONG)(0ULL-(1ULL<<(SIZE-1)))))                  \
         if (!PyErr_Occurred())                                          \
             return (RETURNTYPE)_convert_overflow(obj, #SIZE "-bit int"); \
     return (RETURNTYPE)tmp;                                             \

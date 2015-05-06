@@ -116,7 +116,7 @@ if 'freebsd' in sys.platform:
 if __name__ == '__main__':
     from setuptools import setup, Extension
     ext_modules = []
-    if '__pypy__' not in sys.modules:
+    if '__pypy__' not in sys.builtin_module_names:
         ext_modules.append(Extension(
             name='_cffi_backend',
             include_dirs=include_dirs,
