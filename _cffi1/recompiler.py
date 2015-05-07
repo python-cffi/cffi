@@ -228,7 +228,14 @@ class Recompiler:
         #
         # the init function, loading _cffi_backend and calling a method there
         base_module_name = self.module_name.split('.')[-1]
-        prnt('#if PY_MAJOR_VERSION >= 3')
+        prnt('#ifdef PYPY_VERSION')
+        prnt('PyMODINIT_FUNC')
+        prnt('_cffi_pypyinit_%s(const void *p[])' % (base_module_name,))
+        prnt('{')
+        prnt('    p[0] = (const void *)0x10000f0;')
+        prnt('    p[1] = &_cffi_type_context;')
+        prnt('}')
+        prnt('#elif PY_MAJOR_VERSION >= 3')
         prnt('PyMODINIT_FUNC')
         prnt('PyInit_%s(void)' % (base_module_name,))
         prnt('{')
@@ -378,13 +385,17 @@ class Recompiler:
             argname = 'arg0'
         else:
             argname = 'args'
+        prnt('#ifndef PYPY_VERSION')        # ------------------------------
         prnt('static PyObject *')
         prnt('_cffi_f_%s(PyObject *self, PyObject *%s)' % (name, argname))
         prnt('{')
         #
         context = 'argument of %s' % name
+        arguments = []
         for i, type in enumerate(tp.args):
-            prnt('  %s;' % type.get_c_name(' x%d' % i, context))
+            arg = type.get_c_name(' x%d' % i, context)
+            arguments.append(arg)
+            prnt('  %s;' % arg)
         #
         localvars = set()
         for type in tp.args:
@@ -395,8 +406,10 @@ class Recompiler:
         if not isinstance(tp.result, model.VoidType):
             result_code = 'result = '
             context = 'result of %s' % name
-            prnt('  %s;' % tp.result.get_c_name(' result', context))
+            result_decl = '  %s;' % tp.result.get_c_name(' result', context)
+            prnt(result_decl)
         else:
+            result_decl = None
             result_code = ''
         #
         if len(tp.args) > 1:
@@ -416,9 +429,10 @@ class Recompiler:
         #
         prnt('  Py_BEGIN_ALLOW_THREADS')
         prnt('  _cffi_restore_errno();')
-        prnt('  { %s%s(%s); }' % (
-            result_code, name,
-            ', '.join(['x%d' % i for i in range(len(tp.args))])))
+        call_arguments = ['x%d' % i for i in range(len(tp.args))]
+        call_arguments = ', '.join(call_arguments)
+        call_code = '  { %s%s(%s); }' % (result_code, name, call_arguments)
+        prnt(call_code)
         prnt('  _cffi_save_errno();')
         prnt('  Py_END_ALLOW_THREADS')
         prnt()
@@ -433,6 +447,19 @@ class Recompiler:
             prnt('  Py_INCREF(Py_None);')
             prnt('  return Py_None;')
         prnt('}')
+        prnt('#else')        # ------------------------------
+        repr_arguments = ', '.join(arguments)
+        repr_arguments = repr_arguments or 'void'
+        name_and_arguments = '_cffi_f_%s(%s)' % (name, repr_arguments)
+        prnt('static %s' % (tp.result.get_c_name(name_and_arguments),))
+        prnt('{')
+        if result_decl:
+            prnt(result_decl)
+        prnt(call_code)
+        if result_decl:
+            prnt('  return result;')
+        prnt('}')
+        prnt('#endif')        # ------------------------------
         prnt()
 
     def _generate_cpy_function_ctx(self, tp, name):
