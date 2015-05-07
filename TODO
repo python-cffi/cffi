@@ -1,3 +1,11 @@
 
 
-Add other required types from stdint.h
+* write docs!
+
+* version-1.0.0.diff
+
+* mention todo: cffi-runtime package
+
+* mention todo: ffi.new("xyz") makes {"xyz": <ctype>} always immortal
+
+* mention todo: dlopen(), by "compiling" a cdef()-only FFI into a .py module
