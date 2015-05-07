@@ -288,7 +288,7 @@ def test_verify_exact_field_offset():
     ffi.cdef("""struct foo_s { int b; short a; };""")
     lib = verify(ffi, 'test_verify_exact_field_offset',
                  """struct foo_s { short a; int b; };""")
-    e = py.test.raises(ffi.error, ffi.new, "struct foo_s *")    # lazily
+    e = py.test.raises(ffi.error, ffi.new, "struct foo_s *", [])    # lazily
     assert str(e.value) == ("struct foo_s: wrong offset for field 'b' (cdef "
                        'says 0, but C compiler says 4). fix it or use "...;" '
                        "in the cdef for struct foo_s to make it flexible")
@@ -360,8 +360,9 @@ def test_misdeclared_field_1():
     verify(ffi, 'test_misdeclared_field_1',
            "struct foo_s { int a[6]; };")
     assert ffi.sizeof("struct foo_s") == 24  # found by the actual C code
+    p = ffi.new("struct foo_s *")
     # lazily build the fields and boom:
-    e = py.test.raises(ffi.error, ffi.new, "struct foo_s *")
+    e = py.test.raises(ffi.error, "p.a")
     assert str(e.value).startswith("struct foo_s: wrong size for field 'a' "
                                    "(cdef says 20, but C compiler says 24)")
 

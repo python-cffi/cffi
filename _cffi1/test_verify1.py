@@ -412,7 +412,7 @@ def test_ffi_full_struct():
         ffi = FFI()
         ffi.cdef("struct foo_s { char x; int y; long *z; };")
         ffi.verify(verified_code)
-        ffi.new("struct foo_s *")
+        ffi.new("struct foo_s *", {})
 
     check("struct foo_s { char x; int y; long *z; };")
     #
@@ -482,7 +482,7 @@ def _check_field_match(typename, real, expect_mismatch):
     ffi.cdef("struct foo_s { %s x; ...; };" % typename)
     try:
         ffi.verify("struct foo_s { %s x; };" % real)
-        ffi.new("struct foo_s *")    # because some mismatches show up lazily
+        ffi.new("struct foo_s *", [])  # because some mismatches show up lazily
     except (VerificationError, ffi.error):
         if not expect_mismatch:
             if testing_by_size and typename != real:
