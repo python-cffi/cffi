@@ -161,8 +161,9 @@ initmanual(void)
 }
 #else
 PyMODINIT_FUNC
-_cffi_pypyinit_manual(const struct _cffi_type_context_s **p)
+_cffi_pypyinit_manual(const void *p[])
 {
-    *p = &_cffi_type_context;
+    p[0] = (const void *)0x10000f0;
+    p[1] = &_cffi_type_context;
 }
 #endif
