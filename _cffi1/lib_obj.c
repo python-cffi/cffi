@@ -113,24 +113,18 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
        CPython never unloads its C extension modules anyway.
     */
     xfunc = PyMem_Malloc(sizeof(struct CPyExtFunc_s));
-    if (xfunc == NULL)
-        goto no_memory;
-
+    if (xfunc == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
     memset((char *)xfunc, 0, sizeof(struct CPyExtFunc_s));
     xfunc->md.ml_meth = (PyCFunction)g->address;
     xfunc->md.ml_flags = flags;
     xfunc->md.ml_name = g->name;
     xfunc->md.ml_doc = cpyextfunc_doc;
-    if (xfunc->md.ml_name == NULL)
-        goto no_memory;
-
     xfunc->type_index = type_index;
 
     return PyCFunction_NewEx(&xfunc->md, (PyObject *)lib, lib->l_libname);
-
- no_memory:
-    PyErr_NoMemory();
-    return NULL;
 }
 
 static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
