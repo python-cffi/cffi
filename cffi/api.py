@@ -500,6 +500,15 @@ class FFI(object):
             sys.stderr.write("generated %r\n" % (ext.sources[0],))
         return ext
 
+    def emit_c_code(self, filename):
+        from _cffi1 import recompile
+        #
+        if not hasattr(self, '_assigned_source'):
+            raise ValueError("set_source() must be called before emit_c_code()")
+        source, kwds = self._assigned_source
+        recompile(self, self._recompiler_module_name, source,
+                  c_file=filename, call_c_compiler=False, **kwds)
+
     def compile(self, tmpdir='.'):
         from _cffi1 import recompile
         #

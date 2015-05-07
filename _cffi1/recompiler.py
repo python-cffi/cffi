@@ -839,12 +839,13 @@ def _get_extension(module_name, c_file, kwds):
     return ffiplatform.get_extension(source_name, module_name, **kwds)
 
 def recompile(ffi, module_name, preamble, tmpdir='.',
-              call_c_compiler=True, **kwds):
+              call_c_compiler=True, c_file=None, **kwds):
     if not isinstance(module_name, str):
         module_name = module_name.encode('ascii')
     if ffi._windows_unicode:
         ffi._apply_windows_unicode(kwds)
-    c_file = os.path.join(tmpdir, module_name + '.c')
+    if c_file is None:
+        c_file = os.path.join(tmpdir, module_name + '.c')
     ext = _get_extension(module_name, c_file, kwds)
     updated = make_c_source(ffi, module_name, preamble, c_file)
     if call_c_compiler:
