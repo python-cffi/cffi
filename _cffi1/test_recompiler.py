@@ -15,9 +15,9 @@ def check_type_table(input, expected_output, included=None):
     recomp.collect_type_table()
     assert ''.join(map(str, recomp.cffi_types)) == expected_output
 
-def verify(*args, **kwds):
+def verify(ffi, module_name, *args, **kwds):
     kwds.setdefault('undef_macros', ['NDEBUG'])
-    return recompiler.verify(*args, **kwds)
+    return recompiler.verify(ffi, '_CFFI_' + module_name, *args, **kwds)
 
 
 def test_type_table_func():
@@ -117,7 +117,7 @@ def test_math_sin():
 def test_repr_lib():
     ffi = FFI()
     lib = verify(ffi, 'test_repr_lib', '')
-    assert repr(lib) == "<Lib object for 'test_repr_lib'>"
+    assert repr(lib) == "<Lib object for '_CFFI_test_repr_lib'>"
 
 def test_funcarg_ptr():
     ffi = FFI()
