@@ -114,6 +114,11 @@ def test_math_sin():
     lib = verify(ffi, 'test_math_sin', '#include <math.h>')
     assert lib.cos(1.43) == math.cos(1.43)
 
+def test_repr_lib():
+    ffi = FFI()
+    lib = verify(ffi, 'test_repr_lib', '')
+    assert repr(lib) == "<Lib object for 'test_repr_lib'>"
+
 def test_funcarg_ptr():
     ffi = FFI()
     ffi.cdef("int foo(int *);")
