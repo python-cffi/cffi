@@ -1,6 +1,8 @@
 
 
-* write docs!
+* write docs!  also, remember to remove ``ext_package=".."`` from
+  setup.py, which was needed with verify() but is just confusion
+  with set_source().
 
 * version-1.0.0.diff
 
