@@ -158,6 +158,17 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
     else if ((accept & ACCEPT_CDATA) && CData_Check(arg)) {
         return ((CDataObject *)arg)->c_type;
     }
+#if PY_MAJOR_VERSION < 3
+    else if (PyUnicode_Check(arg)) {
+        CTypeDescrObject *result;
+        arg = PyUnicode_AsASCIIString(arg);
+        if (arg == NULL)
+            return NULL;
+        result = _ffi_type(ffi, arg, accept);
+        Py_DECREF(arg);
+        return result;
+    }
+#endif
     else {
         const char *m1 = (accept & ACCEPT_STRING) ? "string" : "";
         const char *m2 = (accept & ACCEPT_CTYPE) ? "ctype object" : "";

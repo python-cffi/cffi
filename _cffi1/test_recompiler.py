@@ -281,6 +281,7 @@ def test_verify_struct():
     #
     assert ffi.offsetof("struct foo_s", "a") == 0
     assert ffi.offsetof("struct foo_s", "b") == 4
+    assert ffi.offsetof(u"struct foo_s", u"b") == 4
     #
     py.test.raises(TypeError, ffi.addressof, p)
     assert ffi.addressof(p[0]) == p
@@ -606,3 +607,22 @@ def test_include_7():
     p = lib.ff7()
     assert ffi.cast("int *", p)[0] == 42
     assert lib.ff7b(p) == 42
+
+def test_unicode_libraries():
+    try:
+        unicode
+    except NameError:
+        py.test.skip("for python 2.x")
+    #
+    import math
+    lib_m = "m"
+    if sys.platform == 'win32':
+        #there is a small chance this fails on Mingw via environ $CC
+        import distutils.ccompiler
+        if distutils.ccompiler.get_default_compiler() == 'msvc':
+            lib_m = 'msvcrt'
+    ffi = FFI()
+    ffi.cdef(unicode("float sin(double); double cos(double);"))
+    lib = verify(ffi, 'test_math_sin_unicode', unicode('#include <math.h>'),
+                 libraries=[unicode(lib_m)])
+    assert lib.cos(1.43) == math.cos(1.43)
