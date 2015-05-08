@@ -223,6 +223,7 @@ class Recompiler:
         else:
             prnt('  NULL,  /* no includes */')
         prnt('  %d,  /* num_types */' % (len(self.cffi_types),))
+        prnt('  0,  /* flags */')
         prnt('};')
         prnt()
         #
