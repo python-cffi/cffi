@@ -479,7 +479,9 @@ class FFI(object):
         if hasattr(self, '_assigned_source'):
             raise ValueError("set_source() cannot be called several times "
                              "per ffi object")
-        self._recompiler_module_name = module_name
+        if not isinstance(module_name, basestring):
+            raise TypeError("'module_name' must be a string")
+        self._recompiler_module_name = str(module_name)
         self._assigned_source = (source, kwds)
 
     def distutils_extension(self, tmpdir='build'):
