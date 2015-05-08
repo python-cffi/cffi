@@ -601,10 +601,3 @@ def test_include_7():
     p = lib.ff7()
     assert ffi.cast("int *", p)[0] == 42
     assert lib.ff7b(p) == 42
-
-def test_emit_c_code():
-    ffi = FFI()
-    ffi.set_source("foobar", "??")
-    c_file = str(udir.join('test_emit_c_code'))
-    ffi.emit_c_code(c_file)
-    assert os.path.isfile(c_file)

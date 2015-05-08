@@ -1,6 +1,6 @@
 import py
 import platform, imp
-import sys, ctypes
+import sys, os, ctypes
 import cffi
 from .udir import udir
 from .recompiler import recompile
@@ -1649,3 +1649,10 @@ class TestNewFFI1:
         for name in PRIMITIVE_TO_INDEX:
             x = ffi.sizeof(name)
             assert 1 <= x <= 16
+
+    def test_emit_c_code(self):
+        ffi = cffi.FFI()
+        ffi.set_source("foobar", "??")
+        c_file = str(udir.join('test_emit_c_code'))
+        ffi.emit_c_code(c_file)
+        assert os.path.isfile(c_file)
