@@ -63,7 +63,7 @@ def test_ffi_no_attr():
 
 def test_ffi_string():
     ffi = _cffi1_backend.FFI()
-    p = ffi.new("char[]", b"foobar\x00baz")
+    p = ffi.new("char[]", init=b"foobar\x00baz")
     assert ffi.string(p) == b"foobar"
 
 def test_ffi_errno():
@@ -111,7 +111,7 @@ def test_ffi_getctype():
     assert ffi.getctype("int*", '') == "int *"
     assert ffi.getctype("int*", 'x') == "int * x"
     assert ffi.getctype("int", '*') == "int *"
-    assert ffi.getctype("int", ' * x ') == "int * x"
+    assert ffi.getctype("int", replace_with=' * x ') == "int * x"
     assert ffi.getctype(ffi.typeof("int*"), '*') == "int * *"
     assert ffi.getctype("int", '[5]') == "int[5]"
     assert ffi.getctype("int[5]", '[6]') == "int[6][5]"

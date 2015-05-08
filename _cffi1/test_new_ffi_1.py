@@ -1398,7 +1398,7 @@ class TestNewFFI1:
             assert p1 is p
             assert p1[0] == 123
             seen.append(1)
-        q = ffi.gc(p, destructor)
+        q = ffi.gc(p, destructor=destructor)
         import gc; gc.collect()
         assert seen == []
         del q
