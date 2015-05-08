@@ -1,3 +1,8 @@
+try:
+    basestring
+except NameError:
+    # Python 3.x
+    basestring = str
 
 def error(msg):
     from distutils.errors import DistutilsSetupError
@@ -13,9 +18,10 @@ def add_cffi_module(dist, mod_spec):
     from distutils.dir_util import mkpath
     from distutils import log
 
-    if not isinstance(mod_spec, str):
+    if not isinstance(mod_spec, basestring):
         error("argument to 'cffi_modules=...' must be a str or a list of str,"
               " not %r" % (type(mod_spec).__name__,))
+    mod_spec = str(mod_spec)
     try:
         build_mod_name, ffi_var_name = mod_spec.split(':')
     except ValueError:
@@ -67,7 +73,7 @@ def add_cffi_module(dist, mod_spec):
 
 def cffi_modules(dist, attr, value):
     assert attr == 'cffi_modules'
-    if isinstance(value, str):
+    if isinstance(value, basestring):
         value = [value]
 
     for cffi_module in value:
