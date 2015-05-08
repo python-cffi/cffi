@@ -91,7 +91,7 @@ static PyObject *ffiobj_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    char *keywords[] = {NULL};
+    static char *keywords[] = {NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwds, ":FFI", keywords))
         return -1;
     return 0;
@@ -255,11 +255,13 @@ PyDoc_STRVAR(ffi_new_doc,
 "used for a longer time.  Be careful about that when copying the\n"
 "pointer to the memory somewhere else, e.g. into another structure.");
 
-static PyObject *ffi_new(FFIObject *self, PyObject *args)
+static PyObject *ffi_new(FFIObject *self, PyObject *args, PyObject *kwds)
 {
     CTypeDescrObject *ct;
     PyObject *arg, *init = Py_None;
-    if (!PyArg_ParseTuple(args, "O|O:new", &arg, &init))
+    static char *keywords[] = {"cdecl", "init", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O:new", keywords,
+                                     &arg, &init))
         return NULL;
 
     ct = _ffi_type(self, arg, ACCEPT_STRING|ACCEPT_CTYPE);
@@ -441,15 +443,17 @@ PyDoc_STRVAR(ffi_getctype_doc,
 "extra text to append (or insert for more complicated C types), like a\n"
 "variable name, or '*' to get actually the C type 'pointer-to-cdecl'.");
 
-static PyObject *ffi_getctype(FFIObject *self, PyObject *args)
+static PyObject *ffi_getctype(FFIObject *self, PyObject *args, PyObject *kwds)
 {
     PyObject *c_decl, *res;
     char *p, *replace_with = "";
     int add_paren, add_space;
     CTypeDescrObject *ct;
     size_t replace_with_len;
+    static char *keywords[] = {"cdecl", "replace_with", NULL};
 
-    if (!PyArg_ParseTuple(args, "O|s:getctype", &c_decl, &replace_with))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s:getctype", keywords,
+                                     &c_decl, &replace_with))
         return NULL;
 
     ct = _ffi_type(self, c_decl, ACCEPT_STRING|ACCEPT_CTYPE);
@@ -568,12 +572,14 @@ PyDoc_STRVAR(ffi_gc_doc,
 static PyObject *gc_weakrefs_build(FFIObject *ffi, CDataObject *cd,
                                    PyObject *destructor);   /* forward */
 
-static PyObject *ffi_gc(FFIObject *self, PyObject *args)
+static PyObject *ffi_gc(FFIObject *self, PyObject *args, PyObject *kwds)
 {
     CDataObject *cd;
     PyObject *destructor;
+    static char *keywords[] = {"cdata", "destructor", NULL};
 
-    if (!PyArg_ParseTuple(args, "O!O:gc", &CData_Type, &cd, &destructor))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O:gc", keywords,
+                                     &CData_Type, &cd, &destructor))
         return NULL;
 
     return gc_weakrefs_build(self, cd, destructor);
@@ -744,22 +750,22 @@ static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
 }
 #endif
 
+#define METH_VKW  (METH_VARARGS | METH_KEYWORDS)
 static PyMethodDef ffi_methods[] = {
  {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS, ffi_addressof_doc},
  {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
  {"buffer",     (PyCFunction)ffi_buffer,     METH_VARARGS, ffi_buffer_doc},
- {"callback",   (PyCFunction)ffi_callback,   METH_VARARGS |
-                                             METH_KEYWORDS,ffi_callback_doc},
+ {"callback",   (PyCFunction)ffi_callback,   METH_VKW,     ffi_callback_doc},
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
  {"from_buffer",(PyCFunction)ffi_from_buffer,METH_O,       ffi_from_buffer_doc},
  {"from_handle",(PyCFunction)ffi_from_handle,METH_O,       ffi_from_handle_doc},
- {"gc",         (PyCFunction)ffi_gc,         METH_VARARGS, ffi_gc_doc},
- {"getctype",   (PyCFunction)ffi_getctype,   METH_VARARGS, ffi_getctype_doc},
+ {"gc",         (PyCFunction)ffi_gc,         METH_VKW,     ffi_gc_doc},
+ {"getctype",   (PyCFunction)ffi_getctype,   METH_VKW,     ffi_getctype_doc},
 #ifdef MS_WIN32
  {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VARARGS, ffi_getwinerror_doc},
 #endif
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
- {"new",        (PyCFunction)ffi_new,        METH_VARARGS, ffi_new_doc},
+ {"new",        (PyCFunction)ffi_new,        METH_VKW,     ffi_new_doc},
  {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},
  {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
  {"string",     (PyCFunction)ffi_string,     METH_VARARGS, ffi_string_doc},
