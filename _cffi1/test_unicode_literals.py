@@ -8,7 +8,7 @@ from __future__ import unicode_literals
 #
 #
 import sys, math
-from cffi import FFI
+from _cffi_backend import FFI
 from _cffi1 import recompiler
 
 lib_m = "m"
@@ -82,5 +82,6 @@ def test_callback():
 def test_math_sin_unicode():
     ffi = FFI()
     ffi.cdef("float sin(double); double cos(double);")
-    lib = recompiler.verify(ffi, 'test_math_sin_unicode', '#include <math.h>')
+    lib = recompiler.verify(ffi, 'test_math_sin_unicode', '#include <math.h>',
+                            libraries=[lib_m])
     assert lib.cos(1.43) == math.cos(1.43)
