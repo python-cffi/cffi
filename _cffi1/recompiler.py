@@ -673,6 +673,8 @@ class Recompiler:
             prnt('  *o = (unsigned long long)((%s) << 0);'
                  '  /* check that we get an integer */' % (name,))
             if check_value is not None:
+                if check_value > 0:
+                    check_value = '%dU' % (check_value,)
                 prnt('  if (!_cffi_check_int(*o, n, %s))' % (check_value,))
                 prnt('    n |= 2;')
             prnt('  return n;')
