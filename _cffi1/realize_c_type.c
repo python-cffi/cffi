@@ -587,6 +587,7 @@ realize_c_type_or_func(builder_c_t *builder,
 
 static int do_realize_lazy_struct(CTypeDescrObject *ct)
 {
+    /* This is called by force_lazy_struct() in _cffi_backend.c */
     assert(ct->ct_flags & (CT_STRUCT | CT_UNION));
 
     if (ct->ct_flags & CT_LAZY_FIELD_LIST) {
