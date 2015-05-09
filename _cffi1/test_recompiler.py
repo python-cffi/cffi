@@ -627,3 +627,24 @@ def test_unicode_libraries():
     lib = verify(ffi, 'test_math_sin_unicode', unicode('#include <math.h>'),
                  libraries=[unicode(lib_m)])
     assert lib.cos(1.43) == math.cos(1.43)
+
+def test_incomplete_struct_as_arg():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int x; ...; }; int f(struct foo_s);")
+    lib = verify(ffi, "test_incomplete_struct_as_arg",
+                 "struct foo_s { int a, x, z; };\n"
+                 "int f(struct foo_s s) { return s.x * 2; }")
+    s = ffi.new("struct foo_s *", [21])
+    assert s.x == 21
+    assert ffi.sizeof(s[0]) == 12
+    assert ffi.offsetof(ffi.typeof(s), 'x') == 4
+    assert lib.f(s[0]) == 42
+
+def test_incomplete_struct_as_result():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int x; ...; }; struct foo_s f(int);")
+    lib = verify(ffi, "test_incomplete_struct_as_result",
+            "struct foo_s { int a, x, z; };\n"
+            "struct foo_s f(int x) { struct foo_s r; r.x = x * 2; return r; }")
+    s = lib.f(21)
+    assert s.x == 42

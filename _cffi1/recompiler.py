@@ -386,16 +386,16 @@ class Recompiler:
             argname = 'arg0'
         else:
             argname = 'args'
+        #
         prnt('#ifndef PYPY_VERSION')        # ------------------------------
+        #
         prnt('static PyObject *')
         prnt('_cffi_f_%s(PyObject *self, PyObject *%s)' % (name, argname))
         prnt('{')
         #
         context = 'argument of %s' % name
-        arguments = []
         for i, type in enumerate(tp.args):
             arg = type.get_c_name(' x%d' % i, context)
-            arguments.append(arg)
             prnt('  %s;' % arg)
         #
         localvars = set()
@@ -432,8 +432,7 @@ class Recompiler:
         prnt('  _cffi_restore_errno();')
         call_arguments = ['x%d' % i for i in range(len(tp.args))]
         call_arguments = ', '.join(call_arguments)
-        call_code = '  { %s%s(%s); }' % (result_code, name, call_arguments)
-        prnt(call_code)
+        prnt('  { %s%s(%s); }' % (result_code, name, call_arguments))
         prnt('  _cffi_save_errno();')
         prnt('  Py_END_ALLOW_THREADS')
         prnt()
@@ -448,7 +447,21 @@ class Recompiler:
             prnt('  Py_INCREF(Py_None);')
             prnt('  return Py_None;')
         prnt('}')
+        #
         prnt('#else')        # ------------------------------
+        #
+        # the PyPy version: need to replace struct/union arguments with
+        # pointers, and if the result is a struct/union, insert a first
+        # arg that is a pointer to the result.
+        arguments = []
+        call_arguments = []
+        for i, type in enumerate(tp.args):
+            indirection = ''
+            if isinstance(type, model.StructOrUnion):
+                indirection = '*'
+            arg = type.get_c_name(' %sx%d' % (indirection, i), context)
+            arguments.append(arg)
+            call_arguments.append('%sx%d' % (indirection, i))
         repr_arguments = ', '.join(arguments)
         repr_arguments = repr_arguments or 'void'
         name_and_arguments = '_cffi_f_%s(%s)' % (name, repr_arguments)
@@ -456,10 +469,12 @@ class Recompiler:
         prnt('{')
         if result_decl:
             prnt(result_decl)
-        prnt(call_code)
+        call_arguments = ', '.join(call_arguments)
+        prnt('  { %s%s(%s); }' % (result_code, name, call_arguments))
         if result_decl:
             prnt('  return result;')
         prnt('}')
+        #
         prnt('#endif')        # ------------------------------
         prnt()
 

@@ -4255,8 +4255,9 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
             return NULL;
         if (ct->ct_flags & CT_CUSTOM_FIELD_POS) {
             PyErr_SetString(PyExc_TypeError,
-                "cannot pass as an argument a struct that was completed "
-                "with verify() (see _cffi_backend.c for details of why)");
+                "argument or return value is a struct (not pointer to struct) "
+                "which was declared with \"...;\" --- but the C calling "
+                "convention can depend on the missing fields");
             return NULL;
         }
 

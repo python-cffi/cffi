@@ -34,6 +34,8 @@ def add_cffi_module(dist, mod_spec):
         error("%r: object %r not found in module" % (mod_spec,
                                                      ffi_var_name))
     if not isinstance(ffi, FFI):
+        ffi = ffi()      # maybe it's a function instead of directly an ffi
+    if not isinstance(ffi, FFI):
         error("%r is not an FFI instance (got %r)" % (mod_spec,
                                                       type(ffi).__name__))
     if not hasattr(ffi, '_assigned_source'):
