@@ -2,6 +2,8 @@ import py, sys, os
 import _cffi_backend
 
 def test_no_unknown_exported_symbols():
+    if not hasattr(_cffi_backend, '__file__'):
+        py.test.skip("_cffi_backend module is built-in")
     if not sys.platform.startswith('linux'):
         py.test.skip("linux-only")
     g = os.popen("objdump -T '%s'" % _cffi_backend.__file__, 'r')
