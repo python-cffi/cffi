@@ -18,9 +18,9 @@ static int init_ffi_lib(PyObject *m)
 {
     PyObject *x;
 
-    if (!PyType_Ready(&FFI_Type) < 0)
+    if (PyType_Ready(&FFI_Type) < 0)
         return -1;
-    if (!PyType_Ready(&Lib_Type) < 0)
+    if (PyType_Ready(&Lib_Type) < 0)
         return -1;
     if (init_global_types_dict(FFI_Type.tp_dict) < 0)
         return -1;
