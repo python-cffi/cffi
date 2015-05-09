@@ -630,16 +630,16 @@ def test_unicode_libraries():
 
 def test_incomplete_struct_as_arg():
     ffi = FFI()
-    ffi.cdef("struct foo_s { int x; ...; }; int f(struct foo_s);")
+    ffi.cdef("struct foo_s { int x; ...; }; int f(int, struct foo_s);")
     lib = verify(ffi, "test_incomplete_struct_as_arg",
                  "struct foo_s { int a, x, z; };\n"
-                 "int f(struct foo_s s) { return s.x * 2; }")
+                 "int f(int b, struct foo_s s) { return s.x * b; }")
     s = ffi.new("struct foo_s *", [21])
     assert s.x == 21
     assert ffi.sizeof(s[0]) == 12
     assert ffi.offsetof(ffi.typeof(s), 'x') == 4
-    assert lib.f(s[0]) == 42
-    assert ffi.typeof(lib.f) == ffi.typeof("int(*)(struct foo_s)")
+    assert lib.f(2, s[0]) == 42
+    assert ffi.typeof(lib.f) == ffi.typeof("int(*)(int, struct foo_s)")
 
 def test_incomplete_struct_as_result():
     ffi = FFI()
