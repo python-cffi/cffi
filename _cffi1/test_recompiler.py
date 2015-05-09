@@ -650,3 +650,19 @@ def test_incomplete_struct_as_result():
     s = lib.f(21)
     assert s.x == 42
     assert ffi.typeof(lib.f) == ffi.typeof("struct foo_s(*)(int)")
+
+def test_incomplete_struct_as_both():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int x; ...; }; struct bar_s { int y; ...; };\n"
+             "struct foo_s f(int, struct bar_s);")
+    lib = verify(ffi, "test_incomplete_struct_as_both",
+            "struct foo_s { int a, x, z; };\n"
+            "struct bar_s { int b, c, y, d; };\n"
+            "struct foo_s f(int x, struct bar_s b) {\n"
+            "  struct foo_s r; r.x = x * b.y; return r;\n"
+            "}")
+    b = ffi.new("struct bar_s *", [7])
+    s = lib.f(6, b[0])
+    assert s.x == 42
+    assert ffi.typeof(lib.f) == ffi.typeof(
+        "struct foo_s(*)(int, struct bar_s)")
