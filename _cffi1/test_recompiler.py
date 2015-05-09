@@ -639,6 +639,7 @@ def test_incomplete_struct_as_arg():
     assert ffi.sizeof(s[0]) == 12
     assert ffi.offsetof(ffi.typeof(s), 'x') == 4
     assert lib.f(s[0]) == 42
+    assert ffi.typeof(lib.f) == ffi.typeof("int(*)(struct foo_s)")
 
 def test_incomplete_struct_as_result():
     ffi = FFI()
@@ -648,3 +649,4 @@ def test_incomplete_struct_as_result():
             "struct foo_s f(int x) { struct foo_s r; r.x = x * 2; return r; }")
     s = lib.f(21)
     assert s.x == 42
+    assert ffi.typeof(lib.f) == ffi.typeof("struct foo_s(*)(int)")

@@ -4215,6 +4215,8 @@ static void *fb_alloc(struct funcbuilder_s *fb, Py_ssize_t size)
 static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
                               int is_result_type)
 {
+    const char *place = is_result_type ? "return value" : "argument";
+
     if (ct->ct_flags & CT_PRIMITIVE_ANY) {
         return (ffi_type *)ct->ct_extra;
     }
@@ -4254,10 +4256,12 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
         if (force_lazy_struct(ct) < 0)
             return NULL;
         if (ct->ct_flags & CT_CUSTOM_FIELD_POS) {
-            PyErr_SetString(PyExc_TypeError,
-                "argument or return value is a struct (not pointer to struct) "
-                "which was declared with \"...;\" --- but the C calling "
-                "convention can depend on the missing fields");
+            /* these NotImplementedErrors may be caught and ignored until
+               a real call is made to a function of this type */
+            PyErr_Format(PyExc_NotImplementedError,
+                "ctype '%s' not supported as %s (it is a struct declared "
+                "with \"...;\", but the C calling convention may depend "
+                "on the missing fields)", ct->ct_name, place);
             return NULL;
         }
 
@@ -4273,9 +4277,9 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
             assert(cf != NULL);
             if (cf->cf_bitshift >= 0) {
                 PyErr_Format(PyExc_NotImplementedError,
-                     "ctype '%s' not supported as argument or return value"
+                     "ctype '%s' not supported as %s"
                      " (it is a struct with bit fields)",
-                     ct->ct_name);
+                     ct->ct_name, place);
                 return NULL;
             }
             flat = 1;
@@ -4286,9 +4290,9 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
             }
             if (flat <= 0) {
                 PyErr_Format(PyExc_NotImplementedError,
-                     "ctype '%s' not supported as argument or return value"
+                     "ctype '%s' not supported as %s"
                      " (it is a struct with a zero-length array)",
-                     ct->ct_name);
+                     ct->ct_name, place);
                 return NULL;
             }
             nflat += flat;
@@ -4327,7 +4331,6 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
         return ffistruct;
     }
     else {
-        const char *place = is_result_type ? "return value" : "argument";
         PyErr_Format(PyExc_NotImplementedError,
                      "ctype '%s' (size %zd) not supported as %s",
                      ct->ct_name, ct->ct_size, place);
