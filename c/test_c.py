@@ -1071,9 +1071,13 @@ def test_cannot_call_with_a_autocompleted_struct():
     complete_struct_or_union(BStruct, [('c', BDouble, -1, 8),
                                        ('a', BSChar, -1, 2),
                                        ('b', BSChar, -1, 0)])
-    e = py.test.raises(TypeError, new_function_type, (BStruct,), BDouble)
-    msg ='cannot pass as an argument a struct that was completed with verify()'
-    assert msg in str(e.value)
+    BFunc = new_function_type((BStruct,), BDouble)   # internally not callable
+    dummy_func = cast(BFunc, 42)
+    e = py.test.raises(NotImplementedError, dummy_func, "?")
+    msg = ("ctype \'struct foo\' not supported as argument (it is a struct "
+           'declared with "...;", but the C calling convention may depend on '
+           'the missing fields)')
+    assert str(e.value) == msg
 
 def test_new_charp():
     BChar = new_primitive_type("char")
