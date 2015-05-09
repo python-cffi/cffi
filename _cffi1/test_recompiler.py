@@ -2,6 +2,7 @@ import sys, os, py
 from cffi import FFI, VerificationError
 from _cffi1 import recompiler
 from _cffi1.udir import udir
+from _cffi1.support import u
 
 
 def check_type_table(input, expected_output, included=None):
@@ -281,7 +282,7 @@ def test_verify_struct():
     #
     assert ffi.offsetof("struct foo_s", "a") == 0
     assert ffi.offsetof("struct foo_s", "b") == 4
-    assert ffi.offsetof(u"struct foo_s", u"b") == 4
+    assert ffi.offsetof(u+"struct foo_s", u+"b") == 4
     #
     py.test.raises(TypeError, ffi.addressof, p)
     assert ffi.addressof(p[0]) == p

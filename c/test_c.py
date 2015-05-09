@@ -3263,7 +3263,7 @@ def test_from_buffer_not_str_unicode_bytearray():
     BCharP = new_pointer_type(BChar)
     BCharA = new_array_type(BCharP, None)
     py.test.raises(TypeError, from_buffer, BCharA, b"foo")
-    py.test.raises(TypeError, from_buffer, BCharA, u"foo")
+    py.test.raises(TypeError, from_buffer, BCharA, u+"foo")
     py.test.raises(TypeError, from_buffer, BCharA, bytearray(b"foo"))
     try:
         from __builtin__ import buffer
@@ -3271,7 +3271,7 @@ def test_from_buffer_not_str_unicode_bytearray():
         pass
     else:
         py.test.raises(TypeError, from_buffer, BCharA, buffer(b"foo"))
-        py.test.raises(TypeError, from_buffer, BCharA, buffer(u"foo"))
+        py.test.raises(TypeError, from_buffer, BCharA, buffer(u+"foo"))
         py.test.raises(TypeError, from_buffer, BCharA,
                        buffer(bytearray(b"foo")))
     try:
