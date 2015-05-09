@@ -4,6 +4,8 @@
   setup.py, which was needed with verify() but is just confusion
   with set_source().
 
+* document distutils + setuptools + just distributing the C sources
+
 * version-1.0.0.diff
 
 * mention todo: cffi-runtime package
