@@ -162,3 +162,19 @@ def test_ffi_buffer():
     ffi = _cffi1_backend.FFI()
     a = ffi.new("signed char[]", [5, 6, 7])
     assert ffi.buffer(a)[:] == '\x05\x06\x07'
+
+def test_ffi_from_buffer():
+    import array
+    ffi = _cffi1_backend.FFI()
+    a = array.array('H', [10000, 20000, 30000])
+    c = ffi.from_buffer(a)
+    assert ffi.typeof(c) is ffi.typeof("char[]")
+    ffi.cast("unsigned short *", c)[1] += 500
+    assert list(a) == [10000, 20500, 30000]
+
+def test_ffi_types():
+    CData = _cffi1_backend.FFI.CData
+    CType = _cffi1_backend.FFI.CType
+    ffi = _cffi1_backend.FFI()
+    assert isinstance(ffi.cast("int", 42), CData)
+    assert isinstance(ffi.typeof("int"), CType)
