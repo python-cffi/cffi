@@ -1037,9 +1037,11 @@ def test_autofilled_struct_as_argument_dynamic():
         }
         int (*foo)(struct foo_s s) = &foo1;
     """)
-    e = py.test.raises(TypeError, "lib.foo")    # lazily
-    msg ='cannot pass as an argument a struct that was completed with verify()'
-    assert msg in str(e.value)
+    e = py.test.raises(NotImplementedError, lib.foo, "?")
+    msg = ("ctype 'struct foo_s' not supported as argument (it is a struct "
+           'declared with "...;", but the C calling convention may depend '
+           'on the missing fields)')
+    assert str(e.value) == msg
 
 def test_func_returns_struct():
     ffi = FFI()
@@ -2137,7 +2139,7 @@ def test_consider_not_implemented_function_type():
         "ctype 'Data' (size 4) not supported as return value")
     e = py.test.raises(NotImplementedError, barptr)
     assert str(e.value) == (
-        "ctype 'MyStr' not supported as argument or return value "
+        "ctype 'MyStr' not supported as return value "
         "(it is a struct with bit fields)")
 
 def test_verify_extra_arguments():
