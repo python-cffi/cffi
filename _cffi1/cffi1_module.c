@@ -49,7 +49,8 @@ static int init_ffi_lib(PyObject *m)
     return 0;
 }
 
-static int make_included_tuples(const char *const *ctx_includes,
+static int make_included_tuples(char *module_name,
+                                const char *const *ctx_includes,
                                 PyObject **included_ffis,
                                 PyObject **included_libs)
 {
@@ -72,7 +73,7 @@ static int make_included_tuples(const char *const *ctx_includes,
         PyObject *included_ffi, *included_lib;
         PyObject *m = PyImport_ImportModule(*p_include);
         if (m == NULL)
-            goto error;
+            goto import_error;
 
         included_ffi = PyObject_GetAttrString(m, "ffi");
         PyTuple_SET_ITEM(*included_ffis, num, included_ffi);
@@ -83,19 +84,19 @@ static int make_included_tuples(const char *const *ctx_includes,
 
         Py_DECREF(m);
         if (included_lib == NULL)
-            goto error;
+            goto import_error;
 
         if (!FFIObject_Check(included_ffi) ||
-            !LibObject_Check(included_lib)) {
-            PyErr_Format(PyExc_TypeError,
-                         "expected FFI/Lib objects in %.200s.ffi/lib",
-                         *p_include);
-            goto error;
-        }
+            !LibObject_Check(included_lib))
+            goto import_error;
         num++;
     }
     return 0;
 
+ import_error:
+    PyErr_Format(PyExc_ImportError,
+                 "while loading %.200s: failed to import ffi, lib from %.200s",
+                 module_name, *p_include);
  error:
     Py_XDECREF(*included_ffis); *included_ffis = NULL;
     Py_XDECREF(*included_libs); *included_libs = NULL;
@@ -139,7 +140,8 @@ static PyObject *_cffi_init_module(char *module_name,
     if (lib == NULL || PyModule_AddObject(m, "lib", (PyObject *)lib) < 0)
         return NULL;
 
-    if (make_included_tuples(ctx->includes, &ffi->types_builder->included_ffis,
+    if (make_included_tuples(module_name, ctx->includes,
+                             &ffi->types_builder->included_ffis,
                              &lib->l_includes) < 0)
         return NULL;
 
