@@ -666,3 +666,5 @@ def test_incomplete_struct_as_both():
     assert s.x == 42
     assert ffi.typeof(lib.f) == ffi.typeof(
         "struct foo_s(*)(int, struct bar_s)")
+    s = lib.f(14, {'y': -3})
+    assert s.x == -42
