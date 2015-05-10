@@ -263,8 +263,10 @@ static void _realize_name(char *target, const char *prefix, const char *srcname)
 {
     /* "xyz" => "struct xyz"
        "$xyz" => "xyz"
+       "$1" => "struct $1"
     */
-    if (srcname[0] == '$' && srcname[1] != '$') {
+    if (srcname[0] == '$' && srcname[1] != '$' &&
+            !('0' <= srcname[1] && srcname[1] <= '9')) {
         strcpy(target, &srcname[1]);
     }
     else {

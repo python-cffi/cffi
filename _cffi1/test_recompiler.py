@@ -668,3 +668,16 @@ def test_incomplete_struct_as_both():
         "struct foo_s(*)(int, struct bar_s)")
     s = lib.f(14, {'y': -3})
     assert s.x == -42
+
+def test_name_of_unnamed_struct():
+    ffi = FFI()
+    ffi.cdef("typedef struct { int x; } foo_t;\n"
+             "typedef struct { int y; } *bar_p;\n"
+             "typedef struct { int y; } **baz_pp;\n")
+    verify(ffi, "test_name_of_unnamed_struct",
+             "typedef struct { int x; } foo_t;\n"
+             "typedef struct { int y; } *bar_p;\n"
+             "typedef struct { int y; } **baz_pp;\n")
+    assert repr(ffi.typeof("foo_t")) == "<ctype 'foo_t'>"
+    assert repr(ffi.typeof("bar_p")) == "<ctype 'struct $1 *'>"
+    assert repr(ffi.typeof("baz_pp")) == "<ctype 'struct $2 * *'>"
