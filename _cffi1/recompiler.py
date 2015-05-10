@@ -466,11 +466,11 @@ class Recompiler:
         tp_result = tp.result
         if isinstance(tp_result, model.StructOrUnion):
             context = 'result of %s' % name
-            arg = tp_result.get_c_name(' *x', context)
+            arg = tp_result.get_c_name(' *result', context)
             arguments.insert(0, arg)
             tp_result = model.void_type
             result_decl = None
-            result_code = '*x = '
+            result_code = '*result = '
         repr_arguments = ', '.join(arguments)
         repr_arguments = repr_arguments or 'void'
         name_and_arguments = '_cffi_f_%s(%s)' % (name, repr_arguments)
