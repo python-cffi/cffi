@@ -573,6 +573,7 @@ def test_include_5():
     lib = verify(ffi, "test_include_5",
         "typedef struct {int x[2]; int y; } *mystruct_p; //usually #include\n"
         "mystruct_p ff5(mystruct_p p) { p->x[1] += 42; return p; }")
+    assert ffi.alignof(ffi.typeof("mystruct_p").item) == 4
     assert ffi1.typeof("mystruct_p") is ffi.typeof("mystruct_p")
     p = ffi.new("mystruct_p", [[5, 10], -17])
     q = lib.ff5(p)

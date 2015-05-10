@@ -329,10 +329,7 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
             if (s->first_field_index >= 0) {
                 ct = (CTypeDescrObject *)x;
                 ct->ct_size = (Py_ssize_t)s->size;
-                if (s->alignment == 0)
-                    ct->ct_length = 1;    /* guess; should not really matter */
-                else
-                    ct->ct_length = s->alignment;
+                ct->ct_length = s->alignment;   /* may be -1 */
                 ct->ct_flags &= ~CT_IS_OPAQUE;
                 ct->ct_flags |= CT_LAZY_FIELD_LIST;
                 ct->ct_extra = builder;
@@ -678,9 +675,9 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
         if (s->flags & _CFFI_F_PACKED)
             sflags |= SF_PACKED;
 
-        args = Py_BuildValue("(OOOnni)", ct, fields, Py_None,
+        args = Py_BuildValue("(OOOnii)", ct, fields, Py_None,
                              (Py_ssize_t)s->size,
-                             s->alignment ? (Py_ssize_t)s->alignment : -1,
+                             s->alignment,
                              sflags);
         Py_DECREF(fields);
         if (args == NULL)

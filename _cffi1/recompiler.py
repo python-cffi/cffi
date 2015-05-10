@@ -606,7 +606,7 @@ class Recompiler:
             else:
                 if named_ptr is not None:
                     size = 'sizeof(*(%s)0)' % (named_ptr.name,)
-                    align = '0  /* unknown */'
+                    align = '-1  /* unknown alignment */'
                 else:
                     size = 'sizeof(%s)' % (cname,)
                     align = 'offsetof(struct _cffi_align_%s, y)' % (approxname,)

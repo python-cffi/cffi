@@ -1496,6 +1496,10 @@ get_alignment(CTypeDescrObject *ct)
     if ((ct->ct_flags & (CT_PRIMITIVE_ANY|CT_STRUCT|CT_UNION)) &&
         !(ct->ct_flags & CT_IS_OPAQUE)) {
         align = ct->ct_length;
+        if (align == -1 && (ct->ct_flags & CT_LAZY_FIELD_LIST)) {
+            force_lazy_struct(ct);
+            align = ct->ct_length;
+        }
     }
     else if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
         struct aligncheck_ptr { char x; char *y; };
