@@ -360,7 +360,8 @@ class Recompiler:
         if getattr(tp, "origin", None) == "unknown_type":
             self._struct_ctx(tp, tp.name, approxname=None)
         elif isinstance(tp, model.NamedPointerType):
-            self._struct_ctx(tp.totype, tp.totype.name, approxname=None)
+            self._struct_ctx(tp.totype, tp.totype.name, approxname=tp.name,
+                             named_ptr=tp)
 
     # ----------
     # function declarations
@@ -543,13 +544,15 @@ class Recompiler:
         prnt('struct _cffi_align_%s { char x; %s y; };' % (approxname, cname))
         prnt()
 
-    def _struct_ctx(self, tp, cname, approxname):
+    def _struct_ctx(self, tp, cname, approxname, named_ptr=None):
         type_index = self._typesdict[tp]
         reason_for_not_expanding = None
         flags = []
         if isinstance(tp, model.UnionType):
             flags.append("_CFFI_F_UNION")
-        if tp not in self.ffi._parser._included_declarations:
+        if (tp not in self.ffi._parser._included_declarations and
+                (named_ptr is None or
+                 named_ptr not in self.ffi._parser._included_declarations)):
             if tp.fldtypes is None:
                 reason_for_not_expanding = "opaque"
             elif tp.partial or tp.has_anonymous_struct_fields():
@@ -578,9 +581,15 @@ class Recompiler:
                         fldtype.length is None):
                     size = '(size_t)-1'
                 else:
-                    size = 'sizeof(((%s)0)->%s)' % (tp.get_c_name('*'), fldname)
+                    size = 'sizeof(((%s)0)->%s)' % (
+                        tp.get_c_name('*') if named_ptr is None
+                                           else named_ptr.name,
+                        fldname)
                 if cname is None or fbitsize >= 0:
                     offset = '(size_t)-1'
+                elif named_ptr is not None:
+                    offset = '((char *)&((%s)0)->%s) - (char *)0' % (
+                        named_ptr.name, fldname)
                 else:
                     offset = 'offsetof(%s, %s)' % (tp.get_c_name(''), fldname)
                 c_field.append(
@@ -595,9 +604,15 @@ class Recompiler:
                     '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
                                                         len(enumfields),))
             else:
+                if named_ptr is not None:
+                    size = 'sizeof(*(%s)0)' % (named_ptr.name,)
+                    align = '0  /* unknown */'
+                else:
+                    size = 'sizeof(%s)' % (cname,)
+                    align = 'offsetof(struct _cffi_align_%s, y)' % (approxname,)
                 size_align = ('\n' +
-                    '    sizeof(%s),\n' % (cname,) +
-                    '    offsetof(struct _cffi_align_%s, y),\n'% (approxname,) +
+                    '    %s,\n' % (size,) +
+                    '    %s,\n' % (align,) +
                     '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
                                                         len(enumfields),))
         else:

@@ -499,17 +499,20 @@ def test_include_1():
     ffi.cdef("foo_t ff1(foo_t);")
     lib = verify(ffi, "test_include_1", "double ff1(double x) { return 42.5; }")
     assert lib.ff1(0) == 42.5
+    assert ffi1.typeof("foo_t") is ffi.typeof("foo_t") is ffi.typeof("double")
 
 def test_include_1b():
     ffi1 = FFI()
     ffi1.cdef("int foo1(int);")
-    verify(ffi1, "test_include_1b_parent", "int foo1(int x) { return x + 10; }")
+    lib1 = verify(ffi1, "test_include_1b_parent",
+                  "int foo1(int x) { return x + 10; }")
     ffi = FFI()
     ffi.include(ffi1)
     ffi.cdef("int foo2(int);")
     lib = verify(ffi, "test_include_1b", "int foo2(int x) { return x - 5; }")
     assert lib.foo2(42) == 37
     assert lib.foo1(42) == 52
+    assert lib.foo1 is lib1.foo1
 
 def test_include_2():
     ffi1 = FFI()
@@ -526,6 +529,7 @@ def test_include_2():
     q = lib.ff2(p)
     assert q == p
     assert p.y == 42
+    assert ffi1.typeof("struct foo_s") is ffi.typeof("struct foo_s")
 
 def test_include_3():
     ffi1 = FFI()
@@ -539,6 +543,7 @@ def test_include_3():
                  "sshort_t ff3(sshort_t x) { return x + 42; }")
     assert lib.ff3(10) == 52
     assert ffi.typeof(ffi.cast("sshort_t", 42)) is ffi.typeof("short")
+    assert ffi1.typeof("sshort_t") is ffi.typeof("sshort_t")
 
 def test_include_4():
     ffi1 = FFI()
@@ -555,23 +560,27 @@ def test_include_4():
     q = lib.ff4(p)
     assert q == p
     assert p.x == 52
+    assert ffi1.typeof("mystruct_t") is ffi.typeof("mystruct_t")
 
 def test_include_5():
-    py.test.xfail("also fails in 0.9.3")
     ffi1 = FFI()
-    ffi1.cdef("typedef struct { int x; } *mystruct_p;")
+    ffi1.cdef("typedef struct { int x[2]; int y; } *mystruct_p;")
     verify(ffi1, "test_include_5_parent",
-           "typedef struct { int x; } *mystruct_p;")
+           "typedef struct { int x[2]; int y; } *mystruct_p;")
     ffi = FFI()
     ffi.include(ffi1)
     ffi.cdef("mystruct_p ff5(mystruct_p);")
     lib = verify(ffi, "test_include_5",
-           "typedef struct {int x; } *mystruct_p; //usually from a #include\n"
-           "mystruct_p ff5(mystruct_p p) { p->x += 42; return p; }")
-    p = ffi.new("mystruct_p", [10])
+        "typedef struct {int x[2]; int y; } *mystruct_p; //usually #include\n"
+        "mystruct_p ff5(mystruct_p p) { p->x[1] += 42; return p; }")
+    assert ffi1.typeof("mystruct_p") is ffi.typeof("mystruct_p")
+    p = ffi.new("mystruct_p", [[5, 10], -17])
     q = lib.ff5(p)
     assert q == p
-    assert p.x == 52
+    assert p.x[0] == 5
+    assert p.x[1] == 52
+    assert p.y == -17
+    assert ffi.alignof(ffi.typeof(p[0])) == 4
 
 def test_include_6():
     ffi1 = FFI()

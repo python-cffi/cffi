@@ -1266,9 +1266,9 @@ def test_take_and_return_partial_structs():
 
 def test_cannot_name_struct_type():
     ffi = FFI()
-    ffi.cdef("typedef struct { int x; } *sp; void foo(sp);")
+    ffi.cdef("typedef struct { int x; } **sp; void foo(sp);")
     e = py.test.raises(VerificationError, ffi.verify,
-                       "typedef struct { int x; } *sp; void foo(sp);")
+                       "typedef struct { int x; } **sp; void foo(sp x) { }")
     assert 'in argument of foo: unknown type name' in str(e.value)
 
 def test_dont_check_unnamable_fields():
@@ -1702,6 +1702,17 @@ def test_include_enum():
                        "int myfunc(enum foo_e x) { return (int)x; }")
     res = lib2.myfunc(lib2.AA)
     assert res == 2
+
+def test_named_pointer_as_argument():
+    ffi = FFI()
+    ffi.cdef("typedef struct { int x; } *mystruct_p;\n"
+             "mystruct_p ff5a(mystruct_p);")
+    lib = ffi.verify("typedef struct { int x; } *mystruct_p;\n"
+                     "mystruct_p ff5a(mystruct_p p) { p->x += 40; return p; }")
+    p = ffi.new("mystruct_p", [-2])
+    q = lib.ff5a(p)
+    assert q == p
+    assert p.x == 38
 
 def test_enum_size():
     cases = [('123',           4, 4294967295),
