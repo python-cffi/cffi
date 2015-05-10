@@ -233,7 +233,7 @@ class Recompiler:
         prnt('PyMODINIT_FUNC')
         prnt('_cffi_pypyinit_%s(const void *p[])' % (base_module_name,))
         prnt('{')
-        prnt('    p[0] = (const void *)0x10000f0;')
+        prnt('    p[0] = (const void *)0x2600;')
         prnt('    p[1] = &_cffi_type_context;')
         prnt('}')
         prnt('#elif PY_MAJOR_VERSION >= 3')
