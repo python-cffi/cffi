@@ -236,6 +236,17 @@ class Recompiler:
         prnt('    p[0] = (const void *)0x2600;')
         prnt('    p[1] = &_cffi_type_context;')
         prnt('}')
+        # on Windows, distutils insists on putting init_cffi_xyz in
+        # 'export_symbols', so instead of fighting it, just give up and
+        # give it one
+        prnt('#  ifdef _MSC_VER')
+        prnt('     PyMODINIT_FUNC')
+        prnt('#  if PY_MAJOR_VERSION >= 3')
+        prnt('     PyInit_%s(void) { return -1; }' % (base_module_name,))
+        prnt('#  else')
+        prnt('     init%s(void) { }' % (base_module_name,))
+        prnt('#  endif')
+        prnt('#  endif')
         prnt('#elif PY_MAJOR_VERSION >= 3')
         prnt('PyMODINIT_FUNC')
         prnt('PyInit_%s(void)' % (base_module_name,))
