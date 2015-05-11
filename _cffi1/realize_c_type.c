@@ -63,7 +63,7 @@ static void free_builder_c(builder_c_t *builder, int ctx_is_static)
         const void *mem[] = {builder->ctx.types,
                              builder->ctx.globals,
                              builder->ctx.struct_unions,
-                             builder->ctx.fields,
+                             //builder->ctx.fields: allocated with struct_unions
                              builder->ctx.enums,
                              builder->ctx.typenames};
         for (i = 0; i < sizeof(mem) / sizeof(*mem); i++) {

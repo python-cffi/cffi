@@ -134,8 +134,9 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
     ffi->ctx_is_nonempty = 1;
 
     if (types_len > 0) {
+        /* unpack a string of 4-byte entries into an array of _cffi_opcode_t */
         _cffi_opcode_t *ntypes;
-        Py_ssize_t i, n = types_len / 4;    /* 4 bytes entries */
+        Py_ssize_t i, n = types_len / 4;
 
         building = PyMem_Malloc(n * sizeof(_cffi_opcode_t));
         if (building == NULL)
@@ -147,26 +148,92 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
             types += 4;
         }
         ffi->types_builder.ctx.types = ntypes;
+        ffi->types_builder.ctx.num_types = n;
         building = NULL;
     }
 
     if (globals != NULL) {
-        struct _cffi_global_s *nglob;
+        /* unpack a tuple of strings, each of which describes one global_s
+           entry with no specified address or size */
+        struct _cffi_global_s *nglobs;
         Py_ssize_t i, n = PyTuple_GET_SIZE(globals);
 
-        building = PyMem_Malloc(n * sizeof(struct _cffi_global_s));
+        i = n * sizeof(struct _cffi_global_s);
+        building = PyMem_Malloc(i);
         if (building == NULL)
             goto error;
-        memset(building, 0, n * sizeof(struct _cffi_global_s));
-        nglob = (struct _cffi_global_s *)building;
+        memset(building, 0, i);
+        nglobs = (struct _cffi_global_s *)building;
 
         for (i = 0; i < n; i++) {
             char *g = PyString_AS_STRING(PyTuple_GET_ITEM(globals, i));
-            nglob[i].type_op = cdl_opcode(g);
-            nglob[i].name = g + 4;
+            nglobs[i].type_op = cdl_opcode(g);
+            nglobs[i].name = g + 4;
         }
-        ffi->types_builder.ctx.globals = nglob;
+        ffi->types_builder.ctx.globals = nglobs;
         ffi->types_builder.ctx.num_globals = n;
+        building = NULL;
+    }
+
+    if (struct_unions != NULL) {
+        /* unpack a tuple of struct/unions, each described as a sub-tuple;
+           the item 0 of each sub-tuple describes the struct/union, and
+           the items 1..N-1 describe the fields, if any */
+        struct _cffi_struct_union_s *nstructs;
+        struct _cffi_field_s *nfields;
+        Py_ssize_t i, n = PyTuple_GET_SIZE(struct_unions);
+        Py_ssize_t nf = 0;   /* total number of fields */
+
+        for (i = 0; i < n; i++) {
+            nf += PyTuple_GET_SIZE(PyTuple_GET_ITEM(struct_unions, i)) - 1;
+        }
+        i = (n * sizeof(struct _cffi_struct_union_s) +
+             nf * sizeof(struct _cffi_field_s));
+        building = PyMem_Malloc(i);
+        if (building == NULL)
+            goto error;
+        memset(building, 0, i);
+        nstructs = (struct _cffi_struct_union_s *)building;
+        nfields = (struct _cffi_field_s *)(nstructs + n);
+        nf = 0;
+
+        for (i = 0; i < n; i++) {
+            /* 'desc' is the tuple of strings (desc_struct, desc_field_1, ..) */
+            PyObject *desc = PyTuple_GET_ITEM(struct_unions, i);
+            Py_ssize_t j, nf1 = PyTuple_GET_SIZE(desc) - 1;
+            char *s = PyString_AS_STRING(PyTuple_GET_ITEM(desc, 0));
+            /* 's' is the first string, describing the struct/union */
+            nstructs[i].type_index = cdl_int(s);
+            nstructs[i].flags = cdl_int(s + 4);
+            nstructs[i].name = s + 8;
+            if (nstructs[i].flags & _CFFI_F_OPAQUE) {
+                nstructs[i].size = (size_t)-1;
+                nstructs[i].alignment = -1;
+                nstructs[i].first_field_index = -1;
+                nstructs[i].num_fields = 0;
+                assert(nf1 == 0);
+            }
+            else {
+                nstructs[i].size = (size_t)-2;
+                nstructs[i].alignment = -2;
+                nstructs[i].first_field_index = nf;
+                nstructs[i].num_fields = nf1;
+            }
+            for (j = 0; j < nf1; j++) {
+                char *f = PyString_AS_STRING(PyTuple_GET_ITEM(desc, j + 1));
+                /* 'f' is one of the other strings beyond the first one,
+                   describing one field each */
+                nfields[nf].field_type_op = cdl_opcode(f);
+                nfields[nf].name = f + 4;
+                nfields[nf].field_offset = (size_t)-1;
+                nfields[nf].field_size = (size_t)-1;
+                /* XXXXXXXXXXX BITFIELD MISSING XXXXXXXXXXXXXXXX */
+                nf++;
+            }
+        }
+        ffi->types_builder.ctx.struct_unions = nstructs;
+        ffi->types_builder.ctx.fields = nfields;
+        ffi->types_builder.ctx.num_struct_unions = n;
         building = NULL;
     }
 
