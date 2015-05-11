@@ -24,7 +24,7 @@ struct FFIObject_s {
     PyObject_HEAD
     PyObject *gc_wrefs;
     struct _cffi_parse_info_s info;
-    int ctx_is_static;
+    char ctx_is_static, ctx_is_nonempty;
     builder_c_t types_builder;
 };
 
@@ -54,9 +54,7 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
     ffi->info.output = internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
     ffi->ctx_is_static = (static_ctx != NULL);
-#if 0
-    ffi->dynamic_types = NULL;
-#endif
+    ffi->ctx_is_nonempty = (static_ctx != NULL);
     return ffi;
 }
 
@@ -64,12 +62,8 @@ static void ffi_dealloc(FFIObject *ffi)
 {
     PyObject_GC_UnTrack(ffi);
     Py_XDECREF(ffi->gc_wrefs);
-#if 0
-    Py_XDECREF(ffi->dynamic_types);
-#endif
 
-    if (!ffi->ctx_is_static)
-        free_dynamic_builder_c(&ffi->types_builder);
+    free_builder_c(&ffi->types_builder, ffi->ctx_is_static);
 
     Py_TYPE(ffi)->tp_free((PyObject *)ffi);
 }
@@ -90,9 +84,31 @@ static PyObject *ffiobj_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    static char *keywords[] = {NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, ":FFI", keywords))
+    FFIObject *ffi;
+    static char *keywords[] = {"module_name", "_version", "_types",
+                               "_globals", "_struct_unions", "_enums",
+                               "_typenames", "_consts", NULL};
+    char *ffiname = NULL, *types = NULL;
+    Py_ssize_t version = -1;
+    Py_ssize_t types_len = 0;
+    PyObject *globals = NULL, *struct_unions = NULL, *enums = NULL;
+    PyObject *typenames = NULL, *consts = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sns#OOOOO:FFI", keywords,
+                                     &ffiname, &version, &types, &types_len,
+                                     &globals, &struct_unions, &enums,
+                                     &typenames, &consts))
         return -1;
+
+    ffi = (FFIObject *)self;
+    if (ffi->ctx_is_nonempty) {
+        PyErr_SetString(PyExc_ValueError,
+                        "cannot call FFI.__init__() more than once");
+        return -1;
+    }
+
+    //...;
+    ffi->ctx_is_nonempty = 1;
     return 0;
 }
 
@@ -671,6 +687,23 @@ static int ffi_set_errno(PyObject *self, PyObject *newval, void *closure)
     return 0;
 }
 
+PyDoc_STRVAR(ffi_dlopen_doc,
+"Load and return a dynamic library identified by 'name'.  The standard\n"
+"C library can be loaded by passing None.\n"
+"\n"
+"Note that functions and types declared with 'ffi.cdef()' are not\n"
+"linked to a particular library, just like C headers.  In the library\n"
+"we only look for the actual (untyped) symbols at the time of their\n"
+"first access.");
+
+PyDoc_STRVAR(ffi_dlclose_doc,
+"Close a library obtained with ffi.dlopen().  After this call, access to\n"
+"functions or variables from the library will fail (possibly with a\n"
+"segmentation fault).");
+
+static PyObject *ffi_dlopen(PyObject *self, PyObject *args);  /* forward */
+static PyObject *ffi_dlclose(PyObject *self, PyObject *args);  /* forward */
+
 #if 0
 static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
 {
@@ -767,6 +800,8 @@ static PyMethodDef ffi_methods[] = {
  {"buffer",     (PyCFunction)ffi_buffer,     METH_VARARGS, ffi_buffer_doc},
  {"callback",   (PyCFunction)ffi_callback,   METH_VKW,     ffi_callback_doc},
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
+ {"dlclose",    (PyCFunction)ffi_dlclose,    METH_VARARGS, ffi_dlclose_doc},
+ {"dlopen",     (PyCFunction)ffi_dlopen,     METH_VARARGS, ffi_dlopen_doc},
  {"from_buffer",(PyCFunction)ffi_from_buffer,METH_O,       ffi_from_buffer_doc},
  {"from_handle",(PyCFunction)ffi_from_handle,METH_O,       ffi_from_handle_doc},
  {"gc",         (PyCFunction)ffi_gc,         METH_VKW,     ffi_gc_doc},

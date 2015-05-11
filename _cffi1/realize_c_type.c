@@ -3,6 +3,7 @@ typedef struct {
     struct _cffi_type_context_s ctx;   /* inlined substructure */
     PyObject *types_dict;
     PyObject *included_ffis;
+    PyObject *known_constants;
 } builder_c_t;
 
 
@@ -53,22 +54,24 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
     return err;
 }
 
-static void free_dynamic_builder_c(builder_c_t *builder)
+static void free_builder_c(builder_c_t *builder, int ctx_is_static)
 {
-    int i;
-    const void *mem[] = {builder->ctx.types,
-                         builder->ctx.globals,
-                         builder->ctx.struct_unions,
-                         builder->ctx.fields,
-                         builder->ctx.enums,
-                         builder->ctx.typenames};
-    for (i = 0; i < sizeof(mem) / sizeof(*mem); i++) {
-        if (mem[i] != NULL)
-            PyMem_Free((void *)mem[i]);
+    if (!ctx_is_static) {
+        int i;
+        const void *mem[] = {builder->ctx.types,
+                             builder->ctx.globals,
+                             builder->ctx.struct_unions,
+                             builder->ctx.fields,
+                             builder->ctx.enums,
+                             builder->ctx.typenames};
+        for (i = 0; i < sizeof(mem) / sizeof(*mem); i++) {
+            if (mem[i] != NULL)
+                PyMem_Free((void *)mem[i]);
+        }
     }
-
     Py_XDECREF(builder->included_ffis);
     Py_XDECREF(builder->types_dict);
+    Py_XDECREF(builder->known_constants);
 }
 
 static int init_builder_c(builder_c_t *builder,
@@ -85,6 +88,7 @@ static int init_builder_c(builder_c_t *builder,
 
     builder->types_dict = ldict;
     builder->included_ffis = NULL;
+    builder->known_constants = NULL;
     return 0;
 }
 
