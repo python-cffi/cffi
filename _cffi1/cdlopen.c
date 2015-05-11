@@ -10,6 +10,7 @@ static void *cdlopen_fetch(PyObject *libname, void *libhandle, char *symbol)
         return NULL;
     }
 
+    dlerror();   /* clear error condition */
     address = dlsym(libhandle, symbol);
     if (address == NULL) {
         const char *error = dlerror();

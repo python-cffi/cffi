@@ -13,3 +13,6 @@
 * mention todo: ffi.new("xyz") makes {"xyz": <ctype>} always immortal
 
 * mention todo: dlopen(), by "compiling" a cdef()-only FFI into a .py module
+
+* ffi.set_source() produces a C file that is entirely independent on
+  the OS, what is installed, and the current Python version
