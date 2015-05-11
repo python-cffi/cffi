@@ -58,43 +58,53 @@ Quick installation (for cpython, cffi is distributed with PyPy):
 
 In more details:
 
-This code has been developed on Linux but should work on any POSIX
-platform as well as on Win32.  There are some Windows-specific issues
-left.
+This code has been developed on Linux, but should work on any POSIX
+platform as well as on Windows 32 and 64.  (It relies occasionally on
+libffi, so it depends on libffi being bug-free; this may not be fully
+the case on some of the more exotic platforms.)
 
-It supports CPython 2.6; 2.7; 3.x (tested with 3.2 and 3.3);
-and is distributed with PyPy 2.0 beta2 or later.
+CFFI supports CPython 2.6, 2.7, 3.x (tested with 3.2 to 3.4); and is
+distributed with PyPy 2.0 beta2 or later.  CFFI 1.0 is distributed
+with (and requires) PyPy 2.6.
 
-Its speed is comparable to ctypes on CPython (a bit faster but a higher
-warm-up time).  It is already faster than ctypes on PyPy (1.5x-2x), but not yet
-*much* faster; stay tuned.
+The core speed of CFFI is better than ctypes, with import times being
+either lower if you use the post-1.0 features, or much higher if you
+don't.  The wrapper Python code you typically need to write around the
+raw CFFI interface slows things down on CPython, but not unreasonably
+so.  On PyPy, this wrapper code has a minimal impact thanks to the JIT
+compiler.  This makes CFFI the recommended way to interface with C
+libraries on PyPy.
 
 Requirements:
 
-* CPython 2.6 or 2.7 or 3.x, or PyPy 2.0 beta2
+* CPython 2.6 or 2.7 or 3.x, or PyPy (PyPy 2.0 for the earliest
+  versions of CFFI; or PyPy 2.6 for CFFI 1.0).
 
-* on CPython you need to build the C extension module, so you need
-  ``python-dev`` and ``libffi-dev`` (for Windows, libffi is included
-  with CFFI).
+* in some cases you need to be able to compile C extension modules;
+  refer to the appropriate docs for your OS.  This includes installing
+  CFFI from sources (CPython only, as it is already included with
+  PyPy); or developing code based on ``ffi.set_source()`` or
+  ``ffi.verify()``; or installing such 3rd-party modules from sources.
 
-* pycparser >= 2.06: https://github.com/eliben/pycparser
+* on CPython, on non-Windows platforms, you also need to install
+  ``libffi-dev`` in order to compile CFFI itself.
 
-* a C compiler is required to use CFFI during development, but not to run
-  correctly-installed programs that use CFFI.
+* pycparser >= 2.06: https://github.com/eliben/pycparser (automatically
+  tracked by ``pip install cffi``).
 
-* `py.test`_ is needed to run the tests of CFFI.
+* `py.test`_ is needed to run the tests of CFFI itself.
 
 .. _`py.test`: http://pypi.python.org/pypi/pytest
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-0.9.2.tar.gz
+* http://pypi.python.org/packages/source/c/cffi/cffi-1.0.0.tar.gz
 
    - Or grab the most current version by following the instructions below.
 
-   - MD5: b1bf4625ae07a8a932f2f1a2eb200c54
+   - MD5: ...
 
-   - SHA: 7cfc992699ef8b65d6300c04f3efad00bd2a6cba
+   - SHA: ...
 
 * Or get it from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
@@ -103,13 +113,9 @@ Download and Installation:
   (should work out of the box on Linux or Windows; see below for
   `MacOS X`_ or `Windows 64`_.)
 
-* or you can directly import and use ``cffi``, but if you don't
-  compile the ``_cffi_backend`` extension module, it will fall back
-  to using internally ``ctypes`` (much slower; we recommend not to use it).
-
-* running the tests: ``py.test c/ testing/`` (if you didn't
-  install cffi yet, you may need ``python setup_base.py build``
-  and ``PYTHONPATH=build/lib.xyz.../``)
+* running the tests: ``py.test c/ _cffi1/ testing/`` (if you didn't
+  install cffi yet, you may need ``python setup_base.py build_ext -f
+  -i``)
 
 .. _`Bitbucket page`: https://bitbucket.org/cffi/cffi
 
@@ -118,13 +124,13 @@ Demos:
 * The `demo`_ directory contains a number of small and large demos
   of using ``cffi``.
 
-* The documentation below is sketchy on the details; for now the
+* The documentation below might be sketchy on details; for now the
   ultimate reference is given by the tests, notably
-  `testing/test_verify.py`_ and `testing/backend_tests.py`_.
+  `_cffi1/test_verify1.py`_ and `_cffi1/test_new_ffi_1.py`_.
 
 .. _`demo`: https://bitbucket.org/cffi/cffi/src/default/demo
-.. _`testing/backend_tests.py`: https://bitbucket.org/cffi/cffi/src/default/testing/backend_tests.py
-.. _`testing/test_verify.py`: https://bitbucket.org/cffi/cffi/src/default/testing/test_verify.py
+.. _`cffi1/test_verify1.py`: https://bitbucket.org/cffi/cffi/src/default/_cffi1/test_verify1.py
+.. _`testing/test_verify.py`: https://bitbucket.org/cffi/cffi/src/default/_cffi1/test_new_ffi_1.py
 
 
 Platform-specific instructions
