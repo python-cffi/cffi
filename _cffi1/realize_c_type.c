@@ -326,7 +326,8 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
             if (x == NULL)
                 return NULL;
 
-            if (s->first_field_index >= 0) {
+            if (!(s->flags & _CFFI_F_OPAQUE)) {
+                assert(s->first_field_index >= 0);
                 ct = (CTypeDescrObject *)x;
                 ct->ct_size = (Py_ssize_t)s->size;
                 ct->ct_length = s->alignment;   /* may be -1 */
@@ -334,8 +335,11 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
                 ct->ct_flags |= CT_LAZY_FIELD_LIST;
                 ct->ct_extra = builder;
             }
+            else
+                assert(s->first_field_index < 0);
         }
         else {
+            assert(s->first_field_index < 0);
             x = _fetch_external_struct_or_union(s, builder->included_ffis, 0);
             if (x == NULL) {
                 if (!PyErr_Occurred())
@@ -344,6 +348,21 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
                                  (s->flags & _CFFI_F_UNION) ? "union"
                                  : "struct", s->name);
                 return NULL;
+            }
+            if (!(s->flags & _CFFI_F_OPAQUE)) {
+                if (((CTypeDescrObject *)x)->ct_flags & CT_IS_OPAQUE) {
+                    const char *prefix = (s->flags & _CFFI_F_UNION) ? "union"
+                                         : "struct";
+                    PyErr_Format(PyExc_NotImplementedError,
+                                 "'%s %.200s' is opaque in the ffi.include(), "
+                                 "but no longer in the ffi doing the include "
+                                 "(workaround: don't use ffi.include() but "
+                                 "duplicate the declarations of everything "
+                                 "using %s %.200s)",
+                                 prefix, s->name, prefix, s->name);
+                    Py_DECREF(x);
+                    return NULL;
+                }
             }
         }
 

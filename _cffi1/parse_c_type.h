@@ -97,6 +97,7 @@ struct _cffi_struct_union_s {
                                      // "standard layout" or if some are missing
 #define _CFFI_F_PACKED        0x04   // for CHECK_FIELDS, assume a packed struct
 #define _CFFI_F_EXTERNAL      0x08   // in some other ffi.include()
+#define _CFFI_F_OPAQUE        0x10   // opaque
 
 struct _cffi_field_s {
     const char *name;

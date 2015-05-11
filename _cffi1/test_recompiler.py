@@ -619,6 +619,20 @@ def test_include_7():
     assert ffi.cast("int *", p)[0] == 42
     assert lib.ff7b(p) == 42
 
+def test_include_8():
+    ffi1 = FFI()
+    ffi1.cdef("struct foo_s;")
+    verify(ffi1, "test_include_8_parent", "struct foo_s;")
+    ffi = FFI()
+    ffi.include(ffi1)
+    ffi.cdef("struct foo_s { int x, y; };")
+    verify(ffi, "test_include_8", "struct foo_s { int x, y; };")
+    e = py.test.raises(NotImplementedError, ffi.new, "struct foo_s *")
+    assert str(e.value) == (
+        "'struct foo_s' is opaque in the ffi.include(), but no longer in "
+        "the ffi doing the include (workaround: don't use ffi.include() but"
+        " duplicate the declarations of everything using struct foo_s)")
+
 def test_unicode_libraries():
     try:
         unicode

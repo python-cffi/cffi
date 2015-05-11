@@ -561,11 +561,14 @@ class Recompiler:
         flags = []
         if isinstance(tp, model.UnionType):
             flags.append("_CFFI_F_UNION")
+        if tp.fldtypes is None:
+            flags.append("_CFFI_F_OPAQUE")
+            reason_for_not_expanding = "opaque"
         if (tp not in self.ffi._parser._included_declarations and
                 (named_ptr is None or
                  named_ptr not in self.ffi._parser._included_declarations)):
             if tp.fldtypes is None:
-                reason_for_not_expanding = "opaque"
+                pass    # opaque
             elif tp.partial or tp.has_anonymous_struct_fields():
                 pass    # field layout obtained silently from the C compiler
             else:
