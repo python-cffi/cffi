@@ -169,12 +169,12 @@ static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
     if (ffi == NULL || PyModule_AddObject(m, "ffi", (PyObject *)ffi) < 0)
         return NULL;
 
-    lib = lib_internal_new(ffi->types_builder, module_name);
+    lib = lib_internal_new(ffi, module_name);
     if (lib == NULL || PyModule_AddObject(m, "lib", (PyObject *)lib) < 0)
         return NULL;
 
     if (make_included_tuples(module_name, ctx->includes,
-                             &ffi->types_builder->included_ffis,
+                             &ffi->types_builder.included_ffis,
                              &lib->l_includes) < 0)
         return NULL;
 

@@ -25,7 +25,7 @@ struct FFIObject_s {
     PyObject *gc_wrefs;
     struct _cffi_parse_info_s info;
     int ctx_is_static;
-    builder_c_t *types_builder;
+    builder_c_t types_builder;
 };
 
 static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
@@ -45,13 +45,12 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
     if (ffi == NULL)
         return NULL;
 
-    ffi->types_builder = new_builder_c(static_ctx);
-    if (ffi->types_builder == NULL) {
+    if (init_builder_c(&ffi->types_builder, static_ctx) < 0) {
         Py_DECREF(ffi);
         return NULL;
     }
     ffi->gc_wrefs = NULL;
-    ffi->info.ctx = &ffi->types_builder->ctx;
+    ffi->info.ctx = &ffi->types_builder.ctx;
     ffi->info.output = internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
     ffi->ctx_is_static = (static_ctx != NULL);
@@ -70,15 +69,15 @@ static void ffi_dealloc(FFIObject *ffi)
 #endif
 
     if (!ffi->ctx_is_static)
-        free_builder_c(ffi->types_builder);
+        free_dynamic_builder_c(&ffi->types_builder);
 
     Py_TYPE(ffi)->tp_free((PyObject *)ffi);
 }
 
 static int ffi_traverse(FFIObject *ffi, visitproc visit, void *arg)
 {
-    Py_VISIT(ffi->types_builder->types_dict);
-    Py_VISIT(ffi->types_builder->included_ffis);
+    Py_VISIT(ffi->types_builder.types_dict);
+    Py_VISIT(ffi->types_builder.included_ffis);
     Py_VISIT(ffi->gc_wrefs);
     return 0;
 }
@@ -110,7 +109,7 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
        Does not return a new reference!
     */
     if ((accept & ACCEPT_STRING) && PyText_Check(arg)) {
-        PyObject *types_dict = ffi->types_builder->types_dict;
+        PyObject *types_dict = ffi->types_builder.types_dict;
         PyObject *x = PyDict_GetItem(types_dict, arg);
 
         if (x == NULL) {
@@ -125,7 +124,7 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
                              input_text, spaces);
                 return NULL;
             }
-            x = realize_c_type_or_func(ffi->types_builder,
+            x = realize_c_type_or_func(&ffi->types_builder,
                                        ffi->info.output, index);
             if (x == NULL)
                 return NULL;
@@ -749,12 +748,12 @@ static PyObject *ffi__set_types(FFIObject *self, PyObject *args)
     Py_INCREF(args);     /* to keep alive the strings in '.name' */
     Py_XDECREF(self->dynamic_types);
     self->dynamic_types = args;
-    self->types_builder->ctx.types = types;
-    self->types_builder->num_types_imported = lst1_length + lst2_length;
-    self->types_builder->ctx.struct_unions = struct_unions;
-    self->types_builder->ctx.num_struct_unions = lst1_length;
-    self->types_builder->ctx.typenames = typenames;
-    self->types_builder->ctx.num_typenames = lst2_length;
+    self->types_builder.ctx.types = types;
+    self->types_builder.num_types_imported = lst1_length + lst2_length;
+    self->types_builder.ctx.struct_unions = struct_unions;
+    self->types_builder.ctx.num_struct_unions = lst1_length;
+    self->types_builder.ctx.typenames = typenames;
+    self->types_builder.ctx.num_typenames = lst2_length;
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -855,19 +854,19 @@ _fetch_external_struct_or_union(const struct _cffi_struct_union_s *s,
         PyObject *x;
 
         ffi1 = (FFIObject *)PyTuple_GET_ITEM(included_ffis, i);
-        sindex = search_in_struct_unions(&ffi1->types_builder->ctx, s->name,
+        sindex = search_in_struct_unions(&ffi1->types_builder.ctx, s->name,
                                          strlen(s->name));
         if (sindex < 0)  /* not found at all */
             continue;
-        s1 = &ffi1->types_builder->ctx.struct_unions[sindex];
+        s1 = &ffi1->types_builder.ctx.struct_unions[sindex];
         if ((s1->flags & (_CFFI_F_EXTERNAL | _CFFI_F_UNION))
                 == (s->flags & _CFFI_F_UNION)) {
             /* s1 is not external, and the same kind (struct or union) as s */
-            return _realize_c_struct_or_union(ffi1->types_builder, sindex);
+            return _realize_c_struct_or_union(&ffi1->types_builder, sindex);
         }
         /* not found, look more recursively */
         x = _fetch_external_struct_or_union(
-                s, ffi1->types_builder->included_ffis, recursion + 1);
+                s, ffi1->types_builder.included_ffis, recursion + 1);
         if (x != NULL || PyErr_Occurred())
             return x;   /* either found, or got an error */
     }

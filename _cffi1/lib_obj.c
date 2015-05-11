@@ -24,6 +24,7 @@ struct LibObject_s {
     PyObject *l_dict;           /* content, built lazily */
     PyObject *l_libname;        /* some string that gives the name of the lib */
     PyObject *l_includes;       /* tuple of LibObjects included here */
+    FFIObject *l_ffi;           /* reference back to the ffi object */
 };
 
 #define LibObject_Check(ob)  ((Py_TYPE(ob) == &Lib_Type))
@@ -67,7 +68,17 @@ static void lib_dealloc(LibObject *lib)
     Py_DECREF(lib->l_dict);
     Py_DECREF(lib->l_libname);
     Py_XDECREF(lib->l_includes);
+    Py_DECREF(lib->l_ffi);
     PyObject_Del(lib);
+}
+
+static int lib_traverse(LibObject *lib, visitproc visit, void *arg)
+{
+    Py_VISIT(lib->l_dict);
+    Py_VISIT(lib->l_libname);
+    Py_VISIT(lib->l_includes);
+    Py_VISIT(lib->l_ffi);
+    return 0;
 }
 
 static PyObject *lib_repr(LibObject *lib)
@@ -344,7 +355,7 @@ static PyTypeObject Lib_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,                         /* tp_flags */
     0,                                          /* tp_doc */
-    0,                                          /* tp_traverse */
+    (traverseproc)lib_traverse,                 /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
@@ -360,8 +371,7 @@ static PyTypeObject Lib_Type = {
     offsetof(LibObject, l_dict),                /* tp_dictoffset */
 };
 
-static LibObject *lib_internal_new(builder_c_t *types_builder,
-                                   char *module_name)
+static LibObject *lib_internal_new(FFIObject *ffi, char *module_name)
 {
     LibObject *lib;
     PyObject *libname, *dict;
@@ -378,9 +388,11 @@ static LibObject *lib_internal_new(builder_c_t *types_builder,
     if (lib == NULL)
         return NULL;
 
-    lib->l_types_builder = types_builder;
+    lib->l_types_builder = &ffi->types_builder;
     lib->l_dict = dict;
     lib->l_libname = libname;
     lib->l_includes = NULL;
+    Py_INCREF(ffi);
+    lib->l_ffi = ffi;
     return lib;
 }

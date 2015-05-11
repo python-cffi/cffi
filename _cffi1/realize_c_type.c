@@ -53,18 +53,9 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
     return err;
 }
 
-static void cleanup_builder_c(builder_c_t *builder)
+static void free_dynamic_builder_c(builder_c_t *builder)
 {
     int i;
-#if 0
-    for (i = builder->num_types_imported; (--i) >= 0; ) {
-        _cffi_opcode_t x = builder->ctx.types[i];
-        if ((((uintptr_t)x) & 1) == 0) {
-            Py_XDECREF((PyObject *)x);
-        }
-    }
-#endif
-
     const void *mem[] = {builder->ctx.types,
                          builder->ctx.globals,
                          builder->ctx.struct_unions,
@@ -77,29 +68,16 @@ static void cleanup_builder_c(builder_c_t *builder)
     }
 
     Py_XDECREF(builder->included_ffis);
-    builder->included_ffis = NULL;
-}
-
-static void free_builder_c(builder_c_t *builder)
-{
     Py_XDECREF(builder->types_dict);
-    cleanup_builder_c(builder);
-    PyMem_Free(builder);
 }
 
-static builder_c_t *new_builder_c(const struct _cffi_type_context_s *ctx)
+static int init_builder_c(builder_c_t *builder,
+                          const struct _cffi_type_context_s *ctx)
 {
-    builder_c_t *builder;
     PyObject *ldict = PyDict_New();
     if (ldict == NULL)
-        return NULL;
+        return -1;
 
-    builder = PyMem_Malloc(sizeof(builder_c_t));
-    if (builder == NULL) {
-        Py_DECREF(ldict);
-        PyErr_NoMemory();
-        return NULL;
-    }
     if (ctx)
         builder->ctx = *ctx;
     else
@@ -107,10 +85,7 @@ static builder_c_t *new_builder_c(const struct _cffi_type_context_s *ctx)
 
     builder->types_dict = ldict;
     builder->included_ffis = NULL;
-#if 0
-    builder->num_types_imported = 0;
-#endif
-    return builder;
+    return 0;
 }
 
 static PyObject *build_primitive_type(int num)
