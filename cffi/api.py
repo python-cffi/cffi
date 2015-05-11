@@ -583,6 +583,11 @@ def _make_ffi_library(ffi, libname, flags):
             if name in library.__dict__:
                 return
         #
+        key = 'constant ' + name
+        if key in ffi._parser._declarations:
+            raise NotImplementedError("fetching a non-integer constant "
+                                      "after dlopen()")
+        #
         raise AttributeError(name)
     #
     def make_accessor(name):
