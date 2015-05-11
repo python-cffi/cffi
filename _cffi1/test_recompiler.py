@@ -467,6 +467,8 @@ def test_module_name_in_package():
         sys.path.insert(0, str(udir))
         import test_module_name_in_package.mymod
         assert test_module_name_in_package.mymod.lib.foo(10) == 42
+        assert test_module_name_in_package.mymod.__name__ == (
+            'test_module_name_in_package.mymod')
     finally:
         sys.path[:] = old_sys_path
 
