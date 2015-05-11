@@ -25,6 +25,7 @@ struct LibObject_s {
     PyObject *l_libname;        /* some string that gives the name of the lib */
     PyObject *l_includes;       /* tuple of LibObjects included here */
     FFIObject *l_ffi;           /* reference back to the ffi object */
+    void *l_libhandle;          /* the dlopen()ed handle, if any */
 };
 
 static struct CPyExtFunc_s *_cpyextfunc_get(PyObject *x)
@@ -71,8 +72,15 @@ static PyObject *_cpyextfunc_type_index(PyObject *x)
     return result;
 }
 
+static int cdlopen_close(PyObject *libname, void *libhandle);  /* forward */
+static void *cdlopen_fetch(PyObject *libname, void *libhandle, char *symbol);
+
 static void lib_dealloc(LibObject *lib)
 {
+    if (cdlopen_close(lib->l_libname, lib->l_libhandle) < 0) {
+        PyErr_WriteUnraisable((PyObject *)lib);
+        PyErr_Clear();
+    }
     Py_DECREF(lib->l_dict);
     Py_DECREF(lib->l_libname);
     Py_XDECREF(lib->l_includes);
@@ -160,6 +168,14 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
 
     index = search_in_globals(&lib->l_types_builder->ctx, s, strlen(s));
     if (index < 0) {
+
+        if (lib->l_types_builder->known_constants != NULL) {
+            x = PyDict_GetItem(lib->l_types_builder->known_constants, name);
+            if (x != NULL) {
+                Py_INCREF(x);
+                goto found;
+            }
+        }
 
         if (lib->l_includes != NULL) {
             Py_ssize_t i;
@@ -260,6 +276,36 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         }
         Py_DECREF(ct);
         break;
+
+    case _CFFI_OP_DLOPEN:
+    {
+        /* For dlopen(): the function or global variable of the given
+           'name'.  We use dlsym() to get the address of something in
+           the dynamic library, which we interpret as being exactly of
+           the specified type.  If this type is a function (not a
+           function pointer), then we assume it is a regular function
+           in the dynamic library; otherwise, we assume it is a global
+           variable.
+        */
+        PyObject *ct1;
+        void *address = cdlopen_fetch(lib->l_libname, lib->l_libhandle, s);
+        if (address == NULL)
+            return NULL;
+
+        ct1 = realize_c_type_or_func(lib->l_types_builder,
+                                     lib->l_types_builder->ctx.types,
+                                     _CFFI_GETARG(g->type_op));
+        if (ct1 == NULL)
+            return NULL;
+
+        if (CTypeDescr_Check(ct1))
+            x = make_global_var((CTypeDescrObject *)ct1, address);
+        else
+            x = new_simple_cdata(address, unwrap_fn_as_fnptr(ct1));
+
+        Py_DECREF(ct1);
+        break;
+    }
 
     default:
         PyErr_Format(PyExc_NotImplementedError, "in lib_build_attr: op=%d",
@@ -382,7 +428,8 @@ static PyTypeObject Lib_Type = {
     offsetof(LibObject, l_dict),                /* tp_dictoffset */
 };
 
-static LibObject *lib_internal_new(FFIObject *ffi, char *module_name)
+static LibObject *lib_internal_new(FFIObject *ffi, char *module_name,
+                                   void *dlopen_libhandle)
 {
     LibObject *lib;
     PyObject *libname, *dict;
@@ -405,6 +452,7 @@ static LibObject *lib_internal_new(FFIObject *ffi, char *module_name)
     lib->l_includes = NULL;
     Py_INCREF(ffi);
     lib->l_ffi = ffi;
+    lib->l_libhandle = dlopen_libhandle;
     return lib;
 }
 

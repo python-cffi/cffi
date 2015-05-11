@@ -12,6 +12,7 @@ static PyTypeObject Lib_Type;   /* forward */
 #include "cglob.c"
 #include "cgc.c"
 #include "lib_obj.c"
+#include "cdlopen.c"
 
 
 static int init_ffi_lib(PyObject *m)
@@ -169,7 +170,7 @@ static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
     if (ffi == NULL || PyModule_AddObject(m, "ffi", (PyObject *)ffi) < 0)
         return NULL;
 
-    lib = lib_internal_new(ffi, module_name);
+    lib = lib_internal_new(ffi, module_name, NULL);
     if (lib == NULL || PyModule_AddObject(m, "lib", (PyObject *)lib) < 0)
         return NULL;
 
