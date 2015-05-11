@@ -227,7 +227,7 @@ class Recompiler:
         prnt('};')
         prnt()
         #
-        # the init function, loading _cffi_backend and calling a method there
+        # the init function
         base_module_name = self.module_name.split('.')[-1]
         prnt('#ifdef PYPY_VERSION')
         prnt('PyMODINIT_FUNC')
@@ -251,18 +251,14 @@ class Recompiler:
         prnt('PyMODINIT_FUNC')
         prnt('PyInit_%s(void)' % (base_module_name,))
         prnt('{')
-        prnt('  if (_cffi_init() < 0)')
-        prnt('    return NULL;')
-        prnt('  return _cffi_init_module("%s", &_cffi_type_context);' % (
+        prnt('  return _cffi_init("%s", 0x2600, &_cffi_type_context);' % (
             self.module_name,))
         prnt('}')
         prnt('#else')
         prnt('PyMODINIT_FUNC')
         prnt('init%s(void)' % (base_module_name,))
         prnt('{')
-        prnt('  if (_cffi_init() < 0)')
-        prnt('    return;')
-        prnt('  _cffi_init_module("%s", &_cffi_type_context);' % (
+        prnt('  _cffi_init("%s", 0x2600, &_cffi_type_context);' % (
             self.module_name,))
         prnt('}')
         prnt('#endif')

@@ -5763,6 +5763,10 @@ static PyObject *b__testbuff(PyObject *self, PyObject *args)
     return Py_None;
 }
 
+static PyObject *b_init_cffi_1_0_external_module(PyObject *, PyObject *);
+/* forward, see _cffi1/cffi1_module.c */
+
+
 static PyMethodDef FFIBackendMethods[] = {
     {"load_library", b_load_library, METH_VARARGS},
     {"new_primitive_type", b_new_primitive_type, METH_VARARGS},
@@ -5796,6 +5800,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"_get_types", b__get_types, METH_NOARGS},
     {"_testfunc", b__testfunc, METH_VARARGS},
     {"_testbuff", b__testbuff, METH_VARARGS},
+    {"_init_cffi_1_0_external_module", b_init_cffi_1_0_external_module, METH_O},
     {NULL,     NULL}    /* Sentinel */
 };
 
@@ -5908,10 +5913,8 @@ static PyObject *_cffi_from_c_wchar_t(wchar_t x) {
 }
 #endif
 
-#include "../_cffi1/cffi1_module.c"
-
 static void *cffi_exports[] = {
-    (void *)26,
+    NULL,
     _cffi_to_c_i8,
     _cffi_to_c_u8,
     _cffi_to_c_i16,
@@ -5941,8 +5944,11 @@ static void *cffi_exports[] = {
     _cffi_to_c__Bool,
     _prepare_pointer_call_argument,
     convert_array_from_object,
-    _cffi_init_module,
 };
+
+/************************************************************/
+
+#include "../_cffi1/cffi1_module.c"
 
 /************************************************************/
 
@@ -6016,11 +6022,12 @@ init_cffi_backend(void)
                                           "__name__", v) < 0)
         INITERROR;
 
+    /* this is for backward compatibility only */
     v = PyCapsule_New((void *)cffi_exports, "cffi", NULL);
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
         INITERROR;
 
-    v = PyText_FromString("1.0.0b2");
+    v = PyText_FromString("1.0.0");
     if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
         INITERROR;
 

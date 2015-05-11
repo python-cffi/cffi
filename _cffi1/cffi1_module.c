@@ -103,16 +103,9 @@ static int make_included_tuples(char *module_name,
     return -1;
 }
 
-static PyObject *_cffi_init_module(char *module_name,
-                                   const struct _cffi_type_context_s *ctx)
+static PyObject *_my_Py_InitModule(char *module_name)
 {
-    PyObject *m;
-    FFIObject *ffi;
-    LibObject *lib;
-
 #if PY_MAJOR_VERSION >= 3
-    /* note: the module_def leaks, but anyway the C extension module cannot
-       be unloaded */
     struct PyModuleDef *module_def, local_module_def = {
         PyModuleDef_HEAD_INIT,
         module_name,
@@ -120,17 +113,57 @@ static PyObject *_cffi_init_module(char *module_name,
         -1,
         NULL, NULL, NULL, NULL, NULL
     };
+    /* note: the 'module_def' is allocated dynamically and leaks,
+       but anyway the C extension module can never be unloaded */
     module_def = PyMem_Malloc(sizeof(struct PyModuleDef));
     if (module_def == NULL)
         return PyErr_NoMemory();
     *module_def = local_module_def;
-    m = PyModule_Create(module_def);
+    return PyModule_Create(module_def);
 #else
-    m = Py_InitModule(module_name, NULL);
+    return Py_InitModule(module_name, NULL);
 #endif
+}
+
+#define CFFI_VERSION_MIN    0x2600
+#define CFFI_VERSION_MAX    0x260F
+
+static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
+{
+    PyObject *m;
+    FFIObject *ffi;
+    LibObject *lib;
+    Py_ssize_t version;
+    char *module_name, *exports;
+    void **raw;
+    const struct _cffi_type_context_s *ctx;
+
+    raw = (void **)PyLong_AsVoidPtr(arg);
+    if (raw == NULL)
+        return NULL;
+
+    module_name = (char *)raw[0];
+    version = (Py_ssize_t)raw[1];
+    exports = (char *)raw[2];
+    ctx = (const struct _cffi_type_context_s *)raw[3];
+
+    if (version < CFFI_VERSION_MIN || version > CFFI_VERSION_MAX) {
+        if (!PyErr_Occurred())
+            PyErr_Format(PyExc_ImportError,
+                         "cffi extension module '%s' has unknown version %p",
+                         module_name, (void *)version);
+        return NULL;
+    }
+
+    /* initialize the exports array */
+    memcpy(exports, (char *)cffi_exports, sizeof(cffi_exports));
+
+    /* make the module object */
+    m = _my_Py_InitModule(module_name);
     if (m == NULL)
         return NULL;
 
+    /* build the FFI and Lib object inside this new module */
     ffi = ffi_internal_new(&FFI_Type, ctx);
     Py_XINCREF(ffi);    /* make the ffi object really immortal */
     if (ffi == NULL || PyModule_AddObject(m, "ffi", (PyObject *)ffi) < 0)

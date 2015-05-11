@@ -51,14 +51,6 @@
 #ifndef PYPY_VERSION
 
 
-#if PY_MAJOR_VERSION < 3
-# undef PyCapsule_CheckExact
-# undef PyCapsule_GetPointer
-# define PyCapsule_CheckExact(capsule) (PyCObject_Check(capsule))
-# define PyCapsule_GetPointer(capsule, name) \
-    (PyCObject_AsVoidPtr(capsule))
-#endif
-
 #if PY_MAJOR_VERSION >= 3
 # define PyInt_FromLong PyLong_FromLong
 #endif
@@ -143,10 +135,7 @@
     ((Py_ssize_t(*)(CTypeDescrObject *, PyObject *, char **))_cffi_exports[23])
 #define _cffi_convert_array_from_object                                  \
     ((int(*)(char *, CTypeDescrObject *, PyObject *))_cffi_exports[24])
-#define _cffi_init_module                                                \
-    ((PyObject *(*)(char *, const struct _cffi_type_context_s *))        \
-                                                      _cffi_exports[25])
-#define _CFFI_NUM_EXPORTS 26
+#define _CFFI_NUM_EXPORTS 25
 
 typedef struct _ctypedescr CTypeDescrObject;
 
@@ -156,40 +145,36 @@ static void *_cffi_exports[_CFFI_NUM_EXPORTS];
     assert((((uintptr_t)_cffi_types[index]) & 1) == 0), \
     (CTypeDescrObject *)_cffi_types[index])
 
-static int _cffi_init(void)
+static PyObject *_cffi_init(char *module_name, Py_ssize_t version,
+                            const struct _cffi_type_context_s *ctx)
 {
-    PyObject *module, *c_api_object = NULL;
-    void *src;
+    PyObject *module, *o_arg, *new_module;
+    void *raw[] = {
+        (void *)module_name,
+        (void *)version,
+        (void *)_cffi_exports,
+        (void *)ctx,
+    };
 
     module = PyImport_ImportModule("_cffi_backend");
     if (module == NULL)
         goto failure;
 
-    c_api_object = PyObject_GetAttrString(module, "_C_API");
-    if (c_api_object == NULL)
+    o_arg = PyLong_FromVoidPtr((void *)raw);
+    if (o_arg == NULL)
         goto failure;
-    if (!PyCapsule_CheckExact(c_api_object)) {
-        PyErr_SetNone(PyExc_ImportError);
-        goto failure;
-    }
-    src = PyCapsule_GetPointer(c_api_object, "cffi");
-    if ((uintptr_t)(((void **)src)[0]) < _CFFI_NUM_EXPORTS) {
-        PyErr_SetString(PyExc_ImportError,
-                        "the _cffi_backend module is an outdated version");
-        goto failure;
-    }
-    memcpy(_cffi_exports, src, _CFFI_NUM_EXPORTS * sizeof(void *));
 
+    new_module = PyObject_CallMethod(
+                    module, "_init_cffi_1_0_external_module", "O", o_arg);
+
+    Py_DECREF(o_arg);
     Py_DECREF(module);
-    Py_DECREF(c_api_object);
-    return 0;
+    return new_module;
 
   failure:
     Py_XDECREF(module);
-    Py_XDECREF(c_api_object);
-    return -1;
+    return NULL;
 }
-
 
 #endif
 /**********  end CPython-specific section  **********/
