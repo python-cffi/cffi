@@ -305,6 +305,30 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
         building = NULL;
     }
 
+    if (typenames != NULL) {
+        /* unpack a tuple of strings, each of which describes one typename_s
+           entry */
+        struct _cffi_typename_s *ntypenames;
+        Py_ssize_t i, n = PyTuple_GET_SIZE(typenames);
+
+        i = n * sizeof(struct _cffi_typename_s);
+        building = PyMem_Malloc(i);
+        if (building == NULL)
+            goto error;
+        memset(building, 0, i);
+        ntypenames = (struct _cffi_typename_s *)building;
+
+        for (i = 0; i < n; i++) {
+            char *t = PyString_AS_STRING(PyTuple_GET_ITEM(typenames, i));
+            /* 't' is a string describing the typename */
+            ntypenames[i].type_index = cdl_4bytes(t); t += 4;
+            ntypenames[i].name = t;
+        }
+        ffi->types_builder.ctx.typenames = ntypenames;
+        ffi->types_builder.ctx.num_typenames = n;
+        building = NULL;
+    }
+
     /* Above, we took directly some "char *" strings out of the strings,
        typically from somewhere inside tuples.  Keep them alive by
        incref'ing the whole input arguments. */

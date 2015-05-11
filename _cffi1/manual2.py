@@ -25,5 +25,6 @@ print ffi.offsetof("struct point_s", "x")
 print ffi.offsetof("struct point_s", "y")
 
 print ffi.cast("enum myenum_e", 2)
+print ffi.cast("myint_t", -2)
 
 del ffi, lib
