@@ -83,35 +83,8 @@ static PyObject *ffiobj_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     return (PyObject *)ffi_internal_new(type, NULL);
 }
 
-static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
-{
-    FFIObject *ffi;
-    static char *keywords[] = {"module_name", "_version", "_types",
-                               "_globals", "_struct_unions", "_enums",
-                               "_typenames", "_consts", NULL};
-    char *ffiname = NULL, *types = NULL;
-    Py_ssize_t version = -1;
-    Py_ssize_t types_len = 0;
-    PyObject *globals = NULL, *struct_unions = NULL, *enums = NULL;
-    PyObject *typenames = NULL, *consts = NULL;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sns#OOOOO:FFI", keywords,
-                                     &ffiname, &version, &types, &types_len,
-                                     &globals, &struct_unions, &enums,
-                                     &typenames, &consts))
-        return -1;
-
-    ffi = (FFIObject *)self;
-    if (ffi->ctx_is_nonempty) {
-        PyErr_SetString(PyExc_ValueError,
-                        "cannot call FFI.__init__() more than once");
-        return -1;
-    }
-
-    //...;
-    ffi->ctx_is_nonempty = 1;
-    return 0;
-}
+/* forward, declared in cdlopen.c because it's mostly useful for this case */
+static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds);
 
 #define ACCEPT_STRING   1
 #define ACCEPT_CTYPE    2

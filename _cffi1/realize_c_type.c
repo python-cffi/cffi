@@ -4,6 +4,8 @@ typedef struct {
     PyObject *types_dict;
     PyObject *included_ffis;
     PyObject *known_constants;
+    PyObject *_keepalive1;
+    PyObject *_keepalive2;
 } builder_c_t;
 
 
@@ -72,6 +74,8 @@ static void free_builder_c(builder_c_t *builder, int ctx_is_static)
     Py_XDECREF(builder->included_ffis);
     Py_XDECREF(builder->types_dict);
     Py_XDECREF(builder->known_constants);
+    Py_XDECREF(builder->_keepalive1);
+    Py_XDECREF(builder->_keepalive2);
 }
 
 static int init_builder_c(builder_c_t *builder,
@@ -89,6 +93,8 @@ static int init_builder_c(builder_c_t *builder,
     builder->types_dict = ldict;
     builder->included_ffis = NULL;
     builder->known_constants = NULL;
+    builder->_keepalive1 = NULL;
+    builder->_keepalive2 = NULL;
     return 0;
 }
 

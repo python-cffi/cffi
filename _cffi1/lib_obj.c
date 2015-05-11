@@ -72,15 +72,12 @@ static PyObject *_cpyextfunc_type_index(PyObject *x)
     return result;
 }
 
-static int cdlopen_close(PyObject *libname, void *libhandle);  /* forward */
+static void cdlopen_close_ignore_errors(void *libhandle);  /* forward */
 static void *cdlopen_fetch(PyObject *libname, void *libhandle, char *symbol);
 
 static void lib_dealloc(LibObject *lib)
 {
-    if (cdlopen_close(lib->l_libname, lib->l_libhandle) < 0) {
-        PyErr_WriteUnraisable((PyObject *)lib);
-        PyErr_Clear();
-    }
+    cdlopen_close_ignore_errors(lib->l_libhandle);
     Py_DECREF(lib->l_dict);
     Py_DECREF(lib->l_libname);
     Py_XDECREF(lib->l_includes);
@@ -208,8 +205,8 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
             return NULL;  /* no error set, continue looking elsewhere */
 
         PyErr_Format(PyExc_AttributeError,
-                     "cffi lib '%.200s' has no function,"
-                     " global variable or constant named '%.200s'",
+                     "cffi library '%.200s' has no function, constant "
+                     "or global variable named '%.200s'",
                      PyText_AS_UTF8(lib->l_libname), s);
         return NULL;
     }
@@ -435,16 +432,16 @@ static LibObject *lib_internal_new(FFIObject *ffi, char *module_name,
     PyObject *libname, *dict;
 
     libname = PyText_FromString(module_name);
+    if (libname == NULL)
+        goto err1;
+
     dict = PyDict_New();
-    if (libname == NULL || dict == NULL) {
-        Py_XDECREF(dict);
-        Py_XDECREF(libname);
-        return NULL;
-    }
+    if (dict == NULL)
+        goto err2;
 
     lib = PyObject_New(LibObject, &Lib_Type);
     if (lib == NULL)
-        return NULL;
+        goto err3;
 
     lib->l_types_builder = &ffi->types_builder;
     lib->l_dict = dict;
@@ -454,6 +451,14 @@ static LibObject *lib_internal_new(FFIObject *ffi, char *module_name,
     lib->l_ffi = ffi;
     lib->l_libhandle = dlopen_libhandle;
     return lib;
+
+ err3:
+    Py_DECREF(dict);
+ err2:
+    Py_DECREF(libname);
+ err1:
+    cdlopen_close_ignore_errors(dlopen_libhandle);
+    return NULL;
 }
 
 static PyObject *address_of_global_var(PyObject *args)
