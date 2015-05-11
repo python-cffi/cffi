@@ -60,9 +60,13 @@ static int write_global_var(GlobSupportObject *gs, PyObject *obj)
     return convert_from_object(gs->gs_data, gs->gs_type, obj);
 }
 
-#if 0
-static PyObject *addressof_global_var(GlobSupportObject *gs)
+static PyObject *cg_addressof_global_var(GlobSupportObject *gs)
 {
-    return new_simple_cdata(gs->gs_data, gs->gs_type);
+    PyObject *x, *ptrtype = new_pointer_type(gs->gs_type);
+    if (ptrtype == NULL)
+        return NULL;
+
+    x = new_simple_cdata(gs->gs_data, (CTypeDescrObject *)ptrtype);
+    Py_DECREF(ptrtype);
+    return x;
 }
-#endif

@@ -19,6 +19,7 @@
 #define FFI_COMPLEXITY_OUTPUT   1200     /* xxx should grow as needed */
 
 #define FFIObject_Check(op) PyObject_TypeCheck(op, &FFI_Type)
+#define LibObject_Check(ob)  ((Py_TYPE(ob) == &Lib_Type))
 
 struct FFIObject_s {
     PyObject_HEAD
@@ -368,10 +369,19 @@ static PyObject *ffi_offsetof(FFIObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(ffi_addressof_doc,
-"With a single arg, return the address of a <cdata 'struct-or-union'>.\n"
-"If 'fields_or_indexes' are given, returns the address of that field or\n"
-"array item in the structure or array, recursively in case of nested\n"
-"structures.");
+"Limited equivalent to the '&' operator in C:\n"
+"\n"
+"1. ffi.addressof(<cdata 'struct-or-union'>) returns a cdata that is a\n"
+"pointer to this struct or union.\n"
+"\n"
+"2. ffi.addressof(<cdata>, field-or-index...) returns the address of a\n"
+"field or array item inside the given structure or array, recursively\n"
+"in case of nested structures or arrays.\n"
+"\n"
+"3. ffi.addressof(<library>, \"name\") returns the address of the named\n"
+"global variable.");
+
+static PyObject *address_of_global_var(PyObject *args);  /* forward */
 
 static PyObject *ffi_addressof(FFIObject *self, PyObject *args)
 {
@@ -387,11 +397,17 @@ static PyObject *ffi_addressof(FFIObject *self, PyObject *args)
     }
 
     arg = PyTuple_GET_ITEM(args, 0);
+    if (LibObject_Check(arg)) {
+        /* case 3 in the docstring */
+        return address_of_global_var(args);
+    }
+
     ct = _ffi_type(self, arg, ACCEPT_CDATA);
     if (ct == NULL)
         return NULL;
 
     if (PyTuple_GET_SIZE(args) == 1) {
+        /* case 1 in the docstring */
         accepted_flags = CT_STRUCT | CT_UNION | CT_ARRAY;
         if ((ct->ct_flags & accepted_flags) == 0) {
             PyErr_SetString(PyExc_TypeError,
@@ -400,6 +416,7 @@ static PyObject *ffi_addressof(FFIObject *self, PyObject *args)
         }
     }
     else {
+        /* case 2 in the docstring */
         accepted_flags = CT_STRUCT | CT_UNION | CT_ARRAY | CT_POINTER;
         if ((ct->ct_flags & accepted_flags) == 0) {
             PyErr_SetString(PyExc_TypeError,

@@ -27,15 +27,9 @@ struct LibObject_s {
     FFIObject *l_ffi;           /* reference back to the ffi object */
 };
 
-#define LibObject_Check(ob)  ((Py_TYPE(ob) == &Lib_Type))
-
-static PyObject *_cpyextfunc_type_index(PyObject *x)
+static struct CPyExtFunc_s *_cpyextfunc_get(PyObject *x)
 {
     struct CPyExtFunc_s *exf;
-    LibObject *lib;
-    PyObject *tuple, *result;
-
-    assert(PyErr_Occurred());
 
     if (!PyCFunction_Check(x))
         return NULL;
@@ -45,6 +39,20 @@ static PyObject *_cpyextfunc_type_index(PyObject *x)
     exf = (struct CPyExtFunc_s *)(((PyCFunctionObject *)x) -> m_ml);
     if (exf->md.ml_doc != cpyextfunc_doc)
         return NULL;
+
+    return exf;
+}
+
+static PyObject *_cpyextfunc_type_index(PyObject *x)
+{
+    struct CPyExtFunc_s *exf;
+    LibObject *lib;
+    PyObject *tuple, *result;
+
+    assert(PyErr_Occurred());
+    exf = _cpyextfunc_get(x);
+    if (exf == NULL)
+        return NULL;    /* still the same exception is set */
 
     PyErr_Clear();
 
@@ -269,14 +277,21 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
     return x;
 }
 
+#define LIB_GET_OR_CACHE_ADDR(x, lib, name, error)      \
+    do {                                                \
+        x = PyDict_GetItem(lib->l_dict, name);          \
+        if (x == NULL) {                                \
+            x = lib_build_and_cache_attr(lib, name, 0); \
+            if (x == NULL) {                            \
+                error;                                  \
+            }                                           \
+        }                                               \
+    } while (0)
+
 static PyObject *lib_getattr(LibObject *lib, PyObject *name)
 {
-    PyObject *x = PyDict_GetItem(lib->l_dict, name);
-    if (x == NULL) {
-        x = lib_build_and_cache_attr(lib, name, 0);
-        if (x == NULL)
-            return NULL;
-    }
+    PyObject *x;
+    LIB_GET_OR_CACHE_ADDR(x, lib, name, return NULL);
 
     if (GlobSupport_Check(x)) {
         return read_global_var((GlobSupportObject *)x);
@@ -287,12 +302,8 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
 
 static int lib_setattr(LibObject *lib, PyObject *name, PyObject *val)
 {
-    PyObject *x = PyDict_GetItem(lib->l_dict, name);
-    if (x == NULL) {
-        x = lib_build_and_cache_attr(lib, name, 0);
-        if (x == NULL)
-            return -1;
-    }
+    PyObject *x;
+    LIB_GET_OR_CACHE_ADDR(x, lib, name, return -1);
 
     if (val == NULL) {
         PyErr_SetString(PyExc_AttributeError, "C attribute cannot be deleted");
@@ -395,4 +406,45 @@ static LibObject *lib_internal_new(FFIObject *ffi, char *module_name)
     Py_INCREF(ffi);
     lib->l_ffi = ffi;
     return lib;
+}
+
+static PyObject *address_of_global_var(PyObject *args)
+{
+    LibObject *lib;
+    PyObject *x, *o_varname;
+    char *varname;
+
+    if (!PyArg_ParseTuple(args, "O!s", &Lib_Type, &lib, &varname))
+        return NULL;
+
+    /* rebuild a string from 'varname', to do typechecks and to force
+       a unicode back to a plain string */
+    o_varname = PyString_FromString(varname);
+    if (o_varname == NULL)
+        return NULL;
+
+    LIB_GET_OR_CACHE_ADDR(x, lib, o_varname, goto error);
+    Py_DECREF(o_varname);
+    if (GlobSupport_Check(x)) {
+        return cg_addressof_global_var((GlobSupportObject *)x);
+    }
+    else {
+        struct CPyExtFunc_s *exf = _cpyextfunc_get(x);
+        if (exf != NULL  ||  /* an OP_CPYTHON_BLTN: '&func' is 'func' in C */
+            ((CData_Check(x) &&  /* or, a constant functionptr cdata: same */
+              (((CDataObject *)x)->c_type->ct_flags & CT_FUNCTIONPTR) != 0))) {
+            Py_INCREF(x);
+            return x;
+        }
+        else {
+            PyErr_Format(PyExc_AttributeError,
+                         "cannot take the address of the constant '%.200s'",
+                         varname);
+            return NULL;
+        }
+    }
+
+ error:
+    Py_DECREF(o_varname);
+    return NULL;
 }

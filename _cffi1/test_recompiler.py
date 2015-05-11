@@ -707,3 +707,39 @@ def test_name_of_unnamed_struct():
     assert repr(ffi.typeof("foo_t")) == "<ctype 'foo_t'>"
     assert repr(ffi.typeof("bar_p")) == "<ctype 'struct $1 *'>"
     assert repr(ffi.typeof("baz_pp")) == "<ctype 'struct $2 * *'>"
+
+def test_address_of_global_var():
+    ffi = FFI()
+    ffi.cdef("""
+        long bottom, bottoms[2];
+        long FetchRectBottom(void);
+        long FetchRectBottoms1(void);
+        #define FOOBAR 42
+    """)
+    lib = verify(ffi, "test_address_of_global_var", """
+        long bottom, bottoms[2];
+        long FetchRectBottom(void) { return bottom; }
+        long FetchRectBottoms1(void) { return bottoms[1]; }
+        #define FOOBAR 42
+    """)
+    lib.bottom = 300
+    assert lib.FetchRectBottom() == 300
+    lib.bottom += 1
+    assert lib.FetchRectBottom() == 301
+    lib.bottoms[1] = 500
+    assert lib.FetchRectBottoms1() == 500
+    lib.bottoms[1] += 2
+    assert lib.FetchRectBottoms1() == 502
+    #
+    p = ffi.addressof(lib, 'bottom')
+    assert ffi.typeof(p) == ffi.typeof("long *")
+    assert p[0] == 301
+    p[0] += 1
+    assert lib.FetchRectBottom() == 302
+    p = ffi.addressof(lib, 'bottoms')
+    assert ffi.typeof(p) == ffi.typeof("long(*)[2]")
+    assert p[0] == lib.bottoms
+    #
+    py.test.raises(AttributeError, ffi.addressof, lib, 'unknown_var')
+    py.test.raises(AttributeError, ffi.addressof, lib, "FOOBAR")
+    assert ffi.addressof(lib, 'FetchRectBottom') == lib.FetchRectBottom
