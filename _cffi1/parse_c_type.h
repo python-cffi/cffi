@@ -84,6 +84,12 @@ struct _cffi_global_s {
     size_t size;             // 0 if unknown
 };
 
+struct _cffi_getconst_s {
+    unsigned long long value;
+    const struct _cffi_type_context_s *ctx;
+    int gindex;
+};
+
 struct _cffi_struct_union_s {
     const char *name;
     int type_index;          // -> _cffi_types, on a OP_STRUCT_UNION

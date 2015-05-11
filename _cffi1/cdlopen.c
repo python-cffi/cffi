@@ -95,15 +95,38 @@ static PyObject *ffi_dlclose(PyObject *self, PyObject *args)
 }
 
 
-static int cdl_int(char *src)
+static Py_ssize_t cdl_4bytes(char *src)
 {
+    /* read 4 bytes in little-endian order; return it as a signed integer */
+    signed char *ssrc = (signed char *)src;
     unsigned char *usrc = (unsigned char *)src;
-    return (usrc[0] << 24) | (usrc[1] << 16) | (usrc[2] << 8) | usrc[3];
+    return (ssrc[0] << 24) | (usrc[1] << 16) | (usrc[2] << 8) | usrc[3];
 }
 
 static _cffi_opcode_t cdl_opcode(char *src)
 {
-    return (_cffi_opcode_t)(Py_ssize_t)cdl_int(src);
+    return (_cffi_opcode_t)cdl_4bytes(src);
+}
+
+typedef struct {
+    unsigned long long value;
+    int neg;
+} cdl_intconst_t;
+
+int _cdl_realize_global_int(struct _cffi_getconst_s *gc)
+{
+    /* The 'address' field of 'struct _cffi_global_s' is set to point
+       to this function in case ffiobj_init() sees constant integers.
+       This fishes around after the 'ctx->globals' array, which is
+       initialized to contain another array, this time of
+       'cdl_intconst_t' structures.  We get the nth one and it tells
+       us what to return.
+    */
+    cdl_intconst_t *ic;
+    ic = (cdl_intconst_t *)(gc->ctx->globals + gc->ctx->num_globals);
+    ic += gc->gindex;
+    gc->value = ic->value;
+    return ic->neg;
 }
 
 static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
@@ -111,18 +134,19 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
     FFIObject *ffi;
     static char *keywords[] = {"module_name", "_version", "_types",
                                "_globals", "_struct_unions", "_enums",
-                               "_typenames", "_consts", NULL};
+                               "_typenames", NULL};
     char *ffiname = NULL, *types = NULL, *building = NULL;
     Py_ssize_t version = -1;
     Py_ssize_t types_len = 0;
     PyObject *globals = NULL, *struct_unions = NULL, *enums = NULL;
-    PyObject *typenames = NULL, *consts = NULL;
+    PyObject *typenames = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sns#O!OOOO:FFI", keywords,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sns#O!O!O!O!:FFI", keywords,
                                      &ffiname, &version, &types, &types_len,
                                      &PyTuple_Type, &globals,
-                                     &struct_unions, &enums,
-                                     &typenames, &consts))
+                                     &PyTuple_Type, &struct_unions,
+                                     &PyTuple_Type, &enums,
+                                     &PyTuple_Type, &typenames))
         return -1;
 
     ffi = (FFIObject *)self;
@@ -153,22 +177,41 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
     }
 
     if (globals != NULL) {
-        /* unpack a tuple of strings, each of which describes one global_s
-           entry with no specified address or size */
+        /* unpack a tuple alternating strings and ints, each two together
+           describing one global_s entry with no specified address or size.
+           The int is only used with integer constants. */
         struct _cffi_global_s *nglobs;
-        Py_ssize_t i, n = PyTuple_GET_SIZE(globals);
+        cdl_intconst_t *nintconsts;
+        Py_ssize_t i, n = PyTuple_GET_SIZE(globals) / 2;
 
-        i = n * sizeof(struct _cffi_global_s);
+        i = n * (sizeof(struct _cffi_global_s) + sizeof(cdl_intconst_t));
         building = PyMem_Malloc(i);
         if (building == NULL)
             goto error;
         memset(building, 0, i);
         nglobs = (struct _cffi_global_s *)building;
+        nintconsts = (cdl_intconst_t *)(nglobs + n);
 
         for (i = 0; i < n; i++) {
-            char *g = PyString_AS_STRING(PyTuple_GET_ITEM(globals, i));
-            nglobs[i].type_op = cdl_opcode(g);
-            nglobs[i].name = g + 4;
+            char *g = PyString_AS_STRING(PyTuple_GET_ITEM(globals, i * 2));
+            nglobs[i].type_op = cdl_opcode(g); g += 4;
+            nglobs[i].name = g;
+            if (_CFFI_GETOP(nglobs[i].type_op) == _CFFI_OP_CONSTANT_INT ||
+                _CFFI_GETOP(nglobs[i].type_op) == _CFFI_OP_ENUM) {
+                PyObject *o = PyTuple_GET_ITEM(globals, i * 2 + 1);
+                nglobs[i].address = &_cdl_realize_global_int;
+                if (PyInt_Check(o)) {
+                    nintconsts[i].neg = PyInt_AS_LONG(o) <= 0;
+                    nintconsts[i].value = (long long)PyInt_AS_LONG(o);
+                }
+                else {
+                    nintconsts[i].neg = PyObject_RichCompareBool(o, Py_False,
+                                                                 Py_LE);
+                    nintconsts[i].value = PyLong_AsUnsignedLongLongMask(o);
+                    if (PyErr_Occurred())
+                        goto error;
+                }
+            }
         }
         ffi->types_builder.ctx.globals = nglobs;
         ffi->types_builder.ctx.num_globals = n;
@@ -203,9 +246,9 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
             Py_ssize_t j, nf1 = PyTuple_GET_SIZE(desc) - 1;
             char *s = PyString_AS_STRING(PyTuple_GET_ITEM(desc, 0));
             /* 's' is the first string, describing the struct/union */
-            nstructs[i].type_index = cdl_int(s);
-            nstructs[i].flags = cdl_int(s + 4);
-            nstructs[i].name = s + 8;
+            nstructs[i].type_index = cdl_4bytes(s); s += 4;
+            nstructs[i].flags = cdl_4bytes(s); s += 4;
+            nstructs[i].name = s;
             if (nstructs[i].flags & _CFFI_F_OPAQUE) {
                 nstructs[i].size = (size_t)-1;
                 nstructs[i].alignment = -1;
@@ -223,11 +266,10 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
                 char *f = PyString_AS_STRING(PyTuple_GET_ITEM(desc, j + 1));
                 /* 'f' is one of the other strings beyond the first one,
                    describing one field each */
-                nfields[nf].field_type_op = cdl_opcode(f);
-                nfields[nf].name = f + 4;
+                nfields[nf].field_type_op = cdl_opcode(f); f += 4;
                 nfields[nf].field_offset = (size_t)-1;
-                nfields[nf].field_size = (size_t)-1;
-                /* XXXXXXXXXXX BITFIELD MISSING XXXXXXXXXXXXXXXX */
+                nfields[nf].field_size = cdl_4bytes(f); f += 4;
+                nfields[nf].name = f;
                 nf++;
             }
         }
@@ -237,9 +279,30 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
         building = NULL;
     }
 
-    if (consts != NULL) {
-        Py_INCREF(consts);
-        ffi->types_builder.known_constants = consts;
+    if (enums != NULL) {
+        /* unpack a tuple of strings, each of which describes one enum_s
+           entry */
+        struct _cffi_enum_s *nenums;
+        Py_ssize_t i, n = PyTuple_GET_SIZE(enums);
+
+        i = n * sizeof(struct _cffi_enum_s);
+        building = PyMem_Malloc(i);
+        if (building == NULL)
+            goto error;
+        memset(building, 0, i);
+        nenums = (struct _cffi_enum_s *)building;
+
+        for (i = 0; i < n; i++) {
+            char *e = PyString_AS_STRING(PyTuple_GET_ITEM(enums, i));
+            /* 'e' is a string describing the enum */
+            nenums[i].type_index = cdl_4bytes(e); e += 4;
+            nenums[i].type_prim = cdl_4bytes(e); e += 4;
+            nenums[i].name = e; e += strlen(e) + 1;
+            nenums[i].enumerators = e;
+        }
+        ffi->types_builder.ctx.enums = nenums;
+        ffi->types_builder.ctx.num_enums = n;
+        building = NULL;
     }
 
     /* Above, we took directly some "char *" strings out of the strings,

@@ -166,14 +166,6 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
     index = search_in_globals(&lib->l_types_builder->ctx, s, strlen(s));
     if (index < 0) {
 
-        if (lib->l_types_builder->known_constants != NULL) {
-            x = PyDict_GetItem(lib->l_types_builder->known_constants, name);
-            if (x != NULL) {
-                Py_INCREF(x);
-                goto found;
-            }
-        }
-
         if (lib->l_includes != NULL) {
             Py_ssize_t i;
 
@@ -232,7 +224,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
     {
         /* a constant integer whose value, in an "unsigned long long",
            is obtained by calling the function at g->address */
-        x = realize_global_int(g);
+        x = realize_global_int(lib->l_types_builder, index);
         break;
     }
 

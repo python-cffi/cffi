@@ -370,16 +370,21 @@ static int parse_sequel(token_t *tok, int outer)
                     g = &tok->info->ctx->globals[gindex];
                     if (_CFFI_GETOP(g->type_op) == _CFFI_OP_CONSTANT_INT ||
                         _CFFI_GETOP(g->type_op) == _CFFI_OP_ENUM) {
-                        unsigned long long value;
-                        int neg = ((int(*)(unsigned long long*))g->address)
-                            (&value);
-                        if (!neg && value > MAX_SSIZE_T)
+                        struct _cffi_getconst_s gc;
+                        gc.ctx = tok->info->ctx;
+                        gc.gindex = gindex;
+                        int neg = ((int(*)(struct _cffi_getconst_s*))g->address)
+                            (&gc);
+                        if (neg == 0 && gc.value > MAX_SSIZE_T)
                             return parse_error(tok,
                                                "integer constant too large");
-                        if (!neg || value == 0) {
-                            length = (size_t)value;
+                        if (neg == 0 || gc.value == 0) {
+                            length = (size_t)gc.value;
                             break;
                         }
+                        if (neg != 1)
+                            return parse_error(tok, "disagreement about"
+                                               " this constant's value");
                     }
                 }
                 /* fall-through to the default case */

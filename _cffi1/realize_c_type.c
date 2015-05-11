@@ -3,7 +3,6 @@ typedef struct {
     struct _cffi_type_context_s ctx;   /* inlined substructure */
     PyObject *types_dict;
     PyObject *included_ffis;
-    PyObject *known_constants;
     PyObject *_keepalive1;
     PyObject *_keepalive2;
 } builder_c_t;
@@ -73,7 +72,6 @@ static void free_builder_c(builder_c_t *builder, int ctx_is_static)
     }
     Py_XDECREF(builder->included_ffis);
     Py_XDECREF(builder->types_dict);
-    Py_XDECREF(builder->known_constants);
     Py_XDECREF(builder->_keepalive1);
     Py_XDECREF(builder->_keepalive2);
 }
@@ -92,7 +90,6 @@ static int init_builder_c(builder_c_t *builder,
 
     builder->types_dict = ldict;
     builder->included_ffis = NULL;
-    builder->known_constants = NULL;
     builder->_keepalive1 = NULL;
     builder->_keepalive2 = NULL;
     return 0;
@@ -170,13 +167,22 @@ static PyObject *build_primitive_type(int num)
     return x;
 }
 
-static PyObject *realize_global_int(const struct _cffi_global_s *g)
+static PyObject *realize_global_int(builder_c_t *builder, int gindex)
 {
+    int neg;
     char got[64];
     unsigned long long value;
+    struct _cffi_getconst_s gc;
+    const struct _cffi_global_s *g = &builder->ctx.globals[gindex];
+    gc.ctx = &builder->ctx;
+    gc.gindex = gindex;
     /* note: we cast g->address to this function type; we do the same
-       in parse_c_type:parse_sequel() too */
-    int neg = ((int(*)(unsigned long long*))g->address)(&value);
+       in parse_c_type:parse_sequel() too.  Note that the called function
+       may be declared simply with "unsigned long long *" as argument,
+       which is fine as it is the first field in _cffi_getconst_s. */
+    assert(&gc.value == (unsigned long long *)&gc);
+    neg = ((int(*)(struct _cffi_getconst_s *))g->address)(&gc);
+    value = gc.value;
 
     switch (neg) {
 
@@ -440,7 +446,6 @@ realize_c_type_or_func(builder_c_t *builder,
             PyObject *enumerators = NULL, *enumvalues = NULL, *tmp;
             Py_ssize_t i, j, n = 0;
             const char *p;
-            const struct _cffi_global_s *g;
             int gindex;
             PyObject *args;
             PyObject *basetd = get_primitive_type(e->type_prim);
@@ -474,10 +479,10 @@ realize_c_type_or_func(builder_c_t *builder,
 
                 gindex = search_in_globals(&builder->ctx, p, j);
                 assert(gindex >= 0);
-                g = &builder->ctx.globals[gindex];
-                assert(g->type_op == _CFFI_OP(_CFFI_OP_ENUM, -1));
+                assert(builder->ctx.globals[gindex].type_op ==
+                       _CFFI_OP(_CFFI_OP_ENUM, -1));
 
-                tmp = realize_global_int(g);
+                tmp = realize_global_int(builder, gindex);
                 if (tmp == NULL)
                     break;
                 PyTuple_SET_ITEM(enumvalues, i, tmp);
