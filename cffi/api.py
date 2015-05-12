@@ -484,7 +484,7 @@ class FFI(object):
         self._recompiler_module_name = str(module_name)
         self._assigned_source = (source, kwds)
 
-    def distutils_extension(self, tmpdir='build'):
+    def distutils_extension(self, tmpdir='build', verbose=True):
         from distutils.dir_util import mkpath
         from _cffi1 import recompile
         #
@@ -498,8 +498,11 @@ class FFI(object):
         ext, updated = recompile(self, self._recompiler_module_name,
                                  source, tmpdir=tmpdir,
                                  call_c_compiler=False, **kwds)
-        if updated:
-            sys.stderr.write("generated %r\n" % (ext.sources[0],))
+        if verbose:
+            if updated:
+                sys.stderr.write("regenerated: %r\n" % (ext.sources[0],))
+            else:
+                sys.stderr.write("not modified: %r\n" % (ext.sources[0],))
         return ext
 
     def emit_c_code(self, filename):
