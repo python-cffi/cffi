@@ -2210,3 +2210,15 @@ def test_define_wrong_value():
     ffi.cdef("#define FOO 123")
     e = py.test.raises(VerificationError, ffi.verify, "#define FOO 124")
     assert str(e.value).endswith("FOO has the real value 124, not 123")
+
+def test_static_const_int_known_value():
+    ffi = FFI()
+    ffi.cdef("static const int FOO = 0x123;")
+    lib = ffi.verify("#define FOO 0x123")
+    assert lib.FOO == 0x123
+
+def test_static_const_int_wrong_value():
+    ffi = FFI()
+    ffi.cdef("static const int FOO = 123;")
+    e = py.test.raises(VerificationError, ffi.verify, "#define FOO 124")
+    assert str(e.value).endswith("FOO has the real value 124, not 123")
