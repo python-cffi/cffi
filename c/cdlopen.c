@@ -193,18 +193,21 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
         nintconsts = (cdl_intconst_t *)(nglobs + n);
 
         for (i = 0; i < n; i++) {
-            char *g = PyString_AS_STRING(PyTuple_GET_ITEM(globals, i * 2));
+            char *g = PyBytes_AS_STRING(PyTuple_GET_ITEM(globals, i * 2));
             nglobs[i].type_op = cdl_opcode(g); g += 4;
             nglobs[i].name = g;
             if (_CFFI_GETOP(nglobs[i].type_op) == _CFFI_OP_CONSTANT_INT ||
                 _CFFI_GETOP(nglobs[i].type_op) == _CFFI_OP_ENUM) {
                 PyObject *o = PyTuple_GET_ITEM(globals, i * 2 + 1);
                 nglobs[i].address = &_cdl_realize_global_int;
+#if PY_MAJOR_VERSION < 3
                 if (PyInt_Check(o)) {
                     nintconsts[i].neg = PyInt_AS_LONG(o) <= 0;
                     nintconsts[i].value = (long long)PyInt_AS_LONG(o);
                 }
-                else {
+                else
+#endif
+                {
                     nintconsts[i].neg = PyObject_RichCompareBool(o, Py_False,
                                                                  Py_LE);
                     nintconsts[i].value = PyLong_AsUnsignedLongLongMask(o);
@@ -244,7 +247,7 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
             /* 'desc' is the tuple of strings (desc_struct, desc_field_1, ..) */
             PyObject *desc = PyTuple_GET_ITEM(struct_unions, i);
             Py_ssize_t j, nf1 = PyTuple_GET_SIZE(desc) - 1;
-            char *s = PyString_AS_STRING(PyTuple_GET_ITEM(desc, 0));
+            char *s = PyBytes_AS_STRING(PyTuple_GET_ITEM(desc, 0));
             /* 's' is the first string, describing the struct/union */
             nstructs[i].type_index = cdl_4bytes(s); s += 4;
             nstructs[i].flags = cdl_4bytes(s); s += 4;
@@ -263,7 +266,7 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
                 nstructs[i].num_fields = nf1;
             }
             for (j = 0; j < nf1; j++) {
-                char *f = PyString_AS_STRING(PyTuple_GET_ITEM(desc, j + 1));
+                char *f = PyBytes_AS_STRING(PyTuple_GET_ITEM(desc, j + 1));
                 /* 'f' is one of the other strings beyond the first one,
                    describing one field each */
                 nfields[nf].field_type_op = cdl_opcode(f); f += 4;
@@ -293,7 +296,7 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
         nenums = (struct _cffi_enum_s *)building;
 
         for (i = 0; i < n; i++) {
-            char *e = PyString_AS_STRING(PyTuple_GET_ITEM(enums, i));
+            char *e = PyBytes_AS_STRING(PyTuple_GET_ITEM(enums, i));
             /* 'e' is a string describing the enum */
             nenums[i].type_index = cdl_4bytes(e); e += 4;
             nenums[i].type_prim = cdl_4bytes(e); e += 4;
@@ -319,7 +322,7 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
         ntypenames = (struct _cffi_typename_s *)building;
 
         for (i = 0; i < n; i++) {
-            char *t = PyString_AS_STRING(PyTuple_GET_ITEM(typenames, i));
+            char *t = PyBytes_AS_STRING(PyTuple_GET_ITEM(typenames, i));
             /* 't' is a string describing the typename */
             ntypenames[i].type_index = cdl_4bytes(t); t += 4;
             ntypenames[i].name = t;

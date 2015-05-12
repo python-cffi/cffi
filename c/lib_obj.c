@@ -463,8 +463,8 @@ static PyObject *address_of_global_var(PyObject *args)
         return NULL;
 
     /* rebuild a string from 'varname', to do typechecks and to force
-       a unicode back to a plain string */
-    o_varname = PyString_FromString(varname);
+       a unicode back to a plain string (on python 2) */
+    o_varname = PyText_FromString(varname);
     if (o_varname == NULL)
         return NULL;
 
