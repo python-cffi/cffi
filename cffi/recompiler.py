@@ -6,6 +6,7 @@ from .cffi_opcode import *
 class Recompiler:
 
     def __init__(self, ffi, module_name):
+        assert isinstance(module_name, bytes)
         self.ffi = ffi
         self.module_name = module_name
 
@@ -118,7 +119,7 @@ class Recompiler:
         g.close()
         return lines
 
-    def write_source_to_f(self, f, preamble):
+    def write_c_source_to_f(self, f, preamble):
         self._f = f
         prnt = self._prnt
         #
@@ -263,6 +264,35 @@ class Recompiler:
         prnt('}')
         prnt('#endif')
         self.ffi._recompiler_module_name = self.module_name
+
+    def _to_py(self, x):
+        if isinstance(x, bytes):
+            r = repr(x)
+            if not r.startswith('b'):
+                r = 'b' + r
+            return r
+        raise TypeError(type(x).__name__)
+
+    def write_py_source_to_f(self, f):
+        self._f = f
+        prnt = self._prnt
+        #
+        # header
+        prnt("# auto-generated file")
+        prnt("import _cffi_backend")
+        prnt()
+        prnt("ffi = _cffi_backend.FFI(%s," % (self._to_py(self.module_name),))
+        #
+        # the '_types' keyword argument
+        self.cffi_types = tuple(self.cffi_types)    # don't change any more
+        types_lst = [op.as_bytes() for op in self.cffi_types]
+        prnt('    _types = %s,' % (self._to_py(''.join(types_lst)),))
+        typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
+        #
+        #.......
+        #
+        # the footer
+        prnt(')')
 
     # ----------
 
@@ -897,21 +927,31 @@ else:
                 s = s.encode('ascii')
             super(NativeIO, self).write(s)
 
-def make_c_source(ffi, module_name, preamble, target_c_file):
+def _make_c_or_py_source(ffi, module_name, preamble, target_file):
     recompiler = Recompiler(ffi, module_name)
     recompiler.collect_type_table()
     f = NativeIO()
-    recompiler.write_source_to_f(f, preamble)
+    if preamble is not None:
+        recompiler.write_c_source_to_f(f, preamble)
+    else:
+        recompiler.write_py_source_to_f(f)
     output = f.getvalue()
     try:
-        with open(target_c_file, 'r') as f1:
+        with open(target_file, 'r') as f1:
             if f1.read(len(output) + 1) != output:
                 raise IOError
         return False     # already up-to-date
     except IOError:
-        with open(target_c_file, 'w') as f1:
+        with open(target_file, 'w') as f1:
             f1.write(output)
         return True
+
+def make_c_source(ffi, module_name, preamble, target_c_file):
+    assert preamble is not None
+    return _make_c_or_py_source(ffi, module_name, preamble, target_c_file)
+
+def make_py_source(ffi, module_name, target_py_file):
+    return _make_c_or_py_source(ffi, module_name, None, target_py_file)
 
 def _get_extension(module_name, c_file, kwds):
     source_name = ffiplatform.maybe_relative_path(c_file)

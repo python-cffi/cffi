@@ -1,57 +1,18 @@
 import py
-py.test.skip("later")
+from cffi import FFI
+from cffi.recompiler import make_py_source
+from testing.udir import udir
 
-from cffi1 import FFI
-import math
 
-
-def test_cdef_struct():
+def test_simple():
     ffi = FFI()
-    ffi.cdef("struct foo_s { int a, b; };")
-    assert ffi.sizeof("struct foo_s") == 8
+    ffi.cdef("int close(int); static const int BB = 42;")
+    target = udir.join('test_simple.py')
+    assert make_py_source(ffi, 'test_simple', str(target))
+    assert target.read() == r"""# auto-generated file
+import _cffi_backend
 
-def test_cdef_union():
-    ffi = FFI()
-    ffi.cdef("union foo_s { int a, b; };")
-    assert ffi.sizeof("union foo_s") == 4
-
-def test_cdef_struct_union():
-    ffi = FFI()
-    ffi.cdef("union bar_s { int a; }; struct foo_s { int b; };")
-    assert ffi.sizeof("union bar_s") == 4
-    assert ffi.sizeof("struct foo_s") == 4
-
-def test_cdef_struct_typename_1():
-    ffi = FFI()
-    ffi.cdef("typedef struct { int a; } t1; typedef struct { t1* m; } t2;")
-    assert ffi.sizeof("t2") == ffi.sizeof("void *")
-    assert ffi.sizeof("t1") == 4
-
-def test_cdef_struct_typename_2():
-    ffi = FFI()
-    ffi.cdef("typedef struct { int a; } *p1; typedef struct { p1 m; } *p2;")
-    p2 = ffi.new("p2")
-    assert ffi.sizeof(p2[0]) == ffi.sizeof("void *")
-    assert ffi.sizeof(p2[0].m) == ffi.sizeof("void *")
-
-def test_cdef_struct_anon_1():
-    ffi = FFI()
-    ffi.cdef("typedef struct { int a; } t1; struct foo_s { t1* m; };")
-    assert ffi.sizeof("struct foo_s") == ffi.sizeof("void *")
-
-def test_cdef_struct_anon_2():
-    ffi = FFI()
-    ffi.cdef("typedef struct { int a; } *p1; struct foo_s { p1 m; };")
-    assert ffi.sizeof("struct foo_s") == ffi.sizeof("void *")
-
-def test_cdef_struct_anon_3():
-    ffi = FFI()
-    ffi.cdef("typedef struct { int a; } **pp; struct foo_s { pp m; };")
-    assert ffi.sizeof("struct foo_s") == ffi.sizeof("void *")
-
-def test_math_sin():
-    ffi = FFI()
-    ffi.cdef("double sin(double);")
-    m = ffi.dlopen('m')
-    x = m.sin(1.23)
-    assert x == math.sin(1.23)
+ffi = _cffi_backend.FFI(b'test_simple',
+    _types = b'\x00\x00\x01\r\x00\x00\x07\x01\x00\x00\x00\x0f',
+)
+"""

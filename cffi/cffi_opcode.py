@@ -1,14 +1,21 @@
+import struct
 
 class CffiOp(object):
     def __init__(self, op, arg):
         self.op = op
         self.arg = arg
+
     def as_c_expr(self):
         if self.op is None:
             assert isinstance(self.arg, str)
             return '(_cffi_opcode_t)(%s)' % (self.arg,)
         classname = CLASS_NAME[self.op]
         return '_CFFI_OP(_CFFI_OP_%s, %d)' % (classname, self.arg)
+
+    def as_bytes(self):
+        assert self.op is not None
+        return struct.pack(">i", (self.arg << 8) | self.op)
+
     def __str__(self):
         classname = CLASS_NAME.get(self.op, self.op)
         return '(%s %s)' % (classname, self.arg)
