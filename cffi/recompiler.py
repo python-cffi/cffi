@@ -921,7 +921,7 @@ class Recompiler:
         else:
             size = 0
         self._lsts["global"].append(
-            GlobalExpr(name, '&%s' % name, type_op, size))
+            GlobalExpr(name, '&%s' % name, type_op, size, 0))
 
     # ----------
     # emitting the opcodes for individual types
