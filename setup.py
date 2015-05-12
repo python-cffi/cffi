@@ -23,6 +23,7 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
             raise
     else:
         t = p.stdout.read().decode().strip()
+        p.stdout.close()
         if p.wait() == 0:
             res = t.split()
             # '-I/usr/...' -> '/usr/...'
