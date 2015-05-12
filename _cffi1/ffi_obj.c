@@ -467,6 +467,9 @@ static PyObject *ffi_getctype(FFIObject *self, PyObject *args, PyObject *kwds)
     CTypeDescrObject *ct;
     size_t replace_with_len;
     static char *keywords[] = {"cdecl", "replace_with", NULL};
+#if PY_MAJOR_VERSION >= 3
+    PyObject *u;
+#endif
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s:getctype", keywords,
                                      &c_decl, &replace_with))
@@ -502,9 +505,9 @@ static PyObject *ffi_getctype(FFIObject *self, PyObject *args, PyObject *kwds)
 
 #if PY_MAJOR_VERSION >= 3
     /* bytes -> unicode string */
-    PyObject *u = PyUnicode_DecodeLatin1(PyBytes_AS_STRING(res),
-                                         PyBytes_GET_SIZE(res),
-                                         NULL);
+    u = PyUnicode_DecodeLatin1(PyBytes_AS_STRING(res),
+                               PyBytes_GET_SIZE(res),
+                               NULL);
     Py_DECREF(res);
     res = u;
 #endif
