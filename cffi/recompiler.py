@@ -888,10 +888,14 @@ class Recompiler:
         self._generate_cpy_const(True, name, check_value=check_value)
 
     def _generate_cpy_macro_ctx(self, tp, name):
+        if tp == '...':
+            check_value = None
+        else:
+            check_value = tp     # an integer
         type_op = CffiOp(OP_CONSTANT_INT, -1)
         self._lsts["global"].append(
             GlobalExpr(name, '_cffi_const_%s' % name, type_op,
-                       check_value=tp))
+                       check_value=check_value))
 
     # ----------
     # global variables

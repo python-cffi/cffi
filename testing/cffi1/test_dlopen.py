@@ -28,3 +28,14 @@ def test_invalid_global_constant():
         "ffi.dlopen() will not be able to figure out "
         "the value of constant 'BB' (only integer constants are "
         "supported, and only if their value are specified in the cdef)")
+
+def test_invalid_dotdotdot_in_macro():
+    ffi = FFI()
+    ffi.cdef("#define FOO ...")
+    target = udir.join('test_invalid_dotdotdot_in_macro.py')
+    e = py.test.raises(VerificationError, make_py_source, ffi,
+                       'test_invalid_dotdotdot_in_macro', str(target))
+    assert str(e.value) == (
+        "ffi.dlopen() will not be able to figure out "
+        "the value of constant 'FOO' (only integer constants are "
+        "supported, and only if their value are specified in the cdef)")
