@@ -747,7 +747,7 @@ class Recompiler:
 
     def _generate_cpy_constant_ctx(self, tp, name):
         if isinstance(tp, model.PrimitiveType) and tp.is_integer_type():
-            type_op = '_CFFI_OP(_CFFI_OP_CONSTANT_INT, 0)'
+            type_op = '_CFFI_OP(_CFFI_OP_CONSTANT_INT, -1)'
         else:
             type_index = self._typesdict[tp]
             type_op = '_CFFI_OP(_CFFI_OP_CONSTANT, %d)' % type_index
@@ -803,7 +803,7 @@ class Recompiler:
     def _generate_cpy_macro_ctx(self, tp, name):
         self._lsts["global"].append(
             '  { "%s", _cffi_const_%s,'
-            ' _CFFI_OP(_CFFI_OP_CONSTANT_INT, 0), 0 },' % (name, name))
+            ' _CFFI_OP(_CFFI_OP_CONSTANT_INT, -1), 0 },' % (name, name))
 
     # ----------
     # global variables
