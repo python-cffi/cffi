@@ -2,6 +2,11 @@ import os, sys, io
 from cffi import ffiplatform, model
 from .cffi_opcode import *
 
+try:
+    int_type = (int, long)
+except NameError:    # Python 3
+    int_type = int
+
 
 class GlobalExpr:
     def __init__(self, name, address, type_op, size=0, check_value=None):
@@ -16,7 +21,7 @@ class GlobalExpr:
             self.name, self.address, self.type_op.as_c_expr(), self.size)
 
     def as_python_expr(self):
-        if self.check_value is None:
+        if not isinstance(self.check_value, int_type):
             raise ffiplatform.VerificationError(
                 "ffi.dlopen() will not be able to figure out the value of "
                 "constant %r (only integer constants are supported, and only "
@@ -34,6 +39,30 @@ class TypenameExpr:
 
     def as_python_expr(self):
         return "b'%s%s'" % (format_four_bytes(self.type_index), self.name)
+
+class EnumExpr:
+    def __init__(self, name, type_index, size, signed, allenums):
+        self.name = name
+        self.type_index = type_index
+        self.size = size
+        self.signed = signed
+        self.allenums = allenums
+
+    def as_c_expr(self):
+        return ('  { "%s", %d, _cffi_prim_int(%s, %s),\n'
+                '    "%s" },' % (self.name, self.type_index,
+                                 self.size, self.signed, self.allenums))
+
+    def as_python_expr(self):
+        prim_index = {
+            (1, 0): PRIM_UINT8,  (1, 1):  PRIM_INT8,
+            (2, 0): PRIM_UINT16, (2, 1):  PRIM_INT16,
+            (4, 0): PRIM_UINT32, (4, 1):  PRIM_INT32,
+            (8, 0): PRIM_UINT64, (8, 1):  PRIM_INT64,
+            }[self.size, self.signed]
+        return "b'%s%s%s\\x00%s'" % (format_four_bytes(self.type_index),
+                                     format_four_bytes(prim_index),
+                                     self.name, self.allenums)
 
 
 class Recompiler:
@@ -167,7 +196,7 @@ class Recompiler:
         lst = self._lsts["enum"]
         for tp, i in self._enums.items():
             assert i < len(lst)
-            assert lst[i].startswith('  { "%s"' % tp.name)
+            assert lst[i].name == tp.name
         assert len(lst) == len(self._enums)
 
     # ----------
@@ -855,11 +884,12 @@ class Recompiler:
     def _enum_ctx(self, tp, cname):
         type_index = self._typesdict[tp]
         type_op = CffiOp(OP_ENUM, -1)
-        for enumerator in tp.enumerators:
+        for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
             self._lsts["global"].append(
-                GlobalExpr(enumerator, '_cffi_const_%s' % enumerator, type_op))
+                GlobalExpr(enumerator, '_cffi_const_%s' % enumerator, type_op,
+                           check_value=enumvalue))
         #
-        if cname is not None and '$' not in cname:
+        if cname is not None and '$' not in cname and not self.target_is_python:
             size = "sizeof(%s)" % cname
             signed = "((%s)-1) <= 0" % cname
         else:
@@ -868,8 +898,7 @@ class Recompiler:
             signed = int(int(self.ffi.cast(basetp, -1)) < 0)
         allenums = ",".join(tp.enumerators)
         self._lsts["enum"].append(
-            '  { "%s", %d, _cffi_prim_int(%s, %s),\n'
-            '    "%s" },' % (tp.name, type_index, size, signed, allenums))
+            EnumExpr(tp.name, type_index, size, signed, allenums))
 
     def _generate_cpy_enum_ctx(self, tp, name):
         self._enum_ctx(tp, tp._get_c_name())

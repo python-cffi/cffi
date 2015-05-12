@@ -53,3 +53,18 @@ ffi = _cffi_backend.FFI(b'test_typename',
     _typenames = (b'\x00\x00\x00\x00foobar_t',),
 )
 """
+
+def test_enum():
+    ffi = FFI()
+    ffi.cdef("enum myenum_e { AA, BB, CC=-42 };")
+    target = udir.join('test_enum.py')
+    assert make_py_source(ffi, 'test_enum', str(target))
+    assert target.read() == r"""# auto-generated file
+import _cffi_backend
+
+ffi = _cffi_backend.FFI(b'test_enum',
+    _types = b'\x00\x00\x00\x0B',
+    _globals = (b'\xFF\xFF\xFF\x0BAA',0,b'\xFF\xFF\xFF\x0BBB',1,b'\xFF\xFF\xFF\x0BCC',-42),
+    _enums = (b'\x00\x00\x00\x00\x00\x00\x00\x15myenum_e\x00AA,BB,CC',),
+)
+"""
