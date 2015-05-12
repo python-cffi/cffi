@@ -39,3 +39,17 @@ def test_invalid_dotdotdot_in_macro():
         "ffi.dlopen() will not be able to figure out "
         "the value of constant 'FOO' (only integer constants are "
         "supported, and only if their value are specified in the cdef)")
+
+def test_typename():
+    ffi = FFI()
+    ffi.cdef("typedef int foobar_t;")
+    target = udir.join('test_typename.py')
+    assert make_py_source(ffi, 'test_typename', str(target))
+    assert target.read() == r"""# auto-generated file
+import _cffi_backend
+
+ffi = _cffi_backend.FFI(b'test_typename',
+    _types = b'\x00\x00\x07\x01',
+    _typenames = (b'\x00\x00\x00\x00foobar_t',),
+)
+"""
