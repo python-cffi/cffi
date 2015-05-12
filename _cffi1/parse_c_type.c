@@ -370,10 +370,11 @@ static int parse_sequel(token_t *tok, int outer)
                     g = &tok->info->ctx->globals[gindex];
                     if (_CFFI_GETOP(g->type_op) == _CFFI_OP_CONSTANT_INT ||
                         _CFFI_GETOP(g->type_op) == _CFFI_OP_ENUM) {
+                        int neg;
                         struct _cffi_getconst_s gc;
                         gc.ctx = tok->info->ctx;
                         gc.gindex = gindex;
-                        int neg = ((int(*)(struct _cffi_getconst_s*))g->address)
+                        neg = ((int(*)(struct _cffi_getconst_s*))g->address)
                             (&gc);
                         if (neg == 0 && gc.value > MAX_SSIZE_T)
                             return parse_error(tok,
