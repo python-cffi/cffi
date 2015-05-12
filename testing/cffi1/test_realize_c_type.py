@@ -1,4 +1,5 @@
 import py
+from cffi import cffi_opcode
 
 
 def check(input, expected_output=None, expected_ffi_error=False):
@@ -43,6 +44,5 @@ def test_funcptr_rewrite_args():
     check("int(*)(long[5])", "int(*)(long *)")
 
 def test_all_primitives():
-    from . import cffi_opcode
     for name in cffi_opcode.PRIMITIVE_TO_INDEX:
         check(name, name)

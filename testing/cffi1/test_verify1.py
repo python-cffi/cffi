@@ -1,7 +1,7 @@
 import sys, math, py
 from cffi import FFI, VerificationError, VerificationMissing, model
-from . import recompiler
-from .support import *
+from cffi import recompiler
+from testing.support import *
 import _cffi_backend
 
 lib_m = ['m']
@@ -29,10 +29,10 @@ class FFI(FFI):
 
     def verify(self, preamble='', *args, **kwds):
         FFI._verify_counter += 1
-        return recompiler.verify(self, 'verify%d' % FFI._verify_counter,
-                                 preamble, *args,
-                                 extra_compile_args=self._extra_compile_args,
-                                 **kwds)
+        return recompiler._verify(self, 'verify%d' % FFI._verify_counter,
+                                  preamble, *args,
+                                  extra_compile_args=self._extra_compile_args,
+                                  **kwds)
 
 class FFI_warnings_not_error(FFI):
     _extra_compile_args = []

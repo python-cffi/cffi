@@ -1,13 +1,13 @@
 import sys, re, os, py
 import cffi
-from . import cffi_opcode
+from cffi import cffi_opcode
 
-local_dir = os.path.dirname(__file__)
+cffi_dir = os.path.dirname(cffi_opcode.__file__)
 
 r_macro = re.compile(r"#define \w+[(][^\n]*|#include [^\n]*")
 r_define = re.compile(r"(#define \w+) [^\n]*")
 r_ifdefs = re.compile(r"(#ifdef |#endif)[^\n]*")
-header = open(os.path.join(local_dir, 'parse_c_type.h')).read()
+header = open(os.path.join(cffi_dir, 'parse_c_type.h')).read()
 header = r_macro.sub(r"", header)
 header = r_define.sub(r"\1 ...", header)
 header = r_ifdefs.sub(r"", header)
@@ -15,8 +15,9 @@ header = r_ifdefs.sub(r"", header)
 ffi = cffi.FFI()
 ffi.cdef(header)
 
-lib = ffi.verify(open(os.path.join(local_dir, 'parse_c_type.c')).read(),
-                 include_dirs=[local_dir])
+lib = ffi.verify(
+        open(os.path.join(cffi_dir, '..', 'c', 'parse_c_type.c')).read(),
+        include_dirs=[cffi_dir])
 
 class ParseError(Exception):
     pass

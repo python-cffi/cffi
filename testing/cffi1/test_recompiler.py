@@ -1,8 +1,8 @@
 import sys, os, py
 from cffi import FFI, VerificationError
-from _cffi1 import recompiler
-from _cffi1.udir import udir
-from _cffi1.support import u
+from cffi import recompiler
+from testing.udir import udir
+from testing.support import u
 
 
 def check_type_table(input, expected_output, included=None):
@@ -18,7 +18,7 @@ def check_type_table(input, expected_output, included=None):
 
 def verify(ffi, module_name, *args, **kwds):
     kwds.setdefault('undef_macros', ['NDEBUG'])
-    return recompiler.verify(ffi, '_CFFI_' + module_name, *args, **kwds)
+    return recompiler._verify(ffi, '_CFFI_' + module_name, *args, **kwds)
 
 
 def test_type_table_func():

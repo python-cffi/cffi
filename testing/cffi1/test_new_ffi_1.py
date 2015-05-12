@@ -2,9 +2,10 @@ import py
 import platform, imp
 import sys, os, ctypes
 import cffi
-from .udir import udir
-from .recompiler import recompile
-from .support import *
+from testing.udir import udir
+from testing.support import *
+from cffi.recompiler import recompile
+from cffi.cffi_opcode import PRIMITIVE_TO_INDEX
 
 SIZE_OF_INT   = ctypes.sizeof(ctypes.c_int)
 SIZE_OF_LONG  = ctypes.sizeof(ctypes.c_long)
@@ -1596,7 +1597,6 @@ class TestNewFFI1:
         assert list(a) == [10000, 20500, 30000]
 
     def test_all_primitives(self):
-        from .cffi_opcode import PRIMITIVE_TO_INDEX
         assert set(PRIMITIVE_TO_INDEX) == set([
             "char",
             "short",

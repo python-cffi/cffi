@@ -933,8 +933,9 @@ def recompile(ffi, module_name, preamble, tmpdir='.',
     else:
         return ext, updated
 
-def verify(ffi, module_name, preamble, *args, **kwds):
-    from _cffi1.udir import udir
+def _verify(ffi, module_name, preamble, *args, **kwds):
+    # FOR TESTS ONLY
+    from testing.udir import udir
     import imp
     assert module_name not in sys.modules, "module name conflict: %r" % (
         module_name,)

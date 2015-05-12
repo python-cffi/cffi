@@ -5764,7 +5764,7 @@ static PyObject *b__testbuff(PyObject *self, PyObject *args)
 }
 
 static PyObject *b_init_cffi_1_0_external_module(PyObject *, PyObject *);
-/* forward, see _cffi1/cffi1_module.c */
+/* forward, see cffi1_module.c */
 
 
 static PyMethodDef FFIBackendMethods[] = {
@@ -5948,7 +5948,7 @@ static void *cffi_exports[] = {
 
 /************************************************************/
 
-#include "../_cffi1/cffi1_module.c"
+#include "cffi1_module.c"
 
 /************************************************************/
 

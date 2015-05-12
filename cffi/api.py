@@ -486,7 +486,7 @@ class FFI(object):
 
     def distutils_extension(self, tmpdir='build', verbose=True):
         from distutils.dir_util import mkpath
-        from _cffi1 import recompile
+        from .recompiler import recompile
         #
         if not hasattr(self, '_assigned_source'):
             if hasattr(self, 'verifier'):     # fallback, 'tmpdir' ignored
@@ -506,7 +506,7 @@ class FFI(object):
         return ext
 
     def emit_c_code(self, filename):
-        from _cffi1 import recompile
+        from .recompiler import recompile
         #
         if not hasattr(self, '_assigned_source'):
             raise ValueError("set_source() must be called before emit_c_code()")
@@ -515,7 +515,7 @@ class FFI(object):
                   c_file=filename, call_c_compiler=False, **kwds)
 
     def compile(self, tmpdir='.'):
-        from _cffi1 import recompile
+        from .recompiler import recompile
         #
         if not hasattr(self, '_assigned_source'):
             raise ValueError("set_source() must be called before compile()")
