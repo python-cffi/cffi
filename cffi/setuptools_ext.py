@@ -12,7 +12,7 @@ def error(msg):
 def add_cffi_module(dist, mod_spec):
     import os
     from cffi.api import FFI
-    from _cffi1 import recompiler
+    from cffi import recompiler
     from distutils.core import Extension
     from distutils.command.build_ext import build_ext
     from distutils.dir_util import mkpath

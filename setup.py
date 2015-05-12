@@ -143,9 +143,9 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='1.0.0b2',
-        packages=['cffi', '_cffi1'],
-        package_data={'_cffi1': ['_cffi_include.h', 'parse_c_type.h']},
+        version='1.0.0',
+        packages=['cffi'],
+        package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h']},
         zip_safe=False,
 
         url='http://cffi.readthedocs.org',
@@ -162,7 +162,7 @@ Contact
 
         entry_points = {
             "distutils.setup_keywords": [
-                "cffi_modules = _cffi1.setuptools_ext:cffi_modules",
+                "cffi_modules = cffi.setuptools_ext:cffi_modules",
             ],
         },
 
