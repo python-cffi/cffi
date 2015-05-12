@@ -4,7 +4,7 @@ from .cffi_opcode import *
 
 
 class GlobalExpr:
-    def __init__(self, name, address, type_op, size=0, check_value=0):
+    def __init__(self, name, address, type_op, size=0, check_value=None):
         self.name = name
         self.address = address
         self.type_op = type_op
@@ -16,6 +16,11 @@ class GlobalExpr:
             self.name, self.address, self.type_op.as_c_expr(), self.size)
 
     def as_python_expr(self):
+        if self.check_value is None:
+            raise ffiplatform.VerificationError(
+                "ffi.dlopen() will not be able to figure out the value of "
+                "constant %r (only integer constants are supported, and only "
+                "if their value are specified in the cdef)" % (self.name,))
         return "b'%s%s',%d" % (self.type_op.as_bytes(), self.name,
                                self.check_value)
 
@@ -592,7 +597,7 @@ class Recompiler:
             meth_kind = OP_CPYTHON_BLTN_V   # 'METH_VARARGS'
         self._lsts["global"].append(
             GlobalExpr(name, '_cffi_f_%s' % name,
-                       CffiOp(meth_kind, type_index)))
+                       CffiOp(meth_kind, type_index), check_value=0))
 
     # ----------
     # named structs or unions
