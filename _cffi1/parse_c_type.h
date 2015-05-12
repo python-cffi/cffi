@@ -1,4 +1,6 @@
 
+/* See doc/parse_c_type.rst in the source of CFFI for more information */
+
 typedef void *_cffi_opcode_t;
 
 #define _CFFI_OP(opcode, arg)   (_cffi_opcode_t)(opcode | (((uintptr_t)(arg)) << 8))
