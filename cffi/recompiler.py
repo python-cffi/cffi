@@ -3,12 +3,40 @@ from cffi import ffiplatform, model
 from .cffi_opcode import *
 
 
+class GlobalExpr:
+    def __init__(self, name, address, type_op, size=0, check_value=0):
+        self.name = name
+        self.address = address
+        self.type_op = type_op
+        self.size = size
+        self.check_value = check_value
+
+    def as_c_expr(self):
+        return '  { "%s", %s, %s, %s },' % (
+            self.name, self.address, self.type_op.as_c_expr(), self.size)
+
+    def as_python_expr(self):
+        return "b'%s%s',%d" % (self.type_op.as_bytes(), self.name,
+                               self.check_value)
+
+class TypenameExpr:
+    def __init__(self, name, type_index):
+        self.name = name
+        self.type_index = type_index
+
+    def as_c_expr(self):
+        return '  { "%s", %d },' % (self.name, self.type_index)
+
+    def as_python_expr(self):
+        return "b'%s%s'" % (format_four_bytes(self.type_index), self.name)
+
+
 class Recompiler:
 
-    def __init__(self, ffi, module_name):
-        assert isinstance(module_name, bytes)
+    def __init__(self, ffi, module_name, target_is_python=False):
         self.ffi = ffi
         self.module_name = module_name
+        self.target_is_python = target_is_python
 
     def collect_type_table(self):
         self._typesdict = {}
@@ -66,6 +94,7 @@ class Recompiler:
         # consistency check
         for op in self.cffi_types:
             assert isinstance(op, CffiOp)
+        self.cffi_types = tuple(self.cffi_types)    # don't change any more
 
     def _do_collect_type(self, tp):
         if not isinstance(tp, model.BaseTypeByIdentity):
@@ -106,12 +135,48 @@ class Recompiler:
 
     # ----------
 
+    ALL_STEPS = ["global", "field", "struct_union", "enum", "typename"]
+
+    def collect_step_tables(self):
+        # collect the declarations for '_cffi_globals', '_cffi_typenames', etc.
+        self._lsts = {}
+        for step_name in self.ALL_STEPS:
+            self._lsts[step_name] = []
+        self._seen_struct_unions = set()
+        self._generate("ctx")
+        self._add_missing_struct_unions()
+        #
+        for step_name in self.ALL_STEPS:
+            lst = self._lsts[step_name]
+            lst.sort(key=lambda entry: entry.name)
+            self._lsts[step_name] = tuple(lst)    # don't change any more
+        #
+        # check for a possible internal inconsistency: _cffi_struct_unions
+        # should have been generated with exactly self._struct_unions
+        lst = self._lsts["struct_union"]
+        for tp, i in self._struct_unions.items():
+            assert i < len(lst)
+            assert lst[i].startswith('  { "%s"' % tp.name)
+        assert len(lst) == len(self._struct_unions)
+        # same with enums
+        lst = self._lsts["enum"]
+        for tp, i in self._enums.items():
+            assert i < len(lst)
+            assert lst[i].startswith('  { "%s"' % tp.name)
+        assert len(lst) == len(self._enums)
+
+    # ----------
+
     def _prnt(self, what=''):
         self._f.write(what + '\n')
 
-    def _gettypenum(self, type):
-        # a KeyError here is a bug.  please report it! :-)
-        return self._typesdict[type]
+    def write_source_to_f(self, f, preamble):
+        if self.target_is_python:
+            assert preamble is None
+            self.write_py_source_to_f(f)
+        else:
+            assert preamble is not None
+            self.write_c_source_to_f(f)
 
     def _rel_readlines(self, filename):
         g = open(os.path.join(os.path.dirname(__file__), filename), 'r')
@@ -139,7 +204,6 @@ class Recompiler:
         #
         # the declaration of '_cffi_types'
         prnt('static void *_cffi_types[] = {')
-        self.cffi_types = tuple(self.cffi_types)    # don't change any more
         typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
         for i, op in enumerate(self.cffi_types):
             comment = ''
@@ -157,43 +221,20 @@ class Recompiler:
         self._generate("decl")
         #
         # the declaration of '_cffi_globals' and '_cffi_typenames'
-        ALL_STEPS = ["global", "field", "struct_union", "enum", "typename"]
         nums = {}
-        self._lsts = {}
-        for step_name in ALL_STEPS:
-            self._lsts[step_name] = []
-        self._seen_struct_unions = set()
-        self._generate("ctx")
-        self._add_missing_struct_unions()
-        for step_name in ALL_STEPS:
+        for step_name in self.ALL_STEPS:
             lst = self._lsts[step_name]
             nums[step_name] = len(lst)
             if nums[step_name] > 0:
-                lst.sort()  # sort by name, which is at the start of each line
                 prnt('static const struct _cffi_%s_s _cffi_%ss[] = {' % (
                     step_name, step_name))
                 if step_name == 'field':
-                    self._fix_final_field_list(lst)
-                for line in lst:
-                    prnt(line)
-                if all(line.startswith('#') for line in lst):
-                    prnt('  { 0 }')
+                    XXXX
+                    lst = list(self._fix_final_field_list(lst))
+                for entry in lst:
+                    prnt(entry.as_c_expr())
                 prnt('};')
                 prnt()
-        #
-        # check for a possible internal inconsistency: _cffi_struct_unions
-        # should have been generated with exactly self._struct_unions
-        lst = self._lsts["struct_union"]
-        for tp, i in self._struct_unions.items():
-            assert i < len(lst)
-            assert lst[i].startswith('  { "%s"' % tp.name)
-        assert len(lst) == len(self._struct_unions)
-        # same with enums
-        lst = self._lsts["enum"]
-        for tp, i in self._enums.items():
-            assert i < len(lst)
-            assert lst[i].startswith('  { "%s"' % tp.name)
-        assert len(lst) == len(self._enums)
         #
         # the declaration of '_cffi_includes'
         if self.ffi._included_ffis:
@@ -211,12 +252,12 @@ class Recompiler:
         # the declaration of '_cffi_type_context'
         prnt('static const struct _cffi_type_context_s _cffi_type_context = {')
         prnt('  _cffi_types,')
-        for step_name in ALL_STEPS:
+        for step_name in self.ALL_STEPS:
             if nums[step_name] > 0:
                 prnt('  _cffi_%ss,' % step_name)
             else:
                 prnt('  NULL,  /* no %ss */' % step_name)
-        for step_name in ALL_STEPS:
+        for step_name in self.ALL_STEPS:
             if step_name != "field":
                 prnt('  %d,  /* num_%ss */' % (nums[step_name], step_name))
         if self.ffi._included_ffis:
@@ -266,12 +307,16 @@ class Recompiler:
         self.ffi._recompiler_module_name = self.module_name
 
     def _to_py(self, x):
+        if isinstance(x, str):
+            x = x.encode('ascii')
         if isinstance(x, bytes):
-            r = repr(x)
-            if not r.startswith('b'):
-                r = 'b' + r
-            return r
-        raise TypeError(type(x).__name__)
+            return "b'%s'" % (x,)
+        if isinstance(x, (list, tuple)):
+            rep = [self._to_py(item) for item in x]
+            if len(rep) == 1:
+                rep.append('')
+            return "(%s)" % (','.join(rep),)
+        return x.as_python_expr()
 
     def write_py_source_to_f(self, f):
         self._f = f
@@ -289,12 +334,19 @@ class Recompiler:
         prnt('    _types = %s,' % (self._to_py(''.join(types_lst)),))
         typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
         #
-        #.......
+        for step_name in self.ALL_STEPS:
+            lst = self._lsts[step_name]
+            if len(lst) > 0:
+                prnt('    _%ss = %s,' % (step_name, self._to_py(lst)))
         #
         # the footer
         prnt(')')
 
     # ----------
+
+    def _gettypenum(self, type):
+        # a KeyError here is a bug.  please report it! :-)
+        return self._typesdict[type]
 
     def _convert_funcarg_to_c(self, tp, fromvar, tovar, errcode):
         extraarg = ''
@@ -389,8 +441,7 @@ class Recompiler:
 
     def _typedef_ctx(self, tp, name):
         type_index = self._typesdict[tp]
-        self._lsts["typename"].append(
-            '  { "%s", %d },' % (name, type_index))
+        self._lsts["typename"].append(TypenameExpr(name, type_index))
 
     def _generate_cpy_typedef_ctx(self, tp, name):
         self._typedef_ctx(tp, name)
@@ -531,15 +582,17 @@ class Recompiler:
             return
         type_index = self._typesdict[tp.as_raw_function()]
         numargs = len(tp.args)
-        if numargs == 0:
-            meth_kind = 'N'   # 'METH_NOARGS'
+        if self.target_is_python:
+            meth_kind = OP_DLOPEN
+        elif numargs == 0:
+            meth_kind = OP_CPYTHON_BLTN_N   # 'METH_NOARGS'
         elif numargs == 1:
-            meth_kind = 'O'   # 'METH_O'
+            meth_kind = OP_CPYTHON_BLTN_O   # 'METH_O'
         else:
-            meth_kind = 'V'   # 'METH_VARARGS'
+            meth_kind = OP_CPYTHON_BLTN_V   # 'METH_VARARGS'
         self._lsts["global"].append(
-            '  { "%s", _cffi_f_%s, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_%s, %d), 0 },'
-            % (name, name, meth_kind, type_index))
+            GlobalExpr(name, '_cffi_f_%s' % name,
+                       CffiOp(meth_kind, type_index)))
 
     # ----------
     # named structs or unions
@@ -685,12 +738,12 @@ class Recompiler:
 
     def _fix_final_field_list(self, lst):
         count = 0
-        for i in range(len(lst)):
-            struct_fields = lst[i]
+        for struct_fields in lst:
             pname = struct_fields.split('\n')[0]
             define_macro = '#define _cffi_FIELDS_FOR_%s  %d' % (pname, count)
-            lst[i] = define_macro + struct_fields[len(pname):]
-            count += lst[i].count('\n  { "')
+            result = define_macro + struct_fields[len(pname):]
+            count += result.count('\n  { "')
+            yield result
 
     def _generate_cpy_struct_collecttype(self, tp, name):
         self._struct_collecttype(tp)
@@ -777,12 +830,12 @@ class Recompiler:
 
     def _generate_cpy_constant_ctx(self, tp, name):
         if isinstance(tp, model.PrimitiveType) and tp.is_integer_type():
-            type_op = '_CFFI_OP(_CFFI_OP_CONSTANT_INT, -1)'
+            type_op = CffiOp(OP_CONSTANT_INT, -1)
         else:
             type_index = self._typesdict[tp]
-            type_op = '_CFFI_OP(_CFFI_OP_CONSTANT, %d)' % type_index
+            type_op = CffiOp(OP_CONSTANT, type_index)
         self._lsts["global"].append(
-            '  { "%s", _cffi_const_%s, %s, 0 },' % (name, name, type_op))
+            GlobalExpr(name, '_cffi_const_%s' % name, type_op))
 
     # ----------
     # enums
@@ -796,11 +849,10 @@ class Recompiler:
 
     def _enum_ctx(self, tp, cname):
         type_index = self._typesdict[tp]
-        type_op = '_CFFI_OP(_CFFI_OP_ENUM, -1)'
+        type_op = CffiOp(OP_ENUM, -1)
         for enumerator in tp.enumerators:
             self._lsts["global"].append(
-                '  { "%s", _cffi_const_%s, %s, 0 },' %
-                (enumerator, enumerator, type_op))
+                GlobalExpr(enumerator, '_cffi_const_%s' % enumerator, type_op))
         #
         if cname is not None and '$' not in cname:
             size = "sizeof(%s)" % cname
@@ -831,9 +883,10 @@ class Recompiler:
         self._generate_cpy_const(True, name, check_value=check_value)
 
     def _generate_cpy_macro_ctx(self, tp, name):
+        type_op = CffiOp(OP_CONSTANT_INT, -1)
         self._lsts["global"].append(
-            '  { "%s", _cffi_const_%s,'
-            ' _CFFI_OP(_CFFI_OP_CONSTANT_INT, -1), 0 },' % (name, name))
+            GlobalExpr(name, '_cffi_const_%s' % name, type_op,
+                       check_value=tp))
 
     # ----------
     # global variables
@@ -853,13 +906,13 @@ class Recompiler:
     def _generate_cpy_variable_ctx(self, tp, name):
         tp = self._global_type(tp, name)
         type_index = self._typesdict[tp]
+        type_op = CffiOp(OP_GLOBAL_VAR, type_index)
         if tp.sizeof_enabled():
             size = "sizeof(%s)" % (name,)
         else:
-            size = "0"
+            size = 0
         self._lsts["global"].append(
-            '  { "%s", &%s, _CFFI_OP(_CFFI_OP_GLOBAL_VAR, %d), %s },'
-            % (name, name, type_index, size))
+            GlobalExpr(name, '&%s' % name, type_op, size))
 
     # ----------
     # emitting the opcodes for individual types
@@ -928,13 +981,12 @@ else:
             super(NativeIO, self).write(s)
 
 def _make_c_or_py_source(ffi, module_name, preamble, target_file):
-    recompiler = Recompiler(ffi, module_name)
+    recompiler = Recompiler(ffi, module_name,
+                            target_is_python=(preamble is None))
     recompiler.collect_type_table()
+    recompiler.collect_step_tables()
     f = NativeIO()
-    if preamble is not None:
-        recompiler.write_c_source_to_f(f, preamble)
-    else:
-        recompiler.write_py_source_to_f(f)
+    recompiler.write_source_to_f(f, preamble)
     output = f.getvalue()
     try:
         with open(target_file, 'r') as f1:

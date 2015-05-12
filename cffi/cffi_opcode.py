@@ -1,4 +1,3 @@
-import struct
 
 class CffiOp(object):
     def __init__(self, op, arg):
@@ -14,11 +13,18 @@ class CffiOp(object):
 
     def as_bytes(self):
         assert self.op is not None
-        return struct.pack(">i", (self.arg << 8) | self.op)
+        return format_four_bytes((self.arg << 8) | self.op)
 
     def __str__(self):
         classname = CLASS_NAME.get(self.op, self.op)
         return '(%s %s)' % (classname, self.arg)
+
+def format_four_bytes(num):
+    return '\\x%02X\\x%02X\\x%02X\\x%02X' % (
+        (num >> 24) & 0xFF,
+        (num >> 16) & 0xFF,
+        (num >>  8) & 0xFF,
+        (num      ) & 0xFF)
 
 OP_PRIMITIVE       = 1
 OP_POINTER         = 3
