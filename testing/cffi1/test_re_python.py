@@ -85,8 +85,8 @@ def test_opaque_struct():
 
 def test_nonopaque_struct():
     from re_python_pysrc import ffi
-    for p in [ffi.new("struct bar_s *", [5, "foobar"]),
-              ffi.new("bar_t *", [5, "foobar"])]:
+    for p in [ffi.new("struct bar_s *", [5, b"foobar"]),
+              ffi.new("bar_t *", [5, b"foobar"])]:
         assert p.x == 5
         assert p.a[0] == ord('f')
         assert p.a[5] == ord('r')
@@ -115,7 +115,7 @@ def test_include_1():
     assert lib.FOOBAZ == -43
     assert lib.k2 == 121212
     #
-    p = ffi.new("bar_t *", [5, "foobar"])
+    p = ffi.new("bar_t *", [5, b"foobar"])
     assert p.a[4] == ord('a')
 
 def test_global_var():

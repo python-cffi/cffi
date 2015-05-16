@@ -407,15 +407,13 @@ class Recompiler:
 
     def _to_py(self, x):
         if isinstance(x, str):
-            x = x.encode('ascii')
-        if isinstance(x, bytes):
             return "b'%s'" % (x,)
         if isinstance(x, (list, tuple)):
             rep = [self._to_py(item) for item in x]
             if len(rep) == 1:
                 rep.append('')
             return "(%s)" % (','.join(rep),)
-        return x.as_python_expr()
+        return x.as_python_expr()  # Py2: unicode unexpected; Py3: bytes unexp.
 
     def write_py_source_to_f(self, f):
         self._f = f
@@ -443,7 +441,7 @@ class Recompiler:
                     "ffi inside a Python-based ffi")
             prnt('from %s import ffi as _ffi%d' % (included_module_name, i))
         prnt()
-        prnt("ffi = _cffi_backend.FFI(%s," % (self._to_py(self.module_name),))
+        prnt("ffi = _cffi_backend.FFI('%s'," % (self.module_name,))
         #
         # the '_types' keyword argument
         self.cffi_types = tuple(self.cffi_types)    # don't change any more
