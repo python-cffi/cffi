@@ -12,6 +12,7 @@ def setup_module(mod):
     #define BIGPOS 420000000000L
     #define BIGNEG -420000000000L
     int add42(int x) { return x + 42; }
+    int globalvar42 = 1234;
     struct foo_s;
     typedef struct bar_s { int x; signed char a[]; } bar_t;
     enum foo_e { AA, BB, CC };
@@ -32,6 +33,7 @@ def setup_module(mod):
     #define BIGPOS 420000000000L
     #define BIGNEG -420000000000L
     int add42(int);
+    int globalvar42;
     struct foo_s;
     typedef struct bar_s { int x; signed char a[]; } bar_t;
     enum foo_e { AA, BB, CC };
@@ -54,9 +56,21 @@ def test_large_constant():
     assert ffi.integer_const('BIGNEG') == -420000000000
 
 def test_function():
+    import _cffi_backend
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
     assert lib.add42(-10) == 32
+    assert type(lib.add42) is _cffi_backend.FFI.CData
+
+def test_dlclose():
+    import _cffi_backend
+    from re_python_pysrc import ffi
+    lib = ffi.dlopen(extmod)
+    ffi.dlclose(lib)
+    e = py.test.raises(ffi.error, ffi.dlclose, lib)
+    assert str(e.value) == (
+        "library '%s' is already closed or was not created with ffi.dlopen()"
+        % (extmod,))
 
 def test_constant_via_lib():
     from re_python_pysrc import ffi
@@ -103,3 +117,13 @@ def test_include_1():
     #
     p = ffi.new("bar_t *", [5, "foobar"])
     assert p.a[4] == ord('a')
+
+def test_global_var():
+    from re_python_pysrc import ffi
+    lib = ffi.dlopen(extmod)
+    assert lib.globalvar42 == 1234
+    p = ffi.addressof(lib, 'globalvar42')
+    lib.globalvar42 += 5
+    assert p[0] == 1239
+    p[0] -= 1
+    assert lib.globalvar42 == 1238

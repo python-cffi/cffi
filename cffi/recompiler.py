@@ -706,7 +706,7 @@ class Recompiler:
         type_index = self._typesdict[tp.as_raw_function()]
         numargs = len(tp.args)
         if self.target_is_python:
-            meth_kind = OP_DLOPEN
+            meth_kind = OP_DLOPEN_FUNC
         elif numargs == 0:
             meth_kind = OP_CPYTHON_BLTN_N   # 'METH_NOARGS'
         elif numargs == 1:

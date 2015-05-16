@@ -139,6 +139,7 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
         return NULL;
     }
     memset((char *)xfunc, 0, sizeof(struct CPyExtFunc_s));
+    assert(g->address);
     xfunc->md.ml_meth = (PyCFunction)g->address;
     xfunc->md.ml_flags = flags;
     xfunc->md.ml_name = g->name;
@@ -250,6 +251,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         if (ct == NULL)
             return NULL;
 
+        assert(g->address);
         assert(ct->ct_size > 0);
         data = alloca(ct->ct_size);
         ((void(*)(char*))g->address)(data);
@@ -272,20 +274,22 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
             x = NULL;
         }
         else {
-            x = make_global_var(ct, g->address);
+            void *address = g->address;
+            if (address == NULL) {
+                /* for dlopen() style */
+                address = cdlopen_fetch(lib->l_libname, lib->l_libhandle, s);
+            }
+            x = make_global_var(ct, address);
         }
         Py_DECREF(ct);
         break;
 
-    case _CFFI_OP_DLOPEN:
+    case _CFFI_OP_DLOPEN_FUNC:
     {
-        /* For dlopen(): the function or global variable of the given
-           'name'.  We use dlsym() to get the address of something in
-           the dynamic library, which we interpret as being exactly of
-           the specified type.  If this type is a function (not a
-           function pointer), then we assume it is a regular function
-           in the dynamic library; otherwise, we assume it is a global
-           variable.
+        /* For dlopen(): the function of the given 'name'.  We use
+           dlsym() to get the address of something in the dynamic
+           library, which we interpret as being exactly a function of
+           the specified type.
         */
         PyObject *ct1;
         void *address = cdlopen_fetch(lib->l_libname, lib->l_libhandle, s);
@@ -298,10 +302,8 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         if (ct1 == NULL)
             return NULL;
 
-        if (CTypeDescr_Check(ct1))
-            x = make_global_var((CTypeDescrObject *)ct1, address);
-        else
-            x = new_simple_cdata(address, unwrap_fn_as_fnptr(ct1));
+        assert(!CTypeDescr_Check(ct1));   /* must be a function */
+        x = new_simple_cdata(address, unwrap_fn_as_fnptr(ct1));
 
         Py_DECREF(ct1);
         break;

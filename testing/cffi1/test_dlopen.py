@@ -1,5 +1,5 @@
 import py
-from cffi import FFI, VerificationError
+from cffi import FFI, VerificationError, CDefError
 from cffi.recompiler import make_py_source
 from testing.udir import udir
 
@@ -28,6 +28,23 @@ def test_invalid_global_constant():
         "ffi.dlopen() will not be able to figure out "
         "the value of constant 'BB' (only integer constants are "
         "supported, and only if their value are specified in the cdef)")
+
+def test_invalid_global_constant_2():
+    ffi = FFI()
+    ffi.cdef("static const float BB = 12;")
+    target = udir.join('test_invalid_global_constants_2.py')
+    e = py.test.raises(VerificationError, make_py_source, ffi,
+                       'test_invalid_global_constants_2', str(target))
+    assert str(e.value) == (
+        "ffi.dlopen() will not be able to figure out "
+        "the value of constant 'BB' (only integer constants are "
+        "supported, and only if their value are specified in the cdef)")
+
+def test_invalid_global_constant_3():
+    ffi = FFI()
+    e = py.test.raises(CDefError, ffi.cdef, "#define BB 12.34")
+    assert str(e.value).startswith(
+        "only supports one of the following syntax:")
 
 def test_invalid_dotdotdot_in_macro():
     ffi = FFI()
@@ -176,3 +193,17 @@ def test_array_overflow():
     target = udir.join('test_array_overflow.py')
     py.test.raises(OverflowError, make_py_source,
                    ffi, 'test_array_overflow', str(target))
+
+def test_global_var():
+    ffi = FFI()
+    ffi.cdef("int myglob;")
+    target = udir.join('test_global_var.py')
+    assert make_py_source(ffi, 'test_global_var', str(target))
+    assert target.read() == r"""# auto-generated file
+import _cffi_backend
+
+ffi = _cffi_backend.FFI(b'test_global_var',
+    _types = b'\x00\x00\x07\x01',
+    _globals = (b'\x00\x00\x00\x21myglob',0,),
+)
+"""
