@@ -271,7 +271,12 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
                    describing one field each */
                 nfields[nf].field_type_op = cdl_opcode(f); f += 4;
                 nfields[nf].field_offset = (size_t)-1;
-                nfields[nf].field_size = cdl_4bytes(f); f += 4;
+                if (_CFFI_GETOP(nfields[nf].field_type_op) != _CFFI_OP_NOOP) {
+                    nfields[nf].field_size = cdl_4bytes(f); f += 4;
+                }
+                else {
+                    nfields[nf].field_size = (size_t)-1;
+                }
                 nfields[nf].name = f;
                 nf++;
             }

@@ -11,7 +11,7 @@ class CffiOp(object):
         classname = CLASS_NAME[self.op]
         return '_CFFI_OP(_CFFI_OP_%s, %d)' % (classname, self.arg)
 
-    def as_bytes(self):
+    def as_python_bytes(self):
         assert self.op is not None
         return format_four_bytes((self.arg << 8) | self.op)
 
@@ -152,6 +152,10 @@ F_CHECK_FIELDS  = 0x02
 F_PACKED        = 0x04
 F_EXTERNAL      = 0x08
 F_OPAQUE        = 0x10
+
+G_FLAGS = dict([('_CFFI_' + _key, globals()[_key])
+                for _key in ['F_UNION', 'F_CHECK_FIELDS', 'F_PACKED',
+                             'F_EXTERNAL', 'F_OPAQUE']])
 
 CLASS_NAME = {}
 for _name, _value in list(globals().items()):

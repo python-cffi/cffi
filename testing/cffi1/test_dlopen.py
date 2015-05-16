@@ -68,3 +68,17 @@ ffi = _cffi_backend.FFI(b'test_enum',
     _enums = (b'\x00\x00\x00\x00\x00\x00\x00\x15myenum_e\x00AA,BB,CC',),
 )
 """
+
+def test_struct():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int a; signed char b[]; }; struct bar_s;")
+    target = udir.join('test_struct.py')
+    assert make_py_source(ffi, 'test_struct', str(target))
+    assert target.read() == r"""# auto-generated file
+import _cffi_backend
+
+ffi = _cffi_backend.FFI(b'test_struct',
+    _types = b'\x00\x00\x07\x01\x00\x00\x03\x01\x00\x00\x01\x07\x00\x00\x00\x09\x00\x00\x01\x09',
+    _struct_unions = ((b'\x00\x00\x00\x03\x00\x00\x00\x10bar_s',),(b'\x00\x00\x00\x04\x00\x00\x00\x02foo_s',b'\x00\x00\x00\x11a',b'\x00\x00\x02\x11b')),
+)
+"""

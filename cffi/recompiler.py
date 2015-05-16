@@ -26,19 +26,65 @@ class GlobalExpr:
                 "ffi.dlopen() will not be able to figure out the value of "
                 "constant %r (only integer constants are supported, and only "
                 "if their value are specified in the cdef)" % (self.name,))
-        return "b'%s%s',%d" % (self.type_op.as_bytes(), self.name,
+        return "b'%s%s',%d" % (self.type_op.as_python_bytes(), self.name,
                                self.check_value)
 
-class TypenameExpr:
-    def __init__(self, name, type_index):
+class FieldExpr:
+    def __init__(self, name, field_offset, field_size, fbitsize, field_type_op):
         self.name = name
-        self.type_index = type_index
+        self.field_offset = field_offset
+        self.field_size = field_size
+        self.fbitsize = fbitsize
+        self.field_type_op = field_type_op
 
     def as_c_expr(self):
-        return '  { "%s", %d },' % (self.name, self.type_index)
+        return ('  { "%s", %s,\n' % (fldname, offset) +
+                '     %s   %s,\n' % (spaces, size) +
+                '     %s   _CFFI_OP(%s, %s) },' % (
+                        spaces, op, self._typesdict[fldtype]))
 
     def as_python_expr(self):
-        return "b'%s%s'" % (format_four_bytes(self.type_index), self.name)
+        raise NotImplementedError
+
+    def as_field_python_expr(self):
+        if self.field_type_op.op == OP_NOOP:
+            size_expr = ''
+        elif self.field_type_op.op == OP_BITFIELD:
+            size_expr = format_four_bytes(self.fbitsize)
+        else:
+            raise NotImplementedError
+        return "b'%s%s%s'" % (self.field_type_op.as_python_bytes(),
+                              size_expr,
+                              self.name)
+
+class StructUnionExpr:
+    def __init__(self, name, type_index, flags, size, alignment, comment,
+                 first_field_index, c_fields):
+        self.name = name
+        self.type_index = type_index
+        self.flags = flags
+        self.size = size
+        self.alignment = alignment
+        self.comment = comment
+        self.first_field_index = first_field_index
+        self.c_fields = c_fields
+
+    def as_c_expr(self):
+        return ('  { "%s", %d, %s,' % (self.name, self.type_index, self.flags)
+                + '\n    %s, %s, ' % (self.size, self.alignment)
+                + '%d, %d ' % (self.first_field_index, len(self.c_fields))
+                + ('/* %s */ ' % self.comment if self.comment else '')
+                + '}')
+
+    def as_python_expr(self):
+        flags = eval(self.flags, G_FLAGS)
+        fields_expr = [c_field.as_field_python_expr()
+                       for c_field in self.c_fields]
+        return "(b'%s%s%s',%s)" % (
+            format_four_bytes(self.type_index),
+            format_four_bytes(flags),
+            self.name,
+            ','.join(fields_expr))
 
 class EnumExpr:
     def __init__(self, name, type_index, size, signed, allenums):
@@ -63,6 +109,20 @@ class EnumExpr:
         return "b'%s%s%s\\x00%s'" % (format_four_bytes(self.type_index),
                                      format_four_bytes(prim_index),
                                      self.name, self.allenums)
+
+class TypenameExpr:
+    def __init__(self, name, type_index):
+        self.name = name
+        self.type_index = type_index
+
+    def as_c_expr(self):
+        return '  { "%s", %d },' % (self.name, self.type_index)
+
+    def as_python_expr(self):
+        return "b'%s%s'" % (format_four_bytes(self.type_index), self.name)
+
+
+# ____________________________________________________________
 
 
 class Recompiler:
@@ -182,7 +242,8 @@ class Recompiler:
         #
         for step_name in self.ALL_STEPS:
             lst = self._lsts[step_name]
-            lst.sort(key=lambda entry: entry.name)
+            if step_name != "field":
+                lst.sort(key=lambda entry: entry.name)
             self._lsts[step_name] = tuple(lst)    # don't change any more
         #
         # check for a possible internal inconsistency: _cffi_struct_unions
@@ -190,7 +251,7 @@ class Recompiler:
         lst = self._lsts["struct_union"]
         for tp, i in self._struct_unions.items():
             assert i < len(lst)
-            assert lst[i].startswith('  { "%s"' % tp.name)
+            assert lst[i].name == tp.name
         assert len(lst) == len(self._struct_unions)
         # same with enums
         lst = self._lsts["enum"]
@@ -262,9 +323,6 @@ class Recompiler:
             if nums[step_name] > 0:
                 prnt('static const struct _cffi_%s_s _cffi_%ss[] = {' % (
                     step_name, step_name))
-                if step_name == 'field':
-                    XXXX
-                    lst = list(self._fix_final_field_list(lst))
                 for entry in lst:
                     prnt(entry.as_c_expr())
                 prnt('};')
@@ -364,13 +422,13 @@ class Recompiler:
         #
         # the '_types' keyword argument
         self.cffi_types = tuple(self.cffi_types)    # don't change any more
-        types_lst = [op.as_bytes() for op in self.cffi_types]
+        types_lst = [op.as_python_bytes() for op in self.cffi_types]
         prnt('    _types = %s,' % (self._to_py(''.join(types_lst)),))
         typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
         #
         for step_name in self.ALL_STEPS:
             lst = self._lsts[step_name]
-            if len(lst) > 0:
+            if len(lst) > 0 and step_name != "field":
                 prnt('    _%ss = %s,' % (step_name, self._to_py(lst)))
         #
         # the footer
@@ -692,16 +750,16 @@ class Recompiler:
             flags.append("_CFFI_F_EXTERNAL")
             reason_for_not_expanding = "external"
         flags = '|'.join(flags) or '0'
+        c_fields = []
         if reason_for_not_expanding is None:
-            c_field = [approxname]
             enumfields = list(tp.enumfields())
             for fldname, fldtype, fbitsize in enumfields:
                 fldtype = self._field_type(tp, fldname, fldtype)
                 spaces = " " * len(fldname)
                 # cname is None for _add_missing_struct_unions() only
-                op = '_CFFI_OP_NOOP'
+                op = OP_NOOP
                 if fbitsize >= 0:
-                    op = '_CFFI_OP_BITFIELD'
+                    op = OP_BITFIELD
                     size = '%d /* bits */' % fbitsize
                 elif cname is None or (
                         isinstance(fldtype, model.ArrayType) and
@@ -719,34 +777,40 @@ class Recompiler:
                         named_ptr.name, fldname)
                 else:
                     offset = 'offsetof(%s, %s)' % (tp.get_c_name(''), fldname)
-                c_field.append(
-                    '  { "%s", %s,\n' % (fldname, offset) +
-                    '     %s   %s,\n' % (spaces, size) +
-                    '     %s   _CFFI_OP(%s, %s) },' % (
-                            spaces, op, self._typesdict[fldtype]))
-            self._lsts["field"].append('\n'.join(c_field))
+                c_fields.append(
+                    FieldExpr(fldname, offset, size, fbitsize,
+                              CffiOp(op, self._typesdict[fldtype])))
+            first_field_index = len(self._lsts["field"])
+            self._lsts["field"].extend(c_fields)
             #
             if cname is None:  # unknown name, for _add_missing_struct_unions
-                size_align = (' (size_t)-2, -2, /* unnamed */\n' +
-                    '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
-                                                        len(enumfields),))
+                #size_align = (' (size_t)-2, -2, /* unnamed */\n' +
+                #    '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
+                #                                        len(enumfields),))
+                size = -2
+                align = -2
+                comment = "unnamed"
             else:
                 if named_ptr is not None:
                     size = 'sizeof(*(%s)0)' % (named_ptr.name,)
-                    align = '-1  /* unknown alignment */'
+                    align = '-1 /* unknown alignment */'
                 else:
                     size = 'sizeof(%s)' % (cname,)
                     align = 'offsetof(struct _cffi_align_%s, y)' % (approxname,)
-                size_align = ('\n' +
-                    '    %s,\n' % (size,) +
-                    '    %s,\n' % (align,) +
-                    '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
-                                                        len(enumfields),))
+                #size_align = ('\n' +
+                #    '    %s,\n' % (size,) +
+                #    '    %s,\n' % (align,) +
+                #    '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
+                #                                        len(enumfields),))
+                comment = None
         else:
-            size_align = ' (size_t)-1, -1, -1, 0 /* %s */ },' % (
-                reason_for_not_expanding,)
+            size = -1
+            align = -1
+            first_field_index = -1
+            comment = reason_for_not_expanding
         self._lsts["struct_union"].append(
-            '  { "%s", %d, %s,' % (tp.name, type_index, flags) + size_align)
+            StructUnionExpr(tp.name, type_index, flags, size, align, comment,
+                            first_field_index, c_fields))
         self._seen_struct_unions.add(tp)
 
     def _add_missing_struct_unions(self):
@@ -769,15 +833,6 @@ class Recompiler:
                     raise NotImplementedError("internal inconsistency: %r" %
                                               (tp,))
                 self._struct_ctx(tp, None, approxname)
-
-    def _fix_final_field_list(self, lst):
-        count = 0
-        for struct_fields in lst:
-            pname = struct_fields.split('\n')[0]
-            define_macro = '#define _cffi_FIELDS_FOR_%s  %d' % (pname, count)
-            result = define_macro + struct_fields[len(pname):]
-            count += result.count('\n  { "')
-            yield result
 
     def _generate_cpy_struct_collecttype(self, tp, name):
         self._struct_collecttype(tp)
