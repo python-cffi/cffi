@@ -494,6 +494,10 @@ class FFI(object):
             raise ValueError("set_source() must be called before"
                              " distutils_extension()")
         source, kwds = self._assigned_source
+        if source is None:
+            raise TypeError("distutils_extension() is only for C extension "
+                            "modules, not for dlopen()-style pure Python "
+                            "modules")
         mkpath(tmpdir)
         ext, updated = recompile(self, self._recompiler_module_name,
                                  source, tmpdir=tmpdir,
@@ -511,6 +515,21 @@ class FFI(object):
         if not hasattr(self, '_assigned_source'):
             raise ValueError("set_source() must be called before emit_c_code()")
         source, kwds = self._assigned_source
+        if source is None:
+            raise TypeError("emit_c_code() is only for C extension modules, "
+                            "not for dlopen()-style pure Python modules")
+        recompile(self, self._recompiler_module_name, source,
+                  c_file=filename, call_c_compiler=False, **kwds)
+
+    def emit_python_code(self, filename):
+        from .recompiler import recompile
+        #
+        if not hasattr(self, '_assigned_source'):
+            raise ValueError("set_source() must be called before emit_c_code()")
+        source, kwds = self._assigned_source
+        if source is not None:
+            raise TypeError("emit_python_code() is only for dlopen()-style "
+                            "pure Python modules, not for C extension modules")
         recompile(self, self._recompiler_module_name, source,
                   c_file=filename, call_c_compiler=False, **kwds)
 

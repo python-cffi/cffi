@@ -73,6 +73,7 @@ static int ffi_traverse(FFIObject *ffi, visitproc visit, void *arg)
 {
     Py_VISIT(ffi->types_builder.types_dict);
     Py_VISIT(ffi->types_builder.included_ffis);
+    Py_VISIT(ffi->types_builder.included_libs);
     Py_VISIT(ffi->gc_wrefs);
     return 0;
 }
@@ -85,6 +86,53 @@ static PyObject *ffiobj_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 /* forward, declared in cdlopen.c because it's mostly useful for this case */
 static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds);
+
+static PyObject *ffi_fetch_int_constant(FFIObject *ffi, char *name,
+                                        int recursion)
+{
+    int index;
+
+    index = search_in_globals(&ffi->types_builder.ctx, name, strlen(name));
+    if (index >= 0) {
+        const struct _cffi_global_s *g;
+        g = &ffi->types_builder.ctx.globals[index];
+
+        switch (_CFFI_GETOP(g->type_op)) {
+        case _CFFI_OP_CONSTANT_INT:
+        case _CFFI_OP_ENUM:
+            return realize_global_int(&ffi->types_builder, index);
+
+        default:
+            PyErr_Format(FFIError,
+                         "function, global variable or non-integer constant "
+                         "'%.200s' must be fetched from their original 'lib' "
+                         "object", name);
+            return NULL;
+        }
+    }
+
+    if (ffi->types_builder.included_ffis != NULL) {
+        Py_ssize_t i;
+        PyObject *included_ffis = ffi->types_builder.included_ffis;
+
+        if (recursion > 100) {
+            PyErr_SetString(PyExc_RuntimeError,
+                            "recursion overflow in ffi.include() delegations");
+            return NULL;
+        }
+
+        for (i = 0; i < PyTuple_GET_SIZE(included_ffis); i++) {
+            FFIObject *ffi1;
+            PyObject *x;
+
+            ffi1 = (FFIObject *)PyTuple_GET_ITEM(included_ffis, i);
+            x = ffi_fetch_int_constant(ffi1, name, recursion + 1);
+            if (x != NULL || PyErr_Occurred())
+                return x;
+        }
+    }
+    return NULL;     /* no exception set, means "not found" */
+}
 
 #define ACCEPT_STRING   1
 #define ACCEPT_CTYPE    2
@@ -697,6 +745,30 @@ PyDoc_STRVAR(ffi_dlclose_doc,
 static PyObject *ffi_dlopen(PyObject *self, PyObject *args);  /* forward */
 static PyObject *ffi_dlclose(PyObject *self, PyObject *args);  /* forward */
 
+PyDoc_STRVAR(ffi_int_const_doc,
+"Get the value of an integer constant.\n"
+"\n"
+"'ffi.integer_const(\"xxx\")' is equivalent to 'lib.xxx' if xxx names an\n"
+"integer constant.  The point of this function is limited to use cases\n"
+"where you have an 'ffi' object but not any associated 'lib' object.");
+
+static PyObject *ffi_int_const(FFIObject *self, PyObject *args, PyObject *kwds)
+{
+    char *name;
+    PyObject *x;
+    static char *keywords[] = {"name", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", keywords, &name))
+        return NULL;
+
+    x = ffi_fetch_int_constant(self, name, 0);
+
+    if (x == NULL && !PyErr_Occurred()) {
+        PyErr_Format(PyExc_AttributeError,
+                     "integer constant '%.200s' not found", name);
+    }
+    return x;
+}
 
 #define METH_VKW  (METH_VARARGS | METH_KEYWORDS)
 static PyMethodDef ffi_methods[] = {
@@ -714,6 +786,7 @@ static PyMethodDef ffi_methods[] = {
 #ifdef MS_WIN32
  {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VARARGS, ffi_getwinerror_doc},
 #endif
+ {"integer_const",(PyCFunction)ffi_int_const,METH_VKW,     ffi_int_const_doc},
  {"new",        (PyCFunction)ffi_new,        METH_VKW,     ffi_new_doc},
  {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},

@@ -23,7 +23,6 @@ struct LibObject_s {
     builder_c_t *l_types_builder; /* same as the one on the ffi object */
     PyObject *l_dict;           /* content, built lazily */
     PyObject *l_libname;        /* some string that gives the name of the lib */
-    PyObject *l_includes;       /* tuple of LibObjects included here */
     FFIObject *l_ffi;           /* reference back to the ffi object */
     void *l_libhandle;          /* the dlopen()ed handle, if any */
 };
@@ -80,7 +79,6 @@ static void lib_dealloc(LibObject *lib)
     cdlopen_close_ignore_errors(lib->l_libhandle);
     Py_DECREF(lib->l_dict);
     Py_DECREF(lib->l_libname);
-    Py_XDECREF(lib->l_includes);
     Py_DECREF(lib->l_ffi);
     PyObject_Del(lib);
 }
@@ -89,7 +87,6 @@ static int lib_traverse(LibObject *lib, visitproc visit, void *arg)
 {
     Py_VISIT(lib->l_dict);
     Py_VISIT(lib->l_libname);
-    Py_VISIT(lib->l_includes);
     Py_VISIT(lib->l_ffi);
     return 0;
 }
@@ -159,15 +156,18 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
     int index;
     const struct _cffi_global_s *g;
     CTypeDescrObject *ct;
+    builder_c_t *types_builder = lib->l_types_builder;
     char *s = PyText_AsUTF8(name);
     if (s == NULL)
         return NULL;
 
-    index = search_in_globals(&lib->l_types_builder->ctx, s, strlen(s));
+    index = search_in_globals(&types_builder->ctx, s, strlen(s));
     if (index < 0) {
 
-        if (lib->l_includes != NULL) {
+        if (types_builder->included_libs != NULL) {
             Py_ssize_t i;
+            PyObject *included_ffis = types_builder->included_ffis;
+            PyObject *included_libs = types_builder->included_libs;
 
             if (recursion > 100) {
                 PyErr_SetString(PyExc_RuntimeError,
@@ -175,18 +175,31 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
                 return NULL;
             }
 
-            for (i = 0; i < PyTuple_GET_SIZE(lib->l_includes); i++) {
+            for (i = 0; i < PyTuple_GET_SIZE(included_libs); i++) {
                 LibObject *lib1;
-                lib1 = (LibObject *)PyTuple_GET_ITEM(lib->l_includes, i);
-                x = PyDict_GetItem(lib1->l_dict, name);
-                if (x != NULL) {
-                    Py_INCREF(x);
-                    goto found;
+
+                lib1 = (LibObject *)PyTuple_GET_ITEM(included_libs, i);
+                if (lib1 != NULL) {
+                    x = PyDict_GetItem(lib1->l_dict, name);
+                    if (x != NULL) {
+                        Py_INCREF(x);
+                        goto found;
+                    }
+                    x = lib_build_and_cache_attr(lib1, name, recursion + 1);
+                    if (x != NULL) {
+                        Py_INCREF(x);
+                        goto found;
+                    }
                 }
-                x = lib_build_and_cache_attr(lib1, name, recursion + 1);
-                if (x != NULL) {
-                    Py_INCREF(x);
-                    goto found;
+                else {
+                    FFIObject *ffi1;
+
+                    ffi1 = (FFIObject *)PyTuple_GetItem(included_ffis, i);
+                    if (ffi1 == NULL)
+                        return NULL;
+                    x = ffi_fetch_int_constant(ffi1, s, recursion + 1);
+                    if (x != NULL)
+                        goto found;
                 }
                 if (PyErr_Occurred())
                     return NULL;
@@ -203,7 +216,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         return NULL;
     }
 
-    g = &lib->l_types_builder->ctx.globals[index];
+    g = &types_builder->ctx.globals[index];
 
     switch (_CFFI_GETOP(g->type_op)) {
 
@@ -224,7 +237,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
     {
         /* a constant integer whose value, in an "unsigned long long",
            is obtained by calling the function at g->address */
-        x = realize_global_int(lib->l_types_builder, index);
+        x = realize_global_int(types_builder, index);
         break;
     }
 
@@ -232,8 +245,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
     {
         /* a constant which is not of integer type */
         char *data;
-        ct = realize_c_type(lib->l_types_builder,
-                            lib->l_types_builder->ctx.types,
+        ct = realize_c_type(types_builder, types_builder->ctx.types,
                             _CFFI_GETARG(g->type_op));
         if (ct == NULL)
             return NULL;
@@ -248,8 +260,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
 
     case _CFFI_OP_GLOBAL_VAR:
         /* global variable of the exact type specified here */
-        ct = realize_c_type(lib->l_types_builder,
-                            lib->l_types_builder->ctx.types,
+        ct = realize_c_type(types_builder, types_builder->ctx.types,
                             _CFFI_GETARG(g->type_op));
         if (ct == NULL)
             return NULL;
@@ -281,8 +292,8 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         if (address == NULL)
             return NULL;
 
-        ct1 = realize_c_type_or_func(lib->l_types_builder,
-                                     lib->l_types_builder->ctx.types,
+        ct1 = realize_c_type_or_func(types_builder,
+                                     types_builder->ctx.types,
                                      _CFFI_GETARG(g->type_op));
         if (ct1 == NULL)
             return NULL;
@@ -438,7 +449,6 @@ static LibObject *lib_internal_new(FFIObject *ffi, char *module_name,
     lib->l_types_builder = &ffi->types_builder;
     lib->l_dict = dict;
     lib->l_libname = libname;
-    lib->l_includes = NULL;
     Py_INCREF(ffi);
     lib->l_ffi = ffi;
     lib->l_libhandle = dlopen_libhandle;

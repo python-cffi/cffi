@@ -783,10 +783,7 @@ class Recompiler:
             self._lsts["field"].extend(c_fields)
             #
             if cname is None:  # unknown name, for _add_missing_struct_unions
-                #size_align = (' (size_t)-2, -2, /* unnamed */\n' +
-                #    '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
-                #                                        len(enumfields),))
-                size = -2
+                size = '(size_t)-2'
                 align = -2
                 comment = "unnamed"
             else:
@@ -796,11 +793,6 @@ class Recompiler:
                 else:
                     size = 'sizeof(%s)' % (cname,)
                     align = 'offsetof(struct _cffi_align_%s, y)' % (approxname,)
-                #size_align = ('\n' +
-                #    '    %s,\n' % (size,) +
-                #    '    %s,\n' % (align,) +
-                #    '    _cffi_FIELDS_FOR_%s, %d },' % (approxname,
-                #                                        len(enumfields),))
                 comment = None
         else:
             size = '(size_t)-1'
@@ -1107,15 +1099,24 @@ def recompile(ffi, module_name, preamble, tmpdir='.',
         module_name = module_name.encode('ascii')
     if ffi._windows_unicode:
         ffi._apply_windows_unicode(kwds)
-    if c_file is None:
-        c_file = os.path.join(tmpdir, module_name + '.c')
-    ext = _get_extension(module_name, c_file, kwds)
-    updated = make_c_source(ffi, module_name, preamble, c_file)
-    if call_c_compiler:
-        outputfilename = ffiplatform.compile(tmpdir, ext)
-        return outputfilename
+    if preamble is not None:
+        if c_file is None:
+            c_file = os.path.join(tmpdir, module_name + '.c')
+        ext = _get_extension(module_name, c_file, kwds)
+        updated = make_c_source(ffi, module_name, preamble, c_file)
+        if call_c_compiler:
+            outputfilename = ffiplatform.compile(tmpdir, ext)
+            return outputfilename
+        else:
+            return ext, updated
     else:
-        return ext, updated
+        if c_file is None:
+            c_file = os.path.join(tmpdir, module_name + '.py')
+        updated = make_py_source(ffi, module_name, c_file)
+        if call_c_compiler:
+            return c_file
+        else:
+            return None, updated
 
 def _verify(ffi, module_name, preamble, *args, **kwds):
     # FOR TESTS ONLY

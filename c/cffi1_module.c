@@ -176,7 +176,7 @@ static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
 
     if (make_included_tuples(module_name, ctx->includes,
                              &ffi->types_builder.included_ffis,
-                             &lib->l_includes) < 0)
+                             &lib->l_types_builder->included_libs) < 0)
         return NULL;
 
     return m;
