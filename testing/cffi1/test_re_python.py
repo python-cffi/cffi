@@ -16,12 +16,16 @@ def setup_module(mod):
     struct foo_s;
     typedef struct bar_s { int x; signed char a[]; } bar_t;
     enum foo_e { AA, BB, CC };
+
+    void init_test_re_python(void) { }      /* windows hack */
+    void PyInit__test_re_python(void) { }   /* windows hack */
     """
     tmpdir = udir.join('test_re_python')
     tmpdir.ensure(dir=1)
     c_file = tmpdir.join('_test_re_python.c')
     c_file.write(SRC)
-    ext = ffiplatform.get_extension(str(c_file), '_test_re_python')
+    ext = ffiplatform.get_extension(str(c_file), '_test_re_python',
+                                    export_symbols=['add42', 'globalvar42'])
     outputfilename = ffiplatform.compile(str(tmpdir), ext)
     mod.extmod = outputfilename
     mod.tmpdir = tmpdir
@@ -110,7 +114,7 @@ def test_include_1():
     assert ffi.integer_const('FOOBAR') == -42
     assert ffi.integer_const('FOOBAZ') == -43
     assert ffi.integer_const('k2') == 121212
-    lib = ffi.dlopen(None)
+    lib = ffi.dlopen(extmod)     # <- a random unrelated library would be fine
     assert lib.FOOBAR == -42
     assert lib.FOOBAZ == -43
     assert lib.k2 == 121212
