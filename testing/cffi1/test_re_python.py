@@ -75,13 +75,13 @@ def test_enum():
     assert ffi.string(e) == "CC"
 
 def test_include_1():
-    ffi2 = FFI()
-    ffi2.cdef("static const int k2 = 121212;")
-    ffi2.include(original_ffi)
+    sub_ffi = FFI()
+    sub_ffi.cdef("static const int k2 = 121212;")
+    sub_ffi.include(original_ffi)
     assert 'macro FOOBAR' in original_ffi._parser._declarations
     assert 'macro FOOBAZ' in original_ffi._parser._declarations
-    ffi2.set_source('re_python_pysrc', None)
-    ffi2.emit_python_code(str(tmpdir.join('_re_include_1.py')))
+    sub_ffi.set_source('re_python_pysrc', None)
+    sub_ffi.emit_python_code(str(tmpdir.join('_re_include_1.py')))
     #
     from _re_include_1 import ffi
     assert ffi.integer_const('FOOBAR') == -42
@@ -91,3 +91,6 @@ def test_include_1():
     assert lib.FOOBAR == -42
     assert lib.FOOBAZ == -43
     assert lib.k2 == 121212
+    #
+    p = ffi.new("bar_t *", [5, "foobar"])
+    assert p.a[4] == ord('a')

@@ -124,3 +124,23 @@ ffi = _cffi_backend.FFI(b'test_negative_constant',
     _globals = (b'\xFF\xFF\xFF\x1FBB',-42,),
 )
 """
+
+def test_struct_included():
+    baseffi = FFI()
+    baseffi.cdef("struct foo_s { int x; };")
+    baseffi.set_source('test_struct_included_base', None)
+    #
+    ffi = FFI()
+    ffi.include(baseffi)
+    target = udir.join('test_struct_included.py')
+    assert make_py_source(ffi, 'test_struct_included', str(target))
+    assert target.read() == r"""# auto-generated file
+import _cffi_backend
+from test_struct_included_base import ffi as _ffi0
+
+ffi = _cffi_backend.FFI(b'test_struct_included',
+    _types = b'\x00\x00\x00\x09',
+    _struct_unions = ((b'\x00\x00\x00\x00\x00\x00\x00\x08foo_s',),),
+    _includes = (_ffi0,),
+)
+"""

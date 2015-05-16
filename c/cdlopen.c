@@ -254,7 +254,7 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
             nstructs[i].type_index = cdl_4bytes(s); s += 4;
             nstructs[i].flags = cdl_4bytes(s); s += 4;
             nstructs[i].name = s;
-            if (nstructs[i].flags & _CFFI_F_OPAQUE) {
+            if (nstructs[i].flags & (_CFFI_F_OPAQUE | _CFFI_F_EXTERNAL)) {
                 nstructs[i].size = (size_t)-1;
                 nstructs[i].alignment = -1;
                 nstructs[i].first_field_index = -1;
