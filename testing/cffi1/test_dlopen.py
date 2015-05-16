@@ -145,3 +145,13 @@ ffi = _cffi_backend.FFI(b'test_struct_included',
     _includes = (_ffi0,),
 )
 """
+
+def test_no_cross_include():
+    baseffi = FFI()
+    baseffi.set_source('test_no_cross_include_base', "..source..")
+    #
+    ffi = FFI()
+    ffi.include(baseffi)
+    target = udir.join('test_no_cross_include.py')
+    py.test.raises(VerificationError, make_py_source,
+                   ffi, 'test_no_cross_include', str(target))
