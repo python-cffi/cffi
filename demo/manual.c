@@ -154,16 +154,13 @@ static const struct _cffi_type_context_s _cffi_type_context = {
 PyMODINIT_FUNC
 initmanual(void)
 {
-    if (_cffi_init() < 0)
-        return;
-
-    _cffi_init_module("manual", &_cffi_type_context);
+    _cffi_init("manual", 0x2601, &_cffi_type_context);
 }
 #else
 PyMODINIT_FUNC
 _cffi_pypyinit_manual(const void *p[])
 {
-    p[0] = (const void *)0x10000f0;
+    p[0] = (const void *)0x2601;
     p[1] = &_cffi_type_context;
 }
 #endif

@@ -375,7 +375,7 @@ class Recompiler:
         prnt('PyMODINIT_FUNC')
         prnt('_cffi_pypyinit_%s(const void *p[])' % (base_module_name,))
         prnt('{')
-        prnt('    p[0] = (const void *)0x2600;')
+        prnt('    p[0] = (const void *)0x2601;')
         prnt('    p[1] = &_cffi_type_context;')
         prnt('}')
         # on Windows, distutils insists on putting init_cffi_xyz in
@@ -393,14 +393,14 @@ class Recompiler:
         prnt('PyMODINIT_FUNC')
         prnt('PyInit_%s(void)' % (base_module_name,))
         prnt('{')
-        prnt('  return _cffi_init("%s", 0x2600, &_cffi_type_context);' % (
+        prnt('  return _cffi_init("%s", 0x2601, &_cffi_type_context);' % (
             self.module_name,))
         prnt('}')
         prnt('#else')
         prnt('PyMODINIT_FUNC')
         prnt('init%s(void)' % (base_module_name,))
         prnt('{')
-        prnt('  _cffi_init("%s", 0x2600, &_cffi_type_context);' % (
+        prnt('  _cffi_init("%s", 0x2601, &_cffi_type_context);' % (
             self.module_name,))
         prnt('}')
         prnt('#endif')

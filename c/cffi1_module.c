@@ -126,8 +126,8 @@ static PyObject *_my_Py_InitModule(char *module_name)
 #endif
 }
 
-#define CFFI_VERSION_MIN    0x2600
-#define CFFI_VERSION_MAX    0x260F
+#define CFFI_VERSION_MIN    0x2601
+#define CFFI_VERSION_MAX    0x26FF
 
 static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
 {
