@@ -85,6 +85,7 @@ def setup_module():
 
     ffi1.cdef(DEFS)
     ffi1.cdef(DEFS_PACKED, packed=True)
+    ffi1.set_source("test_new_ffi_1", CCODE)
 
     outputfilename = recompile(ffi1, "test_new_ffi_1", CCODE,
                                tmpdir=str(udir))
@@ -1514,7 +1515,6 @@ class TestNewFFI1:
         assert foo2.b == 30
 
     def test_include_struct_union_enum_typedef(self):
-        #py.test.xfail("ffi.include")
         ffi1, CCODE = construction_params
         ffi2 = cffi.FFI()
         ffi2.include(ffi1)

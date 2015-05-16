@@ -16,9 +16,11 @@ def check_type_table(input, expected_output, included=None):
     recomp.collect_type_table()
     assert ''.join(map(str, recomp.cffi_types)) == expected_output
 
-def verify(ffi, module_name, *args, **kwds):
+def verify(ffi, module_name, source, *args, **kwds):
     kwds.setdefault('undef_macros', ['NDEBUG'])
-    return recompiler._verify(ffi, '_CFFI_' + module_name, *args, **kwds)
+    module_name = '_CFFI_' + module_name
+    ffi.set_source(module_name, source)
+    return recompiler._verify(ffi, module_name, source, *args, **kwds)
 
 
 def test_type_table_func():

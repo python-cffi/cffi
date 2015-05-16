@@ -28,9 +28,15 @@ class FFI(FFI):
     _verify_counter = 0
 
     def verify(self, preamble='', *args, **kwds):
+        # HACK to reuse the tests from ../cffi0/test_verify.py
         FFI._verify_counter += 1
-        return recompiler._verify(self, 'verify%d' % FFI._verify_counter,
-                                  preamble, *args,
+        module_name = 'verify%d' % FFI._verify_counter
+        try:
+            del self._assigned_source
+        except AttributeError:
+            pass
+        self.set_source(module_name, preamble)
+        return recompiler._verify(self, module_name, preamble, *args,
                                   extra_compile_args=self._extra_compile_args,
                                   **kwds)
 

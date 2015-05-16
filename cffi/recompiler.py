@@ -332,11 +332,19 @@ class Recompiler:
         if self.ffi._included_ffis:
             prnt('static const char * const _cffi_includes[] = {')
             for ffi_to_include in self.ffi._included_ffis:
-                if not hasattr(ffi_to_include, '_recompiler_module_name'):
+                try:
+                    included_source, _, included_module_name = (
+                        ffi_to_include._assigned_source)
+                except AttributeError:
                     raise ffiplatform.VerificationError(
-                        "this ffi includes %r, but the latter has not been "
-                        "compiled yet" % (ffi_to_include,))
-                prnt('  "%s",' % (ffi_to_include._recompiler_module_name,))
+                        "ffi object %r includes %r, but the latter has not "
+                        "been prepared with set_source()" % (
+                            self.ffi, ffi_to_include,))
+                if included_source is None:
+                    raise ffiplatform.VerificationError(
+                        "not implemented yet: ffi.include() of a Python-based "
+                        "ffi inside a C-based ffi")
+                prnt('  "%s",' % (included_module_name,))
             prnt('  NULL')
             prnt('};')
             prnt()
@@ -396,7 +404,6 @@ class Recompiler:
             self.module_name,))
         prnt('}')
         prnt('#endif')
-        self.ffi._recompiler_module_name = self.module_name
 
     def _to_py(self, x):
         if isinstance(x, str):
@@ -422,12 +429,19 @@ class Recompiler:
         num_includes = len(self.ffi._included_ffis or ())
         for i in range(num_includes):
             ffi_to_include = self.ffi._included_ffis[i]
-            if not hasattr(ffi_to_include, '_recompiler_module_name'):
+            try:
+                included_source, _, included_module_name = (
+                    ffi_to_include._assigned_source)
+            except AttributeError:
                 raise ffiplatform.VerificationError(
-                    "this ffi includes %r, but the latter has not been "
-                    "compiled yet" % (ffi_to_include,))
-            prnt('from %s import ffi as _ffi%d' % (
-                ffi_to_include._recompiler_module_name, i))
+                    "ffi object %r includes %r, but the latter has not "
+                    "been prepared with set_source()" % (
+                        self.ffi, ffi_to_include,))
+            if included_source is not None:
+                raise ffiplatform.VerificationError(
+                    "not implemented yet: ffi.include() of a C-based "
+                    "ffi inside a Python-based ffi")
+            prnt('from %s import ffi as _ffi%d' % (included_module_name, i))
         prnt()
         prnt("ffi = _cffi_backend.FFI(%s," % (self._to_py(self.module_name),))
         #
@@ -450,7 +464,6 @@ class Recompiler:
         #
         # the footer
         prnt(')')
-        self.ffi._recompiler_module_name = self.module_name
 
     # ----------
 

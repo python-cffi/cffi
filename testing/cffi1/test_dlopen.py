@@ -86,6 +86,7 @@ ffi = _cffi_backend.FFI(b'test_struct',
 def test_include():
     ffi = FFI()
     ffi.cdef("#define ABC 123")
+    ffi.set_source('test_include', None)
     target = udir.join('test_include.py')
     assert make_py_source(ffi, 'test_include', str(target))
     assert target.read() == r"""# auto-generated file

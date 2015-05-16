@@ -481,8 +481,7 @@ class FFI(object):
                              "per ffi object")
         if not isinstance(module_name, basestring):
             raise TypeError("'module_name' must be a string")
-        self._recompiler_module_name = str(module_name)
-        self._assigned_source = (source, kwds)
+        self._assigned_source = (source, kwds, str(module_name))
 
     def distutils_extension(self, tmpdir='build', verbose=True):
         from distutils.dir_util import mkpath
@@ -493,13 +492,13 @@ class FFI(object):
                 return self.verifier.get_extension()
             raise ValueError("set_source() must be called before"
                              " distutils_extension()")
-        source, kwds = self._assigned_source
+        source, kwds, module_name = self._assigned_source
         if source is None:
             raise TypeError("distutils_extension() is only for C extension "
                             "modules, not for dlopen()-style pure Python "
                             "modules")
         mkpath(tmpdir)
-        ext, updated = recompile(self, self._recompiler_module_name,
+        ext, updated = recompile(self, module_name,
                                  source, tmpdir=tmpdir,
                                  call_c_compiler=False, **kwds)
         if verbose:
@@ -514,11 +513,11 @@ class FFI(object):
         #
         if not hasattr(self, '_assigned_source'):
             raise ValueError("set_source() must be called before emit_c_code()")
-        source, kwds = self._assigned_source
+        source, kwds, module_name = self._assigned_source
         if source is None:
             raise TypeError("emit_c_code() is only for C extension modules, "
                             "not for dlopen()-style pure Python modules")
-        recompile(self, self._recompiler_module_name, source,
+        recompile(self, module_name, source,
                   c_file=filename, call_c_compiler=False, **kwds)
 
     def emit_python_code(self, filename):
@@ -526,11 +525,11 @@ class FFI(object):
         #
         if not hasattr(self, '_assigned_source'):
             raise ValueError("set_source() must be called before emit_c_code()")
-        source, kwds = self._assigned_source
+        source, kwds, module_name = self._assigned_source
         if source is not None:
             raise TypeError("emit_python_code() is only for dlopen()-style "
                             "pure Python modules, not for C extension modules")
-        recompile(self, self._recompiler_module_name, source,
+        recompile(self, module_name, source,
                   c_file=filename, call_c_compiler=False, **kwds)
 
     def compile(self, tmpdir='.'):
@@ -538,8 +537,8 @@ class FFI(object):
         #
         if not hasattr(self, '_assigned_source'):
             raise ValueError("set_source() must be called before compile()")
-        source, kwds = self._assigned_source
-        return recompile(self, self._recompiler_module_name,
+        source, kwds, module_name = self._assigned_source
+        return recompile(self, module_name,
                          source, tmpdir=tmpdir, **kwds)
 
 
