@@ -10,7 +10,8 @@ def setup_module(mod):
     #define FOOBAR (-42)
     int add42(int x) { return x + 42; }
     struct foo_s;
-    struct bar_s { int x; signed char a[]; };
+    typedef struct bar_s { int x; signed char a[]; } bar_t;
+    enum foo_e { AA, BB, CC };
     """
     tmpdir = udir.join('test_re_python')
     tmpdir.ensure(dir=1)
@@ -25,7 +26,8 @@ def setup_module(mod):
     #define FOOBAR -42
     int add42(int);
     struct foo_s;
-    struct bar_s { int x; signed char a[]; };
+    typedef struct bar_s { int x; signed char a[]; } bar_t;
+    enum foo_e { AA, BB, CC };
     """)
     ffi.set_source('re_python_pysrc', None)
     ffi.emit_python_code(str(tmpdir.join('re_python_pysrc.py')))
@@ -54,7 +56,14 @@ def test_opaque_struct():
 
 def test_nonopaque_struct():
     from re_python_pysrc import ffi
-    p = ffi.new("struct bar_s *", [5, "foobar"])
-    assert p.x == 5
-    assert p.a[0] == ord('f')
-    assert p.a[5] == ord('r')
+    for p in [ffi.new("struct bar_s *", [5, "foobar"]),
+              ffi.new("bar_t *", [5, "foobar"])]:
+        assert p.x == 5
+        assert p.a[0] == ord('f')
+        assert p.a[5] == ord('r')
+
+def test_enum():
+    from re_python_pysrc import ffi
+    assert ffi.integer_const("BB") == 1
+    e = ffi.cast("enum foo_e", 2)
+    assert ffi.string(e) == "CC"
