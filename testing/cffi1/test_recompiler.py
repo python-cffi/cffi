@@ -230,7 +230,8 @@ def test_constant():
 def test_check_value_of_static_const():
     ffi = FFI()
     ffi.cdef("static const int FOOBAR = 042;")
-    lib = verify(ffi, 'test_constant', "#define FOOBAR (-6912)")
+    lib = verify(ffi, 'test_check_value_of_static_const',
+                 "#define FOOBAR (-6912)")
     e = py.test.raises(ffi.error, getattr, lib, 'FOOBAR')
     assert str(e.value) == (
        "the C compiler says 'FOOBAR' is equal to -6912, but the cdef disagrees")

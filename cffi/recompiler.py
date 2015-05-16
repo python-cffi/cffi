@@ -38,10 +38,10 @@ class FieldExpr:
         self.field_type_op = field_type_op
 
     def as_c_expr(self):
-        return ('  { "%s", %s,\n' % (fldname, offset) +
-                '     %s   %s,\n' % (spaces, size) +
-                '     %s   _CFFI_OP(%s, %s) },' % (
-                        spaces, op, self._typesdict[fldtype]))
+        spaces = " " * len(self.name)
+        return ('  { "%s", %s,\n' % (self.name, self.field_offset) +
+                '     %s   %s,\n' % (spaces, self.field_size) +
+                '     %s   %s },' % (spaces, self.field_type_op.as_c_expr()))
 
     def as_python_expr(self):
         raise NotImplementedError
@@ -74,7 +74,7 @@ class StructUnionExpr:
                 + '\n    %s, %s, ' % (self.size, self.alignment)
                 + '%d, %d ' % (self.first_field_index, len(self.c_fields))
                 + ('/* %s */ ' % self.comment if self.comment else '')
-                + '}')
+                + '},')
 
     def as_python_expr(self):
         flags = eval(self.flags, G_FLAGS)
@@ -271,7 +271,7 @@ class Recompiler:
             self.write_py_source_to_f(f)
         else:
             assert preamble is not None
-            self.write_c_source_to_f(f)
+            self.write_c_source_to_f(f, preamble)
 
     def _rel_readlines(self, filename):
         g = open(os.path.join(os.path.dirname(__file__), filename), 'r')
@@ -755,7 +755,6 @@ class Recompiler:
             enumfields = list(tp.enumfields())
             for fldname, fldtype, fbitsize in enumfields:
                 fldtype = self._field_type(tp, fldname, fldtype)
-                spaces = " " * len(fldname)
                 # cname is None for _add_missing_struct_unions() only
                 op = OP_NOOP
                 if fbitsize >= 0:
@@ -804,7 +803,7 @@ class Recompiler:
                 #                                        len(enumfields),))
                 comment = None
         else:
-            size = -1
+            size = '(size_t)-1'
             align = -1
             first_field_index = -1
             comment = reason_for_not_expanding
