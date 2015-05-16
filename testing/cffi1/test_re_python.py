@@ -9,6 +9,8 @@ def setup_module(mod):
     SRC = """
     #define FOOBAR (-42)
     static const int FOOBAZ = -43;
+    #define BIGPOS 420000000000L
+    #define BIGNEG -420000000000L
     int add42(int x) { return x + 42; }
     struct foo_s;
     typedef struct bar_s { int x; signed char a[]; } bar_t;
@@ -27,6 +29,8 @@ def setup_module(mod):
     ffi.cdef("""
     #define FOOBAR -42
     static const int FOOBAZ = -43;
+    #define BIGPOS 420000000000L
+    #define BIGNEG -420000000000L
     int add42(int);
     struct foo_s;
     typedef struct bar_s { int x; signed char a[]; } bar_t;
@@ -43,6 +47,11 @@ def test_constant():
     from re_python_pysrc import ffi
     assert ffi.integer_const('FOOBAR') == -42
     assert ffi.integer_const('FOOBAZ') == -43
+
+def test_large_constant():
+    from re_python_pysrc import ffi
+    assert ffi.integer_const('BIGPOS') == 420000000000
+    assert ffi.integer_const('BIGNEG') == -420000000000
 
 def test_function():
     from re_python_pysrc import ffi
