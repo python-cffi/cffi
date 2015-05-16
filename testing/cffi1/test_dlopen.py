@@ -155,3 +155,24 @@ def test_no_cross_include():
     target = udir.join('test_no_cross_include.py')
     py.test.raises(VerificationError, make_py_source,
                    ffi, 'test_no_cross_include', str(target))
+
+def test_array():
+    ffi = FFI()
+    ffi.cdef("typedef int32_t my_array_t[42];")
+    target = udir.join('test_array.py')
+    assert make_py_source(ffi, 'test_array', str(target))
+    assert target.read() == r"""# auto-generated file
+import _cffi_backend
+
+ffi = _cffi_backend.FFI(b'test_array',
+    _types = b'\x00\x00\x15\x01\x00\x00\x00\x05\x00\x00\x00\x2A',
+    _typenames = (b'\x00\x00\x00\x01my_array_t',),
+)
+"""
+
+def test_array_overflow():
+    ffi = FFI()
+    ffi.cdef("typedef int32_t my_array_t[3000000000];")
+    target = udir.join('test_array_overflow.py')
+    py.test.raises(OverflowError, make_py_source,
+                   ffi, 'test_array_overflow', str(target))

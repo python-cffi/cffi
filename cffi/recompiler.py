@@ -1,5 +1,5 @@
 import os, sys, io
-from cffi import ffiplatform, model
+from . import ffiplatform, model
 from .cffi_opcode import *
 
 try:
