@@ -131,3 +131,9 @@ def test_global_var():
     assert p[0] == 1239
     p[0] -= 1
     assert lib.globalvar42 == 1238
+
+def test_rtld_constants():
+    from re_python_pysrc import ffi
+    ffi.RTLD_NOW    # check that we have the attributes
+    ffi.RTLD_LAZY
+    ffi.RTLD_GLOBAL

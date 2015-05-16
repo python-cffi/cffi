@@ -18,6 +18,7 @@ static PyTypeObject Lib_Type;   /* forward */
 static int init_ffi_lib(PyObject *m)
 {
     PyObject *x;
+    int i;
 
     if (PyType_Ready(&FFI_Type) < 0)
         return -1;
@@ -37,6 +38,15 @@ static int init_ffi_lib(PyObject *m)
     if (PyDict_SetItemString(FFI_Type.tp_dict, "CData",
                              (PyObject *)&CData_Type) < 0)
         return -1;
+
+    for (i = 0; all_dlopen_flags[i].name != NULL; i++) {
+        x = PyInt_FromLong(all_dlopen_flags[i].value);
+        if (x == NULL || PyDict_SetItemString(FFI_Type.tp_dict,
+                                              all_dlopen_flags[i].name,
+                                              x) < 0)
+            return -1;
+        Py_DECREF(x);
+    }
 
     x = (PyObject *)&FFI_Type;
     Py_INCREF(x);

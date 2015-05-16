@@ -5946,6 +5946,28 @@ static void *cffi_exports[] = {
     convert_array_from_object,
 };
 
+static struct { const char *name; int value; } all_dlopen_flags[] = {
+    { "RTLD_LAZY",     RTLD_LAZY     },
+    { "RTLD_NOW",      RTLD_NOW      },
+    { "RTLD_GLOBAL",   RTLD_GLOBAL   },
+#ifdef RTLD_LOCAL
+    { "RTLD_LOCAL",    RTLD_LOCAL    },
+#else
+    { "RTLD_LOCAL",    0             },
+#endif
+#ifdef RTLD_NODELETE
+    { "RTLD_NODELETE", RTLD_NODELETE },
+#endif
+#ifdef RTLD_NOLOAD
+    { "RTLD_NOLOAD",   RTLD_NOLOAD   },
+#endif
+#ifdef RTLD_DEEPBIND
+    { "RTLD_DEEPBIND", RTLD_DEEPBIND },
+#endif
+    { NULL, 0 }
+};
+
+
 /************************************************************/
 
 #include "cffi1_module.c"
@@ -5973,6 +5995,7 @@ init_cffi_backend(void)
 #endif
 {
     PyObject *m, *v;
+    int i;
 
     v = PySys_GetObject("version");
     if (v == NULL || !PyText_Check(v) ||
@@ -6048,26 +6071,15 @@ init_cffi_backend(void)
         PyModule_AddIntConstant(m, "_WIN", 32) < 0 ||   /* win32 */
 #  endif
 #endif
-
-        PyModule_AddIntConstant(m, "RTLD_LAZY",   RTLD_LAZY) < 0 ||
-        PyModule_AddIntConstant(m, "RTLD_NOW",    RTLD_NOW) < 0 ||
-        PyModule_AddIntConstant(m, "RTLD_GLOBAL", RTLD_GLOBAL) < 0 ||
-#ifdef RTLD_LOCAL
-        PyModule_AddIntConstant(m, "RTLD_LOCAL",  RTLD_LOCAL) < 0 ||
-#else
-        PyModule_AddIntConstant(m, "RTLD_LOCAL",  0) < 0 ||
-#endif
-#ifdef RTLD_NODELETE
-        PyModule_AddIntConstant(m, "RTLD_NODELETE",  RTLD_NODELETE) < 0 ||
-#endif
-#ifdef RTLD_NOLOAD
-        PyModule_AddIntConstant(m, "RTLD_NOLOAD",  RTLD_NOLOAD) < 0 ||
-#endif
-#ifdef RTLD_DEEPBIND
-        PyModule_AddIntConstant(m, "RTLD_DEEPBIND",  RTLD_DEEPBIND) < 0 ||
-#endif
         0)
       INITERROR;
+
+    for (i = 0; all_dlopen_flags[i].name != NULL; i++) {
+        if (PyModule_AddIntConstant(m,
+                                    all_dlopen_flags[i].name,
+                                    all_dlopen_flags[i].value) < 0)
+            INITERROR;
+    }
 
     init_errno();
 
