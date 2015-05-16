@@ -335,7 +335,7 @@ class Recompiler:
                 if not hasattr(ffi_to_include, '_recompiler_module_name'):
                     raise ffiplatform.VerificationError(
                         "this ffi includes %r, but the latter has not been "
-                        "turned into a C module" % (ffi_to_include,))
+                        "compiled yet" % (ffi_to_include,))
                 prnt('  "%s",' % (ffi_to_include._recompiler_module_name,))
             prnt('  NULL')
             prnt('};')
@@ -417,6 +417,17 @@ class Recompiler:
         # header
         prnt("# auto-generated file")
         prnt("import _cffi_backend")
+        #
+        # the 'import' of the included ffis
+        num_includes = len(self.ffi._included_ffis or ())
+        for i in range(num_includes):
+            ffi_to_include = self.ffi._included_ffis[i]
+            if not hasattr(ffi_to_include, '_recompiler_module_name'):
+                raise ffiplatform.VerificationError(
+                    "this ffi includes %r, but the latter has not been "
+                    "compiled yet" % (ffi_to_include,))
+            prnt('from %s import ffi as _ffi%d' % (
+                ffi_to_include._recompiler_module_name, i))
         prnt()
         prnt("ffi = _cffi_backend.FFI(%s," % (self._to_py(self.module_name),))
         #
@@ -426,13 +437,20 @@ class Recompiler:
         prnt('    _types = %s,' % (self._to_py(''.join(types_lst)),))
         typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
         #
+        # the keyword arguments from ALL_STEPS
         for step_name in self.ALL_STEPS:
             lst = self._lsts[step_name]
             if len(lst) > 0 and step_name != "field":
                 prnt('    _%ss = %s,' % (step_name, self._to_py(lst)))
         #
+        # the '_includes' keyword argument
+        if num_includes > 0:
+            prnt('    _includes = (%s,),' % (
+                ', '.join(['_ffi%d' % i for i in range(num_includes)]),))
+        #
         # the footer
         prnt(')')
+        self.ffi._recompiler_module_name = self.module_name
 
     # ----------
 

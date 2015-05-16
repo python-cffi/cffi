@@ -134,19 +134,21 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
     FFIObject *ffi;
     static char *keywords[] = {"module_name", "_version", "_types",
                                "_globals", "_struct_unions", "_enums",
-                               "_typenames", NULL};
+                               "_typenames", "_includes", NULL};
     char *ffiname = NULL, *types = NULL, *building = NULL;
     Py_ssize_t version = -1;
     Py_ssize_t types_len = 0;
     PyObject *globals = NULL, *struct_unions = NULL, *enums = NULL;
-    PyObject *typenames = NULL;
+    PyObject *typenames = NULL, *includes = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sns#O!O!O!O!:FFI", keywords,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds,
+                                     "|sns#O!O!O!O!O!:FFI", keywords,
                                      &ffiname, &version, &types, &types_len,
                                      &PyTuple_Type, &globals,
                                      &PyTuple_Type, &struct_unions,
                                      &PyTuple_Type, &enums,
-                                     &PyTuple_Type, &typenames))
+                                     &PyTuple_Type, &typenames,
+                                     &PyTuple_Type, &includes))
         return -1;
 
     ffi = (FFIObject *)self;
@@ -335,6 +337,18 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
         ffi->types_builder.ctx.typenames = ntypenames;
         ffi->types_builder.ctx.num_typenames = n;
         building = NULL;
+    }
+
+    if (includes != NULL) {
+        PyObject *included_libs;
+
+        included_libs = PyTuple_New(PyTuple_GET_SIZE(includes));
+        if (included_libs == NULL)
+            return -1;
+
+        Py_INCREF(includes);
+        ffi->types_builder.included_ffis = includes;
+        ffi->types_builder.included_libs = included_libs;
     }
 
     /* Above, we took directly some "char *" strings out of the strings,

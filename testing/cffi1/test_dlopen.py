@@ -82,3 +82,45 @@ ffi = _cffi_backend.FFI(b'test_struct',
     _struct_unions = ((b'\x00\x00\x00\x03\x00\x00\x00\x10bar_s',),(b'\x00\x00\x00\x04\x00\x00\x00\x02foo_s',b'\x00\x00\x00\x11a',b'\x00\x00\x02\x11b')),
 )
 """
+
+def test_include():
+    ffi = FFI()
+    ffi.cdef("#define ABC 123")
+    target = udir.join('test_include.py')
+    assert make_py_source(ffi, 'test_include', str(target))
+    assert target.read() == r"""# auto-generated file
+import _cffi_backend
+
+ffi = _cffi_backend.FFI(b'test_include',
+    _types = b'',
+    _globals = (b'\xFF\xFF\xFF\x1FABC',123,),
+)
+"""
+    #
+    ffi2 = FFI()
+    ffi2.include(ffi)
+    target2 = udir.join('test2_include.py')
+    assert make_py_source(ffi2, 'test2_include', str(target2))
+    assert target2.read() == r"""# auto-generated file
+import _cffi_backend
+from test_include import ffi as _ffi0
+
+ffi = _cffi_backend.FFI(b'test2_include',
+    _types = b'',
+    _includes = (_ffi0,),
+)
+"""
+
+def test_negative_constant():
+    ffi = FFI()
+    ffi.cdef("static const int BB = -42;")
+    target = udir.join('test_negative_constant.py')
+    assert make_py_source(ffi, 'test_negative_constant', str(target))
+    assert target.read() == r"""# auto-generated file
+import _cffi_backend
+
+ffi = _cffi_backend.FFI(b'test_negative_constant',
+    _types = b'',
+    _globals = (b'\xFF\xFF\xFF\x1FBB',-42,),
+)
+"""

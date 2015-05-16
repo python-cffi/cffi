@@ -271,10 +271,19 @@ class Parser(object):
                     tp = self._get_type_pointer(tp)
                     self._declare('function ' + decl.name, tp)
                 elif (isinstance(tp, model.PrimitiveType) and
-                      tp.is_integer_type() and
-                      hasattr(decl, 'init') and hasattr(decl.init, 'value')
-                      and _r_int_literal.match(decl.init.value)):
+                        tp.is_integer_type() and
+                        hasattr(decl, 'init') and
+                        hasattr(decl.init, 'value') and
+                        _r_int_literal.match(decl.init.value)):
                     self._add_integer_constant(decl.name, decl.init.value)
+                elif (isinstance(tp, model.PrimitiveType) and
+                        tp.is_integer_type() and
+                        isinstance(decl.init, pycparser.c_ast.UnaryOp) and
+                        decl.init.op == '-' and
+                        hasattr(decl.init.expr, 'value') and
+                        _r_int_literal.match(decl.init.expr.value)):
+                    self._add_integer_constant(decl.name,
+                                               '-' + decl.init.expr.value)
                 elif self._is_constant_globalvar(node):
                     self._declare('constant ' + decl.name, tp)
                 else:
