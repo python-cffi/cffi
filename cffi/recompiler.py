@@ -741,17 +741,23 @@ class Recompiler:
         prnt('  /* only to generate compile-time warnings or errors */')
         prnt('  (void)p;')
         for fname, ftype, fbitsize in tp.enumfields():
-            if (isinstance(ftype, model.PrimitiveType)
-                and ftype.is_integer_type()) or fbitsize >= 0:
-                # accept all integers, but complain on float or double
-                prnt('  (void)((p->%s) << 1);' % fname)
-            else:
-                # only accept exactly the type declared.
-                try:
+            try:
+                if (isinstance(ftype, model.PrimitiveType)
+                    and ftype.is_integer_type()) or fbitsize >= 0:
+                    # accept all integers, but complain on float or double
+                    prnt('  (void)((p->%s) << 1);' % fname)
+                elif (isinstance(ftype, model.ArrayType)
+                      and (ftype.length is None or ftype.length == '...')):
+                    # for C++: "int(*)tmp[] = &p->a;" errors out if p->a is
+                    # declared as "int[5]".  Instead, write "int *tmp = p->a;".
+                    prnt('  { %s = p->%s; (void)tmp; }' % (
+                        ftype.item.get_c_name('*tmp', 'field %r'%fname), fname))
+                else:
+                    # only accept exactly the type declared.
                     prnt('  { %s = &p->%s; (void)tmp; }' % (
                         ftype.get_c_name('*tmp', 'field %r'%fname), fname))
-                except ffiplatform.VerificationError as e:
-                    prnt('  /* %s */' % str(e))   # cannot verify it, ignore
+            except ffiplatform.VerificationError as e:
+                prnt('  /* %s */' % str(e))   # cannot verify it, ignore
         prnt('}')
         prnt('struct _cffi_align_%s { char x; %s y; };' % (approxname, cname))
         prnt()

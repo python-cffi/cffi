@@ -20,7 +20,7 @@ def verify(ffi, module_name, source, *args, **kwds):
     kwds.setdefault('undef_macros', ['NDEBUG'])
     module_name = '_CFFI_' + module_name
     ffi.set_source(module_name, source)
-    if 0:     # test the .cpp mode too
+    if 1:     # test the .cpp mode too
         kwds.setdefault('source_extension', '.cpp')
         source = 'extern "C" {\n%s\n}' % (source,)
     return recompiler._verify(ffi, module_name, source, *args, **kwds)
@@ -378,14 +378,18 @@ def test_dotdotdot_global_array():
 def test_misdeclared_field_1():
     ffi = FFI()
     ffi.cdef("struct foo_s { int a[5]; };")
-    verify(ffi, 'test_misdeclared_field_1',
-           "struct foo_s { int a[6]; };")
-    assert ffi.sizeof("struct foo_s") == 24  # found by the actual C code
-    p = ffi.new("struct foo_s *")
-    # lazily build the fields and boom:
-    e = py.test.raises(ffi.error, "p.a")
-    assert str(e.value).startswith("struct foo_s: wrong size for field 'a' "
-                                   "(cdef says 20, but C compiler says 24)")
+    try:
+        verify(ffi, 'test_misdeclared_field_1',
+               "struct foo_s { int a[6]; };")
+    except VerificationError:
+        pass    # ok, fail during compilation already (e.g. C++)
+    else:
+        assert ffi.sizeof("struct foo_s") == 24  # found by the actual C code
+        p = ffi.new("struct foo_s *")
+        # lazily build the fields and boom:
+        e = py.test.raises(ffi.error, "p.a")
+        assert str(e.value).startswith("struct foo_s: wrong size for field 'a' "
+                                       "(cdef says 20, but C compiler says 24)")
 
 def test_open_array_in_struct():
     ffi = FFI()
