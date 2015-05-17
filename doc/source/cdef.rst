@@ -88,9 +88,9 @@ In order of complexity:
 
     setup(
         ...,
-        setup_requires=["cffi>=1.0.dev0"],
+        setup_requires=["cffi>=1.0.0"],
         cffi_modules=["path/to/foo_build.py:ffi"],
-        install_requires=["cffi>=1.0.dev0"],
+        install_requires=["cffi>=1.0.0"],
     )
 
 Note that CFFI actually contains two different ``FFI`` classes.  The
