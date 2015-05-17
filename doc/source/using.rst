@@ -594,6 +594,16 @@ e.g.::
         assert ffi.typeof(ptr) is ffi.typeof("foo_t*")
         ...
 
+Note also that the mapping from strings like ``"foo_t*"`` to the
+``<ctype>`` objects is stored in some internal dictionary.  This
+guarantees that there is only one ``<ctype 'foo_t *'>`` object, so you
+can use the ``is`` operator to compare it.  The downside is that the
+dictionary entries are immortal for now.  In the future, we may add
+transparent reclamation of old, unused entries.  In the meantime, note
+that using strings like ``"int[%d]" % length`` to name a type will
+create many immortal cached entries if called with many different
+lengths.
+
 **ffi.CData, ffi.CType**: the Python type of the objects referred to
 as ``<cdata>`` and ``<ctype>`` in the rest of this document.  Note
 that some cdata objects may be actually of a subclass of

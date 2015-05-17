@@ -407,7 +407,11 @@ file).  The file to write is explicitly named.
 **ffi.emit_c_code(filename):** generate the given .c file (for API
 mode) without compiling it.  Can be used if you have some other method
 to compile it, e.g. if you want to integrate with some larger build
-system that will compile this file for you.
+system that will compile this file for you.  You can also distribute
+the .c file: unless the build script you used depends on the OS, the
+.c file itself is generic (it would be exactly the same if produced on
+a different OS, with a different version of CPython, or with PyPy; it
+is done with generating the appropriate ``#ifdef``).
 
 **ffi.distutils_extension(tmpdir='build', verbose=True):** for
 distutils-based ``setup.py`` files.  Calling this creates the .c file
