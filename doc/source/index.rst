@@ -437,9 +437,9 @@ can assume to exist are the standard types:
   types ``TBYTE TCHAR LPCTSTR PCTSTR LPTSTR PTSTR PTBYTE PTCHAR`` are no
   longer automatically defined; see ``ffi.set_unicode()`` below.
 
-* *New in version 0.9:* the other standard integer types from stdint.h,
+* *New in version 0.9.3:* the other standard integer types from stdint.h,
   as long as they map to integers of 1, 2, 4 or 8 bytes.  Larger integers
-  are not supported.
+  are not supported.  (Actually added in version 0.9 but this was buggy.)
 
 .. _`common Windows types`: http://msdn.microsoft.com/en-us/library/windows/desktop/aa383751%28v=vs.85%29.aspx
 
@@ -1078,6 +1078,23 @@ if necessary with ``ffi.cast()``::
     C.printf("hello, %f\n", ffi.cast("double", 42))
     C.printf("hello, %s\n", ffi.new("char[]", "world"))
 
+Note that if you are using ``dlopen()``, the function declaration in the
+``cdef()`` must match the original one in C exactly, as usual --- in
+particular, if this function is variadic in C, then its ``cdef()``
+declaration must also be variadic.  You cannot declare it in the
+``cdef()`` with fixed arguments instead, even if you plan to only call
+it with these argument types.  The reason is that some architectures
+have a different calling convention depending on whether the function
+signature is fixed or not.  (On x86-64, the difference can sometimes be
+seen in PyPy's JIT-generated code if some arguments are ``double``.)
+
+Note that the function signature ``int foo();`` is interpreted by CFFI
+as equivalent to ``int foo(void);``.  This differs from the C standard,
+in which ``int foo();`` is really like ``int foo(...);`` and can be
+called with any arguments.  (This feature of C is a pre-C89 relic: the
+arguments cannot be accessed at all in the body of ``foo()`` without
+relying on compiler-specific extensions.)
+
 
 Callbacks
 ---------
@@ -1260,7 +1277,8 @@ points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
 a (read-write) reference to the existing data, not a copy; for this
 reason, and for PyPy compatibility, it does not work with the built-in
-types str or unicode or bytearray.  It is meant to be used on objects
+types str or unicode or bytearray (or buffers/memoryviews on them).
+It is meant to be used on objects
 containing large quantities of raw data, like ``array.array`` or numpy
 arrays.  It supports both the old buffer API (in Python 2.x) and the
 new memoryview API.  The original object is kept alive (and, in case

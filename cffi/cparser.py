@@ -266,7 +266,10 @@ class Parser(object):
             #
             if decl.name:
                 tp = self._get_type(node, partial_length_ok=True)
-                if self._is_constant_globalvar(node):
+                if tp.is_raw_function:
+                    tp = self._get_type_pointer(tp)
+                    self._declare('function ' + decl.name, tp)
+                elif self._is_constant_globalvar(node):
                     self._declare('constant ' + decl.name, tp)
                 else:
                     self._declare('variable ' + decl.name, tp)
@@ -290,9 +293,13 @@ class Parser(object):
         assert '__dotdotdot__' not in name.split()
         self._declarations[name] = obj
 
-    def _get_type_pointer(self, type, const=False):
+    def _get_type_pointer(self, type, const=False, declname=None):
         if isinstance(type, model.RawFunctionType):
             return type.as_function_pointer()
+        if (isinstance(type, model.StructOrUnionOrEnum) and
+                type.name.startswith('$') and type.name[1:].isdigit() and
+                type.forcename is None and declname is not None):
+            return model.NamedPointerType(type, declname)
         if const:
             return model.ConstPointerType(type)
         return model.PointerType(type)
@@ -319,7 +326,8 @@ class Parser(object):
             # pointer type
             const = (isinstance(typenode.type, pycparser.c_ast.TypeDecl)
                      and 'const' in typenode.type.quals)
-            return self._get_type_pointer(self._get_type(typenode.type), const)
+            return self._get_type_pointer(self._get_type(typenode.type), const,
+                                          declname=name)
         #
         if isinstance(typenode, pycparser.c_ast.TypeDecl):
             type = typenode.type

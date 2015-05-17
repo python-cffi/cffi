@@ -19,7 +19,7 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
         p = subprocess.Popen([pkg_config, option, 'libffi'],
                              stdout=subprocess.PIPE)
     except OSError as e:
-        if e.errno != errno.ENOENT:
+        if e.errno not in [errno.ENOENT, errno.EACCES]:
             raise
     else:
         t = p.stdout.read().decode().strip()
@@ -109,11 +109,14 @@ else:
     use_pkg_config()
     ask_supports_thread()
 
+if 'freebsd' in sys.platform:
+    include_dirs.append('/usr/local/include')
+
 
 if __name__ == '__main__':
     from setuptools import setup, Extension
     ext_modules = []
-    if '__pypy__' not in sys.modules:
+    if '__pypy__' not in sys.builtin_module_names:
         ext_modules.append(Extension(
             name='_cffi_backend',
             include_dirs=include_dirs,
@@ -162,5 +165,8 @@ Contact
             'Programming Language :: Python :: 3',
             'Programming Language :: Python :: 3.2',
             'Programming Language :: Python :: 3.3',
+            'Programming Language :: Python :: 3.4',
+            'Programming Language :: Python :: Implementation :: CPython',
+            'Programming Language :: Python :: Implementation :: PyPy',
         ],
     )
