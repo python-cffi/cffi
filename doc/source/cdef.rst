@@ -666,5 +666,50 @@ remove the ``ext_package=".."`` from your ``setup.py``, which was
 needed with ``verify()`` but is just creating confusion with
 ``set_source()``.
 
+The following example should work both with old (pre-1.0) and new
+versions of CFFI (as CFFI 1.0 does not work in PyPy < 2.6)::
+
+    # in a separate file "package/foo_build.py"
+    import cffi
+
+    ffi = cffi.FFI()
+    C_HEADER_SRC = '''
+        #include "somelib.h"
+    '''
+    C_KEYWORDS = dict(libraries=['somelib'])
+
+    if hasattr(ffi, 'set_source'):
+        ffi.set_source("package._foo", C_HEADER_SRC, **C_KEYWORDS)
+
+    ffi.cdef('''
+        int foo(int);
+    ''')
+
+    if __name__ == "__main__":
+        ffi.compile()
+
+And in the main program::
+
+    try:
+        from package._foo import ffi, lib
+    except ImportError:
+        from package.foo_build import ffi, C_HEADER_SRC, C_KEYWORDS
+        lib = ffi.verify(C_HEADER_SRC, **C_KEYWORDS)
+
+(FWIW, this latest trick can be used more generally to allow the
+import to "work" even if the ``_foo`` module was not generated yet.)
+
+Then you would say, in the Setuptools ``setup.py`` script::
+
+    setup(
+        ...,
+        setup_requires=["cffi"],    # any version
+        cffi_modules=["package/foo_build.py:ffi"],
+        install_requires=["cffi"],  # any version
+    )
+
+i.e. still giving ``cffi_modules``---it produces a warning if the CFFI
+version installed is pre-1.0, but still works.
+
 .. __: out-of-line-api_
 .. __: distutils-setuptools_
