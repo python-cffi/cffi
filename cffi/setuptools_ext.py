@@ -9,6 +9,16 @@ def error(msg):
     raise DistutilsSetupError(msg)
 
 
+def execfile(filename, glob):
+    # We use execfile() (here rewritten for Python 3) instead of
+    # __import__() to load the build script.  The problem with
+    # a normal import is that in some packages, the intermediate
+    # __init__.py files may already try to import the file that
+    # we are generating.
+    with open(filename) as f:
+        code = compile(f.read(), filename, 'exec')
+    exec(code, glob, glob)
+
 def add_cffi_module(dist, mod_spec):
     import os
     from cffi.api import FFI
@@ -23,14 +33,24 @@ def add_cffi_module(dist, mod_spec):
               " not %r" % (type(mod_spec).__name__,))
     mod_spec = str(mod_spec)
     try:
-        build_mod_name, ffi_var_name = mod_spec.split(':')
+        build_file_name, ffi_var_name = mod_spec.split(':')
     except ValueError:
-        error("%r must be of the form 'build_mod_name:ffi_variable'" %
+        error("%r must be of the form 'path/build.py:ffi_variable'" %
               (mod_spec,))
-    mod = __import__(build_mod_name, None, None, [ffi_var_name])
+    if not os.path.exists(build_file_name):
+        ext = ''
+        rewritten = build_file_name.replace('.', '/') + '.py'
+        if os.path.exists(rewritten):
+            ext = ' (rewrite cffi_modules to [%r])' % (
+                rewritten + ':' + ffi_var_name,)
+        error("%r does not name an existing file%s" % (build_file_name, ext))
+
+    mod_vars = {}
+    execfile(build_file_name, mod_vars)
+
     try:
-        ffi = getattr(mod, ffi_var_name)
-    except AttributeError:
+        ffi = mod_vars[ffi_var_name]
+    except KeyError:
         error("%r: object %r not found in module" % (mod_spec,
                                                      ffi_var_name))
     if not isinstance(ffi, FFI):
@@ -40,8 +60,7 @@ def add_cffi_module(dist, mod_spec):
                                                       type(ffi).__name__))
     if not hasattr(ffi, '_assigned_source'):
         error("%r: the set_source() method was not called" % (mod_spec,))
-    module_name = ffi._recompiler_module_name
-    source, kwds = ffi._assigned_source
+    module_name, source, source_extension, kwds = ffi._assigned_source
     if ffi._windows_unicode:
         kwds = kwds.copy()
         ffi._apply_windows_unicode(kwds)
@@ -51,7 +70,7 @@ def add_cffi_module(dist, mod_spec):
     ext = Extension(name=module_name, sources=allsources, **kwds)
 
     def make_mod(tmpdir):
-        file_name = module_name + '.c'
+        file_name = module_name + source_extension
         log.info("generating cffi module %r" % file_name)
         mkpath(tmpdir)
         c_file = os.path.join(tmpdir, file_name)

@@ -1,5 +1,3 @@
 
 
-* cffi_modules, now with the *path as a filename*!
-
 * also support ABI-mode in cffi_modules
