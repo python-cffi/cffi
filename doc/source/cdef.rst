@@ -618,6 +618,39 @@ calling ``cffi.verifier.set_tmpdir(path)`` prior to calling
 Upgrading from CFFI 0.9 to CFFI 1.0
 -----------------------------------
 
-xxx also, remember to remove ``ext_package=".."`` from setup.py, which
-was needed with verify() but is just confusion with set_source().
+CFFI 1.0 is backward-compatible, but it is still a good idea to
+consider moving to the out-of-line approach new in 1.0.  Here are the
+steps.
 
+**ABI mode:** if your CFFI project uses::
+
+    import cffi
+
+    ffi = cffi.FFI()
+    ffi.cdef("stuff")
+    lib = ffi.dlopen("libpath")
+
+and *if* the "stuff" part is big enough that import time is a concern,
+then rewrite it as described in `Out-of-line example (ABI level,
+out-of-line)`__ in the overview_.
+
+.. __: overview.html#out-of-line-abi
+.. _overview: overview.html
+
+
+**API mode:** if your CFFI project uses::
+
+    import cffi
+
+    ffi = cffi.FFI()
+    ffi.cdef("stuff")
+    lib = ffi.verify("real C code")
+
+then you should really rewrite it as described in `Real example (API
+level, out-of-line)`_ in the overview_.  It avoids a number of issues
+that have caused ``ffi.verify()`` to grow a number of extra arguments
+over time.  Also, remember to remove the ``ext_package=".."`` from
+your ``setup.py``, which was needed with ``verify()`` but is just
+creating confusion with ``set_source()``.
+
+.. __: overview.html#real-example

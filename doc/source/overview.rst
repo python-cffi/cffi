@@ -41,6 +41,8 @@ arguments.  In the above example it would be ``b"world"`` and ``b"hi
 there, %s!\n"``.  In general it is ``somestring.encode(myencoding)``.
 
 
+.. _out-of-line-abi:
+
 Out-of-line example (ABI level, out-of-line)
 --------------------------------------------
 
@@ -77,6 +79,20 @@ any more:
 
     lib = ffi.dlopen(None)         # or path to a library
     lib.printf(b"hi there, number %d\n", ffi.cast("int", 2))
+
+For distribution purposes, remember that there is a new
+``_simple_example.py`` file generated.  You can either include it
+statically within your project's source files, or, with Setuptools,
+you can say in the ``setup.py``::
+
+    from setuptools import setup
+
+    setup(
+        ...
+        setup_requires=["cffi>=1.0.0"],
+        cffi_modules=["simple_example_build.py:ffi"],
+        install_requires=["cffi>=1.0.0"],
+    )
 
 
 .. _real-example:
@@ -141,7 +157,7 @@ To integrate it inside a ``setup.py`` distribution with Setuptools:
     setup(
         ...
         setup_requires=["cffi>=1.0.0"],
-        cffi_modules=["example_build:ffi"],
+        cffi_modules=["example_build.py:ffi"],
         install_requires=["cffi>=1.0.0"],
     )
 
