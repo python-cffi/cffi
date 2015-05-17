@@ -704,11 +704,11 @@ is harder.  The best I can think about is to say::
 
     if '_cffi_backend' in sys.builtin_module_names:
         import _cffi_backend
-        old_cffi = _cffi_backend.__version__.startswith('0.')
+        new_cffi = _cffi_backend.__version__ >= "1"
     else:
-        old_cffi = False   # assume at least 1.0.0 will be installed
+        new_cffi = True   # assume at least 1.0.0 will be installed
 
-and then use the ``old_cffi`` variable to give different arguments
+and then use the ``new_cffi`` variable to give different arguments
 to ``setup()`` as needed.
 
 .. __: out-of-line-api_
