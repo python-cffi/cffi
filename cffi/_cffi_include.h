@@ -1,4 +1,7 @@
 #include <Python.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <stddef.h>
 #include "parse_c_type.h"
 
@@ -145,7 +148,7 @@ static void *_cffi_exports[_CFFI_NUM_EXPORTS];
     assert((((uintptr_t)_cffi_types[index]) & 1) == 0), \
     (CTypeDescrObject *)_cffi_types[index])
 
-static PyObject *_cffi_init(char *module_name, Py_ssize_t version,
+static PyObject *_cffi_init(const char *module_name, Py_ssize_t version,
                             const struct _cffi_type_context_s *ctx)
 {
     PyObject *module, *o_arg, *new_module;
@@ -165,7 +168,7 @@ static PyObject *_cffi_init(char *module_name, Py_ssize_t version,
         goto failure;
 
     new_module = PyObject_CallMethod(
-                    module, "_init_cffi_1_0_external_module", "O", o_arg);
+        module, (char *)"_init_cffi_1_0_external_module", (char *)"O", o_arg);
 
     Py_DECREF(o_arg);
     Py_DECREF(module);
@@ -199,4 +202,8 @@ static PyObject *_cffi_init(char *module_name, Py_ssize_t version,
 # define _CFFI_UNUSED_FN  __attribute__((unused))
 #else
 # define _CFFI_UNUSED_FN  /* nothing */
+#endif
+
+#ifdef __cplusplus
+}
 #endif

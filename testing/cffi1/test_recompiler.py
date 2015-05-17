@@ -20,6 +20,9 @@ def verify(ffi, module_name, source, *args, **kwds):
     kwds.setdefault('undef_macros', ['NDEBUG'])
     module_name = '_CFFI_' + module_name
     ffi.set_source(module_name, source)
+    if 0:     # test the .cpp mode too
+        kwds.setdefault('source_extension', '.cpp')
+        source = 'extern "C" {\n%s\n}' % (source,)
     return recompiler._verify(ffi, module_name, source, *args, **kwds)
 
 

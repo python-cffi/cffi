@@ -17,7 +17,7 @@ class GlobalExpr:
         self.check_value = check_value
 
     def as_c_expr(self):
-        return '  { "%s", %s, %s, %s },' % (
+        return '  { "%s", (void *)%s, %s, %s },' % (
             self.name, self.address, self.type_op.as_c_expr(), self.size)
 
     def as_python_expr(self):
@@ -333,8 +333,8 @@ class Recompiler:
             prnt('static const char * const _cffi_includes[] = {')
             for ffi_to_include in self.ffi._included_ffis:
                 try:
-                    included_source, _, included_module_name = (
-                        ffi_to_include._assigned_source)
+                    included_module_name, included_source = (
+                        ffi_to_include._assigned_source[:2])
                 except AttributeError:
                     raise ffiplatform.VerificationError(
                         "ffi object %r includes %r, but the latter has not "
@@ -428,8 +428,8 @@ class Recompiler:
         for i in range(num_includes):
             ffi_to_include = self.ffi._included_ffis[i]
             try:
-                included_source, _, included_module_name = (
-                    ffi_to_include._assigned_source)
+                included_module_name, included_source = (
+                    ffi_to_include._assigned_source[:2])
             except AttributeError:
                 raise ffiplatform.VerificationError(
                     "ffi object %r includes %r, but the latter has not "
@@ -516,7 +516,8 @@ class Recompiler:
         self._prnt('  if (datasize != 0) {')
         self._prnt('    if (datasize < 0)')
         self._prnt('      %s;' % errcode)
-        self._prnt('    %s = alloca((size_t)datasize);' % (tovar,))
+        self._prnt('    %s = (%s)alloca((size_t)datasize);' % (
+            tovar, tp.get_c_name('')))
         self._prnt('    memset((void *)%s, 0, (size_t)datasize);' % (tovar,))
         self._prnt('    if (_cffi_convert_array_from_object('
                    '(char *)%s, _cffi_type(%d), %s) < 0)' % (
@@ -1122,15 +1123,15 @@ def _get_extension(module_name, c_file, kwds):
     source_name = ffiplatform.maybe_relative_path(c_file)
     return ffiplatform.get_extension(source_name, module_name, **kwds)
 
-def recompile(ffi, module_name, preamble, tmpdir='.',
-              call_c_compiler=True, c_file=None, **kwds):
+def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
+              c_file=None, source_extension='.c', **kwds):
     if not isinstance(module_name, str):
         module_name = module_name.encode('ascii')
     if ffi._windows_unicode:
         ffi._apply_windows_unicode(kwds)
     if preamble is not None:
         if c_file is None:
-            c_file = os.path.join(tmpdir, module_name + '.c')
+            c_file = os.path.join(tmpdir, module_name + source_extension)
         ext = _get_extension(module_name, c_file, kwds)
         updated = make_c_source(ffi, module_name, preamble, c_file)
         if call_c_compiler:

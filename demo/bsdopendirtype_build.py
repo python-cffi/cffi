@@ -15,9 +15,11 @@ ffi.cdef("""
 """)
 
 ffi.set_source("_bsdopendirtype", """
+extern "C" {
     #include <sys/types.h>
     #include <dirent.h>
-""")
+}
+""", source_extension='.cpp')
 
 if __name__ == '__main__':
     ffi.compile()
