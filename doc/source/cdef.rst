@@ -666,6 +666,9 @@ remove the ``ext_package=".."`` from your ``setup.py``, which was
 needed with ``verify()`` but is just creating confusion with
 ``set_source()``.
 
+.. __: out-of-line-api_
+.. __: distutils-setuptools_
+
 The following example should work both with old (pre-1.0) and new
 versions of CFFI (as CFFI 1.0 does not work in PyPy < 2.6)::
 
@@ -700,16 +703,31 @@ And in the main program::
 import to "work" even if the ``_foo`` module was not generated yet.)
 
 Writing a ``setup.py`` script that works both with CFFI 0.9 and 1.0
-is harder.  The best I can think about is to say::
+requires explicitly checking the version of CFFI that we are going to
+download and install---which we can assume is the latest one unless
+we're running on PyPy:
 
-    if '_cffi_backend' in sys.builtin_module_names:
+    if '_cffi_backend' in sys.builtin_module_names:   # pypy
         import _cffi_backend
         new_cffi = _cffi_backend.__version__ >= "1"
     else:
         new_cffi = True   # assume at least 1.0.0 will be installed
 
-and then use the ``new_cffi`` variable to give different arguments
-to ``setup()`` as needed.
+Then we use the ``new_cffi`` variable to give different arguments to
+``setup()`` as needed, e.g.::
 
-.. __: out-of-line-api_
-.. __: distutils-setuptools_
+    if new_cffi:
+        extra_args = dict(
+            cffi_modules=['...:ffi'],
+        )
+    else:
+        from package.foo_build import ffi
+        extra_args = dict(
+            ext_modules=[ffi.verifier.get_extension()],
+            ext_packages="...",    # if needed
+        )
+    setup(
+        name=...,
+        ...,
+        **extra_args
+    )
