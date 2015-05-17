@@ -489,6 +489,9 @@ Known missing features that are GCC or MSVC extensions:
 
 * Thread-local variables (access them via getter/setter functions)
 
+* Function pointers with non-default calling conventions (e.g. on
+  Windows, "stdcall").
+
 Note that since version 0.8, declarations like ``int field[];`` in
 structures are interpreted as variable-length structures.  Declarations
 like ``int field[...];`` on the other hand are arrays whose length is
