@@ -699,17 +699,17 @@ And in the main program::
 (FWIW, this latest trick can be used more generally to allow the
 import to "work" even if the ``_foo`` module was not generated yet.)
 
-Then you would say, in the Setuptools ``setup.py`` script::
+Writing a ``setup.py`` script that works both with CFFI 0.9 and 1.0
+is harder.  The best I can think about is to say::
 
-    setup(
-        ...,
-        setup_requires=["cffi"],    # any version
-        cffi_modules=["package/foo_build.py:ffi"],
-        install_requires=["cffi"],  # any version
-    )
+    if '_cffi_backend' in sys.builtin_module_names:
+        import _cffi_backend
+        old_cffi = _cffi_backend.__version__.startswith('0.')
+    else:
+        old_cffi = False   # assume at least 1.0.0 will be installed
 
-i.e. still giving ``cffi_modules``---it produces a warning if the CFFI
-version installed is pre-1.0, but still works.
+and then use the ``old_cffi`` variable to give different arguments
+to ``setup()`` as needed.
 
 .. __: out-of-line-api_
 .. __: distutils-setuptools_
