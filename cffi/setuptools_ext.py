@@ -1,3 +1,5 @@
+import os
+
 try:
     basestring
 except NameError:
@@ -19,14 +21,9 @@ def execfile(filename, glob):
         code = compile(f.read(), filename, 'exec')
     exec(code, glob, glob)
 
+
 def add_cffi_module(dist, mod_spec):
-    import os
     from cffi.api import FFI
-    from cffi import recompiler
-    from distutils.core import Extension
-    from distutils.command.build_ext import build_ext
-    from distutils.dir_util import mkpath
-    from distutils import log
 
     if not isinstance(mod_spec, basestring):
         error("argument to 'cffi_modules=...' must be a str or a list of str,"
@@ -65,15 +62,27 @@ def add_cffi_module(dist, mod_spec):
         kwds = kwds.copy()
         ffi._apply_windows_unicode(kwds)
 
+    if source is None:
+        _add_py_module(dist, ffi, module_name)
+    else:
+        _add_c_module(dist, ffi, module_name, source, source_extension, kwds)
+
+
+def _add_c_module(dist, ffi, module_name, source, source_extension, kwds):
+    from distutils.core import Extension
+    from distutils.command.build_ext import build_ext
+    from distutils.dir_util import mkpath
+    from distutils import log
+    from cffi import recompiler
+
     allsources = ['$PLACEHOLDER']
     allsources.extend(kwds.get('sources', []))
     ext = Extension(name=module_name, sources=allsources, **kwds)
 
     def make_mod(tmpdir):
-        file_name = module_name + source_extension
-        log.info("generating cffi module %r" % file_name)
+        c_file = os.path.join(tmpdir, module_name + source_extension)
+        log.info("generating cffi module %r" % c_file)
         mkpath(tmpdir)
-        c_file = os.path.join(tmpdir, file_name)
         updated = recompiler.make_c_source(ffi, module_name, source, c_file)
         if not updated:
             log.info("already up-to-date")
@@ -90,6 +99,34 @@ def add_cffi_module(dist, mod_spec):
                 ext.sources[0] = make_mod(self.build_temp)
             base_class.run(self)
     dist.cmdclass['build_ext'] = build_ext_make_mod
+    # NB. multiple runs here will create multiple 'build_ext_make_mod'
+    # classes.  Even in this case the 'build_ext' command should be
+    # run once; but just in case, the logic above does nothing if
+    # called again.
+
+
+def _add_py_module(dist, ffi, module_name):
+    from distutils.dir_util import mkpath
+    from distutils.command.build_py import build_py
+    from distutils import log
+    from cffi import recompiler
+
+    def make_mod(tmpdir):
+        module_path = module_name.split('.')
+        module_path[-1] += '.py'
+        py_file = os.path.join(tmpdir, *module_path)
+        log.info("generating cffi module %r" % py_file)
+        mkpath(os.path.dirname(py_file))
+        updated = recompiler.make_py_source(ffi, module_name, py_file)
+        if not updated:
+            log.info("already up-to-date")
+
+    base_class = dist.cmdclass.get('build_py', build_py)
+    class build_py_make_mod(base_class):
+        def run(self):
+            base_class.run(self)
+            make_mod(self.build_lib)
+    dist.cmdclass['build_py'] = build_py_make_mod
 
 
 def cffi_modules(dist, attr, value):
