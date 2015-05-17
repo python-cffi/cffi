@@ -74,9 +74,8 @@ def test_dlclose():
     lib = ffi.dlopen(extmod)
     ffi.dlclose(lib)
     e = py.test.raises(ffi.error, ffi.dlclose, lib)
-    assert str(e.value) == (
-        "library '%s' is already closed or was not created with ffi.dlopen()"
-        % (extmod,))
+    assert str(e.value).startswith(
+        "library '%s' is already closed" % (extmod,))
 
 def test_constant_via_lib():
     from re_python_pysrc import ffi
