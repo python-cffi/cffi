@@ -2,37 +2,107 @@
 Preparing and Distributing modules
 ======================================
 
+There are three or four different ways to use CFFI in a project.
+In order of complexity:
 
-The minimal versus the extended FFI class
------------------------------------------
-
-CFFI contains actually two different ``FFI`` classes.  The page `Using
-the ffi/lib objects`_ describes the minimal functionality.  One of
-these two classes contains an extended API, described below.
-
-.. _`Using the ffi/lib objects`: using.html
-
-The minimal class is what you get with the out-of-line approach when
-you say ``from _example import ffi``.  The extended class is what you
-get when you say instead::
+* The **"in-line", "ABI mode"**::
 
     import cffi
 
     ffi = cffi.FFI()
+    ffi.cdef("C-like declarations")
+    lib = ffi.dlopen("libpath")
 
-Only the latter kind contains the methods described below, which are
-needed to make FFI objects from scratch or to compile them into
-out-of-line modules.
+    # use ffi and lib here
 
-The reason for this split of functionality is that out-of-line FFI
-objects can be used without loading at all the ``cffi`` package.  In
-fact, a regular program using CFFI out-of-line does not need anything
-from the ``cffi`` pure Python package at all (but still needs
-``_cffi_backend``, a C extension module).
+* The **"out-of-line",** but still **"ABI mode",** useful to organize
+  the code and reduce the import time::
+
+    # in a separate file "package/foo_build.py"
+    import cffi
+
+    ffi = cffi.FFI()
+    ffi.set_source("package._foo", None)
+    ffi.cdef("C-like declarations")
+
+    if __name__ == "__main__":
+        ffi.compile()
+
+  Running ``python foo_build.py`` produces a file ``_foo.py``, which
+  can then be imported in the main program::
+
+    from package._foo import ffi
+    lib = ffi.dlopen("libpath")
+
+    # use ffi and lib here
+
+* The **"out-of-line", "API mode"** gives you the most flexibility to
+  access a C library at the level of C, instead of at the binary
+  level::
+
+    # in a separate file "package/foo_build.py"
+    import cffi
+
+    ffi = cffi.FFI()
+    ffi.set_source("package._foo", "real C code")   # <=
+    ffi.cdef("C-like declarations with '...'")
+
+    if __name__ == "__main__":
+        ffi.compile()
+
+  Running ``python foo_build.py`` produces a file ``_foo.c`` and
+  invokes the C compiler to turn it into a file ``_foo.so`` (or
+  ``_foo.pyd`` or ``_foo.dylib``).  It is a C extension module which
+  can be imported in the main program::
+
+    from package._foo import ffi, lib
+    # no ffi.dlopen()
+
+    # use ffi and lib here
+
+* Finally, you can (but don't have to) use CFFI's **Distutils** or
+  **Setuptools integration** when writing a ``setup.py``.  For
+  Distutils (only in out-of-line API mode)::
+
+    # setup.py (requires CFFI to be installed first)
+    from distutils.core import setup
+
+    import foo_build   # possibly with sys.path tricks to find it
+
+    setup(
+        ...,
+        ext_modules=[foo_build.ffi.distutils_extension()],
+    )
+
+  For Setuptools (out-of-line, but works in ABI or API mode;
+  recommended)::
+
+    # setup.py (with automatic dependency tracking)
+    from setuptools import setup
+
+    setup(
+        ...,
+        setup_requires=["cffi>=1.0.dev0"],
+        cffi_modules=["path/to/foo_build.py:ffi"],
+        install_requires=["cffi>=1.0.dev0"],
+    )
+
+Note that CFFI actually contains two different ``FFI`` classes.  The
+page `Using the ffi/lib objects`_ describes the common functionality.
+This minimum is what you get in the ``from package._foo import ffi``
+lines above.  The extended ``FFI`` class is the one you get from
+``import cffi; ffi = cffi.FFI()``.  It has the same functionality (for
+in-line use), but also the extra methods described below (to prepare
+the FFI).
+
+The reason for this split of functionality is that a regular program
+using CFFI out-of-line does not need to import the ``cffi`` pure
+Python package at all.  (Internally it still needs ``_cffi_backend``,
+a C extension module that comes with CFFI.)
 
 
-Declaring types and functions
------------------------------
+ffi.cdef(): declaring types and functions
+-----------------------------------------
 
 **ffi.cdef(source)**: parses the given C source.
 It registers all the functions, types, constants and global variables in
@@ -40,7 +110,7 @@ the C source.  The types can be used immediately in ``ffi.new()`` and
 other functions.  Before you can access the functions and global
 variables, you need to give ``ffi`` another piece of information: where
 they actually come from (which you do with either ``ffi.dlopen()`` or
-``ffi.set_source()/ffi.compile()``).
+``ffi.set_source()``).
 
 .. _`all types listed above`:
 
@@ -80,7 +150,7 @@ can assume to exist are the standard types:
 
 The declarations can also contain "``...``" at various places; these are
 placeholders that will be completed by the compiler.  More information
-about it in the next section.
+about it below in `Letting the C compiler fill the gaps`_.
 
 Note that all standard type names listed above are handled as
 *defaults* only (apart from the ones that are keywords in the C
@@ -89,6 +159,10 @@ redefines one of the types above, then the default described above is
 ignored.  (This is a bit hard to implement cleanly, so in some corner
 cases it might fail, notably with the error ``Multiple type specifiers
 with a type tag``.  Please report it as a bug if it does.)
+
+Multiple calls to ``ffi.cdef()`` are possible.  Beware that it can be
+slow to call ``ffi.cdef()`` a lot of times, a consideration that is
+important mainly in in-line mode.
 
 .. versionadded:: 0.8.2
    The ``ffi.cdef()`` call takes an optional
@@ -101,6 +175,111 @@ with a type tag``.  Please report it as a bug if it does.)
    far, which mean that they may be packed differently than on GCC.
    Also, this has no effect on structs declared with ``"...;"``---next
    section.)
+
+
+ffi.dlopen(): loading libraries in ABI mode
+-------------------------------------------
+
+``ffi.dlopen(libpath, [flags])``: this function opens a shared library and
+returns a module-like library object.  Use this when you are fine with
+the limitations of ABI-level access to the system.  In case of doubt, read
+again `ABI versus API`_ in the overview.
+
+.. _`ABI versus API`: overflow.html#abi-versus-api
+
+You can use the library object to call the functions previously
+declared by ``ffi.cdef()``, to read constants, and to read or write
+global variables.  Note that you can use a single ``cdef()`` to
+declare functions from multiple libraries, as long as you load each of
+them with ``dlopen()`` and access the functions from the correct one.
+
+The ``libpath`` is the file name of the shared library, which can
+contain a full path or not (in which case it is searched in standard
+locations, as described in ``man dlopen``), with extensions or not.
+Alternatively, if ``libpath`` is None, it returns the standard C library
+(which can be used to access the functions of glibc, on Linux).
+
+Let me state it again: this gives ABI-level access to the library, so
+you need to have all types declared manually exactly as they were
+while the library was made.  No checking is done.  Mismatches can
+cause random crashes.
+
+Note that only functions and global variables live in library objects;
+the types exist in the ``ffi`` instance independently of library objects.
+This is due to the C model: the types you declare in C are not tied to a
+particular library, as long as you ``#include`` their headers; but you
+cannot call functions from a library without linking it in your program,
+as ``dlopen()`` does dynamically in C.
+
+For the optional ``flags`` argument, see ``man dlopen`` (ignored on
+Windows).  It defaults to ``ffi.RTLD_NOW``.
+
+This function returns a "library" object that gets closed when it goes
+out of scope.  Make sure you keep the library object around as long as
+needed.  (Alternatively, the out-of-line FFIs have a method
+``ffi.dlclose(lib)``.)
+
+
+ffi.set_source(): preparing out-of-line modules
+-----------------------------------------------
+
+**ffi.set_source(module_name, c_header_source, [\*\*keywords...])**:
+prepare the ffi for producing out-of-line an external module called
+``module_name``.  *New in version 1.0.*
+
+``ffi.set_source()`` by itself does not write any file, but merely
+records its arguments for later.  It can therefore be called before or
+after ``ffi.cdef()``.
+
+In **ABI mode,** you call ``ffi.set_source(module_name, None)``.  The
+argument is the name (or dotted name inside a package) of the Python
+module to generate.  In this mode, no C compiler is called.
+
+In **API mode,** the ``c_header_source`` argument is a string that
+will be pasted into the .c file generated.  This piece of C code
+typically contains some ``#include``, but may also contain more,
+like definitions for custom "wrapper" C functions.  The goal is that
+the .c file can be generated like this::
+
+    #include <Python.h>
+
+    ...c_header_source...
+
+    ...magic code...
+
+where the "magic code" is automatically generated from the ``cdef()``.
+For example, if the ``cdef()`` contains ``int foo(int x);`` then the
+magic code will contain logic to call the function ``foo()`` with an
+integer argument, itself wrapped inside some CPython or PyPy-specific
+code.
+
+The keywords arguments to ``set_source()`` control how the C compiler
+will be called.  They are passed directly to distutils_ or setuptools_
+and include at least ``sources``, ``include_dirs``, ``define_macros``,
+``undef_macros``, ``libraries``, ``library_dirs``, ``extra_objects``,
+``extra_compile_args`` and ``extra_link_args``.  You typically need at
+least ``libraries=['foo']`` in order to link with ``libfoo.so`` or
+``libfoo.so.X.Y``, or ``foo.dll`` on Windows.  The ``sources`` is a
+list of extra .c files compiled and linked together (the file
+``module_name.c`` is always generated and automatically added as the
+first argument to ``sources``).  See the distutils documentations for
+`more information about the other arguments`__.
+
+.. __: http://docs.python.org/distutils/setupscript.html#library-options
+.. _distutils: http://docs.python.org/distutils/setupscript.html#describing-extension-modules
+.. _setuptools: https://pythonhosted.org/setuptools/setuptools.html
+
+An extra keyword argument processed internally is
+``source_extension``, defaulting to ``".c"``.  The file generated will
+be actually called ``module_name + source_extension``.  Example for
+C++ (but note that there are a few known issues of C-versus-C++
+compatibility left)::
+
+    ffi.set_source("mymodule", '''
+    extern "C" {
+        int somefunc(int somearg) { return real_cpp_func(somearg); }
+    }
+    ''', source_extension='.cpp')
 
 
 Letting the C compiler fill the gaps
@@ -116,9 +295,9 @@ If you are using a C compiler (see `API-level`_), then:
 *  other arguments are checked: you get a compilation warning or error
    if you pass a ``int *`` argument to a function expecting a ``long *``.
 
-*  similarly, most things declared in the ``cdef()`` are checked, to
-   the best we implemented so far; mistakes give compilation warnings
-   or errors.
+*  similarly, most other things declared in the ``cdef()`` are checked,
+   to the best we implemented so far; mistakes give compilation
+   warnings or errors.
 
 Moreover, you can use "``...``" (literally, dot-dot-dot) in the
 ``cdef()`` at various places, in order to ask the C compiler to fill
@@ -130,7 +309,7 @@ in the details.  These places are:
    This declaration will be corrected by the compiler.  (But note that you
    can only access fields that you declared, not others.)  Any ``struct``
    declaration which doesn't use "``...``" is assumed to be exact, but this is
-   checked: you get an error if it is not.
+   checked: you get an error if it is not correct.
 
 *  unknown types: the syntax "``typedef ... foo_t;``" declares the type
    ``foo_t`` as opaque.  Useful mainly for when the API takes and returns
@@ -149,7 +328,8 @@ in the details.  These places are:
    length is completed by the C compiler.  (Only the outermost array
    may have an unknown length, in case of array-of-array.)
    This is slightly different from "``int n[];``", because the latter
-   means that the length is not known even to the C compiler.
+   means that the length is not known even to the C compiler, and thus
+   no attempt is made to complete it.
 
 *  enums: if you don't know the exact order (or values) of the declared
    constants, then use this syntax: "``enum foo { A, B, C, ... };``"
@@ -184,113 +364,23 @@ above`_ as primitive (so ``long long a[5];`` and ``int64_t a[5]`` are
 different declarations).
 
 
-Preparing out-of-line modules
------------------------------
+ffi.compile() etc.: compiling out-of-line modules
+-------------------------------------------------
 
-**ffi.set_source(module_name, c_header_source, [\*\*keywords...])**:
-prepare the ffi for producing out-of-line an external module called
-``module_name``.  *New in version 1.0.*
+You can use one of the following functions to actually generate the
+.py or .c file prepared with ``ffi.set_source()`` and ``ffi.cdef()``.
 
-The final goal is to produce an external module so that ``from
-module_name import ffi`` gives a fast-loading, and possibly
-C-compiler-completed, version of ``ffi``.  This method
-``ffi.set_source()`` is typically called from a separate
-``*_build.py`` file that only contains the logic to build this
-external module.  Note that ``ffi.set_source()`` by itself does not
-write any file, but merely records its arguments for later.  It can be
-called before the ``ffi.cdef()`` or after.  See examples in the
-overview_.
+**ffi.compile(tmpdir='.'):** explicitly generate the .py or .c file,
+and (in the second case) compile it.  The output file is (or are) put
+in the directory given by ``tmpdir``.
 
-.. _overview: overview.html
+**ffi.emit_python_code(filename):** same as ``ffi.compile()`` in ABI
+mode (i.e. checks that ``ffi.compile()`` would have generated a Python
+file).  The file to write is explicitly named.
 
-The ``module_name`` can be a dotted name, in case you want to generate
-the module inside a package.
-
-The ``c_header_source`` is either some C source code or None.  If it
-is None, the external module produced will be a pure Python module; no
-C compiler is needed, but you cannot use the ``"..."`` syntax in the
-``cdef()``.
-
-On the other hand, if ``c_header_source`` is not None, then you can
-use ``"..."`` in the ``cdef()``.  In this case, you must plan the
-``c_header_source`` to be a string containing C code that will be
-directly pasted in the generated C "source" file, like this::
-
-    ...some internal declarations using the '_cffi_' prefix...
-
-    "c_header_source", pasted directly
-
-    ...some magic code to complete all the "..." from the cdef
-    ...declaration of helper functions and static data structures
-    ...and some standard CPython C extension module code
-
-This makes a CPython C extension module (with a tweak to be
-efficiently compiled on PyPy too).  The ``c_header_source`` should
-contain the ``#include`` and other declarations needed to bring in all
-functions, constants, global variables and types mentioned in the
-``cdef()``.  The "magic code" that follows will complete, check, and
-describe them as static data structures.  When you finally import this
-module, these static data structures will be attached to the ``ffi``
-and ``lib`` objects.
-
-The ``keywords`` arguments are XXXXXXXXX
+**ffi.emit_c_code(filename):** generate the given .c file.
 
 
-Compiling out-of-line modules
------------------------------
-
-Once an FFI object has been prepared, we must really generate the
-.py/.c and possibly compile it.  There are several ways.
-
-**ffi.compile(tmpdir='.'):** explicitly generate the .py/.c and (in
-the second case) compile it.  The output file(s) are in the directory
-given by ``tmpdir``.  This is suitable for
-xxxxxxxxxxxxx
-
-
-
-.. _loading-libraries:
-
-ABI level: Loading libraries
-----------------------------
-
-``ffi.dlopen(libpath, [flags])``: this function opens a shared library and
-returns a module-like library object.  Use this when you are fine with
-the limitations of ABI-level access to the system.  In case of doubt, read
-again `ABI versus API`_ in the overview.
-
-.. _`ABI versus API`: overflow.html#abi-versus-api
-
-You can use the library object to call the functions previously
-declared by ``ffi.cdef()``, to read constants, and to read or write
-global variables.  Note that you can use a single ``cdef()`` to
-declare functions from multiple libraries, as long as you load each of
-them with ``dlopen()`` and access the functions from the correct one.
-
-The ``libpath`` is the file name of the shared library, which can
-contain a full path or not (in which case it is searched in standard
-locations, as described in ``man dlopen``), with extensions or not.
-Alternatively, if ``libpath`` is None, it returns the standard C library
-(which can be used to access the functions of glibc, on Linux).
-
-Let me state it again: this gives ABI-level access to the library, so
-you need to have all types declared manually exactly as they were
-while the library was made.  No checking is done.
-
-Note that only functions and global variables are in library objects;
-types exist in the ``ffi`` instance independently of library objects.
-This is due to the C model: the types you declare in C are not tied to a
-particular library, as long as you ``#include`` their headers; but you
-cannot call functions from a library without linking it in your program,
-as ``dlopen()`` does dynamically in C.
-
-For the optional ``flags`` argument, see ``man dlopen`` (ignored on
-Windows).  It defaults to ``ffi.RTLD_NOW``.
-
-This function returns a "library" object that gets closed when it goes
-out of scope.  Make sure you keep the library object around as long as
-needed.  (Alternatively, the out-of-line FFIs have a method
-``ffi.dlclose()``.)
 
 
 
@@ -432,19 +522,6 @@ missing
    some advanced macros (see the example of ``getyx()`` in
    `demo/_curses.py`_).
 
-*  ``sources``, ``include_dirs``,
-   ``define_macros``, ``undef_macros``, ``libraries``,
-   ``library_dirs``, ``extra_objects``, ``extra_compile_args``,
-   ``extra_link_args`` (keyword arguments): these are used when
-   compiling the C code, and are passed directly to distutils_.  You
-   typically need at least ``libraries=['foo']`` in order to link with
-   ``libfoo.so`` or ``libfoo.so.X.Y``, or ``foo.dll`` on Windows.  The
-   ``sources`` is a list of extra .c files compiled and linked together.  See
-   the distutils documentation for `more information about the other
-   arguments`__.
-
-.. __: http://docs.python.org/distutils/setupscript.html#library-options
-.. _distutils: http://docs.python.org/distutils/setupscript.html#describing-extension-modules
 .. _`demo/_curses.py`: https://bitbucket.org/cffi/cffi/src/default/demo/_curses.py
 
 .. versionadded:: 0.4
@@ -477,16 +554,6 @@ missing
    check.  Be sure to have other means of clearing the ``tmpdir``
    whenever you change your sources.
 
-.. versionadded:: 0.9
-   You can give C++ source code in ``ffi.verify()``:
-
-::
-
-     ext = ffi.verify(r'''
-         extern "C" {
-             int somefunc(int somearg) { return real_cpp_func(somearg); }
-         }
-     ''', source_extension='.cpp', extra_compile_args=['-std=c++11'])
 
 .. versionadded:: 0.9
    The optional ``flags`` argument has been added, see ``man dlopen`` (ignored
@@ -530,3 +597,8 @@ Note that this approach is meant to call C libraries that are *not* using
 and afterwards we don't check if they set a Python exception, for
 example.  You may work around it, but mixing CFFI with ``Python.h`` is
 not recommended.
+
+
+
+
+cffi_modules, now with the *path as a filename*!
