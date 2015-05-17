@@ -98,7 +98,10 @@ the FFI).
 The reason for this split of functionality is that a regular program
 using CFFI out-of-line does not need to import the ``cffi`` pure
 Python package at all.  (Internally it still needs ``_cffi_backend``,
-a C extension module that comes with CFFI.)
+a C extension module that comes with CFFI; this is why CFFI is also
+listed in ``install_requires=..`` above.  In the future this might be
+split into a different PyPI package that only installs
+``_cffi_backend``.)
 
 
 ffi.cdef(): declaring types and functions
@@ -175,6 +178,29 @@ important mainly in in-line mode.
    far, which mean that they may be packed differently than on GCC.
    Also, this has no effect on structs declared with ``"...;"``---next
    section.)
+
+**ffi.set_unicode(enabled_flag)**: Windows: if ``enabled_flag`` is
+True, enable the ``UNICODE`` and ``_UNICODE`` defines in C, and
+declare the types ``TBYTE TCHAR LPCTSTR PCTSTR LPTSTR PTSTR PTBYTE
+PTCHAR`` to be (pointers to) ``wchar_t``.  If ``enabled_flag`` is
+False, declare these types to be (pointers to) plain 8-bit characters.
+(These types are not predeclared at all if you don't call
+``set_unicode()``.)  *New in version 0.9.*
+
+The reason behind this method is that a lot of standard functions have
+two versions, like ``MessageBoxA()`` and ``MessageBoxW()``.  The
+official interface is ``MessageBox()`` with arguments like
+``LPTCSTR``.  Depending on whether ``UNICODE`` is defined or not, the
+standard header renames the generic function name to one of the two
+specialized versions, and declares the correct (unicode or not) types.
+
+Usually, the right thing to do is to call this method with True.  Be
+aware (particularly on Python 2) that, afterwards, you need to pass unicode
+strings as arguments instead of not byte strings.  (Before cffi version 0.9,
+``TCHAR`` and friends where hard-coded as unicode, but ``UNICODE`` was,
+inconsistently, not defined by default.)
+
+.. "versionadded:: 0.9" --- inlined in the previous paragraph
 
 
 ffi.dlopen(): loading libraries in ABI mode
@@ -272,8 +298,8 @@ first argument to ``sources``).  See the distutils documentations for
 An extra keyword argument processed internally is
 ``source_extension``, defaulting to ``".c"``.  The file generated will
 be actually called ``module_name + source_extension``.  Example for
-C++ (but note that there are a few known issues of C-versus-C++
-compatibility left)::
+C++ (but note that there are still a few known issues of C-versus-C++
+compatibility)::
 
     ffi.set_source("mymodule", '''
     extern "C" {
@@ -285,7 +311,7 @@ compatibility left)::
 Letting the C compiler fill the gaps
 ------------------------------------
 
-If you are using a C compiler (see `API-level`_), then:
+If you are using a C compiler ("API mode"), then:
 
 *  functions taking or returning integer or float-point arguments can be
    misdeclared: if e.g. a function is declared by ``cdef()`` as taking a
@@ -378,35 +404,58 @@ in the directory given by ``tmpdir``.
 mode (i.e. checks that ``ffi.compile()`` would have generated a Python
 file).  The file to write is explicitly named.
 
-**ffi.emit_c_code(filename):** generate the given .c file.
+**ffi.emit_c_code(filename):** generate the given .c file (for API
+mode) without compiling it.  Can be used if you have some other method
+to compile it, e.g. if you want to integrate with some larger build
+system that will compile this file for you.
+
+**ffi.distutils_extension(tmpdir='build', verbose=True):** for
+distutils-based ``setup.py`` files.  Calling this creates the .c file
+if needed in the given ``tmpdir``, and returns a
+``distutils.core.Extension`` instance.
+
+For Setuptools, you use instead the line
+``cffi_modules=["path/to/foo_build.py:ffi"]`` in ``setup.py``.  This
+line will internally cause Setuptools to call
+``cffi.setuptools_ext.cffi_modules()``, which writes the .c file and
+attaches an ``Extension`` instance automatically.
 
 
+ffi.include(): combining multiple CFFI interfaces
+-------------------------------------------------
+
+**ffi.include(other_ffi)**: includes the typedefs, structs, unions,
+enums and constants defined in another FFI instance.  This is meant
+for large projects where one CFFI-based interface depends on some
+types or functions declared in a different CFFI-based interface.
+
+For out-of-line modules, the ``ffi.include(other_ffi)`` line should
+occur in the build script, and the ``other_ffi`` argument should be
+another FFI that comes from another build script.  When the two build
+scripts are turned into generated files, say ``_ffi.so`` and
+``_other_ffi.so``, then importing ``_ffi.so`` will internally cause
+``_other_ffi.so`` to be imported.
+
+The usage of ``ffi.include()`` is the cdef-level equivalent of a
+``#include`` in C, where a part of the program might include types and
+functions defined in another part for its own usage.  You can see on
+the ``ffi`` object (and associated ``lib`` objects on the *including*
+side) the types and constants declared on the included side.  In API
+mode, you can also see the functions and global variables directly.
+In ABI mode, these must be accessed via the original ``other_lib``
+object returned by the ``dlopen()`` method on ``other_ffi``.
+
+*Note that you should only use one ffi object per library; the
+intended usage of ffi.include() is if you want to interface with
+several inter-dependent libraries.*  For only one library, make one
+``ffi`` object.
 
 
-
-**ffi.include(other_ffi)**: includes the typedefs, structs, unions, enums
-and constants defined in another FFI instance.  Usage is similar to a
-``#include`` in C, where a part of the program might include types
-defined in another part for its own usage.  Note that the include()
-method has no effect on functions, constants and global variables, which
-must anyway be accessed directly from the ``lib`` object returned by the
-original FFI instance.  *Note that you should only use one ffi object
-per library; the intended usage of ffi.include() is if you want to
-interface with several inter-dependent libraries.*  For only one
-library, make one ``ffi`` object.  (If the source becomes too large,
-split it up e.g. by collecting the cdef/verify strings from multiple
-Python modules, as long as you call ``ffi.verify()`` only once.)  *New
-in version 0.5.*
-
-.. "versionadded:: 0.5" --- inlined in the previous paragraph
-
-
-
-
-Unimplemented features
+ffi.cdef() limitations
 ----------------------
 
-All of the ANSI C declarations should be supported, and some of C99.
+All of the ANSI C *declarations* should be supported in ``cdef()``,
+and some of C99.  (This excludes any ``#include`` or ``#ifdef``.)
 Known missing features that are GCC or MSVC extensions:
 
 * Any ``__attribute__`` or ``#pragma pack(n)``
@@ -424,16 +473,12 @@ Known missing features that are GCC or MSVC extensions:
 
 * Thread-local variables (access them via getter/setter functions)
 
-.. _`variable-length array`:
-
-.. versionadded:: 0.8
-   Now supported: variable-length structures, i.e. whose last field is
-   a variable-length array.
-
 Note that since version 0.8, declarations like ``int field[];`` in
-structures are interpreted as variable-length structures.  When used for
-structures that are not, in fact, variable-length, it works too; in this
-case, the difference with using ``int field[...];`` is that, as CFFI
+structures are interpreted as variable-length structures.  Declarations
+like ``int field[...];`` on the other hand are arrays whose length is
+going to be completed by the compiler.  You can use ``int field[];``
+for array fields that are not, in fact, variable-length; it works too,
+but in this case, as CFFI
 believes it cannot ask the C compiler for the length of the array, you
 get reduced safety checks: for example, you risk overwriting the
 following fields by passing too many array items in the constructor.
@@ -477,55 +522,31 @@ issues.
     about unresolved symbols.
 
 
+ffi.verify(): in-line API-mode
+------------------------------
 
+**ffi.verify()** is supported for backward compatibility, but is
+deprecated.  ``ffi.verify(c_header_source, tmpdir=.., ext_package=..,
+modulename=.., flags=.., **kwargs)`` makes and compiles a C file from
+the ``ffi.cdef()``, like ``ffi.set_source()`` in API mode, and then
+immediately loads and returns the dynamic library object.
 
+The ``c_header_source`` and the extra keyword arguments have the
+same meaning as in ``ffi.set_source()``.
 
+One remaining use case for ``ffi.verify()`` would be the following
+hack to find explicitly the size of any type, in bytes, and have it
+available in Python immediately (e.g. because it is needed in order to
+write the rest of the build script)::
 
+    ffi = cffi.FFI()
+    ffi.cdef("const int mysize;")
+    lib = ffi.verify("const int mysize = sizeof(THE_TYPE);")
+    print lib.mysize
 
-**ffi.set_unicode(enabled_flag)**: Windows: if ``enabled_flag`` is
-True, enable the ``UNICODE`` and ``_UNICODE`` defines in C, and
-declare the types ``TBYTE TCHAR LPCTSTR PCTSTR LPTSTR PTSTR PTBYTE
-PTCHAR`` to be (pointers to) ``wchar_t``.  If ``enabled_flag`` is
-False, declare these types to be (pointers to) plain 8-bit characters.
-(These types are not predeclared at all if you don't call
-``set_unicode()``.)  *New in version 0.9.*
-
-The reason behind this method is that a lot of standard functions have
-two versions, like ``MessageBoxA()`` and ``MessageBoxW()``.  The
-official interface is ``MessageBox()`` with arguments like
-``LPTCSTR``.  Depending on whether ``UNICODE`` is defined or not, the
-standard header renames the generic function name to one of the two
-specialized versions, and declares the correct (unicode or not) types.
-
-Usually, the right thing to do is to call this method with True.  Be
-aware (particularly on Python 2) that, afterwards, you need to pass unicode
-strings as arguments instead of not byte strings.  (Before cffi version 0.9,
-``TCHAR`` and friends where hard-coded as unicode, but ``UNICODE`` was,
-inconsistently, not defined by default.)
-
-.. "versionadded:: 0.9" --- inlined in the previous paragraph
-
-
-Reference: verifier
--------------------
-
-missing
-
-
-
-
-*  ``source``: C code that is pasted verbatim in the generated code (it
-   is *not* parsed internally).  It should contain at least the
-   necessary ``#include``.  It can also contain the complete
-   implementation of some functions declared in ``cdef()``; this is
-   useful if you really need to write a piece of C code, e.g. to access
-   some advanced macros (see the example of ``getyx()`` in
-   `demo/_curses.py`_).
-
-.. _`demo/_curses.py`: https://bitbucket.org/cffi/cffi/src/default/demo/_curses.py
-
-.. versionadded:: 0.4
-   The ``tmpdir`` argument to ``verify()`` controls where the C
+Extra arguments to ``ffi.verify()``:
+    
+*  ``tmpdir`` controls where the C
    files are created and compiled. Unless the ``CFFI_TMPDIR`` environment
    variable is set, the default is
    ``directory_containing_the_py_file/__pycache__`` using the
@@ -534,18 +555,15 @@ missing
    consistent with the location of the .pyc files for your library.
    The name ``__pycache__`` itself comes from Python 3.)
 
-   The ``ext_package`` argument controls in which package the
+*  ``ext_package`` controls in which package the
    compiled extension module should be looked from.  This is
-   only useful after `distributing modules using CFFI`_.
+   only useful after distributing ffi.verify()-based modules.
 
-   The ``tag`` argument gives an extra string inserted in the
+*  The ``tag`` argument gives an extra string inserted in the
    middle of the extension module's name: ``_cffi_<tag>_<hash>``.
    Useful to give a bit more context, e.g. when debugging.
 
-.. _`warning about modulename`:
-
-.. versionadded:: 0.5
-   The ``modulename`` argument can be used to force a specific module
+*  The ``modulename`` argument can be used to force a specific module
    name, overriding the name ``_cffi_<tag>_<hash>``.  Use with care,
    e.g. if you are passing variable information to ``verify()`` but
    still want the module name to be always the same (e.g. absolute
@@ -554,51 +572,48 @@ missing
    check.  Be sure to have other means of clearing the ``tmpdir``
    whenever you change your sources.
 
+* ``source_extension`` has the same meaning as in
+   ``ffi.set_source()``.
 
-.. versionadded:: 0.9
-   The optional ``flags`` argument has been added, see ``man dlopen`` (ignored
-   on Windows).  It defaults to ``ffi.RTLD_NOW``.
+*  The optional ``flags`` argument has been added, see ``man dlopen``
+   (ignored on Windows).  It defaults to ``ffi.RTLD_NOW``.  (With
+   ``ffi.set_source()``, you would use ``sys.setdlopenflags()``.)
 
-.. versionadded:: 0.9
-   The optional ``relative_to`` argument is useful if you need to list
-   local files passed to the C compiler:
-
-::
+*  The optional ``relative_to`` argument is useful if you need to list
+   local files passed to the C compiler::
 
      ext = ffi.verify(..., sources=['foo.c'], relative_to=__file__)
 
-The line above is roughly the same as::
+   The line above is roughly the same as::
 
      ext = ffi.verify(..., sources=['/path/to/this/file/foo.c'])
 
-except that the default name of the produced library is built from the
-CRC checkum of the argument ``sources``, as well as most other arguments
-you give to ``ffi.verify()`` -- but not ``relative_to``.  So if you used
-the second line, it would stop finding the already-compiled library
-after your project is installed, because the ``'/path/to/this/file'``
-suddenly changed.  The first line does not have this problem.
+   except that the default name of the produced library is built from
+   the CRC checkum of the argument ``sources``, as well as most other
+   arguments you give to ``ffi.verify()`` -- but not ``relative_to``.
+   So if you used the second line, it would stop finding the
+   already-compiled library after your project is installed, because
+   the ``'/path/to/this/file'`` suddenly changed.  The first line does
+   not have this problem.
+
+Note that during development, every time you change the C sources that
+you pass to ``cdef()`` or ``verify()``, then the latter will create a
+new module file name, based on two CRC32 hashes computed from these
+strings.  This creates more and more files in the ``__pycache__``
+directory.  It is recommended that you clean it up from time to time.
+A nice way to do that is to add, in your test suite, a call to
+``cffi.verifier.cleanup_tmpdir()``.  Alternatively, you can just
+completely remove the ``__pycache__`` directory.
+
+An alternative cache directory can be given as the ``tmpdir`` argument
+to ``verify()``, via the environment variable ``CFFI_TMPDIR``, or by
+calling ``cffi.verifier.set_tmpdir(path)`` prior to calling
+``verify``.
 
 
+Upgrading from CFFI 0.9 to CFFI 1.0
+-----------------------------------
 
+xxx also, remember to remove ``ext_package=".."`` from setup.py, which
+was needed with verify() but is just confusion with set_source().
 
-
-
-.. __: `Declaring types and functions`_
-
-Note the following hack to find explicitly the size of any type, in
-bytes::
-
-    ffi.cdef("const int mysize;")
-    lib = ffi.verify("const int mysize = sizeof(THE_TYPE);")
-    print lib.mysize
-
-Note that this approach is meant to call C libraries that are *not* using
-``#include <Python.h>``.  The C functions are called without the GIL,
-and afterwards we don't check if they set a Python exception, for
-example.  You may work around it, but mixing CFFI with ``Python.h`` is
-not recommended.
-
-
-
-
-cffi_modules, now with the *path as a filename*!

@@ -822,6 +822,11 @@ allowed.
 
 `(**)` C function calls are done with the GIL released.
 
+   Note that we assume that the called functions are *not* using the
+   Python API from Python.h.  For example, we don't check afterwards
+   if they set a Python exception.  You may work around it, but mixing
+   CFFI with ``Python.h`` is not recommended.
+
 `(***)` ``long double`` support:
 
    We keep ``long double`` values inside a cdata object to avoid
