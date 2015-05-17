@@ -79,11 +79,11 @@ Demos:
 
 * The documentation below might be sketchy on details; for now the
   ultimate reference is given by the tests, notably
-  `_cffi1/test_verify1.py`_ and `_cffi1/test_new_ffi_1.py`_.
+  `testing/cffi1/test_verify1.py`_ and `testing/cffi0/backend_tests.py`_.
 
 .. _`demo`: https://bitbucket.org/cffi/cffi/src/default/demo
-.. _`cffi1/test_verify1.py`: https://bitbucket.org/cffi/cffi/src/default/_cffi1/test_verify1.py
-.. _`testing/test_verify.py`: https://bitbucket.org/cffi/cffi/src/default/_cffi1/test_new_ffi_1.py
+.. _`testing/cffi1/test_verify1.py`: https://bitbucket.org/cffi/cffi/src/default/testing/cffi1/test_verify1.py
+.. _`testing/cffi0/backend_tests.py`: https://bitbucket.org/cffi/cffi/src/default/testing/cffi0/backend_tests.py
 
 
 Platform-specific instructions

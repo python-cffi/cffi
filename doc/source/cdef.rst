@@ -101,6 +101,8 @@ lines above.  The extended ``FFI`` class is the one you get from
 in-line use), but also the extra methods described below (to prepare
 the FFI).
 
+.. _`Using the ffi/lib objects`: using.html
+
 The reason for this split of functionality is that a regular program
 using CFFI out-of-line does not need to import the ``cffi`` pure
 Python package at all.  (Internally it still needs ``_cffi_backend``,
@@ -184,6 +186,8 @@ important mainly in in-line mode.
    far, which mean that they may be packed differently than on GCC.
    Also, this has no effect on structs declared with ``"...;"``---next
    section.)
+
+.. _`ffi.set_unicode()`:
 
 **ffi.set_unicode(enabled_flag)**: Windows: if ``enabled_flag`` is
 True, enable the ``UNICODE`` and ``_UNICODE`` defines in C, and
@@ -437,14 +441,16 @@ ffi.include(): combining multiple CFFI interfaces
 **ffi.include(other_ffi)**: includes the typedefs, structs, unions,
 enums and constants defined in another FFI instance.  This is meant
 for large projects where one CFFI-based interface depends on some
-types or functions declared in a different CFFI-based interface.
+types declared in a different CFFI-based interface.
 
 For out-of-line modules, the ``ffi.include(other_ffi)`` line should
 occur in the build script, and the ``other_ffi`` argument should be
 another FFI that comes from another build script.  When the two build
 scripts are turned into generated files, say ``_ffi.so`` and
 ``_other_ffi.so``, then importing ``_ffi.so`` will internally cause
-``_other_ffi.so`` to be imported.
+``_other_ffi.so`` to be imported.  At that point, the real
+declarations from ``_other_ffi.so`` are combined with the real
+declarations from ``_ffi.so``.
 
 The usage of ``ffi.include()`` is the cdef-level equivalent of a
 ``#include`` in C, where a part of the program might include types and

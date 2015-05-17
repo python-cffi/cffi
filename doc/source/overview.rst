@@ -41,8 +41,6 @@ arguments.  In the above example it would be ``b"world"`` and ``b"hi
 there, %s!\n"``.  In general it is ``somestring.encode(myencoding)``.
 
 
-.. _out-of-line-abi:
-
 Out-of-line example (ABI level, out-of-line)
 --------------------------------------------
 
