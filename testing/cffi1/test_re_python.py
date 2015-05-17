@@ -38,6 +38,8 @@ def setup_module(mod):
     #define BIGNEG -420000000000L
     int add42(int);
     int globalvar42;
+    int no_such_function(int);
+    int no_such_globalvar;
     struct foo_s;
     typedef struct bar_s { int x; signed char a[]; } bar_t;
     enum foo_e { AA, BB, CC };
@@ -137,3 +139,13 @@ def test_rtld_constants():
     ffi.RTLD_NOW    # check that we have the attributes
     ffi.RTLD_LAZY
     ffi.RTLD_GLOBAL
+
+def test_no_such_function_or_global_var():
+    from re_python_pysrc import ffi
+    lib = ffi.dlopen(extmod)
+    e = py.test.raises(ffi.error, getattr, lib, 'no_such_function')
+    assert str(e.value).startswith(
+        "symbol 'no_such_function' not found in library '")
+    e = py.test.raises(ffi.error, getattr, lib, 'no_such_globalvar')
+    assert str(e.value).startswith(
+        "symbol 'no_such_globalvar' not found in library '")

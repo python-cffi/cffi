@@ -105,7 +105,7 @@ static PyObject *ffi_fetch_int_constant(FFIObject *ffi, char *name,
         default:
             PyErr_Format(FFIError,
                          "function, global variable or non-integer constant "
-                         "'%.200s' must be fetched from their original 'lib' "
+                         "'%.200s' must be fetched from its original 'lib' "
                          "object", name);
             return NULL;
         }

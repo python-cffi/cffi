@@ -278,6 +278,8 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
             if (address == NULL) {
                 /* for dlopen() style */
                 address = cdlopen_fetch(lib->l_libname, lib->l_libhandle, s);
+                if (address == NULL)
+                    return NULL;
             }
             x = make_global_var(ct, address);
         }

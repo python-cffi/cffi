@@ -117,7 +117,7 @@ typedef struct {
     int neg;
 } cdl_intconst_t;
 
-int _cdl_realize_global_int(struct _cffi_getconst_s *gc)
+static int _cdl_realize_global_int(struct _cffi_getconst_s *gc)
 {
     /* The 'address' field of 'struct _cffi_global_s' is set to point
        to this function in case ffiobj_init() sees constant integers.
