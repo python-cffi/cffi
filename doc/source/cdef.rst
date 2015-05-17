@@ -15,6 +15,8 @@ In order of complexity:
 
     # use ffi and lib here
 
+.. _out-of-line-abi:
+
 * The **"out-of-line",** but still **"ABI mode",** useful to organize
   the code and reduce the import time::
 
@@ -35,6 +37,8 @@ In order of complexity:
     lib = ffi.dlopen("libpath")
 
     # use ffi and lib here
+
+.. _out-of-line-api:
 
 * The **"out-of-line", "API mode"** gives you the most flexibility to
   access a C library at the level of C, instead of at the binary
@@ -59,6 +63,8 @@ In order of complexity:
     # no ffi.dlopen()
 
     # use ffi and lib here
+
+.. _distutils-setuptools:
 
 * Finally, you can (but don't have to) use CFFI's **Distutils** or
   **Setuptools integration** when writing a ``setup.py``.  For
@@ -631,11 +637,11 @@ steps.
     lib = ffi.dlopen("libpath")
 
 and *if* the "stuff" part is big enough that import time is a concern,
-then rewrite it as described in `Out-of-line example (ABI level,
-out-of-line)`__ in the overview_.
+then rewrite it as described in `the out-of-line but still ABI mode`__
+above.  Optionally, see also the `setuptools integration`__ paragraph.
 
-.. __: overview.html#out-of-line-abi
-.. _overview: overview.html
+.. __: out-of-line-abi_
+.. __: distutils-setuptools_
 
 
 **API mode:** if your CFFI project uses::
@@ -646,11 +652,13 @@ out-of-line)`__ in the overview_.
     ffi.cdef("stuff")
     lib = ffi.verify("real C code")
 
-then you should really rewrite it as described in `Real example (API
-level, out-of-line)`_ in the overview_.  It avoids a number of issues
-that have caused ``ffi.verify()`` to grow a number of extra arguments
-over time.  Also, remember to remove the ``ext_package=".."`` from
-your ``setup.py``, which was needed with ``verify()`` but is just
-creating confusion with ``set_source()``.
+then you should really rewrite it as described in `the out-of-line,
+API mode`__ above.  It avoids a number of issues that have caused
+``ffi.verify()`` to grow a number of extra arguments over time.  Then
+see the `distutils or setuptools`__ paragraph.  Also, remember to
+remove the ``ext_package=".."`` from your ``setup.py``, which was
+needed with ``verify()`` but is just creating confusion with
+``set_source()``.
 
-.. __: overview.html#real-example
+.. __: out-of-line-api_
+.. __: distutils-setuptools_
