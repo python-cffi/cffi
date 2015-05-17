@@ -734,3 +734,6 @@ Then we use the ``new_cffi`` variable to give different arguments to
         ...,
         **extra_args
     )
+
+To be explicit, you can also require ``"cffi<1.0.0"`` if new_cffi is
+False, and ``"cffi>=1.0.0"`` if new_cffi is True.
