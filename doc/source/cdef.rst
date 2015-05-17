@@ -705,7 +705,7 @@ import to "work" even if the ``_foo`` module was not generated yet.)
 Writing a ``setup.py`` script that works both with CFFI 0.9 and 1.0
 requires explicitly checking the version of CFFI that we are going to
 download and install---which we can assume is the latest one unless
-we're running on PyPy:
+we're running on PyPy::
 
     if '_cffi_backend' in sys.builtin_module_names:   # pypy
         import _cffi_backend
