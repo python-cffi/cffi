@@ -722,11 +722,10 @@ And in the main program::
 import to "work" even if the ``_foo`` module was not generated.)
 
 Writing a ``setup.py`` script that works both with CFFI 0.9 and 1.0
-requires explicitly checking the version of CFFI that we are going to
-download and install---which we can assume is the latest one unless
-we're running on PyPy::
+requires explicitly checking the version of CFFI that we can have---it
+is hard-coded as a built-in module in PyPy::
 
-    if '_cffi_backend' in sys.builtin_module_names:   # pypy
+    if '_cffi_backend' in sys.builtin_module_names:   # PyPy
         import _cffi_backend
         requires_cffi = "cffi==" + _cffi_backend.__version__
     else:
@@ -736,7 +735,7 @@ Then we use the ``requires_cffi`` variable to give different arguments to
 ``setup()`` as needed, e.g.::
 
     if requires_cffi.startswith("cffi==0."):
-        # backward compatibility: we require "cffi==0.*"
+        # backward compatibility: we have "cffi==0.*"
         from package.foo_build import ffi
         extra_args = dict(
             ext_modules=[ffi.verifier.get_extension()],
@@ -744,6 +743,7 @@ Then we use the ``requires_cffi`` variable to give different arguments to
         )
     else:
         extra_args = dict(
+            setup_requires=[requires_cffi],
             cffi_modules=['package/foo_build.py:ffi'],
         )
     setup(
