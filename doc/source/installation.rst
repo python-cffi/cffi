@@ -132,12 +132,22 @@ as described here_.
 .. _here: http://superuser.com/questions/259278/python-2-6-1-pycrypto-2-3-pypi-package-broken-pipe-during-build
 
 
-Windows 64
-++++++++++
+Windows (regular 32-bit)
+++++++++++++++++++++++++
 
 Win32 works and is tested at least each official release.
 
-Status: Win64 received very basic testing and we applied a few essential
+The recommended C compiler compatible with Python 2.7 is this one:
+http://www.microsoft.com/en-us/download/details.aspx?id=44266
+
+For Python 3.4 and beyond:
+https://www.visualstudio.com/en-us/downloads/visual-studio-2015-ctp-vs
+
+
+Windows 64
+++++++++++
+
+Win64 received very basic testing and we applied a few essential
 fixes in cffi 0.7.  Please report any other issue.
 
 Note as usual that this is only about running the 64-bit version of
