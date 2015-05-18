@@ -9,6 +9,7 @@ interface declarations written in C.
 .. toctree::
    :maxdepth: 2
 
+   whatsnew
    installation
    overview
    using

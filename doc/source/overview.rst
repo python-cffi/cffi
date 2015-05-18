@@ -41,6 +41,8 @@ arguments.  In the above example it would be ``b"world"`` and ``b"hi
 there, %s!\n"``.  In general it is ``somestring.encode(myencoding)``.
 
 
+.. _out-of-line-abi-level:
+
 Out-of-line example (ABI level, out-of-line)
 --------------------------------------------
 
@@ -49,7 +51,7 @@ main program's modules.  Instead, you can rewrite it as follows.  It
 massively reduces the import times, because it is slow to parse a
 large C header.  It also allows you to do more detailed checkings
 during build-time without worrying about performance (e.g. calling
-``cdef()`` several times with small pieces of declarations, based
+``cdef()`` many times with small pieces of declarations, based
 on the version of libraries detected on the system).
 
 .. code-block:: python
@@ -93,6 +95,7 @@ you can say in the ``setup.py``::
     )
 
 
+.. _out-of-line-api-level:
 .. _real-example:
 
 Real example (API level, out-of-line)
