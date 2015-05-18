@@ -34,7 +34,7 @@ def test_doc_version():
 def test_doc_version_file():
     parent = os.path.dirname(os.path.dirname(cffi.__file__))
     v = cffi.__version__.replace('+', '')
-    p = os.path.join(parent, 'doc', 'source', 'index.rst')
+    p = os.path.join(parent, 'doc', 'source', 'installation.rst')
     content = open(p).read()
     assert ("cffi/cffi-%s.tar.gz" % v) in content
 
