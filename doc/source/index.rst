@@ -6,6 +6,10 @@ C Foreign Function Interface for Python. The goal is to provide a
 convenient and reliable way to call compiled C code from Python using
 interface declarations written in C.
 
+* Goals_
+
+  * `Comments and bugs`_
+
 .. toctree::
    :maxdepth: 2
 
