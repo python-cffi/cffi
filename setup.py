@@ -23,6 +23,7 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
             raise
     else:
         t = p.stdout.read().decode().strip()
+        p.stdout.close()
         if p.wait() == 0:
             res = t.split()
             # '-I/usr/...' -> '/usr/...'
@@ -142,8 +143,9 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='0.9.2',
+        version='1.0.0',
         packages=['cffi'],
+        package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h']},
         zip_safe=False,
 
         url='http://cffi.readthedocs.org',
@@ -157,6 +159,13 @@ Contact
         install_requires=[
             'pycparser',
         ],
+
+        entry_points = {
+            "distutils.setup_keywords": [
+                "cffi_modules = cffi.setuptools_ext:cffi_modules",
+            ],
+        },
+
         classifiers=[
             'Programming Language :: Python',
             'Programming Language :: Python :: 2',

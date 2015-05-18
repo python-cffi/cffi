@@ -1,6 +1,6 @@
 import py, sys, platform
 import pytest
-from testing import backend_tests, test_function, test_ownlib
+from testing.cffi0 import backend_tests, test_function, test_ownlib
 from cffi import FFI
 import _cffi_backend
 

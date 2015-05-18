@@ -1,5 +1,5 @@
 import py, sys
-from testing import backend_tests
+from testing.cffi0 import backend_tests
 from cffi.backend_ctypes import CTypesBackend
 
 

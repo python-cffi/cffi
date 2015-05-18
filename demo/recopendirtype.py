@@ -1,4 +1,4 @@
-from _bsdopendirtype import ffi, lib
+from _recopendirtype import ffi, lib
 
 
 def _posix_error():
@@ -23,14 +23,16 @@ def opendir(dir):
     dirp = lib.opendir(dir)
     if dirp == ffi.NULL:
         raise _posix_error()
+    dirent = ffi.new("struct dirent *")
+    result = ffi.new("struct dirent **")
     try:
         while True:
             ffi.errno = 0
-            dirent = lib.readdir(dirp)
-            if dirent == ffi.NULL:
-                if ffi.errno != 0:
-                    raise _posix_error()
-                return
+            err = lib.readdir_r(dirp, dirent, result)
+            if err:       # really got an error
+                raise OSError(err, os.strerror(err))
+            if result[0] == ffi.NULL:
+                return    # 
             name = ffi.string(dirent.d_name)
             if name == b'.' or name == b'..':
                 continue

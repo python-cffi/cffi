@@ -216,9 +216,10 @@ static void *dlsym(void *handle, const char *symbol)
     return address;
 }
 
-static void dlclose(void *handle)
+static int dlclose(void *handle)
 {
     FreeLibrary((HMODULE)handle);
+    return 0;
 }
 
 static const char *dlerror(void)
