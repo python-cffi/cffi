@@ -151,3 +151,10 @@ def test_no_such_function_or_global_var():
     e = py.test.raises(ffi.error, getattr, lib, 'no_such_globalvar')
     assert str(e.value).startswith(
         "symbol 'no_such_globalvar' not found in library '")
+
+def test_check_version():
+    import _cffi_backend
+    e = py.test.raises(ImportError, _cffi_backend.FFI,
+                       "foobar", _version=0x2594)
+    assert str(e.value).startswith(
+        "cffi out-of-line Python module 'foobar' has unknown version")

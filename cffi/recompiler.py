@@ -2,6 +2,8 @@ import os, sys, io
 from . import ffiplatform, model
 from .cffi_opcode import *
 
+VERSION = "0x2601"
+
 try:
     int_type = (int, long)
 except NameError:    # Python 3
@@ -375,7 +377,7 @@ class Recompiler:
         prnt('PyMODINIT_FUNC')
         prnt('_cffi_pypyinit_%s(const void *p[])' % (base_module_name,))
         prnt('{')
-        prnt('    p[0] = (const void *)0x2601;')
+        prnt('    p[0] = (const void *)%s;' % VERSION)
         prnt('    p[1] = &_cffi_type_context;')
         prnt('}')
         # on Windows, distutils insists on putting init_cffi_xyz in
@@ -393,15 +395,15 @@ class Recompiler:
         prnt('PyMODINIT_FUNC')
         prnt('PyInit_%s(void)' % (base_module_name,))
         prnt('{')
-        prnt('  return _cffi_init("%s", 0x2601, &_cffi_type_context);' % (
-            self.module_name,))
+        prnt('  return _cffi_init("%s", %s, &_cffi_type_context);' % (
+            self.module_name, VERSION))
         prnt('}')
         prnt('#else')
         prnt('PyMODINIT_FUNC')
         prnt('init%s(void)' % (base_module_name,))
         prnt('{')
-        prnt('  _cffi_init("%s", 0x2601, &_cffi_type_context);' % (
-            self.module_name,))
+        prnt('  _cffi_init("%s", %s, &_cffi_type_context);' % (
+            self.module_name, VERSION))
         prnt('}')
         prnt('#endif')
 
@@ -442,6 +444,7 @@ class Recompiler:
             prnt('from %s import ffi as _ffi%d' % (included_module_name, i))
         prnt()
         prnt("ffi = _cffi_backend.FFI('%s'," % (self.module_name,))
+        prnt("    _version = %s," % (VERSION,))
         #
         # the '_types' keyword argument
         self.cffi_types = tuple(self.cffi_types)    # don't change any more

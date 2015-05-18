@@ -139,7 +139,7 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
     static char *keywords[] = {"module_name", "_version", "_types",
                                "_globals", "_struct_unions", "_enums",
                                "_typenames", "_includes", NULL};
-    char *ffiname = NULL, *types = NULL, *building = NULL;
+    char *ffiname = "?", *types = NULL, *building = NULL;
     Py_ssize_t version = -1;
     Py_ssize_t types_len = 0;
     PyObject *globals = NULL, *struct_unions = NULL, *enums = NULL;
@@ -162,6 +162,15 @@ static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds)
         return -1;
     }
     ffi->ctx_is_nonempty = 1;
+
+    if (version == -1 && types_len == 0)
+        return 0;
+    if (version < CFFI_VERSION_MIN || version > CFFI_VERSION_MAX) {
+        PyErr_Format(PyExc_ImportError,
+                     "cffi out-of-line Python module '%s' has unknown "
+                     "version %p", ffiname, (void *)version);
+        return -1;
+    }
 
     if (types_len > 0) {
         /* unpack a string of 4-byte entries into an array of _cffi_opcode_t */

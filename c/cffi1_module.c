@@ -2,6 +2,9 @@
 #include "parse_c_type.c"
 #include "realize_c_type.c"
 
+#define CFFI_VERSION_MIN    0x2601
+#define CFFI_VERSION_MAX    0x26FF
+
 typedef struct FFIObject_s FFIObject;
 typedef struct LibObject_s LibObject;
 
@@ -135,9 +138,6 @@ static PyObject *_my_Py_InitModule(char *module_name)
     return Py_InitModule(module_name, NULL);
 #endif
 }
-
-#define CFFI_VERSION_MIN    0x2601
-#define CFFI_VERSION_MAX    0x26FF
 
 static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
 {
