@@ -42,7 +42,7 @@ def add_cffi_module(dist, mod_spec):
                 rewritten + ':' + ffi_var_name,)
         error("%r does not name an existing file%s" % (build_file_name, ext))
 
-    mod_vars = {}
+    mod_vars = {'__name__': '__cffi__', '__file__': build_file_name}
     execfile(build_file_name, mod_vars)
 
     try:
