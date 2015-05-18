@@ -406,22 +406,32 @@ ffi.compile() etc.: compiling out-of-line modules
 You can use one of the following functions to actually generate the
 .py or .c file prepared with ``ffi.set_source()`` and ``ffi.cdef()``.
 
-**ffi.compile(tmpdir='.'):** explicitly generate the .py or .c file,
-and (in the second case) compile it.  The output file is (or are) put
-in the directory given by ``tmpdir``.
+Note that these function won't overwrite a .py/.c file with exactly
+the same content, to preserve the mtime.  In some cases where you need
+the mtime to be updated anyway, delete the file before calling the
+functions.
 
-**ffi.emit_python_code(filename):** same as ``ffi.compile()`` in ABI
-mode (i.e. checks that ``ffi.compile()`` would have generated a Python
-file).  The file to write is explicitly named.
+**ffi.compile(tmpdir='.'):** explicitly generate the .py or .c file,
+and (if .c) compile it.  The output file is (or are) put in the
+directory given by ``tmpdir``.  In the examples given here, we use
+``if __name__ == "__main__": ffi.compile()`` in the build scripts---if
+they are directly executed, this makes them rebuild the .py/.c file in
+the current directory.
+
+**ffi.emit_python_code(filename):** generate the given .py file (same
+as ``ffi.compile()`` for ABI mode, with an explicitly-named file to
+write).  If you choose, you can include this .py file pre-packaged in
+your own distributions: it is identical for any Python version (2 or
+3).
 
 **ffi.emit_c_code(filename):** generate the given .c file (for API
 mode) without compiling it.  Can be used if you have some other method
 to compile it, e.g. if you want to integrate with some larger build
 system that will compile this file for you.  You can also distribute
-the .c file: unless the build script you used depends on the OS, the
-.c file itself is generic (it would be exactly the same if produced on
-a different OS, with a different version of CPython, or with PyPy; it
-is done with generating the appropriate ``#ifdef``).
+the .c file: unless the build script you used depends on the OS or
+platform, the .c file itself is generic (it would be exactly the same
+if produced on a different OS, with a different version of CPython, or
+with PyPy; it is done with generating the appropriate ``#ifdef``).
 
 **ffi.distutils_extension(tmpdir='build', verbose=True):** for
 distutils-based ``setup.py`` files.  Calling this creates the .c file
@@ -430,9 +440,12 @@ if needed in the given ``tmpdir``, and returns a
 
 For Setuptools, you use instead the line
 ``cffi_modules=["path/to/foo_build.py:ffi"]`` in ``setup.py``.  This
-line will internally cause Setuptools to call
-``cffi.setuptools_ext.cffi_modules()``, which writes the .c file and
-attaches an ``Extension`` instance automatically.
+line asks Setuptools to import and use a helper provided by CFFI,
+which in turn executes the file ``path/to/foo_build.py`` (as with
+``execfile()``) and looks up its global variable called ``ffi``.  You
+can also say ``cffi_modules=["path/to/foo_build.py:maker"]``, where
+``maker`` names a global function; it is called with no argument and
+is supposed to return a ``FFI`` object.
 
 
 ffi.include(): combining multiple CFFI interfaces
@@ -548,7 +561,9 @@ ffi.verify(): in-line API-mode
 deprecated.  ``ffi.verify(c_header_source, tmpdir=.., ext_package=..,
 modulename=.., flags=.., **kwargs)`` makes and compiles a C file from
 the ``ffi.cdef()``, like ``ffi.set_source()`` in API mode, and then
-immediately loads and returns the dynamic library object.
+immediately loads and returns the dynamic library object.  Some
+non-trivial logic is used to decide if the dynamic library must be
+recompiled or not; see below for ways to control it.
 
 The ``c_header_source`` and the extra keyword arguments have the
 same meaning as in ``ffi.set_source()``.
@@ -591,10 +606,10 @@ Extra arguments to ``ffi.verify()``:
    check.  Be sure to have other means of clearing the ``tmpdir``
    whenever you change your sources.
 
-* ``source_extension`` has the same meaning as in
-   ``ffi.set_source()``.
+* ``source_extension`` has the same meaning as in ``ffi.set_source()``.
 
-*  The optional ``flags`` argument has been added, see ``man dlopen``
+*  The optional ``flags`` argument has been added in version 0.9;
+   see ``man dlopen``
    (ignored on Windows).  It defaults to ``ffi.RTLD_NOW``.  (With
    ``ffi.set_source()``, you would use ``sys.setdlopenflags()``.)
 
@@ -621,8 +636,8 @@ new module file name, based on two CRC32 hashes computed from these
 strings.  This creates more and more files in the ``__pycache__``
 directory.  It is recommended that you clean it up from time to time.
 A nice way to do that is to add, in your test suite, a call to
-``cffi.verifier.cleanup_tmpdir()``.  Alternatively, you can just
-completely remove the ``__pycache__`` directory.
+``cffi.verifier.cleanup_tmpdir()``.  Alternatively, you can manually
+remove the whole ``__pycache__`` directory.
 
 An alternative cache directory can be given as the ``tmpdir`` argument
 to ``verify()``, via the environment variable ``CFFI_TMPDIR``, or by
@@ -666,14 +681,15 @@ API mode`__ above.  It avoids a number of issues that have caused
 ``ffi.verify()`` to grow a number of extra arguments over time.  Then
 see the `distutils or setuptools`__ paragraph.  Also, remember to
 remove the ``ext_package=".."`` from your ``setup.py``, which was
-needed with ``verify()`` but is just creating confusion with
+sometimes needed with ``verify()`` but is just creating confusion with
 ``set_source()``.
 
 .. __: out-of-line-api_
 .. __: distutils-setuptools_
 
 The following example should work both with old (pre-1.0) and new
-versions of CFFI (as CFFI 1.0 does not work in PyPy < 2.6)::
+versions of CFFI---supporting both is important to run on PyPy,
+because CFFI 1.0 does not work in PyPy < 2.6::
 
     # in a separate file "package/foo_build.py"
     import cffi
@@ -703,7 +719,7 @@ And in the main program::
         lib = ffi.verify(C_HEADER_SRC, **C_KEYWORDS)
 
 (FWIW, this latest trick can be used more generally to allow the
-import to "work" even if the ``_foo`` module was not generated yet.)
+import to "work" even if the ``_foo`` module was not generated.)
 
 Writing a ``setup.py`` script that works both with CFFI 0.9 and 1.0
 requires explicitly checking the version of CFFI that we are going to
@@ -712,28 +728,27 @@ we're running on PyPy::
 
     if '_cffi_backend' in sys.builtin_module_names:   # pypy
         import _cffi_backend
-        new_cffi = _cffi_backend.__version__ >= "1"
+        requires_cffi = "cffi==" + _cffi_backend.__version__
     else:
-        new_cffi = True   # assume at least 1.0.0 will be installed
+        requires_cffi = "cffi>=1.0.0"
 
-Then we use the ``new_cffi`` variable to give different arguments to
+Then we use the ``requires_cffi`` variable to give different arguments to
 ``setup()`` as needed, e.g.::
 
-    if new_cffi:
-        extra_args = dict(
-            cffi_modules=['...:ffi'],
-        )
-    else:
+    if requires_cffi.startswith("cffi==0."):
+        # backward compatibility: we require "cffi==0.*"
         from package.foo_build import ffi
         extra_args = dict(
             ext_modules=[ffi.verifier.get_extension()],
             ext_packages="...",    # if needed
         )
+    else:
+        extra_args = dict(
+            cffi_modules=['package/foo_build.py:ffi'],
+        )
     setup(
         name=...,
         ...,
+        install_requires=[requires_cffi],
         **extra_args
     )
-
-To be explicit, you can also require ``"cffi<1.0.0"`` if new_cffi is
-False, and ``"cffi>=1.0.0"`` if new_cffi is True.
