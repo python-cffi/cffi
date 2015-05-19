@@ -109,8 +109,8 @@ In order of complexity:
 
 Note that CFFI actually contains two different ``FFI`` classes.  The
 page `Using the ffi/lib objects`_ describes the common functionality.
-This minimum is what you get in the ``from package._foo import ffi``
-lines above.  The extended ``FFI`` class is the one you get from
+It is what you get in the ``from package._foo import ffi`` lines above.
+On the other hand, the extended ``FFI`` class is the one you get from
 ``import cffi; ffi = cffi.FFI()``.  It has the same functionality (for
 in-line use), but also the extra methods described below (to prepare
 the FFI).
@@ -124,6 +124,13 @@ a C extension module that comes with CFFI; this is why CFFI is also
 listed in ``install_requires=..`` above.  In the future this might be
 split into a different PyPI package that only installs
 ``_cffi_backend``.)
+
+Note that a few small differences do exist: notably, ``from _foo import
+ffi`` returns an object of a type written in C, which does not let you
+add random attributes to it (nor does it have all the
+underscore-prefixed internal attributes of the Python version).
+Similarly, the ``lib`` objects returned by the C version are read-only,
+apart from writes to global variables.
 
 
 ffi.cdef(): declaring types and functions
