@@ -57,7 +57,9 @@ pointer to a pointer of a different type: only the original object has
 ownership, so you must keep it alive.  As soon as you forget it, then
 the casted pointer will point to garbage!  In other words, the ownership
 rules are attached to the *wrapper* cdata objects: they are not, and
-cannot, be attached to the underlying raw memory.)  Example::
+cannot, be attached to the underlying raw memory.)  Example:
+
+.. code-block:: python
 
     global_weakkeydict = weakref.WeakKeyDictionary()
 
@@ -102,7 +104,9 @@ you really want to have a struct object but don't have any convenient
 place to keep alive the original pointer object (returned by
 ``ffi.new()``).
 
-Example::
+Example:
+
+.. code-block:: python
 
     # void somefunction(int *);
 
@@ -184,7 +188,9 @@ like ``ffi.new("int[%d]" % x)``.  Indeed, this is not recommended:
 it all the time.
 
 The C99 variable-sized structures are supported too, as long as the
-initializer says how long the array should be::
+initializer says how long the array should be:
+
+.. code-block:: python
 
     # typedef struct { int x; int y[]; } foo_t;
 
@@ -267,7 +273,9 @@ Function calls
 
 When calling C functions, passing arguments follows mostly the same
 rules as assigning to structure fields, and the return value follows the
-same rules as reading a structure field.  For example::
+same rules as reading a structure field.  For example:
+
+.. code-block:: python
 
     # int foo(short a, int b);
 
@@ -276,7 +284,9 @@ same rules as reading a structure field.  For example::
 
 You can pass to ``char *`` arguments a normal Python string (but don't
 pass a normal Python string to functions that take a ``char *``
-argument and may mutate it!)::
+argument and may mutate it!):
+
+.. code-block:: python
 
     # size_t strlen(const char *);
 
@@ -286,14 +296,18 @@ You can also pass unicode strings as ``wchar_t *`` arguments.  Note that
 in general, there is no difference between C argument declarations that
 use ``type *`` or ``type[]``.  For example, ``int *`` is fully
 equivalent to ``int[]`` or ``int[5]``.  So you can pass an ``int *`` as
-a list of integers::
+a list of integers:
+
+.. code-block:: python
 
     # void do_something_with_array(int *array);
 
     lib.do_something_with_array([1, 2, 3, 4, 5])
 
 CFFI supports passing and returning structs to functions and callbacks.
-Example::
+Example:
+
+.. code-block:: python
 
     # struct foo_s { int a, b; };
     # struct foo_s function_returning_a_struct(void);
@@ -319,7 +333,9 @@ objects, but as a different type (on CPython, ``<built-in
 function>``).  This means you cannot e.g. pass them to some other C
 function expecting a function pointer argument.  Only ``ffi.typeof()``
 works on them.  If you really need a cdata pointer to the function,
-use the following workaround::
+use the following workaround:
+
+.. code-block:: python
   
     ffi.cdef(""" int (*foo)(int a, int b); """)
 
@@ -335,18 +351,22 @@ argument) can be declared and called normally, with the exception that
 all the arguments passed in the variable part *must* be cdata objects.
 This is because it would not be possible to guess, if you wrote this::
 
-    lib.printf("hello, %d\n", 42)
+    lib.printf("hello, %d\n", 42)   # doesn't work!
 
 that you really meant the 42 to be passed as a C ``int``, and not a
 ``long`` or ``long long``.  The same issue occurs with ``float`` versus
 ``double``.  So you have to force cdata objects of the C type you want,
-if necessary with ``ffi.cast()``::
+if necessary with ``ffi.cast()``:
+
+.. code-block:: python
   
     lib.printf("hello, %d\n", ffi.cast("int", 42))
     lib.printf("hello, %ld\n", ffi.cast("long", 42))
     lib.printf("hello, %f\n", ffi.cast("double", 42))
 
-But of course::
+But of course:
+
+.. code-block:: python
 
     lib.printf("hello, %s\n", ffi.new("char[]", "world"))
 
@@ -400,7 +420,9 @@ module-level only, and to pass "context" information around with
 Note that callbacks of a variadic function type are not supported.  A
 workaround is to add custom C code.  In the following example, a
 callback gets a first argument that counts how many extra ``int``
-arguments are passed::
+arguments are passed:
+
+.. code-block:: python
 
     # file "example_build.py"
 
@@ -427,7 +449,7 @@ arguments are passed::
         }
     """)
 
-::
+.. code-block:: python
     
     # file "example.py"
 
@@ -450,7 +472,9 @@ the exception cannot be propagated.  Instead, it is printed to stderr
 and the C-level callback is made to return a default value.
 
 The returned value in case of errors is 0 or null by default, but can be
-specified with the ``error`` keyword argument to ``ffi.callback()``::
+specified with the ``error`` keyword argument to ``ffi.callback()``:
+
+.. code-block:: python
 
     @ffi.callback("int(int, int)", error=-1)
 
@@ -588,7 +612,9 @@ explicitly manipulate ``<ctype>`` objects in your code: any place that
 accepts a C type can receive either a string or a pre-parsed ``ctype``
 object (and because of caching of the string, there is no real
 performance difference).  It can still be useful in writing typechecks,
-e.g.::
+e.g.:
+
+.. code-block:: python
   
     def myfunction(ptr):
         assert ffi.typeof(ptr) is ffi.typeof("foo_t*")

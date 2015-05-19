@@ -83,7 +83,9 @@ any more:
 For distribution purposes, remember that there is a new
 ``_simple_example.py`` file generated.  You can either include it
 statically within your project's source files, or, with Setuptools,
-you can say in the ``setup.py``::
+you can say in the ``setup.py``:
+
+.. code-block:: python
 
     from setuptools import setup
 

@@ -5,7 +5,9 @@ Preparing and Distributing modules
 There are three or four different ways to use CFFI in a project.
 In order of complexity:
 
-* The **"in-line", "ABI mode"**::
+* The **"in-line", "ABI mode"**:
+
+  .. code-block:: python
 
     import cffi
 
@@ -18,7 +20,9 @@ In order of complexity:
 .. _out-of-line-abi:
 
 * The **"out-of-line",** but still **"ABI mode",** useful to organize
-  the code and reduce the import time::
+  the code and reduce the import time:
+
+  .. code-block:: python
 
     # in a separate file "package/foo_build.py"
     import cffi
@@ -31,7 +35,9 @@ In order of complexity:
         ffi.compile()
 
   Running ``python foo_build.py`` produces a file ``_foo.py``, which
-  can then be imported in the main program::
+  can then be imported in the main program:
+
+  .. code-block:: python
 
     from package._foo import ffi
     lib = ffi.dlopen("libpath")
@@ -42,7 +48,9 @@ In order of complexity:
 
 * The **"out-of-line", "API mode"** gives you the most flexibility to
   access a C library at the level of C, instead of at the binary
-  level::
+  level:
+
+  .. code-block:: python
 
     # in a separate file "package/foo_build.py"
     import cffi
@@ -57,7 +65,9 @@ In order of complexity:
   Running ``python foo_build.py`` produces a file ``_foo.c`` and
   invokes the C compiler to turn it into a file ``_foo.so`` (or
   ``_foo.pyd`` or ``_foo.dylib``).  It is a C extension module which
-  can be imported in the main program::
+  can be imported in the main program:
+
+  .. code-block:: python
 
     from package._foo import ffi, lib
     # no ffi.dlopen()
@@ -68,7 +78,9 @@ In order of complexity:
 
 * Finally, you can (but don't have to) use CFFI's **Distutils** or
   **Setuptools integration** when writing a ``setup.py``.  For
-  Distutils (only in out-of-line API mode)::
+  Distutils (only in out-of-line API mode):
+
+  .. code-block:: python
 
     # setup.py (requires CFFI to be installed first)
     from distutils.core import setup
@@ -81,7 +93,9 @@ In order of complexity:
     )
 
   For Setuptools (out-of-line, but works in ABI or API mode;
-  recommended)::
+  recommended):
+
+  .. code-block:: python
 
     # setup.py (with automatic dependency tracking)
     from setuptools import setup
@@ -309,7 +323,9 @@ An extra keyword argument processed internally is
 ``source_extension``, defaulting to ``".c"``.  The file generated will
 be actually called ``module_name + source_extension``.  Example for
 C++ (but note that there are still a few known issues of C-versus-C++
-compatibility)::
+compatibility):
+
+.. code-block:: python
 
     ffi.set_source("mymodule", '''
     extern "C" {
@@ -571,7 +587,9 @@ same meaning as in ``ffi.set_source()``.
 One remaining use case for ``ffi.verify()`` would be the following
 hack to find explicitly the size of any type, in bytes, and have it
 available in Python immediately (e.g. because it is needed in order to
-write the rest of the build script)::
+write the rest of the build script):
+
+.. code-block:: python
 
     ffi = cffi.FFI()
     ffi.cdef("const int mysize;")
@@ -652,7 +670,9 @@ CFFI 1.0 is backward-compatible, but it is still a good idea to
 consider moving to the out-of-line approach new in 1.0.  Here are the
 steps.
 
-**ABI mode:** if your CFFI project uses::
+**ABI mode** if your CFFI project uses ``ffi.dlopen()``:
+
+.. code-block:: python
 
     import cffi
 
@@ -668,7 +688,9 @@ above.  Optionally, see also the `setuptools integration`__ paragraph.
 .. __: distutils-setuptools_
 
 
-**API mode:** if your CFFI project uses::
+**API mode** if your CFFI project uses ``ffi.verify()``:
+
+.. code-block:: python
 
     import cffi
 
@@ -689,7 +711,9 @@ sometimes needed with ``verify()`` but is just creating confusion with
 
 The following example should work both with old (pre-1.0) and new
 versions of CFFI---supporting both is important to run on PyPy,
-because CFFI 1.0 does not work in PyPy < 2.6::
+because CFFI 1.0 does not work in PyPy < 2.6:
+
+.. code-block:: python
 
     # in a separate file "package/foo_build.py"
     import cffi
@@ -710,7 +734,9 @@ because CFFI 1.0 does not work in PyPy < 2.6::
     if __name__ == "__main__":
         ffi.compile()
 
-And in the main program::
+And in the main program:
+
+.. code-block:: python
 
     try:
         from package._foo import ffi, lib
@@ -723,7 +749,9 @@ import to "work" even if the ``_foo`` module was not generated.)
 
 Writing a ``setup.py`` script that works both with CFFI 0.9 and 1.0
 requires explicitly checking the version of CFFI that we can have---it
-is hard-coded as a built-in module in PyPy::
+is hard-coded as a built-in module in PyPy:
+
+.. code-block:: python
 
     if '_cffi_backend' in sys.builtin_module_names:   # PyPy
         import _cffi_backend
@@ -732,7 +760,9 @@ is hard-coded as a built-in module in PyPy::
         requires_cffi = "cffi>=1.0.0"
 
 Then we use the ``requires_cffi`` variable to give different arguments to
-``setup()`` as needed, e.g.::
+``setup()`` as needed, e.g.:
+
+.. code-block:: python
 
     if requires_cffi.startswith("cffi==0."):
         # backward compatibility: we have "cffi==0.*"
