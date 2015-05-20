@@ -10,6 +10,8 @@ What's New
   declared and another cdef() where its fields are defined, then this
   definition was ignored.
 
+* Enums were buggy if you used too many "..." in their definition.
+
 
 1.0.0
 =====
