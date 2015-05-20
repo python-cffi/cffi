@@ -3,6 +3,14 @@ What's New
 ======================
 
 
+1.0.1
+=====
+
+* Issue #193: if we use a struct between the first cdef() where it is
+  declared and another cdef() where its fields are defined, then this
+  definition was ignored.
+
+
 1.0.0
 =====
 
