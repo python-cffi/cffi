@@ -300,6 +300,7 @@ typically contains some ``#include``, but may also contain more,
 like definitions for custom "wrapper" C functions.  The goal is that
 the .c file can be generated like this::
 
+    // C file "module_name.c"
     #include <Python.h>
 
     ...c_header_source...
@@ -320,7 +321,7 @@ and include at least ``sources``, ``include_dirs``, ``define_macros``,
 least ``libraries=['foo']`` in order to link with ``libfoo.so`` or
 ``libfoo.so.X.Y``, or ``foo.dll`` on Windows.  The ``sources`` is a
 list of extra .c files compiled and linked together (the file
-``module_name.c`` is always generated and automatically added as the
+``module_name.c`` shown above is always generated and automatically added as the
 first argument to ``sources``).  See the distutils documentations for
 `more information about the other arguments`__.
 

@@ -258,12 +258,20 @@ all the information we need---or the C compiler will give warnings or
 errors, as usual e.g. if you misdeclare some function's signature.
 
 Note that the ``C header`` part can contain arbitrary C code.  You can
-use it to declare some more helpers written in C.  To export these
-helpers to Python, put their signature in the ``cdef()`` too.  This
-can be used for example to wrap "crazy" macros into more standard C
-functions.  (If all you need is to call "non-crazy" macros, then you
-can directly declare them in the ``cdef()`` as if they were
-functions.)
+use it to declare some more helper functions written in C.  To export
+these helpers to Python, put their signature in the ``cdef()`` too.
+(You can use the ``static`` C keyword, as in ``static int
+myhelper(int x) { real_code_here; }``, because these helpers are only
+referenced from the "magic" C code that is generated afterwards in the
+same C file.)
+
+This can be used for example to wrap "crazy" macros into more standard
+C functions.  The extra layer of C can be useful for other reasons
+too, like calling functions that expect some complicated argument
+structures that you prefer to build in C rather than in Python.  On
+the other hand, if all you need is to call "function-like" macros,
+then you can directly declare them in the ``cdef()`` as if they were
+functions.
 
 The generated piece of C code should be the same independently on the
 platform on which you run it, so in simple cases you can simply
