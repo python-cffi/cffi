@@ -101,6 +101,7 @@ class Parser(object):
         self._override = False
         self._packed = False
         self._int_constants = {}
+        self._recomplete = []
 
     def _parse(self, csource):
         csource, macros = _preprocess(csource)
@@ -555,6 +556,9 @@ class Parser(object):
                 raise NotImplementedError("%s: using both bitfields and '...;'"
                                           % (tp,))
         tp.packed = self._packed
+        if tp.completed:    # must be re-completed: it is not opaque any more
+            tp.completed = 0
+            self._recomplete.append(tp)
         return tp
 
     def _make_partial(self, tp, nested):
