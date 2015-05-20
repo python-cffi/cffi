@@ -481,6 +481,12 @@ enums and constants defined in another FFI instance.  This is meant
 for large projects where one CFFI-based interface depends on some
 types declared in a different CFFI-based interface.
 
+*Note that you should only use one ffi object per library; the intended
+usage of ffi.include() is if you want to interface with several
+inter-dependent libraries.*  For only one library, make one ``ffi``
+object.  (You can write several ``cdef()`` calls over the same ``ffi``
+from several Python files, if one file would be too large.)
+
 For out-of-line modules, the ``ffi.include(other_ffi)`` line should
 occur in the build script, and the ``other_ffi`` argument should be
 another FFI that comes from another build script.  When the two build
@@ -498,11 +504,6 @@ side) the types and constants declared on the included side.  In API
 mode, you can also see the functions and global variables directly.
 In ABI mode, these must be accessed via the original ``other_lib``
 object returned by the ``dlopen()`` method on ``other_ffi``.
-
-*Note that you should only use one ffi object per library; the
-intended usage of ffi.include() is if you want to interface with
-several inter-dependent libraries.*  For only one library, make one
-``ffi`` object.
 
 
 ffi.cdef() limitations
