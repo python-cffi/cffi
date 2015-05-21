@@ -218,7 +218,7 @@ static void *dlsym(void *handle, const char *symbol)
 
 static int dlclose(void *handle)
 {
-    return !FreeLibrary((HMODULE)handle);
+    return FreeLibrary((HMODULE)handle) ? 0 : -1;
 }
 
 static const char *dlerror(void)
