@@ -6,8 +6,11 @@ What's New
 1.0.2
 =====
 
-* The out-of-line ABI mode failed when passed a C function declaration
-  with a final "..." argument.
+* Variadic C functions (ending in a "..." argument) were not supported
+  in the out-of-line ABI mode.  This was a bug---there was even a
+  (non-working) example__ doing exactly that!
+
+.. __: overview.html#out-of-line-abi-level
 
 
 1.0.1
