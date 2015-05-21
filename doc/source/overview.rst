@@ -198,6 +198,53 @@ and get a two-dimensional array.
 .. _array: http://docs.python.org/library/array.html
 
 
+.. _performance:
+
+Purely for performance (API level, out-of-line)
+-----------------------------------------------
+
+A variant of the `section above`__ where the goal is not to call an
+existing C library, but to compile and call some C function written
+directly in the build script:
+
+.. __: real-example_
+
+.. code-block:: python
+
+    # file "example_build.py"
+
+    from cffi import FFI
+    ffi = FFI()
+
+    ffi.cdef("int foo(int *, int *, int);")
+
+    ffi.set_source("_example",
+    """
+        static int foo(int *buffer_in, int *buffer_out, int x)
+        {
+            /* some algorithm that is seriously faster in C than in Python */
+        }
+    """)
+
+    if __name__ == "__main__":
+        ffi.compile()
+
+.. code-block:: python
+
+    # file "example.py"
+
+    from _example import ffi, lib
+
+    buffer_in = ffi.new("int[]", 1000)
+    # initialize buffer_in here...
+
+    # easier to do all buffer allocations in Python and pass them to C,
+    # even for output-only arguments
+    buffer_out = ffi.new("int[]", 1000)
+
+    result = lib.foo(buffer_in, buffer_out, 1000)
+
+
 What actually happened?
 -----------------------
 
