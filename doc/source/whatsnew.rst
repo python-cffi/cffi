@@ -3,6 +3,19 @@ What's New
 ======================
 
 
+1.0.1
+=====
+
+* ``ffi.set_source()`` crashed if passed a ``sources=[..]`` argument.
+  Fixed by chrippa on pull request #60.
+
+* Issue #193: if we use a struct between the first cdef() where it is
+  declared and another cdef() where its fields are defined, then this
+  definition was ignored.
+
+* Enums were buggy if you used too many "..." in their definition.
+
+
 1.0.0
 =====
 

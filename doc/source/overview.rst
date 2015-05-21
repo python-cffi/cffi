@@ -83,7 +83,9 @@ any more:
 For distribution purposes, remember that there is a new
 ``_simple_example.py`` file generated.  You can either include it
 statically within your project's source files, or, with Setuptools,
-you can say in the ``setup.py``::
+you can say in the ``setup.py``:
+
+.. code-block:: python
 
     from setuptools import setup
 
@@ -196,6 +198,53 @@ and get a two-dimensional array.
 .. _array: http://docs.python.org/library/array.html
 
 
+.. _performance:
+
+Purely for performance (API level, out-of-line)
+-----------------------------------------------
+
+A variant of the `section above`__ where the goal is not to call an
+existing C library, but to compile and call some C function written
+directly in the build script:
+
+.. __: real-example_
+
+.. code-block:: python
+
+    # file "example_build.py"
+
+    from cffi import FFI
+    ffi = FFI()
+
+    ffi.cdef("int foo(int *, int *, int);")
+
+    ffi.set_source("_example",
+    """
+        static int foo(int *buffer_in, int *buffer_out, int x)
+        {
+            /* some algorithm that is seriously faster in C than in Python */
+        }
+    """)
+
+    if __name__ == "__main__":
+        ffi.compile()
+
+.. code-block:: python
+
+    # file "example.py"
+
+    from _example import ffi, lib
+
+    buffer_in = ffi.new("int[]", 1000)
+    # initialize buffer_in here...
+
+    # easier to do all buffer allocations in Python and pass them to C,
+    # even for output-only arguments
+    buffer_out = ffi.new("int[]", 1000)
+
+    result = lib.foo(buffer_in, buffer_out, 1000)
+
+
 What actually happened?
 -----------------------
 
@@ -256,12 +305,20 @@ all the information we need---or the C compiler will give warnings or
 errors, as usual e.g. if you misdeclare some function's signature.
 
 Note that the ``C header`` part can contain arbitrary C code.  You can
-use it to declare some more helpers written in C.  To export these
-helpers to Python, put their signature in the ``cdef()`` too.  This
-can be used for example to wrap "crazy" macros into more standard C
-functions.  (If all you need is to call "non-crazy" macros, then you
-can directly declare them in the ``cdef()`` as if they were
-functions.)
+use it to declare some more helper functions written in C.  To export
+these helpers to Python, put their signature in the ``cdef()`` too.
+(You can use the ``static`` C keyword, as in ``static int
+myhelper(int x) { real_code_here; }``, because these helpers are only
+referenced from the "magic" C code that is generated afterwards in the
+same C file.)
+
+This can be used for example to wrap "crazy" macros into more standard
+C functions.  The extra layer of C can be useful for other reasons
+too, like calling functions that expect some complicated argument
+structures that you prefer to build in C rather than in Python.  On
+the other hand, if all you need is to call "function-like" macros,
+then you can directly declare them in the ``cdef()`` as if they were
+functions.
 
 The generated piece of C code should be the same independently on the
 platform on which you run it, so in simple cases you can simply
