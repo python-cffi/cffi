@@ -3,6 +3,13 @@ What's New
 ======================
 
 
+1.0.2
+=====
+
+* The out-of-line ABI mode failed when passed a C function declaration
+  with a final "..." argument.
+
+
 1.0.1
 =====
 
