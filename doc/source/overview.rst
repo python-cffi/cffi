@@ -35,6 +35,8 @@ Simple example (ABI level, in-line)
     >>> arg = ffi.new("char[]", "world")         # equivalent to C code: char arg[] = "world";
     >>> C.printf("hi there, %s!\n", arg)         # call printf
     hi there, world!
+    17                                           # this is the return value
+    >>>
 
 Note that on Python 3 you need to pass byte strings to ``char *``
 arguments.  In the above example it would be ``b"world"`` and ``b"hi
@@ -120,7 +122,7 @@ Real example (API level, out-of-line)
         """,
         libraries=[])   # or a list of libraries to link with
 
-   ffi.cdef("""     // some declarations from the man page
+    ffi.cdef("""     // some declarations from the man page
         struct passwd {
             char *pw_name;
             ...;     // literally dot-dot-dot
