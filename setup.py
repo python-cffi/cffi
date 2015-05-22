@@ -115,7 +115,15 @@ if 'freebsd' in sys.platform:
 
 
 if __name__ == '__main__':
-    from setuptools import setup, Extension
+    from setuptools import setup, Distribution, Extension
+
+    class CFFIDistribution(Distribution):
+        def has_ext_modules(self):
+            # Event if we don't have extension modules (e.g. on PyPy) we want to
+            # claim that we do so that wheels get properly tagged as Python
+            # specific.  (thanks dstufft!)
+            return True
+
     ext_modules = []
     if '__pypy__' not in sys.builtin_module_names:
         ext_modules.append(Extension(
@@ -154,6 +162,7 @@ Contact
 
         license='MIT',
 
+        distclass=CFFIDistribution,
         ext_modules=ext_modules,
 
         install_requires=[
