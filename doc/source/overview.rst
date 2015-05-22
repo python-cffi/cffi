@@ -58,6 +58,9 @@ on the version of libraries detected on the system).
 
     # file "simple_example_build.py"
 
+    # Note: this particular example fails before version 1.0.2
+    # because it combines variadic function and ABI level.
+
     from cffi import FFI
 
     ffi = FFI()

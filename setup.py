@@ -115,19 +115,20 @@ if 'freebsd' in sys.platform:
 
 
 if __name__ == '__main__':
-    from setuptools import setup, Extension
-    ext_modules = []
-    if '__pypy__' not in sys.builtin_module_names:
-        ext_modules.append(Extension(
-            name='_cffi_backend',
-            include_dirs=include_dirs,
-            sources=sources,
-            libraries=libraries,
-            define_macros=define_macros,
-            library_dirs=library_dirs,
-            extra_compile_args=extra_compile_args,
-            extra_link_args=extra_link_args,
-        ))
+    from setuptools import setup, Distribution, Extension
+
+    class CFFIDistribution(Distribution):
+        def has_ext_modules(self):
+            # Event if we don't have extension modules (e.g. on PyPy) we want to
+            # claim that we do so that wheels get properly tagged as Python
+            # specific.  (thanks dstufft!)
+            return True
+
+    # On PyPy, cffi is preinstalled and it is not possible, at least for now,
+    # to install a different version.  We work around it by making the setup()
+    # arguments mostly empty in this case.
+    cpython = ('_cffi_backend' not in sys.builtin_module_names)
+
     setup(
         name='cffi',
         description='Foreign Function Interface for Python calling C code.',
@@ -143,9 +144,10 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='1.0.1',
-        packages=['cffi'],
-        package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h']},
+        version='1.0.2',
+        packages=['cffi'] if cpython else [],
+        package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h']}
+                     if cpython else {},
         zip_safe=False,
 
         url='http://cffi.readthedocs.org',
@@ -154,17 +156,27 @@ Contact
 
         license='MIT',
 
-        ext_modules=ext_modules,
+        distclass=CFFIDistribution,
+        ext_modules=[Extension(
+            name='_cffi_backend',
+            include_dirs=include_dirs,
+            sources=sources,
+            libraries=libraries,
+            define_macros=define_macros,
+            library_dirs=library_dirs,
+            extra_compile_args=extra_compile_args,
+            extra_link_args=extra_link_args,
+        )] if cpython else [],
 
         install_requires=[
             'pycparser',
-        ],
+        ] if cpython else [],
 
         entry_points = {
             "distutils.setup_keywords": [
                 "cffi_modules = cffi.setuptools_ext:cffi_modules",
             ],
-        },
+        } if cpython else {},
 
         classifiers=[
             'Programming Language :: Python',
