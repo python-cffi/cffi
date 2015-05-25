@@ -1,4 +1,4 @@
-import sys, math, py
+import os, sys, math, py
 from cffi import FFI, VerificationError, VerificationMissing, model
 from cffi import recompiler
 from testing.support import *
