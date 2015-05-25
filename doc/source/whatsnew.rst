@@ -3,6 +3,13 @@ What's New
 ======================
 
 
+
+1.0.3
+=====
+
+* Same as 1.0.2, apart from doc and test fixes on some platforms.
+
+
 1.0.2
 =====
 
