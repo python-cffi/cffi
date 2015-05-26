@@ -3,6 +3,15 @@ What's New
 ======================
 
 
+1.0.4
+=====
+
+* ffi.addressof(lib, "func_name") now returns a regular cdata object
+  of type "pointer to function".  You can use it on any function from a
+  library in API mode (in ABI mode, all functions are already regular
+  cdata objects).  To support this, you need to recompile your cffi
+  modules.
+
 
 1.0.3
 =====
