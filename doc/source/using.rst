@@ -332,7 +332,10 @@ For performance, API-level functions are not returned as ``<cdata>``
 objects, but as a different type (on CPython, ``<built-in
 function>``).  This means you cannot e.g. pass them to some other C
 function expecting a function pointer argument.  Only ``ffi.typeof()``
-works on them.  If you really need a cdata pointer to the function,
+works on them.  To get a cdata containing a regular function pointer,
+use ``ffi.addressof(lib, "name")`` (new in version 1.0.4).
+
+Before version 1.0.4, if you really need a cdata pointer to the function,
 use the following workaround:
 
 .. code-block:: python
@@ -742,7 +745,9 @@ can also be expressed as ``array + index``: this is true both in CFFI
 and in C, where ``&array[index]`` is just ``array + index``.
 
 3. ``ffi.addressof(<library>, "name")`` returns the address of the
-named global variable from the given library object.
+named function or global variable from the given library object.
+*New in version 1.0.4:* for functions, it returns a regular cdata
+object containing a pointer to the function.
 
 Note that the case 1. cannot be used to take the address of a
 primitive or pointer, but only a struct or union.  It would be

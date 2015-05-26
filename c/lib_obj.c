@@ -13,6 +13,7 @@
 
 struct CPyExtFunc_s {
     PyMethodDef md;
+    void *direct_fn;
     int type_index;
 };
 static const char cpyextfunc_doc[] =
@@ -43,20 +44,9 @@ static struct CPyExtFunc_s *_cpyextfunc_get(PyObject *x)
     return exf;
 }
 
-static PyObject *_cpyextfunc_type_index(PyObject *x)
+static PyObject *_cpyextfunc_type(LibObject *lib, struct CPyExtFunc_s *exf)
 {
-    struct CPyExtFunc_s *exf;
-    LibObject *lib;
     PyObject *tuple, *result;
-
-    assert(PyErr_Occurred());
-    exf = _cpyextfunc_get(x);
-    if (exf == NULL)
-        return NULL;    /* still the same exception is set */
-
-    PyErr_Clear();
-
-    lib = (LibObject *)PyCFunction_GET_SELF(x);
     tuple = realize_c_type_or_func(lib->l_types_builder,
                                    lib->l_types_builder->ctx.types,
                                    exf->type_index);
@@ -69,6 +59,22 @@ static PyObject *_cpyextfunc_type_index(PyObject *x)
     Py_XINCREF(result);
     Py_DECREF(tuple);
     return result;
+}
+
+static PyObject *_cpyextfunc_type_index(PyObject *x)
+{
+    struct CPyExtFunc_s *exf;
+    LibObject *lib;
+
+    assert(PyErr_Occurred());
+    exf = _cpyextfunc_get(x);
+    if (exf == NULL)
+        return NULL;    /* still the same exception is set */
+
+    PyErr_Clear();
+
+    lib = (LibObject *)PyCFunction_GET_SELF(x);
+    return _cpyextfunc_type(lib, exf);
 }
 
 static void cdlopen_close_ignore_errors(void *libhandle);  /* forward */
@@ -144,6 +150,7 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
     xfunc->md.ml_flags = flags;
     xfunc->md.ml_name = g->name;
     xfunc->md.ml_doc = cpyextfunc_doc;
+    xfunc->direct_fn = g->size_or_direct_fn;
     xfunc->type_index = type_index;
 
     return PyCFunction_NewEx(&xfunc->md, (PyObject *)lib, lib->l_libname);
@@ -261,16 +268,18 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
     }
 
     case _CFFI_OP_GLOBAL_VAR:
+    {
         /* global variable of the exact type specified here */
+        size_t g_size = (size_t)g->size_or_direct_fn;
         ct = realize_c_type(types_builder, types_builder->ctx.types,
                             _CFFI_GETARG(g->type_op));
         if (ct == NULL)
             return NULL;
-        if (g->size != ct->ct_size && g->size != 0 && ct->ct_size > 0) {
+        if (g_size != ct->ct_size && g_size != 0 && ct->ct_size > 0) {
             PyErr_Format(FFIError,
                          "global variable '%.200s' should be %zd bytes "
                          "according to the cdef, but is actually %zd",
-                         s, ct->ct_size, g->size);
+                         s, ct->ct_size, g_size);
             x = NULL;
         }
         else {
@@ -285,6 +294,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         }
         Py_DECREF(ct);
         break;
+    }
 
     case _CFFI_OP_DLOPEN_FUNC:
     {
@@ -489,14 +499,21 @@ static PyObject *address_of_global_var(PyObject *args)
     }
     else {
         struct CPyExtFunc_s *exf = _cpyextfunc_get(x);
-        /* XXX the exf case is strange: typing ffi.addressof(lib, 'func')
-           just returns the same thing as lib.func, so there is  no point
-           right now.  Maybe it should instead return a regular <cdata>
-           object of a function-pointer ctype, which would point to a
-           yet-to-be-defined function from the generated .c code. */
-        if (exf != NULL  ||  /* an OP_CPYTHON_BLTN: '&func' is 'func' in C */
-            ((CData_Check(x) &&  /* or, a constant functionptr cdata: same */
-              (((CDataObject *)x)->c_type->ct_flags & CT_FUNCTIONPTR) != 0))) {
+        if (exf != NULL) {  /* an OP_CPYTHON_BLTN: '&func' returns a cdata */
+            PyObject *ct;
+            if (exf->direct_fn == NULL) {
+                Py_INCREF(x);    /* backward compatibility */
+                return x;
+            }
+            ct = _cpyextfunc_type(lib, exf);
+            if (ct == NULL)
+                return NULL;
+            x = new_simple_cdata(exf->direct_fn, (CTypeDescrObject *)ct);
+            Py_DECREF(ct);
+            return x;
+        }
+        if (CData_Check(x) &&  /* a constant functionptr cdata: 'f == &f' */
+                (((CDataObject *)x)->c_type->ct_flags & CT_FUNCTIONPTR) != 0) {
             Py_INCREF(x);
             return x;
         }

@@ -19,7 +19,7 @@ class GlobalExpr:
         self.check_value = check_value
 
     def as_c_expr(self):
-        return '  { "%s", (void *)%s, %s, %s },' % (
+        return '  { "%s", (void *)%s, %s, (void *)%s },' % (
             self.name, self.address, self.type_op.as_c_expr(), self.size)
 
     def as_python_expr(self):
@@ -602,6 +602,26 @@ class Recompiler:
         else:
             argname = 'args'
         #
+        # ------------------------------
+        # the 'd' version of the function, only for addressof(lib, 'func')
+        arguments = []
+        call_arguments = []
+        context = 'argument of %s' % name
+        for i, type in enumerate(tp.args):
+            arguments.append(type.get_c_name(' x%d' % i, context))
+            call_arguments.append('x%d' % i)
+        repr_arguments = ', '.join(arguments)
+        repr_arguments = repr_arguments or 'void'
+        name_and_arguments = '_cffi_d_%s(%s)' % (name, repr_arguments)
+        prnt('static %s' % (tp.result.get_c_name(name_and_arguments),))
+        prnt('{')
+        call_arguments = ', '.join(call_arguments)
+        result_code = 'return '
+        if isinstance(tp.result, model.VoidType):
+            result_code = ''
+        prnt('  %s%s(%s);' % (result_code, name, call_arguments))
+        prnt('}')
+        #
         prnt('#ifndef PYPY_VERSION')        # ------------------------------
         #
         prnt('static PyObject *')
@@ -671,6 +691,7 @@ class Recompiler:
         # the PyPy version: need to replace struct/union arguments with
         # pointers, and if the result is a struct/union, insert a first
         # arg that is a pointer to the result.
+        difference = False
         arguments = []
         call_arguments = []
         context = 'argument of %s' % name
@@ -678,6 +699,7 @@ class Recompiler:
             indirection = ''
             if isinstance(type, model.StructOrUnion):
                 indirection = '*'
+                difference = True
             arg = type.get_c_name(' %sx%d' % (indirection, i), context)
             arguments.append(arg)
             call_arguments.append('%sx%d' % (indirection, i))
@@ -689,18 +711,22 @@ class Recompiler:
             tp_result = model.void_type
             result_decl = None
             result_code = '*result = '
-        repr_arguments = ', '.join(arguments)
-        repr_arguments = repr_arguments or 'void'
-        name_and_arguments = '_cffi_f_%s(%s)' % (name, repr_arguments)
-        prnt('static %s' % (tp_result.get_c_name(name_and_arguments),))
-        prnt('{')
-        if result_decl:
-            prnt(result_decl)
-        call_arguments = ', '.join(call_arguments)
-        prnt('  { %s%s(%s); }' % (result_code, name, call_arguments))
-        if result_decl:
-            prnt('  return result;')
-        prnt('}')
+            difference = True
+        if difference:
+            repr_arguments = ', '.join(arguments)
+            repr_arguments = repr_arguments or 'void'
+            name_and_arguments = '_cffi_f_%s(%s)' % (name, repr_arguments)
+            prnt('static %s' % (tp_result.get_c_name(name_and_arguments),))
+            prnt('{')
+            if result_decl:
+                prnt(result_decl)
+            call_arguments = ', '.join(call_arguments)
+            prnt('  { %s%s(%s); }' % (result_code, name, call_arguments))
+            if result_decl:
+                prnt('  return result;')
+            prnt('}')
+        else:
+            prnt('#  define _cffi_f_%s _cffi_d_%s' % (name, name))
         #
         prnt('#endif')        # ------------------------------
         prnt()
@@ -721,7 +747,8 @@ class Recompiler:
             meth_kind = OP_CPYTHON_BLTN_V   # 'METH_VARARGS'
         self._lsts["global"].append(
             GlobalExpr(name, '_cffi_f_%s' % name,
-                       CffiOp(meth_kind, type_index), check_value=0))
+                       CffiOp(meth_kind, type_index), check_value=0,
+                       size='_cffi_d_%s' % name))
 
     # ----------
     # named structs or unions

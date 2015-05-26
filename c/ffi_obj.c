@@ -416,7 +416,7 @@ PyDoc_STRVAR(ffi_addressof_doc,
 "in case of nested structures or arrays.\n"
 "\n"
 "3. ffi.addressof(<library>, \"name\") returns the address of the named\n"
-"global variable.");
+"function or global variable.");
 
 static PyObject *address_of_global_var(PyObject *args);  /* forward */
 
