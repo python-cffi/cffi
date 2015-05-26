@@ -489,6 +489,11 @@ static PyObject *address_of_global_var(PyObject *args)
     }
     else {
         struct CPyExtFunc_s *exf = _cpyextfunc_get(x);
+        /* XXX the exf case is strange: typing ffi.addressof(lib, 'func')
+           just returns the same thing as lib.func, so there is  no point
+           right now.  Maybe it should instead return a regular <cdata>
+           object of a function-pointer ctype, which would point to a
+           yet-to-be-defined function from the generated .c code. */
         if (exf != NULL  ||  /* an OP_CPYTHON_BLTN: '&func' is 'func' in C */
             ((CData_Check(x) &&  /* or, a constant functionptr cdata: same */
               (((CDataObject *)x)->c_type->ct_flags & CT_FUNCTIONPTR) != 0))) {
