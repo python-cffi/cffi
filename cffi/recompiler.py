@@ -386,7 +386,7 @@ class Recompiler:
         prnt('#  ifdef _MSC_VER')
         prnt('     PyMODINIT_FUNC')
         prnt('#  if PY_MAJOR_VERSION >= 3')
-        prnt('     PyInit_%s(void) { return -1; }' % (base_module_name,))
+        prnt('     PyInit_%s(void) { return NULL; }' % (base_module_name,))
         prnt('#  else')
         prnt('     init%s(void) { }' % (base_module_name,))
         prnt('#  endif')
