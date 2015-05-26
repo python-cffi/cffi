@@ -632,10 +632,13 @@ class Recompiler:
             rng = range(len(tp.args))
             for i in rng:
                 prnt('  PyObject *arg%d;' % i)
+            prnt('  PyObject **aa;')
             prnt()
-            prnt('  if (!PyArg_ParseTuple(args, "%s:%s", %s))' % (
-                'O' * numargs, name, ', '.join(['&arg%d' % i for i in rng])))
+            prnt('  aa = _cffi_unpack_args(args, %d, "%s");' % (len(rng), name))
+            prnt('  if (aa == NULL)')
             prnt('    return NULL;')
+            for i in rng:
+                prnt('  arg%d = aa[%d];' % (i, i))
         prnt()
         #
         for i, type in enumerate(tp.args):

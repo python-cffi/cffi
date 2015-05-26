@@ -776,3 +776,32 @@ def test_defines__CFFI_():
     #endif
     """)
     assert lib.CORRECT == 1
+
+def test_unpack_args():
+    ffi = FFI()
+    ffi.cdef("void foo0(void); void foo1(int); void foo2(int, int);")
+    lib = verify(ffi, "test_unpack_args", """
+    void foo0(void) { }
+    void foo1(int x) { }
+    void foo2(int x, int y) { }
+    """)
+    assert 'foo0' in repr(lib.foo0)
+    assert 'foo1' in repr(lib.foo1)
+    assert 'foo2' in repr(lib.foo2)
+    lib.foo0()
+    lib.foo1(42)
+    lib.foo2(43, 44)
+    e1 = py.test.raises(TypeError, lib.foo0, 42)
+    e2 = py.test.raises(TypeError, lib.foo0, 43, 44)
+    e3 = py.test.raises(TypeError, lib.foo1)
+    e4 = py.test.raises(TypeError, lib.foo1, 43, 44)
+    e5 = py.test.raises(TypeError, lib.foo2)
+    e6 = py.test.raises(TypeError, lib.foo2, 42)
+    e7 = py.test.raises(TypeError, lib.foo2, 45, 46, 47)
+    assert str(e1.value) == "foo0() takes no arguments (1 given)"
+    assert str(e2.value) == "foo0() takes no arguments (2 given)"
+    assert str(e3.value) == "foo1() takes exactly one argument (0 given)"
+    assert str(e4.value) == "foo1() takes exactly one argument (2 given)"
+    assert str(e5.value) == "foo2() takes exactly 2 arguments (0 given)"
+    assert str(e6.value) == "foo2() takes exactly 2 arguments (1 given)"
+    assert str(e7.value) == "foo2() takes exactly 2 arguments (3 given)"
