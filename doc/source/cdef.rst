@@ -442,7 +442,9 @@ and (if .c) compile it.  The output file is (or are) put in the
 directory given by ``tmpdir``.  In the examples given here, we use
 ``if __name__ == "__main__": ffi.compile()`` in the build scripts---if
 they are directly executed, this makes them rebuild the .py/.c file in
-the current directory.
+the current directory.  (Note: if a package is specified in the call
+to ``set_source()``, then a corresponding subdirectory of the ``tmpdir``
+is used.)
 
 **ffi.emit_python_code(filename):** generate the given .py file (same
 as ``ffi.compile()`` for ABI mode, with an explicitly-named file to

@@ -6,6 +6,10 @@ What's New
 1.0.4
 =====
 
+* Issue #196: ``ffi.set_source("package._ffi", None)`` would
+  incorrectly generate the Python source to ``package._ffi.py``
+  instead of ``package/_ffi.py``.
+
 * ffi.addressof(lib, "func_name") now returns a regular cdata object
   of type "pointer to function".  You can use it on any function from a
   library in API mode (in ABI mode, all functions are already regular
