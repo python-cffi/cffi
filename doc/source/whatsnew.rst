@@ -7,8 +7,9 @@ What's New
 =====
 
 * Issue #196: ``ffi.set_source("package._ffi", None)`` would
-  incorrectly generate the Python source to ``package._ffi.py``
-  instead of ``package/_ffi.py``.
+  incorrectly generate the Python source to ``package._ffi.py`` instead
+  of ``package/_ffi.py``.  Also fixed: in some cases, if the C file was
+  in ``build/foo.c``, the .o file would be put in ``build/build/foo.o``.
 
 * ffi.addressof(lib, "func_name") now returns a regular cdata object
   of type "pointer to function".  You can use it on any function from a
