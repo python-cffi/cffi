@@ -1,4 +1,4 @@
-import os, py
+import sys, os, py
 import cffi
 from testing.udir import udir
 
@@ -43,6 +43,8 @@ class TestDist(object):
             else:
                 subdir = os.path.join(curdir, name)
                 assert os.path.isdir(subdir)
+                if value == '?':
+                    continue
                 found_so = self.check_produced_files(value, subdir) or found_so
         assert content == {}, "files or dirs not produced in %r: %r" % (
             curdir, content.keys())
@@ -124,30 +126,48 @@ class TestDist(object):
         ffi = cffi.FFI()
         ffi.set_source("mod_name_in_package.mymod", "/*code would be here*/")
         x = ffi.compile()
-        sofile = self.check_produced_files({
-            'mod_name_in_package': {'mymod.SO': None,
-                                    'mymod.c': None,
-                                    'mymod.o': None}})
-        assert os.path.isabs(x) and os.path.samefile(x, sofile)
+        if sys.platform != 'win32':
+            sofile = self.check_produced_files({
+                'mod_name_in_package': {'mymod.SO': None,
+                                        'mymod.c': None,
+                                        'mymod.o': None}})
+            assert os.path.isabs(x) and os.path.samefile(x, sofile)
+        else:
+            self.check_produced_files({
+                'mod_name_in_package': {'mymod.SO': None,
+                                        'mymod.c': None},
+                'Release': '?'})
 
     @chdir_to_tmp
     def test_api_compile_2(self):
         ffi = cffi.FFI()
         ffi.set_source("mod_name_in_package.mymod", "/*code would be here*/")
         x = ffi.compile('output')
-        sofile = self.check_produced_files({
-            'output': {'mod_name_in_package': {'mymod.SO': None,
-                                               'mymod.c': None,
-                                               'mymod.o': None}}})
-        assert os.path.isabs(x) and os.path.samefile(x, sofile)
+        if sys.platform != 'win32':
+            sofile = self.check_produced_files({
+                'output': {'mod_name_in_package': {'mymod.SO': None,
+                                                   'mymod.c': None,
+                                                   'mymod.o': None}}})
+            assert os.path.isabs(x) and os.path.samefile(x, sofile)
+        else:
+            self.check_produced_files({
+                'output': {'mod_name_in_package': {'mymod.SO': None,
+                                                   'mymod.c': None},
+                           'Release': '?'}})
 
     @from_outside
     def test_api_compile_3(self):
         ffi = cffi.FFI()
         ffi.set_source("mod_name_in_package.mymod", "/*code would be here*/")
         x = ffi.compile(str(self.udir.join('foo')))
-        sofile = self.check_produced_files({
-            'foo': {'mod_name_in_package': {'mymod.SO': None,
-                                            'mymod.c': None,
-                                            'mymod.o': None}}})
-        assert os.path.isabs(x) and os.path.samefile(x, sofile)
+        if sys.platform != 'win32':
+            sofile = self.check_produced_files({
+                'foo': {'mod_name_in_package': {'mymod.SO': None,
+                                                'mymod.c': None,
+                                                'mymod.o': None}}})
+            assert os.path.isabs(x) and os.path.samefile(x, sofile)
+        else:
+            self.check_produced_files({
+                'foo': {'mod_name_in_package': {'mymod.SO': None,
+                                                'mymod.c': None},
+                        'Release': '?'}})
