@@ -188,7 +188,9 @@ class TestDist(object):
         ext = ffi.distutils_extension()
         self.check_produced_files({'build': {
             'mod_name_in_package': {'mymod.c': None}}})
-        assert ext.sources[0].endswith('build/mod_name_in_package/mymod.c')
+        if hasattr(os.path, 'samefile'):
+            assert os.path.samefile(ext.sources[0],
+                                    'build/mod_name_in_package/mymod.c')
 
     @from_outside
     def test_api_distutils_extension_2(self):
@@ -197,7 +199,9 @@ class TestDist(object):
         ext = ffi.distutils_extension(str(self.udir.join('foo')))
         self.check_produced_files({'foo': {
             'mod_name_in_package': {'mymod.c': None}}})
-        assert ext.sources[0].endswith('foo/mod_name_in_package/mymod.c')
+        if hasattr(os.path, 'samefile'):
+            assert os.path.samefile(ext.sources[0],
+                str(self.udir.join('foo/mod_name_in_package/mymod.c')))
 
 
     def _make_distutils_api(self):
