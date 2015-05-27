@@ -33,7 +33,7 @@ class TestDist(object):
             if (name.endswith('.so') or name.endswith('.pyd') or
                 name.endswith('.dylib')):
                 found_so = os.path.join(curdir, name)
-                name = os.path.splitext(name)[0] + '.SO'
+                name = name.split('.')[0] + '.SO' # foo.cpython-34m.so => foo.SO
             assert name in content, "found unexpected file %r" % (
                 os.path.join(curdir, name),)
             value = content.pop(name)
