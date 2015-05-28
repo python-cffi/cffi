@@ -6,6 +6,13 @@ What's New
 1.0.4
 =====
 
+* Issue #175: in ABI mode: we now support any constant declaration,
+  instead of only integers whose value is given in the cdef.  Such "new"
+  constants, i.e. either non-integers or without a value given in the
+  cdef, must correspond to actual symbols in the lib.  At runtime they
+  are looked up the first time we access them.  This is useful if the
+  library defines ``extern const sometype somename;``.
+
 * Issue #198: in API mode, if you declare constants of a ``struct``
   type, what you saw from lib.CONSTANT was corrupted.
 

@@ -258,23 +258,30 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         if (ct == NULL)
             return NULL;
 
-        assert(g->address);
         if (ct->ct_size <= 0) {
             PyErr_SetString(PyExc_SystemError, "constant has no known size");
             return NULL;
         }
-        /* xxx the few bytes of memory we allocate here leak, but it's
-           a minor concern because it should only occur for
-           OP_CONSTANT.  There is one per real non-integer C constant
-           in a CFFI C extension module.  CPython never unloads its C
-           extension modules anyway.  Note that we used to do alloca(),
-           but see issue #198. */
-        data = PyMem_Malloc(ct->ct_size);
-        if (data == NULL) {
-            PyErr_NoMemory();
-            return NULL;
+        if (g->address == NULL) {
+            /* for dlopen() style */
+            data = cdlopen_fetch(lib->l_libname, lib->l_libhandle, s);
+            if (data == NULL)
+                return NULL;
         }
-        ((void(*)(char*))g->address)(data);
+        else {
+            /* xxx the few bytes of memory we allocate here leak, but it's
+               a minor concern because it should only occur for
+               OP_CONSTANT.  There is one per real non-integer C constant
+               in a CFFI C extension module.  CPython never unloads its C
+               extension modules anyway.  Note that we used to do alloca(),
+               but see issue #198. */
+            data = PyMem_Malloc(ct->ct_size);
+            if (data == NULL) {
+                PyErr_NoMemory();
+                return NULL;
+            }
+            ((void(*)(char*))g->address)(data);
+        }
         x = convert_to_object(data, ct);
         Py_DECREF(ct);
         break;
