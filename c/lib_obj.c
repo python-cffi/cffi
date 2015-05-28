@@ -260,7 +260,17 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
 
         assert(g->address);
         assert(ct->ct_size > 0);
-        data = alloca(ct->ct_size);
+        /* xxx the few bytes of memory we allocate here leak, but it's
+           a minor concern because it should only occur for
+           OP_CONSTANT.  There is one per real non-integer C constant
+           in a CFFI C extension module.  CPython never unloads its C
+           extension modules anyway.  Note that we used to do alloca(),
+           but see issue #198. */
+        data = PyMem_Malloc(ct->ct_size);
+        if (data == NULL) {
+            PyErr_NoMemory();
+            return NULL;
+        }
         ((void(*)(char*))g->address)(data);
         x = convert_to_object(data, ct);
         Py_DECREF(ct);

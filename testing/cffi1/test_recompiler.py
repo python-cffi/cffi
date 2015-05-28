@@ -823,3 +823,21 @@ def test_address_of_function():
     assert addr(0xABC05) == 47
     assert isinstance(addr, ffi.CData)
     assert ffi.typeof(addr) == ffi.typeof("long(*)(long)")
+
+def test_issue198():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef struct{...;} opaque_t;
+        const opaque_t CONSTANT;
+        int toint(opaque_t);
+    """)
+    lib = verify(ffi, 'test_issue198', """
+        typedef int opaque_t;
+        #define CONSTANT ((opaque_t)42)
+        static int toint(opaque_t o) { return o; }
+    """)
+    def random_stuff():
+        pass
+    assert lib.toint(lib.CONSTANT) == 42
+    random_stuff()
+    assert lib.toint(lib.CONSTANT) == 42
