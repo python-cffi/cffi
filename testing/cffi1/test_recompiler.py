@@ -841,3 +841,12 @@ def test_issue198():
     assert lib.toint(lib.CONSTANT) == 42
     random_stuff()
     assert lib.toint(lib.CONSTANT) == 42
+
+def test_constant_is_not_a_compiler_constant():
+    ffi = FFI()
+    ffi.cdef("static const float almost_forty_two;")
+    lib = verify(ffi, 'test_constant_is_not_a_compiler_constant', """
+        static float f(void) { return 42.25; }
+        #define almost_forty_two (f())
+    """)
+    assert lib.almost_forty_two == 42.25
