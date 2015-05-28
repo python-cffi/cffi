@@ -6,6 +6,9 @@ What's New
 1.0.4
 =====
 
+* Issue #198: in API mode, if you declare constants of a ``struct``
+  type, what you saw from lib.CONSTANT was corrupted.
+
 * Issue #196: ``ffi.set_source("package._ffi", None)`` would
   incorrectly generate the Python source to ``package._ffi.py`` instead
   of ``package/_ffi.py``.  Also fixed: in some cases, if the C file was
