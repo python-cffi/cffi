@@ -31,7 +31,10 @@ class TestDist(object):
 
     def run(self, args):
         env = os.environ.copy()
-        env['PYTHONPATH'] = self.rootdir
+        newpath = self.rootdir
+        if 'PYTHONPATH' in env:
+            newpath += os.pathsep + env['PYTHONPATH']
+        env['PYTHONPATH'] = newpath
         subprocess.check_call([self.executable] + args, env=env)
 
     def _prepare_setuptools(self):
@@ -54,6 +57,8 @@ class TestDist(object):
                 name.endswith('.dylib')):
                 found_so = os.path.join(curdir, name)
                 name = name.split('.')[0] + '.SO' # foo.cpython-34m.so => foo.SO
+            if name.startswith('pycparser') and name.endswith('.egg'):
+                continue    # no clue why this shows up sometimes and not others
             assert name in content, "found unexpected file %r" % (
                 os.path.join(curdir, name),)
             value = content.pop(name)
