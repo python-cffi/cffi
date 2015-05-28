@@ -881,3 +881,14 @@ def test_variable_of_unknown_size():
     p = ffi.addressof(lib, 'globvar')
     assert ffi.typeof(p) == ffi.typeof('opaque_t *')
     assert ffi.string(ffi.cast("char *", p), 8) == "hello"
+
+def test_constant_of_value_unknown_to_the_compiler():
+    extra_c_source = udir.join(
+        'extra_test_constant_of_value_unknown_to_the_compiler.c')
+    extra_c_source.write('const int external_foo = 42;\n')
+    ffi = FFI()
+    ffi.cdef("const int external_foo;")
+    lib = verify(ffi, 'test_constant_of_value_unknown_to_the_compiler', """
+        extern const int external_foo;
+    """, sources=[str(extra_c_source)])
+    assert lib.external_foo == 42
