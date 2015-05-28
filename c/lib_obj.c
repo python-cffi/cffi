@@ -250,6 +250,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
     }
 
     case _CFFI_OP_CONSTANT:
+    case _CFFI_OP_DLOPEN_CONST:
     {
         /* a constant which is not of integer type */
         char *data;
@@ -264,6 +265,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         }
         if (g->address == NULL) {
             /* for dlopen() style */
+            assert(_CFFI_GETOP(g->type_op) == _CFFI_OP_DLOPEN_CONST);
             data = cdlopen_fetch(lib->l_libname, lib->l_libhandle, s);
             if (data == NULL)
                 return NULL;
@@ -275,6 +277,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
                in a CFFI C extension module.  CPython never unloads its C
                extension modules anyway.  Note that we used to do alloca(),
                but see issue #198. */
+            assert(_CFFI_GETOP(g->type_op) == _CFFI_OP_CONSTANT);
             data = PyMem_Malloc(ct->ct_size);
             if (data == NULL) {
                 PyErr_NoMemory();
