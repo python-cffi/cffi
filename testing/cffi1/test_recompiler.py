@@ -861,3 +861,23 @@ def test_constant_of_unknown_size():
                        'test_constant_of_unknown_size', "stuff")
     assert str(e.value) == ("constant CONSTANT: constant 'CONSTANT' is of "
                             "type 'opaque_t', whose size is not known")
+
+def test_variable_of_unknown_size():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef ... opaque_t;
+        opaque_t globvar;
+    """)
+    lib = verify(ffi, 'test_constant_of_unknown_size', """
+        typedef char opaque_t[6];
+        opaque_t globvar = "hello";
+    """)
+    # can't read or write it at all
+    e = py.test.raises(TypeError, getattr, lib, 'globvar')
+    assert str(e.value) == "cdata 'opaque_t' is opaque"
+    e = py.test.raises(TypeError, setattr, lib, 'globvar', [])
+    assert str(e.value) == "'opaque_t' is opaque"
+    # but we can get its address
+    p = ffi.addressof(lib, 'globvar')
+    assert ffi.typeof(p) == ffi.typeof('opaque_t *')
+    assert ffi.string(ffi.cast("char *", p), 8) == "hello"

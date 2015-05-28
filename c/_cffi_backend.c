@@ -1232,8 +1232,11 @@ convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
 {
     const char *expected;
 
-    if (force_lazy_struct(ct) < 0)
+    if (force_lazy_struct(ct) <= 0) {
+        if (!PyErr_Occurred())
+            PyErr_Format(PyExc_TypeError, "'%s' is opaque", ct->ct_name);
         return -1;
+    }
 
     if (ct->ct_flags & CT_UNION) {
         Py_ssize_t n = PyObject_Size(init);
