@@ -850,3 +850,14 @@ def test_constant_is_not_a_compiler_constant():
         #define almost_forty_two (f())
     """)
     assert lib.almost_forty_two == 42.25
+
+def test_constant_of_unknown_size():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef ... opaque_t;
+        const opaque_t CONSTANT;
+    """)
+    e = py.test.raises(VerificationError, verify, ffi,
+                       'test_constant_of_unknown_size', "stuff")
+    assert str(e.value) == ("constant CONSTANT: constant 'CONSTANT' is of "
+                            "type 'opaque_t', whose size is not known")

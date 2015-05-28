@@ -982,6 +982,10 @@ class Recompiler:
         if isinstance(tp, model.PrimitiveType) and tp.is_integer_type():
             type_op = CffiOp(OP_CONSTANT_INT, -1)
         else:
+            if not tp.sizeof_enabled():
+                raise ffiplatform.VerificationError(
+                    "constant '%s' is of type '%s', whose size is not known"
+                    % (name, tp._get_c_name()))
             type_index = self._typesdict[tp]
             type_op = CffiOp(OP_CONSTANT, type_index)
         self._lsts["global"].append(

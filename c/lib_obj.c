@@ -259,7 +259,10 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
             return NULL;
 
         assert(g->address);
-        assert(ct->ct_size > 0);
+        if (ct->ct_size <= 0) {
+            PyErr_SetString(PyExc_SystemError, "constant has no known size");
+            return NULL;
+        }
         /* xxx the few bytes of memory we allocate here leak, but it's
            a minor concern because it should only occur for
            OP_CONSTANT.  There is one per real non-integer C constant
