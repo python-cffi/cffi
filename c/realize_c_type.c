@@ -14,9 +14,10 @@ static CTypeDescrObject *g_ct_voidp, *g_ct_chararray;
 
 static PyObject *build_primitive_type(int num);   /* forward */
 
+#define primitive_in_range(num)   ((num) >= 0 && (num) < _CFFI__NUM_PRIM)
 #define get_primitive_type(num)                                 \
-    (all_primitives[num] != NULL ? all_primitives[num]          \
-                                 : build_primitive_type(num))
+    ((primitive_in_range(num) && all_primitives[num] != NULL) ? \
+        all_primitives[num] : build_primitive_type(num))
 
 static int init_global_types_dict(PyObject *ffi_type_dict)
 {
@@ -153,13 +154,17 @@ static PyObject *build_primitive_type(int num)
     };
     PyObject *x;
 
+    assert(sizeof(primitive_name) == sizeof(*primitive_name) * _CFFI__NUM_PRIM);
     if (num == _CFFI_PRIM_VOID) {
         x = new_void_type();
     }
-    else if (0 <= num &&
-             num < sizeof(primitive_name) / sizeof(*primitive_name) &&
-             primitive_name[num] != NULL) {
+    else if (primitive_in_range(num) && primitive_name[num] != NULL) {
         x = new_primitive_type(primitive_name[num]);
+    }
+    else if (num == _CFFI__UNKNOWN_PRIM) {
+        PyErr_SetString(FFIError, "primitive integer type with an unexpected "
+                        "size (or not an integer type at all)");
+        return NULL;
     }
     else {
         PyErr_Format(PyExc_NotImplementedError, "prim=%d", num);
