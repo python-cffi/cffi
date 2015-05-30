@@ -10,9 +10,9 @@ ffi = FFI()
 ffi.cdef("""
 typedef ... WINDOW;
 typedef ... SCREEN;
-typedef unsigned long mmask_t;
+typedef unsigned long... mmask_t;
 typedef unsigned char bool;
-typedef unsigned long chtype;
+typedef unsigned long... chtype;
 typedef chtype attr_t;
 
 typedef struct
