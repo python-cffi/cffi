@@ -380,7 +380,8 @@ in the details.  These places are:
    not work with ``verify()``.)  The ``int...`` can be replaced with
    ``long...`` or ``unsigned long long...`` or any other primitive
    integer type, with no effect.  The type will always map to one of
-   ``(u)int(8,16,32,64)_t``.
+   ``(u)int(8,16,32,64)_t`` in Python, but in the generated C code,
+   only ``foo_t`` is used.
 
 *  unknown types: the syntax "``typedef ... foo_t;``" declares the type
    ``foo_t`` as opaque.  Useful mainly for when the API takes and returns
