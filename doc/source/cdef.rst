@@ -373,7 +373,7 @@ in the details.  These places are:
    declaration which doesn't use "``...``" is assumed to be exact, but this is
    checked: you get an error if it is not correct.
 
-*  *New in version 1.0.4:* integer types: the syntax "``typedef
+*  *New in version 1.1:* integer types: the syntax "``typedef
    int... foo_t;``" declares the type ``foo_t`` as an integer type
    whose exact size and signness is not specified.  The compiler will
    figure it out.  (Note that this requires ``set_source()``; it does
@@ -400,7 +400,7 @@ in the details.  These places are:
    length is completed by the C compiler.
    This is slightly different from "``int n[];``", because the latter
    means that the length is not known even to the C compiler, and thus
-   no attempt is made to complete it.  *New in version 1.0.4:* support
+   no attempt is made to complete it.  *New in version 1.1:* support
    for multidimensional arrays: "``int n[...][...];``".
 
 *  enums: if you don't know the exact order (or values) of the declared

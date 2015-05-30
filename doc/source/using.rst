@@ -333,9 +333,9 @@ objects, but as a different type (on CPython, ``<built-in
 function>``).  This means you cannot e.g. pass them to some other C
 function expecting a function pointer argument.  Only ``ffi.typeof()``
 works on them.  To get a cdata containing a regular function pointer,
-use ``ffi.addressof(lib, "name")`` (new in version 1.0.4).
+use ``ffi.addressof(lib, "name")`` (new in version 1.1).
 
-Before version 1.0.4, if you really need a cdata pointer to the function,
+Before version 1.1, if you really need a cdata pointer to the function,
 use the following workaround:
 
 .. code-block:: python
@@ -746,7 +746,7 @@ and in C, where ``&array[index]`` is just ``array + index``.
 
 3. ``ffi.addressof(<library>, "name")`` returns the address of the
 named function or global variable from the given library object.
-*New in version 1.0.4:* for functions, it returns a regular cdata
+*New in version 1.1:* for functions, it returns a regular cdata
 object containing a pointer to the function.
 
 Note that the case 1. cannot be used to take the address of a

@@ -3,7 +3,7 @@ What's New
 ======================
 
 
-1.0.4
+1.1.0
 =====
 
 * Out-of-line API mode: we can now declare integer types with
@@ -14,12 +14,18 @@ What's New
   (as fields or as globals) with ``int n[...][...]``.  Before, only the
   outermost dimension would support the ``...`` syntax.
 
-* Issue #175: in ABI mode: we now support any constant declaration,
+* Out-of-line ABI mode: we now support any constant declaration,
   instead of only integers whose value is given in the cdef.  Such "new"
   constants, i.e. either non-integers or without a value given in the
   cdef, must correspond to actual symbols in the lib.  At runtime they
   are looked up the first time we access them.  This is useful if the
   library defines ``extern const sometype somename;``.
+
+* ``ffi.addressof(lib, "func_name")`` now returns a regular cdata object
+  of type "pointer to function".  You can use it on any function from a
+  library in API mode (in ABI mode, all functions are already regular
+  cdata objects).  To support this, you need to recompile your cffi
+  modules.
 
 * Issue #198: in API mode, if you declare constants of a ``struct``
   type, what you saw from lib.CONSTANT was corrupted.
@@ -28,12 +34,6 @@ What's New
   incorrectly generate the Python source to ``package._ffi.py`` instead
   of ``package/_ffi.py``.  Also fixed: in some cases, if the C file was
   in ``build/foo.c``, the .o file would be put in ``build/build/foo.o``.
-
-* ffi.addressof(lib, "func_name") now returns a regular cdata object
-  of type "pointer to function".  You can use it on any function from a
-  library in API mode (in ABI mode, all functions are already regular
-  cdata objects).  To support this, you need to recompile your cffi
-  modules.
 
 
 1.0.3

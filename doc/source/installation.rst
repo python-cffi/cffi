@@ -51,7 +51,7 @@ Requirements:
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-1.0.4.tar.gz
+* http://pypi.python.org/packages/source/c/cffi/cffi-1.1.0.tar.gz
 
    - Or grab the most current version by following the instructions below.
 
