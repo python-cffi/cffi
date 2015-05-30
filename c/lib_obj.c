@@ -115,23 +115,30 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
     struct CPyExtFunc_s *xfunc;
     int i, type_index = _CFFI_GETARG(g->type_op);
     _cffi_opcode_t *opcodes = lib->l_types_builder->ctx.types;
-    assert(_CFFI_GETOP(opcodes[type_index]) == _CFFI_OP_FUNCTION);
 
-    /* return type: */
-    ct = realize_c_type(lib->l_types_builder, opcodes,
-                        _CFFI_GETARG(opcodes[type_index]));
-    if (ct == NULL)
-        return NULL;
-    Py_DECREF(ct);
+    if ((((uintptr_t)opcodes[type_index]) & 1) == 0) {
+        /* the function type was already built.  No need to force
+           the arg and return value to be built again. */
+    }
+    else {
+        assert(_CFFI_GETOP(opcodes[type_index]) == _CFFI_OP_FUNCTION);
 
-    /* argument types: */
-    i = type_index + 1;
-    while (_CFFI_GETOP(opcodes[i]) != _CFFI_OP_FUNCTION_END) {
-        ct = realize_c_type(lib->l_types_builder, opcodes, i);
+        /* return type: */
+        ct = realize_c_type(lib->l_types_builder, opcodes,
+                            _CFFI_GETARG(opcodes[type_index]));
         if (ct == NULL)
             return NULL;
         Py_DECREF(ct);
-        i++;
+
+        /* argument types: */
+        i = type_index + 1;
+        while (_CFFI_GETOP(opcodes[i]) != _CFFI_OP_FUNCTION_END) {
+            ct = realize_c_type(lib->l_types_builder, opcodes, i);
+            if (ct == NULL)
+                return NULL;
+            Py_DECREF(ct);
+            i++;
+        }
     }
 
     /* xxx the few bytes of memory we allocate here leak, but it's a

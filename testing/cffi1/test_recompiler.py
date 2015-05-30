@@ -981,3 +981,16 @@ def test_some_float_type():
         static foo_t sum(foo_t x[]) { return x[0] + x[1]; }
     """)
     assert lib.sum([40.0, 2.25]) == 42.25
+
+def test_issue200():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef void (function_t)(void*);
+        void function(void *);
+    """)
+    lib = verify(ffi, 'test_issue200', """
+        static void function(void *p) { (void)p; }
+    """)
+    ffi.typeof('function_t*')
+    lib.function(ffi.NULL)
+    # assert did not crash

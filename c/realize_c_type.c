@@ -536,6 +536,10 @@ realize_c_type_or_func(builder_c_t *builder,
 
         base_index = index + 1;
         num_args = 0;
+        /* note that if the arguments are already built, they have a
+           pointer in the 'opcodes' array, and GETOP() returns a
+           random even value.  But OP_FUNCTION_END is odd, so the
+           condition below still works correctly. */
         while (_CFFI_GETOP(opcodes[base_index + num_args]) !=
                    _CFFI_OP_FUNCTION_END)
             num_args++;
