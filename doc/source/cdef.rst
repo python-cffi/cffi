@@ -387,11 +387,11 @@ in the details.  These places are:
 
 *  array lengths: when used as structure fields or in global variables,
    arrays can have an unspecified length, as in "``int n[...];``".  The
-   length is completed by the C compiler.  (Only the outermost array
-   may have an unknown length, in case of array-of-array.)
+   length is completed by the C compiler.
    This is slightly different from "``int n[];``", because the latter
    means that the length is not known even to the C compiler, and thus
-   no attempt is made to complete it.
+   no attempt is made to complete it.  *New in version 1.0.4:* support
+   for multidimensional arrays: "``int n[...][...];``".
 
 *  enums: if you don't know the exact order (or values) of the declared
    constants, then use this syntax: "``enum foo { A, B, C, ... };``"

@@ -907,3 +907,28 @@ def test_call_with_incomplete_structs():
     """)
     assert lib.getx(lib.myglob) == 42.5
     assert lib.getx(lib.increment(lib.myglob)) == 43.5
+
+def test_struct_array_guess_length_2():
+    ffi = FFI()
+    ffi.cdef("struct foo_s { int a[...][...]; };")
+    lib = verify(ffi, 'test_struct_array_guess_length_2',
+                 "struct foo_s { int x; int a[5][8]; int y; };")
+    assert ffi.sizeof('struct foo_s') == 42 * ffi.sizeof('int')
+    s = ffi.new("struct foo_s *")
+    assert ffi.sizeof(s.a) == 40 * ffi.sizeof('int')
+    assert s.a[4][7] == 0
+    py.test.raises(IndexError, 's.a[4][8]')
+    py.test.raises(IndexError, 's.a[5][0]')
+    assert ffi.typeof(s.a) == ffi.typeof("int[5][8]")
+    assert ffi.typeof(s.a[0]) == ffi.typeof("int[8]")
+
+def test_global_var_array_2():
+    ffi = FFI()
+    ffi.cdef("int a[...][...];")
+    lib = verify(ffi, 'test_global_var_array_2', 'int a[10][8];')
+    lib.a[9][7] = 123456
+    assert lib.a[9][7] == 123456
+    py.test.raises(IndexError, 'lib.a[0][8]')
+    py.test.raises(IndexError, 'lib.a[10][0]')
+    assert ffi.typeof(lib.a) == ffi.typeof("int[10][8]")
+    assert ffi.typeof(lib.a[0]) == ffi.typeof("int[8]")

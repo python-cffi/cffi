@@ -6,6 +6,10 @@ What's New
 1.0.4
 =====
 
+* Out-of-line API mode: we can now declare multidimensional arrays
+  (as fields or as globals) with ``int n[...][...]``.  Before, only the
+  outermost dimension would support the ``...`` syntax.
+
 * Issue #175: in ABI mode: we now support any constant declaration,
   instead of only integers whose value is given in the cdef.  Such "new"
   constants, i.e. either non-integers or without a value given in the

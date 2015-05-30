@@ -753,7 +753,9 @@ class Recompiler:
             ptr_struct_name = tp_struct.get_c_name('*')
             actual_length = '_cffi_array_len(((%s)0)->%s)' % (
                 ptr_struct_name, field_name)
-            tp_field = tp_field.resolve_length(actual_length)
+            tp_item = self._field_type(tp_struct, '%s[0]' % field_name,
+                                       tp_field.item)
+            tp_field = model.ArrayType(tp_item, actual_length)
         return tp_field
 
     def _struct_collecttype(self, tp):
@@ -775,16 +777,16 @@ class Recompiler:
                     and ftype.is_integer_type()) or fbitsize >= 0:
                     # accept all integers, but complain on float or double
                     prnt('  (void)((p->%s) << 1);' % fname)
-                elif (isinstance(ftype, model.ArrayType)
-                      and (ftype.length is None or ftype.length == '...')):
-                    # for C++: "int(*)tmp[] = &p->a;" errors out if p->a is
-                    # declared as "int[5]".  Instead, write "int *tmp = p->a;".
-                    prnt('  { %s = p->%s; (void)tmp; }' % (
-                        ftype.item.get_c_name('*tmp', 'field %r'%fname), fname))
-                else:
-                    # only accept exactly the type declared.
-                    prnt('  { %s = &p->%s; (void)tmp; }' % (
-                        ftype.get_c_name('*tmp', 'field %r'%fname), fname))
+                    continue
+                # only accept exactly the type declared, except that '[]'
+                # is interpreted as a '*' and so will match any array length.
+                # (It would also match '*', but that's harder to detect...)
+                while (isinstance(ftype, model.ArrayType)
+                       and (ftype.length is None or ftype.length == '...')):
+                    ftype = ftype.item
+                    fname = fname + '[0]'
+                prnt('  { %s = &p->%s; (void)tmp; }' % (
+                    ftype.get_c_name('*tmp', 'field %r'%fname), fname))
             except ffiplatform.VerificationError as e:
                 prnt('  /* %s */' % str(e))   # cannot verify it, ignore
         prnt('}')
@@ -1056,7 +1058,8 @@ class Recompiler:
     def _global_type(self, tp, global_name):
         if isinstance(tp, model.ArrayType) and tp.length == '...':
             actual_length = '_cffi_array_len(%s)' % (global_name,)
-            tp = tp.resolve_length(actual_length)
+            tp_item = self._global_type(tp.item, '%s[0]' % global_name)
+            tp = model.ArrayType(tp_item, actual_length)
         return tp
 
     def _generate_cpy_variable_collecttype(self, tp, name):
