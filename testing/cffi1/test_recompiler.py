@@ -1,5 +1,5 @@
 import sys, os, py
-from cffi import FFI, VerificationError
+from cffi import FFI, FFIError, VerificationError
 from cffi import recompiler
 from testing.udir import udir
 from testing.support import u
@@ -932,3 +932,52 @@ def test_global_var_array_2():
     py.test.raises(IndexError, 'lib.a[10][0]')
     assert ffi.typeof(lib.a) == ffi.typeof("int[10][8]")
     assert ffi.typeof(lib.a[0]) == ffi.typeof("int[8]")
+
+def test_some_integer_type():
+    ffi = FFI()
+    ffi.cdef("""
+        typedef int... foo_t;
+        typedef unsigned long... bar_t;
+        typedef struct { foo_t a, b; } mystruct_t;
+        foo_t foobar(bar_t, mystruct_t);
+        static const bar_t mu = -20;
+        static const foo_t nu = 20;
+    """)
+    lib = verify(ffi, 'test_some_integer_type', """
+        typedef unsigned long long foo_t;
+        typedef short bar_t;
+        typedef struct { foo_t a, b; } mystruct_t;
+        static foo_t foobar(bar_t x, mystruct_t s) {
+            return (foo_t)x + s.a + s.b;
+        }
+        static const bar_t mu = -20;
+        static const foo_t nu = 20;
+    """)
+    assert ffi.sizeof("foo_t") == ffi.sizeof("unsigned long long")
+    assert ffi.sizeof("bar_t") == ffi.sizeof("short")
+    maxulonglong = 2 ** 64 - 1
+    assert int(ffi.cast("foo_t", -1)) == maxulonglong
+    assert int(ffi.cast("bar_t", -1)) == -1
+    assert lib.foobar(-1, [0, 0]) == maxulonglong
+    assert lib.foobar(2 ** 15 - 1, [0, 0]) == 2 ** 15 - 1
+    assert lib.foobar(10, [20, 31]) == 61
+    assert lib.foobar(0, [0, maxulonglong]) == maxulonglong
+    py.test.raises(OverflowError, lib.foobar, 2 ** 15, [0, 0])
+    py.test.raises(OverflowError, lib.foobar, -(2 ** 15) - 1, [0, 0])
+    py.test.raises(OverflowError, ffi.new, "mystruct_t *", [0, -1])
+    assert lib.mu == -20
+    assert lib.nu == 20
+
+def test_unsupported_some_void_type():
+    ffi = FFI()
+    py.test.raises(FFIError, ffi.cdef, """typedef void... foo_t;""")
+
+def test_some_float_type():
+    py.test.skip("later")
+    ffi = FFI()
+    ffi.cdef("typedef double... foo_t; foo_t sum(foo_t[]);")
+    lib = verify(ffi, 'test_some_float_type', """
+        typedef float foo_t;
+        static foo_t sum(foo_t x[]) { return x[0] + x[1]; }
+    """)
+    assert lib.sum([40.0, 2.25]) == 42.25

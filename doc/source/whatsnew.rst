@@ -6,6 +6,10 @@ What's New
 1.0.4
 =====
 
+* Out-of-line API mode: we can now declare integer types with
+  ``typedef int... foo_t;``.  The exact size and signness of ``foo_t``
+  is figured out by the compiler.
+
 * Out-of-line API mode: we can now declare multidimensional arrays
   (as fields or as globals) with ``int n[...][...]``.  Before, only the
   outermost dimension would support the ``...`` syntax.

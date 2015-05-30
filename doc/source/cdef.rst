@@ -373,6 +373,15 @@ in the details.  These places are:
    declaration which doesn't use "``...``" is assumed to be exact, but this is
    checked: you get an error if it is not correct.
 
+*  *New in version 1.0.4:* integer types: the syntax "``typedef
+   int... foo_t;``" declares the type ``foo_t`` as an integer type
+   whose exact size and signness is not specified.  The compiler will
+   figure it out.  (Note that this requires ``set_source()``; it does
+   not work with ``verify()``.)  The ``int...`` can be replaced with
+   ``long...`` or ``unsigned long long...`` or any other primitive
+   integer type, with no effect.  The type will always map to one of
+   ``(u)int(8,16,32,64)_t``.
+
 *  unknown types: the syntax "``typedef ... foo_t;``" declares the type
    ``foo_t`` as opaque.  Useful mainly for when the API takes and returns
    ``foo_t *`` without you needing to look inside the ``foo_t``.  Also
@@ -414,7 +423,9 @@ in the details.  These places are:
    ``static char *const FOO;``).
 
 Currently, it is not supported to find automatically which of the
-various integer or float types you need at which place.  In the case of
+various integer or float types you need at which place.
+If a type is named, and an integer type, then use ``typedef
+int... the_type_name;``.  In the case of
 function arguments or return type, when it is a simple integer/float
 type, it may be misdeclared (if you misdeclare a function ``void
 f(long)`` as ``void f(int)``, it still works, but you have to call it
