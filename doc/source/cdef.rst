@@ -375,7 +375,7 @@ in the details.  These places are:
 
 *  *New in version 1.1:* integer types: the syntax "``typedef
    int... foo_t;``" declares the type ``foo_t`` as an integer type
-   whose exact size and signness is not specified.  The compiler will
+   whose exact size and signedness is not specified.  The compiler will
    figure it out.  (Note that this requires ``set_source()``; it does
    not work with ``verify()``.)  The ``int...`` can be replaced with
    ``long...`` or ``unsigned long long...`` or any other primitive

@@ -7,7 +7,7 @@ What's New
 =====
 
 * Out-of-line API mode: we can now declare integer types with
-  ``typedef int... foo_t;``.  The exact size and signness of ``foo_t``
+  ``typedef int... foo_t;``.  The exact size and signedness of ``foo_t``
   is figured out by the compiler.
 
 * Out-of-line API mode: we can now declare multidimensional arrays
