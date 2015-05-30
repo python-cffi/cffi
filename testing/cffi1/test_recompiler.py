@@ -1,5 +1,5 @@
 import sys, os, py
-from cffi import FFI, FFIError, VerificationError
+from cffi import FFI, VerificationError
 from cffi import recompiler
 from testing.udir import udir
 from testing.support import u
@@ -969,10 +969,6 @@ def test_some_integer_type():
     py.test.raises(OverflowError, ffi.new, "mystruct_t *", [0, -1])
     assert lib.mu == -20
     assert lib.nu == 20
-
-def test_unsupported_some_void_type():
-    ffi = FFI()
-    py.test.raises(FFIError, ffi.cdef, """typedef void... foo_t;""")
 
 def test_some_float_type():
     py.test.skip("later")
