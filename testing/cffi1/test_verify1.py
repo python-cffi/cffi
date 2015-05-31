@@ -2129,10 +2129,7 @@ def test_verify_dlopen_flags():
         static int *getptr(void) { return &foo_verify_dlopen_flags; }
     """)
     p = lib2.getptr()
-    lib1.foo_verify_dlopen_flags = 42
-    assert p[0] == 42
-    p[0] += 1
-    assert lib1.foo_verify_dlopen_flags == 43
+    assert ffi1.addressof(lib1, 'foo_verify_dlopen_flags') == p
 
 def test_consider_not_implemented_function_type():
     ffi = FFI()
