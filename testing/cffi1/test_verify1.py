@@ -2117,24 +2117,22 @@ def test_verify_dlopen_flags():
     try:
         ffi1 = FFI()
         ffi1.cdef("int foo_verify_dlopen_flags;")
-
-        sys.setdlopenflags(ffi1.RTLD_GLOBAL | ffi1.RTLD_LAZY)
+        sys.setdlopenflags(ffi1.RTLD_GLOBAL | ffi1.RTLD_NOW)
         lib1 = ffi1.verify("int foo_verify_dlopen_flags;")
-        lib2 = get_second_lib()
-
-        lib1.foo_verify_dlopen_flags = 42
-        assert lib2.foo_verify_dlopen_flags == 42
-        lib2.foo_verify_dlopen_flags += 1
-        assert lib1.foo_verify_dlopen_flags == 43
     finally:
         sys.setdlopenflags(old)
 
-def get_second_lib():
-    # Hack, using modulename makes the test fail
     ffi2 = FFI()
-    ffi2.cdef("int foo_verify_dlopen_flags;")
-    lib2 = ffi2.verify("int foo_verify_dlopen_flags;")
-    return lib2
+    ffi2.cdef("int *getptr(void);")
+    lib2 = ffi2.verify("""
+        extern int foo_verify_dlopen_flags;
+        static int *getptr(void) { return &foo_verify_dlopen_flags; }
+    """)
+    p = lib2.getptr()
+    lib1.foo_verify_dlopen_flags = 42
+    assert p[0] == 42
+    p[0] += 1
+    assert lib1.foo_verify_dlopen_flags == 43
 
 def test_consider_not_implemented_function_type():
     ffi = FFI()
