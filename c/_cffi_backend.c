@@ -5351,6 +5351,12 @@ static PyObject *b_from_handle(PyObject *self, PyObject *arg)
         return NULL;
     }
     x = (PyObject *)(raw + 42);
+    if (Py_REFCNT(x) <= 0) {
+        Py_FatalError("ffi.from_handle() detected that the address passed "
+                      "points to garbage. If it is really the result of "
+                      "ffi.new_handle(), then the Python object has already "
+                      "been garbage collected");
+    }
     Py_INCREF(x);
     return x;
 }
