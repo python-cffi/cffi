@@ -2133,8 +2133,7 @@ def get_second_lib():
     # Hack, using modulename makes the test fail
     ffi2 = FFI()
     ffi2.cdef("int foo_verify_dlopen_flags;")
-    lib2 = ffi2.verify("int foo_verify_dlopen_flags;",
-                       flags=ffi2.RTLD_GLOBAL | ffi2.RTLD_LAZY)
+    lib2 = ffi2.verify("int foo_verify_dlopen_flags;")
     return lib2
 
 def test_consider_not_implemented_function_type():
