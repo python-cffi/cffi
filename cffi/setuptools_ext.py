@@ -19,8 +19,8 @@ def execfile(filename, glob):
     # we are generating.
     with open(filename) as f:
         src = f.read()
-        src += '\n'      # Python 2.6 compatibility
-        code = compile(src, filename, 'exec')
+    src += '\n'      # Python 2.6 compatibility
+    code = compile(src, filename, 'exec')
     exec(code, glob, glob)
 
 
