@@ -3,6 +3,19 @@ What's New
 ======================
 
 
+1.1.1
+=====
+
+* Out-of-line mode: ``ffi.string()``, ``ffi.buffer()`` and
+  ``ffi.getwinerror()`` didn't accept their arguments as keyword
+  arguments, unlike their in-line mode equivalent.  (It worked in PyPy.)
+
+* Out-of-line ABI mode: documented a restriction__ of ``ffi.dlopen()``
+  when compared to the in-line mode.
+
+.. __: cdef.html#dlopen-note
+
+
 1.1.0
 =====
 

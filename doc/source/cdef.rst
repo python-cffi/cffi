@@ -278,6 +278,8 @@ out of scope.  Make sure you keep the library object around as long as
 needed.  (Alternatively, the out-of-line FFIs have a method
 ``ffi.dlclose(lib)``.)
 
+.. _dlopen-note:
+
 Note: the old version of ``ffi.dlopen()`` from the in-line ABI mode
 tries to use ``ctypes.util.find_library()`` if it cannot directly find
 the library.  The newer out-of-line ``ffi.dlopen()`` no longer does it
