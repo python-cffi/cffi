@@ -774,7 +774,7 @@ static PyObject *ffi_int_const(FFIObject *self, PyObject *args, PyObject *kwds)
 static PyMethodDef ffi_methods[] = {
  {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS, ffi_addressof_doc},
  {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
- {"buffer",     (PyCFunction)ffi_buffer,     METH_VARARGS, ffi_buffer_doc},
+ {"buffer",     (PyCFunction)ffi_buffer,     METH_VKW,     ffi_buffer_doc},
  {"callback",   (PyCFunction)ffi_callback,   METH_VKW,     ffi_callback_doc},
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
  {"dlclose",    (PyCFunction)ffi_dlclose,    METH_VARARGS, ffi_dlclose_doc},
@@ -784,14 +784,14 @@ static PyMethodDef ffi_methods[] = {
  {"gc",         (PyCFunction)ffi_gc,         METH_VKW,     ffi_gc_doc},
  {"getctype",   (PyCFunction)ffi_getctype,   METH_VKW,     ffi_getctype_doc},
 #ifdef MS_WIN32
- {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VARARGS, ffi_getwinerror_doc},
+ {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VKW,     ffi_getwinerror_doc},
 #endif
  {"integer_const",(PyCFunction)ffi_int_const,METH_VKW,     ffi_int_const_doc},
  {"new",        (PyCFunction)ffi_new,        METH_VKW,     ffi_new_doc},
  {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
  {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
- {"string",     (PyCFunction)ffi_string,     METH_VARARGS, ffi_string_doc},
+ {"string",     (PyCFunction)ffi_string,     METH_VKW,     ffi_string_doc},
  {"typeof",     (PyCFunction)ffi_typeof,     METH_O,       ffi_typeof_doc},
  {NULL}
 };

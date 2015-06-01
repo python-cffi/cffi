@@ -5158,12 +5158,14 @@ static PyObject *b_getcname(PyObject *self, PyObject *args)
     return PyText_FromStringAndSize(s, namelen + replacelen);
 }
 
-static PyObject *b_string(PyObject *self, PyObject *args)
+static PyObject *b_string(PyObject *self, PyObject *args, PyObject *kwds)
 {
     CDataObject *cd;
     Py_ssize_t maxlen = -1;
-    if (!PyArg_ParseTuple(args, "O!|n:string",
-                          &CData_Type, &cd, &maxlen))
+    static char *keywords[] = {"cdata", "maxlen", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|n:string", keywords,
+                                     &CData_Type, &cd, &maxlen))
         return NULL;
 
     if (cd->c_type->ct_itemdescr != NULL &&
@@ -5246,12 +5248,14 @@ static PyObject *b_string(PyObject *self, PyObject *args)
     return NULL;
 }
 
-static PyObject *b_buffer(PyObject *self, PyObject *args)
+static PyObject *b_buffer(PyObject *self, PyObject *args, PyObject *kwds)
 {
     CDataObject *cd;
     Py_ssize_t size = -1;
-    if (!PyArg_ParseTuple(args, "O!|n:buffer",
-                          &CData_Type, &cd, &size))
+    static char *keywords[] = {"cdata", "size", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|n:buffer", keywords,
+                                     &CData_Type, &cd, &size))
         return NULL;
 
     if (cd->c_type->ct_flags & CT_POINTER) {
@@ -5796,15 +5800,15 @@ static PyMethodDef FFIBackendMethods[] = {
     {"typeoffsetof", b_typeoffsetof, METH_VARARGS},
     {"rawaddressof", b_rawaddressof, METH_VARARGS},
     {"getcname", b_getcname, METH_VARARGS},
-    {"string", b_string, METH_VARARGS},
-    {"buffer", b_buffer, METH_VARARGS},
+    {"string", (PyCFunction)b_string, METH_VARARGS | METH_KEYWORDS},
+    {"buffer", (PyCFunction)b_buffer, METH_VARARGS | METH_KEYWORDS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_O},
     {"newp_handle", b_newp_handle, METH_VARARGS},
     {"from_handle", b_from_handle, METH_O},
     {"from_buffer", b_from_buffer, METH_VARARGS},
 #ifdef MS_WIN32
-    {"getwinerror", b_getwinerror, METH_VARARGS},
+    {"getwinerror", (PyCFunction)b_getwinerror, METH_VARARGS | METH_KEYWORDS},
 #endif
     {"_get_types", b__get_types, METH_NOARGS},
     {"_testfunc", b__testfunc, METH_VARARGS},

@@ -1,4 +1,4 @@
-import py
+import py, sys
 import _cffi_backend as _cffi1_backend
 
 
@@ -65,6 +65,7 @@ def test_ffi_string():
     ffi = _cffi1_backend.FFI()
     p = ffi.new("char[]", init=b"foobar\x00baz")
     assert ffi.string(p) == b"foobar"
+    assert ffi.string(cdata=p, maxlen=3) == b"foo"
 
 def test_ffi_errno():
     # xxx not really checking errno, just checking that we can read/write it
@@ -162,6 +163,7 @@ def test_ffi_buffer():
     ffi = _cffi1_backend.FFI()
     a = ffi.new("signed char[]", [5, 6, 7])
     assert ffi.buffer(a)[:] == b'\x05\x06\x07'
+    assert ffi.buffer(cdata=a, size=2)[:] == b'\x05\x06'
 
 def test_ffi_from_buffer():
     import array
@@ -178,3 +180,11 @@ def test_ffi_types():
     ffi = _cffi1_backend.FFI()
     assert isinstance(ffi.cast("int", 42), CData)
     assert isinstance(ffi.typeof("int"), CType)
+
+def test_ffi_getwinerror():
+    if sys.platform != "win32":
+        py.test.skip("for windows")
+    ffi = _cffi1_backend.FFI()
+    n = (1 << 29) + 42
+    code, message = ffi.getwinerror(code=n)
+    assert code == n
