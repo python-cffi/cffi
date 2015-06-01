@@ -44,8 +44,7 @@ class TestDist(object):
             import setuptools
         except ImportError:
             py.test.skip("setuptools not found")
-        subprocess.check_call([self.executable, 'setup.py', '--no-user-cfg',
-                               'egg_info'],
+        subprocess.check_call([self.executable, 'setup.py', 'egg_info'],
                               cwd=self.rootdir)
         TestDist._setuptools_ready = True
 
@@ -243,7 +242,7 @@ class TestDist(object):
     @chdir_to_tmp
     def test_distutils_api_1(self):
         self._make_distutils_api()
-        self.run(["setup.py", "--no-user-cfg", "build"])
+        self.run(["setup.py", "build"])
         self.check_produced_files({'setup.py': None,
                                    'build': '?',
                                    'src': {'pack1': {'__init__.py': None}}})
@@ -251,7 +250,7 @@ class TestDist(object):
     @chdir_to_tmp
     def test_distutils_api_2(self):
         self._make_distutils_api()
-        self.run(["setup.py", "--no-user-cfg", "build_ext", "-i"])
+        self.run(["setup.py", "build_ext", "-i"])
         self.check_produced_files({'setup.py': None,
                                    'build': '?',
                                    'src': {'pack1': {'__init__.py': None,
@@ -282,7 +281,7 @@ class TestDist(object):
     @chdir_to_tmp
     def test_setuptools_abi_1(self):
         self._make_setuptools_abi()
-        self.run(["setup.py", "--no-user-cfg", "build"])
+        self.run(["setup.py", "build"])
         self.check_produced_files({'setup.py': None,
                                    'build': '?',
                                    'src0': {'pack2': {'__init__.py': None,
@@ -291,7 +290,7 @@ class TestDist(object):
     @chdir_to_tmp
     def test_setuptools_abi_2(self):
         self._make_setuptools_abi()
-        self.run(["setup.py", "--no-user-cfg", "build_ext", "-i"])
+        self.run(["setup.py", "build_ext", "-i"])
         self.check_produced_files({'setup.py': None,
                                    'src0': {'pack2': {'__init__.py': None,
                                                       '_build.py': None,
@@ -322,7 +321,7 @@ class TestDist(object):
     @chdir_to_tmp
     def test_setuptools_api_1(self):
         self._make_setuptools_api()
-        self.run(["setup.py", "--no-user-cfg", "build"])
+        self.run(["setup.py", "build"])
         self.check_produced_files({'setup.py': None,
                                    'build': '?',
                                    'src1': {'pack3': {'__init__.py': None,
@@ -331,7 +330,7 @@ class TestDist(object):
     @chdir_to_tmp
     def test_setuptools_api_2(self):
         self._make_setuptools_api()
-        self.run(["setup.py", "--no-user-cfg", "build_ext", "-i"])
+        self.run(["setup.py", "build_ext", "-i"])
         self.check_produced_files({'setup.py': None,
                                    'build': '?',
                                    'src1': {'pack3': {'__init__.py': None,
