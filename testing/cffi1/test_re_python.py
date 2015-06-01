@@ -90,7 +90,11 @@ def test_function_with_varargs():
 def test_dlopen_none():
     import _cffi_backend
     from re_python_pysrc import ffi
-    lib = ffi.dlopen(None)
+    name = None
+    if sys.platform == 'win32':
+        import ctypes.util
+        name = ctypes.util.find_msvcrt()
+    lib = ffi.dlopen(name)
     assert lib.strlen(b"hello") == 5
 
 def test_dlclose():
