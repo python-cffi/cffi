@@ -140,6 +140,38 @@ static PyObject *ffi_fetch_int_constant(FFIObject *ffi, char *name,
 #define ACCEPT_ALL      (ACCEPT_STRING | ACCEPT_CTYPE | ACCEPT_CDATA)
 #define CONSIDER_FN_AS_FNPTR  8
 
+static CTypeDescrObject *_ffi_bad_type(FFIObject *ffi, char *input_text)
+{
+    size_t length = strlen(input_text);
+    char *extra;
+
+    if (length > 500) {
+        extra = "";
+    }
+    else {
+        char *p;
+        size_t i, num_spaces = ffi->info.error_location;
+        extra = alloca(length + num_spaces + 4);
+        p = extra;
+        *p++ = '\n';
+        for (i = 0; i < length; i++) {
+            if (' ' <= input_text[i] && input_text[i] < 0x7f)
+                *p++ = input_text[i];
+            else if (input_text[i] == '\t' || input_text[i] == '\n')
+                *p++ = ' ';
+            else
+                *p++ = '?';
+        }
+        *p++ = '\n';
+        memset(p, ' ', num_spaces);
+        p += num_spaces;
+        *p++ = '^';
+        *p++ = 0;
+    }
+    PyErr_Format(FFIError, "%s%s", ffi->info.error_message, extra);
+    return NULL;
+}
+
 static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
                                    int accept)
 {
@@ -153,15 +185,9 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
         if (x == NULL) {
             char *input_text = PyText_AS_UTF8(arg);
             int err, index = parse_c_type(&ffi->info, input_text);
-            if (index < 0) {
-                size_t num_spaces = ffi->info.error_location;
-                char *spaces = alloca(num_spaces + 1);
-                memset(spaces, ' ', num_spaces);
-                spaces[num_spaces] = '\0';
-                PyErr_Format(FFIError, "%s\n%s\n%s^", ffi->info.error_message,
-                             input_text, spaces);
-                return NULL;
-            }
+            if (index < 0)
+                return _ffi_bad_type(ffi, input_text);
+
             x = realize_c_type_or_func(&ffi->types_builder,
                                        ffi->info.output, index);
             if (x == NULL)
