@@ -202,6 +202,13 @@ and get a two-dimensional array.
 .. _struct: http://docs.python.org/library/struct.html
 .. _array: http://docs.python.org/library/array.html
 
+This example also admits an out-of-line equivalent.  It is similar to
+`Out-of-line example (ABI level, out-of-line)`_ above, but without any
+call to ``ffi.dlopen()``.  In the main program, you write ``from
+_simple_example import ffi`` and then the same content as the in-line
+example above starting from the line ``image = ffi.new("pixel_t[]",
+800*600)``.
+
 
 .. _performance:
 
