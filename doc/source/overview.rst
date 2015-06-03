@@ -82,8 +82,18 @@ any more:
 
     from _simple_example import ffi
 
-    lib = ffi.dlopen(None)         # or path to a library
+    lib = ffi.dlopen(None)        # or path to a library (see below for Windows)
     lib.printf(b"hi there, number %d\n", ffi.cast("int", 2))
+
+Note that this ``ffi.dlopen()``, unlike the one from in-line mode,
+does not invoke any additional magic to locate the library: it must be
+a path name (with or without a directory), as required by the C
+``dlopen()`` or ``LoadLibrary()`` functions.  This means that
+``ffi.dlopen("libfoo.so")`` is ok, but ``ffi.dlopen("foo")`` is not.
+In the latter case, you could replace it with
+``ffi.dlopen(ctypes.util.find_library("foo"))``.  Also, on
+Windows, passing None to open the standard C library does not work;
+try instead ``ffi.dlopen(ctypes.util.find_library("c"))``.
 
 For distribution purposes, remember that there is a new
 ``_simple_example.py`` file generated.  You can either include it
