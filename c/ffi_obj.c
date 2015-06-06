@@ -23,7 +23,7 @@
 
 struct FFIObject_s {
     PyObject_HEAD
-    PyObject *gc_wrefs;
+    PyObject *gc_wrefs, *gc_wrefs_freelist;
     struct _cffi_parse_info_s info;
     char ctx_is_static, ctx_is_nonempty;
     builder_c_t types_builder;
@@ -51,6 +51,7 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
         return NULL;
     }
     ffi->gc_wrefs = NULL;
+    ffi->gc_wrefs_freelist = NULL;
     ffi->info.ctx = &ffi->types_builder.ctx;
     ffi->info.output = internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
@@ -63,6 +64,7 @@ static void ffi_dealloc(FFIObject *ffi)
 {
     PyObject_GC_UnTrack(ffi);
     Py_XDECREF(ffi->gc_wrefs);
+    Py_XDECREF(ffi->gc_wrefs_freelist);
 
     free_builder_c(&ffi->types_builder, ffi->ctx_is_static);
 
