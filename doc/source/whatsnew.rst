@@ -13,6 +13,11 @@ What's New
 * Out-of-line ABI mode: documented a restriction__ of ``ffi.dlopen()``
   when compared to the in-line mode.
 
+* ``ffi.gc()``: when called several times with equal pointers, it was
+  accidentally registering only the last destructor, or even none at
+  all depending on details.  (It was correctly registering all of them
+  only in PyPy, and only with the out-of-line FFIs.)
+
 .. __: cdef.html#dlopen-note
 
 
