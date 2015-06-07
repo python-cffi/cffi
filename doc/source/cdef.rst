@@ -415,6 +415,15 @@ in the details.  These places are:
    no attempt is made to complete it.  *New in version 1.1:* support
    for multidimensional arrays: "``int n[...][...];``".
 
+   *New in version 1.2:* "``int m[][...];``", i.e. ``...`` can be used
+   in the innermost dimensions without being also used in the outermost
+   dimension.  In the example given, the length of the ``m`` array is
+   assumed not to be known to the C compiler, but the length of every
+   item (like the sub-array ``m[0]``) is always known the C compiler.
+   In other words, only the outermost dimension can be specified as
+   ``[]``, both in C and in CFFI, but any dimension can be given as
+   ``[...]`` in CFFI.
+
 *  enums: if you don't know the exact order (or values) of the declared
    constants, then use this syntax: "``enum foo { A, B, C, ... };``"
    (with a trailing "``...``").  The C compiler will be used to figure
