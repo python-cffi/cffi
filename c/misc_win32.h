@@ -82,14 +82,15 @@ static void restore_errno_only(void)
 }
 
 #if PY_MAJOR_VERSION >= 3
-static PyObject *b_getwinerror(PyObject *self, PyObject *args)
+static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
 {
     int err = -1;
     int len;
     WCHAR *s_buf = NULL; /* Free via LocalFree */
     PyObject *v, *message;
+    static char *keywords[] = {"code", NULL};
 
-    if (!PyArg_ParseTuple(args, "|i", &err))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", keywords, &err))
         return NULL;
 
     if (err == -1) {
@@ -129,7 +130,7 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args)
     return v;
 }
 #else
-static PyObject *b_getwinerror(PyObject *self, PyObject *args)
+static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
 {
     int err = -1;
     int len;
@@ -137,8 +138,9 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args)
     char *s_buf = NULL; /* Free via LocalFree */
     char s_small_buf[28]; /* Room for "Windows Error 0xFFFFFFFF" */
     PyObject *v;
+    static char *keywords[] = {"code", NULL};
 
-    if (!PyArg_ParseTuple(args, "|i", &err))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", keywords, &err))
         return NULL;
 
     if (err == -1) {

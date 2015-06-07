@@ -278,6 +278,18 @@ out of scope.  Make sure you keep the library object around as long as
 needed.  (Alternatively, the out-of-line FFIs have a method
 ``ffi.dlclose(lib)``.)
 
+.. _dlopen-note:
+
+Note: the old version of ``ffi.dlopen()`` from the in-line ABI mode
+tries to use ``ctypes.util.find_library()`` if it cannot directly find
+the library.  The newer out-of-line ``ffi.dlopen()`` no longer does it
+automatically; it simply passes the argument it receives to the
+underlying ``dlopen()`` or ``LoadLibrary()`` function.  If needed, it
+is up to you to use ``ctypes.util.find_library()`` or any other way to
+look for the library's filename.  This also means that
+``ffi.dlopen(None)`` no longer work on Windows; try instead
+``ffi.dlopen(ctypes.util.find_library('c'))``.
+
 
 ffi.set_source(): preparing out-of-line modules
 -----------------------------------------------
@@ -375,7 +387,7 @@ in the details.  These places are:
 
 *  *New in version 1.1:* integer types: the syntax "``typedef
    int... foo_t;``" declares the type ``foo_t`` as an integer type
-   whose exact size and signness is not specified.  The compiler will
+   whose exact size and signedness is not specified.  The compiler will
    figure it out.  (Note that this requires ``set_source()``; it does
    not work with ``verify()``.)  The ``int...`` can be replaced with
    ``long...`` or ``unsigned long long...`` or any other primitive

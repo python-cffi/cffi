@@ -3,11 +3,29 @@ What's New
 ======================
 
 
+1.1.1
+=====
+
+* Out-of-line mode: ``ffi.string()``, ``ffi.buffer()`` and
+  ``ffi.getwinerror()`` didn't accept their arguments as keyword
+  arguments, unlike their in-line mode equivalent.  (It worked in PyPy.)
+
+* Out-of-line ABI mode: documented a restriction__ of ``ffi.dlopen()``
+  when compared to the in-line mode.
+
+* ``ffi.gc()``: when called several times with equal pointers, it was
+  accidentally registering only the last destructor, or even none at
+  all depending on details.  (It was correctly registering all of them
+  only in PyPy, and only with the out-of-line FFIs.)
+
+.. __: cdef.html#dlopen-note
+
+
 1.1.0
 =====
 
 * Out-of-line API mode: we can now declare integer types with
-  ``typedef int... foo_t;``.  The exact size and signness of ``foo_t``
+  ``typedef int... foo_t;``.  The exact size and signedness of ``foo_t``
   is figured out by the compiler.
 
 * Out-of-line API mode: we can now declare multidimensional arrays

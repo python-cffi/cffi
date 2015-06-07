@@ -23,7 +23,7 @@
 
 struct FFIObject_s {
     PyObject_HEAD
-    PyObject *gc_wrefs;
+    PyObject *gc_wrefs, *gc_wrefs_freelist;
     struct _cffi_parse_info_s info;
     char ctx_is_static, ctx_is_nonempty;
     builder_c_t types_builder;
@@ -51,6 +51,7 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
         return NULL;
     }
     ffi->gc_wrefs = NULL;
+    ffi->gc_wrefs_freelist = NULL;
     ffi->info.ctx = &ffi->types_builder.ctx;
     ffi->info.output = internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
@@ -63,6 +64,7 @@ static void ffi_dealloc(FFIObject *ffi)
 {
     PyObject_GC_UnTrack(ffi);
     Py_XDECREF(ffi->gc_wrefs);
+    Py_XDECREF(ffi->gc_wrefs_freelist);
 
     free_builder_c(&ffi->types_builder, ffi->ctx_is_static);
 
@@ -140,6 +142,38 @@ static PyObject *ffi_fetch_int_constant(FFIObject *ffi, char *name,
 #define ACCEPT_ALL      (ACCEPT_STRING | ACCEPT_CTYPE | ACCEPT_CDATA)
 #define CONSIDER_FN_AS_FNPTR  8
 
+static CTypeDescrObject *_ffi_bad_type(FFIObject *ffi, char *input_text)
+{
+    size_t length = strlen(input_text);
+    char *extra;
+
+    if (length > 500) {
+        extra = "";
+    }
+    else {
+        char *p;
+        size_t i, num_spaces = ffi->info.error_location;
+        extra = alloca(length + num_spaces + 4);
+        p = extra;
+        *p++ = '\n';
+        for (i = 0; i < length; i++) {
+            if (' ' <= input_text[i] && input_text[i] < 0x7f)
+                *p++ = input_text[i];
+            else if (input_text[i] == '\t' || input_text[i] == '\n')
+                *p++ = ' ';
+            else
+                *p++ = '?';
+        }
+        *p++ = '\n';
+        memset(p, ' ', num_spaces);
+        p += num_spaces;
+        *p++ = '^';
+        *p++ = 0;
+    }
+    PyErr_Format(FFIError, "%s%s", ffi->info.error_message, extra);
+    return NULL;
+}
+
 static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
                                    int accept)
 {
@@ -153,15 +187,9 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
         if (x == NULL) {
             char *input_text = PyText_AS_UTF8(arg);
             int err, index = parse_c_type(&ffi->info, input_text);
-            if (index < 0) {
-                size_t num_spaces = ffi->info.error_location;
-                char *spaces = alloca(num_spaces + 1);
-                memset(spaces, ' ', num_spaces);
-                spaces[num_spaces] = '\0';
-                PyErr_Format(FFIError, "%s\n%s\n%s^", ffi->info.error_message,
-                             input_text, spaces);
-                return NULL;
-            }
+            if (index < 0)
+                return _ffi_bad_type(ffi, input_text);
+
             x = realize_c_type_or_func(&ffi->types_builder,
                                        ffi->info.output, index);
             if (x == NULL)
@@ -774,7 +802,7 @@ static PyObject *ffi_int_const(FFIObject *self, PyObject *args, PyObject *kwds)
 static PyMethodDef ffi_methods[] = {
  {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS, ffi_addressof_doc},
  {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
- {"buffer",     (PyCFunction)ffi_buffer,     METH_VARARGS, ffi_buffer_doc},
+ {"buffer",     (PyCFunction)ffi_buffer,     METH_VKW,     ffi_buffer_doc},
  {"callback",   (PyCFunction)ffi_callback,   METH_VKW,     ffi_callback_doc},
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
  {"dlclose",    (PyCFunction)ffi_dlclose,    METH_VARARGS, ffi_dlclose_doc},
@@ -784,14 +812,14 @@ static PyMethodDef ffi_methods[] = {
  {"gc",         (PyCFunction)ffi_gc,         METH_VKW,     ffi_gc_doc},
  {"getctype",   (PyCFunction)ffi_getctype,   METH_VKW,     ffi_getctype_doc},
 #ifdef MS_WIN32
- {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VARARGS, ffi_getwinerror_doc},
+ {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VKW,     ffi_getwinerror_doc},
 #endif
  {"integer_const",(PyCFunction)ffi_int_const,METH_VKW,     ffi_int_const_doc},
  {"new",        (PyCFunction)ffi_new,        METH_VKW,     ffi_new_doc},
  {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
  {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
- {"string",     (PyCFunction)ffi_string,     METH_VARARGS, ffi_string_doc},
+ {"string",     (PyCFunction)ffi_string,     METH_VKW,     ffi_string_doc},
  {"typeof",     (PyCFunction)ffi_typeof,     METH_O,       ffi_typeof_doc},
  {NULL}
 };
