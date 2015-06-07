@@ -7,13 +7,12 @@ What's New
 =====
 
 * Out-of-line mode: ``int a[][...];`` can be used to declare a structure
-  field or global variable which is simultanously of total length
-  unknown to the C compiler (the ``[]`` part), but each element is an
-  array of N integers, where the value of N *is* known to the C compiler
-  (the ``int [...]`` part around).  Similarly, ``int a[5][...];`` is
-  supported (but probably less useful).  Remember that in the order of
-  the C syntax, it means an array of 5 things, each of which is an array
-  of N integers---and ask the C compiler for the value of N.
+  field or global variable which is, simultaneously, of total length
+  unknown to the C compiler (the ``a[]`` part) and each element is
+  itself an array of N integers, where the value of N *is* known to the
+  C compiler (the ``int`` and ``[...]`` parts around it).  Similarly,
+  ``int a[5][...];`` is supported (but probably less useful: remember
+  that in C it means ``int (a[5])[...];``).
 
 
 1.1.1
