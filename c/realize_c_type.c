@@ -60,7 +60,7 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
 static void free_builder_c(builder_c_t *builder, int ctx_is_static)
 {
     if (!ctx_is_static) {
-        int i;
+        size_t i;
         const void *mem[] = {builder->ctx.types,
                              builder->ctx.globals,
                              builder->ctx.struct_unions,

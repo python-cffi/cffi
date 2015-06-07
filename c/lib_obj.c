@@ -300,7 +300,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
     case _CFFI_OP_GLOBAL_VAR:
     {
         /* global variable of the exact type specified here */
-        size_t g_size = (size_t)g->size_or_direct_fn;
+        Py_ssize_t g_size = (Py_ssize_t)g->size_or_direct_fn;
         ct = realize_c_type(types_builder, types_builder->ctx.types,
                             _CFFI_GETARG(g->type_op));
         if (ct == NULL)
