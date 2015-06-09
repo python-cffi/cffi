@@ -3,6 +3,13 @@ What's New
 ======================
 
 
+1.1.2
+=====
+
+* ``ffi.gc()``: fixed a race condition in multithreaded programs
+  introduced in 1.1.1
+
+
 1.1.1
 =====
 
