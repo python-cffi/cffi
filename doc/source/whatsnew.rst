@@ -14,6 +14,10 @@ What's New
   ``int a[5][...];`` is supported (but probably less useful: remember
   that in C it means ``int (a[5])[...];``).
 
+* PyPy: the ``lib.some_function`` objects were missing the attributes
+  ``__name__``, ``__module__`` and ``__doc__`` that are expected e.g. by
+  some decorators-management functions from ``functools``.
+
 
 1.1.2
 =====
