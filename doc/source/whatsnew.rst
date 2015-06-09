@@ -15,6 +15,13 @@ What's New
   that in C it means ``int (a[5])[...];``).
 
 
+1.1.2
+=====
+
+* ``ffi.gc()``: fixed a race condition in multithreaded programs
+  introduced in 1.1.1
+
+
 1.1.1
 =====
 
