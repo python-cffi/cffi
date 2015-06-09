@@ -409,6 +409,10 @@ def test_math_sin_type():
     # 'x' is another <built-in method> object on lib, made very indirectly
     x = type(lib).__dir__.__get__(lib)
     py.test.raises(TypeError, ffi.typeof, x)
+    #
+    assert hasattr(lib.sin, '__name__')     # present on built-in functions on
+    assert hasattr(lib.sin, '__module__')   # CPython; must be emulated on PyPy
+    assert hasattr(lib.sin, '__doc__')
 
 def test_verify_anonymous_struct_with_typedef():
     ffi = FFI()
