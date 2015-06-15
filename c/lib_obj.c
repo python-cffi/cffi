@@ -378,16 +378,49 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         }                                               \
     } while (0)
 
+static PyObject *_lib_dir1(LibObject *lib, int ignore_type)
+{
+    const struct _cffi_global_s *g = lib->l_types_builder->ctx.globals;
+    int i, count = 0, total = lib->l_types_builder->ctx.num_globals;
+    PyObject *lst = PyList_New(total);
+    if (lst == NULL)
+        return NULL;
+
+    for (i = 0; i < total; i++) {
+        if (_CFFI_GETOP(g[i].type_op) != ignore_type) {
+            PyObject *s = PyText_FromString(g[i].name);
+            if (s == NULL)
+                goto error;
+            PyList_SET_ITEM(lst, count, s);
+            count++;
+        }
+    }
+    if (PyList_SetSlice(lst, count, total, NULL) < 0)
+        goto error;
+    return lst;
+
+ error:
+    Py_DECREF(lst);
+    return NULL;
+}
+
 static PyObject *lib_getattr(LibObject *lib, PyObject *name)
 {
     PyObject *x;
-    LIB_GET_OR_CACHE_ADDR(x, lib, name, return NULL);
+    LIB_GET_OR_CACHE_ADDR(x, lib, name, goto missing);
 
     if (GlobSupport_Check(x)) {
         return read_global_var((GlobSupportObject *)x);
     }
     Py_INCREF(x);
     return x;
+
+ missing:
+    if (strcmp(PyText_AsUTF8(name), "__all__") == 0) {
+        PyErr_Clear();
+        return _lib_dir1(lib, _CFFI_OP_GLOBAL_VAR);
+    }
+    return NULL;
 }
 
 static int lib_setattr(LibObject *lib, PyObject *name, PyObject *val)
@@ -410,27 +443,13 @@ static int lib_setattr(LibObject *lib, PyObject *name, PyObject *val)
     return -1;
 }
 
-static PyObject *lib_dir(LibObject *lib, PyObject *noarg)
+static PyObject *lib_dir(PyObject *self, PyObject *noarg)
 {
-    const struct _cffi_global_s *g = lib->l_types_builder->ctx.globals;
-    int i, total = lib->l_types_builder->ctx.num_globals;
-    PyObject *lst = PyList_New(total);
-    if (lst == NULL)
-        return NULL;
-
-    for (i = 0; i < total; i++) {
-        PyObject *s = PyText_FromString(g[i].name);
-        if (s == NULL) {
-            Py_DECREF(lst);
-            return NULL;
-        }
-        PyList_SET_ITEM(lst, i, s);
-    }
-    return lst;
+    return _lib_dir1((LibObject *)self, -1);
 }
 
 static PyMethodDef lib_methods[] = {
-    {"__dir__",   (PyCFunction)lib_dir,  METH_NOARGS},
+    {"__dir__",   lib_dir,  METH_NOARGS},
     {NULL,        NULL}           /* sentinel */
 };
 
