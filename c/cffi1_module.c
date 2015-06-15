@@ -141,11 +141,11 @@ static PyObject *_my_Py_InitModule(char *module_name)
 
 static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
 {
-    PyObject *m;
+    PyObject *m, *modules_dict;
     FFIObject *ffi;
     LibObject *lib;
     Py_ssize_t version;
-    char *module_name, *exports;
+    char *module_name, *exports, *module_name_with_lib;
     void **raw;
     const struct _cffi_type_context_s *ctx;
 
@@ -187,6 +187,18 @@ static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
     if (make_included_tuples(module_name, ctx->includes,
                              &ffi->types_builder.included_ffis,
                              &lib->l_types_builder->included_libs) < 0)
+        return NULL;
+
+    /* add manually 'module_name.lib' in sys.modules:
+       see test_import_from_lib */
+    modules_dict = PySys_GetObject("modules");
+    if (!modules_dict)
+        return NULL;
+    module_name_with_lib = alloca(strlen(module_name) + 5);
+    strcpy(module_name_with_lib, module_name);
+    strcat(module_name_with_lib, ".lib");
+    if (PyDict_SetItemString(modules_dict, module_name_with_lib,
+                             (PyObject *)lib) < 0)
         return NULL;
 
     return m;

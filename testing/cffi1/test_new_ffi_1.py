@@ -1699,3 +1699,15 @@ class TestNewFFI1:
         c_file = str(udir.join('test_emit_c_code'))
         ffi.emit_c_code(c_file)
         assert os.path.isfile(c_file)
+
+    def test_import_from_lib(self):
+        ffi2 = cffi.FFI()
+        ffi2.cdef("int myfunc(int);\n#define MYFOO ...\n")
+        outputfilename = recompile(ffi2, "_test_import_from_lib",
+                                   "int myfunc(int x) { return x + 1; }\n"
+                                   "#define MYFOO 42", tmpdir=str(udir))
+        imp.load_dynamic("_test_import_from_lib", outputfilename)
+        from _test_import_from_lib.lib import myfunc, MYFOO
+        assert MYFOO == 42
+        assert myfunc(43) == 44
+        py.test.raises(ImportError, "from _test_import_from_lib.lib import bar")
