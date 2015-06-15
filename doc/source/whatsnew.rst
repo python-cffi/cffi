@@ -18,6 +18,14 @@ What's New
   ``__name__``, ``__module__`` and ``__doc__`` that are expected e.g. by
   some decorators-management functions from ``functools``.
 
+* Out-of-line API mode: you can now do ``from _example.lib import x``
+  to import the name ``x`` from ``_example.lib``, even though the
+  ``lib`` object is not a standard module object.  (Also works in ``from
+  _example.lib import *``, but this is even more of a hack and will fail
+  if ``lib`` happens to declare a name called ``__all__``.  Note that
+  ``*`` excludes the global variables; only the functions and constants
+  make sense to import like this.)
+
 
 1.1.2
 =====
