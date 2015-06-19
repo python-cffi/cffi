@@ -26,6 +26,10 @@ What's New
   ``*`` excludes the global variables; only the functions and constants
   make sense to import like this.)
 
+* ``lib.__dict__`` works again and gives you a copy of the
+  dict---assuming that ``lib`` has got no symbol called precisely
+  ``__dict__``.  (In general, it is safer to use ``dir(lib)``.)
+
 
 1.1.2
 =====

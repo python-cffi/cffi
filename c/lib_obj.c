@@ -404,6 +404,33 @@ static PyObject *_lib_dir1(LibObject *lib, int ignore_type)
     return NULL;
 }
 
+static PyObject *_lib_dict(LibObject *lib)
+{
+    const struct _cffi_global_s *g = lib->l_types_builder->ctx.globals;
+    int i, total = lib->l_types_builder->ctx.num_globals;
+    PyObject *name, *x, *d = PyDict_New();
+    if (d == NULL)
+        return NULL;
+
+    for (i = 0; i < total; i++) {
+        name = PyText_FromString(g[i].name);
+        if (name == NULL)
+            goto error;
+
+        LIB_GET_OR_CACHE_ADDR(x, lib, name, goto error);
+
+        if (PyDict_SetItem(d, name, x) < 0)
+            goto error;
+        Py_DECREF(name);
+    }
+    return d;
+
+ error:
+    Py_XDECREF(name);
+    Py_DECREF(d);
+    return NULL;
+}
+
 static PyObject *lib_getattr(LibObject *lib, PyObject *name)
 {
     PyObject *x;
@@ -419,6 +446,10 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
     if (strcmp(PyText_AsUTF8(name), "__all__") == 0) {
         PyErr_Clear();
         return _lib_dir1(lib, _CFFI_OP_GLOBAL_VAR);
+    }
+    if (strcmp(PyText_AsUTF8(name), "__dict__") == 0) {
+        PyErr_Clear();
+        return _lib_dict(lib);
     }
     return NULL;
 }

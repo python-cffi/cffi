@@ -130,9 +130,9 @@ ffi`` returns an object of a type written in C, which does not let you
 add random attributes to it (nor does it have all the
 underscore-prefixed internal attributes of the Python version).
 Similarly, the ``lib`` objects returned by the C version are read-only,
-apart from writes to global variables.  Also, ``lib.__dict__`` no
-longer works (it now tries to look up a hypothetical symbol
-``__dict__`` from the C library); use instead ``dir(lib)``.
+apart from writes to global variables.  Also, ``lib.__dict__`` does
+not work before version 1.2 or if ``lib`` happens to declare a name
+called ``__dict__`` (use instead ``dir(lib)``).
 
 
 ffi.cdef(): declaring types and functions
