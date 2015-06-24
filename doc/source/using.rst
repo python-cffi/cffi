@@ -63,16 +63,18 @@ cannot, be attached to the underlying raw memory.)  Example:
 
     global_weakkeydict = weakref.WeakKeyDictionary()
 
-    s1   = ffi.new("struct foo *")
-    fld1 = ffi.new("struct bar *")
-    fld2 = ffi.new("struct bar *")
-    s1.thefield1 = fld1
-    s1.thefield2 = fld2
-    # here the 'fld1' and 'fld2' object must not go away,
-    # otherwise 's1.thefield1/2' will point to garbage!
-    global_weakkeydict[s1] = (fld1, fld2)
-    # now 's1' keeps alive 'fld1' and 'fld2'.  When 's1' goes
-    # away, then the weak dictionary entry will be removed.
+    def make_foo():
+        s1   = ffi.new("struct foo *")
+        fld1 = ffi.new("struct bar *")
+        fld2 = ffi.new("struct bar *")
+        s1.thefield1 = fld1
+        s1.thefield2 = fld2
+        # here the 'fld1' and 'fld2' object must not go away,
+        # otherwise 's1.thefield1/2' will point to garbage!
+        global_weakkeydict[s1] = (fld1, fld2)
+        # now 's1' keeps alive 'fld1' and 'fld2'.  When 's1' goes
+        # away, then the weak dictionary entry will be removed.
+        return s1
 
 The cdata objects support mostly the same operations as in C: you can
 read or write from pointers, arrays and structures.  Dereferencing a
