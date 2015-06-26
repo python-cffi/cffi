@@ -451,6 +451,11 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
         PyErr_Clear();
         return _lib_dict(lib);
     }
+    /* this hack is for Python 3.5 */
+    if (strcmp(PyText_AsUTF8(name), "__name__") == 0) {
+        PyErr_Clear();
+        return lib_repr(lib);
+    }
     return NULL;
 }
 
