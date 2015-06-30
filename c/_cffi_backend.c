@@ -1898,11 +1898,21 @@ _cdata_get_indexed_ptr(CDataObject *cd, PyObject *key)
         return NULL;
 
     if (cd->c_type->ct_flags & CT_POINTER) {
-        if (CDataOwn_Check(cd) && i != 0) {
-            PyErr_Format(PyExc_IndexError,
-                         "cdata '%s' can only be indexed by 0",
-                         cd->c_type->ct_name);
-            return NULL;
+        if (CDataOwn_Check(cd)) {
+            if (i != 0) {
+                PyErr_Format(PyExc_IndexError,
+                             "cdata '%s' can only be indexed by 0",
+                             cd->c_type->ct_name);
+                return NULL;
+            }
+        }
+        else {
+            if (cd->c_data == NULL) {
+                PyErr_Format(PyExc_RuntimeError,
+                             "cannot dereference null pointer from cdata '%s'",
+                             cd->c_type->ct_name);
+                return NULL;
+            }
         }
     }
     else if (cd->c_type->ct_flags & CT_ARRAY) {

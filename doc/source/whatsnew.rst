@@ -30,6 +30,11 @@ What's New
   dict---assuming that ``lib`` has got no symbol called precisely
   ``__dict__``.  (In general, it is safer to use ``dir(lib)``.)
 
+* Issue #209: dereferencing NULL pointers now raises RuntimeError
+  instead of segfaulting.  Meant as a debugging aid.  The check is
+  only for NULL: if you dereference random or dead pointers you might
+  still get segfaults.
+
 
 1.1.2
 =====
