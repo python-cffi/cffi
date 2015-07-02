@@ -133,6 +133,8 @@ Real example (API level, out-of-line)
             #include <pwd.h>
         """,
         libraries=[])   # or a list of libraries to link with
+        # (more arguments like setup.py's Extension class:
+        # include_dirs=[..], extra_objects=[..], and so on)
 
     ffi.cdef("""     // some declarations from the man page
         struct passwd {
