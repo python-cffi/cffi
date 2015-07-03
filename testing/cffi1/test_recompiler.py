@@ -511,22 +511,38 @@ def test_module_name_in_package():
 def test_bad_size_of_global_1():
     ffi = FFI()
     ffi.cdef("short glob;")
-    lib = verify(ffi, "test_bad_size_of_global_1", "long glob;")
-    py.test.raises(ffi.error, "lib.glob")
+    py.test.raises(VerificationError, verify, ffi,
+                   "test_bad_size_of_global_1", "long glob;")
 
 def test_bad_size_of_global_2():
     ffi = FFI()
     ffi.cdef("int glob[10];")
-    lib = verify(ffi, "test_bad_size_of_global_2", "int glob[9];")
-    e = py.test.raises(ffi.error, "lib.glob")
-    assert str(e.value) == ("global variable 'glob' should be 40 bytes "
-                            "according to the cdef, but is actually 36")
+    py.test.raises(VerificationError, verify, ffi,
+                   "test_bad_size_of_global_2", "int glob[9];")
 
-def test_unspecified_size_of_global():
+def test_unspecified_size_of_global_1():
     ffi = FFI()
     ffi.cdef("int glob[];")
-    lib = verify(ffi, "test_unspecified_size_of_global", "int glob[10];")
-    lib.glob    # does not crash
+    lib = verify(ffi, "test_unspecified_size_of_global_1", "int glob[10];")
+    assert ffi.typeof(lib.glob) == ffi.typeof("int *")
+
+def test_unspecified_size_of_global_2():
+    ffi = FFI()
+    ffi.cdef("int glob[][5];")
+    lib = verify(ffi, "test_unspecified_size_of_global_2", "int glob[10][5];")
+    assert ffi.typeof(lib.glob) == ffi.typeof("int(*)[5]")
+
+def test_unspecified_size_of_global_3():
+    ffi = FFI()
+    ffi.cdef("int glob[][...];")
+    lib = verify(ffi, "test_unspecified_size_of_global_3", "int glob[10][5];")
+    assert ffi.typeof(lib.glob) == ffi.typeof("int(*)[5]")
+
+def test_unspecified_size_of_global_4():
+    ffi = FFI()
+    ffi.cdef("int glob[...][...];")
+    lib = verify(ffi, "test_unspecified_size_of_global_4", "int glob[10][5];")
+    assert ffi.typeof(lib.glob) == ffi.typeof("int[10][5]")
 
 def test_include_1():
     ffi1 = FFI()
@@ -888,9 +904,11 @@ def test_constant_of_unknown_size():
         typedef ... opaque_t;
         const opaque_t CONSTANT;
     """)
-    e = py.test.raises(VerificationError, verify, ffi,
-                       'test_constant_of_unknown_size', "stuff")
-    assert str(e.value) == ("constant CONSTANT: constant 'CONSTANT' is of "
+    lib = verify(ffi, 'test_constant_of_unknown_size',
+                 "typedef int opaque_t;"
+                 "const int CONSTANT = 42;")
+    e = py.test.raises(ffi.error, getattr, lib, 'CONSTANT')
+    assert str(e.value) == ("constant 'CONSTANT' is of "
                             "type 'opaque_t', whose size is not known")
 
 def test_variable_of_unknown_size():
@@ -899,7 +917,7 @@ def test_variable_of_unknown_size():
         typedef ... opaque_t;
         opaque_t globvar;
     """)
-    lib = verify(ffi, 'test_constant_of_unknown_size', """
+    lib = verify(ffi, 'test_variable_of_unknown_size', """
         typedef char opaque_t[6];
         opaque_t globvar = "hello";
     """)
@@ -1081,3 +1099,32 @@ def test_import_from_lib():
     assert hasattr(lib, '__dict__')
     assert lib.__all__ == ['MYFOO', 'mybar']   # but not 'myvar'
     assert lib.__name__ == repr(lib)
+
+def test_macro_var_callback():
+    ffi = FFI()
+    ffi.cdef("int my_value; int *(*get_my_value)(void);")
+    lib = verify(ffi, 'test_macro_var_callback',
+                 "int *(*get_my_value)(void);\n"
+                 "#define my_value (*get_my_value())")
+    #
+    values = ffi.new("int[50]")
+    def it():
+        for i in range(50):
+            yield i
+    it = it()
+    #
+    @ffi.callback("int *(*)(void)")
+    def get_my_value():
+        return values + it.next()
+    lib.get_my_value = get_my_value
+    #
+    values[0] = 41
+    assert lib.my_value == 41            # [0]
+    p = ffi.addressof(lib, 'my_value')   # [1]
+    assert p == values + 1
+    assert p[-1] == 41
+    assert p[+1] == 0
+    lib.my_value = 42                    # [2]
+    assert values[2] == 42
+    assert p[-1] == 41
+    assert p[+1] == 42

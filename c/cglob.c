@@ -1,9 +1,12 @@
 
+typedef void *(*gs_fetch_addr_fn)(void);
+
 typedef struct {
     PyObject_HEAD
 
     CTypeDescrObject *gs_type;
     char             *gs_data;
+    gs_fetch_addr_fn  gs_fetch_addr;
 
 } GlobSupportObject;
 
@@ -38,7 +41,8 @@ static PyTypeObject GlobSupport_Type = {
 
 #define GlobSupport_Check(ob)  (Py_TYPE(ob) == &GlobSupport_Type)
 
-static PyObject *make_global_var(CTypeDescrObject *type, char *addr)
+static PyObject *make_global_var(CTypeDescrObject *type, char *addr,
+                                 gs_fetch_addr_fn fetch_addr)
 {
     GlobSupportObject *gs = PyObject_New(GlobSupportObject, &GlobSupport_Type);
     if (gs == NULL)
@@ -47,26 +51,47 @@ static PyObject *make_global_var(CTypeDescrObject *type, char *addr)
     Py_INCREF(type);
     gs->gs_type = type;
     gs->gs_data = addr;
+    gs->gs_fetch_addr = fetch_addr;
     return (PyObject *)gs;
+}
+
+static void *fetch_global_var_addr(GlobSupportObject *gs)
+{
+    void *data;
+    if (gs->gs_data != NULL) {
+        data = gs->gs_data;
+    }
+    else {
+        Py_BEGIN_ALLOW_THREADS
+        restore_errno();
+        data = gs->gs_fetch_addr();
+        save_errno();
+        Py_END_ALLOW_THREADS
+    }
+    return data;
 }
 
 static PyObject *read_global_var(GlobSupportObject *gs)
 {
-    return convert_to_object(gs->gs_data, gs->gs_type);
+    void *data = fetch_global_var_addr(gs);
+    return convert_to_object(data, gs->gs_type);
 }
 
 static int write_global_var(GlobSupportObject *gs, PyObject *obj)
 {
-    return convert_from_object(gs->gs_data, gs->gs_type, obj);
+    void *data = fetch_global_var_addr(gs);
+    return convert_from_object(data, gs->gs_type, obj);
 }
 
 static PyObject *cg_addressof_global_var(GlobSupportObject *gs)
 {
+    void *data;
     PyObject *x, *ptrtype = new_pointer_type(gs->gs_type);
     if (ptrtype == NULL)
         return NULL;
 
-    x = new_simple_cdata(gs->gs_data, (CTypeDescrObject *)ptrtype);
+    data = fetch_global_var_addr(gs);
+    x = new_simple_cdata(data, (CTypeDescrObject *)ptrtype);
     Py_DECREF(ptrtype);
     return x;
 }

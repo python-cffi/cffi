@@ -30,6 +30,12 @@ What's New
   dict---assuming that ``lib`` has got no symbol called precisely
   ``__dict__``.  (In general, it is safer to use ``dir(lib)``.)
 
+* Out-of-line API mode: global variables are now fetched on demand at
+  every access.  It fixes issue #212 (Windows DLL variables), and also
+  allows variables that are defined as dynamic macros (like ``errno``)
+  or ``__thread`` -local variables.  (This change might also tighten
+  the C compiler's check on the variables' type.)
+
 * Issue #209: dereferencing NULL pointers now raises RuntimeError
   instead of segfaulting.  Meant as a debugging aid.  The check is
   only for NULL: if you dereference random or dead pointers you might

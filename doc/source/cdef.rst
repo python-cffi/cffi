@@ -562,8 +562,6 @@ Known missing features that are GCC or MSVC extensions:
   foo_wrapper(struct my_complex c) { foo(c.real + c.imag*1j); }``, and
   call ``foo_wrapper`` rather than ``foo`` directly.
 
-* Thread-local variables (access them via getter/setter functions)
-
 * Function pointers with non-default calling conventions (e.g. on
   Windows, "stdcall").
 
@@ -576,6 +574,11 @@ but in this case, as CFFI
 believes it cannot ask the C compiler for the length of the array, you
 get reduced safety checks: for example, you risk overwriting the
 following fields by passing too many array items in the constructor.
+
+.. versionadded:: 1.2
+   Thread-local variables (``__thread``) can be accessed, as well as
+   variables defined as dynamic macros (``#define myvar  (*fetchme())``).
+   Before version 1.2, you need to write getter/setter functions.
 
 
 Debugging dlopen'ed C libraries
