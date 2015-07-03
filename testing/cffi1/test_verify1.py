@@ -2230,3 +2230,15 @@ def test_unsupported_some_primitive_types():
     #
     ffi.cdef("typedef int... foo_t;")
     py.test.raises(VerificationError, ffi.verify, "typedef float foo_t;")
+
+def test_windows_dllimport_data():
+    if sys.platform != 'win32':
+        py.test.skip("Windows only")
+    from testing.udir import udir
+    tmpfile = udir.join('dllimport_data.c')
+    tmpfile.write('int my_value = 42;\n')
+    ffi = FFI()
+    ffi.cdef("int my_value;")
+    lib = ffi.verify("extern __declspec(dllimport) int my_value;",
+                     sources = [str(tmpfile)])
+    assert lib.my_value == 42
