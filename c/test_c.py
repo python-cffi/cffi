@@ -3354,4 +3354,4 @@ def test_dereference_null_ptr():
 
 def test_version():
     # this test is here mostly for PyPy
-    assert __version__ == "1.1.2"
+    assert __version__ == "1.2.0"
