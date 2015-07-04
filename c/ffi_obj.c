@@ -714,11 +714,13 @@ static PyObject *_ffi_callback_decorator(PyObject *outer_args, PyObject *fn)
 static PyObject *ffi_callback(FFIObject *self, PyObject *args, PyObject *kwds)
 {
     PyObject *c_decl, *python_callable = Py_None, *error = Py_None;
-    PyObject *res;
-    static char *keywords[] = {"cdecl", "python_callable", "error", NULL};
+    PyObject *res, *onerror = Py_None;
+    static char *keywords[] = {"cdecl", "python_callable", "error",
+                               "onerror", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OO", keywords,
-                                     &c_decl, &python_callable, &error))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OOO", keywords,
+                                     &c_decl, &python_callable, &error,
+                                     &onerror))
         return NULL;
 
     c_decl = (PyObject *)_ffi_type(self, c_decl, ACCEPT_STRING | ACCEPT_CTYPE |
@@ -726,7 +728,7 @@ static PyObject *ffi_callback(FFIObject *self, PyObject *args, PyObject *kwds)
     if (c_decl == NULL)
         return NULL;
 
-    args = Py_BuildValue("(OOO)", c_decl, python_callable, error);
+    args = Py_BuildValue("(OOOO)", c_decl, python_callable, error, onerror);
     if (args == NULL)
         return NULL;
 

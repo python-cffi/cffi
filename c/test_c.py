@@ -1181,6 +1181,12 @@ def test_callback_exception():
     BShort = new_primitive_type("short")
     BFunc = new_function_type((BShort,), BShort, False)
     f = callback(BFunc, Zcb1, -42)
+    #
+    seen = []
+    def oops(*args):
+        seen.append(args)
+    ff = callback(BFunc, Zcb1, -42, oops)
+    #
     orig_stderr = sys.stderr
     orig_getline = linecache.getline
     try:
@@ -1205,6 +1211,30 @@ ValueError: 42
 From cffi callback <function$Zcb1 at 0x$>:
 Trying to convert the result back to C:
 OverflowError: integer 60000 does not fit 'short'
+""")
+        sys.stderr = cStringIO.StringIO()
+        bigvalue = 20000
+        assert len(seen) == 0
+        assert ff(bigvalue) == -42
+        assert sys.stderr.getvalue() == ""
+        assert len(seen) == 1
+        exc, val, tb = seen[0]
+        assert exc is OverflowError
+        assert str(val) == "integer 60000 does not fit 'short'"
+        #
+        seen = "not a list"    # this makes the oops() function crash
+        assert ff(bigvalue) == -42
+        assert matches(sys.stderr.getvalue(), """\
+From cffi callback <function$Zcb1 at 0x$>:
+Trying to convert the result back to C:
+OverflowError: integer 60000 does not fit 'short'
+
+During the call to 'onerror', another exception occurred:
+
+Traceback (most recent call last):
+  File "$", line $, in oops
+    seen.append(args)
+AttributeError: 'str' object has no attribute 'append'
 """)
     finally:
         sys.stderr = orig_stderr

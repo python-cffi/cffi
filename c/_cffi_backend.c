@@ -4725,9 +4725,11 @@ static void _my_PyErr_WriteUnraisable(PyObject *obj, char *extra_error_line)
 #endif
     f = PySys_GetObject("stderr");
     if (f != NULL) {
-        PyFile_WriteString("From cffi callback ", f);
-        PyFile_WriteObject(obj, f, 0);
-        PyFile_WriteString(":\n", f);
+        if (obj != NULL) {
+            PyFile_WriteString("From cffi callback ", f);
+            PyFile_WriteObject(obj, f, 0);
+            PyFile_WriteString(":\n", f);
+        }
         if (extra_error_line != NULL)
             PyFile_WriteString(extra_error_line, f);
         PyErr_Display(t, v, tb);
@@ -4752,6 +4754,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     PyObject *py_args = NULL;
     PyObject *py_res = NULL;
     PyObject *py_rawerr;
+    PyObject *onerror_cb;
     Py_ssize_t i, n;
     char *extra_error_line = NULL;
 
@@ -4789,7 +4792,35 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     return;
 
  error:
+    onerror_cb = PyTuple_GET_ITEM(cb_args, 3);
+    if (onerror_cb != Py_None) {
+        PyObject *exc1, *val1, *tb1, *res1, *exc2, *val2, *tb2;
+        PyErr_Fetch(&exc1, &val1, &tb1);
+        PyErr_NormalizeException(&exc1, &val1, &tb1);
+        res1 = PyObject_CallFunctionObjArgs(onerror_cb,
+                                            exc1 ? exc1 : Py_None,
+                                            val1 ? val1 : Py_None,
+                                            tb1  ? tb1  : Py_None,
+                                            NULL);
+        Py_XDECREF(res1);
+
+        if (!PyErr_Occurred()) {
+            Py_XDECREF(exc1);
+            Py_XDECREF(val1);
+            Py_XDECREF(tb1);
+            goto no_more_exception;
+        }
+        /* double exception! print a double-traceback... */
+        PyErr_Fetch(&exc2, &val2, &tb2);
+        PyErr_Restore(exc1, val1, tb1);
+        _my_PyErr_WriteUnraisable(py_ob, extra_error_line);
+        PyErr_Restore(exc2, val2, tb2);
+        extra_error_line = ("\nDuring the call to 'onerror', "
+                            "another exception occurred:\n\n");
+        py_ob = NULL;
+    }
     _my_PyErr_WriteUnraisable(py_ob, extra_error_line);
+ no_more_exception:
     if (SIGNATURE(1)->ct_size > 0) {
         py_rawerr = PyTuple_GET_ITEM(cb_args, 2);
         memcpy(result, PyBytes_AS_STRING(py_rawerr),
@@ -4805,14 +4836,14 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct, *ctresult;
     CDataObject *cd;
-    PyObject *ob, *error_ob = Py_None;
+    PyObject *ob, *error_ob = Py_None, *onerror_ob = Py_None;
     PyObject *py_rawerr, *infotuple = NULL;
     cif_description_t *cif_descr;
     ffi_closure *closure;
     Py_ssize_t size;
 
-    if (!PyArg_ParseTuple(args, "O!O|O:callback", &CTypeDescr_Type, &ct, &ob,
-                          &error_ob))
+    if (!PyArg_ParseTuple(args, "O!O|OO:callback", &CTypeDescr_Type, &ct, &ob,
+                          &error_ob, &onerror_ob))
         return NULL;
 
     if (!(ct->ct_flags & CT_FUNCTIONPTR)) {
@@ -4824,6 +4855,12 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         PyErr_Format(PyExc_TypeError,
                      "expected a callable object, not %.200s",
                      Py_TYPE(ob)->tp_name);
+        return NULL;
+    }
+    if (onerror_ob != Py_None && !PyCallable_Check(onerror_ob)) {
+        PyErr_Format(PyExc_TypeError,
+                     "expected a callable object for 'onerror', not %.200s",
+                     Py_TYPE(onerror_ob)->tp_name);
         return NULL;
     }
 
@@ -4842,7 +4879,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
             return NULL;
         }
     }
-    infotuple = Py_BuildValue("OOO", ct, ob, py_rawerr);
+    infotuple = Py_BuildValue("OOOO", ct, ob, py_rawerr, onerror_ob);
     Py_DECREF(py_rawerr);
     if (infotuple == NULL)
         return NULL;
