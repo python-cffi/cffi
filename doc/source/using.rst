@@ -200,6 +200,25 @@ initializer says how long the array should be:
     p = ffi.new("foo_t *", [5, 3])         # length 3 with 0 in the array
     p = ffi.new("foo_t *", {'y': 3})       # length 3 with 0 everywhere
 
+Finally, note that any Python object used as initializer can also be
+used directly without ``ffi.new()`` in assignments to array items or
+struct fields.  In fact, ``p = ffi.new("T*", initializer)`` is
+equivalent to ``p = ffi.new("T*"); p[0] = initializer``.  Examples:
+
+.. code-block:: python
+
+    # if 'p' is a <cdata 'int[5][5]'>
+    p[2] = [10, 20]             # writes to p[2][0] and p[2][1]
+
+    # if 'p' is a <cdata 'foo_t *'>, and foo_t has fields x, y and z
+    p[0] = {'x': 10, 'z': 20}   # writes to p.x and p.z; p.y unmodified
+
+    # if, on the other hand, foo_t has a field 'char a[5]':
+    p.a = "abc"                 # writes 'a', 'b', 'c' and '\0'; p.a[4] unmodified
+
+In function calls, when passing arguments, these rules can be used too;
+see `Function calls`_.
+
 
 Python 3 support
 ----------------
@@ -297,14 +316,18 @@ argument and may mutate it!):
 You can also pass unicode strings as ``wchar_t *`` arguments.  Note that
 in general, there is no difference between C argument declarations that
 use ``type *`` or ``type[]``.  For example, ``int *`` is fully
-equivalent to ``int[]`` or ``int[5]``.  So you can pass an ``int *`` as
-a list of integers:
+equivalent to ``int[]`` (or even ``int[5]``; the 5 is ignored).  So you
+can pass an ``int *`` as a list of integers:
 
 .. code-block:: python
 
     # void do_something_with_array(int *array);
 
     lib.do_something_with_array([1, 2, 3, 4, 5])
+
+See `Reference: conversions`_ for a similar way to pass ``struct foo_s
+*`` arguments---but in general, it is clearer to simply pass
+``ffi.new('struct foo_s *', initializer)``.
 
 CFFI supports passing and returning structs to functions and callbacks.
 Example:
@@ -862,6 +885,8 @@ allowed.
    function with a ``char *`` argument to which you pass a Python
    string will not actually modify the array of characters passed in,
    and so passes directly a pointer inside the Python string object.
+   (PyPy might in the future do the same, but it is harder because a
+   string object can move in memory when the GC runs.)
 
 `(**)` C function calls are done with the GIL released.
 
