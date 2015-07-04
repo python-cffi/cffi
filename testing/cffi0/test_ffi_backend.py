@@ -43,16 +43,19 @@ class TestFFI(backend_tests.BackendTests,
         seen = []
         def oops(*args):
             seen.append(args)
-        def cb(n):
+        def otherfunc():
             raise LookupError
+        def cb(n):
+            otherfunc()
         a = ffi.callback("int(*)(int)", cb, error=42, onerror=oops)
-        res = a(2)
+        res = a(234)
         assert res == 42
         assert len(seen) == 1
         exc, val, tb = seen[0]
         assert exc is LookupError
         assert isinstance(val, LookupError)
         assert tb.tb_frame.f_code.co_name == 'cb'
+        assert tb.tb_frame.f_locals['n'] == 234
 
 
 class TestBitfield:
