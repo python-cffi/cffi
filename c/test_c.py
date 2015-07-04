@@ -1183,8 +1183,10 @@ def test_callback_exception():
     f = callback(BFunc, Zcb1, -42)
     #
     seen = []
+    oops_result = None
     def oops(*args):
         seen.append(args)
+        return oops_result
     ff = callback(BFunc, Zcb1, -42, oops)
     #
     orig_stderr = sys.stderr
@@ -1222,6 +1224,35 @@ OverflowError: integer 60000 does not fit 'short'
         assert exc is OverflowError
         assert str(val) == "integer 60000 does not fit 'short'"
         #
+        sys.stderr = cStringIO.StringIO()
+        bigvalue = 20000
+        del seen[:]
+        oops_result = 81
+        assert ff(bigvalue) == 81
+        oops_result = None
+        assert sys.stderr.getvalue() == ""
+        assert len(seen) == 1
+        exc, val, tb = seen[0]
+        assert exc is OverflowError
+        assert str(val) == "integer 60000 does not fit 'short'"
+        #
+        sys.stderr = cStringIO.StringIO()
+        bigvalue = 20000
+        del seen[:]
+        oops_result = "xy"     # not None and not an int!
+        assert ff(bigvalue) == -42
+        oops_result = None
+        assert matches(sys.stderr.getvalue(), """\
+From cffi callback <function$Zcb1 at 0x$>:
+Trying to convert the result back to C:
+OverflowError: integer 60000 does not fit 'short'
+
+During the call to 'onerror', another exception occurred:
+
+TypeError: an integer is required
+""")
+        #
+        sys.stderr = cStringIO.StringIO()
         seen = "not a list"    # this makes the oops() function crash
         assert ff(bigvalue) == -42
         assert matches(sys.stderr.getvalue(), """\

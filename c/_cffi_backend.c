@@ -4802,13 +4802,18 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
                                             val1 ? val1 : Py_None,
                                             tb1  ? tb1  : Py_None,
                                             NULL);
-        Py_XDECREF(res1);
-
-        if (!PyErr_Occurred()) {
-            Py_XDECREF(exc1);
-            Py_XDECREF(val1);
-            Py_XDECREF(tb1);
-            goto no_more_exception;
+        if (res1 != NULL) {
+            if (res1 != Py_None)
+                convert_from_object_fficallback(result, SIGNATURE(1), res1);
+            Py_DECREF(res1);
+            if (!PyErr_Occurred()) {
+                Py_XDECREF(exc1);
+                Py_XDECREF(val1);
+                Py_XDECREF(tb1);
+                if (res1 != Py_None)
+                    goto done;
+                goto no_more_exception;
+            }
         }
         /* double exception! print a double-traceback... */
         PyErr_Fetch(&exc2, &val2, &tb2);
