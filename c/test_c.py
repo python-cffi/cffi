@@ -1249,7 +1249,7 @@ OverflowError: integer 60000 does not fit 'short'
 
 During the call to 'onerror', another exception occurred:
 
-TypeError: an integer is required
+TypeError: $integer$
 """)
         #
         sys.stderr = cStringIO.StringIO()
@@ -1264,7 +1264,7 @@ During the call to 'onerror', another exception occurred:
 
 Traceback (most recent call last):
   File "$", line $, in oops
-    seen.append(args)
+    $
 AttributeError: 'str' object has no attribute 'append'
 """)
     finally:
