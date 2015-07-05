@@ -41,6 +41,14 @@ What's New
   only for NULL: if you dereference random or dead pointers you might
   still get segfaults.
 
+* Issue #152: callbacks: added an argument ``ffi.callback(...,
+  onerror=...)``.  If the main callback function raises an exception
+  and ``onerror`` is provided, then ``onerror(exception, exc_value,
+  traceback)`` is called.  This is similar to writing a ``try:
+  except:`` in the main callback function, but in some cases (e.g. a
+  signal) an exception can occur at the very start of the callback
+  function---before it had time to enter the ``try: except:`` block.
+
 
 1.1.2
 =====

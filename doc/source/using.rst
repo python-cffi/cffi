@@ -506,13 +506,37 @@ specified with the ``error`` keyword argument to ``ffi.callback()``:
 
     @ffi.callback("int(int, int)", error=-1)
 
-In all cases the exception is printed to stderr, so this should be
+The exception is still printed to stderr, so this should be
 used only as a last-resort solution.
 
 Deprecated: you can also use ``ffi.callback()`` not as a decorator but
 directly as ``ffi.callback("int(int, int)", myfunc)``.  This is
 discouraged: using this a style, we are more likely to forget the
 callback object too early, when it is still in use.
+
+.. versionadded:: 1.2
+
+   If you want to be sure to catch all exceptions, use
+   ``ffi.callback(..., onerror=func)``.  If an exception occurs and
+   ``onerror`` is specified, then ``onerror(exception, exc_value,
+   traceback)`` is called.  This is useful in some situations where
+   you cannot simply write ``try: except:`` in the main callback
+   function, because it might not catch exceptions raised by signal
+   handlers: if a signal occurs while in C, it will be called after
+   entering the main callback function but before executing the
+   ``try:``.
+
+   If ``onerror`` returns normally, then it is assumed that it handled
+   the exception on its own and nothing is printed to stderr.  If
+   ``onerror`` raises, then both tracebacks are printed.  Finally,
+   ``onerror`` can itself provide the result value of the callback in
+   C, but doesn't have to: if it simply returns None---or if
+   ``onerror`` itself fails---then the value of ``error`` will be
+   used, if any.
+
+   Note the following hack: in ``onerror``, you can access some of the
+   original callback arguments by attempting to read
+   ``traceback.tb_frame.f_locals['argname']``.
 
 
 FFI Interface
