@@ -4792,8 +4792,16 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     return;
 
  error:
+    if (SIGNATURE(1)->ct_size > 0) {
+        py_rawerr = PyTuple_GET_ITEM(cb_args, 2);
+        memcpy(result, PyBytes_AS_STRING(py_rawerr),
+                       PyBytes_GET_SIZE(py_rawerr));
+    }
     onerror_cb = PyTuple_GET_ITEM(cb_args, 3);
-    if (onerror_cb != Py_None) {
+    if (onerror_cb == Py_None) {
+        _my_PyErr_WriteUnraisable(py_ob, extra_error_line);
+    }
+    else {
         PyObject *exc1, *val1, *tb1, *res1, *exc2, *val2, *tb2;
         PyErr_Fetch(&exc1, &val1, &tb1);
         PyErr_NormalizeException(&exc1, &val1, &tb1);
@@ -4806,30 +4814,22 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
             if (res1 != Py_None)
                 convert_from_object_fficallback(result, SIGNATURE(1), res1);
             Py_DECREF(res1);
-            if (!PyErr_Occurred()) {
-                Py_XDECREF(exc1);
-                Py_XDECREF(val1);
-                Py_XDECREF(tb1);
-                if (res1 != Py_None)
-                    goto done;
-                goto no_more_exception;
-            }
         }
-        /* double exception! print a double-traceback... */
-        PyErr_Fetch(&exc2, &val2, &tb2);
-        PyErr_Restore(exc1, val1, tb1);
-        _my_PyErr_WriteUnraisable(py_ob, extra_error_line);
-        PyErr_Restore(exc2, val2, tb2);
-        extra_error_line = ("\nDuring the call to 'onerror', "
-                            "another exception occurred:\n\n");
-        py_ob = NULL;
-    }
-    _my_PyErr_WriteUnraisable(py_ob, extra_error_line);
- no_more_exception:
-    if (SIGNATURE(1)->ct_size > 0) {
-        py_rawerr = PyTuple_GET_ITEM(cb_args, 2);
-        memcpy(result, PyBytes_AS_STRING(py_rawerr),
-                       PyBytes_GET_SIZE(py_rawerr));
+        if (!PyErr_Occurred()) {
+            Py_XDECREF(exc1);
+            Py_XDECREF(val1);
+            Py_XDECREF(tb1);
+        }
+        else {
+            /* double exception! print a double-traceback... */
+            PyErr_Fetch(&exc2, &val2, &tb2);
+            PyErr_Restore(exc1, val1, tb1);
+            _my_PyErr_WriteUnraisable(py_ob, extra_error_line);
+            PyErr_Restore(exc2, val2, tb2);
+            extra_error_line = ("\nDuring the call to 'onerror', "
+                                "another exception occurred:\n\n");
+            _my_PyErr_WriteUnraisable(NULL, extra_error_line);
+        }
     }
     goto done;
     }
