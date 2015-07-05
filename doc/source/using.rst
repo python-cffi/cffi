@@ -534,9 +534,14 @@ callback object too early, when it is still in use.
    ``onerror`` itself fails---then the value of ``error`` will be
    used, if any.
 
-   Note the following hack: in ``onerror``, you can access some of the
-   original callback arguments by attempting to read
-   ``traceback.tb_frame.f_locals['argname']``.
+   Note the following hack: in ``onerror``, you can access the original
+   callback arguments as follows.  First check if ``traceback`` is not
+   None (it is None e.g. if the whole function ran successfully but
+   there was an error converting the value returned: this occurs after
+   the call).  If ``traceback`` is not None, then ``traceback.tb_frame``
+   is the frame of the outermost function, i.e. directly the one invoked
+   by the callback handler.  So you can get the value of ``argname`` in
+   that frame by reading ``traceback.tb_frame.f_locals['argname']``.
 
 
 FFI Interface
