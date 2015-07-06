@@ -820,6 +820,28 @@ by ``ffi.dlopen()``.
 
 **ffi.RLTD_...**: constants: flags for ``ffi.dlopen()``.
 
+
+.. _`alternative allocators`:
+
+**ffi.new_allocator(alloc=None, free=None, should_clear_after_alloc=True)**:
+returns a new allocator.  An "allocator" is a callable that behaves like
+``ffi.new()`` but uses the provided low-level ``alloc`` and ``free``
+functions.  *New in version 1.2.*
+
+.. "versionadded:: 1.2" --- inlined in the previous paragraph
+
+``alloc()`` is invoked with the size as sole argument.  If it returns
+NULL, a MemoryError is raised.  Later, if ``free`` is not None, it will
+be called with the result of ``alloc()`` as argument.  Both can be either
+Python function or directly C functions.  If only ``free`` is None, then no
+free function is called.  If both ``alloc`` and ``free`` are None, the
+default alloc/free combination is used.  (In other words, the call
+``ffi.new(*args)`` is equivalent to ``ffi.new_allocator()(*args)``.)
+
+If ``should_clear_after_alloc`` is set to False, then the memory
+returned by ``alloc()`` is assumed to be already cleared (or you are
+fine with garbage); otherwise CFFI will clear it.
+
 .. _`Preparing and Distributing modules`: cdef.html#loading-libraries
 
 
