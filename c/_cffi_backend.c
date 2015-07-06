@@ -5554,9 +5554,6 @@ static PyObject *b__get_types(PyObject *self, PyObject *noarg)
                            (PyObject *)&CTypeDescr_Type);
 }
 
-/* forward: implemented in ffi_obj.c */
-static PyObject *b_gcp(PyObject *self, PyObject *args);
-
 /************************************************************/
 
 static char _testfunc0(char a, char b)
@@ -5862,7 +5859,6 @@ static PyMethodDef FFIBackendMethods[] = {
     {"newp_handle", b_newp_handle, METH_VARARGS},
     {"from_handle", b_from_handle, METH_O},
     {"from_buffer", b_from_buffer, METH_VARARGS},
-    {"gcp", b_gcp, METH_VARARGS},
 #ifdef MS_WIN32
     {"getwinerror", (PyCFunction)b_getwinerror, METH_VARARGS | METH_KEYWORDS},
 #endif

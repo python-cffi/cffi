@@ -680,19 +680,6 @@ static PyObject *ffi_gc(FFIObject *self, PyObject *args, PyObject *kwds)
     return gc_weakrefs_build(self, cd, destructor);
 }
 
-static PyObject *b_gcp(PyObject *self, PyObject *args)
-{
-    /* for in-line mode */
-    static FFIObject *ffi1 = NULL;
-
-    if (ffi1 == NULL) {
-        ffi1 = ffi_internal_new(&FFI_Type, NULL);
-        if (ffi1 == NULL)
-            return NULL;
-    }
-    return ffi_gc(ffi1, args, NULL);
-}
-
 PyDoc_STRVAR(ffi_callback_doc,
 "Return a callback object or a decorator making such a callback object.\n"
 "'cdecl' must name a C function pointer type.  The callback invokes the\n"
