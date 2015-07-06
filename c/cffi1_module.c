@@ -13,7 +13,6 @@ static PyTypeObject Lib_Type;   /* forward */
 
 #include "ffi_obj.c"
 #include "cglob.c"
-#include "cgc.c"
 #include "lib_obj.c"
 #include "cdlopen.c"
 

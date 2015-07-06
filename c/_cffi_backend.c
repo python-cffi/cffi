@@ -188,11 +188,13 @@ static PyTypeObject CField_Type;
 static PyTypeObject CData_Type;
 static PyTypeObject CDataOwning_Type;
 static PyTypeObject CDataOwningGC_Type;
+static PyTypeObject CDataGCP_Type;
 
 #define CTypeDescr_Check(ob)  (Py_TYPE(ob) == &CTypeDescr_Type)
 #define CData_Check(ob)       (Py_TYPE(ob) == &CData_Type ||            \
                                Py_TYPE(ob) == &CDataOwning_Type ||      \
-                               Py_TYPE(ob) == &CDataOwningGC_Type)
+                               Py_TYPE(ob) == &CDataOwningGC_Type ||    \
+                               Py_TYPE(ob) == &CDataGCP_Type)
 #define CDataOwn_Check(ob)    (Py_TYPE(ob) == &CDataOwning_Type ||      \
                                Py_TYPE(ob) == &CDataOwningGC_Type)
 
@@ -233,6 +235,11 @@ typedef struct {
     Py_ssize_t length;     /* same as CDataObject_own_length up to here */
     Py_buffer *bufferview;
 } CDataObject_owngc_frombuf;
+
+typedef struct {
+    CDataObject head;
+    PyObject *origobj, *destructor;
+} CDataObject_gcp;
 
 typedef struct {
     ffi_cif cif;
@@ -1625,6 +1632,35 @@ static int cdataowninggc_clear(CDataObject *cd)
     return 0;
 }
 
+/* forward */
+static void _my_PyErr_WriteUnraisable(char *objdescr, PyObject *obj,
+                                      char *extra_error_line);
+
+static void cdatagcp_dealloc(CDataObject_gcp *cd)
+{
+    PyObject *result;
+    PyObject *destructor = cd->destructor;
+    PyObject *origobj = cd->origobj;
+    cdata_dealloc((CDataObject *)cd);
+
+    result = PyObject_CallFunctionObjArgs(destructor, origobj, NULL);
+    if (result != NULL) {
+        Py_DECREF(result);
+    }
+    else {
+        _my_PyErr_WriteUnraisable("From callback for ffi.gc ", origobj, NULL);
+    }
+    Py_DECREF(destructor);
+    Py_DECREF(origobj);
+}
+
+static int cdatagcp_traverse(CDataObject_gcp *cd, visitproc visit, void *arg)
+{
+    Py_VISIT(cd->destructor);
+    Py_VISIT(cd->origobj);
+    return 0;
+}
+
 static PyObject *cdata_float(CDataObject *cd);  /*forward*/
 
 static PyObject *convert_cdata_to_enum_string(CDataObject *cd, int both)
@@ -2727,6 +2763,41 @@ static PyTypeObject CDataOwningGC_Type = {
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
     &CDataOwning_Type,                          /* tp_base */
+};
+
+static PyTypeObject CDataGCP_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_cffi_backend.CDataGCP",
+    sizeof(CDataObject_gcp),
+    0,
+    (destructor)cdatagcp_dealloc,               /* tp_dealloc */
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+    0,                                          /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    0,                                          /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
+                       | Py_TPFLAGS_HAVE_GC,
+    0,                                          /* tp_doc */
+    (traverseproc)cdatagcp_traverse,            /* tp_traverse */
+    0,                                          /* tp_clear */
+    0,                                          /* tp_richcompare */
+    0,                                          /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    0,                                          /* tp_methods */
+    0,                                          /* tp_members */
+    0,                                          /* tp_getset */
+    &CData_Type,                                /* tp_base */
 };
 
 /************************************************************/
@@ -4709,7 +4780,8 @@ static int convert_from_object_fficallback(char *result,
     return convert_from_object(result, ctype, pyobj);
 }
 
-static void _my_PyErr_WriteUnraisable(PyObject *obj, char *extra_error_line)
+static void _my_PyErr_WriteUnraisable(char *objdescr, PyObject *obj,
+                                      char *extra_error_line)
 {
     /* like PyErr_WriteUnraisable(), but write a full traceback */
     PyObject *f, *t, *v, *tb;
@@ -4726,7 +4798,7 @@ static void _my_PyErr_WriteUnraisable(PyObject *obj, char *extra_error_line)
     f = PySys_GetObject("stderr");
     if (f != NULL) {
         if (obj != NULL) {
-            PyFile_WriteString("From cffi callback ", f);
+            PyFile_WriteString(objdescr, f);
             PyFile_WriteObject(obj, f, 0);
             PyFile_WriteString(":\n", f);
         }
@@ -4799,7 +4871,8 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     }
     onerror_cb = PyTuple_GET_ITEM(cb_args, 3);
     if (onerror_cb == Py_None) {
-        _my_PyErr_WriteUnraisable(py_ob, extra_error_line);
+        _my_PyErr_WriteUnraisable("From cffi callback ", py_ob,
+                                  extra_error_line);
     }
     else {
         PyObject *exc1, *val1, *tb1, *res1, *exc2, *val2, *tb2;
@@ -4824,11 +4897,12 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
             /* double exception! print a double-traceback... */
             PyErr_Fetch(&exc2, &val2, &tb2);
             PyErr_Restore(exc1, val1, tb1);
-            _my_PyErr_WriteUnraisable(py_ob, extra_error_line);
+            _my_PyErr_WriteUnraisable("From cffi callback ", py_ob,
+                                      extra_error_line);
             PyErr_Restore(exc2, val2, tb2);
             extra_error_line = ("\nDuring the call to 'onerror', "
                                 "another exception occurred:\n\n");
-            _my_PyErr_WriteUnraisable(NULL, extra_error_line);
+            _my_PyErr_WriteUnraisable(NULL, NULL, extra_error_line);
         }
     }
     goto done;
@@ -5554,6 +5628,34 @@ static PyObject *b__get_types(PyObject *self, PyObject *noarg)
                            (PyObject *)&CTypeDescr_Type);
 }
 
+static PyObject *b_gcp(PyObject *self, PyObject *args, PyObject *kwds)
+{
+    CDataObject_gcp *cd;
+    CDataObject *origobj;
+    PyObject *destructor;
+    static char *keywords[] = {"cdata", "destructor", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O:gc", keywords,
+                                     &CData_Type, &origobj, &destructor))
+        return NULL;
+
+    cd = PyObject_GC_New(CDataObject_gcp, &CDataGCP_Type);
+    if (cd == NULL)
+        return NULL;
+
+    Py_INCREF(destructor);
+    Py_INCREF(origobj);
+    Py_INCREF(origobj->c_type);
+    cd->head.c_data = origobj->c_data;
+    cd->head.c_type = origobj->c_type;
+    cd->head.c_weakreflist = NULL;
+    cd->origobj = (PyObject *)origobj;
+    cd->destructor = destructor;
+
+    PyObject_GC_Track(cd);
+    return (PyObject *)cd;
+}
+
 /************************************************************/
 
 static char _testfunc0(char a, char b)
@@ -5859,6 +5961,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"newp_handle", b_newp_handle, METH_VARARGS},
     {"from_handle", b_from_handle, METH_O},
     {"from_buffer", b_from_buffer, METH_VARARGS},
+    {"gcp", (PyCFunction)b_gcp, METH_VARARGS | METH_KEYWORDS},
 #ifdef MS_WIN32
     {"getwinerror", (PyCFunction)b_getwinerror, METH_VARARGS | METH_KEYWORDS},
 #endif
@@ -6095,6 +6198,8 @@ init_cffi_backend(void)
     if (PyType_Ready(&CDataOwning_Type) < 0)
         INITERROR;
     if (PyType_Ready(&CDataOwningGC_Type) < 0)
+        INITERROR;
+    if (PyType_Ready(&CDataGCP_Type) < 0)
         INITERROR;
     if (PyType_Ready(&CDataIter_Type) < 0)
         INITERROR;

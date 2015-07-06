@@ -664,21 +664,8 @@ PyDoc_STRVAR(ffi_gc_doc,
 "Later, when this new cdata object is garbage-collected,\n"
 "'destructor(old_cdata_object)' will be called.");
 
-static PyObject *gc_weakrefs_build(FFIObject *ffi, CDataObject *cd,
-                                   PyObject *destructor);   /* forward */
-
-static PyObject *ffi_gc(FFIObject *self, PyObject *args, PyObject *kwds)
-{
-    CDataObject *cd;
-    PyObject *destructor;
-    static char *keywords[] = {"cdata", "destructor", NULL};
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O:gc", keywords,
-                                     &CData_Type, &cd, &destructor))
-        return NULL;
-
-    return gc_weakrefs_build(self, cd, destructor);
-}
+#define ffi_gc  b_gcp     /* ffi_gc() => b_gcp()
+                             from _cffi_backend.c */
 
 PyDoc_STRVAR(ffi_callback_doc,
 "Return a callback object or a decorator making such a callback object.\n"

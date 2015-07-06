@@ -72,7 +72,6 @@ class FFI(object):
         self._cdefsources = []
         self._included_ffis = []
         self._windows_unicode = None
-        self._gcp = None
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
         for name in backend.__dict__:
@@ -329,14 +328,13 @@ class FFI(object):
         data.  Later, when this new cdata object is garbage-collected,
         'destructor(old_cdata_object)' will be called.
         """
-        if self._gcp is not None:
-            return self._gcp(cdata, destructor)
-        if hasattr(self._backend, 'FFI'):
-            compiled_ffi = self._backend.FFI()
-            self._gcp = compiled_ffi.gc
-            return self._gcp(cdata, destructor)
+        try:
+            gcp = self._backend.gcp
+        except AttributeError:
+            pass
+        else:
+            return gcp(cdata, destructor)
         #
-        # the rest is for the ctypes backend only
         with self._lock:
             try:
                 gc_weakrefs = self.gc_weakrefs
