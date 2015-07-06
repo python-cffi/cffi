@@ -238,7 +238,9 @@ typedef struct {
 
 typedef struct {
     CDataObject head;
-    PyObject *origobj, *destructor;
+    Py_ssize_t length;     /* same as CDataObject_own_length up to here */
+    PyObject *origobj;
+    PyObject *destructor;
 } CDataObject_gcp;
 
 typedef struct {
@@ -281,6 +283,8 @@ static void init_errno(void) { }
 # include "wchar_helper.h"
 #endif
 
+typedef PyObject *const cffi_allocator_t[3];
+static cffi_allocator_t default_allocator = { NULL, NULL, NULL };
 static PyObject *FFIError;
 
 /************************************************************/
@@ -1643,14 +1647,17 @@ static void cdatagcp_dealloc(CDataObject_gcp *cd)
     PyObject *origobj = cd->origobj;
     cdata_dealloc((CDataObject *)cd);
 
-    result = PyObject_CallFunctionObjArgs(destructor, origobj, NULL);
-    if (result != NULL) {
-        Py_DECREF(result);
+    if (destructor != NULL) {
+        result = PyObject_CallFunctionObjArgs(destructor, origobj, NULL);
+        if (result != NULL) {
+            Py_DECREF(result);
+        }
+        else {
+            _my_PyErr_WriteUnraisable("From callback for ffi.gc ",
+                                      origobj, NULL);
+        }
+        Py_DECREF(destructor);
     }
-    else {
-        _my_PyErr_WriteUnraisable("From callback for ffi.gc ", origobj, NULL);
-    }
-    Py_DECREF(destructor);
     Py_DECREF(origobj);
 }
 
@@ -2918,7 +2925,79 @@ convert_struct_to_owning_object(char *data, CTypeDescrObject *ct)
     return (PyObject *)cd;
 }
 
-static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init)
+static CDataObject *allocate_gcp_object(CDataObject *origobj,
+                                        CTypeDescrObject *ct,
+                                        PyObject *destructor)
+{
+    CDataObject_gcp *cd = PyObject_GC_New(CDataObject_gcp, &CDataGCP_Type);
+    if (cd == NULL)
+        return NULL;
+
+    Py_XINCREF(destructor);
+    Py_INCREF(origobj);
+    Py_INCREF(ct);
+    cd->head.c_data = origobj->c_data;
+    cd->head.c_type = ct;
+    cd->head.c_weakreflist = NULL;
+    cd->origobj = (PyObject *)origobj;
+    cd->destructor = destructor;
+
+    PyObject_GC_Track(cd);
+    return (CDataObject *)cd;
+}
+
+static CDataObject *allocate_with_allocator(Py_ssize_t basesize,
+                                            Py_ssize_t datasize,
+                                            CTypeDescrObject *ct,
+                                            cffi_allocator_t allocator)
+{
+    CDataObject *cd;
+    PyObject *my_alloc = allocator[0];
+    PyObject *my_free = allocator[1];
+    PyObject *dont_clear_after_alloc = allocator[2];
+
+    if (my_alloc == NULL) {   /* alloc */
+        cd = allocate_owning_object(basesize + datasize, ct);
+        if (cd == NULL)
+            return NULL;
+        cd->c_data = ((char *)cd) + basesize;
+    }
+    else {
+        PyObject *res = PyObject_CallFunction(my_alloc, "n", datasize);
+        if (res == NULL)
+            return NULL;
+
+        if (!CData_Check(res)) {
+            PyErr_Format(PyExc_TypeError,
+                         "alloc() must return a cdata object (got %.200s)",
+                         Py_TYPE(res)->tp_name);
+            Py_DECREF(res);
+            return NULL;
+        }
+        cd = (CDataObject *)res;
+        if (!(cd->c_type->ct_flags & (CT_POINTER|CT_ARRAY))) {
+            PyErr_Format(PyExc_TypeError,
+                         "alloc() must return a cdata pointer, not '%s'",
+                         cd->c_type->ct_name);
+            Py_DECREF(res);
+            return NULL;
+        }
+        if (!cd->c_data) {
+            PyErr_SetString(PyExc_MemoryError, "alloc() returned NULL");
+            Py_DECREF(res);
+            return NULL;
+        }
+
+        cd = allocate_gcp_object(cd, ct, my_free);
+        Py_DECREF(res);
+    }
+    if (dont_clear_after_alloc == NULL)
+        memset(cd->c_data, 0, datasize);
+    return cd;
+}
+
+static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init,
+                             cffi_allocator_t allocator)
 {
     CTypeDescrObject *ctitem;
     CDataObject *cd;
@@ -2982,7 +3061,8 @@ static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init)
            having a strong reference to it */
         CDataObject *cds;
 
-        cds = allocate_owning_object(dataoffset + datasize, ct->ct_itemdescr);
+        cds = allocate_with_allocator(dataoffset, datasize, ct->ct_itemdescr,
+                                      allocator);
         if (cds == NULL)
             return NULL;
 
@@ -2995,19 +3075,17 @@ static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init)
         ((CDataObject_own_structptr *)cd)->structobj = (PyObject *)cds;
         assert(explicitlength < 0);
 
-        cds->c_data = cd->c_data = ((char *)cds) + dataoffset;
+        cd->c_data = cds->c_data;
     }
     else {
-        cd = allocate_owning_object(dataoffset + datasize, ct);
+        cd = allocate_with_allocator(dataoffset, datasize, ct, allocator);
         if (cd == NULL)
             return NULL;
 
-        cd->c_data = ((char *)cd) + dataoffset;
         if (explicitlength >= 0)
             ((CDataObject_own_length*)cd)->length = explicitlength;
     }
 
-    memset(cd->c_data, 0, datasize);
     if (init != Py_None) {
         if (convert_from_object(cd->c_data,
               (ct->ct_flags & CT_POINTER) ? ct->ct_itemdescr : ct, init) < 0) {
@@ -3024,7 +3102,7 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
     PyObject *init = Py_None;
     if (!PyArg_ParseTuple(args, "O!|O:newp", &CTypeDescr_Type, &ct, &init))
         return NULL;
-    return direct_newp(ct, init);
+    return direct_newp(ct, init, default_allocator);
 }
 
 static int
@@ -5630,7 +5708,7 @@ static PyObject *b__get_types(PyObject *self, PyObject *noarg)
 
 static PyObject *b_gcp(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    CDataObject_gcp *cd;
+    CDataObject *cd;
     CDataObject *origobj;
     PyObject *destructor;
     static char *keywords[] = {"cdata", "destructor", NULL};
@@ -5639,20 +5717,7 @@ static PyObject *b_gcp(PyObject *self, PyObject *args, PyObject *kwds)
                                      &CData_Type, &origobj, &destructor))
         return NULL;
 
-    cd = PyObject_GC_New(CDataObject_gcp, &CDataGCP_Type);
-    if (cd == NULL)
-        return NULL;
-
-    Py_INCREF(destructor);
-    Py_INCREF(origobj);
-    Py_INCREF(origobj->c_type);
-    cd->head.c_data = origobj->c_data;
-    cd->head.c_type = origobj->c_type;
-    cd->head.c_weakreflist = NULL;
-    cd->origobj = (PyObject *)origobj;
-    cd->destructor = destructor;
-
-    PyObject_GC_Track(cd);
+    cd = allocate_gcp_object(origobj, origobj->c_type, destructor);
     return (PyObject *)cd;
 }
 

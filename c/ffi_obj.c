@@ -331,7 +331,8 @@ PyDoc_STRVAR(ffi_new_doc,
 "used for a longer time.  Be careful about that when copying the\n"
 "pointer to the memory somewhere else, e.g. into another structure.");
 
-static PyObject *ffi_new(FFIObject *self, PyObject *args, PyObject *kwds)
+static PyObject *_ffi_new(FFIObject *self, PyObject *args, PyObject *kwds,
+                          cffi_allocator_t allocator)
 {
     CTypeDescrObject *ct;
     PyObject *arg, *init = Py_None;
@@ -344,7 +345,70 @@ static PyObject *ffi_new(FFIObject *self, PyObject *args, PyObject *kwds)
     if (ct == NULL)
         return NULL;
 
-    return direct_newp(ct, init);
+    return direct_newp(ct, init, allocator);
+}
+
+static PyObject *ffi_new(FFIObject *self, PyObject *args, PyObject *kwds)
+{
+    return _ffi_new(self, args, kwds, default_allocator);
+}
+
+static PyObject *_ffi_new_with_allocator(PyObject *allocator, PyObject *args,
+                                         PyObject *kwds)
+{
+    return _ffi_new((FFIObject *)PyTuple_GET_ITEM(allocator, 0),
+                    args, kwds,
+                    &PyTuple_GET_ITEM(allocator, 1));
+}
+
+PyDoc_STRVAR(ffi_new_allocator_doc, "XXX");
+
+static PyObject *ffi_new_allocator(FFIObject *self, PyObject *args,
+                                   PyObject *kwds)
+{
+    PyObject *allocator, *result;
+    PyObject *my_alloc = Py_None, *my_free = Py_None;
+    int should_clear_after_alloc = 1;
+    static char *keywords[] = {"alloc", "free", "should_clear_after_alloc",
+                               NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOi:new_allocator", keywords,
+                                     &my_alloc, &my_free,
+                                     &should_clear_after_alloc))
+        return NULL;
+
+    if (my_alloc == Py_None && my_free != Py_None) {
+        PyErr_SetString(PyExc_TypeError, "cannot pass 'free' without 'alloc'");
+        return NULL;
+    }
+
+    allocator = PyTuple_New(4);
+    if (allocator == NULL)
+        return NULL;
+
+    Py_INCREF(self);
+    PyTuple_SET_ITEM(allocator, 0, (PyObject *)self);
+
+    if (my_alloc != Py_None) {
+        Py_INCREF(my_alloc);
+        PyTuple_SET_ITEM(allocator, 1, my_alloc);
+    }
+    if (my_free != Py_None) {
+        Py_INCREF(my_free);
+        PyTuple_SET_ITEM(allocator, 2, my_free);
+    }
+    if (!should_clear_after_alloc) {
+        Py_INCREF(Py_True);
+        PyTuple_SET_ITEM(allocator, 3, Py_True);  /* dont_clear_after_alloc */
+    }
+
+    {
+        static PyMethodDef md = {"allocator",
+                                 (PyCFunction)_ffi_new_with_allocator,
+                                 METH_VARARGS | METH_KEYWORDS};
+        result = PyCFunction_New(&md, allocator);
+    }
+    Py_DECREF(allocator);
+    return result;
 }
 
 PyDoc_STRVAR(ffi_cast_doc,
@@ -805,6 +869,7 @@ static PyMethodDef ffi_methods[] = {
 #endif
  {"integer_const",(PyCFunction)ffi_int_const,METH_VKW,     ffi_int_const_doc},
  {"new",        (PyCFunction)ffi_new,        METH_VKW,     ffi_new_doc},
+{"new_allocator",(PyCFunction)ffi_new_allocator,METH_VKW,ffi_new_allocator_doc},
  {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
  {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
