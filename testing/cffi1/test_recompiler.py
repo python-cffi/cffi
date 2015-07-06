@@ -1115,7 +1115,8 @@ def test_macro_var_callback():
     #
     @ffi.callback("int *(*)(void)")
     def get_my_value():
-        return values + it.next()
+        for nextvalue in it:
+            return values + nextvalue
     lib.get_my_value = get_my_value
     #
     values[0] = 41

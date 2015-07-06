@@ -251,7 +251,7 @@ def test_ffi_new_allocator_2():
     seen = []
     def myalloc(size):
         seen.append(size)
-        return ffi.new("char[]", "X" * size)
+        return ffi.new("char[]", b"X" * size)
     def myfree(raw):
         seen.append(raw)
     alloc1 = ffi.new_allocator(myalloc, myfree)
@@ -283,7 +283,7 @@ def test_ffi_new_allocator_3():
     seen = []
     def myalloc(size):
         seen.append(size)
-        return ffi.new("char[]", "X" * size)
+        return ffi.new("char[]", b"X" * size)
     alloc1 = ffi.new_allocator(myalloc)    # no 'free'
     p1 = alloc1("int[10]")
     assert seen == [40]
