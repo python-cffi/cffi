@@ -231,6 +231,8 @@ strings as arguments instead of not byte strings.  (Before cffi version 0.9,
 inconsistently, not defined by default.)
 
 
+.. _loading-libraries:
+
 ffi.dlopen(): loading libraries in ABI mode
 -------------------------------------------
 

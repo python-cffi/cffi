@@ -53,21 +53,19 @@ Download and Installation:
 
 * http://pypi.python.org/packages/source/c/cffi/cffi-1.2.0.tar.gz
 
-   - Or grab the most current version by following the instructions below.
-
    - MD5: ...
 
    - SHA: ...
 
-* Or get it from the `Bitbucket page`_:
+* Or grab the most current version from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
 
 * ``python setup.py install`` or ``python setup_base.py install``
   (should work out of the box on Linux or Windows; see below for
   `MacOS X`_ or `Windows 64`_.)
 
-* running the tests: ``py.test c/ _cffi1/ testing/`` (if you didn't
-  install cffi yet, you may need ``python setup_base.py build_ext -f
+* running the tests: ``py.test  c/  testing/`` (if you didn't
+  install cffi yet, you need first ``python setup_base.py build_ext -f
   -i``)
 
 .. _`Bitbucket page`: https://bitbucket.org/cffi/cffi
