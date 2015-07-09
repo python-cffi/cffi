@@ -2,6 +2,8 @@
 Overview
 =======================================================
 
+.. contents::
+
 CFFI can be used in one of four modes: "ABI" versus "API" level,
 each with "in-line" or "out-of-line" preparation (or compilation).
 

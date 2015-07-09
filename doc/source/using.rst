@@ -2,6 +2,8 @@
 Using the ffi/lib objects
 ================================
 
+.. contents::
+
 Keep this page under your pillow.
 
 

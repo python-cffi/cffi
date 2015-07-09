@@ -2,6 +2,8 @@
 Preparing and Distributing modules
 ======================================
 
+.. contents::
+
 There are three or four different ways to use CFFI in a project.
 In order of complexity:
 
