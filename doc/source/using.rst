@@ -574,7 +574,8 @@ value is casted between integers or pointers of any type.
 confuse it with ``ffi.errno``.)
         
 **ffi.errno**: the value of ``errno`` received from the most recent C call
-in this thread, and passed to the following C call.  (This is a property.)
+in this thread, and passed to the following C call.  (This is a read-write
+property.)
 
 **ffi.getwinerror(code=-1)**: on Windows, in addition to ``errno`` we
 also save and restore the ``GetLastError()`` value across function

@@ -239,7 +239,7 @@ returns a module-like library object.  Use this when you are fine with
 the limitations of ABI-level access to the system.  In case of doubt, read
 again `ABI versus API`_ in the overview.
 
-.. _`ABI versus API`: overflow.html#abi-versus-api
+.. _`ABI versus API`: overview.html#abi-versus-api
 
 You can use the library object to call the functions previously
 declared by ``ffi.cdef()``, to read constants, and to read or write
