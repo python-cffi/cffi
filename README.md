@@ -2,8 +2,8 @@ CFFI
 ====
 
 Foreign Function Interface for Python calling C code.
-Please see the [Documentation](http://cffi.readthedocs.org/) or uncompiled
-in the doc/ subdirectory.
+Please see the [Documentation](http://bitbucket.org/cffi/cffi/wiki/)
+(sources in the doc/ directory of the main repo).
 
 Download
 --------
