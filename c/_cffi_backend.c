@@ -1060,12 +1060,25 @@ static wchar_t _convert_to_wchar_t(PyObject *init)
 static int _convert_error(PyObject *init, const char *ct_name,
                           const char *expected)
 {
-    if (CData_Check(init))
-        PyErr_Format(PyExc_TypeError,
-                     "initializer for ctype '%s' must be a %s, "
-                     "not cdata '%s'",
-                     ct_name, expected,
-                     ((CDataObject *)init)->c_type->ct_name);
+    if (CData_Check(init)) {
+        const char *ct_name_2 = ((CDataObject *)init)->c_type->ct_name;
+        if (strcmp(ct_name, ct_name_2) != 0)
+            PyErr_Format(PyExc_TypeError,
+                         "initializer for ctype '%s' must be a %s, "
+                         "not cdata '%s'",
+                         ct_name, expected, ct_name_2);
+        else {
+            /* in case we'd give the error message "initializer for
+               ctype 'A' must be a pointer to same type, not cdata
+               'B'", but with A=B, then give instead a different error
+               message to try to clear up the confusion */
+            PyErr_Format(PyExc_TypeError,
+                         "initializer for ctype '%s' appears indeed to be '%s',"
+                         " but the types are different (check that you are not"
+                         " e.g. mixing up different ffi instances)",
+                         ct_name, ct_name_2);
+        }
+    }
     else
         PyErr_Format(PyExc_TypeError,
                      "initializer for ctype '%s' must be a %s, "
