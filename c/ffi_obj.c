@@ -397,8 +397,9 @@ static PyObject *ffi_new_allocator(FFIObject *self, PyObject *args,
         PyTuple_SET_ITEM(allocator, 2, my_free);
     }
     if (!should_clear_after_alloc) {
-        Py_INCREF(Py_True);
-        PyTuple_SET_ITEM(allocator, 3, Py_True);  /* dont_clear_after_alloc */
+        PyObject *my_true = Py_True;
+        Py_INCREF(my_true);
+        PyTuple_SET_ITEM(allocator, 3, my_true);  /* dont_clear_after_alloc */
     }
 
     {
