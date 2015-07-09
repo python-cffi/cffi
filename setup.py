@@ -137,8 +137,7 @@ CFFI
 ====
 
 Foreign Function Interface for Python calling C code.
-Please see the `Documentation <http://bitbucket.org/cffi/cffi/wiki/>`_
-(sources in the doc/ directory of the main repo).
+Please see the `Documentation <http://cffi.readthedocs.org/>`_.
 
 Contact
 -------
@@ -151,7 +150,7 @@ Contact
                      if cpython else {},
         zip_safe=False,
 
-        url='http://bitbucket.org/cffi/cffi/wiki/',
+        url='http://cffi.readthedocs.org',
         author='Armin Rigo, Maciej Fijalkowski',
         author_email='python-cffi@googlegroups.com',
 
