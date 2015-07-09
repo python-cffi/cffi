@@ -41,12 +41,15 @@ too, as described later.
 
 Example::
 
-    >>> ffi.new("char *")
-    <cdata 'char *' owning 1 bytes>
     >>> ffi.new("int *")
     <cdata 'int *' owning 4 bytes>
     >>> ffi.new("int[10]")
     <cdata 'int[10]' owning 40 bytes>
+
+    >>> ffi.new("char *")          # allocates only one char---not a C string!
+    <cdata 'char *' owning 1 bytes>
+    >>> ffi.new("char[]", "foobar")  # this allocates a C string, ending in \0
+    <cdata 'char[]' owning 7 bytes>
 
 Unlike C, the returned pointer object has *ownership* on the allocated
 memory: when this exact object is garbage-collected, then the memory is
@@ -514,34 +517,32 @@ directly as ``ffi.callback("int(int, int)", myfunc)``.  This is
 discouraged: using this a style, we are more likely to forget the
 callback object too early, when it is still in use.
 
-.. versionadded:: 1.2
+*New in version 1.2:* If you want to be sure to catch all exceptions, use
+``ffi.callback(..., onerror=func)``.  If an exception occurs and
+``onerror`` is specified, then ``onerror(exception, exc_value,
+traceback)`` is called.  This is useful in some situations where
+you cannot simply write ``try: except:`` in the main callback
+function, because it might not catch exceptions raised by signal
+handlers: if a signal occurs while in C, it will be called after
+entering the main callback function but before executing the
+``try:``.
 
-   If you want to be sure to catch all exceptions, use
-   ``ffi.callback(..., onerror=func)``.  If an exception occurs and
-   ``onerror`` is specified, then ``onerror(exception, exc_value,
-   traceback)`` is called.  This is useful in some situations where
-   you cannot simply write ``try: except:`` in the main callback
-   function, because it might not catch exceptions raised by signal
-   handlers: if a signal occurs while in C, it will be called after
-   entering the main callback function but before executing the
-   ``try:``.
+If ``onerror`` returns normally, then it is assumed that it handled
+the exception on its own and nothing is printed to stderr.  If
+``onerror`` raises, then both tracebacks are printed.  Finally,
+``onerror`` can itself provide the result value of the callback in
+C, but doesn't have to: if it simply returns None---or if
+``onerror`` itself fails---then the value of ``error`` will be
+used, if any.
 
-   If ``onerror`` returns normally, then it is assumed that it handled
-   the exception on its own and nothing is printed to stderr.  If
-   ``onerror`` raises, then both tracebacks are printed.  Finally,
-   ``onerror`` can itself provide the result value of the callback in
-   C, but doesn't have to: if it simply returns None---or if
-   ``onerror`` itself fails---then the value of ``error`` will be
-   used, if any.
-
-   Note the following hack: in ``onerror``, you can access the original
-   callback arguments as follows.  First check if ``traceback`` is not
-   None (it is None e.g. if the whole function ran successfully but
-   there was an error converting the value returned: this occurs after
-   the call).  If ``traceback`` is not None, then ``traceback.tb_frame``
-   is the frame of the outermost function, i.e. directly the one invoked
-   by the callback handler.  So you can get the value of ``argname`` in
-   that frame by reading ``traceback.tb_frame.f_locals['argname']``.
+Note the following hack: in ``onerror``, you can access the original
+callback arguments as follows.  First check if ``traceback`` is not
+None (it is None e.g. if the whole function ran successfully but
+there was an error converting the value returned: this occurs after
+the call).  If ``traceback`` is not None, then ``traceback.tb_frame``
+is the frame of the outermost function, i.e. directly the one invoked
+by the callback handler.  So you can get the value of ``argname`` in
+that frame by reading ``traceback.tb_frame.f_locals['argname']``.
 
 
 FFI Interface
@@ -580,11 +581,9 @@ also save and restore the ``GetLastError()`` value across function
 calls.  This function returns this error code as a tuple ``(code,
 message)``, adding a readable message like Python does when raising
 WindowsError.  If the argument ``code`` is given, format that code into
-a message instead of using ``GetLastError()``.  *New in version 0.8.*
+a message instead of using ``GetLastError()``.
 (Note that it is also possible to declare and call the ``GetLastError()``
 function as usual.)
-
-.. "versionadded:: 0.8" --- inlined in the previous paragraph
 
 **ffi.string(cdata, [maxlen])**: return a Python string (or unicode
 string) from the 'cdata'.
@@ -637,14 +636,10 @@ The buffer object returned by ``ffi.buffer(cdata)`` keeps alive the
 ``cdata`` object: if it was originally an owning cdata, then its
 owned memory will not be freed as long as the buffer is alive.
 
-.. versionchanged:: 0.8.2
-   Before version 0.8.2, ``bytes(buf)`` was supported in Python 3 to get
-   the content of the buffer, but on Python 2 it would return the repr
-   ``<_cffi_backend.buffer object>``.  This has been fixed.  But you
-   should avoid using ``str(buf)``: it gives inconsistent results
-   between Python 2 and Python 3 (this is similar to how ``str()``
-   gives inconsistent results on regular byte strings).  Use ``buf[:]``
-   instead.
+Python 2/3 compatibility note: you should avoid using ``str(buf)``,
+because it gives inconsistent results between Python 2 and Python 3.
+This is similar to how ``str()`` gives inconsistent results on regular
+byte strings).  Use ``buf[:]`` instead.
 
 **ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
 points to the data of the given Python object, which must support the
@@ -658,8 +653,6 @@ arrays.  It supports both the old buffer API (in Python 2.x) and the
 new memoryview API.  The original object is kept alive (and, in case
 of memoryview, locked) as long as the cdata object returned by
 ``ffi.from_buffer()`` is alive.  *New in version 0.9.*
-
-.. "versionadded:: 0.9" --- inlined in the previous paragraph
 
 
 **ffi.typeof("C type" or cdata object)**: return an object of type
@@ -711,11 +704,11 @@ the argument.  Corresponds to the ``__alignof__`` operator in GCC.
 offset within the struct of the given field.  Corresponds to ``offsetof()``
 in C.
 
-.. versionchanged:: 0.9
-   You can give several field names in case of nested structures.  You
-   can also give numeric values which correspond to array items, in case
-   of a pointer or array type.  For example, ``ffi.offsetof("int[5]", 2)``
-   is equal to the size of two integers, as is ``ffi.offsetof("int *", 2)``.
+*New in version 0.9:*
+You can give several field names in case of nested structures.  You
+can also give numeric values which correspond to array items, in case
+of a pointer or array type.  For example, ``ffi.offsetof("int[5]", 2)``
+is equal to the size of two integers, as is ``ffi.offsetof("int *", 2)``.
 
    
 **ffi.getctype("C type" or <ctype>, extra="")**: return the string
@@ -827,8 +820,6 @@ by ``ffi.dlopen()``.
 returns a new allocator.  An "allocator" is a callable that behaves like
 ``ffi.new()`` but uses the provided low-level ``alloc`` and ``free``
 functions.  *New in version 1.2.*
-
-.. "versionadded:: 1.2" --- inlined in the previous paragraph
 
 ``alloc()`` is invoked with the size as sole argument.  If it returns
 NULL, a MemoryError is raised.  Later, if ``free`` is not None, it will

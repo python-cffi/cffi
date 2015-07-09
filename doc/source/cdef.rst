@@ -180,8 +180,6 @@ can assume to exist are the standard types:
 
 .. _`common Windows types`: http://msdn.microsoft.com/en-us/library/windows/desktop/aa383751%28v=vs.85%29.aspx
 
-.. "versionadded:: 0.9.3": intmax_t etc.
-
 The declarations can also contain "``...``" at various places; these are
 placeholders that will be completed by the compiler.  More information
 about it below in `Letting the C compiler fill the gaps`_.
@@ -198,17 +196,16 @@ Multiple calls to ``ffi.cdef()`` are possible.  Beware that it can be
 slow to call ``ffi.cdef()`` a lot of times, a consideration that is
 important mainly in in-line mode.
 
-.. versionadded:: 0.8.2
-   The ``ffi.cdef()`` call takes an optional
-   argument ``packed``: if True, then all structs declared within
-   this cdef are "packed".  If you need both packed and non-packed
-   structs, use several cdefs in sequence.)  This
-   has a meaning similar to ``__attribute__((packed))`` in GCC.  It
-   specifies that all structure fields should have an alignment of one
-   byte.  (Note that the packed attribute has no effect on bit fields so
-   far, which mean that they may be packed differently than on GCC.
-   Also, this has no effect on structs declared with ``"...;"``---next
-   section.)
+The ``ffi.cdef()`` call takes an optional
+argument ``packed``: if True, then all structs declared within
+this cdef are "packed".  If you need both packed and non-packed
+structs, use several cdefs in sequence.)  This
+has a meaning similar to ``__attribute__((packed))`` in GCC.  It
+specifies that all structure fields should have an alignment of one
+byte.  (Note that the packed attribute has no effect on bit fields so
+far, which mean that they may be packed differently than on GCC.
+Also, this has no effect on structs declared with ``"...;"``---next
+section.)
 
 .. _`ffi.set_unicode()`:
 
@@ -232,8 +229,6 @@ aware (particularly on Python 2) that, afterwards, you need to pass unicode
 strings as arguments instead of not byte strings.  (Before cffi version 0.9,
 ``TCHAR`` and friends where hard-coded as unicode, but ``UNICODE`` was,
 inconsistently, not defined by default.)
-
-.. "versionadded:: 0.9" --- inlined in the previous paragraph
 
 
 ffi.dlopen(): loading libraries in ABI mode
@@ -565,7 +560,7 @@ Known missing features that are GCC or MSVC extensions:
 * Function pointers with non-default calling conventions (e.g. on
   Windows, "stdcall").
 
-Note that since version 0.8, declarations like ``int field[];`` in
+Note that declarations like ``int field[];`` in
 structures are interpreted as variable-length structures.  Declarations
 like ``int field[...];`` on the other hand are arrays whose length is
 going to be completed by the compiler.  You can use ``int field[];``
@@ -575,10 +570,10 @@ believes it cannot ask the C compiler for the length of the array, you
 get reduced safety checks: for example, you risk overwriting the
 following fields by passing too many array items in the constructor.
 
-.. versionadded:: 1.2
-   Thread-local variables (``__thread``) can be accessed, as well as
-   variables defined as dynamic macros (``#define myvar  (*fetchme())``).
-   Before version 1.2, you need to write getter/setter functions.
+*New in version 1.2:*
+Thread-local variables (``__thread``) can be accessed, as well as
+variables defined as dynamic macros (``#define myvar  (*fetchme())``).
+Before version 1.2, you need to write getter/setter functions.
 
 
 Debugging dlopen'ed C libraries
