@@ -159,6 +159,23 @@ def test_remove_comments():
     assert func.name == 'sin'
     assert func.BType == '<func (<double>, <double>), <double>, False>'
 
+def test_remove_line_continuation_comments():
+    ffi = FFI(backend=FakeBackend())
+    ffi.cdef("""
+        double // blah \\
+                  more comments
+        x(void);
+        double // blah\\\\
+        y(void);
+        double // blah\\ \
+                  etc
+        z(void);
+    """)
+    m = ffi.dlopen(lib_m)
+    m.x
+    m.y
+    m.z
+
 def test_define_not_supported_for_now():
     ffi = FFI(backend=FakeBackend())
     e = py.test.raises(CDefError, ffi.cdef, '#define FOO "blah"')

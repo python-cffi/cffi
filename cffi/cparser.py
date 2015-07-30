@@ -15,7 +15,8 @@ try:
 except ImportError:
     lock = None
 
-_r_comment = re.compile(r"/\*.*?\*/|//.*?$", re.DOTALL | re.MULTILINE)
+_r_comment = re.compile(r"/\*.*?\*/|//([^\n\\]|\\.)*?$",
+                        re.DOTALL | re.MULTILINE)
 _r_define  = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z_0-9]*)\s+(.*?)$",
                         re.MULTILINE)
 _r_partial_enum = re.compile(r"=\s*\.\.\.\s*[,}]|\.\.\.\s*\}")
