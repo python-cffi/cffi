@@ -237,6 +237,13 @@ def test_bool():
     ffi = FFI()
     ffi.cdef("typedef _Bool bool; void f(bool);")
 
+def test_void_renamed_as_only_arg():
+    ffi = FFI()
+    ffi.cdef("typedef void void_t1;"
+             "typedef void_t1 void_t;"
+             "typedef int (*func_t)(void_t);")
+    assert ffi.typeof("func_t").args == ()
+
 def test_win_common_types():
     from cffi.commontypes import COMMON_TYPES, _CACHE
     from cffi.commontypes import win_common_types, resolve_common_type
