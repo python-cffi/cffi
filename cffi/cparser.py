@@ -17,8 +17,9 @@ except ImportError:
 
 _r_comment = re.compile(r"/\*.*?\*/|//([^\n\\]|\\.)*?$",
                         re.DOTALL | re.MULTILINE)
-_r_define  = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z_0-9]*)\s+(.*?)$",
-                        re.MULTILINE)
+_r_define  = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z_0-9]*)"
+                        r"\b((?:[^\n\\]|\\.)*?)$",
+                        re.DOTALL | re.MULTILINE)
 _r_partial_enum = re.compile(r"=\s*\.\.\.\s*[,}]|\.\.\.\s*\}")
 _r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _r_partial_array = re.compile(r"\[\s*\.\.\.\s*\]")
@@ -40,6 +41,7 @@ def _preprocess(csource):
     macros = {}
     for match in _r_define.finditer(csource):
         macroname, macrovalue = match.groups()
+        macrovalue = macrovalue.replace('\\\n', '').strip()
         macros[macroname] = macrovalue
     csource = _r_define.sub('', csource)
     # Replace "[...]" with "[__dotdotdotarray__]"

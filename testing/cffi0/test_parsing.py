@@ -176,6 +176,18 @@ def test_remove_line_continuation_comments():
     m.y
     m.z
 
+def test_line_continuation_in_defines():
+    ffi = FFI(backend=FakeBackend())
+    ffi.cdef("""
+        #define ABC\\
+            42
+        #define BCD   \\
+            43
+    """)
+    m = ffi.dlopen(lib_m)
+    assert m.ABC == 42
+    assert m.BCD == 43
+
 def test_define_not_supported_for_now():
     ffi = FFI(backend=FakeBackend())
     e = py.test.raises(CDefError, ffi.cdef, '#define FOO "blah"')
