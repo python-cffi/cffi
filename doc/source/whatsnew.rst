@@ -3,8 +3,8 @@ What's New
 ======================
 
 
-1.2.0
-=====
+v1.2.0
+======
 
 * Out-of-line mode: ``int a[][...];`` can be used to declare a structure
   field or global variable which is, simultaneously, of total length
@@ -56,15 +56,15 @@ What's New
 .. __: using.html#alternative-allocators
 
 
-1.1.2
-=====
+v1.1.2
+======
 
 * ``ffi.gc()``: fixed a race condition in multithreaded programs
   introduced in 1.1.1
 
 
-1.1.1
-=====
+v1.1.1
+======
 
 * Out-of-line mode: ``ffi.string()``, ``ffi.buffer()`` and
   ``ffi.getwinerror()`` didn't accept their arguments as keyword
@@ -81,8 +81,8 @@ What's New
 .. __: cdef.html#dlopen-note
 
 
-1.1.0
-=====
+v1.1.0
+======
 
 * Out-of-line API mode: we can now declare integer types with
   ``typedef int... foo_t;``.  The exact size and signedness of ``foo_t``
@@ -114,14 +114,14 @@ What's New
   in ``build/foo.c``, the .o file would be put in ``build/build/foo.o``.
 
 
-1.0.3
-=====
+v1.0.3
+======
 
 * Same as 1.0.2, apart from doc and test fixes on some platforms.
 
 
-1.0.2
-=====
+v1.0.2
+======
 
 * Variadic C functions (ending in a "..." argument) were not supported
   in the out-of-line ABI mode.  This was a bug---there was even a
@@ -130,8 +130,8 @@ What's New
 .. __: overview.html#out-of-line-abi-level
 
 
-1.0.1
-=====
+v1.0.1
+======
 
 * ``ffi.set_source()`` crashed if passed a ``sources=[..]`` argument.
   Fixed by chrippa on pull request #60.
@@ -143,8 +143,8 @@ What's New
 * Enums were buggy if you used too many "..." in their definition.
 
 
-1.0.0
-=====
+v1.0.0
+======
 
 * The main news item is out-of-line module generation:
 
