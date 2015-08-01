@@ -317,15 +317,28 @@ class TestDist(object):
                 import cffi
                 ffi = cffi.FFI()
                 ffi.set_source("pack3.mymod", "/*code would be here*/")
+                ffi._hi_there = 42
             """)
         with open("setup.py", "w") as f:
             f.write("""if 1:
                 from setuptools import setup
+                from distutils.command.build_ext import build_ext
+                import os
+
+                class TestBuildExt(build_ext):
+                    def pre_run(self, ext, ffi):
+                        assert ffi._hi_there == 42
+                        assert ext.name == "pack3.mymod"
+                        fn = os.path.join(self.build_temp, '..', '..', 'see_me')
+                        open(fn, 'w').close()
+
                 setup(name='example1',
                       version='0.1',
                       packages=['pack3'],
                       package_dir={'': 'src1'},
-                      cffi_modules=["src1/pack3/_build.py:ffi"])
+                      cffi_modules=["src1/pack3/_build.py:ffi"],
+                      cmdclass={'build_ext': TestBuildExt},
+                      )
             """)
 
     @chdir_to_tmp
@@ -334,6 +347,7 @@ class TestDist(object):
         self.run(["setup.py", "build"])
         self.check_produced_files({'setup.py': None,
                                    'build': '?',
+                                   'see_me': None,
                                    'src1': {'pack3': {'__init__.py': None,
                                                       '_build.py': None}}})
 
@@ -343,6 +357,7 @@ class TestDist(object):
         self.run(["setup.py", "build_ext", "-i"])
         self.check_produced_files({'setup.py': None,
                                    'build': '?',
+                                   'see_me': None,
                                    'src1': {'pack3': {'__init__.py': None,
                                                       '_build.py': None,
                                                       'mymod.SO': None}}})
