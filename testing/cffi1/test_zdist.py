@@ -327,9 +327,12 @@ class TestDist(object):
 
                 class TestBuildExt(build_ext):
                     def pre_run(self, ext, ffi):
+                        print '_make_setuptools_api: in pre_run:',
                         assert ffi._hi_there == 42
                         assert ext.name == "pack3.mymod"
-                        fn = os.path.join(self.build_temp, '..', '..', 'see_me')
+                        fn = os.path.join(os.path.dirname(self.build_lib),
+                                          '..', 'see_me')
+                        print 'creating %r' % (fn,)
                         open(fn, 'w').close()
 
                 setup(name='example1',
