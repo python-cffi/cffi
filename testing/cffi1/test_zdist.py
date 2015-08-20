@@ -320,19 +320,20 @@ class TestDist(object):
                 ffi._hi_there = 42
             """)
         with open("setup.py", "w") as f:
-            f.write("""if 1:
+            f.write("from __future__ import print_function\n"
+                """if 1:
                 from setuptools import setup
                 from distutils.command.build_ext import build_ext
                 import os
 
                 class TestBuildExt(build_ext):
                     def pre_run(self, ext, ffi):
-                        print '_make_setuptools_api: in pre_run:',
+                        print('_make_setuptools_api: in pre_run:', end=" ")
                         assert ffi._hi_there == 42
                         assert ext.name == "pack3.mymod"
                         fn = os.path.join(os.path.dirname(self.build_lib),
                                           '..', 'see_me')
-                        print 'creating %r' % (fn,)
+                        print('creating %r' % (fn,))
                         open(fn, 'w').close()
 
                 setup(name='example1',
