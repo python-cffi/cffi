@@ -6,6 +6,12 @@ What's New
 v1.2.1
 ======
 
+Nothing changed from v1.2.0.
+
+
+v1.2.0
+======
+
 * Out-of-line mode: ``int a[][...];`` can be used to declare a structure
   field or global variable which is, simultaneously, of total length
   unknown to the C compiler (the ``a[]`` part) and each element is
