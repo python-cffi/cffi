@@ -3,7 +3,7 @@ What's New
 ======================
 
 
-v1.2.0
+v1.2.1
 ======
 
 * Out-of-line mode: ``int a[][...];`` can be used to declare a structure
