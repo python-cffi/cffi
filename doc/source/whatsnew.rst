@@ -3,6 +3,13 @@ What's New
 ======================
 
 
+v1.2.2
+======
+
+* Issue #217: fix possible unaligned pointer manipulation, which crash
+  on some architectures (64-bit, non-x86).
+
+
 v1.2.1
 ======
 
