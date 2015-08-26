@@ -3582,7 +3582,6 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
            array      [ctype, length]
            funcptr    [ctresult, ellipsis+abi, num_args, ctargs...]
     */
-    long i;
     PyObject *key, *y;
     const void **pkey;
     int err;
@@ -3592,8 +3591,7 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
         goto error;
 
     pkey = (const void **)PyBytes_AS_STRING(key);
-    for (i = 0; i < keylength; i++)
-        pkey[i] = unique_key[i];
+    memcpy(pkey, unique_key, keylength * sizeof(void *));
 
     y = PyDict_GetItem(unique_cache, key);
     if (y != NULL) {
