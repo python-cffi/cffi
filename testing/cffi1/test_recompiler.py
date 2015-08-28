@@ -1056,7 +1056,6 @@ def test_some_integer_type():
     assert lib.nu == 20
 
 def test_some_float_type():
-    py.test.skip("later")
     ffi = FFI()
     ffi.cdef("typedef double... foo_t; foo_t sum(foo_t[]);")
     lib = verify(ffi, 'test_some_float_type', """

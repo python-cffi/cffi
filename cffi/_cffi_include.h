@@ -214,6 +214,11 @@ static PyObject **_cffi_unpack_args(PyObject *args_tuple, Py_ssize_t expected,
      (size) == 8 ? ((sign) ? _CFFI_PRIM_INT64 : _CFFI_PRIM_UINT64) :    \
      _CFFI__UNKNOWN_PRIM)
 
+#define _cffi_prim_float(size)                                          \
+    ((size) == 4 ? _CFFI_PRIM_FLOAT :                                   \
+     (size) == 8 ? _CFFI_PRIM_DOUBLE :                                  \
+     _CFFI__UNKNOWN_PRIM)
+
 #define _cffi_check_int(got, got_nonpos, expected)      \
     ((got_nonpos) == (expected <= 0) &&                 \
      (got) == (unsigned long long)expected)

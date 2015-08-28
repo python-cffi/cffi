@@ -648,10 +648,18 @@ class Parser(object):
         assert typenames[-1] == '__dotdotdot__'
         if len(typenames) == 1:
             return model.unknown_type(decl.name)
+
+        result = None
         for t in typenames[:-1]:
-            if t not in ['int', 'short', 'long', 'signed', 'unsigned', 'char']:
+            if t in ('int', 'short', 'long', 'signed', 'unsigned', 'char'):
+                result = model.UnknownIntegerType(decl.name)
+            elif t in ('float', 'double'):
+                result = model.UnknownFloatType(decl.name)
+            else:
                 raise api.FFIError(':%d: bad usage of "..."' % decl.coord.line)
+
         if self._uses_new_feature is None:
             self._uses_new_feature = "'typedef %s... %s'" % (
                 ' '.join(typenames[:-1]), decl.name)
-        return model.UnknownIntegerType(decl.name)
+
+        return result
