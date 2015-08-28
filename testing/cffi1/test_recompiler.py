@@ -1072,6 +1072,8 @@ def test_some_float_type():
     assert lib.sum([40.0, 2.25]) == 42.25
     assert lib.sum([12.3, 45.6]) != 12.3 + 45.6     # precision loss
     assert lib.neg(12.3) == -12.3                   # no precision loss
+    assert ffi.sizeof("foo_t") == ffi.sizeof("float")
+    assert ffi.sizeof("bar_t") == ffi.sizeof("double")
 
 def test_some_float_invalid_1():
     ffi = FFI()
