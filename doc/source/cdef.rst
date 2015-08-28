@@ -394,6 +394,16 @@ in the details.  These places are:
    ``(u)int(8,16,32,64)_t`` in Python, but in the generated C code,
    only ``foo_t`` is used.
 
+* *New in version 1.3:* floating-point types: "``typedef
+  float... foo_t;``" (or equivalently "``typedef double... foo_t;``")
+  declares ``foo_t`` as a-float-or-a-double; the compiler will figure
+  out which it is.  Note that if the actual C type is even larger
+  (``long double`` on some platforms), then compilation will fail.
+  The problem is that the Python "float" type cannot be used to store
+  the extra precision.  (Use the non-dot-dot-dot syntax ``typedef long
+  double foo_t;`` as usual, which returns values that are not Python
+  floats at all but cdata "long double" objects.)
+
 *  unknown types: the syntax "``typedef ... foo_t;``" declares the type
    ``foo_t`` as opaque.  Useful mainly for when the API takes and returns
    ``foo_t *`` without you needing to look inside the ``foo_t``.  Also
