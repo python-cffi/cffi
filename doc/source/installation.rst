@@ -51,11 +51,11 @@ Requirements:
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-1.2.1.tar.gz
+* http://pypi.python.org/packages/source/c/cffi/cffi-1.3.0.tar.gz
 
-   - MD5: faca1e420e80433db409bb1bdd0a3f45
+   - MD5: ...
 
-   - SHA: f7ed014ff1602a8e81073f5356b4cafbc3f5dce1
+   - SHA: ...
 
 * Or grab the most current version from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``

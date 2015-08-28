@@ -3,8 +3,8 @@ What's New
 ======================
 
 
-v1.3
-====
+v1.3.0
+======
 
 * Pull request #64: out-of-line API mode: we can now declare
   floating-point types with ``typedef float... foo_t;``.  This only
