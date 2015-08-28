@@ -3,8 +3,12 @@ What's New
 ======================
 
 
-v1.2.2
-======
+v1.3
+====
+
+* Pull request #64: out-of-line API mode: we can now declare
+  floating-point types with ``typedef float... foo_t;``.  This only
+  works if ``foo_t`` is a float or a double, not ``long double``.
 
 * Issue #217: fix possible unaligned pointer manipulation, which crash
   on some architectures (64-bit, non-x86).

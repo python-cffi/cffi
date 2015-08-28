@@ -166,6 +166,17 @@ static PyObject *build_primitive_type(int num)
                         "size (or not an integer type at all)");
         return NULL;
     }
+    else if (num == _CFFI__UNKNOWN_FLOAT_PRIM) {
+        PyErr_SetString(FFIError, "primitive floating-point type with an "
+                        "unexpected size (or not a float type at all)");
+        return NULL;
+    }
+    else if (num == _CFFI__UNKNOWN_LONG_DOUBLE) {
+        PyErr_SetString(FFIError, "primitive floating-point type is "
+                        "'long double', not supported for now with "
+                        "the syntax 'typedef double... xxx;'");
+        return NULL;
+    }
     else {
         PyErr_Format(PyExc_NotImplementedError, "prim=%d", num);
         return NULL;
