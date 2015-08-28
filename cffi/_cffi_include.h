@@ -215,9 +215,10 @@ static PyObject **_cffi_unpack_args(PyObject *args_tuple, Py_ssize_t expected,
      _CFFI__UNKNOWN_PRIM)
 
 #define _cffi_prim_float(size)                                          \
-    ((size) == 4 ? _CFFI_PRIM_FLOAT :                                   \
-     (size) == 8 ? _CFFI_PRIM_DOUBLE :                                  \
-     _CFFI__UNKNOWN_PRIM)
+    ((size) == sizeof(float) ? _CFFI_PRIM_FLOAT :                       \
+     (size) == sizeof(double) ? _CFFI_PRIM_DOUBLE :                     \
+     (size) == sizeof(long double) ? _CFFI__UNKNOWN_LONG_DOUBLE :       \
+     _CFFI__UNKNOWN_FLOAT_PRIM)
 
 #define _cffi_check_int(got, got_nonpos, expected)      \
     ((got_nonpos) == (expected <= 0) &&                 \

@@ -468,8 +468,10 @@ class Recompiler:
             if tp.is_integer_type() and tp.name != '_Bool':
                 converter = '_cffi_to_c_int'
                 extraarg = ', %s' % tp.name
-            elif tp.is_float_type():
-                converter = '_cffi_to_c_float'
+            elif isinstance(tp, model.UnknownFloatType):
+                # don't check with is_float_type(): it may be a 'long
+                # double' here, and _cffi_to_c_double would loose precision
+                converter = '(%s)_cffi_to_c_double' % (tp.get_c_name(''),)
             else:
                 converter = '(%s)_cffi_to_c_%s' % (tp.get_c_name(''),
                                                    tp.name.replace(' ', '_'))
@@ -524,8 +526,8 @@ class Recompiler:
         if isinstance(tp, model.BasePrimitiveType):
             if tp.is_integer_type():
                 return '_cffi_from_c_int(%s, %s)' % (var, tp.name)
-            elif tp.is_float_type():
-                return '_cffi_from_c_double(%s)' % (var, )
+            elif isinstance(tp, model.UnknownFloatType):
+                return '_cffi_from_c_double(%s)' % (var,)
             elif tp.name != 'long double':
                 return '_cffi_from_c_%s(%s)' % (tp.name.replace(' ', '_'), var)
             else:
@@ -1112,7 +1114,9 @@ class Recompiler:
         self.cffi_types[index] = CffiOp(OP_PRIMITIVE, s)
 
     def _emit_bytecode_UnknownFloatType(self, tp, index):
-        s = '_cffi_prim_float(sizeof(%s))' % (tp.name, )
+        s = ('_cffi_prim_float(sizeof(%s) *\n'
+             '           (((%s)1) / 2) * 2 /* integer => 0, float => 1 */\n'
+             '         )' % (tp.name, tp.name))
         self.cffi_types[index] = CffiOp(OP_PRIMITIVE, s)
 
     def _emit_bytecode_RawFunctionType(self, tp, index):

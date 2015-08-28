@@ -649,14 +649,17 @@ class Parser(object):
         if len(typenames) == 1:
             return model.unknown_type(decl.name)
 
-        result = None
-        for t in typenames[:-1]:
-            if t in ('int', 'short', 'long', 'signed', 'unsigned', 'char'):
-                result = model.UnknownIntegerType(decl.name)
-            elif t in ('float', 'double'):
-                result = model.UnknownFloatType(decl.name)
-            else:
-                raise api.FFIError(':%d: bad usage of "..."' % decl.coord.line)
+        if (typenames[:-1] == ['float'] or
+            typenames[:-1] == ['double']):
+            # not for 'long double' so far
+            result = model.UnknownFloatType(decl.name)
+        else:
+            for t in typenames[:-1]:
+                if t not in ['int', 'short', 'long', 'signed',
+                             'unsigned', 'char']:
+                    raise api.FFIError(':%d: bad usage of "..."' %
+                                       decl.coord.line)
+            result = model.UnknownIntegerType(decl.name)
 
         if self._uses_new_feature is None:
             self._uses_new_feature = "'typedef %s... %s'" % (
