@@ -6333,8 +6333,6 @@ init_cffi_backend(void)
         INITERROR;
 
 #if PY_MAJOR_VERSION >= 3
-    if (init_file_emulator() < 0)
-        INITERROR;
     return m;
 #endif
 }
