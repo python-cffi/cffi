@@ -200,7 +200,7 @@ important mainly in in-line mode.
 
 The ``ffi.cdef()`` call takes an optional
 argument ``packed``: if True, then all structs declared within
-this cdef are "packed".  If you need both packed and non-packed
+this cdef are "packed".  (If you need both packed and non-packed
 structs, use several cdefs in sequence.)  This
 has a meaning similar to ``__attribute__((packed))`` in GCC.  It
 specifies that all structure fields should have an alignment of one
