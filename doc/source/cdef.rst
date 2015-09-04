@@ -206,8 +206,8 @@ has a meaning similar to ``__attribute__((packed))`` in GCC.  It
 specifies that all structure fields should have an alignment of one
 byte.  (Note that the packed attribute has no effect on bit fields so
 far, which mean that they may be packed differently than on GCC.
-Also, this has no effect on structs declared with ``"...;"``---next
-section.)
+Also, this has no effect on structs declared with ``"...;"``---more
+about it later in `Letting the C compiler fill the gaps`_.)
 
 .. _`ffi.set_unicode()`:
 
