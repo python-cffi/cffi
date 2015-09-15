@@ -44,6 +44,8 @@ Note that on Python 3 you need to pass byte strings to ``char *``
 arguments.  In the above example it would be ``b"world"`` and ``b"hi
 there, %s!\n"``.  In general it is ``somestring.encode(myencoding)``.
 
+*This example does not call any C compiler.*
+
 
 .. _out-of-line-abi-level:
 
@@ -57,6 +59,8 @@ large C header.  It also allows you to do more detailed checkings
 during build-time without worrying about performance (e.g. calling
 ``cdef()`` many times with small pieces of declarations, based
 on the version of libraries detected on the system).
+
+*This example does not call any C compiler.*
 
 .. code-block:: python
 
@@ -155,6 +159,10 @@ regular C extension module.  (CFFI selects either Python or C for the
 module to generate based on whether the second argument to
 ``set_source()`` is ``None`` or not.)
 
+*You need a C compiler for this single step.  It produces a file called
+e.g. _example.so or _example.pyd.  If needed, it can be distributed in
+precompiled form like any other extension module.*
+
 Then, in your main program, you use:
 
 .. code-block:: python
@@ -218,6 +226,8 @@ and get a two-dimensional array.
 .. _struct: http://docs.python.org/library/struct.html
 .. _array: http://docs.python.org/library/array.html
 
+*This example does not call any C compiler.*
+
 This example also admits an out-of-line equivalent.  It is similar to
 `Out-of-line example (ABI level, out-of-line)`_ above, but without any
 call to ``ffi.dlopen()``.  In the main program, you write ``from
@@ -271,6 +281,10 @@ directly in the build script:
     buffer_out = ffi.new("int[]", 1000)
 
     result = lib.foo(buffer_in, buffer_out, 1000)
+
+*You need a C compiler to run example_build.py, once.  It produces a
+file called e.g. _example.so or _example.pyd.  If needed, it can be
+distributed in precompiled form like any other extension module.*
 
 
 What actually happened?
