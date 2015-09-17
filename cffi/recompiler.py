@@ -879,7 +879,9 @@ class Recompiler:
         # because they don't have any known C name.  Check that they are
         # not partial (we can't complete or verify them!) and emit them
         # anonymously.
-        for tp in list(self._struct_unions):
+        lst = self._struct_unions.items()
+        lst.sort(key=lambda (tp, order): order)
+        for tp, order in lst:
             if tp not in self._seen_struct_unions:
                 if tp.partial:
                     raise NotImplementedError("internal inconsistency: %r is "
