@@ -634,6 +634,7 @@ def _make_ffi_library(ffi, libname, flags):
             for key, tp in ffi._parser._declarations.items():
                 if not isinstance(tp, model.EnumType):
                     continue
+                tp.check_not_partial()
                 for enumname, enumval in zip(tp.enumerators, tp.enumvalues):
                     if enumname not in library.__dict__:
                         library.__dict__[enumname] = enumval

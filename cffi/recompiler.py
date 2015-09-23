@@ -1006,6 +1006,8 @@ class Recompiler:
     def _enum_ctx(self, tp, cname):
         type_index = self._typesdict[tp]
         type_op = CffiOp(OP_ENUM, -1)
+        if self.target_is_python:
+            tp.check_not_partial()
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
             self._lsts["global"].append(
                 GlobalExpr(enumerator, '_cffi_const_%s' % enumerator, type_op,

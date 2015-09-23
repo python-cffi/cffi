@@ -1,7 +1,7 @@
 import sys
 import py
 from cffi import FFI
-from cffi import recompiler, ffiplatform
+from cffi import recompiler, ffiplatform, VerificationMissing
 from testing.udir import udir
 
 
@@ -203,3 +203,10 @@ def test_check_version():
                        "foobar", _version=0x2594)
     assert str(e.value).startswith(
         "cffi out-of-line Python module 'foobar' has unknown version")
+
+def test_partial_enum():
+    ffi = FFI()
+    ffi.cdef("enum foo { A, B, ... };")
+    ffi.set_source('test_partial_enum', None)
+    py.test.raises(VerificationMissing, ffi.emit_python_code,
+                   str(tmpdir.join('test_partial_enum.py')))
