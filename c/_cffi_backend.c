@@ -1661,6 +1661,11 @@ static void cdatagcp_dealloc(CDataObject_gcp *cd)
     cdata_dealloc((CDataObject *)cd);
 
     if (destructor != NULL) {
+        PyObject *error_type, *error_value, *error_traceback;
+
+        /* Save the current exception */
+        PyErr_Fetch(&error_type, &error_value, &error_traceback);
+
         result = PyObject_CallFunctionObjArgs(destructor, origobj, NULL);
         if (result != NULL) {
             Py_DECREF(result);
@@ -1670,6 +1675,9 @@ static void cdatagcp_dealloc(CDataObject_gcp *cd)
                                       origobj, NULL);
         }
         Py_DECREF(destructor);
+
+        /* Restore the saved exception */
+        PyErr_Restore(error_type, error_value, error_traceback);
     }
     Py_DECREF(origobj);
 }
