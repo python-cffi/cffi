@@ -1653,14 +1653,13 @@ static int cdataowninggc_clear(CDataObject *cd)
 static void _my_PyErr_WriteUnraisable(char *objdescr, PyObject *obj,
                                       char *extra_error_line);
 
-static void cdatagcp_dealloc(CDataObject_gcp *cd)
+
+static void gcp_finalize(PyObject *destructor, PyObject *origobj)
 {
-    PyObject *result;
-    PyObject *destructor = cd->destructor;
-    PyObject *origobj = cd->origobj;
-    cdata_dealloc((CDataObject *)cd);
+    /* NOTE: this decrements the reference count of the two arguments */
 
     if (destructor != NULL) {
+        PyObject *result;
         PyObject *error_type, *error_value, *error_traceback;
 
         /* Save the current exception */
@@ -1679,7 +1678,27 @@ static void cdatagcp_dealloc(CDataObject_gcp *cd)
         /* Restore the saved exception */
         PyErr_Restore(error_type, error_value, error_traceback);
     }
-    Py_DECREF(origobj);
+    Py_XDECREF(origobj);
+}
+
+#ifdef Py_TPFLAGS_HAVE_FINALIZE     /* CPython >= 3.4 */
+static void cdatagcp_finalize(CDataObject_gcp *cd)
+{
+    PyObject *destructor = cd->destructor;
+    PyObject *origobj = cd->origobj;
+    cd->destructor = NULL;
+    cd->origobj = NULL;
+    gcp_finalize(destructor, origobj);
+}
+#endif
+
+static void cdatagcp_dealloc(CDataObject_gcp *cd)
+{
+    PyObject *destructor = cd->destructor;
+    PyObject *origobj = cd->origobj;
+    cdata_dealloc((CDataObject *)cd);
+
+    gcp_finalize(destructor, origobj);
 }
 
 static int cdatagcp_traverse(CDataObject_gcp *cd, visitproc visit, void *arg)
@@ -2814,6 +2833,9 @@ static PyTypeObject CDataGCP_Type = {
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
+#ifdef Py_TPFLAGS_HAVE_FINALIZE
+                       | Py_TPFLAGS_HAVE_FINALIZE
+#endif
                        | Py_TPFLAGS_HAVE_GC,
     0,                                          /* tp_doc */
     (traverseproc)cdatagcp_traverse,            /* tp_traverse */
@@ -2826,6 +2848,25 @@ static PyTypeObject CDataGCP_Type = {
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
     &CData_Type,                                /* tp_base */
+#ifdef Py_TPFLAGS_HAVE_FINALIZE  /* CPython >= 3.4 */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    0,                                          /* tp_init */
+    0,                                          /* tp_alloc */
+    0,                                          /* tp_new */
+    0,                                          /* tp_free */
+    0,                                          /* tp_is_gc */
+    0,                                          /* tp_bases */
+    0,                                          /* tp_mro */
+    0,                                          /* tp_cache */
+    0,                                          /* tp_subclasses */
+    0,                                          /* tp_weaklist */
+    0,                                          /* tp_del */
+    0,                                          /* version_tag */
+    (destructor)cdatagcp_finalize,              /* tp_finalize */
+#endif
 };
 
 /************************************************************/
