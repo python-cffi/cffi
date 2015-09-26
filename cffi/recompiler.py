@@ -879,7 +879,7 @@ class Recompiler:
         # because they don't have any known C name.  Check that they are
         # not partial (we can't complete or verify them!) and emit them
         # anonymously.
-        lst = self._struct_unions.items()
+        lst = list(self._struct_unions.items())
         lst.sort(key=lambda tp_order: tp_order[1])
         for tp, order in lst:
             if tp not in self._seen_struct_unions:
