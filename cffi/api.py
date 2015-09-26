@@ -631,13 +631,23 @@ def _make_ffi_library(ffi, libname, flags):
         #
         if not copied_enums:
             from . import model
+            error = None
             for key, tp in ffi._parser._declarations.items():
                 if not isinstance(tp, model.EnumType):
                     continue
-                tp.check_not_partial()
+                try:
+                    tp.check_not_partial()
+                except Exception as e:
+                    error = e
+                    continue
                 for enumname, enumval in zip(tp.enumerators, tp.enumvalues):
                     if enumname not in library.__dict__:
                         library.__dict__[enumname] = enumval
+            if error is not None:
+                if name in library.__dict__:
+                    return     # ignore error, about a different enum
+                raise error
+
             for key, val in ffi._parser._int_constants.items():
                 if key not in library.__dict__:
                     library.__dict__[key] = val

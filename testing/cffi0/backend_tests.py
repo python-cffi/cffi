@@ -930,8 +930,8 @@ class BackendTests:
         ffi = FFI(backend=self.Backend())
         ffi.cdef(r"enum foo {A, ...}; enum bar { B, C };")
         lib = ffi.dlopen(None)
-        py.test.raises(VerificationMissing, getattr, lib, "A")
         assert lib.B == 0
+        py.test.raises(VerificationMissing, getattr, lib, "A")
         assert lib.C == 1
 
     def test_array_of_struct(self):
