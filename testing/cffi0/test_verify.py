@@ -1635,11 +1635,11 @@ def test_FILE_stored_in_stdout():
 
 def test_FILE_stored_explicitly():
     ffi = FFI()
-    ffi.cdef("int myprintf(const char *, int); FILE *myfile;")
+    ffi.cdef("int myprintf11(const char *, int); FILE *myfile;")
     lib = ffi.verify("""
         #include <stdio.h>
         FILE *myfile;
-        int myprintf(const char *out, int value) {
+        int myprintf11(const char *out, int value) {
             return fprintf(myfile, out, value);
         }
     """)
@@ -1649,7 +1649,7 @@ def test_FILE_stored_explicitly():
     lib.myfile = ffi.cast("FILE *", fw1)
     #
     fw1.write(b"X")
-    r = lib.myprintf(b"hello, %d!\n", ffi.cast("int", 42))
+    r = lib.myprintf11(b"hello, %d!\n", ffi.cast("int", 42))
     fw1.close()
     assert r == len("hello, 42!\n")
     #
