@@ -615,11 +615,18 @@ the raw C data pointed to by the given 'cdata', of 'size' bytes.  The
 'cdata' must be a pointer or an array.  If unspecified, the size of the
 buffer is either the size of what ``cdata`` points to, or the whole size
 of the array.  Getting a buffer is useful because you can read from it
-without an extra copy, or write into it to change the original value;
-you can use for example ``file.write()`` and ``file.readinto()`` with
-such a buffer (for files opened in binary mode).  (Remember that like in
-C, you can use ``array + index`` to get the pointer to the index'th item of
-an array.)
+without an extra copy, or write into it to change the original value.
+
+Here are a few examples of where buffer() would be useful:
+
+-  use ``file.write()`` and ``file.readinto()`` with
+   such a buffer (for files opened in binary mode)
+
+-  use ``ffi.buffer(mystruct[0])[:] = socket.recv(len(buffer))`` to read
+   into a struct over a socket, rewriting the contents of mystruct[0]
+
+Remember that like in C, you can use ``array + index`` to get the pointer
+to the index'th item of an array.
 
 The returned object is not a built-in buffer nor memoryview object,
 because these objects' API changes too much across Python versions.
