@@ -341,6 +341,19 @@ def test_restrict():
         tp, quals = ffi._parser._declarations['variable a']
         assert bool(quals & model.Q_RESTRICT) == expected_output
 
+def test_different_const_funcptr_types():
+    lst = []
+    for input in [
+        "int(*)(int *a)",
+        "int(*)(int const *a)",
+        "int(*)(int * const a)",
+        "int(*)(int const a[])"]:
+        ffi = FFI(backend=FakeBackend())
+        lst.append(ffi._parser.parse_type(input))
+    assert lst[0] != lst[1]
+    assert lst[0] == lst[2]
+    assert lst[1] == lst[3]
+
 def test_enum():
     ffi = FFI()
     ffi.cdef("""
