@@ -6309,9 +6309,11 @@ init_cffi_backend(void)
     if (m == NULL)
         INITERROR;
 
-    unique_cache = PyDict_New();
-    if (unique_cache == NULL)
-        INITERROR;
+    if (unique_cache == NULL) {
+        unique_cache = PyDict_New();
+        if (unique_cache == NULL)
+            INITERROR;
+    }
 
     if (PyType_Ready(&dl_type) < 0)
         INITERROR;
