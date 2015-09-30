@@ -20,7 +20,7 @@ class BaseTypeByIdentity(object):
     is_array_type = False
     is_raw_function = False
 
-    def get_c_name(self, replace_with='', context='a C file'):
+    def get_c_name(self, replace_with='', context='a C file', quals=0):
         result = self.c_name_with_marker
         assert result.count('&') == 1
         # some logic duplication with ffi.getctype()... :-(
@@ -30,6 +30,7 @@ class BaseTypeByIdentity(object):
                 replace_with = '(%s)' % replace_with
             elif not replace_with[0] in '[(':
                 replace_with = ' ' + replace_with
+        replace_with = qualify(quals, replace_with)
         result = result.replace('&', replace_with)
         if '$' in result:
             from .ffiplatform import VerificationError

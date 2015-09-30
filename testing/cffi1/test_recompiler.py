@@ -1191,3 +1191,43 @@ def test_macro_var_callback():
     py.test.raises(ffi.error, getattr, lib, 'my_value')
     e = py.test.raises(ffi.error, setattr, lib, 'my_value', 50)
     assert str(e.value) == "global variable 'my_value' is at address NULL"
+
+def test_const_fields():
+    ffi = FFI()
+    ffi.cdef("""struct foo_s { const int a; void *const b; };""")
+    lib = verify(ffi, 'test_const_fields', """
+        struct foo_s { const int a; void *const b; };""")
+    foo_s = ffi.typeof("struct foo_s")
+    assert foo_s.fields[0][0] == 'a'
+    assert foo_s.fields[0][1].type is ffi.typeof("int")
+    assert foo_s.fields[1][0] == 'b'
+    assert foo_s.fields[1][1].type is ffi.typeof("void *")
+
+def test_restrict_fields():
+    if sys.platform == 'win32':
+        py.test.skip("'__restrict__' probably not recognized")
+    ffi = FFI()
+    ffi.cdef("""struct foo_s { void * restrict b; };""")
+    lib = verify(ffi, 'test_const_fields', """
+        struct foo_s { void * __restrict__ b; };""")
+    foo_s = ffi.typeof("struct foo_s")
+    assert foo_s.fields[0][0] == 'b'
+    assert foo_s.fields[0][1].type is ffi.typeof("void *")
+
+def test_const_array_fields():
+    ffi = FFI()
+    ffi.cdef("""struct foo_s { const int a[4]; };""")
+    lib = verify(ffi, 'test_const_array_fields', """
+        struct foo_s { const int a[4]; };""")
+    foo_s = ffi.typeof("struct foo_s")
+    assert foo_s.fields[0][0] == 'a'
+    assert foo_s.fields[0][1].type is ffi.typeof("int[4]")
+
+def test_const_array_fields_varlength():
+    ffi = FFI()
+    ffi.cdef("""struct foo_s { const int a[]; ...; };""")
+    lib = verify(ffi, 'test_const_array_fields_varlength', """
+        struct foo_s { const int a[4]; };""")
+    foo_s = ffi.typeof("struct foo_s")
+    assert foo_s.fields[0][0] == 'a'
+    assert foo_s.fields[0][1].type is ffi.typeof("int[]")

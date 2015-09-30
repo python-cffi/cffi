@@ -788,9 +788,9 @@ class Recompiler:
                        and (ftype.length is None or ftype.length == '...')):
                     ftype = ftype.item
                     fname = fname + '[0]'
-                tmp = model.qualify(fqual, '*tmp')
                 prnt('  { %s = &p->%s; (void)tmp; }' % (
-                    ftype.get_c_name(tmp, 'field %r'%fname), fname))
+                    ftype.get_c_name('*tmp', 'field %r'%fname, quals=fqual),
+                    fname))
             except ffiplatform.VerificationError as e:
                 prnt('  /* %s */' % str(e))   # cannot verify it, ignore
         prnt('}')
@@ -1087,8 +1087,7 @@ class Recompiler:
         # (If 'tp' is a function _pointer_ type, then casts from "fn_t
         # **" to "void *" are again no-ops, as far as I can tell.)
         decl = '*_cffi_var_%s(void)' % (name,)
-        decl = model.qualify(self._current_quals, decl)
-        prnt('static ' + tp.get_c_name(decl))
+        prnt('static ' + tp.get_c_name(decl, quals=self._current_quals))
         prnt('{')
         prnt('  return %s(%s);' % (ampersand, name))
         prnt('}')
