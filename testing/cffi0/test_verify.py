@@ -2247,3 +2247,13 @@ def test_dont_support_int_dotdotdot():
     e = py.test.raises(VerificationError, ffi.verify, "")
     assert str(e.value) == ("feature not supported with ffi.verify(), but only "
                          "with ffi.set_source(): 'typedef unsigned long... t1'")
+
+def test_const_fields():
+    ffi = FFI()
+    ffi.cdef("""struct foo_s { const int a; void *const b; };""")
+    ffi.verify("""struct foo_s { const int a; void *const b; };""")
+    foo_s = ffi.typeof("struct foo_s")
+    assert foo_s.fields[0][0] == 'a'
+    assert foo_s.fields[0][1].type is ffi.typeof("int")
+    assert foo_s.fields[1][0] == 'b'
+    assert foo_s.fields[1][1].type is ffi.typeof("void *")

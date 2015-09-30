@@ -480,7 +480,8 @@ class VCPythonEngine(object):
                 # only accept exactly the type declared.
                 try:
                     prnt('  { %s = &p->%s; (void)tmp; }' % (
-                        ftype.get_c_name('*tmp', 'field %r'%fname), fname))
+                        ftype.get_c_name('*tmp', 'field %r'%fname, quals=fqual),
+                        fname))
                 except ffiplatform.VerificationError as e:
                     prnt('  /* %s */' % str(e))   # cannot verify it, ignore
         prnt('}')
