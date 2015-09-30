@@ -203,8 +203,7 @@ class Recompiler:
 
     def _generate(self, step_name):
         lst = self.ffi._parser._declarations.items()
-        lst.sort()
-        for name, (tp, quals) in lst:
+        for name, (tp, quals) in sorted(lst):
             kind, realname = name.split(' ', 1)
             try:
                 method = getattr(self, '_generate_cpy_%s_%s' % (kind,

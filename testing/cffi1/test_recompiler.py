@@ -1208,7 +1208,7 @@ def test_restrict_fields():
         py.test.skip("'__restrict__' probably not recognized")
     ffi = FFI()
     ffi.cdef("""struct foo_s { void * restrict b; };""")
-    lib = verify(ffi, 'test_const_fields', """
+    lib = verify(ffi, 'test_restrict_fields', """
         struct foo_s { void * __restrict__ b; };""")
     foo_s = ffi.typeof("struct foo_s")
     assert foo_s.fields[0][0] == 'b'
@@ -1270,3 +1270,13 @@ def test_const_constant():
     """)
     assert lib.myfoo.x == 40
     assert lib.myfoo.y == 2
+
+def test_const_via_typedef():
+    ffi = FFI()
+    ffi.cdef("""typedef const int const_t; const_t aaa;""")
+    lib = verify(ffi, 'test_const_via_typedef', """
+        typedef const int const_t;
+        #define aaa 42
+    """)
+    assert lib.aaa == 42
+    py.test.raises(AttributeError, "lib.aaa = 43")
