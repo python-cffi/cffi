@@ -6289,6 +6289,7 @@ init_cffi_backend(void)
 {
     PyObject *m, *v;
     int i;
+    static char init_done = 0;
 
     v = PySys_GetObject("version");
     if (v == NULL || !PyText_Check(v) ||
@@ -6331,14 +6332,17 @@ init_cffi_backend(void)
     if (PyType_Ready(&MiniBuffer_Type) < 0)
         INITERROR;
 
-    v = PyText_FromString("_cffi_backend");
-    if (v == NULL || PyDict_SetItemString(CData_Type.tp_dict,
-                                          "__module__", v) < 0)
-        INITERROR;
-    v = PyText_FromString("<cdata>");
-    if (v == NULL || PyDict_SetItemString(CData_Type.tp_dict,
-                                          "__name__", v) < 0)
-        INITERROR;
+    if (!init_done) {
+        v = PyText_FromString("_cffi_backend");
+        if (v == NULL || PyDict_SetItemString(CData_Type.tp_dict,
+                                              "__module__", v) < 0)
+            INITERROR;
+        v = PyText_FromString("<cdata>");
+        if (v == NULL || PyDict_SetItemString(CData_Type.tp_dict,
+                                              "__name__", v) < 0)
+            INITERROR;
+        init_done = 1;
+    }
 
     /* this is for backward compatibility only */
     v = PyCapsule_New((void *)cffi_exports, "cffi", NULL);
@@ -6377,6 +6381,8 @@ init_cffi_backend(void)
     }
 
     init_errno();
+    if (PyErr_Occurred())
+        INITERROR;
 
     if (init_ffi_lib(m) < 0)
         INITERROR;

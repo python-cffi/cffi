@@ -21,7 +21,7 @@ static int init_ffi_lib(PyObject *m)
 {
     PyObject *x;
     int i;
-    static int init_done = 0;
+    static char init_done = 0;
 
     if (PyType_Ready(&FFI_Type) < 0)
         return -1;

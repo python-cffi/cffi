@@ -8,13 +8,15 @@ struct cffi_errno_s {
     int saved_lasterror;
 };
 
-static DWORD cffi_tls_index;
+static DWORD cffi_tls_index = TLS_OUT_OF_INDEXES;
 
 static void init_errno(void)
 {
-    cffi_tls_index = TlsAlloc();
-    if (cffi_tls_index == TLS_OUT_OF_INDEXES)
-        PyErr_SetString(PyExc_WindowsError, "TlsAlloc() failed");
+    if (cffi_tls_index == TLS_OUT_OF_INDEXES) {
+        cffi_tls_index = TlsAlloc();
+        if (cffi_tls_index == TLS_OUT_OF_INDEXES)
+            PyErr_SetString(PyExc_WindowsError, "TlsAlloc() failed");
+    }
 }
 
 static struct cffi_errno_s *_geterrno_object(void)

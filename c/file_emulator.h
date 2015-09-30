@@ -5,12 +5,14 @@ static PyObject *PyIOBase_TypeObj;
 
 static int init_file_emulator(void)
 {
-    PyObject *io = PyImport_ImportModule("_io");
-    if (io == NULL)
-        return -1;
-    PyIOBase_TypeObj = PyObject_GetAttrString(io, "_IOBase");
-    if (PyIOBase_TypeObj == NULL)
-        return -1;
+    if (PyIOBase_TypeObj == NULL) {
+        PyObject *io = PyImport_ImportModule("_io");
+        if (io == NULL)
+            return -1;
+        PyIOBase_TypeObj = PyObject_GetAttrString(io, "_IOBase");
+        if (PyIOBase_TypeObj == NULL)
+            return -1;
+    }
     return 0;
 }
 
