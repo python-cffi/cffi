@@ -12,7 +12,7 @@ def qualify(quals, replace_with):
     if quals & Q_CONST:
         replace_with = ' const ' + replace_with.lstrip()
     if quals & Q_RESTRICT:
-        replace_with = ' restrict ' + replace_with.lstrip()
+        replace_with = ' __restrict ' + replace_with.lstrip()
     return replace_with
 
 
