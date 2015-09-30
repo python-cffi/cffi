@@ -155,6 +155,9 @@ typedef struct _ctypedescr {
 
     PyObject *ct_weakreflist;    /* weakref support */
 
+    PyObject *ct_unique_key;    /* key in unique_cache (a string, but not
+                                   human-readable) */
+
     Py_ssize_t ct_size;     /* size of instances, or -1 if unknown */
     Py_ssize_t ct_length;   /* length of arrays, or -1 if unknown;
                                or alignment of primitive and struct types;
@@ -286,6 +289,7 @@ static void init_errno(void) { }
 typedef PyObject *const cffi_allocator_t[3];
 static cffi_allocator_t default_allocator = { NULL, NULL, NULL };
 static PyObject *FFIError;
+static PyObject *unique_cache;
 
 /************************************************************/
 
@@ -301,6 +305,7 @@ ctypedescr_new(int name_size)
     ct->ct_itemdescr = NULL;
     ct->ct_stuff = NULL;
     ct->ct_weakreflist = NULL;
+    ct->ct_unique_key = NULL;
     PyObject_GC_Track(ct);
     return ct;
 }
@@ -343,6 +348,15 @@ ctypedescr_dealloc(CTypeDescrObject *ct)
     PyObject_GC_UnTrack(ct);
     if (ct->ct_weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *) ct);
+
+    if (ct->ct_unique_key != NULL) {
+        /* revive dead object temporarily for DelItem */
+        Py_REFCNT(ct) = 43;
+        PyDict_DelItem(unique_cache, ct->ct_unique_key);
+        assert(Py_REFCNT(ct) == 42);
+        Py_REFCNT(ct) = 0;
+        Py_DECREF(ct->ct_unique_key);
+    }
     Py_XDECREF(ct->ct_itemdescr);
     Py_XDECREF(ct->ct_stuff);
     if (ct->ct_flags & CT_FUNCTIONPTR)
@@ -3612,8 +3626,6 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
 
 /************************************************************/
 
-static PyObject *unique_cache;
-
 static PyObject *get_unique_type(CTypeDescrObject *x,
                                  const void *unique_key[], long keylength)
 {
@@ -3633,7 +3645,6 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
     */
     PyObject *key, *y;
     const void **pkey;
-    int err;
 
     key = PyBytes_FromStringAndSize(NULL, keylength * sizeof(void *));
     if (key == NULL)
@@ -3649,11 +3660,14 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
         Py_DECREF(x);
         return y;
     }
-    err = PyDict_SetItem(unique_cache, key, (PyObject *)x);
-    Py_DECREF(key);
-    if (err < 0)
+    if (PyDict_SetItem(unique_cache, key, (PyObject *)x) < 0) {
+        Py_DECREF(key);
         goto error;
+    }
 
+    assert(x->ct_unique_key == NULL);
+    x->ct_unique_key = key; /* the key will be freed in ctypedescr_dealloc() */
+    Py_DECREF(x);          /* the 'value' in unique_cache doesn't count as 1 */
     return (PyObject *)x;
 
  error:
