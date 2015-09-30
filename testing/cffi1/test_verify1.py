@@ -1922,7 +1922,7 @@ def test_bug_const_char_ptr_array_1():
     assert repr(ffi.typeof(lib.a)) == "<ctype 'char *[5]'>"
 
 def test_bug_const_char_ptr_array_2():
-    ffi = FFI_warnings_not_error()    # ignore warnings
+    ffi = FFI()
     ffi.cdef("""const int a[];""")
     lib = ffi.verify("""const int a[5];""")
     assert repr(ffi.typeof(lib.a)) == "<ctype 'int *'>"

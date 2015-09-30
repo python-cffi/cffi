@@ -609,7 +609,7 @@ def _make_ffi_library(ffi, libname, flags):
     def make_accessor_locked(name):
         key = 'function ' + name
         if key in ffi._parser._declarations:
-            tp = ffi._parser._declarations[key]
+            tp, _ = ffi._parser._declarations[key]
             BType = ffi._get_cached_btype(tp)
             try:
                 value = backendlib.load_function(BType, name)
@@ -620,7 +620,7 @@ def _make_ffi_library(ffi, libname, flags):
         #
         key = 'variable ' + name
         if key in ffi._parser._declarations:
-            tp = ffi._parser._declarations[key]
+            tp, _ = ffi._parser._declarations[key]
             BType = ffi._get_cached_btype(tp)
             read_variable = backendlib.read_variable
             write_variable = backendlib.write_variable
@@ -632,7 +632,7 @@ def _make_ffi_library(ffi, libname, flags):
         if not copied_enums:
             from . import model
             error = None
-            for key, tp in ffi._parser._declarations.items():
+            for key, (tp, _) in ffi._parser._declarations.items():
                 if not isinstance(tp, model.EnumType):
                     continue
                 try:
