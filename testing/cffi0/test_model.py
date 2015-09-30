@@ -59,7 +59,7 @@ def test_const_pointer_type():
 
 def test_qual_pointer_type():
     ptr_type = PointerType(PrimitiveType("long long"), Q_RESTRICT)
-    assert ptr_type.get_c_name("") == "long long restrict *"
+    assert ptr_type.get_c_name("") == "long long __restrict *"
     assert const_voidp_type.get_c_name("") == "void const *"
 
 def test_unknown_pointer_type():
