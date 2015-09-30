@@ -232,6 +232,15 @@ strings as arguments instead of not byte strings.  (Before cffi version 0.9,
 ``TCHAR`` and friends where hard-coded as unicode, but ``UNICODE`` was,
 inconsistently, not defined by default.)
 
+Note that you can use the type-qualifiers ``const`` and ``restrict``
+(but not ``__restrict`` or ``__restrict__``) in the ``cdef()``, but
+this has no effect on the cdata objects that you get at run-time (they
+are never ``const``).  The effect is limited to knowing if a global
+variable is meant to be a constant or not.  Also, *new in version
+1.3:* when using ``set_source()`` or ``verify()``, these two
+qualifiers are copied from the cdef to the generated C code; this
+fixes warnings by the C compiler.
+
 
 .. _loading-libraries:
 
