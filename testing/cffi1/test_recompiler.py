@@ -1231,3 +1231,42 @@ def test_const_array_fields_varlength():
     foo_s = ffi.typeof("struct foo_s")
     assert foo_s.fields[0][0] == 'a'
     assert foo_s.fields[0][1].type is ffi.typeof("int[]")
+
+def test_const_array_fields_unknownlength():
+    ffi = FFI()
+    ffi.cdef("""struct foo_s { const int a[...]; ...; };""")
+    lib = verify(ffi, 'test_const_array_fields_unknownlength', """
+        struct foo_s { const int a[4]; };""")
+    foo_s = ffi.typeof("struct foo_s")
+    assert foo_s.fields[0][0] == 'a'
+    assert foo_s.fields[0][1].type is ffi.typeof("int[4]")
+
+def test_const_function_args():
+    ffi = FFI()
+    ffi.cdef("""int foobar(const int a, const int *b, const int c[]);""")
+    lib = verify(ffi, 'test_const_function_args', """
+        int foobar(const int a, const int *b, const int c[]) {
+            return a + *b + *c;
+        }
+    """)
+    assert lib.foobar(100, ffi.new("int *", 40), ffi.new("int *", 2)) == 142
+
+def test_const_function_type_args():
+    ffi = FFI()
+    ffi.cdef("""int (*foobar)(const int a, const int *b, const int c[]);""")
+    lib = verify(ffi, 'test_const_function_type_args', """
+        int (*foobar)(const int a, const int *b, const int c[]);
+    """)
+    t = ffi.typeof(lib.foobar)
+    assert t.args[0] is ffi.typeof("int")
+    assert t.args[1] is ffi.typeof("int *")
+    assert t.args[2] is ffi.typeof("int *")
+
+def test_const_constant():
+    ffi = FFI()
+    ffi.cdef("""struct foo_s { int x,y; }; const struct foo_s myfoo;""")
+    lib = verify(ffi, 'test_const_constant', """
+        struct foo_s { int x,y; }; const struct foo_s myfoo = { 40, 2 };
+    """)
+    assert lib.myfoo.x == 40
+    assert lib.myfoo.y == 2
