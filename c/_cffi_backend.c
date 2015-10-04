@@ -4998,7 +4998,7 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
         PyTuple_SET_ITEM(py_args, i, a);
     }
 
-    py_res = PyEval_CallObject(py_ob, py_args);
+    py_res = PyObject_Call(py_ob, py_args, NULL);
     if (py_res == NULL)
         goto error;
     if (convert_from_object_fficallback(result, SIGNATURE(1), py_res) < 0) {
