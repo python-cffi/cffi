@@ -466,6 +466,13 @@ class TestFunction(object):
         tps = ffi.typeof("fns_t")
         assert str(tpc) == "<ctype 'int(*)(int)'>"
         assert str(tps) == "<ctype 'int(__stdcall *)(int)'>"
+        #
+        fnc = ffi.cast("fnc_t", 0)
+        fns = ffi.cast("fns_t", 0)
+        ffi.new("fnc_t[]", [fnc])
+        py.test.raises(TypeError, ffi.new, "fnc_t[]", [fns])
+        py.test.raises(TypeError, ffi.new, "fns_t[]", [fnc])
+        ffi.new("fns_t[]", [fns])
 
     def test_stdcall_only_on_windows(self):
         if sys.platform == 'win32':
