@@ -440,9 +440,7 @@ class TestFunction(object):
         """)
         m = ffi.dlopen("Kernel32.dll")
         tp = ffi.typeof(m.QueryPerformanceFrequency)
-        assert 'stdcall' not in str(tp) and 'cdecl' not in str(tp)
-        assert tp is (
-            ffi.typeof(ffi.addressof(m, 'QueryPerformanceFrequency')).item)
+        assert str(tp) == "<ctype 'int(*)(long long *)'>"
         #
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
@@ -451,8 +449,6 @@ class TestFunction(object):
         m = ffi.dlopen("Kernel32.dll")
         tpc = ffi.typeof(m.QueryPerformanceFrequency)
         assert tpc is tp
-        assert tpc is (
-            ffi.typeof(ffi.addressof(m, 'QueryPerformanceFrequency')).item)
         #
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
@@ -461,9 +457,7 @@ class TestFunction(object):
         m = ffi.dlopen("Kernel32.dll")
         tps = ffi.typeof(m.QueryPerformanceFrequency)
         assert tps is not tpc
-        assert '__stdcall' in str(tps) and 'cdecl' not in str(tps)
-        assert tps is (
-            ffi.typeof(ffi.addressof(m, 'QueryPerformanceFrequency')).item)
+        assert str(tps) == "<ctype 'int(__stdcall *)(long long *)'>"
         #
         ffi = FFI(backend=self.Backend())
         ffi.cdef("typedef int (*fnc_t)(int);", calling_conv="cdecl")
@@ -472,3 +466,13 @@ class TestFunction(object):
         tps = ffi.typeof("fns_t")
         assert str(tpc) == "<ctype 'int(*)(int)'>"
         assert str(tps) == "<ctype 'int(__stdcall *)(int)'>"
+
+    def test_stdcall_only_on_windows(self):
+        if sys.platform == 'win32':
+            py.test.skip("not-Windows-only test")
+        ffi = FFI(backend=self.Backend())
+        e = py.test.raises(CDefError, ffi.cdef, """
+            BOOL QueryPerformanceFrequency(LONGLONG *lpFrequency);
+        """, calling_conv="stdcall")
+        assert str(e.value) == (
+            "<int(__stdcall *)(int)>: '__stdcall' only for Windows")

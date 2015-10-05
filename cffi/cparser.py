@@ -103,6 +103,7 @@ class Parser(object):
         self._structnode2type = weakref.WeakKeyDictionary()
         self._override = False
         self._packed = False
+        self._abi = None
         self._int_constants = {}
         self._recomplete = []
         self._uses_new_feature = None
@@ -162,16 +163,26 @@ class Parser(object):
             msg = 'parse error\n%s' % (msg,)
         raise api.CDefError(msg)
 
-    def parse(self, csource, override=False, packed=False):
+    def parse(self, csource, override=False, packed=False, calling_conv=None):
+        if calling_conv is None or calling_conv == "cdecl":
+            abi = None
+        elif calling_conv == "stdcall":
+            abi = "stdcall"
+        else:
+            raise api.CDefError("calling_conv must be 'cdecl' or 'stdcall';"
+                                " got %r" % (calling_conv,))
         prev_override = self._override
         prev_packed = self._packed
+        prev_abi = self._abi
         try:
             self._override = override
             self._packed = packed
+            self._abi = abi
             self._internal_parse(csource)
         finally:
             self._override = prev_override
             self._packed = prev_packed
+            self._abi = prev_abi
 
     def _internal_parse(self, csource):
         ast, macros, csource = self._parse(csource)
@@ -449,7 +460,7 @@ class Parser(object):
         if not ellipsis and args == [model.void_type]:
             args = []
         result, quals = self._get_type_and_quals(typenode.type)
-        return model.RawFunctionType(tuple(args), result, ellipsis)
+        return model.RawFunctionType(tuple(args), result, ellipsis, self._abi)
 
     def _as_func_arg(self, type, quals):
         if isinstance(type, model.ArrayType):
