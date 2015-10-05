@@ -427,3 +427,48 @@ class TestFunction(object):
         res = m.QueryPerformanceFrequency(p_freq)
         assert res != 0
         assert p_freq[0] != 0
+
+    def test_explicit_cdecl_stdcall(self):
+        if sys.platform != 'win32':
+            py.test.skip("Windows-only test")
+        if self.Backend is CTypesBackend:
+            py.test.skip("not with the ctypes backend")
+        #
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            BOOL QueryPerformanceFrequency(LONGLONG *lpFrequency);
+        """)
+        m = ffi.dlopen("Kernel32.dll")
+        tp = ffi.typeof(m.QueryPerformanceFrequency)
+        assert 'stdcall' not in str(tp) and 'cdecl' not in str(tp)
+        assert tp is (
+            ffi.typeof(ffi.addressof(m, 'QueryPerformanceFrequency')).item)
+        #
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            BOOL QueryPerformanceFrequency(LONGLONG *lpFrequency);
+        """, calling_conv="cdecl")
+        m = ffi.dlopen("Kernel32.dll")
+        tpc = ffi.typeof(m.QueryPerformanceFrequency)
+        assert tpc is tp
+        assert tpc is (
+            ffi.typeof(ffi.addressof(m, 'QueryPerformanceFrequency')).item)
+        #
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            BOOL QueryPerformanceFrequency(LONGLONG *lpFrequency);
+        """, calling_conv="stdcall")
+        m = ffi.dlopen("Kernel32.dll")
+        tps = ffi.typeof(m.QueryPerformanceFrequency)
+        assert tps is not tpc
+        assert '__stdcall' in str(tps) and 'cdecl' not in str(tps)
+        assert tps is (
+            ffi.typeof(ffi.addressof(m, 'QueryPerformanceFrequency')).item)
+        #
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("typedef int (*fnc_t)(int);", calling_conv="cdecl")
+        ffi.cdef("typedef int (*fns_t)(int);", calling_conv="stdcall")
+        tpc = ffi.typeof("fnc_t")
+        tps = ffi.typeof("fns_t")
+        assert str(tpc) == "<ctype 'int(*)(int)'>"
+        assert str(tps) == "<ctype 'int(__stdcall *)(int)'>"

@@ -1221,7 +1221,6 @@ def test_function_typedef():
     assert lib.sin(1.23) == math.sin(1.23)
 
 def test_callback_calling_convention():
-    py.test.skip("later")
     if sys.platform != 'win32':
         py.test.skip("Windows only")
     ffi = FFI()

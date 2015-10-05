@@ -1280,3 +1280,57 @@ def test_const_via_typedef():
     """)
     assert lib.aaa == 42
     py.test.raises(AttributeError, "lib.aaa = 43")
+
+def test_win32_calling_convention_1():
+    if sys.platform != 'win32':
+        py.test.skip("Windows only")
+    ffi = FFI()
+    ffi.cdef("int call1(int(*cb)(int)); int cb1(int);", calling_conv="cdecl")
+    ffi.cdef("int call2(int(*cb)(int)); int cb2(int);", calling_conv="stdcall")
+    lib = verify(ffi, 'test_win32_calling_convention_1', """
+        int __cdecl call1(int(*__cdecl cb)(int)) {
+            int i, result = 0;
+            for (i = 0; i < 1000; i++)
+                result += cb(i);
+            return result;
+        }
+        int __stdcall call2(int(*__stdcall cb)(int)) {
+            int i, result = 0;
+            for (i = 0; i < 1000; i++)
+                result += cb(-i);
+            return result;
+        }
+        int __cdecl cb1(int x) { return x * 2; }
+        int __stdcall cb2(int x) { return x * 3; }
+    """)
+    assert lib.call1(ffi.addressof(lib, 'cb1')) == 500*999*2
+    assert lib.call2(ffi.addressof(lib, 'cb2')) == -500*999*3
+
+def test_win32_calling_convention_2():
+    if sys.platform != 'win32':
+        py.test.skip("Windows only")
+    # any mistake in the declaration of plain function (including the
+    # precise argument types and, here, the calling convention) are
+    # automatically corrected.  But this does not apply to the 'cb'
+    # function pointer argument.
+    ffi = FFI()
+    ffi.cdef("int call1(int(*cb)(int)); int cb1(int);", calling_conv="cdecl")
+    ffi.cdef("int call2(int(*cb)(int)); int cb2(int);", calling_conv="stdcall")
+    lib = verify(ffi, 'test_win32_calling_convention_2', """
+        int __stdcall call1(int(*__cdecl cb)(int)) {
+            int i, result = 0;
+            for (i = 0; i < 1000; i++)
+                result += cb(i);
+            return result;
+        }
+        int __cdecl call2(int(*__stdcall cb)(int)) {
+            int i, result = 0;
+            for (i = 0; i < 1000; i++)
+                result += cb(-i);
+            return result;
+        }
+        int __stdcall cb1(int x) { return x * 2; }
+        int __cdecl cb2(int x) { return x * 3; }
+    """)
+    assert lib.call1(ffi.addressof(lib, 'cb1')) == 500*999*2
+    assert lib.call2(ffi.addressof(lib, 'cb2')) == -500*999*3
