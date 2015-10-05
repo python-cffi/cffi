@@ -3644,13 +3644,13 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
            funcptr    [ctresult, ellipsis+abi, num_args, ctargs...]
     */
     PyObject *key, *y;
-    const void **pkey;
+    void *pkey;
 
     key = PyBytes_FromStringAndSize(NULL, keylength * sizeof(void *));
     if (key == NULL)
         goto error;
 
-    pkey = (const void **)PyBytes_AS_STRING(key);
+    pkey = PyBytes_AS_STRING(key);
     memcpy(pkey, unique_key, keylength * sizeof(void *));
 
     y = PyDict_GetItem(unique_cache, key);
