@@ -1,5 +1,5 @@
 import py
-from cffi import FFI
+from cffi import FFI, CDefError
 import math, os, sys
 import ctypes.util
 from cffi.backend_ctypes import CTypesBackend
@@ -471,8 +471,10 @@ class TestFunction(object):
         if sys.platform == 'win32':
             py.test.skip("not-Windows-only test")
         ffi = FFI(backend=self.Backend())
-        e = py.test.raises(CDefError, ffi.cdef, """
-            BOOL QueryPerformanceFrequency(LONGLONG *lpFrequency);
+        ffi.cdef("""
+            int QueryPerformanceFrequency(long long *lpFrequency);
         """, calling_conv="stdcall")
+        m = ffi.dlopen(None)
+        e = py.test.raises(CDefError, getattr, m, 'QueryPerformanceFrequency')
         assert str(e.value) == (
-            "<int(__stdcall *)(int)>: '__stdcall' only for Windows")
+            "<int(__stdcall *)(long long *)>: '__stdcall' only for Windows")

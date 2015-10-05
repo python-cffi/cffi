@@ -167,7 +167,7 @@ class Parser(object):
         if calling_conv is None or calling_conv == "cdecl":
             abi = None
         elif calling_conv == "stdcall":
-            abi = "stdcall"
+            abi = "__stdcall"
         else:
             raise api.CDefError("calling_conv must be 'cdecl' or 'stdcall';"
                                 " got %r" % (calling_conv,))

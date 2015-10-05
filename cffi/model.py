@@ -1,4 +1,4 @@
-import types
+import types, sys
 import weakref
 
 from .lock import allocate_lock
@@ -238,15 +238,17 @@ class FunctionPtrType(BaseFunctionType):
             args.append(tp.get_cached_btype(ffi, finishlist))
         if self.abi is None:
             abi_args = ()
-        elif self.abi == "stdcall":
+        elif self.abi == "__stdcall":
             try:
                 abi_args = (ffi._backend.FFI_STDCALL,)
             except AttributeError:
                 if sys.platform == "win32":
-                    raise NotImplementedError("%r: stdcall with ctypes backend")
+                    raise NotImplementedError("%r: stdcall with ctypes backend"
+                                              % (self,))
                 else:
                     from . import api
-                    raise api.CDefError("%r: '__stdcall' only for Windows")
+                    raise api.CDefError("%r: '__stdcall' only for Windows"
+                                        % (self,))
             import pdb;pdb.set_trace()
         else:
             raise NotImplementedError("abi=%r" % (self.abi,))
