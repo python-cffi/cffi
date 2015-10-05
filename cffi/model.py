@@ -249,7 +249,6 @@ class FunctionPtrType(BaseFunctionType):
                     from . import api
                     raise api.CDefError("%r: '__stdcall' only for Windows"
                                         % (self,))
-            import pdb;pdb.set_trace()
         else:
             raise NotImplementedError("abi=%r" % (self.abi,))
         return global_cache(self, ffi, 'new_function_type',
