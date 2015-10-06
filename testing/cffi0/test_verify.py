@@ -2242,9 +2242,40 @@ def test_const_fields():
     assert foo_s.fields[1][0] == 'b'
     assert foo_s.fields[1][1].type is ffi.typeof("void *")
 
+def test_win32_calling_convention_0():
+    ffi = FFI()
+    ffi.cdef("""
+        int call1(int(__cdecl   *cb)(int));
+        int call2(int(__stdcall *cb)(int));
+    """)
+    lib = ffi.verify(r"""
+        int __cdecl call1(int(__cdecl *cb)(int)) {
+            int i, result = 0;
+            for (i = 0; i < 1000; i++)
+                result += cb(i);
+            printf("result = %d\n", result);
+            return result;
+        }
+        int __stdcall call2(int(__stdcall *cb)(int)) {
+            int i, result = 0;
+            for (i = 0; i < 1000; i++)
+                result += cb(-i);
+            printf("result = %d\n", result);
+            return result;
+        }
+    """)
+    @ffi.callback("int(int)")
+    def cb1(x):
+        return x * 2
+    @ffi.callback("int __stdcall(int)")
+    def cb2(x):
+        return x * 3
+    assert lib.call1(cb1) == 500*999*2
+    assert lib.call2(cb2) == -500*999*3
+    py.test.raises(TypeError, lib.call1, cb2)
+    py.test.raises(TypeError, lib.call2, cb1)
+
 def test_win32_calling_convention_1():
-    if sys.platform != 'win32':
-        py.test.skip("Windows only")
     ffi = FFI()
     ffi.cdef("""
         int __cdecl   call1(int(__cdecl   *cb)(int));
@@ -2279,8 +2310,6 @@ def test_win32_calling_convention_1():
     assert lib.call2(lib.cb2) == -500*999*3
 
 def test_win32_calling_convention_2():
-    if sys.platform != 'win32':
-        py.test.skip("Windows only")
     # any mistake in the declaration of plain function (including the
     # precise argument types and, here, the calling convention) are
     # automatically corrected.  But this does not apply to the 'cb'
@@ -2314,8 +2343,6 @@ def test_win32_calling_convention_2():
     assert lib.call2(lib.cb2) == -500*999*3
 
 def test_win32_calling_convention_3():
-    if sys.platform != 'win32':
-        py.test.skip("Windows only")
     ffi = FFI()
     ffi.cdef("""
         struct point { int x, y; };
