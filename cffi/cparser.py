@@ -464,8 +464,9 @@ class Parser(object):
         # to detect __stdcall functions: we textually replace "__stdcall"
         # with "volatile volatile const" above.
         abi = None
-        if typenode.type.quals[-3:] == ['volatile', 'volatile', 'const']:
-            abi = '__stdcall'
+        if hasattr(typenode.type, 'quals'): # else, probable syntax error anyway
+            if typenode.type.quals[-3:] == ['volatile', 'volatile', 'const']:
+                abi = '__stdcall'
         return model.RawFunctionType(tuple(args), result, ellipsis, abi)
 
     def _as_func_arg(self, type, quals):
