@@ -2246,21 +2246,23 @@ def test_win32_calling_convention_0():
     ffi = FFI()
     ffi.cdef("""
         int call1(int(__cdecl   *cb)(int));
-        int call2(int(__stdcall *cb)(int));
+        int (*const call2)(int(__stdcall *cb)(int));
     """)
     lib = ffi.verify(r"""
-        #ifndef WINAPI
-        #  define __stdcall
+        #ifndef MS_WIN32
+        #  define __stdcall FOOBARBAZZZZZ
         #endif
         int call1(int(*cb)(int)) {
             int i, result = 0;
+            printf("call1: cb = %p\n", cb);
             for (i = 0; i < 1000; i++)
                 result += cb(i);
             printf("result = %d\n", result);
             return result;
         }
-        int __stdcall call2(int(__stdcall *cb)(int)) {
+        int call2(int(__stdcall *cb)(int)) {
             int i, result = 0;
+            printf("call2: cb = %p\n", cb);
             for (i = 0; i < 1000; i++)
                 result += cb(-i);
             printf("result = %d\n", result);
@@ -2273,14 +2275,24 @@ def test_win32_calling_convention_0():
     @ffi.callback("int __stdcall(int)")
     def cb2(x):
         return x * 3
-    assert lib.call1(cb1) == 500*999*2
-    assert lib.call2(cb2) == -500*999*3
+    print 'cb1 =', cb1
+    res = lib.call1(cb1)
+    assert res == 500*999*2
+    print 'cb2 =', cb2
+    print ffi.typeof(lib.call2)
+    print 'call2 =', lib.call2
+    res = lib.call2(cb2)
+    print '...'
+    assert res == -500*999*3
+    print 'done'
     if sys.platform == 'win32':
         assert '__stdcall' in str(ffi.typeof(cb2))
+        assert '__stdcall' not in str(ffi.typeof(cb1))
         py.test.raises(TypeError, lib.call1, cb2)
         py.test.raises(TypeError, lib.call2, cb1)
     else:
         assert '__stdcall' not in str(ffi.typeof(cb2))
+        assert ffi.typeof(cb2) is ffi.typeof(cb1)
 
 def test_win32_calling_convention_1():
     ffi = FFI()
@@ -2291,7 +2303,7 @@ def test_win32_calling_convention_1():
         int (__stdcall *const cb2)(int);
     """)
     lib = ffi.verify(r"""
-        #ifndef WINAPI
+        #ifndef MS_WIN32
         #  define __cdecl
         #  define __stdcall
         #endif
@@ -2333,7 +2345,7 @@ def test_win32_calling_convention_2():
         int (__stdcall *const cb2)(int);
     """)
     lib = ffi.verify(r"""
-        #ifndef WINAPI
+        #ifndef MS_WIN32
         #  define __cdecl
         #  define __stdcall
         #endif
@@ -2367,7 +2379,7 @@ def test_win32_calling_convention_3():
         struct point call2(int(__stdcall *cb)(struct point));
     """)
     lib = ffi.verify(r"""
-        #ifndef WINAPI
+        #ifndef MS_WIN32
         #  define __cdecl
         #  define __stdcall
         #endif
