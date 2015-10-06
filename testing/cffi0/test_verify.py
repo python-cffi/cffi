@@ -2249,7 +2249,10 @@ def test_win32_calling_convention_0():
         int call2(int(__stdcall *cb)(int));
     """)
     lib = ffi.verify(r"""
-        int __cdecl call1(int(__cdecl *cb)(int)) {
+        #ifndef WINAPI
+        #  define __stdcall
+        #endif
+        int call1(int(*cb)(int)) {
             int i, result = 0;
             for (i = 0; i < 1000; i++)
                 result += cb(i);
@@ -2272,8 +2275,12 @@ def test_win32_calling_convention_0():
         return x * 3
     assert lib.call1(cb1) == 500*999*2
     assert lib.call2(cb2) == -500*999*3
-    py.test.raises(TypeError, lib.call1, cb2)
-    py.test.raises(TypeError, lib.call2, cb1)
+    if sys.platform == 'win32':
+        assert '__stdcall' in str(ffi.typeof(cb2))
+        py.test.raises(TypeError, lib.call1, cb2)
+        py.test.raises(TypeError, lib.call2, cb1)
+    else:
+        assert '__stdcall' not in str(ffi.typeof(cb2))
 
 def test_win32_calling_convention_1():
     ffi = FFI()
@@ -2284,6 +2291,10 @@ def test_win32_calling_convention_1():
         int (__stdcall *const cb2)(int);
     """)
     lib = ffi.verify(r"""
+        #ifndef WINAPI
+        #  define __cdecl
+        #  define __stdcall
+        #endif
         int __cdecl   cb1(int x) { return x * 2; }
         int __stdcall cb2(int x) { return x * 3; }
 
@@ -2322,6 +2333,10 @@ def test_win32_calling_convention_2():
         int (__stdcall *const cb2)(int);
     """)
     lib = ffi.verify(r"""
+        #ifndef WINAPI
+        #  define __cdecl
+        #  define __stdcall
+        #endif
         int __cdecl call1(int(__cdecl *cb)(int)) {
             int i, result = 0;
             for (i = 0; i < 1000; i++)
@@ -2337,8 +2352,6 @@ def test_win32_calling_convention_2():
         int __cdecl   cb1(int x) { return x * 2; }
         int __stdcall cb2(int x) { return x * 3; }
     """)
-    py.test.raises(TypeError, lib.call1, lib.cb2)
-    py.test.raises(TypeError, lib.call2, lib.cb1)
     assert lib.call1(lib.cb1) == 500*999*2
     assert lib.call2(lib.cb2) == -500*999*3
 
@@ -2354,6 +2367,10 @@ def test_win32_calling_convention_3():
         struct point call2(int(__stdcall *cb)(struct point));
     """)
     lib = ffi.verify(r"""
+        #ifndef WINAPI
+        #  define __cdecl
+        #  define __stdcall
+        #endif
         struct point { int x, y; };
         int           cb1(struct point pt) { return pt.x + 10 * pt.y; }
         int __stdcall cb2(struct point pt) { return pt.x + 100 * pt.y; }
@@ -2382,8 +2399,9 @@ def test_win32_calling_convention_3():
             return result;
         }
     """)
-    py.test.raises(TypeError, lib.call1, lib.cb2)
-    py.test.raises(TypeError, lib.call2, lib.cb1)
+    if sys.platform == 'win32':
+        py.test.raises(TypeError, lib.call1, lib.cb2)
+        py.test.raises(TypeError, lib.call2, lib.cb1)
     pt = lib.call1(lib.cb1)
     assert (pt.x, pt.y) == (-9*500*999, 9*500*999)
     pt = lib.call2(lib.cb2)
