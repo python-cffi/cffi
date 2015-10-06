@@ -6381,11 +6381,7 @@ init_cffi_backend(void)
 #if defined(MS_WIN32) && !defined(_WIN64)
         PyModule_AddIntConstant(m, "FFI_STDCALL", FFI_STDCALL) < 0 ||
 #endif
-#ifdef FFI_CDECL
-        PyModule_AddIntConstant(m, "FFI_CDECL", FFI_CDECL) < 0 ||   /* win32 */
-#else
         PyModule_AddIntConstant(m, "FFI_CDECL", FFI_DEFAULT_ABI) < 0 ||
-#endif
 
 #ifdef MS_WIN32
 #  ifdef _WIN64
