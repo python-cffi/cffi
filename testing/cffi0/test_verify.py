@@ -2246,9 +2246,16 @@ def test_win32_calling_convention_1():
     if sys.platform != 'win32':
         py.test.skip("Windows only")
     ffi = FFI()
-    ffi.cdef("int call1(int(*cb)(int));", calling_conv="cdecl")
-    ffi.cdef("int call2(int(*cb)(int));", calling_conv="stdcall")
+    ffi.cdef("""
+        int __cdecl   call1(int(__cdecl   *cb)(int));
+        int __stdcall call2(int(__stdcall *cb)(int));
+        int (__cdecl   *const cb1)(int);
+        int (__stdcall *const cb2)(int);
+    """)
     lib = ffi.verify(r"""
+        int __cdecl   cb1(int x) { return x * 2; }
+        int __stdcall cb2(int x) { return x * 3; }
+
         int __cdecl call1(int(__cdecl *cb)(int)) {
             printf("here1\n");
             printf("cb = %p, cb1 = %p\n", cb, (void *)cb1);
@@ -2268,13 +2275,8 @@ def test_win32_calling_convention_1():
             return result;
         }
     """)
-    assert lib.call1(ffi.addressof(lib, 'cb1')) == 500*999*2
-    ...
-    print '<<< cb2 =', ffi.addressof(lib, 'cb2')
-    ptr_call2 = ffi.addressof(lib, 'call2')
-    assert lib.call2(ffi.addressof(lib, 'cb2')) == -500*999*3
-    assert ptr_call2(ffi.addressof(lib, 'cb2')) == -500*999*3
-    print '<<< done'
+    assert lib.call1(lib.cb1) == 500*999*2
+    assert lib.call2(lib.cb2) == -500*999*3
 
 def test_win32_calling_convention_2():
     if sys.platform != 'win32':
@@ -2284,16 +2286,16 @@ def test_win32_calling_convention_2():
     # automatically corrected.  But this does not apply to the 'cb'
     # function pointer argument.
     ffi = FFI()
-    ffi.cdef("int call1(int(*cb)(int)); int cb1(int);", calling_conv="cdecl")
-    ffi.cdef("int call2(int(*cb)(int)); int cb2(int);", calling_conv="stdcall")
+    ffi.cdef("int __stdcall call1(int(*cb)(int)); int cb1(int);")
+    ffi.cdef("int call2(int(__stdcall *cb)(int)); int __stdcall cb2(int);")
     lib = verify(ffi, 'test_win32_calling_convention_2', """
-        int __stdcall call1(int(__cdecl *cb)(int)) {
+        int __cdecl call1(int(__cdecl *cb)(int)) {
             int i, result = 0;
             for (i = 0; i < 1000; i++)
                 result += cb(i);
             return result;
         }
-        int __cdecl call2(int(__stdcall *cb)(int)) {
+        int __stdcall call2(int(__stdcall *cb)(int)) {
             int i, result = 0;
             for (i = 0; i < 1000; i++)
                 result += cb(-i);
@@ -2318,7 +2320,7 @@ def test_win32_calling_convention_3():
         py.test.skip("Windows only")
     ffi = FFI()
     ffi.cdef("struct point { int x, y; };")
-    ffi.cdef("struct point call1(int(*cb)(struct point)); "
+    ffi.cdef("struct point __stdcall call1(int(*__cdecl cb)(struct point)); "
              "int cb1(struct point);", calling_conv="cdecl")
     ffi.cdef("struct point call2(int(*cb)(struct point)); "
              "int cb2(struct point);", calling_conv="stdcall")

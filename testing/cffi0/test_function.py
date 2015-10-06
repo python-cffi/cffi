@@ -444,24 +444,24 @@ class TestFunction(object):
         #
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
-            BOOL QueryPerformanceFrequency(LONGLONG *lpFrequency);
-        """, calling_conv="cdecl")
+            BOOL __cdecl QueryPerformanceFrequency(LONGLONG *lpFrequency);
+        """)
         m = ffi.dlopen("Kernel32.dll")
         tpc = ffi.typeof(m.QueryPerformanceFrequency)
         assert tpc is tp
         #
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
-            BOOL QueryPerformanceFrequency(LONGLONG *lpFrequency);
-        """, calling_conv="stdcall")
+            BOOL WINAPI QueryPerformanceFrequency(LONGLONG *lpFrequency);
+        """)
         m = ffi.dlopen("Kernel32.dll")
         tps = ffi.typeof(m.QueryPerformanceFrequency)
         assert tps is not tpc
         assert str(tps) == "<ctype 'int(__stdcall *)(long long *)'>"
         #
         ffi = FFI(backend=self.Backend())
-        ffi.cdef("typedef int (*fnc_t)(int);", calling_conv="cdecl")
-        ffi.cdef("typedef int (*fns_t)(int);", calling_conv="stdcall")
+        ffi.cdef("typedef int (__cdecl *fnc_t)(int);")
+        ffi.cdef("typedef int (__stdcall *fns_t)(int);")
         tpc = ffi.typeof("fnc_t")
         tps = ffi.typeof("fns_t")
         assert str(tpc) == "<ctype 'int(*)(int)'>"
@@ -478,10 +478,8 @@ class TestFunction(object):
         if sys.platform == 'win32':
             py.test.skip("not-Windows-only test")
         ffi = FFI(backend=self.Backend())
-        ffi.cdef("""
-            int QueryPerformanceFrequency(long long *lpFrequency);
-        """, calling_conv="stdcall")
-        m = ffi.dlopen(None)
-        e = py.test.raises(CDefError, getattr, m, 'QueryPerformanceFrequency')
-        assert str(e.value) == (
-            "<int(__stdcall *)(long long *)>: '__stdcall' only for Windows")
+        ffi.cdef("double __stdcall sin(double x);")     # stdcall ignored
+        m = ffi.dlopen(lib_m)
+        assert "double(*)(double)" in str(ffi.typeof(m.sin))
+        x = m.sin(1.23)
+        assert x == math.sin(1.23)
