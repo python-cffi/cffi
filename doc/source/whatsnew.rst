@@ -19,6 +19,8 @@ v1.3.0
   It also fixes corner cases like ``typedef const int T; T a;``
   which would previously not consider ``a`` as a constant.
 
+* XXX __stdcall
+
 
 v1.2.1
 ======
