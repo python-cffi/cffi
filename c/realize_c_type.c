@@ -566,11 +566,13 @@ realize_c_type_or_func(builder_c_t *builder,
         case 0:
             abi = FFI_DEFAULT_ABI;
             break;
-#if defined(MS_WIN32) && !defined(_WIN64)
         case 2:
+#if defined(MS_WIN32) && !defined(_WIN64)
             abi = FFI_STDCALL;
-            break;
+#else
+            abi = FFI_DEFAULT_ABI;
 #endif
+            break;
         default:
             PyErr_Format(FFIError, "abi number %d not supported", abi);
             Py_DECREF(y);
