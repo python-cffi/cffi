@@ -1293,18 +1293,18 @@ def test_win32_calling_convention_0():
         #endif
         int call1(int(*cb)(int)) {
             int i, result = 0;
-            printf("call1: cb = %p\n", cb);
+            //printf("call1: cb = %p\n", cb);
             for (i = 0; i < 1000; i++)
                 result += cb(i);
-            printf("result = %d\n", result);
+            //printf("result = %d\n", result);
             return result;
         }
         int call2(int(__stdcall *cb)(int)) {
             int i, result = 0;
-            printf("call2: cb = %p\n", cb);
+            //printf("call2: cb = %p\n", cb);
             for (i = 0; i < 1000; i++)
                 result += cb(-i);
-            printf("result = %d\n", result);
+            //printf("result = %d\n", result);
             return result;
         }
     """)
@@ -1347,20 +1347,20 @@ def test_win32_calling_convention_1():
 
         int __cdecl call1(int(__cdecl *cb)(int)) {
             int i, result = 0;
-            printf("here1\n");
-            printf("cb = %p, cb1 = %p\n", cb, (void *)cb1);
+            //printf("here1\n");
+            //printf("cb = %p, cb1 = %p\n", cb, (void *)cb1);
             for (i = 0; i < 1000; i++)
                 result += cb(i);
-            printf("result = %d\n", result);
+            //printf("result = %d\n", result);
             return result;
         }
         int __stdcall call2(int(__stdcall *cb)(int)) {
             int i, result = 0;
-            printf("here1\n");
-            printf("cb = %p, cb2 = %p\n", cb, (void *)cb2);
+            //printf("here1\n");
+            //printf("cb = %p, cb2 = %p\n", cb, (void *)cb2);
             for (i = 0; i < 1000; i++)
                 result += cb(-i);
-            printf("result = %d\n", result);
+            //printf("result = %d\n", result);
             return result;
         }
     """)
@@ -1440,8 +1440,8 @@ def test_win32_calling_convention_3():
         struct point __stdcall call1(int(__cdecl *cb)(struct point)) {
             int i;
             struct point result = { 0, 0 };
-            printf("here1\n");
-            printf("cb = %p, cb1 = %p\n", cb, (void *)cb1);
+            //printf("here1\n");
+            //printf("cb = %p, cb1 = %p\n", cb, (void *)cb1);
             for (i = 0; i < 1000; i++) {
                 struct point p = { i, -i };
                 int r = cb(p);
