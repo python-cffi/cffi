@@ -3644,13 +3644,13 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
            funcptr    [ctresult, ellipsis+abi, num_args, ctargs...]
     */
     PyObject *key, *y;
-    const void **pkey;
+    void *pkey;
 
     key = PyBytes_FromStringAndSize(NULL, keylength * sizeof(void *));
     if (key == NULL)
         goto error;
 
-    pkey = (const void **)PyBytes_AS_STRING(key);
+    pkey = PyBytes_AS_STRING(key);
     memcpy(pkey, unique_key, keylength * sizeof(void *));
 
     y = PyDict_GetItem(unique_cache, key);
@@ -4661,7 +4661,7 @@ static void fb_cat_name(struct funcbuilder_s *fb, char *piece, int piecelen)
 }
 
 static int fb_build_name(struct funcbuilder_s *fb, PyObject *fargs,
-                         CTypeDescrObject *fresult, int ellipsis)
+                         CTypeDescrObject *fresult, int ellipsis, int fabi)
 {
     Py_ssize_t i, nargs = PyTuple_GET_SIZE(fargs);
     fb->nargs = nargs;
@@ -4672,9 +4672,17 @@ static int fb_build_name(struct funcbuilder_s *fb, PyObject *fargs,
          RESULT_TYPE_HEAD (*)(ARG_1_TYPE, ARG_2_TYPE, etc) RESULT_TYPE_TAIL
     */
     fb_cat_name(fb, fresult->ct_name, fresult->ct_name_position);
-    fb_cat_name(fb, "(*)(", 4);
+    fb_cat_name(fb, "(", 1);
+    i = 2;
+#if defined(MS_WIN32) && !defined(_WIN64)
+    if (fabi == FFI_STDCALL) {
+        fb_cat_name(fb, "__stdcall ", 10);
+        i += 10;
+    }
+#endif
+    fb_cat_name(fb, "*)(", 3);
     if (fb->fct) {
-        i = fresult->ct_name_position + 2;  /* between '(*' and ')(' */
+        i = fresult->ct_name_position + i;  /* between '(*' and ')(' */
         fb->fct->ct_name_position = i;
     }
 
@@ -4710,7 +4718,7 @@ static int fb_build_name(struct funcbuilder_s *fb, PyObject *fargs,
 static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
                                           PyObject *fargs,
                                           CTypeDescrObject *fresult,
-                                          int ellipsis)
+                                          int ellipsis, int fabi)
 {
     CTypeDescrObject *fct;
 
@@ -4719,7 +4727,7 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
     fb->fct = NULL;
 
     /* compute the total size needed for the name */
-    if (fb_build_name(fb, fargs, fresult, ellipsis) < 0)
+    if (fb_build_name(fb, fargs, fresult, ellipsis, fabi) < 0)
         return NULL;
 
     /* allocate the function type */
@@ -4730,7 +4738,7 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
 
     /* call again fb_build_name() to really build the ct_name */
     fb->bufferp = fct->ct_name;
-    if (fb_build_name(fb, fargs, fresult, ellipsis) < 0)
+    if (fb_build_name(fb, fargs, fresult, ellipsis, fabi) < 0)
         goto error;
     assert(fb->bufferp == fct->ct_name + fb->nb_bytes);
 
@@ -4807,7 +4815,7 @@ static PyObject *new_function_type(PyObject *fargs,   /* tuple */
         return NULL;
     }
 
-    fct = fb_prepare_ctype(&funcbuilder, fargs, fresult, ellipsis);
+    fct = fb_prepare_ctype(&funcbuilder, fargs, fresult, ellipsis, fabi);
     if (fct == NULL)
         return NULL;
 
@@ -6373,11 +6381,7 @@ init_cffi_backend(void)
 #if defined(MS_WIN32) && !defined(_WIN64)
         PyModule_AddIntConstant(m, "FFI_STDCALL", FFI_STDCALL) < 0 ||
 #endif
-#ifdef FFI_CDECL
-        PyModule_AddIntConstant(m, "FFI_CDECL", FFI_CDECL) < 0 ||   /* win32 */
-#else
         PyModule_AddIntConstant(m, "FFI_CDECL", FFI_DEFAULT_ABI) < 0 ||
-#endif
 
 #ifdef MS_WIN32
 #  ifdef _WIN64
