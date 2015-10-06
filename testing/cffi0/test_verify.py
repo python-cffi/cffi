@@ -2250,7 +2250,7 @@ def test_win32_calling_convention_0():
     """)
     lib = ffi.verify(r"""
         #ifndef _MSC_VER
-        #  define __stdcall FOOBARBAZZZZZ
+        #  define __stdcall  /* nothing */
         #endif
         int call1(int(*cb)(int)) {
             int i, result = 0;
