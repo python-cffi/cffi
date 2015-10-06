@@ -91,7 +91,7 @@ class FFI(object):
             self.NULL = self.cast(self.BVoidP, 0)
             self.CData, self.CType = backend._get_types()
 
-    def cdef(self, csource, override=False, packed=False, calling_conv=None):
+    def cdef(self, csource, override=False, packed=False):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
         then be accessed via either 'ffi.dlopen()' or 'ffi.verify()'.
@@ -104,8 +104,7 @@ class FFI(object):
                 raise TypeError("cdef() argument must be a string")
             csource = csource.encode('ascii')
         with self._lock:
-            self._parser.parse(csource, override=override, packed=packed,
-                               calling_conv=calling_conv)
+            self._parser.parse(csource, override=override, packed=packed)
             self._cdefsources.append(csource)
             if override:
                 for cache in self._function_caches:

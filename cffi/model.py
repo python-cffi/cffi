@@ -236,22 +236,13 @@ class FunctionPtrType(BaseFunctionType):
         args = []
         for tp in self.args:
             args.append(tp.get_cached_btype(ffi, finishlist))
-        if self.abi is None:
-            abi_args = ()
-        elif self.abi == "__stdcall":
-            try:
-                abi_args = (ffi._backend.FFI_STDCALL,)
-            except AttributeError:
-                if sys.platform == "win32":
-                    raise NotImplementedError("%r: stdcall" % (self,))
-                else:
-                    from . import api
-                    raise api.CDefError("%r: '__stdcall': only on Windows"
-                                        % (self,))
-            if self.ellipsis:   # win32: __stdcall is ignored when
-                abi_args = ()   #        applied to variadic functions
-        else:
-            raise NotImplementedError("abi=%r" % (self.abi,))
+        abi_args = ()
+        if self.abi == "__stdcall":
+            if not self.ellipsis:    # __stdcall ignored for variadic funcs
+                try:
+                    abi_args = (ffi._backend.FFI_STDCALL,)
+                except AttributeError:
+                    pass
         return global_cache(self, ffi, 'new_function_type',
                             tuple(args), result, self.ellipsis, *abi_args)
 

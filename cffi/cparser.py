@@ -26,6 +26,9 @@ _r_partial_array = re.compile(r"\[\s*\.\.\.\s*\]")
 _r_words = re.compile(r"\w+|\S")
 _parser_cache = None
 _r_int_literal = re.compile(r"-?0?x?[0-9a-f]+[lu]*$", re.IGNORECASE)
+_r_stdcall1 = re.compile(r"\b(__stdcall|WINAPI)\b")
+_r_stdcall2 = re.compile(r"[(]\s*(__stdcall|WINAPI)\b")
+_r_cdecl = re.compile(r"\b__cdecl\b")
 
 def _get_parser():
     global _parser_cache
@@ -44,6 +47,14 @@ def _preprocess(csource):
         macrovalue = macrovalue.replace('\\\n', '').strip()
         macros[macroname] = macrovalue
     csource = _r_define.sub('', csource)
+    # BIG HACK: replace WINAPI or __stdcall with "volatile const".
+    # It doesn't make sense for the return type of a function to be
+    # "volatile volatile const", so we abuse it to detect __stdcall...
+    # Hack number 2 is that "int(volatile *fptr)();" is not valid C
+    # syntax, so we place the "volatile" before the opening parenthesis.
+    csource = _r_stdcall2.sub(' volatile volatile const(', csource)
+    csource = _r_stdcall1.sub(' volatile volatile const ', csource)
+    csource = _r_cdecl.sub(' ', csource)
     # Replace "[...]" with "[__dotdotdotarray__]"
     csource = _r_partial_array.sub('[__dotdotdotarray__]', csource)
     # Replace "...}" with "__dotdotdotNUM__}".  This construction should
@@ -103,7 +114,6 @@ class Parser(object):
         self._structnode2type = weakref.WeakKeyDictionary()
         self._override = False
         self._packed = False
-        self._abi = None
         self._int_constants = {}
         self._recomplete = []
         self._uses_new_feature = None
@@ -163,26 +173,16 @@ class Parser(object):
             msg = 'parse error\n%s' % (msg,)
         raise api.CDefError(msg)
 
-    def parse(self, csource, override=False, packed=False, calling_conv=None):
-        if calling_conv is None or calling_conv == "cdecl":
-            abi = None
-        elif calling_conv == "stdcall":
-            abi = "__stdcall"
-        else:
-            raise api.CDefError("calling_conv must be 'cdecl' or 'stdcall';"
-                                " got %r" % (calling_conv,))
+    def parse(self, csource, override=False, packed=False):
         prev_override = self._override
         prev_packed = self._packed
-        prev_abi = self._abi
         try:
             self._override = override
             self._packed = packed
-            self._abi = abi
             self._internal_parse(csource)
         finally:
             self._override = prev_override
             self._packed = prev_packed
-            self._abi = prev_abi
 
     def _internal_parse(self, csource):
         ast, macros, csource = self._parse(csource)
@@ -460,7 +460,13 @@ class Parser(object):
         if not ellipsis and args == [model.void_type]:
             args = []
         result, quals = self._get_type_and_quals(typenode.type)
-        return model.RawFunctionType(tuple(args), result, ellipsis, self._abi)
+        # the 'quals' on the result type are ignored.  HACK: we absure them
+        # to detect __stdcall functions: we textually replace "__stdcall"
+        # with "volatile volatile const" above.
+        abi = None
+        if typenode.type.quals[-3:] == ['volatile', 'volatile', 'const']:
+            abi = '__stdcall'
+        return model.RawFunctionType(tuple(args), result, ellipsis, abi)
 
     def _as_func_arg(self, type, quals):
         if isinstance(type, model.ArrayType):
