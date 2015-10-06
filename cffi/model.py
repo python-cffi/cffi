@@ -243,12 +243,13 @@ class FunctionPtrType(BaseFunctionType):
                 abi_args = (ffi._backend.FFI_STDCALL,)
             except AttributeError:
                 if sys.platform == "win32":
-                    raise NotImplementedError("%r: stdcall with ctypes backend"
-                                              % (self,))
+                    raise NotImplementedError("%r: stdcall" % (self,))
                 else:
                     from . import api
-                    raise api.CDefError("%r: '__stdcall' only for Windows"
+                    raise api.CDefError("%r: '__stdcall': only on Windows"
                                         % (self,))
+            if self.ellipsis:   # win32: __stdcall is ignored when
+                abi_args = ()   #        applied to variadic functions
         else:
             raise NotImplementedError("abi=%r" % (self.abi,))
         return global_cache(self, ffi, 'new_function_type',

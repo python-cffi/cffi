@@ -544,7 +544,7 @@ realize_c_type_or_func(builder_c_t *builder,
     case _CFFI_OP_FUNCTION:
     {
         PyObject *fargs;
-        int i, base_index, num_args, ellipsis;
+        int i, base_index, num_args, ellipsis, abi;
 
         y = (PyObject *)realize_c_type(builder, opcodes, _CFFI_GETARG(op));
         if (y == NULL)
@@ -560,7 +560,22 @@ realize_c_type_or_func(builder_c_t *builder,
                    _CFFI_OP_FUNCTION_END)
             num_args++;
 
-        ellipsis = _CFFI_GETARG(opcodes[base_index + num_args]) & 1;
+        ellipsis = _CFFI_GETARG(opcodes[base_index + num_args]) & 0x01;
+        abi      = _CFFI_GETARG(opcodes[base_index + num_args]) & 0xFE;
+        switch (abi) {
+        case 0:
+            abi = FFI_DEFAULT_ABI;
+            break;
+#if defined(MS_WIN32) && !defined(_WIN64)
+        case 2:
+            abi = FFI_STDCALL;
+            break;
+#endif
+        default:
+            PyErr_Format(FFIError, "abi number %d not supported", abi);
+            Py_DECREF(y);
+            return NULL;
+        }
 
         fargs = PyTuple_New(num_args);
         if (fargs == NULL) {
@@ -578,8 +593,7 @@ realize_c_type_or_func(builder_c_t *builder,
             PyTuple_SET_ITEM(fargs, i, z);
         }
 
-        z = new_function_type(fargs, (CTypeDescrObject *)y, ellipsis,
-                              FFI_DEFAULT_ABI);
+        z = new_function_type(fargs, (CTypeDescrObject *)y, ellipsis, abi);
         Py_DECREF(fargs);
         Py_DECREF(y);
         if (z == NULL)
