@@ -2249,7 +2249,7 @@ def test_win32_calling_convention_0():
         int (*const call2)(int(__stdcall *cb)(int));
     """)
     lib = ffi.verify(r"""
-        #ifndef MS_WIN32
+        #ifndef _MSC_VER
         #  define __stdcall FOOBARBAZZZZZ
         #endif
         int call1(int(*cb)(int)) {
@@ -2303,7 +2303,7 @@ def test_win32_calling_convention_1():
         int (__stdcall *const cb2)(int);
     """)
     lib = ffi.verify(r"""
-        #ifndef MS_WIN32
+        #ifndef _MSC_VER
         #  define __cdecl
         #  define __stdcall
         #endif
@@ -2345,7 +2345,7 @@ def test_win32_calling_convention_2():
         int (__stdcall *const cb2)(int);
     """)
     lib = ffi.verify(r"""
-        #ifndef MS_WIN32
+        #ifndef _MSC_VER
         #  define __cdecl
         #  define __stdcall
         #endif
@@ -2379,7 +2379,7 @@ def test_win32_calling_convention_3():
         struct point call2(int(__stdcall *cb)(struct point));
     """)
     lib = ffi.verify(r"""
-        #ifndef MS_WIN32
+        #ifndef _MSC_VER
         #  define __cdecl
         #  define __stdcall
         #endif
