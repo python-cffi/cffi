@@ -494,11 +494,6 @@ arguments are passed:
         return 0
     lib.python_callback = python_callback
 
-Windows: you can't yet specify the calling convention of callbacks.
-(For regular calls, the correct calling convention should be
-automatically inferred by the C backend.)  Use an indirection, like
-in the example just above.
-
 Be careful when writing the Python callback function: if it returns an
 object of the wrong type, or more generally raises an exception, then
 the exception cannot be propagated.  Instead, it is printed to stderr
@@ -545,6 +540,47 @@ the call).  If ``traceback`` is not None, then ``traceback.tb_frame``
 is the frame of the outermost function, i.e. directly the one invoked
 by the callback handler.  So you can get the value of ``argname`` in
 that frame by reading ``traceback.tb_frame.f_locals['argname']``.
+
+
+Windows: calling conventions
+----------------------------
+
+On Win32, functions can have two main calling conventions: either
+"cdecl" (the default), or "stdcall" (also known as "WINAPI").  There
+are also other, rare calling conventions; these are not supported.
+
+When you issue calls from Python to C, the implementation is such that
+it works with any of these two main calling conventions; you don't
+have to specify it.  However, if you manipulate variables of type
+"function pointer" or declare callbacks, then the calling convention
+must be correct.  This is done by writing ``__cdecl`` or ``__stdcall``
+in the type, like in C::
+
+    @ffi.callback("int __stdcall(int, int)")
+    def AddNumbers(x, y):
+        return x + y
+
+or::
+
+    ffi.cdef("""
+        struct foo_s {
+            int (__stdcall *MyFuncPtr)(int, int);
+        };
+    """)
+
+``__cdecl`` is supported but is always the default so it can be left
+out.  In the ``cdef()``, you can also use ``WINAPI`` as equivalent to
+``__stdcall``.  As mentioned above, it is not needed (but doesn't
+hurt) to say ``WINAPI`` or ``__stdcall`` when declaring a plain
+function in the ``cdef()``.
+
+These calling convention specifiers are accepted but ignored on any
+platform other than 32-bit Windows.
+
+*New in version 1.3:* the calling convention specifiers are not
+recognized in previous versions.  In API mode, you could work around
+it by using an indirection, like in the example in the section about
+Callbacks_.  There was no way to use stdcall callbacks in ABI mode.
 
 
 FFI Interface

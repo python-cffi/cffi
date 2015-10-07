@@ -19,7 +19,12 @@ v1.3.0
   It also fixes corner cases like ``typedef const int T; T a;``
   which would previously not consider ``a`` as a constant.
 
-* XXX __stdcall
+* Win32: support for ``__stdcall``.  For callbacks and function
+  pointers; regular C functions don't need to have their `calling
+  convention`_ declared.
+
+
+.. _`calling convention`: using.html#windows-calling-conventions
 
 
 v1.2.1
