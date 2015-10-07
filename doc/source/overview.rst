@@ -308,12 +308,15 @@ global one (on some platforms), plus one namespace per library.  So
 ``dlopen()`` returns a ``<FFILibrary>`` object, and this object has
 got as attributes all function, constant and variable symbols that are
 coming from this library and that have been declared in the
-``cdef()``.
+``cdef()``.  If you have several interdependent libraries to load,
+you would call ``cdef()`` only once but ``dlopen()`` several times.
 
-By opposition, the API examples work like a C program does: the C
+By opposition, the API mode works more closely like a C program: the C
 linker (static or dynamic) is responsible for finding any symbol used.
 You name the libraries in the ``libraries`` keyword argument to
-``set_source()``.  Other common arguments include ``library_dirs`` and
+``set_source()``, but never need to say which symbol comes
+from which library.
+Other common arguments to ``set_source()`` include ``library_dirs`` and
 ``include_dirs``; all these arguments are passed to the standard
 distutils/setuptools.
 
@@ -335,35 +338,39 @@ with problems, particularly on non-Windows platforms.  You are not
 meant to access fields by guessing where they are in the structures.
 *The C libraries are typically meant to be used with a C compiler.*
 
-The second example shows how to do that: instead of doing a ``dlopen()``,
-we use ``set_source(..., "C header...")``.  When using this approach
-we have the advantage that we can use "``...``" at various places in
+The "real example" above shows how to do that: this example uses
+``set_source(..., "C source...")`` and never ``dlopen()``.
+When using this approach,
+we have the advantage that we can use literally "``...``" at various places in
 the ``cdef()``, and the missing information will be completed with the
 help of the C compiler.  Actually, a single C source file is produced,
-which contains first the ``C header`` part unmodified, followed by
+which contains first the "C source" part unmodified, followed by some
 "magic" C code and declarations derived from the ``cdef()``.  When
 this C file is compiled, the resulting C extension module will contain
 all the information we need---or the C compiler will give warnings or
-errors, as usual e.g. if you misdeclare some function's signature.
+errors, as usual e.g. if we misdeclare some function's signature.
 
-Note that the ``C header`` part can contain arbitrary C code.  You can
-use it to declare some more helper functions written in C.  To export
+Note that the "C source" part from ``set_source()`` can contain
+arbitrary C code.  You can use this to declare some
+more helper functions written in C.  To export
 these helpers to Python, put their signature in the ``cdef()`` too.
-(You can use the ``static`` C keyword, as in ``static int
-myhelper(int x) { real_code_here; }``, because these helpers are only
+(You can use the ``static`` C keyword in the "C source" part,
+as in ``static int myhelper(int x) { return x * 42; }``,
+because these helpers are only
 referenced from the "magic" C code that is generated afterwards in the
 same C file.)
 
 This can be used for example to wrap "crazy" macros into more standard
 C functions.  The extra layer of C can be useful for other reasons
 too, like calling functions that expect some complicated argument
-structures that you prefer to build in C rather than in Python.  On
+structures that you prefer to build in C rather than in Python.  (On
 the other hand, if all you need is to call "function-like" macros,
 then you can directly declare them in the ``cdef()`` as if they were
-functions.
+functions.)
 
 The generated piece of C code should be the same independently on the
-platform on which you run it, so in simple cases you can simply
+platform on which you run it (or the Python version),
+so in simple cases you can directly
 distribute the pre-generated C code and treat it as a regular C
 extension module.  The special Setuptools lines in the `example
 above`__ are meant for the more complicated cases where we need to
