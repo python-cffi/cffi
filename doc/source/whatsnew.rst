@@ -23,6 +23,8 @@ v1.3.0
   pointers; regular C functions don't need to have their `calling
   convention`_ declared.
 
+* ffi.memmove XXX
+
 
 .. _`calling convention`: using.html#windows-calling-conventions
 
