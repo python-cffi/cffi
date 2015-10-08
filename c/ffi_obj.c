@@ -852,6 +852,24 @@ static PyObject *ffi_int_const(FFIObject *self, PyObject *args, PyObject *kwds)
     return x;
 }
 
+PyDoc_STRVAR(ffi_memmove_doc,
+"ffi.memmove(dest, src, n) copies n bytes of memory from src to dest.\n"
+"\n"
+"Like the C function memmove(), the memory areas may overlap;\n"
+"apart from that it behaves like the C function memcpy().\n"
+"\n"
+"'src' can be any cdata ptr or array, or any Python buffer object.\n"
+"'dest' can be any cdata ptr or array, or a writable Python buffer\n"
+"object.  The size to copy, 'n', is always measured in bytes.\n"
+"\n"
+"Unlike other methods, this one supports all Python buffer including\n"
+"byte strings and bytearrays---but it still does not support\n"
+"non-contiguous buffers.");
+
+#define ffi_memmove  b_memmove     /* ffi_memmove() => b_memmove()
+                                      from _cffi_backend.c */
+
+
 #define METH_VKW  (METH_VARARGS | METH_KEYWORDS)
 static PyMethodDef ffi_methods[] = {
  {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS, ffi_addressof_doc},
@@ -869,6 +887,7 @@ static PyMethodDef ffi_methods[] = {
  {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VKW,     ffi_getwinerror_doc},
 #endif
  {"integer_const",(PyCFunction)ffi_int_const,METH_VKW,     ffi_int_const_doc},
+ {"memmove",    (PyCFunction)ffi_memmove,    METH_VKW,     ffi_memmove_doc},
  {"new",        (PyCFunction)ffi_new,        METH_VKW,     ffi_new_doc},
 {"new_allocator",(PyCFunction)ffi_new_allocator,METH_VKW,ffi_new_allocator_doc},
  {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},

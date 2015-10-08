@@ -5651,7 +5651,8 @@ static PyObject *b_from_handle(PyObject *self, PyObject *arg)
     return x;
 }
 
-static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view)
+static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view,
+                                            int writable_only)
 {
 #if PY_MAJOR_VERSION < 3
     /* Some objects only support the buffer interface and CPython doesn't
@@ -5664,10 +5665,19 @@ static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view)
         /* we used to try all three in some vaguely sensible order,
            i.e. first the write.  But trying to call the write on a
            read-only buffer fails with TypeError.  So we use a less-
-           sensible order now.  See test_from_buffer_more_cases. */
-        readbufferproc proc = (readbufferproc)pb->bf_getreadbuffer;
-        if (!proc)     proc = (readbufferproc)pb->bf_getcharbuffer;
-        if (!proc)     proc = (readbufferproc)pb->bf_getwritebuffer;
+           sensible order now.  See test_from_buffer_more_cases.
+
+           If 'writable_only', we only try bf_getwritebuffer.
+        */
+        readbufferproc proc = NULL;
+        if (!writable_only) {
+            proc = (readbufferproc)pb->bf_getreadbuffer;
+            if (!proc)
+                proc = (readbufferproc)pb->bf_getcharbuffer;
+        }
+        if (!proc)
+            proc = (readbufferproc)pb->bf_getwritebuffer;
+
         if (proc && pb->bf_getsegcount) {
             if ((*pb->bf_getsegcount)(x, NULL) != 1) {
                 PyErr_SetString(PyExc_TypeError,
@@ -5684,7 +5694,8 @@ static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view)
     }
 #endif
 
-    if (PyObject_GetBuffer(x, view, PyBUF_SIMPLE) < 0)
+    if (PyObject_GetBuffer(x, view, writable_only ? PyBUF_WRITABLE
+                                                  : PyBUF_SIMPLE) < 0)
         return -1;
 
     if (!PyBuffer_IsContiguous(view, 'A')) {
@@ -5743,7 +5754,7 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x)
     }
 
     view = PyObject_Malloc(sizeof(Py_buffer));
-    if (_my_PyObject_GetContiguousBuffer(x, view) < 0)
+    if (_my_PyObject_GetContiguousBuffer(x, view, 0) < 0)
         goto error1;
 
     cd = (CDataObject *)PyObject_GC_New(CDataObject_owngc_frombuf,
@@ -5780,6 +5791,52 @@ static PyObject *b_from_buffer(PyObject *self, PyObject *args)
         return NULL;
     }
     return direct_from_buffer(ct, x);
+}
+
+static int _fetch_as_buffer(PyObject *x, Py_buffer *view, int writable_only)
+{
+    if (CData_Check(x)) {
+        CTypeDescrObject *ct = ((CDataObject *)x)->c_type;
+        if (!(ct->ct_flags & (CT_POINTER|CT_ARRAY))) {
+            PyErr_Format(PyExc_TypeError,
+                         "expected a pointer or array ctype, got '%s'",
+                         ct->ct_name);
+            return -1;
+        }
+        view->buf = ((CDataObject *)x)->c_data;
+        view->obj = NULL;
+        return 0;
+    }
+    else {
+        return _my_PyObject_GetContiguousBuffer(x, view, writable_only);
+    }
+}
+
+static PyObject *b_memmove(PyObject *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *dest_obj, *src_obj;
+    Py_buffer dest_view, src_view;
+    Py_ssize_t n;
+    static char *keywords[] = {"dest", "src", "n", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOn", keywords,
+                                     &dest_obj, &src_obj, &n))
+        return NULL;
+
+    if (_fetch_as_buffer(src_obj, &src_view, 0) < 0) {
+        return NULL;
+    }
+    if (_fetch_as_buffer(dest_obj, &dest_view, 1) < 0) {
+        PyBuffer_Release(&src_view);
+        return NULL;
+    }
+
+    memmove(dest_view.buf, src_view.buf, n);
+
+    PyBuffer_Release(&dest_view);
+    PyBuffer_Release(&src_view);
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 static PyObject *b__get_types(PyObject *self, PyObject *noarg)
@@ -6108,6 +6165,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"newp_handle", b_newp_handle, METH_VARARGS},
     {"from_handle", b_from_handle, METH_O},
     {"from_buffer", b_from_buffer, METH_VARARGS},
+    {"memmove", (PyCFunction)b_memmove, METH_VARARGS | METH_KEYWORDS},
     {"gcp", (PyCFunction)b_gcp, METH_VARARGS | METH_KEYWORDS},
 #ifdef MS_WIN32
     {"getwinerror", (PyCFunction)b_getwinerror, METH_VARARGS | METH_KEYWORDS},
