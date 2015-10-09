@@ -5822,6 +5822,10 @@ static PyObject *b_memmove(PyObject *self, PyObject *args, PyObject *kwds)
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOn", keywords,
                                      &dest_obj, &src_obj, &n))
         return NULL;
+    if (n < 0) {
+        PyErr_SetString(PyExc_ValueError, "negative size");
+        return NULL;
+    }
 
     if (_fetch_as_buffer(src_obj, &src_view, 0) < 0) {
         return NULL;

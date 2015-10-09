@@ -3450,7 +3450,6 @@ def test_memmove_buffer():
     assert b.tolist() == [-997, -996, 995]
 
 def test_memmove_readonly_readwrite():
-    ffi = FFI()
     SignedChar = new_primitive_type("signed char")
     SignedCharA = new_array_type(new_pointer_type(SignedChar), None)
     p = newp(SignedCharA, 5)
@@ -3462,6 +3461,12 @@ def test_memmove_readonly_readwrite():
     ba = bytearray(b"xxxxx")
     memmove(dest=ba, src=p, n=3)
     assert ba == bytearray(b"ABcxx")
+
+def test_memmove_sign_check():
+    SignedChar = new_primitive_type("signed char")
+    SignedCharA = new_array_type(new_pointer_type(SignedChar), None)
+    p = newp(SignedCharA, 5)
+    py.test.raises(ValueError, memmove, p, p + 1, -1)   # not segfault
 
 def test_dereference_null_ptr():
     BInt = new_primitive_type("int")
