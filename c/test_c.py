@@ -3461,6 +3461,8 @@ def test_memmove_readonly_readwrite():
     ba = bytearray(b"xxxxx")
     memmove(dest=ba, src=p, n=3)
     assert ba == bytearray(b"ABcxx")
+    memmove(ba, b"EFGH", 4)
+    assert ba == bytearray(b"EFGHx")
 
 def test_memmove_sign_check():
     SignedChar = new_primitive_type("signed char")
