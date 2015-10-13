@@ -137,9 +137,10 @@ Win32 works and is tested at least each official release.
 
 The recommended C compiler compatible with Python 2.7 is this one:
 http://www.microsoft.com/en-us/download/details.aspx?id=44266
-There is a known problem with distutils on Python 2.7.9, as 
+There is a known problem with distutils on Python 2.7, as 
 explained in https://bugs.python.org/issue23246, and the same 
-problem applies whenever you want to run compile() to build a dll.
+problem applies whenever you want to run compile() to build a dll with
+this specific compiler suite download. 
 ``import setuptools`` might help, but YMMV
 
 For Python 3.4 and beyond:
