@@ -25,7 +25,14 @@ v1.3.0
 
 * ffi.memmove XXX
 
+* Windows: CPython 2.7 distutils doesn't work with Microsoft's official
+  Visual Studio for Python, and I'm told this is `not a bug`__.  For
+  ffi.compile(), we `removed a workaround`__ that was inside cffi but
+  which had unwanted side-effects.  Try saying ``import setuptools``
+  first, which patches distutils...
 
+.. __: https://bugs.python.org/issue23246
+.. __: https://bitbucket.org/cffi/cffi/pull-requests/65/remove-_hack_at_distutils-which-imports/diff
 .. _`calling convention`: using.html#windows-calling-conventions
 
 
