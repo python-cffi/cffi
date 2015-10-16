@@ -2285,7 +2285,7 @@ def test_win32_calling_convention_0():
     #print '...'
     assert res == -500*999*3
     #print 'done'
-    if sys.platform == 'win32':
+    if sys.platform == 'win32' and sys.maxsize < 2**32:
         assert '__stdcall' in str(ffi.typeof(cb2))
         assert '__stdcall' not in str(ffi.typeof(cb1))
         py.test.raises(TypeError, lib.call1, cb2)
@@ -2411,7 +2411,7 @@ def test_win32_calling_convention_3():
             return result;
         }
     """)
-    if sys.platform == 'win32':
+    if sys.platform == 'win32' and sys.maxsize < 2**32:
         py.test.raises(TypeError, lib.call1, lib.cb2)
         py.test.raises(TypeError, lib.call2, lib.cb1)
     pt = lib.call1(lib.cb1)
