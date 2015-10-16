@@ -198,7 +198,7 @@ def test_macro_check_value():
     vals = ['42', '-42', '0x80000000', '-2147483648',
             '0', '9223372036854775809ULL',
             '-9223372036854775807LL']
-    if sys.maxsize <= 2**32:
+    if sys.maxint <= 2**32:
         vals.remove('-2147483648')
     ffi = FFI()
     cdef_lines = ['#define FOO_%d_%d %s' % (i, j, vals[i])
@@ -458,7 +458,7 @@ def test_verify_anonymous_enum_with_typedef():
     ffi.cdef("typedef enum { AA=%d } e1;" % sys.maxsize)
     lib = verify(ffi, 'test_verify_anonymous_enum_with_typedef2',
                  "typedef enum { AA=%d } e1;" % sys.maxsize)
-    assert lib.AA == sys.maxsize
+    assert lib.AA == int(ffi.cast("long", sys.maxsize))
     assert ffi.sizeof("e1") == ffi.sizeof("long")
 
 def test_unique_types():
@@ -1320,7 +1320,7 @@ def test_win32_calling_convention_0():
     res = lib.call2(cb2)
     assert res == -500*999*3
     assert res == ffi.addressof(lib, 'call2')(cb2)
-    if sys.platform == 'win32':
+    if sys.platform == 'win32' and not sys.maxsize > 2**32:
         assert '__stdcall' in str(ffi.typeof(cb2))
         assert '__stdcall' not in str(ffi.typeof(cb1))
         py.test.raises(TypeError, lib.call1, cb2)
@@ -1408,7 +1408,7 @@ def test_win32_calling_convention_2():
     """)
     ptr_call1 = ffi.addressof(lib, 'call1')
     ptr_call2 = ffi.addressof(lib, 'call2')
-    if sys.platform == 'win32':
+    if sys.platform == 'win32' and not sys.maxsize > 2**32:
         py.test.raises(TypeError, lib.call1, ffi.addressof(lib, 'cb2'))
         py.test.raises(TypeError, ptr_call1, ffi.addressof(lib, 'cb2'))
         py.test.raises(TypeError, lib.call2, ffi.addressof(lib, 'cb1'))
@@ -1464,7 +1464,7 @@ def test_win32_calling_convention_3():
     """)
     ptr_call1 = ffi.addressof(lib, 'call1')
     ptr_call2 = ffi.addressof(lib, 'call2')
-    if sys.platform == 'win32':
+    if sys.platform == 'win32' and not sys.maxsize > 2**32:
         py.test.raises(TypeError, lib.call1, ffi.addressof(lib, 'cb2'))
         py.test.raises(TypeError, ptr_call1, ffi.addressof(lib, 'cb2'))
         py.test.raises(TypeError, lib.call2, ffi.addressof(lib, 'cb1'))
