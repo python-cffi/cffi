@@ -21,7 +21,7 @@ def verify(ffi, module_name, source, *args, **kwds):
     kwds.setdefault('undef_macros', ['NDEBUG'])
     module_name = '_CFFI_' + module_name
     ffi.set_source(module_name, source)
-    if 1:     # test the .cpp mode too
+    if not os.environ.get('NO_CPP'):     # test the .cpp mode too
         kwds.setdefault('source_extension', '.cpp')
         source = 'extern "C" {\n%s\n}' % (source,)
     else:
@@ -198,7 +198,7 @@ def test_macro_check_value():
     vals = ['42', '-42', '0x80000000', '-2147483648',
             '0', '9223372036854775809ULL',
             '-9223372036854775807LL']
-    if sys.maxint <= 2**32:
+    if sys.maxsize <= 2**32 or sys.platform == 'win32':
         vals.remove('-2147483648')
     ffi = FFI()
     cdef_lines = ['#define FOO_%d_%d %s' % (i, j, vals[i])
