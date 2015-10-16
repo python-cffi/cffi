@@ -370,7 +370,7 @@ def test_stdcall():
     tp = ffi.typeof("int(*)(int __stdcall x(int),"
                     "       long (__cdecl*y)(void),"
                     "       short(WINAPI *z)(short))")
-    if sys.platform == 'win32':
+    if sys.platform == 'win32' and sys.maxsize < 2**32:
         stdcall = '__stdcall '
     else:
         stdcall = ''
