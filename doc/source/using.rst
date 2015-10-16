@@ -547,7 +547,8 @@ Windows: calling conventions
 
 On Win32, functions can have two main calling conventions: either
 "cdecl" (the default), or "stdcall" (also known as "WINAPI").  There
-are also other, rare calling conventions; these are not supported.
+are also other rare calling conventions, but these are not supported.
+*New in version 1.3.*
 
 When you issue calls from Python to C, the implementation is such that
 it works with any of these two main calling conventions; you don't
@@ -577,10 +578,11 @@ function in the ``cdef()``.
 These calling convention specifiers are accepted but ignored on any
 platform other than 32-bit Windows.
 
-*New in version 1.3:* the calling convention specifiers are not
-recognized in previous versions.  In API mode, you could work around
-it by using an indirection, like in the example in the section about
-Callbacks_.  There was no way to use stdcall callbacks in ABI mode.
+In CFFI versions before 1.3, the calling convention specifiers are not
+recognized.  In API mode, you could work around it by using an
+indirection, like in the example in the section about Callbacks_
+(``"example_build.py"``).  There was no way to use stdcall callbacks
+in ABI mode.
 
 
 FFI Interface
@@ -701,6 +703,27 @@ of memoryview, locked) as long as the cdata object returned by
 ``ffi.from_buffer()`` is alive.  *New in version 0.9.*
 
 
+.. _memmove:
+
+**ffi.memmove(dest, src, n)**: copy ``n`` bytes from memory area
+``src`` to memory area ``dest``.  See examples below.  Inspired by the
+C functions ``memcpy()`` and ``memmove()``---like the latter, the
+areas can overlap.  Each of ``dest`` and ``src`` can be either a cdata
+pointer or a Python object supporting the buffer/memoryview interface.
+In the case of ``dest``, the buffer/memoryview must be writable.
+Unlike ``ffi.from_buffer()``, there are no restrictions on the type of
+buffer.  *New in version 1.3.*  Examples:
+
+* ``ffi.memmove(myptr, b"hello", 5)`` copies the 5 bytes of
+  ``b"hello"`` to the area that ``myptr`` points to.
+
+* ``ba = bytearray(100); ffi.memmove(ba, myptr, 100)`` copies 100
+  bytes from ``myptr`` into the bytearray ``ba``.
+
+* ``ffi.memmove(myptr + 1, myptr, 100)`` shifts 100 bytes from
+  the memory at ``myptr`` to the memory at ``myptr + 1``.
+
+
 **ffi.typeof("C type" or cdata object)**: return an object of type
 ``<ctype>`` corresponding to the parsed string, or to the C type of the
 cdata instance.  Usually you don't need to call this function or to
@@ -756,7 +779,7 @@ can also give numeric values which correspond to array items, in case
 of a pointer or array type.  For example, ``ffi.offsetof("int[5]", 2)``
 is equal to the size of two integers, as is ``ffi.offsetof("int *", 2)``.
 
-   
+
 **ffi.getctype("C type" or <ctype>, extra="")**: return the string
 representation of the given C type.  If non-empty, the "extra" string is
 appended (or inserted at the right place in more complicated cases); it

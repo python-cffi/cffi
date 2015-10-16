@@ -6,24 +6,25 @@ What's New
 v1.3.0
 ======
 
+* Added `ffi.memmove()`_.
+
 * Pull request #64: out-of-line API mode: we can now declare
   floating-point types with ``typedef float... foo_t;``.  This only
   works if ``foo_t`` is a float or a double, not ``long double``.
 
-* Issue #217: fix possible unaligned pointer manipulation, which crash
+* Issue #217: fix possible unaligned pointer manipulation, which crashes
   on some architectures (64-bit, non-x86).
 
 * Issues #64 and #126: when using ``set_source()`` or ``verify()``,
   the ``const`` and ``restrict`` keywords are copied from the cdef
   to the generated C code; this fixes warnings by the C compiler.
   It also fixes corner cases like ``typedef const int T; T a;``
-  which would previously not consider ``a`` as a constant.
+  which would previously not consider ``a`` as a constant.  (The
+  cdata objects themselves are never ``const``.)
 
 * Win32: support for ``__stdcall``.  For callbacks and function
-  pointers; regular C functions don't need to have their `calling
+  pointers; regular C functions still don't need to have their `calling
   convention`_ declared.
-
-* ffi.memmove XXX
 
 * Windows: CPython 2.7 distutils doesn't work with Microsoft's official
   Visual Studio for Python, and I'm told this is `not a bug`__.  For
@@ -31,6 +32,7 @@ v1.3.0
   which had unwanted side-effects.  Try saying ``import setuptools``
   first, which patches distutils...
 
+.. _`ffi.memmove()`: using.html#memmove
 .. __: https://bugs.python.org/issue23246
 .. __: https://bitbucket.org/cffi/cffi/pull-requests/65/remove-_hack_at_distutils-which-imports/diff
 .. _`calling convention`: using.html#windows-calling-conventions
