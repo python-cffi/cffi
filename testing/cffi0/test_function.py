@@ -486,7 +486,8 @@ class TestFunction(object):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("double __stdcall sin(double x);")     # stdcall ignored
         m = ffi.dlopen(lib_m)
-        if sys.platform == 'win32' and sys.maxint < 2**32:
+        if (sys.platform == 'win32' and sys.maxint < 2**32 and 
+                self.Backend is not CTypesBackend):
             assert "double(__stdcall *)(double)" in str(ffi.typeof(m.sin))
         else:
             assert "double(*)(double)" in str(ffi.typeof(m.sin))
