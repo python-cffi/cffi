@@ -3787,8 +3787,15 @@ static PyObject *new_primitive_type(const char *name)
             ffitype = &ffi_type_float;
         else if (strcmp(ptypes->name, "double") == 0)
             ffitype = &ffi_type_double;
-        else if (strcmp(ptypes->name, "long double") == 0)
-            ffitype = &ffi_type_longdouble;
+        else if (strcmp(ptypes->name, "long double") == 0) {
+            /* assume that if sizeof(double) == sizeof(long double), then
+               the two types are equivalent for C.  libffi bugs on Win64
+               if a function's return type is ffi_type_longdouble... */
+            if (sizeof(double) == sizeof(long double))
+                ffitype = &ffi_type_double;
+            else
+                ffitype = &ffi_type_longdouble;
+        }
         else
             goto bad_ffi_type;
     }
