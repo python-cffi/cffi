@@ -32,6 +32,12 @@ v1.3.0
   which had unwanted side-effects.  Try saying ``import setuptools``
   first, which patches distutils...
 
+* Windows: basic SAL annotations can be given in the cdef() and are
+  ignored.  More precisely, ``_In_``, ``_Inout_``, ``_Out_``,
+  ``_Outptr_``, ``In_opt_``, ``_Inout_opt_``, ``_Out_opt_`` and
+  ``_Outptr_opt_`` are ignored if they are following a ``(`` or a
+  ``,`` (which is where function parameters are).
+
 .. _`ffi.memmove()`: using.html#memmove
 .. __: https://bugs.python.org/issue23246
 .. __: https://bitbucket.org/cffi/cffi/pull-requests/65/remove-_hack_at_distutils-which-imports/diff
