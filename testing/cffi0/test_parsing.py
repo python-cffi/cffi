@@ -384,10 +384,3 @@ def test_stdcall():
         "<ctype 'int(*)(int(%s*)(int), "
                         "long(*)(), "
                         "short(%s*)(short))'>" % (stdcall, stdcall))
-
-def test_basic_SAL_annotations_on_windows():
-    if sys.platform != 'win32':
-        py.test.skip("Only for Windows")
-    ffi = FFI()
-    tp = ffi.typeof("int(*)(_In_ int *abc, _Out_opt_ int *bcd)")
-    assert str(tp) == "<ctype 'int(*)(int *, int *)'>"

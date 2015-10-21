@@ -29,8 +29,6 @@ _r_int_literal = re.compile(r"-?0?x?[0-9a-f]+[lu]*$", re.IGNORECASE)
 _r_stdcall1 = re.compile(r"\b(__stdcall|WINAPI)\b")
 _r_stdcall2 = re.compile(r"[(]\s*(__stdcall|WINAPI)\b")
 _r_cdecl = re.compile(r"\b__cdecl\b")
-_r_SAL = re.compile(r"([(,]\s*)(_In_|_Inout_|_Out_|_Outptr_|"
-                    r"_In_opt_|_Inout_opt_|_Out_opt_|_Outptr_opt_)\b")
 
 def _get_parser():
     global _parser_cache
@@ -57,8 +55,6 @@ def _preprocess(csource):
     csource = _r_stdcall2.sub(' volatile volatile const(', csource)
     csource = _r_stdcall1.sub(' volatile volatile const ', csource)
     csource = _r_cdecl.sub(' ', csource)
-    if sys.platform == 'win32':
-        csource = _r_SAL.sub(r'\1 ', csource)
     # Replace "[...]" with "[__dotdotdotarray__]"
     csource = _r_partial_array.sub('[__dotdotdotarray__]', csource)
     # Replace "...}" with "__dotdotdotNUM__}".  This construction should
