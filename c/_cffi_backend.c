@@ -3664,6 +3664,11 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
         Py_DECREF(key);
         goto error;
     }
+    /* Haaaack for our reference count hack: gcmodule.c must not see this
+       dictionary.  The problem is that any PyDict_SetItem() notices that
+       'x' is tracked and re-tracks the unique_cache dictionary.  So here
+       we re-untrack it again... */
+    PyObject_GC_UnTrack(unique_cache);
 
     assert(x->ct_unique_key == NULL);
     x->ct_unique_key = key; /* the key will be freed in ctypedescr_dealloc() */
