@@ -209,6 +209,31 @@ far, which mean that they may be packed differently than on GCC.
 Also, this has no effect on structs declared with ``"...;"``---more
 about it later in `Letting the C compiler fill the gaps`_.)
 
+Note that you can use the type-qualifiers ``const`` and ``restrict``
+(but not ``__restrict`` or ``__restrict__``) in the ``cdef()``, but
+this has no effect on the cdata objects that you get at run-time (they
+are never ``const``).  The effect is limited to knowing if a global
+variable is meant to be a constant or not.  Also, *new in version
+1.3:* when using ``set_source()`` or ``verify()``, these two
+qualifiers are copied from the cdef to the generated C code; this
+fixes warnings by the C compiler.
+
+Note a trick if you copy-paste code from sources in which there are
+extra macros (for example, the Windows documentation uses SAL
+annotations like ``_In_`` or ``_Out_``).  These hints must be removed
+in the string given to cdef(), but it can be done programmatically
+like this::
+
+    ffi.cdef(re.sub(r"\b(_In_|_Inout_|_Out_|_Outptr_)(opt_)?\b", " ",
+      """
+        DWORD WINAPI GetModuleFileName(
+          _In_opt_ HMODULE hModule,
+          _Out_    LPTSTR  lpFilename,
+          _In_     DWORD   nSize
+        );
+      """))
+
+
 .. _`ffi.set_unicode()`:
 
 **ffi.set_unicode(enabled_flag)**: Windows: if ``enabled_flag`` is
@@ -231,15 +256,6 @@ aware (particularly on Python 2) that, afterwards, you need to pass unicode
 strings as arguments instead of not byte strings.  (Before cffi version 0.9,
 ``TCHAR`` and friends where hard-coded as unicode, but ``UNICODE`` was,
 inconsistently, not defined by default.)
-
-Note that you can use the type-qualifiers ``const`` and ``restrict``
-(but not ``__restrict`` or ``__restrict__``) in the ``cdef()``, but
-this has no effect on the cdata objects that you get at run-time (they
-are never ``const``).  The effect is limited to knowing if a global
-variable is meant to be a constant or not.  Also, *new in version
-1.3:* when using ``set_source()`` or ``verify()``, these two
-qualifiers are copied from the cdef to the generated C code; this
-fixes warnings by the C compiler.
 
 
 .. _loading-libraries:
