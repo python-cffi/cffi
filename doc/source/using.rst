@@ -686,7 +686,7 @@ owned memory will not be freed as long as the buffer is alive.
 
 Python 2/3 compatibility note: you should avoid using ``str(buf)``,
 because it gives inconsistent results between Python 2 and Python 3.
-This is similar to how ``str()`` gives inconsistent results on regular
+(This is similar to how ``str()`` gives inconsistent results on regular
 byte strings).  Use ``buf[:]`` instead.
 
 **ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
