@@ -692,13 +692,16 @@ byte strings).  Use ``buf[:]`` instead.
 **ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
 points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
-a (read-write) reference to the existing data, not a copy; for this
+a reference to the existing data, not a copy; for this
 reason, and for PyPy compatibility, it does not work with the built-in
 types str or unicode or bytearray (or buffers/memoryviews on them).
 It is meant to be used on objects
 containing large quantities of raw data, like ``array.array`` or numpy
 arrays.  It supports both the old buffer API (in Python 2.x) and the
-new memoryview API.  The original object is kept alive (and, in case
+new memoryview API.  Note that if you pass a read-only buffer object,
+you still get a regular ``<cdata 'char[]'>``; it is your responsibility
+not to write there if the original buffer doesn't expect you to.
+The original object is kept alive (and, in case
 of memoryview, locked) as long as the cdata object returned by
 ``ffi.from_buffer()`` is alive.  *New in version 0.9.*
 
