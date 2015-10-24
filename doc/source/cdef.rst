@@ -253,7 +253,7 @@ specialized versions, and declares the correct (unicode or not) types.
 
 Usually, the right thing to do is to call this method with True.  Be
 aware (particularly on Python 2) that, afterwards, you need to pass unicode
-strings as arguments instead of not byte strings.  (Before cffi version 0.9,
+strings as arguments instead of byte strings.  (Before cffi version 0.9,
 ``TCHAR`` and friends where hard-coded as unicode, but ``UNICODE`` was,
 inconsistently, not defined by default.)
 
