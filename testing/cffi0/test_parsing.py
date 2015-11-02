@@ -272,6 +272,13 @@ def test_bool():
     ffi = FFI()
     ffi.cdef("typedef _Bool bool; void f(bool);")
 
+def test_unknown_argument_type():
+    ffi = FFI()
+    e = py.test.raises(CDefError, ffi.cdef, "void f(foobarbazzz);")
+    assert str(e.value) == ("f arg 1: unknown type 'foobarbazzz' (if you meant"
+                            " to use the old C syntax of giving untyped"
+                            " arguments, it is not supported)")
+
 def test_void_renamed_as_only_arg():
     ffi = FFI()
     ffi.cdef("typedef void void_t1;"

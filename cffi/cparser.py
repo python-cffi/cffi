@@ -456,6 +456,13 @@ class Parser(object):
 
     def _parse_function_type(self, typenode, funcname=None):
         params = list(getattr(typenode.args, 'params', []))
+        for i, arg in enumerate(params):
+            if not hasattr(arg, 'type'):
+                raise api.CDefError("%s arg %d: unknown type '%s'"
+                    " (if you meant to use the old C syntax of giving"
+                    " untyped arguments, it is not supported)"
+                    % (funcname or 'in expression', i + 1,
+                       getattr(arg, 'name', '?')))
         ellipsis = (
             len(params) > 0 and
             isinstance(params[-1].type, pycparser.c_ast.TypeDecl) and
