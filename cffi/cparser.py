@@ -38,25 +38,15 @@ def _get_parser():
         _parser_cache = pycparser.CParser()
     return _parser_cache
 
-def _preprocess(csource):
-    # Remove comments.  NOTE: this only work because the cdef() section
-    # should not contain any string literal!
-    csource = _r_comment.sub(' ', csource)
-    # Remove the "#define FOO x" lines
-    macros = {}
-    for match in _r_define.finditer(csource):
-        macroname, macrovalue = match.groups()
-        macrovalue = macrovalue.replace('\\\n', '').strip()
-        macros[macroname] = macrovalue
-    csource = _r_define.sub('', csource)
-    #
-    # Workaround for a pycparser issue: "char*const***" gives us a wrong
-    # syntax tree, the same as for "char***(*const)".  This means we can't
-    # tell the difference afterwards.  But "char(*const(***))" gives us
-    # the right syntax tree.  The issue only occurs if there are several
-    # stars in sequence with no parenthesis inbetween, just possibly
-    # qualifiers.  Attempt to fix it by adding some parentheses in the
-    # source: each time we see "* const" or "* const *", we add an opening
+def _workaround_for_old_pycparser(csource):
+    # Workaround for a pycparser issue (fixed between pycparser 2.10 and
+    # 2.14): "char*const***" gives us a wrong syntax tree, the same as
+    # for "char***(*const)".  This means we can't tell the difference
+    # afterwards.  But "char(*const(***))" gives us the right syntax
+    # tree.  The issue only occurs if there are several stars in
+    # sequence with no parenthesis inbetween, just possibly qualifiers.
+    # Attempt to fix it by adding some parentheses in the source: each
+    # time we see "* const" or "* const *", we add an opening
     # parenthesis before each star---the hard part is figuring out where
     # to close them.
     parts = []
@@ -86,7 +76,22 @@ def _preprocess(csource):
         csource = csource[endpos:i] + closing + csource[i:]
         #print repr(''.join(parts)+csource)
     parts.append(csource)
-    csource = ''.join(parts)
+    return ''.join(parts)
+
+def _preprocess(csource):
+    # Remove comments.  NOTE: this only work because the cdef() section
+    # should not contain any string literal!
+    csource = _r_comment.sub(' ', csource)
+    # Remove the "#define FOO x" lines
+    macros = {}
+    for match in _r_define.finditer(csource):
+        macroname, macrovalue = match.groups()
+        macrovalue = macrovalue.replace('\\\n', '').strip()
+        macros[macroname] = macrovalue
+    csource = _r_define.sub('', csource)
+    #
+    if pycparser.__version__ < '2.14':
+        csource = _workaround_for_old_pycparser(csource)
     #
     # BIG HACK: replace WINAPI or __stdcall with "volatile const".
     # It doesn't make sense for the return type of a function to be
