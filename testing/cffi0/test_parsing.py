@@ -367,6 +367,41 @@ def test_different_const_funcptr_types():
     assert lst[0] == lst[2]
     assert lst[1] == lst[3]
 
+def test_const_pointer_to_pointer():
+    from cffi import model
+    ffi = FFI(backend=FakeBackend())
+    #
+    tp, qual = ffi._parser.parse_type_and_quals("char * * (* const)")
+    assert (str(tp), qual) == ("<char * * *>", model.Q_CONST)
+    tp, qual = ffi._parser.parse_type_and_quals("char * (* const (*))")
+    assert (str(tp), qual) == ("<char * * const *>", 0)
+    tp, qual = ffi._parser.parse_type_and_quals("char (* const (* (*)))")
+    assert (str(tp), qual) == ("<char * const * *>", 0)
+    tp, qual = ffi._parser.parse_type_and_quals("char const * * *")
+    assert (str(tp), qual) == ("<char const * * *>", 0)
+    tp, qual = ffi._parser.parse_type_and_quals("const char * * *")
+    assert (str(tp), qual) == ("<char const * * *>", 0)
+    #
+    tp, qual = ffi._parser.parse_type_and_quals("char * * * const const")
+    assert (str(tp), qual) == ("<char * * *>", model.Q_CONST)
+    tp, qual = ffi._parser.parse_type_and_quals("char * * volatile *")
+    assert (str(tp), qual) == ("<char * * volatile *>", 0)
+    tp, qual = ffi._parser.parse_type_and_quals("char * volatile restrict * *")
+    assert (str(tp), qual) == ("<char * __restrict volatile * *>", 0)
+    tp, qual = ffi._parser.parse_type_and_quals("char const volatile * * *")
+    assert (str(tp), qual) == ("<char volatile const * * *>", 0)
+    tp, qual = ffi._parser.parse_type_and_quals("const char * * *")
+    assert (str(tp), qual) == ("<char const * * *>", 0)
+    #
+    tp, qual = ffi._parser.parse_type_and_quals(
+        "int(char*const*, short****const*)")
+    assert (str(tp), qual) == (
+        "<int()(char * const *, short * * * * const *)>", 0)
+    tp, qual = ffi._parser.parse_type_and_quals(
+        "char*const*(short*const****)")
+    assert (str(tp), qual) == (
+        "<char * const *()(short * const * * * *)>", 0)
+
 def test_enum():
     ffi = FFI()
     ffi.cdef("""

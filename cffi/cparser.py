@@ -29,6 +29,8 @@ _r_int_literal = re.compile(r"-?0?x?[0-9a-f]+[lu]*$", re.IGNORECASE)
 _r_stdcall1 = re.compile(r"\b(__stdcall|WINAPI)\b")
 _r_stdcall2 = re.compile(r"[(]\s*(__stdcall|WINAPI)\b")
 _r_cdecl = re.compile(r"\b__cdecl\b")
+_r_star_const_space = re.compile(       # matches "* const "
+    r"[*]\s*((const|volatile|restrict)\b\s*)+")
 
 def _get_parser():
     global _parser_cache
@@ -47,6 +49,45 @@ def _preprocess(csource):
         macrovalue = macrovalue.replace('\\\n', '').strip()
         macros[macroname] = macrovalue
     csource = _r_define.sub('', csource)
+    #
+    # Workaround for a pycparser issue: "char*const***" gives us a wrong
+    # syntax tree, the same as for "char***(*const)".  This means we can't
+    # tell the difference afterwards.  But "char(*const(***))" gives us
+    # the right syntax tree.  The issue only occurs if there are several
+    # stars in sequence with no parenthesis inbetween, just possibly
+    # qualifiers.  Attempt to fix it by adding some parentheses in the
+    # source: each time we see "* const" or "* const *", we add an opening
+    # parenthesis before each star---the hard part is figuring out where
+    # to close them.
+    parts = []
+    while True:
+        match = _r_star_const_space.search(csource)
+        if not match:
+            break
+        #print repr(''.join(parts)+csource), '=>',
+        parts.append(csource[:match.start()])
+        parts.append('('); closing = ')'
+        parts.append(match.group())   # e.g. "* const "
+        endpos = match.end()
+        if csource.startswith('*', endpos):
+            parts.append('('); closing += ')'
+        level = 0
+        for i in xrange(endpos, len(csource)):
+            c = csource[i]
+            if c == '(':
+                level += 1
+            elif c == ')':
+                if level == 0:
+                    break
+                level -= 1
+            elif c in ',;=':
+                if level == 0:
+                    break
+        csource = csource[endpos:i] + closing + csource[i:]
+        #print repr(''.join(parts)+csource)
+    parts.append(csource)
+    csource = ''.join(parts)
+    #
     # BIG HACK: replace WINAPI or __stdcall with "volatile const".
     # It doesn't make sense for the return type of a function to be
     # "volatile volatile const", so we abuse it to detect __stdcall...
@@ -320,13 +361,15 @@ class Parser(object):
                     self._declare('variable ' + decl.name, tp, quals=quals)
 
     def parse_type(self, cdecl):
+        return self.parse_type_and_quals(cdecl)[0]
+
+    def parse_type_and_quals(self, cdecl):
         ast, macros = self._parse('void __dummy(\n%s\n);' % cdecl)[:2]
         assert not macros
         exprnode = ast.ext[-1].type.args.params[0]
         if isinstance(exprnode, pycparser.c_ast.ID):
             raise api.CDefError("unknown identifier '%s'" % (exprnode.name,))
-        tp, quals = self._get_type_and_quals(exprnode.type)
-        return tp
+        return self._get_type_and_quals(exprnode.type)
 
     def _declare(self, name, obj, included=False, quals=0):
         if name in self._declarations:

@@ -2250,3 +2250,8 @@ def test_macro_var():
     assert p == lib.myarray + 4
     p[1] = 82
     assert lib.my_value == 82            # [5]
+
+def test_const_pointer_to_pointer():
+    ffi = FFI()
+    ffi.cdef("struct s { char *const *a; };")
+    ffi.verify("struct s { char *const *a; };")
