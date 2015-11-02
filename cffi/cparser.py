@@ -348,6 +348,8 @@ class Parser(object):
                              pycparser.c_ast.PtrDecl)):
             if 'const' in type.quals:
                 quals |= model.Q_CONST
+            if 'volatile' in type.quals:
+                quals |= model.Q_VOLATILE
             if 'restrict' in type.quals:
                 quals |= model.Q_RESTRICT
         return quals
