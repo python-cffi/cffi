@@ -15,6 +15,7 @@ static PyTypeObject Lib_Type;   /* forward */
 #include "cglob.c"
 #include "lib_obj.c"
 #include "cdlopen.c"
+#include "commontypes.c"
 
 
 static int init_ffi_lib(PyObject *m)

@@ -472,7 +472,8 @@ class Parser(object):
                 if ident == '__dotdotdot__':
                     raise api.FFIError(':%d: bad usage of "..."' %
                             typenode.coord.line)
-                return resolve_common_type(ident), quals
+                tp0, quals0 = resolve_common_type(self, ident)
+                return tp0, (quals | quals0)
             #
             if isinstance(type, pycparser.c_ast.Struct):
                 # 'struct foobar'

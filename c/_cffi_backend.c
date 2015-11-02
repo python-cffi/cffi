@@ -5861,6 +5861,9 @@ static PyObject *b__get_types(PyObject *self, PyObject *noarg)
                            (PyObject *)&CTypeDescr_Type);
 }
 
+/* forward, in commontypes.c */
+static PyObject *b__get_common_types(PyObject *self, PyObject *arg);
+
 static PyObject *b_gcp(PyObject *self, PyObject *args, PyObject *kwds)
 {
     CDataObject *cd;
@@ -6187,6 +6190,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"getwinerror", (PyCFunction)b_getwinerror, METH_VARARGS | METH_KEYWORDS},
 #endif
     {"_get_types", b__get_types, METH_NOARGS},
+    {"_get_common_types", b__get_common_types, METH_O},
     {"_testfunc", b__testfunc, METH_VARARGS},
     {"_testbuff", b__testbuff, METH_VARARGS},
     {"_init_cffi_1_0_external_module", b_init_cffi_1_0_external_module, METH_O},

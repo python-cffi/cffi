@@ -286,38 +286,16 @@ def test_void_renamed_as_only_arg():
              "typedef int (*func_t)(void_t);")
     assert ffi.typeof("func_t").args == ()
 
-def test_win_common_types():
-    from cffi.commontypes import COMMON_TYPES, _CACHE
-    from cffi.commontypes import win_common_types, resolve_common_type
-    #
-    def clear_all(extra={}, old_dict=COMMON_TYPES.copy()):
-        COMMON_TYPES.clear()
-        COMMON_TYPES.update(old_dict)
-        COMMON_TYPES.update(extra)
-        _CACHE.clear()
-    #
-    for maxsize in [2**32-1, 2**64-1]:
-        ct = win_common_types(maxsize)
-        clear_all(ct)
-        for key in sorted(ct):
-            if ct[key] != 'set-unicode-needed':
-                resolve_common_type(key)
-    # assert did not crash
-    # now try to use e.g. WPARAM (-> UINT_PTR -> unsigned 32/64-bit)
-    for maxsize in [2**32-1, 2**64-1]:
-        ct = win_common_types(maxsize)
-        clear_all(ct)
-        ffi = FFI()
-        value = int(ffi.cast("WPARAM", -1))
-        assert value == maxsize
-    #
-    clear_all()
-
 def test_WPARAM_on_windows():
     if sys.platform != 'win32':
         py.test.skip("Only for Windows")
     ffi = FFI()
     ffi.cdef("void f(WPARAM);")
+    #
+    # WPARAM -> UINT_PTR -> unsigned 32/64-bit integer
+    ffi = FFI()
+    value = int(ffi.cast("WPARAM", -42))
+    assert value == sys.maxsize * 2 - 40
 
 def test__is_constant_globalvar():
     for input, expected_output in [
