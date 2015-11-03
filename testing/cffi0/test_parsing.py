@@ -261,7 +261,8 @@ def test_redefine_common_type():
     ffi = FFI()
     ffi.cdef("typedef int bool, *FILE;")
     assert repr(ffi.cast("bool", 123)) == "<cdata 'int' 123>"
-    assert repr(ffi.cast("FILE", 123)) == "<cdata 'int *' 0x7b>"
+    assert re.match(r"<cdata 'int [*]' 0[xX]?0*7[bB]>",
+                    repr(ffi.cast("FILE", 123)))
     ffi = FFI()
     ffi.cdef("typedef bool (*fn_t)(bool, bool);")   # "bool," but within "( )"
 
