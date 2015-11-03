@@ -23,6 +23,11 @@ static const char *common_simple_types[] = {
     EQ("DWORD64", "unsigned long long"),
     EQ("DWORDLONG", "ULONGLONG"),
     EQ("DWORD_PTR", "ULONG_PTR"),
+#endif
+
+    EQ("FILE", "struct _IO_FILE"),
+
+#ifdef MS_WIN32   /* more Windows types */
     EQ("FLOAT", "float"),
     EQ("HACCEL", "HANDLE"),
     EQ("HALF_PTR", W32_64("short","int")),

@@ -2246,3 +2246,26 @@ def test_const_pointer_to_pointer():
     ffi = FFI()
     ffi.cdef("struct s { char *const *a; };")
     ffi.verify("struct s { char *const *a; };")
+
+def test_share_FILE():
+    ffi1 = FFI()
+    ffi1.cdef("void do_stuff(FILE *);")
+    lib1 = ffi1.verify("void do_stuff(FILE *f) { (void)f; }")
+    ffi2 = FFI()
+    ffi2.cdef("FILE *barize(void);")
+    lib2 = ffi2.verify("FILE *barize(void) { return NULL; }")
+    lib1.do_stuff(lib2.barize())
+
+def test_win_common_types():
+    if sys.platform != 'win32':
+        py.test.skip("Windows only")
+    ffi = FFI()
+    ffi.set_unicode(True)
+    ffi.verify("")
+    assert ffi.typeof("PBYTE") is ffi.typeof("unsigned char *")
+    if sys.maxsize > 2**32:
+        expected = "unsigned long long"
+    else:
+        expected = "unsigned int"
+    assert ffi.typeof("UINT_PTR") is ffi.typeof(expected)
+    assert ffi.typeof("PTSTR") is ffi.typeof("wchar_t *")

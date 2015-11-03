@@ -401,6 +401,12 @@ def test_bool_issue228():
     fntype = ffi.typeof("int(*callback)(bool is_valid)")
     assert repr(fntype.args[0]) == "<ctype '_Bool'>"
 
+def test_FILE_issue228():
+    fntype1 = _cffi1_backend.FFI().typeof("FILE *")
+    fntype2 = _cffi1_backend.FFI().typeof("FILE *")
+    assert repr(fntype1) == "<ctype 'struct _IO_FILE *'>"
+    assert fntype1 is fntype2
+
 def test_cast_from_int_type_to_bool():
     ffi = _cffi1_backend.FFI()
     for basetype in ['char', 'short', 'int', 'long', 'long long']:

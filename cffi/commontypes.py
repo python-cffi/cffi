@@ -2,10 +2,7 @@ import sys
 from . import api, model
 
 
-COMMON_TYPES = {
-    'FILE': model.unknown_type('FILE', '_IO_FILE'),
-    'bool': '_Bool',
-    }
+COMMON_TYPES = {}
 
 try:
     # fetch "bool" and all simple Windows types
@@ -13,6 +10,9 @@ try:
     _get_common_types(COMMON_TYPES)
 except ImportError:
     pass
+
+COMMON_TYPES['FILE'] = model.unknown_type('FILE', '_IO_FILE')
+COMMON_TYPES['bool'] = '_Bool'    # in case we got ImportError above
 
 for _type in model.PrimitiveType.ALL_PRIMITIVE_TYPES:
     if _type.endswith('_t'):

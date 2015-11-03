@@ -755,10 +755,15 @@ static int parse_complete(token_t *tok)
                 return parse_error(tok, "struct or union name expected");
 
             n = search_in_struct_unions(tok->info->ctx, tok->p, tok->size);
-            if (n < 0)
-                return parse_error(tok, "undefined struct/union name");
-            if (((tok->info->ctx->struct_unions[n].flags & _CFFI_F_UNION) != 0)
-                ^ (kind == TOK_UNION))
+            if (n < 0) {
+                if (kind == TOK_STRUCT && tok->size == 8 &&
+                        !memcmp(tok->p, "_IO_FILE", 8))
+                    n = _CFFI__IO_FILE_STRUCT;
+                else
+                    return parse_error(tok, "undefined struct/union name");
+            }
+            else if (((tok->info->ctx->struct_unions[n].flags & _CFFI_F_UNION)
+                      != 0) ^ (kind == TOK_UNION))
                 return parse_error(tok, "wrong kind of tag: struct vs union");
 
             t1 = _CFFI_OP(_CFFI_OP_STRUCT_UNION, n);
