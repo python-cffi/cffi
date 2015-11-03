@@ -318,7 +318,7 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
         /* returns a single global cached opaque type */
         static PyObject *file_struct = NULL;
         if (file_struct == NULL)
-            file_struct = new_struct_or_union_type("struct _IO_FILE",
+            file_struct = new_struct_or_union_type("FILE",
                                                    CT_STRUCT | CT_IS_FILE);
         Py_XINCREF(file_struct);
         return file_struct;
