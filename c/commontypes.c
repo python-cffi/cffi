@@ -31,6 +31,7 @@ static const char *common_simple_types[] = {
     EQ("FLOAT", "float"),
     EQ("HACCEL", "HANDLE"),
     EQ("HALF_PTR", W32_64("short","int")),
+    EQ("HANDLE", "PVOID"),
     EQ("HBITMAP", "HANDLE"),
     EQ("HBRUSH", "HANDLE"),
     EQ("HCOLORSPACE", "HANDLE"),
