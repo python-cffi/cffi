@@ -514,12 +514,15 @@ class EnumType(StructOrUnionOrEnum):
         if self.baseinttype is not None:
             return self.baseinttype.get_cached_btype(ffi, finishlist)
         #
+        from . import api
         if self.enumvalues:
             smallest_value = min(self.enumvalues)
             largest_value = max(self.enumvalues)
         else:
-            smallest_value = 0
-            largest_value = 0
+            raise api.CDefError("%r has no values explicitly defined: "
+                                "refusing to guess which integer type it is "
+                                "meant to be (unsigned/signed, int/long)"
+                                % self._get_c_name())
         if smallest_value < 0:   # needs a signed type
             sign = 1
             candidate1 = PrimitiveType("int")
