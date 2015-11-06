@@ -1351,6 +1351,9 @@ class BackendTests:
     def test_opaque_enum(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("enum foo;")
+        from cffi import __version_info__
+        if __version_info__ < (1, 4):
+            py.test.skip("re-enable me in version 1.4")
         e = py.test.raises(CDefError, ffi.cast, "enum foo", -1)
         assert str(e.value) == (
             "'enum foo' has no values explicitly defined: refusing to guess "
