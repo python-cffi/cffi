@@ -1486,6 +1486,14 @@ def test_win32_calling_convention_3():
     pt = ptr_call2(ffi.addressof(lib, 'cb2'))
     assert (pt.x, pt.y) == (99*500*999, -99*500*999)
 
+class StdErrCapture(object):
+    def __enter__(self):
+        self.old_stderr = sys.stderr
+        sys.stderr = f = StringIO()
+        return f
+    def __exit__(self, *args):
+        sys.stderr = self.old_stderr
+
 def test_call_python_1():
     ffi = FFI()
     ffi.cdef("""
@@ -1496,12 +1504,8 @@ def test_call_python_1():
     """)
     lib = verify(ffi, 'test_call_python_1', "")
     assert ffi.typeof(lib.bar) == ffi.typeof("int(*)(int, int)")
-    old_stderr = sys.stderr
-    try:
-        sys.stderr = f = StringIO()
+    with StdErrCapture() as f:
         res = lib.bar(4, 5)
-    finally:
-        sys.stderr = old_stderr
     assert res == 0
     assert f.getvalue() == (
         "CFFI_CALL_PYTHON: function bar() called, but no code was attached "
@@ -1527,6 +1531,21 @@ def test_call_python_1():
     assert type(seen[0][1]) is type(seen[0][2]) is int
     assert baz == lib.baz
 
+    @ffi.call_python()
+    def bok():
+        seen.append("Bok")
+        return 42
+    seen = []
+    assert lib.bok() == bok() == 42
+    assert seen == ["Bok", "Bok"]
+
+    @ffi.call_python()
+    def boz():
+        seen.append("Boz")
+    seen = []
+    assert lib.boz() is boz() is None
+    assert seen == ["Boz", "Boz"]
+
 def test_call_python_bogus_name():
     ffi = FFI()
     ffi.cdef("int abc;")
@@ -1551,8 +1570,20 @@ def test_call_python_bogus_name():
     x.__name__ = x
     py.test.raises(TypeError, ffi.call_python(), x)
 
-def test_call_python_void_must_return_none():
-    xxxx
+def test_call_python_bogus_result_type():
+    ffi = FFI()
+    ffi.cdef("CFFI_CALL_PYTHON void bar(int);")
+    lib = verify(ffi, 'test_call_python_void_must_return_none', "")
+    def bar(n):
+        return n * 10
+    bar1 = ffi.call_python()(bar)
+    with StdErrCapture() as f:
+        res = bar1(321)
+    assert res is None
+    assert f.getvalue() == (
+        "From cffi callback %r:\n" % (bar,) +
+        "Trying to convert the result back to C:\n"
+        "TypeError: callback with the return type 'void' must return None\n")
 
 def test_call_python_redefine():
     xxxx
