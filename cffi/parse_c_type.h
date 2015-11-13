@@ -160,6 +160,17 @@ struct _cffi_parse_info_s {
     const char *error_message;
 };
 
+struct _cffi_callpy_s {
+    const char *name;
+    const struct _cffi_type_context_s *ctx;
+    int type_index;
+    void *direct_fn;
+    void *reserved;
+};
+
+extern void _cffi_call_python(struct _cffi_callpy_s *, void *);
+
+
 #ifdef _CFFI_INTERNAL
 static int parse_c_type(struct _cffi_parse_info_s *info, const char *input);
 static int search_in_globals(const struct _cffi_type_context_s *ctx,

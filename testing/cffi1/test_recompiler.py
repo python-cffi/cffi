@@ -1484,3 +1484,14 @@ def test_win32_calling_convention_3():
     assert (pt.x, pt.y) == (99*500*999, -99*500*999)
     pt = ptr_call2(ffi.addressof(lib, 'cb2'))
     assert (pt.x, pt.y) == (99*500*999, -99*500*999)
+
+def test_call_python_1():
+    ffi = FFI()
+    ffi.cdef("""
+        CFFI_CALL_PYTHON int bar(int, int);
+        CFFI_CALL_PYTHON void baz(int, int);
+        CFFI_CALL_PYTHON int bok(void);
+        CFFI_CALL_PYTHON void boz(void);
+    """)
+    lib = verify(ffi, 'test_call_python_1', "")
+    XXX
