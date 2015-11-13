@@ -1121,8 +1121,14 @@ class Recompiler:
     def _generate_cpy_call_python_decl(self, tp, name):
         prnt = self._prnt
         type_index = self._typesdict[tp.as_raw_function()]
-        prnt('static struct _cffi_callpy_s _cffi_callpy__%s = { "%s", %d };' % (
-            name, name, type_index))
+        if isinstance(tp.result, model.VoidType):
+            size_of_result = '0'
+        else:
+            context = 'result of %s' % name
+            size_of_result = '(int)sizeof(%s)' % (
+                tp.result.get_c_name('', context),)
+        prnt('static struct _cffi_callpy_s _cffi_callpy__%s =' % name)
+        prnt('  { "%s", %d, %s };' % (name, type_index, size_of_result))
         prnt()
         #
         arguments = []
@@ -1146,8 +1152,7 @@ class Recompiler:
             size_of_a = 'sizeof(%s) > %d ? sizeof(%s) : %d' % (
                 tp.result.get_c_name(''), size_of_a,
                 tp.result.get_c_name(''), size_of_a)
-        context = 'result of %s' % name
-        prnt('static %s' % tp.result.get_c_name(name_and_arguments, context))
+        prnt('static %s' % tp.result.get_c_name(name_and_arguments))
         prnt('{')
         prnt('  char a[%s];' % size_of_a)
         prnt('  char *p = a;')

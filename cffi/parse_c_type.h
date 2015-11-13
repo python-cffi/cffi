@@ -164,8 +164,8 @@ struct _cffi_parse_info_s {
 struct _cffi_callpy_s {
     const char *name;
     int type_index;
-    int reserved1;
-    void *reserved2, *reserved3;
+    int size_of_result;
+    void *reserved1, *reserved2;
 };
 
 #ifdef _CFFI_INTERNAL
