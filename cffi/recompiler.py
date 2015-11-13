@@ -1162,7 +1162,8 @@ class Recompiler:
         #
         # Write the implementation of the functions declared above
         def may_need_128_bits(tp):
-            return tp.name == 'long double'
+            return (isinstance(tp, model.PrimitiveType) and
+                    tp.name == 'long double')
         #
         for j in range(len(self._callpy)):
             tp, name = self._callpy[j]
