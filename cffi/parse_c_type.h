@@ -163,8 +163,7 @@ struct _cffi_parse_info_s {
 
 struct _cffi_callpy_s {
     const char *name;
-    int type_index;
-    int size_of_result;
+    size_t size_of_result;
     void *reserved1, *reserved2;
 };
 

@@ -4903,7 +4903,8 @@ static PyObject *b_new_function_type(PyObject *self, PyObject *args)
 
 static int convert_from_object_fficallback(char *result,
                                            CTypeDescrObject *ctype,
-                                           PyObject *pyobj)
+                                           PyObject *pyobj,
+                                           int encode_result_for_libffi)
 {
     /* work work work around a libffi irregularity: for integer return
        types we have to fill at least a complete 'ffi_arg'-sized result
@@ -4919,6 +4920,8 @@ static int convert_from_object_fficallback(char *result,
                 return -1;
             }
         }
+        if (!encode_result_for_libffi)
+            goto skip;
         if (ctype->ct_flags & CT_PRIMITIVE_SIGNED) {
             PY_LONG_LONG value;
             /* It's probably fine to always zero-extend, but you never
@@ -4949,6 +4952,7 @@ static int convert_from_object_fficallback(char *result,
 #endif
         }
     }
+ skip:
     return convert_from_object(result, ctype, pyobj);
 }
 
@@ -4983,14 +4987,9 @@ static void _my_PyErr_WriteUnraisable(char *objdescr, PyObject *obj,
     Py_XDECREF(tb);
 }
 
-static void invoke_callback(ffi_cif *cif, void *result, void **args,
-                            void *userdata)
+static void general_invoke_callback(int decode_args_from_libffi,
+                                    void *result, char *args, void *userdata)
 {
-    save_errno();
-    {
-#ifdef WITH_THREAD
-    PyGILState_STATE state = PyGILState_Ensure();
-#endif
     PyObject *cb_args = (PyObject *)userdata;
     CTypeDescrObject *ct = (CTypeDescrObject *)PyTuple_GET_ITEM(cb_args, 0);
     PyObject *signature = ct->ct_stuff;
@@ -5012,7 +5011,20 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
         goto error;
 
     for (i=0; i<n; i++) {
-        PyObject *a = convert_to_object(args[i], SIGNATURE(2 + i));
+        char *a_src;
+        PyObject *a;
+        CTypeDescrObject *a_ct = SIGNATURE(2 + i);
+
+        if (decode_args_from_libffi) {
+            a_src = ((void **)args)[i];
+        }
+        else {
+            a_src = args + i * 8;
+            if (a_ct->ct_flags & (CT_IS_LONGDOUBLE | CT_STRUCT | CT_UNION)) {
+                abort();
+            }
+        }
+        a = convert_to_object(a_src, a_ct);
         if (a == NULL)
             goto error;
         PyTuple_SET_ITEM(py_args, i, a);
@@ -5021,7 +5033,8 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     py_res = PyObject_Call(py_ob, py_args, NULL);
     if (py_res == NULL)
         goto error;
-    if (convert_from_object_fficallback(result, SIGNATURE(1), py_res) < 0) {
+    if (convert_from_object_fficallback(result, SIGNATURE(1), py_res,
+                                        decode_args_from_libffi) < 0) {
         extra_error_line = "Trying to convert the result back to C:\n";
         goto error;
     }
@@ -5029,10 +5042,6 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
     Py_XDECREF(py_args);
     Py_XDECREF(py_res);
     Py_DECREF(cb_args);
-#ifdef WITH_THREAD
-    PyGILState_Release(state);
-#endif
-    restore_errno();
     return;
 
  error:
@@ -5057,7 +5066,8 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
                                             NULL);
         if (res1 != NULL) {
             if (res1 != Py_None)
-                convert_from_object_fficallback(result, SIGNATURE(1), res1);
+                convert_from_object_fficallback(result, SIGNATURE(1), res1,
+                                                decode_args_from_libffi);
             Py_DECREF(res1);
         }
         if (!PyErr_Occurred()) {
@@ -5078,24 +5088,37 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
         }
     }
     goto done;
-    }
 
 #undef SIGNATURE
 }
 
-static PyObject *b_callback(PyObject *self, PyObject *args)
+static void invoke_callback(ffi_cif *cif, void *result, void **args,
+                            void *userdata)
 {
-    CTypeDescrObject *ct, *ctresult;
-    CDataObject *cd;
-    PyObject *ob, *error_ob = Py_None, *onerror_ob = Py_None;
-    PyObject *py_rawerr, *infotuple = NULL;
-    cif_description_t *cif_descr;
-    ffi_closure *closure;
-    Py_ssize_t size;
+    save_errno();
+    {
+#ifdef WITH_THREAD
+        PyGILState_STATE state = PyGILState_Ensure();
+#endif
 
-    if (!PyArg_ParseTuple(args, "O!O|OO:callback", &CTypeDescr_Type, &ct, &ob,
-                          &error_ob, &onerror_ob))
-        return NULL;
+        general_invoke_callback(1, result, (char *)args, userdata);
+
+#ifdef WITH_THREAD
+        PyGILState_Release(state);
+#endif
+    }
+    restore_errno();
+}
+
+static PyObject *prepare_callback_info_tuple(CTypeDescrObject *ct,
+                                             PyObject *ob,
+                                             PyObject *error_ob,
+                                             PyObject *onerror_ob,
+                                             int decode_args_from_libffi)
+{
+    CTypeDescrObject *ctresult;
+    PyObject *py_rawerr, *infotuple;
+    Py_ssize_t size;
 
     if (!(ct->ct_flags & CT_FUNCTIONPTR)) {
         PyErr_Format(PyExc_TypeError, "expected a function ctype, got '%s'",
@@ -5125,13 +5148,31 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     memset(PyBytes_AS_STRING(py_rawerr), 0, size);
     if (error_ob != Py_None) {
         if (convert_from_object_fficallback(
-                PyBytes_AS_STRING(py_rawerr), ctresult, error_ob) < 0) {
+                PyBytes_AS_STRING(py_rawerr), ctresult, error_ob,
+                decode_args_from_libffi) < 0) {
             Py_DECREF(py_rawerr);
             return NULL;
         }
     }
     infotuple = Py_BuildValue("OOOO", ct, ob, py_rawerr, onerror_ob);
     Py_DECREF(py_rawerr);
+    return infotuple;
+}
+
+static PyObject *b_callback(PyObject *self, PyObject *args)
+{
+    CTypeDescrObject *ct;
+    CDataObject *cd;
+    PyObject *ob, *error_ob = Py_None, *onerror_ob = Py_None;
+    PyObject *infotuple;
+    cif_description_t *cif_descr;
+    ffi_closure *closure;
+
+    if (!PyArg_ParseTuple(args, "O!O|OO:callback", &CTypeDescr_Type, &ct, &ob,
+                          &error_ob, &onerror_ob))
+        return NULL;
+
+    infotuple = prepare_callback_info_tuple(ct, ob, error_ob, onerror_ob, 1);
     if (infotuple == NULL)
         return NULL;
 

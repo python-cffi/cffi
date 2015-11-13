@@ -732,6 +732,35 @@ PyDoc_STRVAR(ffi_gc_doc,
 #define ffi_gc  b_gcp     /* ffi_gc() => b_gcp()
                              from _cffi_backend.c */
 
+PyDoc_STRVAR(ffi_call_python_doc,
+"XXX document me");
+
+/* forward; see call_python.c */
+static PyObject *_ffi_call_python_decorator(PyObject *, PyObject *);
+
+static PyObject *ffi_call_python(FFIObject *self, PyObject *args,
+                                 PyObject *kwds)
+{
+    static PyMethodDef md = {"call_python_decorator",
+                             (PyCFunction)_ffi_call_python_decorator, METH_O};
+    PyObject *name = Py_None, *error = Py_None;
+    PyObject *res, *onerror = Py_None;
+    static char *keywords[] = {"name", "python_callable", "error",
+                               "onerror", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOOO", keywords,
+                                     &name, &error, &onerror))
+        return NULL;
+
+    args = Py_BuildValue("(OOOO)", (PyObject *)self, name, error, onerror);
+    if (args == NULL)
+        return NULL;
+
+    res = PyCFunction_New(&md, args);
+    Py_DECREF(args);
+    return res;
+}
+
 PyDoc_STRVAR(ffi_callback_doc,
 "Return a callback object or a decorator making such a callback object.\n"
 "'cdecl' must name a C function pointer type.  The callback invokes the\n"
@@ -875,6 +904,7 @@ static PyMethodDef ffi_methods[] = {
  {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS, ffi_addressof_doc},
  {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
  {"buffer",     (PyCFunction)ffi_buffer,     METH_VKW,     ffi_buffer_doc},
+ {"call_python",(PyCFunction)ffi_call_python,METH_VKW,     ffi_call_python_doc},
  {"callback",   (PyCFunction)ffi_callback,   METH_VKW,     ffi_callback_doc},
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
  {"dlclose",    (PyCFunction)ffi_dlclose,    METH_VARARGS, ffi_dlclose_doc},

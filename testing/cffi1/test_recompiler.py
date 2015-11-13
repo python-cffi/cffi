@@ -1507,6 +1507,16 @@ def test_call_python_1():
         "CFFI_CALL_PYTHON: function bar() called, but no code was attached "
         "to it yet with ffi.call_python('bar').  Returning 0.\n")
 
+    @ffi.call_python("bar")
+    def my_bar(x, y):
+        seen.append((x, y))
+        return x * y
+    assert my_bar == lib.bar
+    seen = []
+    res = lib.bar(6, 7)
+    assert seen == [(6, 7)]
+    assert res == 42
+
 def test_call_python_2():
     ffi = FFI()
     ffi.cdef("""
