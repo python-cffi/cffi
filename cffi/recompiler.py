@@ -1163,12 +1163,21 @@ class Recompiler:
         # Write the implementation of the functions declared above
         for j in range(len(self._callpy)):
             tp, name = self._callpy[j]
+            size_of_a = max(len(tp.args), 1)
+            if isinstance(tp.result, model.StructOrUnion):
+                size_of_a = 'sizeof(%s) > %d ? (sizeof(%s) + 7) / 8 : %d' % (
+                    tp.result.get_c_name(''), 8 * size_of_a,
+                    tp.result.get_c_name(''), size_of_a)
             prnt('static %s' % function_sigs[j])
             prnt('{')
-            prnt('  uint64_t a[%d];' % max(len(tp.args), 1))
+            prnt('  uint64_t a[%s];' % size_of_a)
             prnt('  char *p = (char *)a;')
             for i, type in enumerate(tp.args):
-                prnt('  *(%s)(p + %d) = a%d;' % (type.get_c_name('*'), i*8, i))
+                arg = 'a%d' % i
+                if isinstance(type, model.StructOrUnion):
+                    arg = '&' + arg
+                    type = model.PointerType(type)
+                prnt('  *(%s)(p + %d) = %s;' % (type.get_c_name('*'), i*8, arg))
             prnt('  _cffi_call_python(_cffi_callpys + %d, p);' % j)
             if not isinstance(tp.result, model.VoidType):
                 prnt('  return *(%s)p;' % (tp.result.get_c_name('*'),))
