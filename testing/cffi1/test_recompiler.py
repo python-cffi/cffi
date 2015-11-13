@@ -4,6 +4,7 @@ from cffi import FFI, VerificationError, FFIError
 from cffi import recompiler
 from testing.udir import udir
 from testing.support import u
+from StringIO import StringIO
 
 
 def check_type_table(input, expected_output, included=None):
@@ -1495,8 +1496,16 @@ def test_call_python_1():
     """)
     lib = verify(ffi, 'test_call_python_1', "")
     assert ffi.typeof(lib.bar) == ffi.typeof("int(*)(int, int)")
-    lib.bar(4, 5)
-    XXX
+    old_stderr = sys.stderr
+    try:
+        sys.stderr = f = StringIO()
+        res = lib.bar(4, 5)
+    finally:
+        sys.stderr = old_stderr
+    assert res == 0
+    assert f.getvalue() == (
+        "CFFI_CALL_PYTHON: function bar() called, but no code was attached "
+        "to it yet with ffi.call_python('bar').  Returning 0.\n")
 
 def test_call_python_2():
     ffi = FFI()
