@@ -168,7 +168,7 @@ struct _cffi_callpy_s {
     void *reserved;
 };
 
-extern void _cffi_call_python(struct _cffi_callpy_s *, void *);
+extern void _cffi_call_python(struct _cffi_callpy_s *, char *);
 
 
 #ifdef _CFFI_INTERNAL

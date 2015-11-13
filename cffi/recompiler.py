@@ -1161,17 +1161,16 @@ class Recompiler:
         prnt()
         #
         # Write the implementation of the functions declared above
-        for (tp, name), sig in zip(self._callpy, function_sigs):
-            prnt('static %s' % sig)
+        for j in range(len(self._callpy)):
+            tp, name = self._callpy[j]
+            prnt('static %s' % function_sigs[j])
             prnt('{')
             prnt('  uint64_t a[%d];' % max(len(tp.args), 1))
             prnt('  char *p = (char *)a;')
             for i, type in enumerate(tp.args):
                 prnt('  *(%s)(p + %d) = a%d;' % (type.get_c_name('*'), i*8, i))
-            prnt('  _cffi_call_python(_cffi_callpys + 0, a);')
-            if isinstance(tp.result, model.VoidType):
-                prnt('  (void)p;')
-            else:
+            prnt('  _cffi_call_python(_cffi_callpys + %d, p);' % j)
+            if not isinstance(tp.result, model.VoidType):
                 prnt('  return *(%s)p;' % (tp.result.get_c_name('*'),))
             prnt('}')
             prnt()
