@@ -118,6 +118,7 @@ class TypenameExpr:
 
 
 class Recompiler:
+    _num_callpy = 0
 
     def __init__(self, ffi, module_name, target_is_python=False):
         self.ffi = ffi
@@ -356,7 +357,10 @@ class Recompiler:
         else:
             prnt('  NULL,  /* no includes */')
         prnt('  %d,  /* num_types */' % (len(self.cffi_types),))
-        prnt('  0,  /* flags */')
+        flags = 0
+        if self._num_callpy:
+            flags |= 1     # set to mean "uses _cffi_call_python"
+        prnt('  %d,  /* flags */' % flags)
         prnt('};')
         prnt()
         #
@@ -1159,6 +1163,7 @@ class Recompiler:
             prnt('  return *(%s)p;' % (tp.result.get_c_name('*'),))
         prnt('}')
         prnt()
+        self._num_callpy += 1
 
     def _generate_cpy_call_python_ctx(self, tp, name):
         if self.target_is_python:
@@ -1169,7 +1174,7 @@ class Recompiler:
         type_index = self._typesdict[tp]
         type_op = CffiOp(OP_CALL_PYTHON, type_index)
         self._lsts["global"].append(
-            GlobalExpr(name, name, type_op, '&_cffi_callpy__%s' % name))
+            GlobalExpr(name, '&_cffi_callpy__%s' % name, type_op, name))
 
     # ----------
     # emitting the opcodes for individual types

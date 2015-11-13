@@ -370,7 +370,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
                             _CFFI_GETARG(g->type_op));
         if (ct == NULL)
             return NULL;
-        x = convert_to_object(g->address, ct);
+        x = convert_to_object((char *)&g->size_or_direct_fn, ct);
         Py_DECREF(ct);
         break;
 
