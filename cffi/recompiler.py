@@ -1161,9 +1161,14 @@ class Recompiler:
         prnt()
         #
         # Write the implementation of the functions declared above
+        def may_need_128_bits(tp):
+            return tp.name == 'long double'
+        #
         for j in range(len(self._callpy)):
             tp, name = self._callpy[j]
             size_of_a = max(len(tp.args), 1)
+            if may_need_128_bits(tp.result):
+                size_of_a = max(size_of_a, 2)
             if isinstance(tp.result, model.StructOrUnion):
                 size_of_a = 'sizeof(%s) > %d ? (sizeof(%s) + 7) / 8 : %d' % (
                     tp.result.get_c_name(''), 8 * size_of_a,
@@ -1174,7 +1179,8 @@ class Recompiler:
             prnt('  char *p = (char *)a;')
             for i, type in enumerate(tp.args):
                 arg = 'a%d' % i
-                if isinstance(type, model.StructOrUnion):
+                if (isinstance(type, model.StructOrUnion) or
+                        may_need_128_bits(type)):
                     arg = '&' + arg
                     type = model.PointerType(type)
                 prnt('  *(%s)(p + %d) = %s;' % (type.get_c_name('*'), i*8, arg))

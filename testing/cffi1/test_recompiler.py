@@ -1507,3 +1507,13 @@ def test_call_python_2():
     lib = verify(ffi, 'test_call_python_2',
                  "struct foo_s { int a, b, c; };")
     XXX
+
+def test_call_python_3():
+    ffi = FFI()
+    ffi.cdef("""
+        CFFI_CALL_PYTHON int bar(int, long double, int);
+        CFFI_CALL_PYTHON long double baz(int, int);
+        CFFI_CALL_PYTHON long double bok(void);
+    """)
+    lib = verify(ffi, 'test_call_python_3', "")
+    XXX
