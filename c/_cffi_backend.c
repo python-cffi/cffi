@@ -5020,9 +5020,8 @@ static void general_invoke_callback(int decode_args_from_libffi,
         }
         else {
             a_src = args + i * 8;
-            if (a_ct->ct_flags & (CT_IS_LONGDOUBLE | CT_STRUCT | CT_UNION)) {
-                abort();
-            }
+            if (a_ct->ct_flags & (CT_IS_LONGDOUBLE | CT_STRUCT | CT_UNION))
+                a_src = *(char **)a_src;
         }
         a = convert_to_object(a_src, a_ct);
         if (a == NULL)

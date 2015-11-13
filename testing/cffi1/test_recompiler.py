@@ -1573,7 +1573,8 @@ def test_call_python_bogus_name():
 def test_call_python_bogus_result_type():
     ffi = FFI()
     ffi.cdef("CFFI_CALL_PYTHON void bar(int);")
-    lib = verify(ffi, 'test_call_python_void_must_return_none', "")
+    lib = verify(ffi, 'test_call_python_bogus_result_type', "")
+    #
     def bar(n):
         return n * 10
     bar1 = ffi.call_python()(bar)
@@ -1586,9 +1587,21 @@ def test_call_python_bogus_result_type():
         "TypeError: callback with the return type 'void' must return None\n")
 
 def test_call_python_redefine():
-    xxxx
+    ffi = FFI()
+    ffi.cdef("CFFI_CALL_PYTHON int bar(int);")
+    lib = verify(ffi, 'test_call_python_redefine', "")
+    #
+    @ffi.call_python()
+    def bar(n):
+        return n * 10
+    assert lib.bar(42) == 420
+    #
+    @ffi.call_python()
+    def bar(n):
+        return -n
+    assert lib.bar(42) == -42
 
-def test_call_python_2():
+def test_call_python_struct():
     ffi = FFI()
     ffi.cdef("""
         struct foo_s { int a, b, c; };
@@ -1596,16 +1609,56 @@ def test_call_python_2():
         CFFI_CALL_PYTHON struct foo_s baz(int, int);
         CFFI_CALL_PYTHON struct foo_s bok(void);
     """)
-    lib = verify(ffi, 'test_call_python_2',
+    lib = verify(ffi, 'test_call_python_struct',
                  "struct foo_s { int a, b, c; };")
-    XXX
+    #
+    @ffi.call_python()
+    def bar(x, s, z):
+        return x + s.a + s.b + s.c + z
+    res = lib.bar(1000, [1001, 1002, 1004], 1008)
+    assert res == 5015
+    #
+    @ffi.call_python()
+    def baz(x, y):
+        return [x + y, x - y, x * y]
+    res = lib.baz(1000, 42)
+    assert res.a == 1042
+    assert res.b == 958
+    assert res.c == 42000
+    #
+    @ffi.call_python()
+    def bok():
+        return [10, 20, 30]
+    res = lib.bok()
+    assert [res.a, res.b, res.c] == [10, 20, 30]
 
-def test_call_python_3():
+def test_call_python_long_double():
     ffi = FFI()
     ffi.cdef("""
         CFFI_CALL_PYTHON int bar(int, long double, int);
         CFFI_CALL_PYTHON long double baz(int, int);
         CFFI_CALL_PYTHON long double bok(void);
     """)
-    lib = verify(ffi, 'test_call_python_3', "")
-    XXX
+    lib = verify(ffi, 'test_call_python_long_double', "")
+    #
+    @ffi.call_python()
+    def bar(x, l, z):
+        seen.append((x, l, z))
+        return 6
+    seen = []
+    lib.bar(10, 3.5, 20)
+    expected = ffi.cast("long double", 3.5)
+    assert repr(seen) == repr([(10, expected, 20)])
+    #
+    @ffi.call_python()
+    def baz(x, z):
+        assert x == 10 and z == 20
+        return expected
+    res = lib.baz(10, 20)
+    assert repr(res) == repr(expected)
+    #
+    @ffi.call_python()
+    def bok():
+        return expected
+    res = lib.bok()
+    assert repr(res) == repr(expected)
