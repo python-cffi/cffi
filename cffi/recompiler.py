@@ -1167,17 +1167,17 @@ class Recompiler:
         #
         for j in range(len(self._callpy)):
             tp, name = self._callpy[j]
-            size_of_a = max(len(tp.args), 1)
+            size_of_a = max(len(tp.args)*8, 8)
             if may_need_128_bits(tp.result):
-                size_of_a = max(size_of_a, 2)
+                size_of_a = max(size_of_a, 16)
             if isinstance(tp.result, model.StructOrUnion):
-                size_of_a = 'sizeof(%s) > %d ? (sizeof(%s) + 7) / 8 : %d' % (
-                    tp.result.get_c_name(''), 8 * size_of_a,
+                size_of_a = 'sizeof(%s) > %d ? sizeof(%s) : %d' % (
+                    tp.result.get_c_name(''), size_of_a,
                     tp.result.get_c_name(''), size_of_a)
             prnt('static %s' % function_sigs[j])
             prnt('{')
-            prnt('  uint64_t a[%s];' % size_of_a)
-            prnt('  char *p = (char *)a;')
+            prnt('  char a[%s];' % size_of_a)
+            prnt('  char *p = a;')
             for i, type in enumerate(tp.args):
                 arg = 'a%d' % i
                 if (isinstance(type, model.StructOrUnion) or
