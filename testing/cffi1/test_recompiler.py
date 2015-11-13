@@ -1509,13 +1509,53 @@ def test_call_python_1():
 
     @ffi.call_python("bar")
     def my_bar(x, y):
-        seen.append((x, y))
+        seen.append(("Bar", x, y))
         return x * y
     assert my_bar == lib.bar
     seen = []
     res = lib.bar(6, 7)
-    assert seen == [(6, 7)]
+    assert seen == [("Bar", 6, 7)]
     assert res == 42
+
+    @ffi.call_python()
+    def baz(x, y):
+        seen.append(("Baz", x, y))
+    seen = []
+    res = baz(50L, 8L)
+    assert res is None
+    assert seen == [("Baz", 50, 8)]
+    assert type(seen[0][1]) is type(seen[0][2]) is int
+    assert baz == lib.baz
+
+def test_call_python_bogus_name():
+    ffi = FFI()
+    ffi.cdef("int abc;")
+    lib = verify(ffi, 'test_call_python_bogus_name', "int abc;")
+    def fn():
+        pass
+    py.test.raises(ffi.error, ffi.call_python("unknown_name"), fn)
+    py.test.raises(ffi.error, ffi.call_python("abc"), fn)
+    assert lib.abc == 0
+    e = py.test.raises(ffi.error, ffi.call_python("abc"), fn)
+    assert str(e.value) == ("ffi.call_python('abc'): name not found as a "
+                            "CFFI_CALL_PYTHON line from the cdef")
+    e = py.test.raises(ffi.error, ffi.call_python(), fn)
+    assert str(e.value) == ("ffi.call_python('fn'): name not found as a "
+                            "CFFI_CALL_PYTHON line from the cdef")
+    #
+    py.test.raises(TypeError, ffi.call_python(42), fn)
+    py.test.raises((TypeError, AttributeError), ffi.call_python(), "foo")
+    class X:
+        pass
+    x = X()
+    x.__name__ = x
+    py.test.raises(TypeError, ffi.call_python(), x)
+
+def test_call_python_void_must_return_none():
+    xxxx
+
+def test_call_python_redefine():
+    xxxx
 
 def test_call_python_2():
     ffi = FFI()

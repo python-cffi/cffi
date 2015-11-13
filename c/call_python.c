@@ -12,12 +12,20 @@ static PyObject *_ffi_call_python_decorator(PyObject *outer_args, PyObject *fn)
     CTypeDescrObject *ct;
     FFIObject *ffi;
     builder_c_t *types_builder;
+    PyObject *name = NULL;
 
     if (!PyArg_ParseTuple(outer_args, "OzOO", &ffi, &s, &error, &onerror))
         return NULL;
 
     if (s == NULL) {
-        abort();
+        PyObject *name = PyObject_GetAttrString(fn, "__name__");
+        if (name == NULL)
+            return NULL;
+        s = PyString_AsString(name);
+        if (s == NULL) {
+            Py_DECREF(name);
+            return NULL;
+        }
     }
 
     types_builder = &ffi->types_builder;
@@ -27,6 +35,7 @@ static PyObject *_ffi_call_python_decorator(PyObject *outer_args, PyObject *fn)
     g = &types_builder->ctx.globals[index];
     if (_CFFI_GETOP(g->type_op) != _CFFI_OP_CALL_PYTHON)
         goto not_found;
+    Py_XDECREF(name);
 
     ct = realize_c_type(types_builder, types_builder->ctx.types,
                         _CFFI_GETARG(g->type_op));
@@ -53,7 +62,9 @@ static PyObject *_ffi_call_python_decorator(PyObject *outer_args, PyObject *fn)
     return x;
 
  not_found:
-    abort();
+    PyErr_Format(FFIError, "ffi.call_python('%s'): name not found as a "
+                           "CFFI_CALL_PYTHON line from the cdef", s);
+    Py_XDECREF(name);
     return NULL;
 }
 
