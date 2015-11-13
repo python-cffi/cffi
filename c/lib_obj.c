@@ -364,6 +364,16 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
         break;
     }
 
+    case _CFFI_OP_CALL_PYTHON:
+        /* for reading 'lib.bar' where bar is declared with CFFI_CALL_PYTHON */
+        ct = realize_c_type(types_builder, types_builder->ctx.types,
+                            _CFFI_GETARG(g->type_op));
+        if (ct == NULL)
+            return NULL;
+        x = convert_to_object(g->address, ct);
+        Py_DECREF(ct);
+        break;
+
     default:
         PyErr_Format(PyExc_NotImplementedError, "in lib_build_attr: op=%d",
                      (int)_CFFI_GETOP(g->type_op));

@@ -27,6 +27,7 @@ typedef void *_cffi_opcode_t;
 #define _CFFI_OP_DLOPEN_FUNC    35
 #define _CFFI_OP_DLOPEN_CONST   37
 #define _CFFI_OP_GLOBAL_VAR_F   39
+#define _CFFI_OP_CALL_PYTHON    41
 
 #define _CFFI_PRIM_VOID          0
 #define _CFFI_PRIM_BOOL          1
@@ -162,14 +163,10 @@ struct _cffi_parse_info_s {
 
 struct _cffi_callpy_s {
     const char *name;
-    const struct _cffi_type_context_s *ctx;
     int type_index;
-    void *direct_fn;
-    void *reserved;
+    int reserved1;
+    void *reserved2, *reserved3;
 };
-
-extern void _cffi_call_python(struct _cffi_callpy_s *, char *);
-
 
 #ifdef _CFFI_INTERNAL
 static int parse_c_type(struct _cffi_parse_info_s *info, const char *input);

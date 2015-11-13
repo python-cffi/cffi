@@ -227,7 +227,6 @@ class Recompiler:
         self._lsts = {}
         for step_name in self.ALL_STEPS:
             self._lsts[step_name] = []
-        self._callpy = []
         self._seen_struct_unions = set()
         self._generate("ctx")
         self._add_missing_struct_unions()
@@ -360,9 +359,6 @@ class Recompiler:
         prnt('  0,  /* flags */')
         prnt('};')
         prnt()
-        #
-        if self._callpy:
-            self._generate_delayed_callpy()
         #
         # the init function
         base_module_name = self.module_name.split('.')[-1]
@@ -1115,10 +1111,54 @@ class Recompiler:
     # CFFI_CALL_PYTHON
 
     def _generate_cpy_call_python_collecttype(self, tp, name):
-        self._do_collect_type(tp.as_raw_function())
+        assert isinstance(tp, model.FunctionPtrType)
+        self._do_collect_type(tp)
 
     def _generate_cpy_call_python_decl(self, tp, name):
-        pass    # the function is delayed and only generated later
+        prnt = self._prnt
+        type_index = self._typesdict[tp.as_raw_function()]
+        prnt('static struct _cffi_callpy_s _cffi_callpy__%s = { "%s", %d };' % (
+            name, name, type_index))
+        prnt()
+        #
+        arguments = []
+        context = 'argument of %s' % name
+        for i, type in enumerate(tp.args):
+            arg = type.get_c_name(' a%d' % i, context)
+            arguments.append(arg)
+        #
+        repr_arguments = ', '.join(arguments)
+        repr_arguments = repr_arguments or 'void'
+        name_and_arguments = '%s(%s)' % (name, repr_arguments)
+        #
+        def may_need_128_bits(tp):
+            return (isinstance(tp, model.PrimitiveType) and
+                    tp.name == 'long double')
+        #
+        size_of_a = max(len(tp.args)*8, 8)
+        if may_need_128_bits(tp.result):
+            size_of_a = max(size_of_a, 16)
+        if isinstance(tp.result, model.StructOrUnion):
+            size_of_a = 'sizeof(%s) > %d ? sizeof(%s) : %d' % (
+                tp.result.get_c_name(''), size_of_a,
+                tp.result.get_c_name(''), size_of_a)
+        context = 'result of %s' % name
+        prnt('static %s' % tp.result.get_c_name(name_and_arguments, context))
+        prnt('{')
+        prnt('  char a[%s];' % size_of_a)
+        prnt('  char *p = a;')
+        for i, type in enumerate(tp.args):
+            arg = 'a%d' % i
+            if (isinstance(type, model.StructOrUnion) or
+                    may_need_128_bits(type)):
+                arg = '&' + arg
+                type = model.PointerType(type)
+            prnt('  *(%s)(p + %d) = %s;' % (type.get_c_name('*'), i*8, arg))
+        prnt('  _cffi_call_python(&_cffi_callpy__%s, p);' % name)
+        if not isinstance(tp.result, model.VoidType):
+            prnt('  return *(%s)p;' % (tp.result.get_c_name('*'),))
+        prnt('}')
+        prnt()
 
     def _generate_cpy_call_python_ctx(self, tp, name):
         if self.target_is_python:
@@ -1126,70 +1166,10 @@ class Recompiler:
                 "cannot use CFFI_CALL_PYTHON in the ABI mode")
         if tp.ellipsis:
             raise NotImplementedError("CFFI_CALL_PYTHON with a vararg function")
-        self._callpy.append((tp, name))
-
-    def _generate_delayed_callpy(self):
-        #
-        # Write static headers for all the call-python functions
-        prnt = self._prnt
-        function_sigs = []
-        for tp, name in self._callpy:
-            arguments = []
-            context = 'argument of %s' % name
-            for i, type in enumerate(tp.args):
-                arg = type.get_c_name(' a%d' % i, context)
-                arguments.append(arg)
-            #
-            repr_arguments = ', '.join(arguments)
-            repr_arguments = repr_arguments or 'void'
-            name_and_arguments = '%s(%s)' % (name, repr_arguments)
-            context = 'result of %s' % name
-            sig = tp.result.get_c_name(name_and_arguments, context)
-            function_sigs.append(sig)
-            prnt('static %s;' % sig)
-        prnt()
-        #
-        # Write the _cffi_callpy array, which is not constant: a few
-        # fields (notably "reserved") can be modified by _cffi_backend
-        prnt('static struct _cffi_callpy_s _cffi_callpys[%d] = {' %
-             (len(self._callpy),))
-        for tp, name in self._callpy:
-            type_index = self._typesdict[tp.as_raw_function()]
-            prnt('  { "%s", &_cffi_type_context, %d, (void *)&%s },' % (
-                name, type_index, name))
-        prnt('};')
-        prnt()
-        #
-        # Write the implementation of the functions declared above
-        def may_need_128_bits(tp):
-            return (isinstance(tp, model.PrimitiveType) and
-                    tp.name == 'long double')
-        #
-        for j in range(len(self._callpy)):
-            tp, name = self._callpy[j]
-            size_of_a = max(len(tp.args)*8, 8)
-            if may_need_128_bits(tp.result):
-                size_of_a = max(size_of_a, 16)
-            if isinstance(tp.result, model.StructOrUnion):
-                size_of_a = 'sizeof(%s) > %d ? sizeof(%s) : %d' % (
-                    tp.result.get_c_name(''), size_of_a,
-                    tp.result.get_c_name(''), size_of_a)
-            prnt('static %s' % function_sigs[j])
-            prnt('{')
-            prnt('  char a[%s];' % size_of_a)
-            prnt('  char *p = a;')
-            for i, type in enumerate(tp.args):
-                arg = 'a%d' % i
-                if (isinstance(type, model.StructOrUnion) or
-                        may_need_128_bits(type)):
-                    arg = '&' + arg
-                    type = model.PointerType(type)
-                prnt('  *(%s)(p + %d) = %s;' % (type.get_c_name('*'), i*8, arg))
-            prnt('  _cffi_call_python(_cffi_callpys + %d, p);' % j)
-            if not isinstance(tp.result, model.VoidType):
-                prnt('  return *(%s)p;' % (tp.result.get_c_name('*'),))
-            prnt('}')
-            prnt()
+        type_index = self._typesdict[tp]
+        type_op = CffiOp(OP_CALL_PYTHON, type_index)
+        self._lsts["global"].append(
+            GlobalExpr(name, name, type_op, '&_cffi_callpy__%s' % name))
 
     # ----------
     # emitting the opcodes for individual types

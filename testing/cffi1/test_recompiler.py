@@ -1494,6 +1494,7 @@ def test_call_python_1():
         CFFI_CALL_PYTHON void boz(void);
     """)
     lib = verify(ffi, 'test_call_python_1', "")
+    assert ffi.typeof(lib.bar) == ffi.typeof("int(*)(int, int)")
     XXX
 
 def test_call_python_2():
