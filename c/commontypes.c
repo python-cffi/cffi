@@ -202,7 +202,7 @@ static PyObject *b__get_common_types(PyObject *self, PyObject *arg)
     int i, err;
     for (i = 0; i < num_common_simple_types; i++) {
         const char *s = common_simple_types[i];
-        PyObject *o = PyString_FromString(s + strlen(s) + 1);
+        PyObject *o = PyText_FromString(s + strlen(s) + 1);
         if (o == NULL)
             return NULL;
         err = PyDict_SetItemString(arg, s, o);
