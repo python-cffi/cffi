@@ -1531,7 +1531,7 @@ def test_call_python_1():
     assert type(seen[0][1]) is type(seen[0][2]) is int
     assert baz == lib.baz
 
-    @ffi.call_python()
+    @ffi.call_python(name="bok")
     def bok():
         seen.append("Bok")
         return 42
@@ -1662,3 +1662,44 @@ def test_call_python_long_double():
         return expected
     res = lib.bok()
     assert repr(res) == repr(expected)
+
+def test_call_python_signature():
+    ffi = FFI()
+    lib = verify(ffi, 'test_call_python_signature', "")
+    py.test.raises(TypeError, ffi.call_python(425), None)
+    py.test.raises(TypeError, ffi.call_python, 'a', 'b', 'c', 'd')
+
+def test_call_python_errors():
+    ffi = FFI()
+    ffi.cdef("""
+        CFFI_CALL_PYTHON int bar(int);
+    """)
+    lib = verify(ffi, 'test_call_python_errors', "")
+
+    seen = []
+    def oops(*args):
+        seen.append(args)
+
+    @ffi.call_python(onerror=oops)
+    def bar(x):
+        return x + ""
+    assert bar(10) == 0
+
+    @ffi.call_python(name="bar", onerror=oops, error=-66)
+    def bar2(x):
+        return x + ""
+    assert bar(10) == -66
+
+    assert len(seen) == 2
+    exc, val, tb = seen[0]
+    assert exc is TypeError
+    assert isinstance(val, TypeError)
+    assert tb.tb_frame.f_code.co_name == "bar"
+    exc, val, tb = seen[1]
+    assert exc is TypeError
+    assert isinstance(val, TypeError)
+    assert tb.tb_frame.f_code.co_name == "bar2"
+    #
+    # a case where 'onerror' is not callable
+    py.test.raises(TypeError, ffi.call_python(name='bar', onerror=42),
+                   lambda x: x)

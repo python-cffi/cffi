@@ -745,10 +745,9 @@ static PyObject *ffi_call_python(FFIObject *self, PyObject *args,
                              (PyCFunction)_ffi_call_python_decorator, METH_O};
     PyObject *name = Py_None, *error = Py_None;
     PyObject *res, *onerror = Py_None;
-    static char *keywords[] = {"name", "python_callable", "error",
-                               "onerror", NULL};
+    static char *keywords[] = {"name", "error", "onerror", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOOO", keywords,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", keywords,
                                      &name, &error, &onerror))
         return NULL;
 
