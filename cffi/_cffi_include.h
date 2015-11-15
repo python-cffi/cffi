@@ -205,7 +205,8 @@ static PyObject **_cffi_unpack_args(PyObject *args_tuple, Py_ssize_t expected,
 
 /**********  end CPython-specific section  **********/
 #else
-extern void _cffi_call_python(struct _cffi_callpy_s *, char *);
+_CFFI_UNUSED_FN
+static void (*_cffi_call_python)(struct _cffi_callpy_s *, char *);
 #endif
 
 
