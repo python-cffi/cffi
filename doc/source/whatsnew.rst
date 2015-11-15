@@ -3,6 +3,22 @@ What's New
 ======================
 
 
+v1.3.1
+======
+
+* The optional typedefs (``bool``, ``FILE`` and all Windows types) were
+  not always available from out-of-line FFI objects.
+
+* Opaque enums are phased out from the cdefs: they now give a warning,
+  instead of (possibly wrongly) being assumed equal to ``unsigned int``.
+  Please report if you get a reasonable use case for them.
+
+* Some parsing details, notably ``volatile`` is passed along like
+  ``const`` and ``restrict``.  Also, older versions of pycparser
+  mis-parse some pointer-to-pointer types like ``char * const *``: the
+  "const" ends up at the wrong place.  Added a workaround.
+
+
 v1.3.0
 ======
 

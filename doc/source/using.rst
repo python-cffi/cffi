@@ -514,6 +514,16 @@ directly as ``ffi.callback("int(int, int)", myfunc)``.  This is
 discouraged: using this a style, we are more likely to forget the
 callback object too early, when it is still in use.
 
+.. warning::
+    
+    **SELinux** requires that the setting ``deny_execmem`` is left to
+    its default setting of ``off`` to use callbacks.  A fix in cffi was
+    attempted (see the ``ffi_closure_alloc`` branch), but this branch is
+    not merged because it creates potential memory corruption with
+    ``fork()``.  For more information, `see here.`__
+
+.. __: https://bugzilla.redhat.com/show_bug.cgi?id=1249685
+
 *New in version 1.2:* If you want to be sure to catch all exceptions, use
 ``ffi.callback(..., onerror=func)``.  If an exception occurs and
 ``onerror`` is specified, then ``onerror(exception, exc_value,
