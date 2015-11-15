@@ -745,7 +745,14 @@ PyDoc_STRVAR(ffi_gc_doc,
                              from _cffi_backend.c */
 
 PyDoc_STRVAR(ffi_call_python_doc,
-"XXX document me");
+"A decorator.  Attaches the decorated Python function to the C code\n"
+"generated for the CFFI_CALL_PYTHON function of the same name.  Calling\n"
+"the C function will then invoke the Python function.\n"
+"\n"
+"Optional arguments: 'name' is the name of the C function, if\n"
+"different from the Python function; and 'error' and 'onerror'\n"
+"handle what occurs if the Python function raises an exception\n"
+"(see the docs for details).");
 
 /* forward; see call_python.c */
 static PyObject *_ffi_call_python_decorator(PyObject *, PyObject *);
