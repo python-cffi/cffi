@@ -5155,6 +5155,13 @@ static PyObject *prepare_callback_info_tuple(CTypeDescrObject *ct,
     }
     infotuple = Py_BuildValue("OOOO", ct, ob, py_rawerr, onerror_ob);
     Py_DECREF(py_rawerr);
+
+#ifdef WITH_THREAD
+    /* We must setup the GIL here, in case the callback is invoked in
+       some other non-Pythonic thread.  This is the same as ctypes. */
+    PyEval_InitThreads();
+#endif
+
     return infotuple;
 }
 
@@ -5200,9 +5207,6 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         goto error;
     }
     assert(closure->user_data == infotuple);
-#ifdef WITH_THREAD
-    PyEval_InitThreads();
-#endif
     return (PyObject *)cd;
 
  error:
