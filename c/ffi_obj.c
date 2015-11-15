@@ -361,7 +361,19 @@ static PyObject *_ffi_new_with_allocator(PyObject *allocator, PyObject *args,
                     &PyTuple_GET_ITEM(allocator, 1));
 }
 
-PyDoc_STRVAR(ffi_new_allocator_doc, "XXX");
+PyDoc_STRVAR(ffi_new_allocator_doc,
+"Return a new allocator, i.e. a function that behaves like ffi.new()\n"
+"but uses the provided low-level 'alloc' and 'free' functions.\n"
+"\n"
+"'alloc' is called with the size as argument.  If it returns NULL, a\n"
+"MemoryError is raised.  'free' is called with the result of 'alloc'\n"
+"as argument.  Both can be either Python functions or directly C\n"
+"functions.  If 'free' is None, then no free function is called.\n"
+"If both 'alloc' and 'free' are None, the default is used.\n"
+"\n"
+"If 'should_clear_after_alloc' is set to False, then the memory\n"
+"returned by 'alloc' is assumed to be already cleared (or you are\n"
+"fine with garbage); otherwise CFFI will clear it.");
 
 static PyObject *ffi_new_allocator(FFIObject *self, PyObject *args,
                                    PyObject *kwds)
