@@ -3,8 +3,11 @@ import _cffi_backend
 
 
 def getlines():
-    f = open(os.path.join(os.path.dirname(cffi.__file__),
-                          '..', 'c', 'commontypes.c'))
+    try:
+        f = open(os.path.join(os.path.dirname(cffi.__file__),
+                              '..', 'c', 'commontypes.c'))
+    except IOError:
+        py.test.skip("cannot find ../c/commontypes.c")
     lines = [line for line in f.readlines() if line.strip().startswith('EQ(')]
     f.close()
     return lines
