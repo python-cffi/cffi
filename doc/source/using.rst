@@ -433,7 +433,10 @@ out-of-line API mode.  The next section about Callbacks_ describes the
 ABI-mode solution.
 
 This is *new in version 1.4.*  Use Callbacks_ if backward compatibility
-is an issue.
+is an issue.  (The original callbacks have more overhead and potential
+issues with libffi; see the warning__.)
+
+.. __: Callbacks_
 
 In the builder script, declare in the cdef a function prefixed with
 ``CFFI_CALL_PYTHON``::
