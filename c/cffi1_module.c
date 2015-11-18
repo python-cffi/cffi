@@ -174,7 +174,7 @@ static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
 
     /* initialize the exports array */
     num_exports = 25;
-    if (ctx->flags & 1)    /* set to mean "uses _cffi_call_python" */
+    if (ctx->flags & 1)    /* set to mean that 'extern "Python"' is used */
         num_exports = 26;
     memcpy(exports, (char *)cffi_exports, num_exports * sizeof(void *));
 

@@ -6350,8 +6350,8 @@ static PyObject *_cffi_from_c_wchar_t(wchar_t x) {
 }
 #endif
 
-struct _cffi_callpy_s;      /* forward declaration */
-static void _cffi_call_python(struct _cffi_callpy_s *callpy, char *args);
+struct _cffi_externpy_s;      /* forward declaration */
+static void _cffi_call_python(struct _cffi_externpy_s *, char *args);
 
 static void *cffi_exports[] = {
     NULL,
