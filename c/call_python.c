@@ -91,6 +91,9 @@ static void _cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
     */
     save_errno();
 
+#error XXX subinterpreters!
+#error should we make "externpy->reserved1" subinterpreter-local??
+
     if (externpy->reserved1 == NULL) {
         /* not initialized! */
         fprintf(stderr, "extern \"Python\": function %s() called, "
