@@ -90,29 +90,21 @@ static void _cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
        at least 8 bytes in size.
     */
     save_errno();
-    {
-#ifdef WITH_THREAD
-    PyGILState_STATE state = PyGILState_Ensure();
-#endif
 
     if (externpy->reserved1 == NULL) {
         /* not initialized! */
-        PyObject *f = PySys_GetObject("stderr");
-        if (f != NULL) {
-            PyFile_WriteString("extern \"Python\": function ", f);
-            PyFile_WriteString(externpy->name, f);
-            PyFile_WriteString("() called, but no code was attached "
-                               "to it yet with @ffi.def_extern().  "
-                               "Returning 0.\n", f);
-        }
+        fprintf(stderr, "extern \"Python\": function %s() called, "
+                        "but no code was attached to it yet with "
+                        "@ffi.def_extern().  Returning 0.\n", externpy->name);
         memset(args, 0, externpy->size_of_result);
     }
     else {
-        general_invoke_callback(0, args, args, externpy->reserved1);
-    }
-
 #ifdef WITH_THREAD
-    PyGILState_Release(state);
+        PyGILState_STATE state = PyGILState_Ensure();
+#endif
+        general_invoke_callback(0, args, args, externpy->reserved1);
+#ifdef WITH_THREAD
+        PyGILState_Release(state);
 #endif
     }
     restore_errno();
