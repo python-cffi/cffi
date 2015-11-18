@@ -608,7 +608,7 @@ functions::
 The ``extern "Python"`` functions cannot be variadic for now.  This
 may be implemented in the future.
 
-The corresponding Python callback function is defined with the
+Each corresponding Python callback function is defined with the
 ``@ffi.def_extern()`` decorator.  Be careful when writing this
 function: if it raises an exception, or tries to return an object of
 the wrong type, then the exception cannot be propagated.  Instead, the
