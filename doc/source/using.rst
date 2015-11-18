@@ -514,6 +514,16 @@ directly as ``ffi.callback("int(int, int)", myfunc)``.  This is
 discouraged: using this a style, we are more likely to forget the
 callback object too early, when it is still in use.
 
+.. warning::
+    
+    **SELinux** requires that the setting ``deny_execmem`` is left to
+    its default setting of ``off`` to use callbacks.  A fix in cffi was
+    attempted (see the ``ffi_closure_alloc`` branch), but this branch is
+    not merged because it creates potential memory corruption with
+    ``fork()``.  For more information, `see here.`__
+
+.. __: https://bugzilla.redhat.com/show_bug.cgi?id=1249685
+
 *New in version 1.2:* If you want to be sure to catch all exceptions, use
 ``ffi.callback(..., onerror=func)``.  If an exception occurs and
 ``onerror`` is specified, then ``onerror(exception, exc_value,
@@ -692,13 +702,16 @@ byte strings).  Use ``buf[:]`` instead.
 **ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
 points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
-a (read-write) reference to the existing data, not a copy; for this
+a reference to the existing data, not a copy; for this
 reason, and for PyPy compatibility, it does not work with the built-in
 types str or unicode or bytearray (or buffers/memoryviews on them).
 It is meant to be used on objects
 containing large quantities of raw data, like ``array.array`` or numpy
 arrays.  It supports both the old buffer API (in Python 2.x) and the
-new memoryview API.  The original object is kept alive (and, in case
+new memoryview API.  Note that if you pass a read-only buffer object,
+you still get a regular ``<cdata 'char[]'>``; it is your responsibility
+not to write there if the original buffer doesn't expect you to.
+The original object is kept alive (and, in case
 of memoryview, locked) as long as the cdata object returned by
 ``ffi.from_buffer()`` is alive.  *New in version 0.9.*
 

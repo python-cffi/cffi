@@ -7,12 +7,12 @@ def _setup_path():
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 _setup_path()
 from _cffi_backend import *
-from _cffi_backend import _testfunc, _get_types, __version__
+from _cffi_backend import _testfunc, _get_types, _get_common_types, __version__
 
 # ____________________________________________________________
 
 import sys
-assert __version__ == "1.3.0", ("This test_c.py file is for testing a version"
+assert __version__ == "1.3.1", ("This test_c.py file is for testing a version"
                                 " of cffi that differs from the one that we"
                                 " get from 'import _cffi_backend'")
 if sys.version_info < (3,):
@@ -3520,3 +3520,8 @@ def test_stdcall_function_type():
         assert repr(BFunc) == "<ctype 'int(__stdcall *)(int, int)'>"
     else:
         assert repr(BFunc) == "<ctype 'int(*)(int, int)'>"
+
+def test_get_common_types():
+    d = {}
+    _get_common_types(d)
+    assert d['bool'] == '_Bool'

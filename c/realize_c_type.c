@@ -314,6 +314,16 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
     _cffi_opcode_t op2;
     const struct _cffi_struct_union_s *s;
 
+    if (sindex == _CFFI__IO_FILE_STRUCT) {
+        /* returns a single global cached opaque type */
+        static PyObject *file_struct = NULL;
+        if (file_struct == NULL)
+            file_struct = new_struct_or_union_type("FILE",
+                                                   CT_STRUCT | CT_IS_FILE);
+        Py_XINCREF(file_struct);
+        return file_struct;
+    }
+
     s = &builder->ctx.struct_unions[sindex];
     op2 = builder->ctx.types[s->type_index];
     if ((((uintptr_t)op2) & 1) == 0) {
@@ -330,9 +340,9 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
                           (s->flags & _CFFI_F_UNION) ? "union " : "struct ",
                           s->name);
             if (strcmp(name, "struct _IO_FILE") == 0)
-                flags |= CT_IS_FILE;
-
-            x = new_struct_or_union_type(name, flags);
+                x = _realize_c_struct_or_union(builder, _CFFI__IO_FILE_STRUCT);
+            else
+                x = new_struct_or_union_type(name, flags);
             if (x == NULL)
                 return NULL;
 
