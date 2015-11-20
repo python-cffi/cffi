@@ -1,18 +1,43 @@
 
+static PyObject *_get_interpstate_dict(void)
+{
+    /* hack around to return a dict that is subinterpreter-local */
+    int err;
+    PyObject *m, *modules = PyThreadState_GET()->interp->modules;
+
+    if (modules == NULL) {
+        PyErr_SetString(FFIError, "subinterpreter already gone?");
+        return NULL;
+    }
+    m = PyDict_GetItemString(modules, "_cffi_backend._extern_py");
+    if (m == NULL) {
+        m = PyModule_New("_cffi_backend._extern_py");
+        if (m == NULL)
+            return NULL;
+        err = PyDict_SetItemString(modules, "_cffi_backend._extern_py", m);
+        Py_DECREF(m);    /* sys.modules keeps one reference to m */
+        if (err < 0)
+            return NULL;
+    }
+    return PyModule_GetDict(m);
+}
+
 static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
 {
 #if PY_MAJOR_VERSION >= 3
 #  error review!
 #endif
     char *s;
-    PyObject *error, *onerror, *infotuple, *x;
-    int index;
+    PyObject *error, *onerror, *infotuple, *old1;
+    int index, err;
     const struct _cffi_global_s *g;
     struct _cffi_externpy_s *externpy;
     CTypeDescrObject *ct;
     FFIObject *ffi;
     builder_c_t *types_builder;
     PyObject *name = NULL;
+    PyObject *interpstate_dict;
+    PyObject *interpstate_key;
 
     if (!PyArg_ParseTuple(outer_args, "OzOO", &ffi, &s, &error, &onerror))
         return NULL;
@@ -47,12 +72,36 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
     if (infotuple == NULL)
         return NULL;
 
-    /* attach infotuple to reserved1, where it will stay forever
-       unless a new version is attached later */
+    /* don't directly attach infotuple to externpy: in the presence of
+       subinterpreters, each time we switch to a different
+       subinterpreter and call the C function, it will notice the
+       change and look up infotuple from the interpstate_dict.
+    */
+    interpstate_dict = _get_interpstate_dict();
+    if (interpstate_dict == NULL) {
+        Py_DECREF(infotuple);
+        return NULL;
+    }
+
     externpy = (struct _cffi_externpy_s *)g->address;
-    x = (PyObject *)externpy->reserved1;
-    externpy->reserved1 = (void *)infotuple;
-    Py_XDECREF(x);
+    interpstate_key = PyLong_FromVoidPtr((void *)externpy);
+    if (interpstate_key == NULL) {
+        Py_DECREF(infotuple);
+        return NULL;
+    }
+
+    err = PyDict_SetItem(interpstate_dict, interpstate_key, infotuple);
+    Py_DECREF(interpstate_key);
+    Py_DECREF(infotuple);    /* interpstate_dict owns the last ref */
+    if (err < 0)
+        return NULL;
+
+    /* force _update_cache_to_call_python() to be called the next time
+       the C function invokes _cffi_call_python, to update the cache */
+    old1 = externpy->reserved1;
+    externpy->reserved1 = Py_None;   /* a non-NULL value */
+    Py_INCREF(Py_None);
+    Py_XDECREF(old1);
 
     /* return the function object unmodified */
     Py_INCREF(fn);
@@ -65,6 +114,37 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
     return NULL;
 }
 
+
+static int _update_cache_to_call_python(struct _cffi_externpy_s *externpy)
+{
+    PyObject *interpstate_dict, *interpstate_key, *infotuple, *old1, *new1;
+
+    interpstate_dict = _get_interpstate_dict();
+    if (interpstate_dict == NULL)
+        goto error;
+
+    interpstate_key = PyLong_FromVoidPtr((void *)externpy);
+    if (interpstate_key == NULL)
+        goto error;
+
+    infotuple = PyDict_GetItem(interpstate_dict, interpstate_key);
+    Py_DECREF(interpstate_key);
+    if (infotuple == NULL)
+        return 1;    /* no ffi.def_extern() from this subinterpreter */
+
+    new1 = PyThreadState_GET()->interp->modules;
+    Py_INCREF(new1);
+    old1 = (PyObject *)externpy->reserved1;
+    externpy->reserved1 = new1;         /* holds a reference        */
+    externpy->reserved2 = infotuple;    /* doesn't hold a reference */
+    Py_XDECREF(old1);
+
+    return 0;   /* no error */
+
+ error:
+    PyErr_Clear();
+    return 2;   /* out of memory? */
+}
 
 static void _cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
 {
@@ -86,26 +166,43 @@ static void _cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
        (directly, even if more than 8 bytes).  In all cases, 'args' is
        at least 8 bytes in size.
     */
+    int err = 0;
     save_errno();
 
-#error XXX subinterpreters!
-#error should we make "externpy->reserved1" subinterpreter-local??
-
+    /* We need the infotuple here.  We could always go through
+       interp->modules['..'][externpy], but to avoid the extra dict
+       lookups, we cache in (reserved1, reserved2) the last seen pair
+       (interp->modules, infotuple).
+    */
     if (externpy->reserved1 == NULL) {
-        /* not initialized! */
-        fprintf(stderr, "extern \"Python\": function %s() called, "
-                        "but no code was attached to it yet with "
-                        "@ffi.def_extern().  Returning 0.\n", externpy->name);
-        memset(args, 0, externpy->size_of_result);
+        /* Not initialized!  We didn't call @ffi.def_extern() on this
+           externpy object from any subinterpreter at all. */
+        err = 1;
     }
     else {
 #ifdef WITH_THREAD
         PyGILState_STATE state = PyGILState_Ensure();
 #endif
-        general_invoke_callback(0, args, args, externpy->reserved1);
+        if (externpy->reserved1 != PyThreadState_GET()->interp->modules) {
+            /* Update the (reserved1, reserved2) cache.  This will fail
+               if we didn't call @ffi.def_extern() in this particular
+               subinterpreter. */
+            err = _update_cache_to_call_python(externpy);
+        }
+        if (!err) {
+            general_invoke_callback(0, args, args, externpy->reserved2);
+        }
 #ifdef WITH_THREAD
         PyGILState_Release(state);
 #endif
+    }
+    if (err) {
+        static const char *msg[2] = {
+            "no code was attached to it yet with @ffi.def_extern()",
+            "got internal exception (out of memory?)" };
+        fprintf(stderr, "extern \"Python\": function %s() called, "
+                        "but %s.  Returning 0.\n", externpy->name, msg[err-1]);
+        memset(args, 0, externpy->size_of_result);
     }
     restore_errno();
 }
