@@ -9,7 +9,7 @@ ffi.set_source("_extern_python_cffi", """
     static int my_algo(int n) {
         int i, sum = 0;
         for (i = 0; i < n; i++)
-            sum += f(n);
+            sum += f(i);
         return sum;
     }
 """)

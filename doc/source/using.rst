@@ -592,7 +592,7 @@ useful if the logic in ``my_algo()`` is much more complex)::
         static int my_algo(int n) {
             int i, sum = 0;
             for (i = 0; i < n; i++)
-                sum += f(n);
+                sum += f(i);
             return sum;
         }
     """)
