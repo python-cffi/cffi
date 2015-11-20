@@ -43,10 +43,9 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
         return NULL;
 
     infotuple = prepare_callback_info_tuple(ct, fn, error, onerror, 0);
-    if (infotuple == NULL) {
-        Py_DECREF(ct);
+    Py_DECREF(ct);
+    if (infotuple == NULL)
         return NULL;
-    }
 
     /* attach infotuple to reserved1, where it will stay forever
        unless a new version is attached later */
@@ -55,11 +54,9 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
     externpy->reserved1 = (void *)infotuple;
     Py_XDECREF(x);
 
-    /* return a cdata of type function-pointer, equal to the one
-       obtained by reading 'lib.bar' (see lib_obj.c) */
-    x = convert_to_object((char *)&g->size_or_direct_fn, ct);
-    Py_DECREF(ct);
-    return x;
+    /* return the function object unmodified */
+    Py_INCREF(fn);
+    return fn;
 
  not_found:
     PyErr_Format(FFIError, "ffi.def_extern('%s'): no 'extern \"Python\"' "

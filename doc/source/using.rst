@@ -461,11 +461,12 @@ your application's code::
     def my_callback(fooptr, value):
         return 42
 
-You can get a ``<cdata>`` pointer-to-function object from either
-reading ``lib.my_callback``, or directly from the decorated
-``my_callback`` above.  This ``<cdata>`` can be passed to C code and
+You can get a ``<cdata>`` pointer-to-function object from
+``lib.my_callback``.  This ``<cdata>`` can be passed to C code and
 then works like a callback: when the C code calls this function
-pointer, the Python function ``my_callback`` is called.
+pointer, the Python function ``my_callback`` is called.  (You need
+to pass ``lib.my_callback`` to C code, and not ``my_callback``: the
+latter is just a plain Python function that cannot be passed to C.)
 
 CFFI implements this by defining ``my_callback`` as a static C
 function, written after the ``set_source()`` code.  The ``<cdata>``
@@ -474,10 +475,13 @@ Python function object that was dynamically attached by
 ``@ffi.def_extern()``.
 
 Each function from the cdef with ``extern "Python"`` turns into only
-one C function.  You can redefine the attached Python function by
-calling ``@ffi.def_extern()`` again, but it changes the C logic to
-call the new Python function; the old Python function is not callable
-any more and the C function pointer itself is always the same.
+one C function.  To support some corner cases, it is possible to
+redefine the attached Python function by calling ``@ffi.def_extern()``
+again---but this is not recommended!  Better write the Python function
+more flexibly in the first place.  Calling ``@ffi.def_extern()`` again
+changes the C logic to call the new Python function; the old Python
+function is not callable any more and the C function pointer you get
+from ``lib.my_function`` is always the same.
 
 Extern "Python" and "void *" arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -517,7 +521,7 @@ and in your main application you register events like this::
         def __init__(self):
             userdata = ffi.new_handle(self)
             self._userdata = userdata     # must keep this alive!
-            lib.event_cb_register(my_event_callback, userdata)
+            lib.event_cb_register(lib.my_event_callback, userdata)
 
         def process_event(self, evt):
             ...
@@ -546,7 +550,7 @@ Then you can use the ``void *`` field in the low-level
             userdata = ffi.new_handle(self)
             self._userdata = userdata        # must still keep this alive!
             ll_widget.userdata = userdata    # this makes a copy of the "void *"
-            lib.event_cb_register(ll_widget, my_event_callback)
+            lib.event_cb_register(ll_widget, lib.my_event_callback)
 
         def process_event(self, evt):
             ...
