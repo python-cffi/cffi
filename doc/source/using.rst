@@ -365,8 +365,9 @@ function expecting a function pointer argument.  Only ``ffi.typeof()``
 works on them.  To get a cdata containing a regular function pointer,
 use ``ffi.addressof(lib, "name")`` (new in version 1.1).
 
-Before version 1.1, if you really need a cdata pointer to the function,
-use the following workaround:
+Before version 1.1 (or with the deprecated ``ffi.verify()``), if you
+really need a cdata pointer to the function, use the following
+workaround:
 
 .. code-block:: python
   
