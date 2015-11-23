@@ -13,6 +13,7 @@ v1.4.0
   remove handles from a global set without worrying about duplicates.
 
 * ``ffi.init_once()`` XXX
+  https://bitbucket.org/cffi/cffi/issues/233/
 
 
 v1.3.1
