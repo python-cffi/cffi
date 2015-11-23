@@ -103,7 +103,11 @@
 #endif
 
 #if PY_MAJOR_VERSION < 3
-#define PyCapsule_New(pointer, name, destructor)        \
+# undef PyCapsule_GetPointer
+# undef PyCapsule_New
+# define PyCapsule_GetPointer(capsule, name) \
+    (PyCObject_AsVoidPtr(capsule))
+# define PyCapsule_New(pointer, name, destructor) \
     (PyCObject_FromVoidPtr(pointer, destructor))
 #endif
 
@@ -1607,7 +1611,7 @@ static void cdataowninggc_dealloc(CDataObject *cd)
     PyObject_GC_UnTrack(cd);
 
     if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {        /* a handle */
-        PyObject *x = (PyObject *)(cd->c_data + 42);
+        PyObject *x = ((CDataObject_own_structptr *)cd)->structobj;
         Py_DECREF(x);
     }
     else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
@@ -1627,7 +1631,7 @@ static void cdataowninggc_dealloc(CDataObject *cd)
 static int cdataowninggc_traverse(CDataObject *cd, visitproc visit, void *arg)
 {
     if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {        /* a handle */
-        PyObject *x = (PyObject *)(cd->c_data + 42);
+        PyObject *x = ((CDataObject_own_structptr *)cd)->structobj;
         Py_VISIT(x);
     }
     else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
@@ -1645,9 +1649,10 @@ static int cdataowninggc_traverse(CDataObject *cd, visitproc visit, void *arg)
 static int cdataowninggc_clear(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {        /* a handle */
-        PyObject *x = (PyObject *)(cd->c_data + 42);
+        CDataObject_own_structptr *cd1 = (CDataObject_own_structptr *)cd;
+        PyObject *x = cd1->structobj;
         Py_INCREF(Py_None);
-        cd->c_data = ((char *)Py_None) - 42;
+        cd1->structobj = Py_None;
         Py_DECREF(x);
     }
     else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
@@ -1835,7 +1840,7 @@ static PyObject *cdataowning_repr(CDataObject *cd)
 static PyObject *cdataowninggc_repr(CDataObject *cd)
 {
     if (cd->c_type->ct_flags & CT_IS_VOID_PTR) {        /* a handle */
-        PyObject *x = (PyObject *)(cd->c_data + 42);
+        PyObject *x = ((CDataObject_own_structptr *)cd)->structobj;
         return _cdata_repr2(cd, "handle to", x);
     }
     else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
@@ -5649,10 +5654,26 @@ static PyObject *b_set_errno(PyObject *self, PyObject *arg)
     return Py_None;
 }
 
+static PyObject *newp_handle(CTypeDescrObject *ct_voidp, PyObject *x)
+{
+    CDataObject_own_structptr *cd;
+    cd = (CDataObject_own_structptr *)PyObject_GC_New(CDataObject_own_structptr,
+                                                      &CDataOwningGC_Type);
+    if (cd == NULL)
+        return NULL;
+    Py_INCREF(ct_voidp);
+    cd->head.c_type = ct_voidp;
+    cd->head.c_data = (char *)cd;
+    cd->head.c_weakreflist = NULL;
+    Py_INCREF(x);
+    cd->structobj = x;
+    PyObject_GC_Track(cd);
+    return (PyObject *)cd;
+}
+
 static PyObject *b_newp_handle(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
-    CDataObject *cd;
     PyObject *x;
     if (!PyArg_ParseTuple(args, "O!O", &CTypeDescr_Type, &ct, &x))
         return NULL;
@@ -5662,47 +5683,38 @@ static PyObject *b_newp_handle(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    cd = (CDataObject *)PyObject_GC_New(CDataObject, &CDataOwningGC_Type);
-    if (cd == NULL)
-        return NULL;
-    Py_INCREF(ct);
-    cd->c_type = ct;
-    Py_INCREF(x);
-    cd->c_data = ((char *)x) - 42;
-    cd->c_weakreflist = NULL;
-    PyObject_GC_Track(cd);
-    return (PyObject *)cd;
+    return newp_handle(ct, x);
 }
 
 static PyObject *b_from_handle(PyObject *self, PyObject *arg)
 {
     CTypeDescrObject *ct;
-    char *raw;
+    CDataObject_own_structptr *orgcd;
     PyObject *x;
     if (!CData_Check(arg)) {
         PyErr_SetString(PyExc_TypeError, "expected a 'cdata' object");
         return NULL;
     }
     ct = ((CDataObject *)arg)->c_type;
-    raw = ((CDataObject *)arg)->c_data;
     if (!(ct->ct_flags & CT_CAST_ANYTHING)) {
         PyErr_Format(PyExc_TypeError,
                      "expected a 'cdata' object with a 'void *' out of "
                      "new_handle(), got '%s'", ct->ct_name);
         return NULL;
     }
-    if (!raw) {
+    orgcd = (CDataObject_own_structptr *)((CDataObject *)arg)->c_data;
+    if (!orgcd) {
         PyErr_SetString(PyExc_RuntimeError,
                         "cannot use from_handle() on NULL pointer");
         return NULL;
     }
-    x = (PyObject *)(raw + 42);
-    if (Py_REFCNT(x) <= 0) {
+    if (Py_REFCNT(orgcd) <= 0 || Py_TYPE(orgcd) != &CDataOwningGC_Type) {
         Py_FatalError("ffi.from_handle() detected that the address passed "
                       "points to garbage. If it is really the result of "
                       "ffi.new_handle(), then the Python object has already "
                       "been garbage collected");
     }
+    x = orgcd->structobj;
     Py_INCREF(x);
     return x;
 }
