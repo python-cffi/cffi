@@ -597,7 +597,7 @@ useful if the logic in ``my_algo()`` is much more complex)::
         }
     """)
 
-EXtern "Python": reference
+Extern "Python": reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``extern "Python"`` must appear in the cdef().  Like the C++ ``extern
