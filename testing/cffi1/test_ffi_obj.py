@@ -193,6 +193,11 @@ def test_handle():
     yp = ffi.new_handle([6, 4, 2])
     assert ffi.from_handle(yp) == [6, 4, 2]
 
+def test_handle_unique():
+    ffi = _cffi1_backend.FFI()
+    assert ffi.new_handle(None) is not ffi.new_handle(None)
+    assert ffi.new_handle(None) != ffi.new_handle(None)
+
 def test_ffi_cast():
     ffi = _cffi1_backend.FFI()
     assert ffi.cast("int(*)(int)", 0) == ffi.NULL

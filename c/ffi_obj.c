@@ -679,18 +679,8 @@ PyDoc_STRVAR(ffi_new_handle_doc,
 
 static PyObject *ffi_new_handle(FFIObject *self, PyObject *arg)
 {
-    CDataObject *cd;
-
-    cd = (CDataObject *)PyObject_GC_New(CDataObject, &CDataOwningGC_Type);
-    if (cd == NULL)
-        return NULL;
-    Py_INCREF(g_ct_voidp);     // <ctype 'void *'>
-    cd->c_type = g_ct_voidp;
-    Py_INCREF(arg);
-    cd->c_data = ((char *)arg) - 42;
-    cd->c_weakreflist = NULL;
-    PyObject_GC_Track(cd);
-    return (PyObject *)cd;
+    /* g_ct_voidp is equal to <ctype 'void *'> */
+    return newp_handle(g_ct_voidp, arg);
 }
 
 PyDoc_STRVAR(ffi_from_handle_doc,
@@ -699,32 +689,8 @@ PyDoc_STRVAR(ffi_from_handle_doc,
 "cdata object returned by new_handle() is still alive (somewhere else\n"
 "in the program).  Failure to follow these rules will crash.");
 
-static PyObject *ffi_from_handle(PyObject *self, PyObject *arg)
-{
-    CTypeDescrObject *ct;
-    char *raw;
-    PyObject *x;
-    if (!CData_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "expected a 'cdata' object");
-        return NULL;
-    }
-    ct = ((CDataObject *)arg)->c_type;
-    raw = ((CDataObject *)arg)->c_data;
-    if (!(ct->ct_flags & CT_CAST_ANYTHING)) {
-        PyErr_Format(PyExc_TypeError,
-                     "expected a 'cdata' object with a 'void *' out of "
-                     "new_handle(), got '%s'", ct->ct_name);
-        return NULL;
-    }
-    if (!raw) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "cannot use from_handle() on NULL pointer");
-        return NULL;
-    }
-    x = (PyObject *)(raw + 42);
-    Py_INCREF(x);
-    return x;
-}
+#define ffi_from_handle  b_from_handle   /* ffi_from_handle => b_from_handle
+                                            from _cffi_backend.c */
 
 PyDoc_STRVAR(ffi_from_buffer_doc,
 "Return a <cdata 'char[]'> that points to the data of the given Python\n"

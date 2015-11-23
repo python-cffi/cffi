@@ -833,16 +833,18 @@ you can use **ffi.from_handle(p)** to retrive the original
 *Calling ffi.from_handle(p) is invalid and will likely crash if
 the cdata object returned by new_handle() is not kept alive!*
 
-(In case you are wondering, this ``void *`` is not a ``PyObject *``
+(In case you are wondering, this ``void *`` is not the ``PyObject *``
 pointer.  This wouldn't make sense on PyPy anyway.)
 
 The ``ffi.new_handle()/from_handle()`` functions *conceptually* work
 like this:
 
-* ``new_handle()`` returns a cdata object that contains a reference to
-  the Python object; we call them collectively the "handle" cdata
-  objects.  The ``void *`` value in this handle cdata object is random
-  but unique.
+* ``new_handle()`` returns cdata objects that contains references to
+  the Python objects; we call them collectively the "handle" cdata
+  objects.  The ``void *`` value in these handle cdata objects are
+  random but unique.  *New in version 1.4:* two calls to
+  ``new_handle(x)`` are guaranteed to return cdata objects with
+  different ``void *`` values, even with the same ``x``.
 
 * ``from_handle(p)`` searches all live "handle" cdata objects for the
   one that has the same value ``p`` as its ``void *`` value.  It then
