@@ -843,9 +843,7 @@ like this:
 * ``new_handle()`` returns cdata objects that contains references to
   the Python objects; we call them collectively the "handle" cdata
   objects.  The ``void *`` value in these handle cdata objects are
-  random but unique.  *New in version 1.4:* two calls to
-  ``new_handle(x)`` are guaranteed to return cdata objects with
-  different ``void *`` values, even with the same ``x``.
+  random but unique.
 
 * ``from_handle(p)`` searches all live "handle" cdata objects for the
   one that has the same value ``p`` as its ``void *`` value.  It then
@@ -857,6 +855,16 @@ how ``ffi.new()`` returns a cdata object that keeps a piece of memory
 alive.  If the handle cdata object *itself* is not alive any more,
 then the association ``void * -> python_object`` is dead and
 ``from_handle()`` will crash.
+
+*New in version 1.4:* two calls to ``new_handle(x)`` are guaranteed to
+return cdata objects with different ``void *`` values, even with the
+same ``x``.  This is a useful feature that avoids issues with unexpected
+duplicates in the following trick: if you need to keep alive the
+"handle" until explicitly asked to free it, but don't have a natural
+Python-side place to attach it to, then the easiest is to ``add()`` it
+to a global set.  It can later be removed from the set by
+``global_set.discard(p)``, with ``p`` any cdata object whose ``void *``
+value compares equal.
 
 
 .. _`ffi.addressof()`:

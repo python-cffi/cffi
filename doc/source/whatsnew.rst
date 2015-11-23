@@ -8,9 +8,10 @@ v1.4.0
 
 * ``ffi.new_handle()`` is now guaranteed to return unique ``void *``
   values, even if called twice on the same object.  Previously, in
-  that case, CPython (but not PyPy) would return different ``cdata``
-  objects with the same ``void *`` value.  This is useful to add and
-  remove handles from a global set without worrying about duplicates.
+  that case, CPython (but not PyPy) would return two ``cdata`` objects
+  with the same ``void *`` value.  This change is useful to add and
+  remove handles from a global dict or set without worrying about
+  duplicates.
 
 * ``ffi.init_once()`` XXX
   https://bitbucket.org/cffi/cffi/issues/233/
