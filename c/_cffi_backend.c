@@ -103,7 +103,11 @@
 #endif
 
 #if PY_MAJOR_VERSION < 3
-#define PyCapsule_New(pointer, name, destructor)        \
+# undef PyCapsule_GetPointer
+# undef PyCapsule_New
+# define PyCapsule_GetPointer(capsule, name) \
+    (PyCObject_AsVoidPtr(capsule))
+# define PyCapsule_New(pointer, name, destructor) \
     (PyCObject_FromVoidPtr(pointer, destructor))
 #endif
 

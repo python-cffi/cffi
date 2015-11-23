@@ -24,6 +24,7 @@
 struct FFIObject_s {
     PyObject_HEAD
     PyObject *gc_wrefs, *gc_wrefs_freelist;
+    PyObject *init_once_cache;
     struct _cffi_parse_info_s info;
     char ctx_is_static, ctx_is_nonempty;
     builder_c_t types_builder;
@@ -52,6 +53,7 @@ static FFIObject *ffi_internal_new(PyTypeObject *ffitype,
     }
     ffi->gc_wrefs = NULL;
     ffi->gc_wrefs_freelist = NULL;
+    ffi->init_once_cache = NULL;
     ffi->info.ctx = &ffi->types_builder.ctx;
     ffi->info.output = internal_output;
     ffi->info.output_size = FFI_COMPLEXITY_OUTPUT;
@@ -65,6 +67,7 @@ static void ffi_dealloc(FFIObject *ffi)
     PyObject_GC_UnTrack(ffi);
     Py_XDECREF(ffi->gc_wrefs);
     Py_XDECREF(ffi->gc_wrefs_freelist);
+    Py_XDECREF(ffi->init_once_cache);
 
     free_builder_c(&ffi->types_builder, ffi->ctx_is_static);
 
@@ -881,6 +884,130 @@ PyDoc_STRVAR(ffi_memmove_doc,
 #define ffi_memmove  b_memmove     /* ffi_memmove() => b_memmove()
                                       from _cffi_backend.c */
 
+#ifdef WITH_THREAD
+# include "pythread.h"
+#else
+typedef void *PyThread_type_lock;
+# define PyThread_allocate_lock()        ((void *)-1)
+# define PyThread_free_lock(lock)        ((void)(lock))
+# define PyThread_acquire_lock(lock, _)  ((void)(lock))
+# define PyThread_release_lock(lock)     ((void)(lock))
+#endif
+
+PyDoc_STRVAR(ffi_init_once_doc,
+             "XXX document me");
+
+#if PY_MAJOR_VERSION < 3
+/* PyCapsule_New is redefined to be PyCObject_FromVoidPtr in _cffi_backend,
+   which gives 2.6 compatibility; but the destructor signature is different */
+static void _free_init_once_lock(void *lock)
+{
+    PyThread_free_lock((PyThread_type_lock)lock);
+}
+#else
+static void _free_init_once_lock(PyObject *capsule)
+{
+    PyThread_type_lock lock;
+    lock = PyCapsule_GetPointer(capsule, "cffi_init_once_lock");
+    if (lock != NULL)
+        PyThread_free_lock(lock);
+}
+#endif
+
+static PyObject *ffi_init_once(FFIObject *self, PyObject *args, PyObject *kwds)
+{
+    static char *keywords[] = {"func", "tag", NULL};
+    PyObject *cache, *func, *tag, *tup, *res, *x, *lockobj;
+    PyThread_type_lock lock;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO", keywords, &func, &tag))
+        return NULL;
+
+    /* a lot of fun with reference counting and error checking
+       in this function */
+
+    /* atomically get or create a new dict (no GIL release) */
+    cache = self->init_once_cache;
+    if (cache == NULL) {
+        cache = PyDict_New();
+        if (cache == NULL)
+            return NULL;
+        self->init_once_cache = cache;
+    }
+
+    /* get the tuple from cache[tag], or make a new one: (False, lock) */
+    tup = PyDict_GetItem(cache, tag);
+    if (tup == NULL) {
+        lock = PyThread_allocate_lock();
+        if (lock == NULL)
+            return NULL;
+        x = PyCapsule_New(lock, "cffi_init_once_lock", _free_init_once_lock);
+        if (x == NULL) {
+            PyThread_free_lock(lock);
+            return NULL;
+        }
+        tup = PyTuple_Pack(2, Py_False, x);
+        Py_DECREF(x);
+        if (tup == NULL)
+            return NULL;
+        x = tup;
+
+        /* Possible corner case if 'tag' is an object overriding __eq__
+           in pure Python: the GIL may be released when we are running it.
+           We really need to call dict.setdefault(). */
+        tup = PyObject_CallMethod(cache, "setdefault", "OO", tag, x);
+        Py_DECREF(x);
+        if (tup == NULL)
+            return NULL;
+
+        Py_DECREF(tup);   /* there is still a ref inside the dict */
+    }
+
+    res = PyTuple_GET_ITEM(tup, 1);
+    Py_INCREF(res);
+
+    if (PyTuple_GET_ITEM(tup, 0) == Py_True) {
+        /* tup == (True, result): return the result. */
+        return res;
+    }
+
+    /* tup == (False, lock) */
+    lockobj = res;
+    lock = (PyThread_type_lock)PyCapsule_GetPointer(lockobj,
+                                                    "cffi_init_once_lock");
+    if (lock == NULL) {
+        Py_DECREF(lockobj);
+        return NULL;
+    }
+
+    Py_BEGIN_ALLOW_THREADS
+    PyThread_acquire_lock(lock, WAIT_LOCK);
+    Py_END_ALLOW_THREADS
+
+    x = PyDict_GetItem(cache, tag);
+    if (x != NULL && PyTuple_GET_ITEM(x, 0) == Py_True) {
+        /* the real result was put in the dict while we were waiting
+           for PyThread_acquire_lock() above */
+        res = PyTuple_GET_ITEM(x, 1);
+        Py_INCREF(res);
+    }
+    else {
+        res = PyObject_CallFunction(func, "");
+        if (res != NULL) {
+            tup = PyTuple_Pack(2, Py_True, res);
+            if (tup == NULL || PyDict_SetItem(cache, tag, tup) < 0) {
+                Py_XDECREF(tup);
+                Py_DECREF(res);
+                res = NULL;
+            }
+        }
+    }
+
+    PyThread_release_lock(lock);
+    Py_DECREF(lockobj);
+    return res;
+}
+
 
 #define METH_VKW  (METH_VARARGS | METH_KEYWORDS)
 static PyMethodDef ffi_methods[] = {
@@ -898,6 +1025,7 @@ static PyMethodDef ffi_methods[] = {
 #ifdef MS_WIN32
  {"getwinerror",(PyCFunction)ffi_getwinerror,METH_VKW,     ffi_getwinerror_doc},
 #endif
+ {"init_once",  (PyCFunction)ffi_init_once,  METH_VKW,     ffi_init_once_doc},
  {"integer_const",(PyCFunction)ffi_int_const,METH_VKW,     ffi_int_const_doc},
  {"memmove",    (PyCFunction)ffi_memmove,    METH_VKW,     ffi_memmove_doc},
  {"new",        (PyCFunction)ffi_new,        METH_VKW,     ffi_new_doc},
