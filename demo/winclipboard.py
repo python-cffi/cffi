@@ -33,7 +33,7 @@ def CopyToClipboard(string):
         # make it a moveable memory for other processes
         hGlobal = lib.GlobalAlloc(lib.GMEM_MOVEABLE, size)
         buffer = lib.GlobalLock(hGlobal)
-        memcpy(buffer, cstring, size)
+        lib.memcpy(buffer, cstring, size)
         lib.GlobalUnlock(hGlobal)
         
         res = lib.EmptyClipboard()
