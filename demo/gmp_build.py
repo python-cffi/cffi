@@ -2,7 +2,7 @@ import cffi
 
 #
 # This is only a demo based on the GMP library.
-# There is a rather more complete (but outdated) version available at:
+# There is a rather more complete (but perhaps outdated) version available at:
 # http://bazaar.launchpad.net/~tolot-solar-empire/+junk/gmpy_cffi/files
 #
 
