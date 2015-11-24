@@ -1028,7 +1028,12 @@ allowed.
    Note that we assume that the called functions are *not* using the
    Python API from Python.h.  For example, we don't check afterwards
    if they set a Python exception.  You may work around it, but mixing
-   CFFI with ``Python.h`` is not recommended.
+   CFFI with ``Python.h`` is not recommended.  (If you do that, on
+   PyPy and on some platforms like Windows, you may need to explicitly
+   link to ``libpypy-c.dll`` to access the CPython C API compatibility
+   layer; indeed, CFFI-generated modules on PyPy don't link to
+   ``libpypy-c.dll`` on their own.  But really, don't do that in the
+   first place.)
 
 `(***)` ``long double`` support:
 
