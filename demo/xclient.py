@@ -7,8 +7,14 @@ sys.path.append('.')
 try:
     from _xclient import ffi, lib
 except ImportError:
-    print 'run %s_build first, then make sure the shared object is on sys.path' % os.path.splitext(__file__)[0]
+    print 'run xclient_build first, then make sure the shared object is on sys.path'
     sys.exit(-1)
+
+# ffi "knows" about the declared variables and functions from the
+#     cdef parts of the module xclient_build created,
+# lib "knows" how to call the functions from the set_source parts
+#     of the module.
+
 
 class XError(Exception):
     pass

@@ -22,9 +22,6 @@ ffi.cdef("""
     };
 """)
 
-v = ffi.verify("#include <btrfs/ioctl.h>")
-
-
 
 parser = argparse.ArgumentParser(usage=__doc__.strip())
 parser.add_argument('source', help='source subvolume')

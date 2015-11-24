@@ -26,7 +26,7 @@ def _make_ffi_from_dialect(dialect):
     else:
         d['is_escape_char'] = '&& 0'
 
-    lib = ffi.verify(r'''
+    ffi.set_source('_fastcsv', r'''
 
     typedef enum {
         START_RECORD, START_FIELD, ESCAPED_CHAR, IN_FIELD,

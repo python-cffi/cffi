@@ -1,6 +1,6 @@
 from cffi import FFI
-_ffi = FFI()
-_ffi.cdef("""
+ffi = FFI()
+ffi.cdef("""
 
 typedef ... Display;
 typedef struct { ...; } Window;
@@ -17,8 +17,10 @@ Window XCreateSimpleWindow(Display *display, Window parent, int x, int y,
 int XNextEvent(Display *display, XEvent *event_return);
 """)
 
-_ffi.set_source('_xclient', """
+ffi.set_source('_xclient', """
             #include <X11/Xlib.h>
 """, libraries=['X11'])
-_ffi.compile()
+
+if __name__ == '__main__':
+    ffi.compile()
 
