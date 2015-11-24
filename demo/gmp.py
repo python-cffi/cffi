@@ -1,4 +1,9 @@
 import sys
+#
+# This is only a demo based on the GMP library.
+# There is a rather more complete (but perhaps outdated) version available at:
+# http://bazaar.launchpad.net/~tolot-solar-empire/+junk/gmpy_cffi/files
+#
 
 # If the build script was run immediately before this script, the cffi module
 # ends up in the current directory. Make sure we can import it.
