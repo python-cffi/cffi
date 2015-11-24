@@ -5778,6 +5778,10 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x)
     }
 
     view = PyObject_Malloc(sizeof(Py_buffer));
+    if (view == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
     if (_my_PyObject_GetContiguousBuffer(x, view, 0) < 0)
         goto error1;
 
