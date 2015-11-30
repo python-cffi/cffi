@@ -365,8 +365,9 @@ function expecting a function pointer argument.  Only ``ffi.typeof()``
 works on them.  To get a cdata containing a regular function pointer,
 use ``ffi.addressof(lib, "name")`` (new in version 1.1).
 
-Before version 1.1, if you really need a cdata pointer to the function,
-use the following workaround:
+Before version 1.1 (or with the deprecated ``ffi.verify()``), if you
+really need a cdata pointer to the function, use the following
+workaround:
 
 .. code-block:: python
   
@@ -1055,9 +1056,7 @@ like this:
 * ``new_handle()`` returns cdata objects that contains references to
   the Python objects; we call them collectively the "handle" cdata
   objects.  The ``void *`` value in these handle cdata objects are
-  random but unique.  *New in version 1.4:* two calls to
-  ``new_handle(x)`` are guaranteed to return cdata objects with
-  different ``void *`` values, even with the same ``x``.
+  random but unique.
 
 * ``from_handle(p)`` searches all live "handle" cdata objects for the
   one that has the same value ``p`` as its ``void *`` value.  It then
@@ -1069,6 +1068,16 @@ how ``ffi.new()`` returns a cdata object that keeps a piece of memory
 alive.  If the handle cdata object *itself* is not alive any more,
 then the association ``void * -> python_object`` is dead and
 ``from_handle()`` will crash.
+
+*New in version 1.4:* two calls to ``new_handle(x)`` are guaranteed to
+return cdata objects with different ``void *`` values, even with the
+same ``x``.  This is a useful feature that avoids issues with unexpected
+duplicates in the following trick: if you need to keep alive the
+"handle" until explicitly asked to free it, but don't have a natural
+Python-side place to attach it to, then the easiest is to ``add()`` it
+to a global set.  It can later be removed from the set by
+``global_set.discard(p)``, with ``p`` any cdata object whose ``void *``
+value compares equal.
 
 
 .. _`ffi.addressof()`:
@@ -1232,7 +1241,12 @@ allowed.
    Note that we assume that the called functions are *not* using the
    Python API from Python.h.  For example, we don't check afterwards
    if they set a Python exception.  You may work around it, but mixing
-   CFFI with ``Python.h`` is not recommended.
+   CFFI with ``Python.h`` is not recommended.  (If you do that, on
+   PyPy and on some platforms like Windows, you may need to explicitly
+   link to ``libpypy-c.dll`` to access the CPython C API compatibility
+   layer; indeed, CFFI-generated modules on PyPy don't link to
+   ``libpypy-c.dll`` on their own.  But really, don't do that in the
+   first place.)
 
 `(***)` ``long double`` support:
 
