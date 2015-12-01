@@ -2,9 +2,11 @@ import cffi
 
 ffi = cffi.FFI()
 
-ffi.export_cdef("""
+ffi.cdef("""
     extern "Python" int add(int, int);
-""", """
+""", dllexport=True)
+
+ffi.embedding_init_code("""
     from _embedding_cffi import ffi, lib
 
     @ffi.def_extern()
