@@ -9,6 +9,8 @@ ffi.cdef("""
 ffi.embedding_init_code("""
     from _embedding_cffi import ffi, lib
 
+    print "preparing"
+
     @ffi.def_extern()
     def add(x, y):
         print "adding", x, "and", y

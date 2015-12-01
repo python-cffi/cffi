@@ -13,5 +13,7 @@ int main(void)
 {
     int res = add(40, 2);
     printf("result: %d\n", res);
+    res = add(100, -5);
+    printf("result: %d\n", res);
     return 0;
 }
