@@ -15,7 +15,7 @@ ffi.embedding_init_code("""
         return x + y
 """)
 
-ffi.set_source("libembedding_test", """
+ffi.set_source("_embedding_cffi", """
 """)
 
 ffi.compile()

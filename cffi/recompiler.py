@@ -281,6 +281,22 @@ class Recompiler:
         lines[i:i+1] = self._rel_readlines('parse_c_type.h')
         prnt(''.join(lines))
         #
+        # if we have ffi._embedding_init_code, we give it here as a macro
+        # and include an extra file
+        base_module_name = self.module_name.split('.')[-1]
+        if self.ffi._embedding_init_code is not None:
+            prnt('#define _CFFI_PYTHON_STARTUP_CODE  %s' %
+                 (self._string_literal(self.ffi._embedding_init_code),))
+            lines = self._rel_readlines('_embedding.h')
+            prnt('#if PY_MAJOR_VERSION >= 3')
+            prnt('# define _CFFI_PYTHON_STARTUP_FUNC  PyInit_%s' % (
+                base_module_name,))
+            prnt('#else')
+            prnt('# define _CFFI_PYTHON_STARTUP_FUNC  init%s' % (
+                base_module_name,))
+            prnt('#endif')
+            prnt(''.join(lines))
+        #
         # then paste the C source given by the user, verbatim.
         prnt('/************************************************************/')
         prnt()
@@ -365,7 +381,6 @@ class Recompiler:
         prnt()
         #
         # the init function
-        base_module_name = self.module_name.split('.')[-1]
         prnt('#ifdef PYPY_VERSION')
         prnt('PyMODINIT_FUNC')
         prnt('_cffi_pypyinit_%s(const void *p[])' % (base_module_name,))
@@ -1123,7 +1138,10 @@ class Recompiler:
         assert isinstance(tp, model.FunctionPtrType)
         self._do_collect_type(tp)
 
-    def _generate_cpy_extern_python_decl(self, tp, name):
+    def _generate_cpy_dllexport_python_collecttype(self, tp, name):
+        self._generate_cpy_extern_python_collecttype(tp, name)
+
+    def _generate_cpy_extern_python_decl(self, tp, name, dllexport=False):
         prnt = self._prnt
         if isinstance(tp.result, model.VoidType):
             size_of_result = '0'
@@ -1156,7 +1174,11 @@ class Recompiler:
             size_of_a = 'sizeof(%s) > %d ? sizeof(%s) : %d' % (
                 tp.result.get_c_name(''), size_of_a,
                 tp.result.get_c_name(''), size_of_a)
-        prnt('static %s' % tp.result.get_c_name(name_and_arguments))
+        if dllexport:
+            tag = 'CFFI_DLLEXPORT'
+        else:
+            tag = 'static'
+        prnt('%s %s' % (tag, tp.result.get_c_name(name_and_arguments)))
         prnt('{')
         prnt('  char a[%s];' % size_of_a)
         prnt('  char *p = a;')
@@ -1167,12 +1189,17 @@ class Recompiler:
                 arg = '&' + arg
                 type = model.PointerType(type)
             prnt('  *(%s)(p + %d) = %s;' % (type.get_c_name('*'), i*8, arg))
+        if dllexport:
+            self._write_start_python()
         prnt('  _cffi_call_python(&_cffi_externpy__%s, p);' % name)
         if not isinstance(tp.result, model.VoidType):
             prnt('  return *(%s)p;' % (tp.result.get_c_name('*'),))
         prnt('}')
         prnt()
         self._num_externpy += 1
+
+    def _generate_cpy_dllexport_python_decl(self, tp, name):
+        self._generate_cpy_extern_python_decl(tp, name, dllexport=True)
 
     def _generate_cpy_extern_python_ctx(self, tp, name):
         if self.target_is_python:
@@ -1184,6 +1211,27 @@ class Recompiler:
         type_op = CffiOp(OP_EXTERN_PYTHON, type_index)
         self._lsts["global"].append(
             GlobalExpr(name, '&_cffi_externpy__%s' % name, type_op, name))
+
+    def _generate_cpy_dllexport_python_ctx(self, tp, name):
+        self._generate_cpy_extern_python_ctx(tp, name)
+
+    def _write_start_python(self):
+        if self.ffi._embedding_init_code is None:
+            raise ffiplatform.CDefError("cannot use 'dllexport=True' without "
+                                        "also ffi.embedding_init_code()")
+        self._prnt("  CFFI_START_PYTHON();")
+
+    def _string_literal(self, s):
+        def _char_repr(c):
+            # escape with a '\' the characters '\', '"' or (for trigraphs) '?'
+            if c in '\\"?': return '\\' + c
+            if ' ' <= c < '\x7F': return c
+            if c == '\n': return '\\n'
+            return '\\%03o' % ord(c)
+        lines = []
+        for line in s.splitlines(True):
+            lines.append('"%s"' % ''.join([_char_repr(c) for c in line]))
+        return ' \\\n'.join(lines)
 
     # ----------
     # emitting the opcodes for individual types
