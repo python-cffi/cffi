@@ -60,7 +60,7 @@ static void _cffi_start_python(void)
         Py_XDECREF(v);
         Py_XDECREF(tb);
 
-        f = PySys_GetObject("stderr");
+        f = PySys_GetObject((char *)"stderr");
         if (f != NULL && f != Py_None) {
             PyFile_WriteString("\ncffi version: 1.3.1", f);
             PyFile_WriteString("\n_cffi_backend module: ", f);
@@ -75,11 +75,11 @@ static void _cffi_start_python(void)
                 Py_XDECREF(v);
             }
             PyFile_WriteString("\nsys.path: ", f);
-            PyFile_WriteObject(PySys_GetObject("path"), f, 0);
+            PyFile_WriteObject(PySys_GetObject((char *)"path"), f, 0);
             PyFile_WriteString("\n\n", f);
         }
     }
-    _cffi_exports[_CFFI_CPIDX] = &_cffi_call_python_failed;
+    _cffi_exports[_CFFI_CPIDX] = (void *)(uintptr_t)&_cffi_call_python_failed;
 }
 
 /* The CFFI_START_PYTHON() macro makes sure Python is initialized
