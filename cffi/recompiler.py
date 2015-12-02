@@ -1189,8 +1189,6 @@ class Recompiler:
                 arg = '&' + arg
                 type = model.PointerType(type)
             prnt('  *(%s)(p + %d) = %s;' % (type.get_c_name('*'), i*8, arg))
-        if dllexport:
-            self._write_start_python()
         prnt('  _cffi_call_python(&_cffi_externpy__%s, p);' % name)
         if not isinstance(tp.result, model.VoidType):
             prnt('  return *(%s)p;' % (tp.result.get_c_name('*'),))
@@ -1214,12 +1212,6 @@ class Recompiler:
 
     def _generate_cpy_dllexport_python_ctx(self, tp, name):
         self._generate_cpy_extern_python_ctx(tp, name)
-
-    def _write_start_python(self):
-        if self.ffi._embedding_init_code is None:
-            raise ffiplatform.CDefError("cannot use 'dllexport=True' without "
-                                        "also ffi.embedding_init_code()")
-        self._prnt("  CFFI_START_PYTHON();")
 
     def _string_literal(self, s):
         def _char_repr(c):

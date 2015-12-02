@@ -24,35 +24,28 @@ static void _cffi_embed_startup_lock_create(void) {
 }
 #endif
 
+#undef _cffi_call_python
+typedef void (*_cffi_call_python_fnptr)(struct _cffi_externpy_s *, char *);
+static void _cffi_start_and_call_python(struct _cffi_externpy_s *, char *);
+static _cffi_call_python_fnptr _cffi_call_python = &_cffi_start_and_call_python;
+
 PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(void);   /* forward */
 
-static void _cffi_call_python_failed(struct _cffi_externpy_s *externpy,
-                                     char *args)
-{
-    int saved_errno = errno;
-    fprintf(stderr, "function %s() called, but initialization code failed.  "
-                    "Returning 0.\n", externpy->name);
-    memset(args, 0, externpy->size_of_result);
-    errno = saved_errno;
-}
 
-static void _cffi_initialize_python(void)
+static int _cffi_initialize_python(void)
 {
-    /* Initialize this to the "failed" function above.  It will be
-       replaced with the real function from cffi when Python is
-       more initialized, _cffi_backend is imported, and the present
-       .dll/.so is set up as a CPython C extension module.
+    /* This initializes Python, imports _cffi_backend, and then the
+       present .dll/.so is set up as a CPython C extension module.
     */
-    _cffi_exports[_CFFI_CPIDX] = (void *)(uintptr_t)&_cffi_call_python_failed;
 
     /* XXX use initsigs=0, which "skips initialization registration of
        signal handlers, which might be useful when Python is
        embedded" according to the Python docs.  But review and think
-       if it should be a user-controllable setting.
+       if it should be a user-controllable setting.  XXX we should
+       also give a way to initialize and write errors to a buffer
+       instead of to stderr.
     */
     Py_InitializeEx(0);
-    if (PyErr_Occurred())
-        goto error;
 
     /* Call the initxxx() function from the same module.  It will
        create and initialize us as a CPython extension module, instead
@@ -70,12 +63,13 @@ static void _cffi_initialize_python(void)
     if (PyRun_SimpleString(_CFFI_PYTHON_STARTUP_CODE) < 0)
         goto error;
 
-    /* Done!  Now if we've been called from CFFI_START_PYTHON() in an
-       ``extern "Python"``, we can only hope that the Python code
-       correctly set some @ffi.def_extern() function.  Otherwise, the
-       reference is still missing and we'll print an error.
+    /* Done!  Now if we've been called from
+       _cffi_start_and_call_python() in an ``extern "Python"``, we can
+       only hope that the Python code correctly set the corresponding
+       @ffi.def_extern() function.  Otherwise, the reference is still
+       missing and we'll print an error.
      */
-    return;
+    return 0;
 
  error:;
     {
@@ -110,20 +104,19 @@ static void _cffi_initialize_python(void)
             PyFile_WriteObject(PySys_GetObject((char *)"path"), f, 0);
             PyFile_WriteString("\n\n", f);
         }
+        return -1;
     }
 }
-
-static char _cffi_python_started = 0;
 
 #ifdef __GNUC__
 __attribute__((noinline))
 #endif
-static void _cffi_start_python(void)
+static _cffi_call_python_fnptr _cffi_start_python(void)
 {
-    /* This function can be called multiple times concurrently if the
-       process calls its first ``extern "Python"`` functions in
-       multiple threads at once.  Additionally, it can be called
-       recursively.
+    /* This function can be called multiple times concurrently,
+       e.g. when the process calls its first ``extern "Python"``
+       functions in multiple threads at once.  Additionally, it can be
+       called recursively.
     */
     static char called = 0;
 
@@ -139,6 +132,7 @@ static void _cffi_start_python(void)
     pthread_once(&once_control, &_cffi_embed_startup_lock_create);
 #define lock_enter()  pthread_mutex_lock(&_cffi_embed_startup_lock)
 #define lock_leave()  pthread_mutex_unlock(&_cffi_embed_startup_lock)
+#define lock_write_barrier()   __sync_synchronize()
 
 # else
     /* --- Windows threads version --- */
@@ -157,7 +151,11 @@ static void _cffi_start_python(void)
         /* 'spinloop' was already 1, another thread is busy
            initializing the lock... try again, it should be very
            fast */
-        _mm_pause();
+# ifdef _WIN64
+        YieldProcessor();
+# else
+        __asm pause;
+# endif
         goto retry;
     default:
         /* 'spinloop' is now 2, done */
@@ -165,6 +163,7 @@ static void _cffi_start_python(void)
     }
 #define lock_enter()  EnterCriticalSection(&lock)
 #define lock_leave()  LeaveCriticalSection(&lock)
+#define lock_write_barrier()   InterlockedCompareExchange(&spinloop, 2, 2)
 
 # endif
 #else
@@ -172,6 +171,7 @@ static void _cffi_start_python(void)
        concurrently issues in this case. */
 #define lock_enter()  (void)0
 #define lock_leave()  (void)0
+#define lock_write_barrier()   (void)0
 #endif
 
     /* General code follows.  Uses reentrant locks, so a recursive
@@ -179,25 +179,60 @@ static void _cffi_start_python(void)
     lock_enter();
     if (!called) {
         called = 1;  /* invoke _cffi_initialize_python() only once,
-                        but don't set _cffi_python_started right now,
+                        but don't set '_cffi_call_python' right now,
                         otherwise concurrent threads won't call
                         _cffi_start_python() at all */
-        _cffi_initialize_python();
-        _cffi_python_started = 1;   /* do this only when it's done */
+        if (_cffi_initialize_python() == 0) {
+            lock_write_barrier();
+            assert(_cffi_exports[_CFFI_CPIDX] != NULL);
+            _cffi_call_python =
+                (_cffi_call_python_fnptr)_cffi_exports[_CFFI_CPIDX];
+        }
     }
     lock_leave();
+
+    return (_cffi_call_python_fnptr)_cffi_exports[_CFFI_CPIDX];
 
 #undef lock_enter
 #undef lock_leave
 }
 
 
-/* The CFFI_START_PYTHON() macro makes sure Python is initialized
-   and our cffi module is set up.  It can be called manually from
-   the user C code, and it is called automatically from any
-   dll-exported ``extern "Python"`` function.
-*/
-#define CFFI_START_PYTHON()  do {               \
-    if (!_cffi_python_started)                  \
-        _cffi_start_python();                   \
-} while (0)
+static
+void _cffi_start_and_call_python(struct _cffi_externpy_s *externpy, char *args)
+{
+    _cffi_call_python_fnptr fnptr;
+    int current_err = errno;
+#ifdef _MSC_VER
+    int current_lasterr = GetLastError();
+#endif
+    fnptr = _cffi_start_python();
+    if (fnptr == NULL) {
+        fprintf(stderr, "function %s() called, but initialization code "
+                        "failed.  Returning 0.\n", externpy->name);
+        memset(args, 0, externpy->size_of_result);
+    }
+#ifdef _MSC_VER
+    SetLastError(current_lasterr);
+#endif
+    errno = current_err;
+
+    if (fnptr != NULL)
+        fnptr(externpy, args);
+}
+
+
+/* The cffi_start_python() function makes sure Python is initialized
+   and our cffi module is set up.  It can be called manually from the
+   user C code.  The same effect is obtained automatically from any
+   dll-exported ``extern "Python"`` function.  This function returns
+   -1 if initialization failed, 0 if all is OK.  */
+_CFFI_UNUSED_FN
+static int cffi_start_python(void)
+{
+    if (_cffi_call_python == &_cffi_start_and_call_python) {
+        if (_cffi_start_python() == NULL)
+            return -1;
+    }
+    return 0;
+}
