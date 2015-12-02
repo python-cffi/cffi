@@ -1,10 +1,6 @@
 
 /***** Support code for embedding *****/
 
-#ifdef PYPY_VERSION
-#  error PyPy!
-#endif
-
 #if defined(_MSC_VER)
 #  define CFFI_DLLEXPORT  __declspec(dllexport)
 #elif defined(__GNUC__)
@@ -24,13 +20,34 @@ static void _cffi_embed_startup_lock_create(void) {
 }
 #endif
 
+/* There are two global variables of type _cffi_call_python_fnptr:
+
+   * _cffi_call_python, which we declare just below, is the one called
+     by ``extern "Python"`` implementations.
+
+   * _cffi_call_python_org, which on CPython is actually part of the
+     _cffi_exports[] array, is the function pointer copied from
+     _cffi_backend.
+
+   After initialization is complete, both are equal.  However, the
+   first one remains equal to &_cffi_start_and_call_python until the
+   very end of initialization, when we are (or should be) sure that
+   concurrent threads also see a completely initialized world, and
+   only then is it changed.
+*/
 #undef _cffi_call_python
 typedef void (*_cffi_call_python_fnptr)(struct _cffi_externpy_s *, char *);
 static void _cffi_start_and_call_python(struct _cffi_externpy_s *, char *);
 static _cffi_call_python_fnptr _cffi_call_python = &_cffi_start_and_call_python;
 
-PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(void);   /* forward */
 
+/**********  CPython-specific section  **********/
+#ifndef PYPY_VERSION
+
+#define _cffi_call_python_org                                   \
+    ((_cffi_call_python_fnptr)_cffi_exports[_CFFI_CPIDX])
+
+PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(void);   /* forward */
 
 static int _cffi_initialize_python(void)
 {
@@ -41,8 +58,9 @@ static int _cffi_initialize_python(void)
     /* XXX use initsigs=0, which "skips initialization registration of
        signal handlers, which might be useful when Python is
        embedded" according to the Python docs.  But review and think
-       if it should be a user-controllable setting.  XXX we should
-       also give a way to initialize and write errors to a buffer
+       if it should be a user-controllable setting.
+
+       XXX we should also give a way to write errors to a buffer
        instead of to stderr.
     */
     Py_InitializeEx(0);
@@ -65,9 +83,11 @@ static int _cffi_initialize_python(void)
 
     /* Done!  Now if we've been called from
        _cffi_start_and_call_python() in an ``extern "Python"``, we can
-       only hope that the Python code correctly set the corresponding
-       @ffi.def_extern() function.  Otherwise, the reference is still
-       missing and we'll print an error.
+       only hope that the Python code did correctly set up the
+       corresponding @ffi.def_extern() function.  Otherwise, the
+       general logic of ``extern "Python"`` functions (inside the
+       _cffi_backend module) will find that the reference is still
+       missing and print an error.
      */
     return 0;
 
@@ -107,6 +127,25 @@ static int _cffi_initialize_python(void)
         return -1;
     }
 }
+
+/**********  end CPython-specific section  **********/
+
+#else
+
+/**********  PyPy-specific section  **********/
+
+PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(const void *[]);   /* forward */
+
+static int _cffi_initialize_python(void)
+{
+    rpython_startup_code();
+    pypy_setup_home(...);
+}
+
+/**********  end PyPy-specific section  **********/
+
+#endif
+
 
 #ifdef __GNUC__
 __attribute__((noinline))
@@ -184,14 +223,13 @@ static _cffi_call_python_fnptr _cffi_start_python(void)
                         _cffi_start_python() at all */
         if (_cffi_initialize_python() == 0) {
             lock_write_barrier();
-            assert(_cffi_exports[_CFFI_CPIDX] != NULL);
-            _cffi_call_python =
-                (_cffi_call_python_fnptr)_cffi_exports[_CFFI_CPIDX];
+            assert(_cffi_call_python_org != NULL);
+            _cffi_call_python = _cffi_call_python_org;
         }
     }
     lock_leave();
 
-    return (_cffi_call_python_fnptr)_cffi_exports[_CFFI_CPIDX];
+    return _cffi_call_python_org;
 
 #undef lock_enter
 #undef lock_leave

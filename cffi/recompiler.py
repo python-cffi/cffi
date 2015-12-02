@@ -288,7 +288,10 @@ class Recompiler:
             prnt('#define _CFFI_PYTHON_STARTUP_CODE  %s' %
                  (self._string_literal(self.ffi._embedding_init_code),))
             lines = self._rel_readlines('_embedding.h')
-            prnt('#if PY_MAJOR_VERSION >= 3')
+            prnt('#ifdef PYPY_VERSION')
+            prnt('# define _CFFI_PYTHON_STARTUP_FUNC  _cffi_pypyinit_%s' % (
+                base_module_name,))
+            prnt('#elif PY_MAJOR_VERSION >= 3')
             prnt('# define _CFFI_PYTHON_STARTUP_FUNC  PyInit_%s' % (
                 base_module_name,))
             prnt('#else')
@@ -387,7 +390,7 @@ class Recompiler:
         prnt('{')
         if self._num_externpy:
             prnt('    if (((intptr_t)p[0]) >= 0x0A03) {')
-            prnt('        _cffi_call_python = '
+            prnt('        _cffi_call_python_org = '
                  '(void(*)(struct _cffi_externpy_s *, char *))p[1];')
             prnt('    }')
         prnt('    p[0] = (const void *)%s;' % VERSION)
