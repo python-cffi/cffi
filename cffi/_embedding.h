@@ -5,16 +5,23 @@
 #  error PyPy!
 #endif
 
-#if defined(WITH_THREAD) && !defined(_MSC_VER)
-# include <pthread.h>
-#endif
-
 #if defined(_MSC_VER)
 #  define CFFI_DLLEXPORT  __declspec(dllexport)
 #elif defined(__GNUC__)
 #  define CFFI_DLLEXPORT  __attribute__ ((visibility("default")))
 #else
 #  define CFFI_DLLEXPORT  /* nothing */
+#endif
+
+#if defined(WITH_THREAD) && !defined(_MSC_VER)
+# include <pthread.h>
+static pthread_mutex_t _cffi_embed_startup_lock;
+static void _cffi_embed_startup_lock_create(void) {
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&_cffi_embed_startup_lock, &attr);
+}
 #endif
 
 PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(void);   /* forward */
@@ -125,30 +132,37 @@ static void _cffi_start_python(void)
 # ifndef _MSC_VER
     /* --- Posix threads version --- */
 
-    /* I think that pthread_once() cannot be used at all, because it
-       is not reentrant: it deadlocks.  Use a reentrant lock, so a
-       recursive call to _cffi_start_python() will not block and do
-       nothing. */
-    static int spinloop = 0;
-    static pthread_mutex_t lock;
-#define lock_c_a_s(old, new)                                    \
-    __sync_val_compare_and_swap(&spinloop, old, new)
-#define lock_init()   do {                                      \
-    pthread_mutexattr_t attr;                                   \
-    pthread_mutexattr_init(&attr);                              \
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);  \
-    pthread_mutex_init(&lock, &attr);                           \
-} while (0)
-#define lock_enter()  pthread_mutex_lock(&lock)
-#define lock_leave()  pthread_mutex_unlock(&lock)
+    /* pthread_once() cannot be used to call directly
+       _cffi_initialize_python(), because it is not reentrant: it
+       deadlocks. */
+    static pthread_once_t once_control = PTHREAD_ONCE_INIT;
+    pthread_once(&once_control, &_cffi_embed_startup_lock_create);
+#define lock_enter()  pthread_mutex_lock(&_cffi_embed_startup_lock)
+#define lock_leave()  pthread_mutex_unlock(&_cffi_embed_startup_lock)
 
 # else
     /* --- Windows threads version --- */
     static volatile LONG spinloop = 0;
     static CRITICAL_SECTION lock;
-#define lock_c_a_s(old, new)                                    \
-    InterlockedCompareExchange(&spinloop, new, old)
-#define lock_init()   InitializeCriticalSection(&lock)
+    /* This delicate loop is here only to initialize the
+       critical section object, which we will use below */
+ retry:
+    switch (InterlockedCompareExchange(&spinloop, 1, 0)) {
+    case 0:
+        /* the 'spinloop' value was changed from 0 to 1 */
+        InitializeCriticalSection(&lock);
+        InterlockedCompareExchange(&spinloop, 2, 1);
+        break;
+    case 1:
+        /* 'spinloop' was already 1, another thread is busy
+           initializing the lock... try again, it should be very
+           fast */
+        _mm_pause();
+        goto retry;
+    default:
+        /* 'spinloop' is now 2, done */
+        break;
+    }
 #define lock_enter()  EnterCriticalSection(&lock)
 #define lock_leave()  LeaveCriticalSection(&lock)
 
@@ -156,33 +170,12 @@ static void _cffi_start_python(void)
 #else
     /* !WITH_THREAD --- no thread at all.  We assume there are no
        concurrently issues in this case. */
-#define lock_c_a_s(old, new)   2
-#define lock_init()   (void)0
 #define lock_enter()  (void)0
 #define lock_leave()  (void)0
 #endif
 
-    /* This delicate loop is here only to initialize the
-       mutex object, which we will use below */
- retry:
-    switch (lock_c_a_s(0, 1)) {
-    case 0:
-        /* the 'spinloop' value was changed from 0 to 1 */
-        lock_init();
-        lock_c_a_s(1, 2);
-        break;
-    case 1:
-        /* 'spinloop' was already 1, another thread is busy
-           initializing the lock... try again, it should be very
-           fast */
-        goto retry;
-    default:
-        /* 'spinloop' is now 2, done */
-        break;
-    }
-
-    /* Use reentrant locks, so a recursive call to
-       _cffi_start_python() will not block and do nothing. */
+    /* General code follows.  Uses reentrant locks, so a recursive
+       call to _cffi_start_python() will not block and do nothing. */
     lock_enter();
     if (!called) {
         called = 1;  /* invoke _cffi_initialize_python() only once,
@@ -194,8 +187,6 @@ static void _cffi_start_python(void)
     }
     lock_leave();
 
-#undef lock_c_a_s
-#undef lock_init
 #undef lock_enter
 #undef lock_leave
 }
