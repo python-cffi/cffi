@@ -9,16 +9,16 @@
 #  define CFFI_DLLEXPORT  /* nothing */
 #endif
 
-#if defined(WITH_THREAD) && !defined(_MSC_VER)
-# include <pthread.h>
-static pthread_mutex_t _cffi_embed_startup_lock;
-static void _cffi_embed_startup_lock_create(void) {
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&_cffi_embed_startup_lock, &attr);
-}
+#ifdef WITH_THREAD
+# ifndef _MSC_VER
+#  include <pthread.h>
+   static pthread_mutex_t _cffi_embed_startup_lock;
+# else
+   static CRITICAL_SECTION _cffi_embed_startup_lock;
+# endif
+  static char _cffi_embed_startup_lock_ready = 0;
 #endif
+
 
 /* There are two global variables of type _cffi_call_python_fnptr:
 
@@ -44,8 +44,7 @@ static _cffi_call_python_fnptr _cffi_call_python = &_cffi_start_and_call_python;
 /**********  CPython-specific section  **********/
 #ifndef PYPY_VERSION
 
-#define _cffi_call_python_org                                   \
-    ((_cffi_call_python_fnptr)_cffi_exports[_CFFI_CPIDX])
+#define _cffi_call_python_org  _cffi_exports[_CFFI_CPIDX]
 
 PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(void);   /* forward */
 
@@ -65,7 +64,7 @@ static int _cffi_initialize_python(void)
     */
     Py_InitializeEx(0);
 
-    /* Call the initxxx() function from the same module.  It will
+    /* Call the initxxx() function from the present module.  It will
        create and initialize us as a CPython extension module, instead
        of letting the startup Python code do it---it might reimport
        the same .dll/.so and get maybe confused on some platforms.
@@ -147,92 +146,167 @@ static int _cffi_initialize_python(void)
 #endif
 
 
+#ifdef WITH_THREAD
+
+static void _cffi_carefully_make_gil(void)
+{
+    /* This initializes the GIL.  It can be called completely
+       concurrently from unrelated threads.
+
+       PyEval_InitThreads() must not be called concurrently at all.
+       So we use a global variable as a simple spin lock.  This global
+       variable must be from 'libpythonX.Y.so', not from this
+       cffi-based extension module, because it must be shared from
+       different cffi-based extension modules.  We choose
+       PyEllipsis_Type.tp_dealloc as a completely arbitrary,
+       never-used word for this lock.  (Yes, I know it's really
+       obscure.)
+    */
+
+#ifndef _MSC_VER
+   /* --- Assuming a GCC not infinitely old --- */
+# define compare_and_swap(l,o,n)  __sync_bool_compare_and_swap(l,o,n)
+#else
+   /* --- Windows threads version --- */
+# define compare_and_swap(l,o,n)  InterlockedCompareExchangePointer(l,n,o)
+#endif
+
+    void *volatile *lock = (void *volatile *)&PyEllipsis_Type.tp_dealloc;
+
+    while (1) {    /* spin loop */
+        void *current = *lock;
+        if (current == NULL) {
+            if (compare_and_swap(lock, NULL, (void *)42))
+                break;
+        }
+        else {
+            assert(current == (void *)42);
+            /* should ideally do a spin loop instruction here, but
+               hard to do it portably and doesn't really matter I
+               think: PyEval_InitThreads() should be very fast, and
+               this is only run at start-up anyway. */
+        }
+    }
+
+    if (!PyEval_ThreadsInitialized()) {
+        PyEval_InitThreads();    /* makes the GIL */
+        PyEval_ReleaseLock();    /* then release it */
+    }
+    /* else: we already have the GIL, but we still needed to do the
+       spinlock dance to make sure that we see it as fully ready */
+
+    if (!_cffi_embed_startup_lock_ready) {
+#ifndef _MSC_VER
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&_cffi_embed_startup_lock, &attr);
+#else
+        InitializeCriticalSection(&_cffi_embed_startup_lock);
+#endif
+        _cffi_embed_startup_lock_ready = 1;
+    }
+
+    /* release the lock */
+    while (!compare_and_swap(lock, (void *)42, NULL))
+        ;
+
+#undef compare_and_swap
+}
+
+static void _cffi_acquire_reentrant_mutex_and_gil(void)
+{
+#ifndef _MSC_VER
+    pthread_mutex_lock(&_cffi_embed_startup_lock);
+#else
+    EnterCriticalSection(&_cffi_embed_startup_lock);
+#endif
+    PyEval_AcquireLock();
+}
+
+static void _cffi_release_reentrant_mutex_and_gil(void)
+{
+    PyEval_ReleaseLock();
+#ifndef _MSC_VER
+    pthread_mutex_unlock(&_cffi_embed_startup_lock);
+#else
+    LeaveCriticalSection(&_cffi_embed_startup_lock);
+#endif
+}
+
+#else   /* !WITH_THREAD */
+static void _cffi_carefully_make_gil(void) { }
+static void _cffi_acquire_reentrant_mutex_and_gil(void) { }
+static void _cffi_release_reentrant_mutex_and_gil(void) { }
+#endif
+
+
 #ifdef __GNUC__
 __attribute__((noinline))
 #endif
 static _cffi_call_python_fnptr _cffi_start_python(void)
 {
-    /* This function can be called multiple times concurrently,
-       e.g. when the process calls its first ``extern "Python"``
-       functions in multiple threads at once.  Additionally, it can be
-       called recursively.
+    /* Delicate logic to initialize Python.  This function can be
+       called multiple times concurrently, e.g. when the process calls
+       its first ``extern "Python"`` functions in multiple threads at
+       once.  It can also be called recursively, in which case we must
+       ignore it.  We also have to consider what occurs if several
+       different cffi-based extensions reach this code in parallel
+       threads---it is a different copy of the code, then, and we
+       can't have any shared global variable unless it comes from
+       'libpythonX.Y.so'.
+
+       Idea:
+
+       * _cffi_carefully_make_gil(): "carefully" call
+         PyEval_InitThreads().  This can be called before
+         Py_Initialize().
+
+       * then we use a custom lock to make sure that a call to this
+         cffi-based extension will wait if another call to the same
+         extension is running the initialization in another thread.
+         It is reentrant, so that a recursive call will not block, but
+         only one from a different thread.
+
+       * then we grab the GIL and call Py_Initialize(), which will
+         initialize Python or do nothing if already initialized.  We
+         know that concurrent calls to Py_Initialize() should not be
+         possible, even from different cffi-based extension, because
+         we have the GIL.
+
+       * do the rest of the specific initialization, which may
+         temporarily release the GIL but not the custom lock.
+         Only release the custom lock when we are done.
     */
     static char called = 0;
 
-#ifdef WITH_THREAD
+    _cffi_carefully_make_gil();
+    _cffi_acquire_reentrant_mutex_and_gil();
 
-# ifndef _MSC_VER
-    /* --- Posix threads version --- */
-
-    /* pthread_once() cannot be used to call directly
-       _cffi_initialize_python(), because it is not reentrant: it
-       deadlocks. */
-    static pthread_once_t once_control = PTHREAD_ONCE_INIT;
-    pthread_once(&once_control, &_cffi_embed_startup_lock_create);
-#define lock_enter()  pthread_mutex_lock(&_cffi_embed_startup_lock)
-#define lock_leave()  pthread_mutex_unlock(&_cffi_embed_startup_lock)
-#define lock_write_barrier()   __sync_synchronize()
-
-# else
-    /* --- Windows threads version --- */
-    static volatile LONG spinloop = 0;
-    static CRITICAL_SECTION lock;
-    /* This delicate loop is here only to initialize the
-       critical section object, which we will use below */
- retry:
-    switch (InterlockedCompareExchange(&spinloop, 1, 0)) {
-    case 0:
-        /* the 'spinloop' value was changed from 0 to 1 */
-        InitializeCriticalSection(&lock);
-        InterlockedCompareExchange(&spinloop, 2, 1);
-        break;
-    case 1:
-        /* 'spinloop' was already 1, another thread is busy
-           initializing the lock... try again, it should be very
-           fast */
-# ifdef _WIN64
-        YieldProcessor();
-# else
-        __asm pause;
-# endif
-        goto retry;
-    default:
-        /* 'spinloop' is now 2, done */
-        break;
-    }
-#define lock_enter()  EnterCriticalSection(&lock)
-#define lock_leave()  LeaveCriticalSection(&lock)
-#define lock_write_barrier()   InterlockedCompareExchange(&spinloop, 2, 2)
-
-# endif
-#else
-    /* !WITH_THREAD --- no thread at all.  We assume there are no
-       concurrently issues in this case. */
-#define lock_enter()  (void)0
-#define lock_leave()  (void)0
-#define lock_write_barrier()   (void)0
-#endif
-
-    /* General code follows.  Uses reentrant locks, so a recursive
-       call to _cffi_start_python() will not block and do nothing. */
-    lock_enter();
+    /* Here we have the GIL, even if Python might not be initialized
+       yet. */
     if (!called) {
         called = 1;  /* invoke _cffi_initialize_python() only once,
                         but don't set '_cffi_call_python' right now,
                         otherwise concurrent threads won't call
-                        _cffi_start_python() at all */
+                        this function at all (we need them to wait) */
         if (_cffi_initialize_python() == 0) {
-            lock_write_barrier();
+            /* now initialization is finished.  Switch to the fast-path. */
             assert(_cffi_call_python_org != NULL);
-            _cffi_call_python = _cffi_call_python_org;
+            _cffi_call_python = (_cffi_call_python_fnptr)_cffi_call_python_org;
+        }
+        else {
+            /* initialization failed.  Reset this to NULL, even if it was
+               already set to some other value.  Future calls to
+               _cffi_start_python() are still forced to occur, and will
+               always return NULL from now on. */
+            _cffi_call_python_org = NULL;
         }
     }
-    lock_leave();
 
-    return _cffi_call_python_org;
+    _cffi_release_reentrant_mutex_and_gil();
 
-#undef lock_enter
-#undef lock_leave
+    return (_cffi_call_python_fnptr)_cffi_call_python_org;
 }
 
 
