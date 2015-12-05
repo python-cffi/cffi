@@ -39,7 +39,7 @@ static _cffi_call_python_fnptr _cffi_call_python = &_cffi_start_and_call_python;
    /* --- Windows threads version --- */
 # define compare_and_swap(l,o,n)  InterlockedCompareExchangePointer(l,n,o)
 # define write_barrier()          InterlockedCompareExchange(&_cffi_dummy,0,0)
-static volatie LONG _cffi_dummy;
+static volatile LONG _cffi_dummy;
 #endif
 
 #ifdef WITH_THREAD
