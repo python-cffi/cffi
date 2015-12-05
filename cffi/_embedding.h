@@ -110,6 +110,8 @@ static int _cffi_initialize_python(void)
     /* This initializes Python, imports _cffi_backend, and then the
        present .dll/.so is set up as a CPython C extension module.
     */
+    int result;
+    PyObject *pycode=NULL, *m=NULL, *global_dict, *x;
 
     PyEval_AcquireLock();      /* acquire the GIL */
 
@@ -136,8 +138,19 @@ static int _cffi_initialize_python(void)
 
     /* Now run the Python code provided to ffi.embedding_init_code().
      */
-    if (PyRun_SimpleString(_CFFI_PYTHON_STARTUP_CODE) < 0)
+    m = PyImport_ImportModule(_CFFI_MODULE_NAME);
+    if (m == NULL)
         goto error;
+    pycode = Py_CompileString(_CFFI_PYTHON_STARTUP_CODE,
+                              "<init code for '" _CFFI_MODULE_NAME "'>",
+                              Py_file_input);
+    if (pycode == NULL)
+        goto error;
+    global_dict = PyModule_GetDict(m);
+    x = PyEval_EvalCode((PyCodeObject *)pycode, global_dict, global_dict);
+    if (x == NULL)
+        goto error;
+    Py_DECREF(x);
 
     /* Done!  Now if we've been called from
        _cffi_start_and_call_python() in an ``extern "Python"``, we can
@@ -147,9 +160,12 @@ static int _cffi_initialize_python(void)
        _cffi_backend module) will find that the reference is still
        missing and print an error.
      */
-
+    result = 0;
+ done:
+    Py_XDECREF(pycode);
+    Py_XDECREF(m);
     PyEval_ReleaseLock();      /* release the GIL */
-    return 0;
+    return result;
 
  error:;
     {
@@ -184,16 +200,17 @@ static int _cffi_initialize_python(void)
             PyFile_WriteObject(PySys_GetObject((char *)"path"), f, 0);
             PyFile_WriteString("\n\n", f);
         }
-        PyEval_ReleaseLock();      /* release the GIL */
-        return -1;
     }
+    result = -1;
+    goto done;
 }
 
 static void _cffi_carefully_make_gil(void)
 {
-#ifdef WITH_THREAD
     /* This initializes the GIL.  It can be called completely
-       concurrently from unrelated threads.
+       concurrently from unrelated threads.  It assumes that we don't
+       hold the GIL before (if it exists), and we don't hold it
+       afterwards.
 
        PyEval_InitThreads() must not be called concurrently at all.
        So we use a global variable as a simple spin lock.  This global
@@ -204,6 +221,7 @@ static void _cffi_carefully_make_gil(void)
        never-used word for this lock.  (Yes, I know it's really
        obscure.)
     */
+#ifdef WITH_THREAD
     void *volatile *lock = (void *volatile *)&PyEllipsis_Type.tp_dealloc;
 
     while (1) {    /* spin loop */
@@ -244,12 +262,25 @@ static void _cffi_carefully_make_gil(void)
 
 PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(const void *[]);   /* forward */
 
-extern int pypy_init_embedded_cffi_module(void(const void *[]));
+static struct _cffi_pypy_init_s {
+    const char *name;
+    void (*func)(const void *[]);
+    const char *code;
+} _cffi_pypy_init = {
+    _CFFI_MODULE_NAME,
+    _CFFI_PYTHON_STARTUP_FUNC,
+    _CFFI_PYTHON_STARTUP_CODE,
+};
+
+extern int pypy_init_embedded_cffi_module(int, struct _cffi_pypy_init_s *);
+
+static void _cffi_carefully_make_gil(void)
+{
+}
 
 static int _cffi_initialize_python(void)
 {
-    return pypy_init_embedded_cffi_module(0xB011, _CFFI_PYTHON_STARTUP_FUNC,
-                                          _CFFI_PYTHON_STARTUP_CODE);
+    return pypy_init_embedded_cffi_module(0xB011, &_cffi_pypy_init);
 }
 
 /**********  end PyPy-specific section  **********/
@@ -302,6 +333,9 @@ static _cffi_call_python_fnptr _cffi_start_python(void)
 
     /* Here the GIL exists, but we don't have it.  We're only protected
        from concurrency by the reentrant mutex. */
+
+    /* This file ignores subinterpreters and can only initialize the
+       embedded module once, in the main interpreter. */
     if (!called) {
         called = 1;  /* invoke _cffi_initialize_python() only once,
                         but don't set '_cffi_call_python' right now,

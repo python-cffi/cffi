@@ -146,9 +146,9 @@ static int _update_cache_to_call_python(struct _cffi_externpy_s *externpy)
     return 2;   /* out of memory? */
 }
 
-#if (defined(WITH_THREAD) && !defined(!_MSC_VER) &&   \
+#if (defined(WITH_THREAD) && !defined(_MSC_VER) &&   \
      !defined(__amd64__) && !defined(__x86_64__) &&   \
-     !defined(__i386__) && !defined(__i386)
+     !defined(__i386__) && !defined(__i386))
 # define read_barrier()  __sync_synchronize()
 #else
 # define read_barrier()  (void)0

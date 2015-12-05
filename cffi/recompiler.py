@@ -285,6 +285,7 @@ class Recompiler:
         # and include an extra file
         base_module_name = self.module_name.split('.')[-1]
         if self.ffi._embedding_init_code is not None:
+            prnt('#define _CFFI_MODULE_NAME  "%s"' % (self.module_name,))
             prnt('#define _CFFI_PYTHON_STARTUP_CODE  %s' %
                  (self._string_literal(self.ffi._embedding_init_code),))
             prnt('#ifdef PYPY_VERSION')
