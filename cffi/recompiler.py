@@ -287,7 +287,6 @@ class Recompiler:
         if self.ffi._embedding_init_code is not None:
             prnt('#define _CFFI_PYTHON_STARTUP_CODE  %s' %
                  (self._string_literal(self.ffi._embedding_init_code),))
-            lines = self._rel_readlines('_embedding.h')
             prnt('#ifdef PYPY_VERSION')
             prnt('# define _CFFI_PYTHON_STARTUP_FUNC  _cffi_pypyinit_%s' % (
                 base_module_name,))
@@ -298,6 +297,7 @@ class Recompiler:
             prnt('# define _CFFI_PYTHON_STARTUP_FUNC  init%s' % (
                 base_module_name,))
             prnt('#endif')
+            lines = self._rel_readlines('_embedding.h')
             prnt(''.join(lines))
         #
         # then paste the C source given by the user, verbatim.

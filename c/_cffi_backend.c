@@ -6367,7 +6367,7 @@ static PyObject *_cffi_from_c_wchar_t(wchar_t x) {
 #endif
 
 struct _cffi_externpy_s;      /* forward declaration */
-static void _cffi_call_python(struct _cffi_externpy_s *, char *args);
+static void cffi_call_python(struct _cffi_externpy_s *, char *args);
 
 static void *cffi_exports[] = {
     NULL,
@@ -6400,7 +6400,7 @@ static void *cffi_exports[] = {
     _cffi_to_c__Bool,
     _prepare_pointer_call_argument,
     convert_array_from_object,
-    _cffi_call_python,
+    cffi_call_python,
 };
 
 static struct { const char *name; int value; } all_dlopen_flags[] = {

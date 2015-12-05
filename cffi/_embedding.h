@@ -19,6 +19,34 @@
   static char _cffi_embed_startup_lock_ready = 0;
 #endif
 
+static void _cffi_init_embed_lock(void)
+{
+#ifdef WITH_THREAD
+    if (!_cffi_embed_startup_lock_ready) {
+# ifndef _MSC_VER
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&_cffi_embed_startup_lock, &attr);
+# else
+        InitializeCriticalSection(&_cffi_embed_startup_lock);
+# endif
+        _cffi_embed_startup_lock_ready = 1;
+    }
+#endif
+}
+
+#ifndef _MSC_VER
+   /* --- Assuming a GCC not infinitely old --- */
+# define compare_and_swap(l,o,n)  __sync_bool_compare_and_swap(l,o,n)
+# define write_barrier()          __sync_synchronize()
+#else
+   /* --- Windows threads version --- */
+# define compare_and_swap(l,o,n)  InterlockedCompareExchangePointer(l,n,o)
+# define write_barrier()          InterlockedCompareExchange(&_cffi_dummy,0,0)
+static volatie LONG _cffi_dummy;
+#endif
+
 
 /* There are two global variables of type _cffi_call_python_fnptr:
 
@@ -127,25 +155,6 @@ static int _cffi_initialize_python(void)
     }
 }
 
-/**********  end CPython-specific section  **********/
-
-#else
-
-/**********  PyPy-specific section  **********/
-
-PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(const void *[]);   /* forward */
-
-static int _cffi_initialize_python(void)
-{
-    rpython_startup_code();
-    pypy_setup_home(...);
-}
-
-/**********  end PyPy-specific section  **********/
-
-#endif
-
-
 #ifdef WITH_THREAD
 
 static void _cffi_carefully_make_gil(void)
@@ -162,15 +171,6 @@ static void _cffi_carefully_make_gil(void)
        never-used word for this lock.  (Yes, I know it's really
        obscure.)
     */
-
-#ifndef _MSC_VER
-   /* --- Assuming a GCC not infinitely old --- */
-# define compare_and_swap(l,o,n)  __sync_bool_compare_and_swap(l,o,n)
-#else
-   /* --- Windows threads version --- */
-# define compare_and_swap(l,o,n)  InterlockedCompareExchangePointer(l,n,o)
-#endif
-
     void *volatile *lock = (void *volatile *)&PyEllipsis_Type.tp_dealloc;
 
     while (1) {    /* spin loop */
@@ -192,30 +192,21 @@ static void _cffi_carefully_make_gil(void)
         PyEval_InitThreads();    /* makes the GIL */
         PyEval_ReleaseLock();    /* then release it */
     }
+
+    _cffi_init_embed_lock();
+
     /* else: we already have the GIL, but we still needed to do the
        spinlock dance to make sure that we see it as fully ready */
-
-    if (!_cffi_embed_startup_lock_ready) {
-#ifndef _MSC_VER
-        pthread_mutexattr_t attr;
-        pthread_mutexattr_init(&attr);
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-        pthread_mutex_init(&_cffi_embed_startup_lock, &attr);
-#else
-        InitializeCriticalSection(&_cffi_embed_startup_lock);
-#endif
-        _cffi_embed_startup_lock_ready = 1;
-    }
 
     /* release the lock */
     while (!compare_and_swap(lock, (void *)42, NULL))
         ;
 
-#undef compare_and_swap
 }
 
 static void _cffi_acquire_reentrant_mutex_and_gil(void)
 {
+    _cffi_carefully_make_gil();
 #ifndef _MSC_VER
     pthread_mutex_lock(&_cffi_embed_startup_lock);
 #else
@@ -235,9 +226,62 @@ static void _cffi_release_reentrant_mutex_and_gil(void)
 }
 
 #else   /* !WITH_THREAD */
-static void _cffi_carefully_make_gil(void) { }
 static void _cffi_acquire_reentrant_mutex_and_gil(void) { }
 static void _cffi_release_reentrant_mutex_and_gil(void) { }
+#define write_barrier()    (void)0
+#endif
+
+
+/**********  end CPython-specific section  **********/
+
+#else
+
+/**********  PyPy-specific section  **********/
+
+PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(const void *[]);   /* forward */
+
+extern int pypy_init_embedded_cffi_module(void(const void *[]));
+
+static void _cffi_acquire_reentrant_mutex_and_gil(void)
+{
+    static volatile void *lock = NULL;
+
+    while (!compare_and_swap(lock, NULL, (void *)1)) {
+        /* should ideally do a spin loop instruction here, but
+           hard to do it portably and doesn't really matter I
+           think: PyEval_InitThreads() should be very fast, and
+           this is only run at start-up anyway. */
+    }
+
+    _cffi_init_embed_lock();
+
+    while (!compare_and_swap(lock, (void *)1, NULL))
+        ;
+
+#ifndef _MSC_VER
+    pthread_mutex_lock(&_cffi_embed_startup_lock);
+#else
+    EnterCriticalSection(&_cffi_embed_startup_lock);
+#endif
+}
+
+static void _cffi_release_reentrant_mutex_and_gil(void)
+{
+#ifndef _MSC_VER
+    pthread_mutex_unlock(&_cffi_embed_startup_lock);
+#else
+    LeaveCriticalSection(&_cffi_embed_startup_lock);
+#endif
+}
+
+static int _cffi_initialize_python(void)
+{
+    return pypy_init_embedded_cffi_module(0xB011, _CFFI_PYTHON_STARTUP_FUNC,
+                                          _CFFI_PYTHON_STARTUP_CODE);
+}
+
+/**********  end PyPy-specific section  **********/
+
 #endif
 
 
@@ -281,10 +325,10 @@ static _cffi_call_python_fnptr _cffi_start_python(void)
     static char called = 0;
 
     _cffi_carefully_make_gil();
-    _cffi_acquire_reentrant_mutex_and_gil();
+    _cffi_acquire_reentrant_mutex();
 
-    /* Here we have the GIL, even if Python might not be initialized
-       yet. */
+    /* Here the GIL exists, but we don't have it.  We're only protected
+       from concurrency by the reentrant mutex. */
     if (!called) {
         called = 1;  /* invoke _cffi_initialize_python() only once,
                         but don't set '_cffi_call_python' right now,
@@ -292,6 +336,19 @@ static _cffi_call_python_fnptr _cffi_start_python(void)
                         this function at all (we need them to wait) */
         if (_cffi_initialize_python() == 0) {
             /* now initialization is finished.  Switch to the fast-path. */
+
+            /* We would like nobody to see the new value of
+               '_cffi_call_python' without also seeing the rest of the
+               data initialized.  However, this is not possible.  But
+               the new value of '_cffi_call_python' is the function
+               'cffi_call_python()' from _cffi_backend.  We can put a
+               write barrier here, and a corresponding read barrier at
+               the start of cffi_call_python().  This ensures that
+               after that read barrier, we see everything done here
+               before the write barrier.
+            */
+            write_barrier();
+
             assert(_cffi_call_python_org != NULL);
             _cffi_call_python = (_cffi_call_python_fnptr)_cffi_call_python_org;
         }
@@ -304,11 +361,10 @@ static _cffi_call_python_fnptr _cffi_start_python(void)
         }
     }
 
-    _cffi_release_reentrant_mutex_and_gil();
+    _cffi_release_reentrant_mutex();
 
     return (_cffi_call_python_fnptr)_cffi_call_python_org;
 }
-
 
 static
 void _cffi_start_and_call_python(struct _cffi_externpy_s *externpy, char *args)
@@ -332,6 +388,9 @@ void _cffi_start_and_call_python(struct _cffi_externpy_s *externpy, char *args)
     if (fnptr != NULL)
         fnptr(externpy, args);
 }
+
+#undef compare_and_swap
+#undef write_barrier
 
 
 /* The cffi_start_python() function makes sure Python is initialized

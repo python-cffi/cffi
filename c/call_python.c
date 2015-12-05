@@ -97,7 +97,7 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
         return NULL;
 
     /* force _update_cache_to_call_python() to be called the next time
-       the C function invokes _cffi_call_python, to update the cache */
+       the C function invokes cffi_call_python, to update the cache */
     old1 = externpy->reserved1;
     externpy->reserved1 = Py_None;   /* a non-NULL value */
     Py_INCREF(Py_None);
@@ -146,7 +146,15 @@ static int _update_cache_to_call_python(struct _cffi_externpy_s *externpy)
     return 2;   /* out of memory? */
 }
 
-static void _cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
+#if (defined(WITH_THREAD) && !defined(!_MSC_VER) &&   \
+     !defined(__amd64__) && !defined(__x86_64__) &&   \
+     !defined(__i386__) && !defined(__i386)
+# define read_barrier()  __sync_synchronize()
+#else
+# define read_barrier()  (void)0
+#endif
+
+static void cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
 {
     /* Invoked by the helpers generated from extern "Python" in the cdef.
 
@@ -167,6 +175,13 @@ static void _cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
        at least 8 bytes in size.
     */
     int err = 0;
+
+    /* This read barrier is needed for _embedding.h.  Without it, we
+       can in theory see that the Python initialization code already
+       ran, but 'externpy' still contains NULLs.
+     */
+    read_barrier();
+
     save_errno();
 
     /* We need the infotuple here.  We could always go through
