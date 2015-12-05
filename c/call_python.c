@@ -176,10 +176,18 @@ static void cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
     */
     int err = 0;
 
-    /* This read barrier is needed for _embedding.h.  Without it, we
-       can in theory see that the Python initialization code already
-       ran, but 'externpy' still contains NULLs.
-     */
+    /* This read barrier is needed for _embedding.h.  It is paired
+       with the write_barrier() there.  Without this barrier, we can
+       in theory see the following situation: the Python
+       initialization code already ran (in another thread), and the
+       '_cffi_call_python' function pointer directed execution here;
+       but any number of other data could still be seen as
+       uninitialized below.  For example, 'externpy' would still
+       contain NULLs even though it was correctly set up, or
+       'interpreter_lock' (the GIL inside CPython) would still be seen
+       as NULL, or 'autoInterpreterState' (used by
+       PyGILState_Ensure()) would be NULL or contain bogus fields.
+    */
     read_barrier();
 
     save_errno();
