@@ -147,6 +147,10 @@ static int _cffi_initialize_python(void)
     if (pycode == NULL)
         goto error;
     global_dict = PyModule_GetDict(m);
+    if (PyDict_GetItemString(global_dict, "__builtins__") == NULL &&
+        PyDict_SetItemString(global_dict, "__builtins__",
+                             PyThreadState_GET()->interp->builtins) < 0)
+        goto error;
     x = PyEval_EvalCode((PyCodeObject *)pycode, global_dict, global_dict);
     if (x == NULL)
         goto error;
@@ -205,6 +209,8 @@ static int _cffi_initialize_python(void)
     goto done;
 }
 
+PyAPI_DATA(char *) _PyParser_TokenNames[];  /* from CPython */
+
 static void _cffi_carefully_make_gil(void)
 {
     /* This initializes the GIL.  It can be called completely
@@ -217,21 +223,25 @@ static void _cffi_carefully_make_gil(void)
        variable must be from 'libpythonX.Y.so', not from this
        cffi-based extension module, because it must be shared from
        different cffi-based extension modules.  We choose
-       PyEllipsis_Type.tp_dealloc as a completely arbitrary,
-       never-used word for this lock.  (Yes, I know it's really
+       _PyParser_TokenNames[0] as a completely arbitrary pointer value
+       that is never written to.  The default is to point to the
+       string "ENDMARKER".  We change it temporarily to point to the
+       next character in that string.  (Yes, I know it's REALLY
        obscure.)
     */
 #ifdef WITH_THREAD
-    void *volatile *lock = (void *volatile *)&PyEllipsis_Type.tp_dealloc;
+    char *volatile *lock = (char *volatile *)_PyParser_TokenNames;
+    char *old_value;
 
     while (1) {    /* spin loop */
-        void *current = *lock;
-        if (current == NULL) {
-            if (compare_and_swap(lock, NULL, (void *)42))
+        old_value = *lock;
+        if (old_value[0] == 'E') {
+            assert(old_value[1] == 'N');
+            if (compare_and_swap(lock, old_value, old_value + 1))
                 break;
         }
         else {
-            assert(current == (void *)42);
+            assert(old_value[0] == 'N');
             /* should ideally do a spin loop instruction here, but
                hard to do it portably and doesn't really matter I
                think: PyEval_InitThreads() should be very fast, and
@@ -247,7 +257,7 @@ static void _cffi_carefully_make_gil(void)
        spinlock dance to make sure that we see it as fully ready */
 
     /* release the lock */
-    while (!compare_and_swap(lock, (void *)42, NULL))
+    while (!compare_and_swap(lock, old_value + 1, old_value))
         ;
 #endif
 }
