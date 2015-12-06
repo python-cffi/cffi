@@ -6,6 +6,9 @@ What's New
 v1.4.0
 ======
 
+* ``ffi.compile()`` takes an optional ``verbose`` flag argument, to
+  see distutils calling the compiler.
+
 * ``ffi.new_handle()`` is now guaranteed to return unique ``void *``
   values, even if called twice on the same object.  Previously, in
   that case, CPython (but not PyPy) would return two ``cdata`` objects
