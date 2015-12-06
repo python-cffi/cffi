@@ -21,7 +21,7 @@ static PyTypeObject Lib_Type;   /* forward */
 static int init_ffi_lib(PyObject *m)
 {
     PyObject *x;
-    int i;
+    int i, res;
     static char init_done = 0;
 
     if (PyType_Ready(&FFI_Type) < 0)
@@ -47,11 +47,13 @@ static int init_ffi_lib(PyObject *m)
 
         for (i = 0; all_dlopen_flags[i].name != NULL; i++) {
             x = PyInt_FromLong(all_dlopen_flags[i].value);
-            if (x == NULL || PyDict_SetItemString(FFI_Type.tp_dict,
-                                                  all_dlopen_flags[i].name,
-                                                  x) < 0)
+            if (x == NULL)
                 return -1;
+            res = PyDict_SetItemString(FFI_Type.tp_dict,
+                                       all_dlopen_flags[i].name, x);
             Py_DECREF(x);
+            if (res < 0)
+                return -1;
         }
         init_done = 1;
     }
