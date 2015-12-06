@@ -266,18 +266,7 @@ typedef struct {
 /* whenever running Python code, the errno is saved in this thread-local
    variable */
 #ifndef MS_WIN32
-# ifdef USE__THREAD
-/* This macro ^^^ is defined by setup.py if it finds that it is
-   syntactically valid to use "__thread" with this C compiler. */
-static __thread int cffi_saved_errno = 0;
-static void save_errno(void) { cffi_saved_errno = errno; }
-static void restore_errno(void) { errno = cffi_saved_errno; }
-static void init_errno(void) { }
-# else
-#  include "misc_thread.h"
-# endif
-# define save_errno_only      save_errno
-# define restore_errno_only   restore_errno
+# include "misc_thread_posix.h"
 #endif
 
 #include "minibuffer.h"
@@ -5101,15 +5090,9 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
 {
     save_errno();
     {
-#ifdef WITH_THREAD
-        PyGILState_STATE state = PyGILState_Ensure();
-#endif
-
+        PyGILState_STATE state = gil_ensure();
         general_invoke_callback(1, result, (char *)args, userdata);
-
-#ifdef WITH_THREAD
-        PyGILState_Release(state);
-#endif
+        gil_release(state);
     }
     restore_errno();
 }
@@ -6542,7 +6525,7 @@ init_cffi_backend(void)
             INITERROR;
     }
 
-    init_errno();
+    init_cffi_tls();
     if (PyErr_Occurred())
         INITERROR;
 

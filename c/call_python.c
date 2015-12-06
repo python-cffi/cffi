@@ -180,9 +180,7 @@ static void _cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
         err = 1;
     }
     else {
-#ifdef WITH_THREAD
-        PyGILState_STATE state = PyGILState_Ensure();
-#endif
+        PyGILState_STATE state = gil_ensure();
         if (externpy->reserved1 != PyThreadState_GET()->interp->modules) {
             /* Update the (reserved1, reserved2) cache.  This will fail
                if we didn't call @ffi.def_extern() in this particular
@@ -192,9 +190,7 @@ static void _cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
         if (!err) {
             general_invoke_callback(0, args, args, externpy->reserved2);
         }
-#ifdef WITH_THREAD
-        PyGILState_Release(state);
-#endif
+        gil_release(state);
     }
     if (err) {
         static const char *msg[2] = {
