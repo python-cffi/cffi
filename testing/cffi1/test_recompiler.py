@@ -947,6 +947,19 @@ def test_constant_of_value_unknown_to_the_compiler():
     """, sources=[str(extra_c_source)])
     assert lib.external_foo == 42
 
+def test_dotdot_in_source_file_names():
+    extra_c_source = udir.join(
+        'extra_test_dotdot_in_source_file_names.c')
+    extra_c_source.write('const int external_foo = 42;\n')
+    ffi = FFI()
+    ffi.cdef("const int external_foo;")
+    lib = verify(ffi, 'test_dotdot_in_source_file_names', """
+        extern const int external_foo;
+    """, sources=[os.path.join(os.path.dirname(str(extra_c_source)),
+                               'foobar', '..',
+                               os.path.basename(str(extra_c_source)))])
+    assert lib.external_foo == 42
+
 def test_call_with_incomplete_structs():
     ffi = FFI()
     ffi.cdef("typedef struct {...;} foo_t; "

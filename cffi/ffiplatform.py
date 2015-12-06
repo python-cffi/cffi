@@ -17,7 +17,8 @@ LIST_OF_FILE_NAMES = ['sources', 'include_dirs', 'library_dirs',
 def get_extension(srcfilename, modname, sources=(), **kwds):
     from distutils.core import Extension
     allsources = [srcfilename]
-    allsources.extend(sources)
+    for src in sources:
+        allsources.append(os.path.normpath(src))
     return Extension(name=modname, sources=allsources, **kwds)
 
 def compile(tmpdir, ext):
