@@ -6,6 +6,15 @@ What's New
 v1.4.0
 ======
 
+* A `better way to do callbacks`__ has been added (faster and more
+  portable, and usually cleaner).  It is a mechanism for the
+  out-of-line API mode that replaces the dynamic creation of callback
+  objects (i.e. C functions that invoke Python) with the static
+  declaration in ``cdef()`` of which callbacks are needed.  This is
+  more C-like, in that you have to structure your code around the idea
+  that you get a fixed number of function pointers, instead of
+  creating them on-the-fly.
+
 * ``ffi.compile()`` now takes an optional ``verbose`` argument.  When
   ``True``, distutils prints the calls to the compiler.
 
@@ -18,6 +27,7 @@ v1.4.0
 
 * ``ffi.init_once()`` added.  See docs__.
 
+.. __: using.html#extern-python
 .. __: using.html#initonce
 
 

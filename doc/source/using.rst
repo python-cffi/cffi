@@ -433,11 +433,11 @@ Python function of your choice, here is how you do it in the
 out-of-line API mode.  The next section about Callbacks_ describes the
 ABI-mode solution.
 
-This is *new in version 1.4.*  Use Callbacks_ if backward compatibility
-is an issue.  (The original callbacks are slower to invoke and have
-the same issue as libffi's callbacks; notably, see the warning__.
-The  new style described in the present section does not use libffi's
-callbacks at all.)
+This is *new in version 1.4.*  Use old-style Callbacks_ if backward
+compatibility is an issue.  (The original callbacks are slower to
+invoke and have the same issue as libffi's callbacks; notably, see the
+warning__.  The new style described in the present section does not
+use libffi's callbacks at all.)
 
 .. __: Callbacks_
 
@@ -459,15 +459,15 @@ your application's code::
     from _my_example import ffi, lib
 
     @ffi.def_extern()
-    def my_callback(fooptr, value):
+    def my_callback(x, y):
         return 42
 
-You can get a ``<cdata>`` pointer-to-function object from
+You obtain a ``<cdata>`` pointer-to-function object by getting
 ``lib.my_callback``.  This ``<cdata>`` can be passed to C code and
 then works like a callback: when the C code calls this function
 pointer, the Python function ``my_callback`` is called.  (You need
 to pass ``lib.my_callback`` to C code, and not ``my_callback``: the
-latter is just a plain Python function that cannot be passed to C.)
+latter is just the Python function above, which cannot be passed to C.)
 
 CFFI implements this by defining ``my_callback`` as a static C
 function, written after the ``set_source()`` code.  The ``<cdata>``
@@ -484,8 +484,8 @@ changes the C logic to call the new Python function; the old Python
 function is not callable any more and the C function pointer you get
 from ``lib.my_function`` is always the same.
 
-Extern "Python" and "void *" arguments
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Extern "Python" and ``void *`` arguments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 As described just before, you cannot use ``extern "Python"`` to make a
 variable number of C function pointers.  However, achieving that
@@ -567,10 +567,12 @@ Extern "Python" accessed from C directly
 In case you want to access some ``extern "Python"`` function directly
 from the C code written in ``set_source()``, you need to write a
 forward static declaration.  The real implementation of this function
-is added by CFFI *after* the C code---this is needed because even the
+is added by CFFI *after* the C code---this is needed because the
 declaration might use types defined by ``set_source()``
 (e.g. ``event_t`` above, from the ``#include``), so it cannot be
 generated before.
+
+::
 
     ffi.set_source("_demo_cffi", """
         #include <the_event_library.h>
@@ -589,11 +591,12 @@ useful if the logic in ``my_algo()`` is much more complex)::
         int my_algo(int);
     """)
     ffi.set_source("_example_cffi", """
-        static int f(int);
+        static int f(int);   /* the forward declaration */
+
         static int my_algo(int n) {
             int i, sum = 0;
             for (i = 0; i < n; i++)
-                sum += f(i);
+                sum += f(i);     /* call f() here */
             return sum;
         }
     """)
