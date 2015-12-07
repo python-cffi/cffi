@@ -3,7 +3,7 @@ import sys, os, py
 from cffi import FFI, VerificationError, FFIError
 from cffi import recompiler
 from testing.udir import udir
-from testing.support import u
+from testing.support import u, long
 from testing.support import FdWriteCapture, StdErrCapture
 
 
@@ -1502,8 +1502,8 @@ def test_extern_python_1():
         res = lib.bar(4, 5)
     assert res == 0
     assert f.getvalue() == (
-        "extern \"Python\": function bar() called, but no code was attached "
-        "to it yet with @ffi.def_extern().  Returning 0.\n")
+        b"extern \"Python\": function bar() called, but no code was attached "
+        b"to it yet with @ffi.def_extern().  Returning 0.\n")
 
     @ffi.def_extern("bar")
     def my_bar(x, y):
@@ -1520,10 +1520,10 @@ def test_extern_python_1():
     baz1 = ffi.def_extern()(baz)
     assert baz1 is baz
     seen = []
-    baz(40L, 4L)
-    res = lib.baz(50L, 8L)
+    baz(long(40), long(4))
+    res = lib.baz(long(50), long(8))
     assert res is None
-    assert seen == [("Baz", 40L, 4L), ("Baz", 50, 8)]
+    assert seen == [("Baz", 40, 4), ("Baz", 50, 8)]
     assert type(seen[0][1]) is type(seen[0][2]) is long
     assert type(seen[1][1]) is type(seen[1][2]) is int
 

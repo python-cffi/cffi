@@ -24,9 +24,6 @@ static PyObject *_get_interpstate_dict(void)
 
 static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
 {
-#if PY_MAJOR_VERSION >= 3
-#  error review!
-#endif
     char *s;
     PyObject *error, *onerror, *infotuple, *old1;
     int index, err;
@@ -46,7 +43,7 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
         name = PyObject_GetAttrString(fn, "__name__");
         if (name == NULL)
             return NULL;
-        s = PyString_AsString(name);
+        s = PyText_AsUTF8(name);
         if (s == NULL) {
             Py_DECREF(name);
             return NULL;

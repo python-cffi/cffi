@@ -10,7 +10,7 @@ struct cffi_errno_s {
 
 static DWORD cffi_tls_index = TLS_OUT_OF_INDEXES;
 
-static void init_errno(void)
+static void init_cffi_tls(void)
 {
     if (cffi_tls_index == TLS_OUT_OF_INDEXES) {
         cffi_tls_index = TlsAlloc();

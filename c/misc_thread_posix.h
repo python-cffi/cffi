@@ -100,6 +100,15 @@ static void restore_errno(void)
 #endif
 
 
+static PyThreadState *get_current_ts(void)
+{
+#if PY_MAJOR_VERSION >= 3
+    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+#else
+    return _PyThreadState_Current;
+#endif
+}
+
 static PyGILState_STATE gil_ensure(void)
 {
     /* Called at the start of a callback.  Replacement for
@@ -111,7 +120,7 @@ static PyGILState_STATE gil_ensure(void)
 
     if (ts != NULL) {
         ts->gilstate_counter++;
-        if (ts != _PyThreadState_Current) {
+        if (ts != get_current_ts()) {
             /* common case: 'ts' is our non-current thread state and
                we have to make it current and acquire the GIL */
             PyEval_RestoreThread(ts);
@@ -128,7 +137,7 @@ static PyGILState_STATE gil_ensure(void)
 
         ts = PyGILState_GetThisThreadState();
         assert(ts != NULL);
-        assert(ts == _PyThreadState_Current);
+        assert(ts == get_current_ts());
         assert(ts->gilstate_counter >= 1);
 
         /* Save the now-current thread state inside our 'local_thread_state'
