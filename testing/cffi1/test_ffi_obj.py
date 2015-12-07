@@ -454,3 +454,33 @@ def test_init_once_multithread():
         thread.start_new_thread(f, ())
     time.sleep(1.5)
     assert seen == ['init!', 'init done'] + 6 * [7]
+
+def test_init_once_failure():
+    def do_init():
+        seen.append(1)
+        raise ValueError
+    ffi = _cffi1_backend.FFI()
+    seen = []
+    for i in range(5):
+        py.test.raises(ValueError, ffi.init_once, do_init, "tag")
+        assert seen == [1] * (i + 1)
+
+def test_init_once_multithread_failure():
+    import thread, time
+    def do_init():
+        seen.append('init!')
+        time.sleep(1)
+        seen.append('oops')
+        raise ValueError
+    ffi = _cffi1_backend.FFI()
+    seen = []
+    for i in range(3):
+        def f():
+            py.test.raises(ValueError, ffi.init_once, do_init, "tag")
+        thread.start_new_thread(f, ())
+    i = 0
+    while len(seen) < 6:
+        i += 1
+        assert i < 20
+        time.sleep(0.51)
+    assert seen == ['init!', 'oops'] * 3
