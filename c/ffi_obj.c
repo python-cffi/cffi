@@ -713,6 +713,41 @@ PyDoc_STRVAR(ffi_gc_doc,
 #define ffi_gc  b_gcp     /* ffi_gc() => b_gcp()
                              from _cffi_backend.c */
 
+PyDoc_STRVAR(ffi_def_extern_doc,
+"A decorator.  Attaches the decorated Python function to the C code\n"
+"generated for the 'extern \"Python\"' function of the same name.\n"
+"Calling the C function will then invoke the Python function.\n"
+"\n"
+"Optional arguments: 'name' is the name of the C function, if\n"
+"different from the Python function; and 'error' and 'onerror'\n"
+"handle what occurs if the Python function raises an exception\n"
+"(see the docs for details).");
+
+/* forward; see call_python.c */
+static PyObject *_ffi_def_extern_decorator(PyObject *, PyObject *);
+
+static PyObject *ffi_def_extern(FFIObject *self, PyObject *args,
+                                PyObject *kwds)
+{
+    static PyMethodDef md = {"def_extern_decorator",
+                             (PyCFunction)_ffi_def_extern_decorator, METH_O};
+    PyObject *name = Py_None, *error = Py_None;
+    PyObject *res, *onerror = Py_None;
+    static char *keywords[] = {"name", "error", "onerror", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", keywords,
+                                     &name, &error, &onerror))
+        return NULL;
+
+    args = Py_BuildValue("(OOOO)", (PyObject *)self, name, error, onerror);
+    if (args == NULL)
+        return NULL;
+
+    res = PyCFunction_New(&md, args);
+    Py_DECREF(args);
+    return res;
+}
+
 PyDoc_STRVAR(ffi_callback_doc,
 "Return a callback object or a decorator making such a callback object.\n"
 "'cdecl' must name a C function pointer type.  The callback invokes the\n"
@@ -980,6 +1015,7 @@ static PyMethodDef ffi_methods[] = {
  {"addressof",  (PyCFunction)ffi_addressof,  METH_VARARGS, ffi_addressof_doc},
  {"alignof",    (PyCFunction)ffi_alignof,    METH_O,       ffi_alignof_doc},
  {"buffer",     (PyCFunction)ffi_buffer,     METH_VKW,     ffi_buffer_doc},
+ {"def_extern", (PyCFunction)ffi_def_extern, METH_VKW,     ffi_def_extern_doc},
  {"callback",   (PyCFunction)ffi_callback,   METH_VKW,     ffi_callback_doc},
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
  {"dlclose",    (PyCFunction)ffi_dlclose,    METH_VARARGS, ffi_dlclose_doc},

@@ -437,13 +437,18 @@ def test_init_once():
         assert seen == [1, 1]
 
 def test_init_once_multithread():
-    import thread, time
+    if sys.version_info < (3,):
+        import thread
+    else:
+        import _thread as thread
+    import time
+    #
     def do_init():
-        print 'init!'
+        print('init!')
         seen.append('init!')
         time.sleep(1)
         seen.append('init done')
-        print 'init done'
+        print('init done')
         return 7
     ffi = _cffi1_backend.FFI()
     seen = []

@@ -10,7 +10,7 @@ struct cffi_errno_s {
 
 static DWORD cffi_tls_index = TLS_OUT_OF_INDEXES;
 
-static void init_errno(void)
+static void init_cffi_tls(void)
 {
     if (cffi_tls_index == TLS_OUT_OF_INDEXES) {
         cffi_tls_index = TlsAlloc();
@@ -181,6 +181,17 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
     return v;
 }
 #endif
+
+
+#ifdef WITH_THREAD
+/* XXX should port the code from misc_thread_posix.h */
+static PyGILState_STATE gil_ensure(void) { return PyGILState_Ensure(); }
+static void gil_release(PyGILState_STATE oldst) { PyGILState_Release(oldst); }
+#else
+static PyGILState_STATE gil_ensure(void) { return -1; }
+static void gil_release(PyGILState_STATE oldstate) { }
+#endif
+
 
 /************************************************************/
 /* Emulate dlopen()&co. from the Windows API */

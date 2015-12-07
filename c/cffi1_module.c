@@ -16,6 +16,7 @@ static PyTypeObject Lib_Type;   /* forward */
 #include "lib_obj.c"
 #include "cdlopen.c"
 #include "commontypes.c"
+#include "call_python.c"
 
 
 static int init_ffi_lib(PyObject *m)
@@ -151,7 +152,7 @@ static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
     PyObject *m, *modules_dict;
     FFIObject *ffi;
     LibObject *lib;
-    Py_ssize_t version;
+    Py_ssize_t version, num_exports;
     char *module_name, *exports, *module_name_with_lib;
     void **raw;
     const struct _cffi_type_context_s *ctx;
@@ -174,7 +175,10 @@ static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
     }
 
     /* initialize the exports array */
-    memcpy(exports, (char *)cffi_exports, sizeof(cffi_exports));
+    num_exports = 25;
+    if (ctx->flags & 1)    /* set to mean that 'extern "Python"' is used */
+        num_exports = 26;
+    memcpy(exports, (char *)cffi_exports, num_exports * sizeof(void *));
 
     /* make the module object */
     m = _my_Py_InitModule(module_name);
