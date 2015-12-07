@@ -155,6 +155,9 @@ static int cffi_saved_errno = 0;
 static void save_errno(void) { cffi_saved_errno = errno; }
 static void restore_errno(void) { errno = cffi_saved_errno; }
 
+static PyGILState_STATE gil_ensure(void) { return -1; }
+static void gil_release(PyGILState_STATE oldstate) { }
+
 #endif  /* !WITH_THREAD */
 
 

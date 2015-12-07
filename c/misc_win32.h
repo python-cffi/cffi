@@ -182,6 +182,17 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
 }
 #endif
 
+
+#ifdef WITH_THREAD
+/* XXX should port the code from misc_thread_posix.h */
+static PyGILState_STATE gil_ensure(void) { return PyGILState_Ensure(); }
+static void gil_release(PyGILState_STATE oldst) { PyGILState_Release(oldst); }
+#else
+static PyGILState_STATE gil_ensure(void) { return -1; }
+static void gil_release(PyGILState_STATE oldstate) { }
+#endif
+
+
 /************************************************************/
 /* Emulate dlopen()&co. from the Windows API */
 
