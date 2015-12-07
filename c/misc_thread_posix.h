@@ -106,7 +106,7 @@ static PyGILState_STATE gil_ensure(void)
        PyGILState_Ensure().
     */
     PyGILState_STATE result;
-    struct cffi_tls_s tls;
+    struct cffi_tls_s *tls;
     PyThreadState *ts = PyGILState_GetThisThreadState();
 
     if (ts != NULL) {
