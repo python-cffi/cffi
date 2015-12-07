@@ -6,18 +6,19 @@ What's New
 v1.4.0
 ======
 
-* ``ffi.compile()`` takes an optional ``verbose`` flag argument, to
-  see distutils calling the compiler.
+* ``ffi.compile()`` now takes an optional ``verbose`` argument.  When
+  ``True``, distutils prints the calls to the compiler.
 
 * ``ffi.new_handle()`` is now guaranteed to return unique ``void *``
   values, even if called twice on the same object.  Previously, in
   that case, CPython (but not PyPy) would return two ``cdata`` objects
   with the same ``void *`` value.  This change is useful to add and
-  remove handles from a global dict or set without worrying about
+  remove handles from a global dict (or set) without worrying about
   duplicates.
 
-* ``ffi.init_once()`` XXX
-  https://bitbucket.org/cffi/cffi/issues/233/
+* ``ffi.init_once()`` added.  See docs__.
+
+.. __: using.html#initonce
 
 
 v1.3.1

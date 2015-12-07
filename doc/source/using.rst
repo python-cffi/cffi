@@ -926,6 +926,58 @@ If ``should_clear_after_alloc`` is set to False, then the memory
 returned by ``alloc()`` is assumed to be already cleared (or you are
 fine with garbage); otherwise CFFI will clear it.
 
+.. _initonce:
+
+**ffi.init_once(function, tag)**: run ``function()`` once.  The
+``tag`` should be a primitive object, like a string, that identifies
+the function: ``function()`` is only called the first time we see the
+``tag``.  The return value of ``function()`` is remembered and
+returned by the current and all future ``init_once()`` with the same
+tag.  If ``init_once()`` is called from multiple threads in parallel,
+all calls block until the execution of ``function()`` is done.  If
+``function()`` raises an exception, it is propagated and nothing is
+cached (i.e. ``function()`` will be called again, in case we catch the
+exception and try ``init_once()`` again).  *New in version 1.4.*
+
+Example::
+
+    from _xyz_cffi import ffi, lib
+
+    def initlib():
+        lib.init_my_library()
+
+    def make_new_foo():
+        ffi.init_once(initlib, "init")
+        return lib.make_foo()
+
+``init_once()`` is optimized to run very quickly if ``function()`` has
+already been called.  (On PyPy, the cost is zero---the JIT usually
+removes everything in the machine code it produces.)
+
+*Note:* one motivation__ for ``init_once()`` is the CPython notion of
+"subinterpreters" in the embedded case.  If you are using the
+out-of-line API mode, ``function()`` is called only once even in the
+presence of multiple subinterpreters, and its return value is shared
+among all subinterpreters.  The goal is to mimic the way traditional
+CPython C extension modules have their init code executed only once in
+total even if there are subinterpreters.  In the example above, the C
+function ``init_my_library()`` is called once in total, not once per
+subinterpreter.  For this reason, avoid Python-level side-effects in
+``function()`` (as they will only be applied in the first
+subinterpreter to run); instead, return a value, as in the following
+example::
+
+   def init_get_max():
+       return lib.initialize_once_and_get_some_maximum_number()
+
+   def process(i):
+       if i > ffi.init_once(init_get_max, "max"):
+           raise IndexError("index too large!")
+       ...
+
+.. __: https://bitbucket.org/cffi/cffi/issues/233/
+
+
 .. _`Preparing and Distributing modules`: cdef.html#loading-libraries
 
 
