@@ -896,7 +896,14 @@ typedef void *PyThread_type_lock;
 #endif
 
 PyDoc_STRVAR(ffi_init_once_doc,
-             "XXX document me");
+"init_once(function, tag): run function() once.  More precisely,\n"
+"'function()' is called the first time we see a given 'tag'.\n"
+"\n"
+"The return value of function() is remembered and returned by the current\n"
+"and all future init_once() with the same tag.  If init_once() is called\n"
+"from multiple threads in parallel, all calls block until the execution\n"
+"of function() is done.  If function() raises an exception, it is\n"
+"propagated and nothing is cached.");
 
 #if PY_MAJOR_VERSION < 3
 /* PyCapsule_New is redefined to be PyCObject_FromVoidPtr in _cffi_backend,
