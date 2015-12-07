@@ -43,7 +43,7 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
         return NULL;
 
     if (s == NULL) {
-        PyObject *name = PyObject_GetAttrString(fn, "__name__");
+        name = PyObject_GetAttrString(fn, "__name__");
         if (name == NULL)
             return NULL;
         s = PyString_AsString(name);
