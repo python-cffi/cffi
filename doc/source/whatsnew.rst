@@ -18,6 +18,9 @@ v1.4.0
 * ``ffi.compile()`` now takes an optional ``verbose`` argument.  When
   ``True``, distutils prints the calls to the compiler.
 
+* ``ffi.compile()`` used to fail if given ``sources`` with a path that
+  includes ``..``.  Fixed.
+
 * ``ffi.new_handle()`` is now guaranteed to return unique ``void *``
   values, even if called twice on the same object.  Previously, in
   that case, CPython (but not PyPy) would return two ``cdata`` objects
@@ -28,6 +31,9 @@ v1.4.0
 * ``ffi.init_once()`` added.  See docs__.
 
 * ``dir(lib)`` now works on libs returned by ``ffi.dlopen()`` too.
+
+* Cleaned up and modernized the content of the ``demo`` subdirectory
+  in the sources.
 
 .. __: using.html#extern-python
 .. __: using.html#initonce
