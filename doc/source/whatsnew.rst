@@ -27,6 +27,8 @@ v1.4.0
 
 * ``ffi.init_once()`` added.  See docs__.
 
+* ``dir(lib)`` now works on libs returned by ``ffi.dlopen()`` too.
+
 .. __: using.html#extern-python
 .. __: using.html#initonce
 
