@@ -471,7 +471,11 @@ def test_init_once_failure():
         assert seen == [1] * (i + 1)
 
 def test_init_once_multithread_failure():
-    import thread, time
+    if sys.version_info < (3,):
+        import thread
+    else:
+        import _thread as thread
+    import time
     def do_init():
         seen.append('init!')
         time.sleep(1)
