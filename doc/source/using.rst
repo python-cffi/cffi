@@ -472,17 +472,19 @@ latter is just the Python function above, which cannot be passed to C.)
 CFFI implements this by defining ``my_callback`` as a static C
 function, written after the ``set_source()`` code.  The ``<cdata>``
 then points to this function.  What this function does is invoke the
-Python function object that was dynamically attached by
+Python function object that is, at runtime, attached with
 ``@ffi.def_extern()``.
 
-Each function from the cdef with ``extern "Python"`` turns into only
-one C function.  To support some corner cases, it is possible to
-redefine the attached Python function by calling ``@ffi.def_extern()``
-again---but this is not recommended!  Better write the Python function
-more flexibly in the first place.  Calling ``@ffi.def_extern()`` again
-changes the C logic to call the new Python function; the old Python
-function is not callable any more and the C function pointer you get
-from ``lib.my_function`` is always the same.
+The ``@ffi.def_extern()`` decorator should be applied to a global
+function, once.  This is because each function from the cdef with
+``extern "Python"`` turns into only one C function.  To support some
+corner cases, it is possible to redefine the attached Python function
+by calling ``@ffi.def_extern()`` again---but this is not recommended!
+Better write the single global Python function more flexibly in the
+first place.  Calling ``@ffi.def_extern()`` again changes the C logic
+to call the new Python function; the old Python function is not
+callable any more and the C function pointer you get from
+``lib.my_function`` is always the same.
 
 Extern "Python" and ``void *`` arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -708,7 +710,28 @@ If you store the function pointer into C code, then make sure you also
 keep this object alive for as long as the callback may be invoked.
 The easiest way to do that is to always use ``@ffi.callback()`` at
 module-level only, and to pass "context" information around with
-`ffi.new_handle()`_, if possible.
+`ffi.new_handle()`_, if possible.  Example:
+
+.. code-block:: python
+
+    # a good way to use this decorator is once at global level
+    @ffi.callback("int(int, void *)")
+    def my_global_callback(x, handle):
+        return ffi.from_handle(handle).some_method(x)
+
+
+    class Foo(object):
+
+        def __init__(self):
+            handle = ffi.new_handle(self)
+            self._handle = handle   # must be kept alive
+            lib.register_stuff_with_callback_and_voidp_arg(my_global_callback, handle)
+
+        def some_method(self, x):
+            ...
+
+(See also the section about `extern "Python"`_ above, where the same
+general style is used.)
 
 Note that callbacks of a variadic function type are not supported.  A
 workaround is to add custom C code.  In the following example, a
