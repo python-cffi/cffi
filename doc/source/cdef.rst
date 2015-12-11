@@ -134,7 +134,8 @@ underscore-prefixed internal attributes of the Python version).
 Similarly, the ``lib`` objects returned by the C version are read-only,
 apart from writes to global variables.  Also, ``lib.__dict__`` does
 not work before version 1.2 or if ``lib`` happens to declare a name
-called ``__dict__`` (use instead ``dir(lib)``).
+called ``__dict__`` (use instead ``dir(lib)``).  The same is true
+for ``lib.__class__`` before version 1.4.
 
 
 ffi.cdef(): declaring types and functions

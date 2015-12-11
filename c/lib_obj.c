@@ -459,6 +459,7 @@ static PyObject *_lib_dict(LibObject *lib)
 
 static PyObject *lib_getattr(LibObject *lib, PyObject *name)
 {
+    char *p;
     PyObject *x;
     LIB_GET_OR_CACHE_ADDR(x, lib, name, goto missing);
 
@@ -469,16 +470,23 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
     return x;
 
  missing:
-    if (strcmp(PyText_AsUTF8(name), "__all__") == 0) {
+    p = PyText_AsUTF8(name);
+    if (strcmp(p, "__all__") == 0) {
         PyErr_Clear();
         return _lib_dir1(lib, 1);
     }
-    if (strcmp(PyText_AsUTF8(name), "__dict__") == 0) {
+    if (strcmp(p, "__dict__") == 0) {
         PyErr_Clear();
         return _lib_dict(lib);
     }
+    if (strcmp(p, "__class__") == 0) {
+        PyErr_Clear();
+        x = (PyObject *)Py_TYPE(lib);
+        Py_INCREF(x);
+        return x;
+    }
     /* this hack is for Python 3.5 */
-    if (strcmp(PyText_AsUTF8(name), "__name__") == 0) {
+    if (strcmp(p, "__name__") == 0) {
         PyErr_Clear();
         return lib_repr(lib);
     }
