@@ -471,6 +471,8 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
 
  missing:
     p = PyText_AsUTF8(name);
+    if (p == NULL)
+        return NULL;
     if (strcmp(p, "__all__") == 0) {
         PyErr_Clear();
         return _lib_dir1(lib, 1);
