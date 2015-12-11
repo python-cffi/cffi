@@ -19,24 +19,29 @@ v1.4.0
   ``True``, distutils prints the calls to the compiler.
 
 * ``ffi.compile()`` used to fail if given ``sources`` with a path that
-  includes ``..``.  Fixed.
-
-* ``ffi.new_handle()`` is now guaranteed to return unique ``void *``
-  values, even if called twice on the same object.  Previously, in
-  that case, CPython (but not PyPy) would return two ``cdata`` objects
-  with the same ``void *`` value.  This change is useful to add and
-  remove handles from a global dict (or set) without worrying about
-  duplicates.
+  includes ``".."``.  Fixed.
 
 * ``ffi.init_once()`` added.  See docs__.
 
 * ``dir(lib)`` now works on libs returned by ``ffi.dlopen()`` too.
 
 * Cleaned up and modernized the content of the ``demo`` subdirectory
-  in the sources.
+  in the sources (thanks matti!).
+
+* ``ffi.new_handle()`` is now guaranteed to return unique ``void *``
+  values, even if called twice on the same object.  Previously, in
+  that case, CPython would return two ``cdata`` objects with the same
+  ``void *`` value.  This change is useful to add and remove handles
+  from a global dict (or set) without worrying about duplicates.
+  It already used to work like that on PyPy.
+  *This change can break code that used to work on CPython by relying
+  on the object to be kept alive by other means than keeping the
+  result of ffi.new_handle() alive.*  (The corresponding `warning in
+  the docs`__ of ``ffi.new_handle()`` has been here since v0.8!)
 
 .. __: using.html#extern-python
 .. __: using.html#initonce
+.. __: using.html#ffi-new-handle
 
 
 v1.3.1
