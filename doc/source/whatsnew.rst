@@ -3,6 +3,16 @@ What's New
 ======================
 
 
+v1.4.1
+======
+
+* Fix the compilation failure of cffi on CPython 3.5.0.  (3.5.1 works;
+  some detail changed that makes some underscore-starting macros
+  disappear from view of extension modules, and I worked around it,
+  thinking it changed in all 3.5 versions---but no: it was only in
+  3.5.1.)
+
+
 v1.4.0
 ======
 
