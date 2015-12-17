@@ -100,11 +100,11 @@ static void restore_errno(void)
 #endif
 
 
-/* Seems that CPython 3.5 made our job harder.  Did not find out how
+/* Seems that CPython 3.5.1 made our job harder.  Did not find out how
    to do that without these hacks.  We can't use PyThreadState_GET(),
    because that calls PyThreadState_Get() which fails an assert if the
    result is NULL. */
-#if (PY_MAJOR_VERSION * 1000 + PY_MINOR_VERSION) >= 3005
+#ifndef _Py_atomic_load_relaxed   /* this was abruptly un-defined in 3.5.1 */
 void *volatile _PyThreadState_Current;
    /* XXX simple volatile access is assumed atomic */
 #  define _Py_atomic_load_relaxed(pp)  (*(pp))
