@@ -823,7 +823,7 @@ out.  In the ``cdef()``, you can also use ``WINAPI`` as equivalent to
 hurt) to say ``WINAPI`` or ``__stdcall`` when declaring a plain
 function in the ``cdef()``.  (The difference can still be seen if you
 take explicitly a pointer to this function with ``ffi.addressof()``,
-or if the function is ``CFFI_CALL_PYTHON``.)
+or if the function is ``extern "Python"``.)
 
 These calling convention specifiers are accepted but ignored on any
 platform other than 32-bit Windows.
