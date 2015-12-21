@@ -1311,8 +1311,8 @@ allowed.
    function with a ``char *`` argument to which you pass a Python
    string will not actually modify the array of characters passed in,
    and so passes directly a pointer inside the Python string object.
-   (PyPy might in the future do the same, but it is harder because a
-   string object can move in memory when the GC runs.)
+   (PyPy might in the future do the same, but it is harder because
+   strings are not naturally zero-terminated in PyPy.)
 
 `(**)` C function calls are done with the GIL released.
 
