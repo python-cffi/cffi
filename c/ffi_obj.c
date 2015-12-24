@@ -335,7 +335,7 @@ PyDoc_STRVAR(ffi_new_doc,
 "pointer to the memory somewhere else, e.g. into another structure.");
 
 static PyObject *_ffi_new(FFIObject *self, PyObject *args, PyObject *kwds,
-                          cffi_allocator_t allocator)
+                          const cffi_allocator_t *allocator)
 {
     CTypeDescrObject *ct;
     PyObject *arg, *init = Py_None;
@@ -353,15 +353,22 @@ static PyObject *_ffi_new(FFIObject *self, PyObject *args, PyObject *kwds,
 
 static PyObject *ffi_new(FFIObject *self, PyObject *args, PyObject *kwds)
 {
-    return _ffi_new(self, args, kwds, default_allocator);
+    return _ffi_new(self, args, kwds, &default_allocator);
 }
 
 static PyObject *_ffi_new_with_allocator(PyObject *allocator, PyObject *args,
                                          PyObject *kwds)
 {
+    cffi_allocator_t alloc1;
+    PyObject *my_alloc, *my_free;
+    my_alloc = PyTuple_GET_ITEM(allocator, 1);
+    my_free  = PyTuple_GET_ITEM(allocator, 2);
+    alloc1.ca_alloc = (my_alloc == Py_None ? NULL : my_alloc);
+    alloc1.ca_free  = (my_free  == Py_None ? NULL : my_free);
+    alloc1.ca_dont_clear = (PyTuple_GET_ITEM(allocator, 3) == Py_False);
+
     return _ffi_new((FFIObject *)PyTuple_GET_ITEM(allocator, 0),
-                    args, kwds,
-                    &PyTuple_GET_ITEM(allocator, 1));
+                    args, kwds, &alloc1);
 }
 
 PyDoc_STRVAR(ffi_new_allocator_doc,
@@ -396,26 +403,13 @@ static PyObject *ffi_new_allocator(FFIObject *self, PyObject *args,
         return NULL;
     }
 
-    allocator = PyTuple_New(4);
+    allocator = PyTuple_Pack(4,
+                             (PyObject *)self,
+                             my_alloc,
+                             my_free,
+                             PyBool_FromLong(should_clear_after_alloc));
     if (allocator == NULL)
         return NULL;
-
-    Py_INCREF(self);
-    PyTuple_SET_ITEM(allocator, 0, (PyObject *)self);
-
-    if (my_alloc != Py_None) {
-        Py_INCREF(my_alloc);
-        PyTuple_SET_ITEM(allocator, 1, my_alloc);
-    }
-    if (my_free != Py_None) {
-        Py_INCREF(my_free);
-        PyTuple_SET_ITEM(allocator, 2, my_free);
-    }
-    if (!should_clear_after_alloc) {
-        PyObject *my_true = Py_True;
-        Py_INCREF(my_true);
-        PyTuple_SET_ITEM(allocator, 3, my_true);  /* dont_clear_after_alloc */
-    }
 
     {
         static PyMethodDef md = {"allocator",

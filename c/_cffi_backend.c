@@ -279,8 +279,11 @@ typedef struct {
 # include "wchar_helper.h"
 #endif
 
-typedef PyObject *const cffi_allocator_t[3];
-static cffi_allocator_t default_allocator = { NULL, NULL, NULL };
+typedef struct _cffi_allocator_s {
+    PyObject *ca_alloc, *ca_free;
+    int ca_dont_clear;
+} cffi_allocator_t;
+static const cffi_allocator_t default_allocator = { NULL, NULL, 0 };
 static PyObject *FFIError;
 static PyObject *unique_cache;
 
@@ -3019,21 +3022,18 @@ static CDataObject *allocate_gcp_object(CDataObject *origobj,
 static CDataObject *allocate_with_allocator(Py_ssize_t basesize,
                                             Py_ssize_t datasize,
                                             CTypeDescrObject *ct,
-                                            cffi_allocator_t allocator)
+                                            const cffi_allocator_t *allocator)
 {
     CDataObject *cd;
-    PyObject *my_alloc = allocator[0];
-    PyObject *my_free = allocator[1];
-    PyObject *dont_clear_after_alloc = allocator[2];
 
-    if (my_alloc == NULL) {   /* alloc */
+    if (allocator->ca_alloc == NULL) {
         cd = allocate_owning_object(basesize + datasize, ct);
         if (cd == NULL)
             return NULL;
         cd->c_data = ((char *)cd) + basesize;
     }
     else {
-        PyObject *res = PyObject_CallFunction(my_alloc, "n", datasize);
+        PyObject *res = PyObject_CallFunction(allocator->ca_alloc, "n", datasize);
         if (res == NULL)
             return NULL;
 
@@ -3058,16 +3058,16 @@ static CDataObject *allocate_with_allocator(Py_ssize_t basesize,
             return NULL;
         }
 
-        cd = allocate_gcp_object(cd, ct, my_free);
+        cd = allocate_gcp_object(cd, ct, allocator->ca_free);
         Py_DECREF(res);
     }
-    if (dont_clear_after_alloc == NULL)
+    if (!allocator->ca_dont_clear)
         memset(cd->c_data, 0, datasize);
     return cd;
 }
 
 static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init,
-                             cffi_allocator_t allocator)
+                             const cffi_allocator_t *allocator)
 {
     CTypeDescrObject *ctitem;
     CDataObject *cd;
@@ -3172,7 +3172,7 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
     PyObject *init = Py_None;
     if (!PyArg_ParseTuple(args, "O!|O:newp", &CTypeDescr_Type, &ct, &init))
         return NULL;
-    return direct_newp(ct, init, default_allocator);
+    return direct_newp(ct, init, &default_allocator);
 }
 
 static int
