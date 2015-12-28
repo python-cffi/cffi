@@ -4648,7 +4648,9 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
 
     if (cif_descr != NULL) {
         /* exchange data size */
-        cif_descr->exchange_size = exchange_offset;
+        /* we also align it to the next multiple of 8, in an attempt to
+           work around bugs(?) of libffi like #241 */
+        cif_descr->exchange_size = ALIGN_ARG(exchange_offset);
     }
     return 0;
 }
