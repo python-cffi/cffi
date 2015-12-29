@@ -266,18 +266,7 @@ typedef struct {
 /* whenever running Python code, the errno is saved in this thread-local
    variable */
 #ifndef MS_WIN32
-# ifdef USE__THREAD
-/* This macro ^^^ is defined by setup.py if it finds that it is
-   syntactically valid to use "__thread" with this C compiler. */
-static __thread int cffi_saved_errno = 0;
-static void save_errno(void) { cffi_saved_errno = errno; }
-static void restore_errno(void) { errno = cffi_saved_errno; }
-static void init_errno(void) { }
-# else
-#  include "misc_thread.h"
-# endif
-# define save_errno_only      save_errno
-# define restore_errno_only   restore_errno
+# include "misc_thread_posix.h"
 #endif
 
 #include "minibuffer.h"
@@ -290,8 +279,11 @@ static void init_errno(void) { }
 # include "wchar_helper.h"
 #endif
 
-typedef PyObject *const cffi_allocator_t[3];
-static cffi_allocator_t default_allocator = { NULL, NULL, NULL };
+typedef struct _cffi_allocator_s {
+    PyObject *ca_alloc, *ca_free;
+    int ca_dont_clear;
+} cffi_allocator_t;
+static const cffi_allocator_t default_allocator = { NULL, NULL, 0 };
 static PyObject *FFIError;
 static PyObject *unique_cache;
 
@@ -3030,21 +3022,18 @@ static CDataObject *allocate_gcp_object(CDataObject *origobj,
 static CDataObject *allocate_with_allocator(Py_ssize_t basesize,
                                             Py_ssize_t datasize,
                                             CTypeDescrObject *ct,
-                                            cffi_allocator_t allocator)
+                                            const cffi_allocator_t *allocator)
 {
     CDataObject *cd;
-    PyObject *my_alloc = allocator[0];
-    PyObject *my_free = allocator[1];
-    PyObject *dont_clear_after_alloc = allocator[2];
 
-    if (my_alloc == NULL) {   /* alloc */
+    if (allocator->ca_alloc == NULL) {
         cd = allocate_owning_object(basesize + datasize, ct);
         if (cd == NULL)
             return NULL;
         cd->c_data = ((char *)cd) + basesize;
     }
     else {
-        PyObject *res = PyObject_CallFunction(my_alloc, "n", datasize);
+        PyObject *res = PyObject_CallFunction(allocator->ca_alloc, "n", datasize);
         if (res == NULL)
             return NULL;
 
@@ -3069,16 +3058,16 @@ static CDataObject *allocate_with_allocator(Py_ssize_t basesize,
             return NULL;
         }
 
-        cd = allocate_gcp_object(cd, ct, my_free);
+        cd = allocate_gcp_object(cd, ct, allocator->ca_free);
         Py_DECREF(res);
     }
-    if (dont_clear_after_alloc == NULL)
+    if (!allocator->ca_dont_clear)
         memset(cd->c_data, 0, datasize);
     return cd;
 }
 
 static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init,
-                             cffi_allocator_t allocator)
+                             const cffi_allocator_t *allocator)
 {
     CTypeDescrObject *ctitem;
     CDataObject *cd;
@@ -3183,7 +3172,7 @@ static PyObject *b_newp(PyObject *self, PyObject *args)
     PyObject *init = Py_None;
     if (!PyArg_ParseTuple(args, "O!|O:newp", &CTypeDescr_Type, &ct, &init))
         return NULL;
-    return direct_newp(ct, init, default_allocator);
+    return direct_newp(ct, init, &default_allocator);
 }
 
 static int
@@ -4659,7 +4648,9 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
 
     if (cif_descr != NULL) {
         /* exchange data size */
-        cif_descr->exchange_size = exchange_offset;
+        /* we also align it to the next multiple of 8, in an attempt to
+           work around bugs(?) of libffi like #241 */
+        cif_descr->exchange_size = ALIGN_ARG(exchange_offset);
     }
     return 0;
 }
@@ -5101,15 +5092,9 @@ static void invoke_callback(ffi_cif *cif, void *result, void **args,
 {
     save_errno();
     {
-#ifdef WITH_THREAD
-        PyGILState_STATE state = PyGILState_Ensure();
-#endif
-
+        PyGILState_STATE state = gil_ensure();
         general_invoke_callback(1, result, (char *)args, userdata);
-
-#ifdef WITH_THREAD
-        PyGILState_Release(state);
-#endif
+        gil_release(state);
     }
     restore_errno();
 }
@@ -6515,7 +6500,7 @@ init_cffi_backend(void)
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
         INITERROR;
 
-    v = PyText_FromString("1.3.1");
+    v = PyText_FromString("1.4.2");
     if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
         INITERROR;
 
@@ -6542,7 +6527,7 @@ init_cffi_backend(void)
             INITERROR;
     }
 
-    init_errno();
+    init_cffi_tls();
     if (PyErr_Occurred())
         INITERROR;
 

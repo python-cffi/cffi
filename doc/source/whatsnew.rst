@@ -3,18 +3,61 @@ What's New
 ======================
 
 
+v1.4.2
+======
+
+Nothing changed from v1.4.1.
+
+
+v1.4.1
+======
+
+* Fix the compilation failure of cffi on CPython 3.5.0.  (3.5.1 works;
+  some detail changed that makes some underscore-starting macros
+  disappear from view of extension modules, and I worked around it,
+  thinking it changed in all 3.5 versions---but no: it was only in
+  3.5.1.)
+
+
 v1.4.0
 ======
 
+* A `better way to do callbacks`__ has been added (faster and more
+  portable, and usually cleaner).  It is a mechanism for the
+  out-of-line API mode that replaces the dynamic creation of callback
+  objects (i.e. C functions that invoke Python) with the static
+  declaration in ``cdef()`` of which callbacks are needed.  This is
+  more C-like, in that you have to structure your code around the idea
+  that you get a fixed number of function pointers, instead of
+  creating them on-the-fly.
+
+* ``ffi.compile()`` now takes an optional ``verbose`` argument.  When
+  ``True``, distutils prints the calls to the compiler.
+
+* ``ffi.compile()`` used to fail if given ``sources`` with a path that
+  includes ``".."``.  Fixed.
+
+* ``ffi.init_once()`` added.  See docs__.
+
+* ``dir(lib)`` now works on libs returned by ``ffi.dlopen()`` too.
+
+* Cleaned up and modernized the content of the ``demo`` subdirectory
+  in the sources (thanks matti!).
+
 * ``ffi.new_handle()`` is now guaranteed to return unique ``void *``
   values, even if called twice on the same object.  Previously, in
-  that case, CPython (but not PyPy) would return two ``cdata`` objects
-  with the same ``void *`` value.  This change is useful to add and
-  remove handles from a global dict or set without worrying about
-  duplicates.
+  that case, CPython would return two ``cdata`` objects with the same
+  ``void *`` value.  This change is useful to add and remove handles
+  from a global dict (or set) without worrying about duplicates.
+  It already used to work like that on PyPy.
+  *This change can break code that used to work on CPython by relying
+  on the object to be kept alive by other means than keeping the
+  result of ffi.new_handle() alive.*  (The corresponding `warning in
+  the docs`__ of ``ffi.new_handle()`` has been here since v0.8!)
 
-* ``ffi.init_once()`` XXX
-  https://bitbucket.org/cffi/cffi/issues/233/
+.. __: using.html#extern-python
+.. __: using.html#initonce
+.. __: using.html#ffi-new-handle
 
 
 v1.3.1

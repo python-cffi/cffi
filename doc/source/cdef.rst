@@ -62,7 +62,7 @@ In order of complexity:
     ffi.cdef("C-like declarations with '...'")
 
     if __name__ == "__main__":
-        ffi.compile()
+        ffi.compile(verbose=True)
 
   Running ``python foo_build.py`` produces a file ``_foo.c`` and
   invokes the C compiler to turn it into a file ``_foo.so`` (or
@@ -134,7 +134,8 @@ underscore-prefixed internal attributes of the Python version).
 Similarly, the ``lib`` objects returned by the C version are read-only,
 apart from writes to global variables.  Also, ``lib.__dict__`` does
 not work before version 1.2 or if ``lib`` happens to declare a name
-called ``__dict__`` (use instead ``dir(lib)``).
+called ``__dict__`` (use instead ``dir(lib)``).  The same is true
+for ``lib.__class__`` before version 1.4.
 
 
 ffi.cdef(): declaring types and functions
@@ -504,7 +505,8 @@ the same content, to preserve the mtime.  In some cases where you need
 the mtime to be updated anyway, delete the file before calling the
 functions.
 
-**ffi.compile(tmpdir='.'):** explicitly generate the .py or .c file,
+**ffi.compile(tmpdir='.', verbose=False):**
+explicitly generate the .py or .c file,
 and (if .c) compile it.  The output file is (or are) put in the
 directory given by ``tmpdir``.  In the examples given here, we use
 ``if __name__ == "__main__": ffi.compile()`` in the build scripts---if
@@ -512,6 +514,11 @@ they are directly executed, this makes them rebuild the .py/.c file in
 the current directory.  (Note: if a package is specified in the call
 to ``set_source()``, then a corresponding subdirectory of the ``tmpdir``
 is used.)
+
+*New in version 1.4:* ``verbose`` argument.  If True, it prints the
+usual distutils output, including the command lines that call the
+compiler.  (This parameter might be changed to True by default in a
+future release.)
 
 **ffi.emit_python_code(filename):** generate the given .py file (same
 as ``ffi.compile()`` for ABI mode, with an explicitly-named file to

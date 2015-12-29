@@ -24,9 +24,6 @@ static PyObject *_get_interpstate_dict(void)
 
 static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
 {
-#if PY_MAJOR_VERSION >= 3
-#  error review!
-#endif
     char *s;
     PyObject *error, *onerror, *infotuple, *old1;
     int index, err;
@@ -43,10 +40,10 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
         return NULL;
 
     if (s == NULL) {
-        PyObject *name = PyObject_GetAttrString(fn, "__name__");
+        name = PyObject_GetAttrString(fn, "__name__");
         if (name == NULL)
             return NULL;
-        s = PyString_AsString(name);
+        s = PyText_AsUTF8(name);
         if (s == NULL) {
             Py_DECREF(name);
             return NULL;
@@ -203,9 +200,7 @@ static void cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
         err = 1;
     }
     else {
-#ifdef WITH_THREAD
-        PyGILState_STATE state = PyGILState_Ensure();
-#endif
+        PyGILState_STATE state = gil_ensure();
         if (externpy->reserved1 != PyThreadState_GET()->interp->modules) {
             /* Update the (reserved1, reserved2) cache.  This will fail
                if we didn't call @ffi.def_extern() in this particular
@@ -215,9 +210,7 @@ static void cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
         if (!err) {
             general_invoke_callback(0, args, args, externpy->reserved2);
         }
-#ifdef WITH_THREAD
-        PyGILState_Release(state);
-#endif
+        gil_release(state);
     }
     if (err) {
         static const char *msg[2] = {

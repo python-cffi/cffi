@@ -433,11 +433,11 @@ Python function of your choice, here is how you do it in the
 out-of-line API mode.  The next section about Callbacks_ describes the
 ABI-mode solution.
 
-This is *new in version 1.4.*  Use Callbacks_ if backward compatibility
-is an issue.  (The original callbacks are slower to invoke and have
-the same issue as libffi's callbacks; notably, see the warning__.
-The  new style described in the present section does not use libffi's
-callbacks at all.)
+This is *new in version 1.4.*  Use old-style Callbacks_ if backward
+compatibility is an issue.  (The original callbacks are slower to
+invoke and have the same issue as libffi's callbacks; notably, see the
+warning__.  The new style described in the present section does not
+use libffi's callbacks at all.)
 
 .. __: Callbacks_
 
@@ -459,33 +459,35 @@ your application's code::
     from _my_example import ffi, lib
 
     @ffi.def_extern()
-    def my_callback(fooptr, value):
+    def my_callback(x, y):
         return 42
 
-You can get a ``<cdata>`` pointer-to-function object from
+You obtain a ``<cdata>`` pointer-to-function object by getting
 ``lib.my_callback``.  This ``<cdata>`` can be passed to C code and
 then works like a callback: when the C code calls this function
 pointer, the Python function ``my_callback`` is called.  (You need
 to pass ``lib.my_callback`` to C code, and not ``my_callback``: the
-latter is just a plain Python function that cannot be passed to C.)
+latter is just the Python function above, which cannot be passed to C.)
 
 CFFI implements this by defining ``my_callback`` as a static C
 function, written after the ``set_source()`` code.  The ``<cdata>``
 then points to this function.  What this function does is invoke the
-Python function object that was dynamically attached by
+Python function object that is, at runtime, attached with
 ``@ffi.def_extern()``.
 
-Each function from the cdef with ``extern "Python"`` turns into only
-one C function.  To support some corner cases, it is possible to
-redefine the attached Python function by calling ``@ffi.def_extern()``
-again---but this is not recommended!  Better write the Python function
-more flexibly in the first place.  Calling ``@ffi.def_extern()`` again
-changes the C logic to call the new Python function; the old Python
-function is not callable any more and the C function pointer you get
-from ``lib.my_function`` is always the same.
+The ``@ffi.def_extern()`` decorator should be applied to a global
+function, once.  This is because each function from the cdef with
+``extern "Python"`` turns into only one C function.  To support some
+corner cases, it is possible to redefine the attached Python function
+by calling ``@ffi.def_extern()`` again---but this is not recommended!
+Better write the single global Python function more flexibly in the
+first place.  Calling ``@ffi.def_extern()`` again changes the C logic
+to call the new Python function; the old Python function is not
+callable any more and the C function pointer you get from
+``lib.my_function`` is always the same.
 
-Extern "Python" and "void *" arguments
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Extern "Python" and ``void *`` arguments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 As described just before, you cannot use ``extern "Python"`` to make a
 variable number of C function pointers.  However, achieving that
@@ -567,10 +569,12 @@ Extern "Python" accessed from C directly
 In case you want to access some ``extern "Python"`` function directly
 from the C code written in ``set_source()``, you need to write a
 forward static declaration.  The real implementation of this function
-is added by CFFI *after* the C code---this is needed because even the
+is added by CFFI *after* the C code---this is needed because the
 declaration might use types defined by ``set_source()``
 (e.g. ``event_t`` above, from the ``#include``), so it cannot be
 generated before.
+
+::
 
     ffi.set_source("_demo_cffi", """
         #include <the_event_library.h>
@@ -589,11 +593,12 @@ useful if the logic in ``my_algo()`` is much more complex)::
         int my_algo(int);
     """)
     ffi.set_source("_example_cffi", """
-        static int f(int);
+        static int f(int);   /* the forward declaration */
+
         static int my_algo(int n) {
             int i, sum = 0;
             for (i = 0; i < n; i++)
-                sum += f(i);
+                sum += f(i);     /* call f() here */
             return sum;
         }
     """)
@@ -705,7 +710,28 @@ If you store the function pointer into C code, then make sure you also
 keep this object alive for as long as the callback may be invoked.
 The easiest way to do that is to always use ``@ffi.callback()`` at
 module-level only, and to pass "context" information around with
-`ffi.new_handle()`_, if possible.
+`ffi.new_handle()`_, if possible.  Example:
+
+.. code-block:: python
+
+    # a good way to use this decorator is once at global level
+    @ffi.callback("int(int, void *)")
+    def my_global_callback(x, handle):
+        return ffi.from_handle(handle).some_method(x)
+
+
+    class Foo(object):
+
+        def __init__(self):
+            handle = ffi.new_handle(self)
+            self._handle = handle   # must be kept alive
+            lib.register_stuff_with_callback_and_voidp_arg(my_global_callback, handle)
+
+        def some_method(self, x):
+            ...
+
+(See also the section about `extern "Python"`_ above, where the same
+general style is used.)
 
 Note that callbacks of a variadic function type are not supported.  A
 workaround is to add custom C code.  In the following example, a
@@ -797,7 +823,7 @@ out.  In the ``cdef()``, you can also use ``WINAPI`` as equivalent to
 hurt) to say ``WINAPI`` or ``__stdcall`` when declaring a plain
 function in the ``cdef()``.  (The difference can still be seen if you
 take explicitly a pointer to this function with ``ffi.addressof()``,
-or if the function is ``CFFI_CALL_PYTHON``.)
+or if the function is ``extern "Python"``.)
 
 These calling convention specifiers are accepted but ignored on any
 platform other than 32-bit Windows.
@@ -1139,6 +1165,58 @@ If ``should_clear_after_alloc`` is set to False, then the memory
 returned by ``alloc()`` is assumed to be already cleared (or you are
 fine with garbage); otherwise CFFI will clear it.
 
+.. _initonce:
+
+**ffi.init_once(function, tag)**: run ``function()`` once.  The
+``tag`` should be a primitive object, like a string, that identifies
+the function: ``function()`` is only called the first time we see the
+``tag``.  The return value of ``function()`` is remembered and
+returned by the current and all future ``init_once()`` with the same
+tag.  If ``init_once()`` is called from multiple threads in parallel,
+all calls block until the execution of ``function()`` is done.  If
+``function()`` raises an exception, it is propagated and nothing is
+cached (i.e. ``function()`` will be called again, in case we catch the
+exception and try ``init_once()`` again).  *New in version 1.4.*
+
+Example::
+
+    from _xyz_cffi import ffi, lib
+
+    def initlib():
+        lib.init_my_library()
+
+    def make_new_foo():
+        ffi.init_once(initlib, "init")
+        return lib.make_foo()
+
+``init_once()`` is optimized to run very quickly if ``function()`` has
+already been called.  (On PyPy, the cost is zero---the JIT usually
+removes everything in the machine code it produces.)
+
+*Note:* one motivation__ for ``init_once()`` is the CPython notion of
+"subinterpreters" in the embedded case.  If you are using the
+out-of-line API mode, ``function()`` is called only once even in the
+presence of multiple subinterpreters, and its return value is shared
+among all subinterpreters.  The goal is to mimic the way traditional
+CPython C extension modules have their init code executed only once in
+total even if there are subinterpreters.  In the example above, the C
+function ``init_my_library()`` is called once in total, not once per
+subinterpreter.  For this reason, avoid Python-level side-effects in
+``function()`` (as they will only be applied in the first
+subinterpreter to run); instead, return a value, as in the following
+example::
+
+   def init_get_max():
+       return lib.initialize_once_and_get_some_maximum_number()
+
+   def process(i):
+       if i > ffi.init_once(init_get_max, "max"):
+           raise IndexError("index too large!")
+       ...
+
+.. __: https://bitbucket.org/cffi/cffi/issues/233/
+
+
 .. _`Preparing and Distributing modules`: cdef.html#loading-libraries
 
 
@@ -1233,8 +1311,8 @@ allowed.
    function with a ``char *`` argument to which you pass a Python
    string will not actually modify the array of characters passed in,
    and so passes directly a pointer inside the Python string object.
-   (PyPy might in the future do the same, but it is harder because a
-   string object can move in memory when the GC runs.)
+   (PyPy might in the future do the same, but it is harder because
+   strings are not naturally zero-terminated in PyPy.)
 
 `(**)` C function calls are done with the GIL released.
 

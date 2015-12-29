@@ -8,6 +8,7 @@ if sys.version_info < (3,):
             return eval('u'+repr(other).replace(r'\\u', r'\u')
                                        .replace(r'\\U', r'\U'))
     u = U()
+    long = long     # for further "from testing.support import long"
     assert u+'a\x00b' == eval(r"u'a\x00b'")
     assert u+'a\u1234b' == eval(r"u'a\u1234b'")
     assert u+'a\U00012345b' == eval(r"u'a\U00012345b'")
@@ -22,9 +23,12 @@ else:
 class StdErrCapture(object):
     """Capture writes to sys.stderr (not to the underlying file descriptor)."""
     def __enter__(self):
-        import StringIO
+        try:
+            from StringIO import StringIO
+        except ImportError:
+            from io import StringIO
         self.old_stderr = sys.stderr
-        sys.stderr = f = StringIO.StringIO()
+        sys.stderr = f = StringIO()
         return f
     def __exit__(self, *args):
         sys.stderr = self.old_stderr
@@ -35,6 +39,9 @@ class FdWriteCapture(object):
     to the Posix manual."""
 
     def __init__(self, capture_fd=2):    # stderr by default
+        if sys.platform == 'win32':
+            import py
+            py.test.skip("seems not to work, too bad")
         self.capture_fd = capture_fd
 
     def __enter__(self):
