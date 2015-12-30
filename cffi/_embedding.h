@@ -4,7 +4,7 @@
 #if defined(_MSC_VER)
 #  define CFFI_DLLEXPORT  __declspec(dllexport)
 #elif defined(__GNUC__)
-#  define CFFI_DLLEXPORT  __attribute__ ((visibility("default")))
+#  define CFFI_DLLEXPORT  __attribute__((visibility("default")))
 #else
 #  define CFFI_DLLEXPORT  /* nothing */
 #endif
@@ -33,12 +33,19 @@ static _cffi_call_python_fnptr _cffi_call_python = &_cffi_start_and_call_python;
 
 #ifndef _MSC_VER
    /* --- Assuming a GCC not infinitely old --- */
-# define compare_and_swap(l,o,n)  __sync_bool_compare_and_swap(l,o,n)
-# define write_barrier()          __sync_synchronize()
+# define cffi_compare_and_swap(l,o,n)  __sync_bool_compare_and_swap(l,o,n)
+# define cffi_write_barrier()          __sync_synchronize()
+# if !defined(__amd64__) && !defined(__x86_64__) &&   \
+     !defined(__i386__) && !defined(__i386)
+#   define cffi_read_barrier()         __sync_synchronize()
+# else
+#   define cffi_read_barrier()         (void)0
+# endif
 #else
    /* --- Windows threads version --- */
-# define compare_and_swap(l,o,n)  InterlockedCompareExchangePointer(l,n,o)
-# define write_barrier()          InterlockedCompareExchange(&_cffi_dummy,0,0)
+# define cffi_compare_and_swap(l,o,n)  InterlockedCompareExchangePointer(l,n,o)
+# define cffi_write_barrier()       InterlockedCompareExchange(&_cffi_dummy,0,0)
+# define cffi_read_barrier()           (void)0
 static volatile LONG _cffi_dummy;
 #endif
 
@@ -56,7 +63,7 @@ static void _cffi_acquire_reentrant_mutex(void)
 {
     static volatile void *lock = NULL;
 
-    while (!compare_and_swap(&lock, NULL, (void *)1)) {
+    while (!cffi_compare_and_swap(&lock, NULL, (void *)1)) {
         /* should ideally do a spin loop instruction here, but
            hard to do it portably and doesn't really matter I
            think: PyEval_InitThreads() should be very fast, and
@@ -77,7 +84,7 @@ static void _cffi_acquire_reentrant_mutex(void)
     }
 #endif
 
-    while (!compare_and_swap(&lock, (void *)1, NULL))
+    while (!cffi_compare_and_swap(&lock, (void *)1, NULL))
         ;
 
 #ifndef _MSC_VER
@@ -237,7 +244,7 @@ static void _cffi_carefully_make_gil(void)
         old_value = *lock;
         if (old_value[0] == 'E') {
             assert(old_value[1] == 'N');
-            if (compare_and_swap(lock, old_value, old_value + 1))
+            if (cffi_compare_and_swap(lock, old_value, old_value + 1))
                 break;
         }
         else {
@@ -253,11 +260,11 @@ static void _cffi_carefully_make_gil(void)
         PyEval_InitThreads();    /* makes the GIL */
         PyEval_ReleaseLock();    /* then release it */
     }
-    /* else: we already have the GIL, but we still needed to do the
+    /* else: there is already a GIL, but we still needed to do the
        spinlock dance to make sure that we see it as fully ready */
 
     /* release the lock */
-    while (!compare_and_swap(lock, old_value + 1, old_value))
+    while (!cffi_compare_and_swap(lock, old_value + 1, old_value))
         ;
 #endif
 }
@@ -364,7 +371,7 @@ static _cffi_call_python_fnptr _cffi_start_python(void)
                after that read barrier, we see everything done here
                before the write barrier.
             */
-            write_barrier();
+            cffi_write_barrier();
 
             assert(_cffi_call_python_org != NULL);
             _cffi_call_python = (_cffi_call_python_fnptr)_cffi_call_python_org;
@@ -406,9 +413,6 @@ void _cffi_start_and_call_python(struct _cffi_externpy_s *externpy, char *args)
         fnptr(externpy, args);
 }
 
-#undef compare_and_swap
-#undef write_barrier
-
 
 /* The cffi_start_python() function makes sure Python is initialized
    and our cffi module is set up.  It can be called manually from the
@@ -422,5 +426,10 @@ static int cffi_start_python(void)
         if (_cffi_start_python() == NULL)
             return -1;
     }
+    cffi_read_barrier();
     return 0;
 }
+
+#undef cffi_compare_and_swap
+#undef cffi_write_barrier
+#undef cffi_read_barrier
