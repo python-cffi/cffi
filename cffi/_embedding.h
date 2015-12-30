@@ -195,8 +195,9 @@ static int _cffi_initialize_python(void)
 
         f = PySys_GetObject((char *)"stderr");
         if (f != NULL && f != Py_None) {
-            PyFile_WriteString("\ncffi version: 1.3.1", f);
-            PyFile_WriteString("\n_cffi_backend module: ", f);
+            PyFile_WriteString("\nFrom: " _CFFI_MODULE_NAME
+                               "\ncompiled with cffi version: 1.4.2"
+                               "\n_cffi_backend module: ", f);
             modules = PyImport_GetModuleDict();
             mod = PyDict_GetItemString(modules, "_cffi_backend");
             if (mod == NULL) {
@@ -218,7 +219,7 @@ static int _cffi_initialize_python(void)
 
 PyAPI_DATA(char *) _PyParser_TokenNames[];  /* from CPython */
 
-static void _cffi_carefully_make_gil(void)
+static int _cffi_carefully_make_gil(void)
 {
     /* This initializes the GIL.  It can be called completely
        concurrently from unrelated threads.  It assumes that we don't
@@ -267,6 +268,7 @@ static void _cffi_carefully_make_gil(void)
     while (!cffi_compare_and_swap(lock, old_value + 1, old_value))
         ;
 #endif
+    return 0;
 }
 
 /**********  end CPython-specific section  **********/
@@ -289,10 +291,12 @@ static struct _cffi_pypy_init_s {
     _CFFI_PYTHON_STARTUP_CODE,
 };
 
+extern int pypy_carefully_make_gil(const char *);
 extern int pypy_init_embedded_cffi_module(int, struct _cffi_pypy_init_s *);
 
-static void _cffi_carefully_make_gil(void)
+static int _cffi_carefully_make_gil(void)
 {
+    return pypy_carefully_make_gil(_CFFI_MODULE_NAME);
 }
 
 static int _cffi_initialize_python(void)
@@ -345,14 +349,16 @@ static _cffi_call_python_fnptr _cffi_start_python(void)
     */
     static char called = 0;
 
-    _cffi_carefully_make_gil();
+    if (_cffi_carefully_make_gil() != 0)
+        return NULL;
+
     _cffi_acquire_reentrant_mutex();
 
     /* Here the GIL exists, but we don't have it.  We're only protected
        from concurrency by the reentrant mutex. */
 
-    /* This file ignores subinterpreters and can only initialize the
-       embedded module once, in the main interpreter. */
+    /* This file only initializes the embedded module once, the first
+       time this is called, even if there are subinterpreters. */
     if (!called) {
         called = 1;  /* invoke _cffi_initialize_python() only once,
                         but don't set '_cffi_call_python' right now,
@@ -365,13 +371,13 @@ static _cffi_call_python_fnptr _cffi_start_python(void)
                '_cffi_call_python' without also seeing the rest of the
                data initialized.  However, this is not possible.  But
                the new value of '_cffi_call_python' is the function
-               'cffi_call_python()' from _cffi_backend.  We can put a
-               write barrier here, and a corresponding read barrier at
-               the start of cffi_call_python().  This ensures that
-               after that read barrier, we see everything done here
-               before the write barrier.
-            */
+               'cffi_call_python()' from _cffi_backend.  So:  */
             cffi_write_barrier();
+            /* ^^^ we put a write barrier here, and a corresponding
+               read barrier at the start of cffi_call_python().  This
+               ensures that after that read barrier, we see everything
+               done here before the write barrier.
+            */
 
             assert(_cffi_call_python_org != NULL);
             _cffi_call_python = (_cffi_call_python_fnptr)_cffi_call_python_org;
