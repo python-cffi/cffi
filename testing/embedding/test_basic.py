@@ -35,14 +35,11 @@ class EmbeddingTests:
         shutil.copy(os.path.join(local_dir, filename), path)
         self._run(['gcc', filename, '-o', name, '-L.'] +
                   ['%s.so' % modname for modname in modules] +
-                  ['-lpython2.7'])
+                  ['-lpython2.7', '-Wl,-rpath=$ORIGIN/'])
 
     def execute(self, name):
         path = self.get_path()
-        env = os.environ.copy()
-        env['LD_LIBRARY_PATH'] = path
-        popen = subprocess.Popen([name], cwd=path, stdout=subprocess.PIPE,
-                                 env=env)
+        popen = subprocess.Popen([name], cwd=path, stdout=subprocess.PIPE)
         result = popen.stdout.read()
         err = popen.wait()
         if err:
