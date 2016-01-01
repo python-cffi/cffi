@@ -118,9 +118,14 @@ static int _cffi_initialize_python(void)
        present .dll/.so is set up as a CPython C extension module.
     */
     int result;
+    PyGILState_STATE state;
     PyObject *pycode=NULL, *m=NULL, *global_dict, *x;
 
-    PyEval_AcquireLock();      /* acquire the GIL */
+    /* Acquire the GIL.  We have no threadstate here.  If Python is 
+       already initialized, it is possible that there is already one
+       existing for this thread, but it is not made current now.
+    */
+    PyEval_AcquireLock();
 
     /* XXX use initsigs=0, which "skips initialization registration of
        signal handlers, which might be useful when Python is
@@ -131,6 +136,20 @@ static int _cffi_initialize_python(void)
        instead of to stderr.
     */
     Py_InitializeEx(0);
+
+    /* The Py_InitializeEx() sometimes made a threadstate for us, but
+       not always.  Indeed Py_InitializeEx() could be called and do
+       nothing.  So do we have a threadstate, or not?  We don't know,
+       but we can replace it with NULL in all cases.
+    */
+    (void)PyThreadState_Swap(NULL);
+
+    /* Now we can release the GIL and re-acquire immediately using the
+       logic of PyGILState(), which handles making or installing the
+       correct threadstate.
+    */
+    PyEval_ReleaseLock();
+    state = PyGILState_Ensure();
 
     /* Call the initxxx() function from the present module.  It will
        create and initialize us as a CPython extension module, instead
@@ -175,7 +194,7 @@ static int _cffi_initialize_python(void)
  done:
     Py_XDECREF(pycode);
     Py_XDECREF(m);
-    PyEval_ReleaseLock();      /* release the GIL */
+    PyGILState_Release(state);
     return result;
 
  error:;

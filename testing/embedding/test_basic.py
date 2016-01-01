@@ -67,6 +67,6 @@ class TestBasic(EmbeddingTests):
         output = self.execute('add2-test')
         assert output == ("preparing...\n"
                           "adding 40 and 2\n"
-                          "preparing ADD2\n"
+                          "prepADD2\n"
                           "adding 100 and -5 and -20\n"
                           "got: 42 75\n")
