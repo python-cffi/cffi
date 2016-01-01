@@ -6,14 +6,20 @@ ffi.cdef("""
     extern "Python" int add1(int, int);
 """, dllexport=True)
 
-ffi.embedding_init_code("""
-    print("preparing")
+ffi.embedding_init_code(r"""
+    import sys, time
+    sys.stdout.write("preparing")
+    for i in range(3):
+        sys.stdout.flush()
+        time.sleep(0.02)
+        sys.stdout.write(".")
+    sys.stdout.write("\n")
 
     int(ord("A"))    # check that built-ins are there
 
     @ffi.def_extern()
     def add1(x, y):
-        print "adding", x, "and", y
+        sys.stdout.write("adding %d and %d\n" % (x, y))
         return x + y
 """)
 

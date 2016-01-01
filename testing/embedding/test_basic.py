@@ -29,13 +29,13 @@ class EmbeddingTests:
                       env=env)
             self._compiled_modules.add(name)
 
-    def compile(self, name, modules):
+    def compile(self, name, modules, extra=[]):
         path = self.get_path()
         filename = '%s.c' % name
         shutil.copy(os.path.join(local_dir, filename), path)
-        self._run(['gcc', filename, '-o', name, '-L.'] +
+        self._run(['gcc', '-g', filename, '-o', name, '-L.'] +
                   ['%s.so' % modname for modname in modules] +
-                  ['-lpython2.7', '-Wl,-rpath=$ORIGIN/'])
+                  ['-lpython2.7', '-Wl,-rpath=$ORIGIN/'] + extra)
 
     def execute(self, name):
         path = self.get_path()
@@ -52,7 +52,7 @@ class TestBasic(EmbeddingTests):
         self.prepare_module('add1')
         self.compile('add1-test', ['_add1_cffi'])
         output = self.execute('add1-test')
-        assert output == ("preparing\n"
+        assert output == ("preparing...\n"
                           "adding 40 and 2\n"
                           "adding 100 and -5\n"
                           "got: 42 95\n")
@@ -62,7 +62,7 @@ class TestBasic(EmbeddingTests):
         self.prepare_module('add2')
         self.compile('add2-test', ['_add1_cffi', '_add2_cffi'])
         output = self.execute('add2-test')
-        assert output == ("preparing\n"
+        assert output == ("preparing...\n"
                           "adding 40 and 2\n"
                           "preparing ADD2\n"
                           "adding 100 and -5 and -20\n"
