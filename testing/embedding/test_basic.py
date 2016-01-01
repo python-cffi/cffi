@@ -39,7 +39,10 @@ class EmbeddingTests:
 
     def execute(self, name):
         path = self.get_path()
-        popen = subprocess.Popen([name], cwd=path, stdout=subprocess.PIPE)
+        env = os.environ.copy()
+        env['PYTHONPATH'] = os.path.dirname(os.path.dirname(local_dir))
+        popen = subprocess.Popen([name], cwd=path, env=env,
+                                 stdout=subprocess.PIPE)
         result = popen.stdout.read()
         err = popen.wait()
         if err:

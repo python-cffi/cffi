@@ -3,7 +3,7 @@
 #include "realize_c_type.c"
 
 #define CFFI_VERSION_MIN    0x2601
-#define CFFI_VERSION_MAX    0x26FF
+#define CFFI_VERSION_MAX    0x27FF
 
 typedef struct FFIObject_s FFIObject;
 typedef struct LibObject_s LibObject;

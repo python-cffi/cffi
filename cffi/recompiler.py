@@ -3,6 +3,7 @@ from . import ffiplatform, model
 from .cffi_opcode import *
 
 VERSION = "0x2601"
+VERSION_EMBEDDED = "0x2701"
 
 
 class GlobalExpr:
@@ -300,6 +301,9 @@ class Recompiler:
             prnt('#endif')
             lines = self._rel_readlines('_embedding.h')
             prnt(''.join(lines))
+            version = VERSION_EMBEDDED
+        else:
+            version = VERSION
         #
         # then paste the C source given by the user, verbatim.
         prnt('/************************************************************/')
@@ -394,7 +398,7 @@ class Recompiler:
             prnt('        _cffi_call_python_org = '
                  '(void(*)(struct _cffi_externpy_s *, char *))p[1];')
             prnt('    }')
-        prnt('    p[0] = (const void *)%s;' % VERSION)
+        prnt('    p[0] = (const void *)%s;' % version)
         prnt('    p[1] = &_cffi_type_context;')
         prnt('}')
         # on Windows, distutils insists on putting init_cffi_xyz in
@@ -413,14 +417,14 @@ class Recompiler:
         prnt('PyInit_%s(void)' % (base_module_name,))
         prnt('{')
         prnt('  return _cffi_init("%s", %s, &_cffi_type_context);' % (
-            self.module_name, VERSION))
+            self.module_name, version))
         prnt('}')
         prnt('#else')
         prnt('PyMODINIT_FUNC')
         prnt('init%s(void)' % (base_module_name,))
         prnt('{')
         prnt('  _cffi_init("%s", %s, &_cffi_type_context);' % (
-            self.module_name, VERSION))
+            self.module_name, version))
         prnt('}')
         prnt('#endif')
 
