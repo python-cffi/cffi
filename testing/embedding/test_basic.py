@@ -56,3 +56,14 @@ class TestBasic(EmbeddingTests):
                           "adding 40 and 2\n"
                           "adding 100 and -5\n"
                           "got: 42 95\n")
+
+    def test_two_modules(self):
+        self.prepare_module('add1')
+        self.prepare_module('add2')
+        self.compile('add2-test', ['_add1_cffi', '_add2_cffi'])
+        output = self.execute('add2-test')
+        assert output == ("preparing\n"
+                          "adding 40 and 2\n"
+                          "preparing ADD2\n"
+                          "adding 100 and -5 and -20\n"
+                          "got: 42 75\n")
