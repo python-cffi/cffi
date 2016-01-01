@@ -66,7 +66,7 @@ static void _cffi_acquire_reentrant_mutex(void)
     while (!cffi_compare_and_swap(&lock, NULL, (void *)1)) {
         /* should ideally do a spin loop instruction here, but
            hard to do it portably and doesn't really matter I
-           think: PyEval_InitThreads() should be very fast, and
+           think: pthread_mutex_init() should be very fast, and
            this is only run at start-up anyway. */
     }
 
