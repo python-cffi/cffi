@@ -24,6 +24,9 @@ static void *start_routine_1(void *arg)
 static void *start_routine_2(void *arg)
 {
     int x, status;
+#ifdef T2TEST_AGAIN_ADD1
+    add1(-1, -1);
+#endif
     x = add2(1000, 200, 30);
     assert(x == 1230);
 

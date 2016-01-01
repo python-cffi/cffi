@@ -18,3 +18,11 @@ class TestThread(EmbeddingTests):
         self.compile('thread2-test', ['_add1_cffi', '_add2_cffi'], ['-pthread'])
         output = self.execute('thread2-test')
         assert output == XXX
+
+    def test_next_issue(self):
+        self.prepare_module('add1')
+        self.prepare_module('add2')
+        self.compile('thread2-test', ['_add1_cffi', '_add2_cffi'],
+                     ['-pthread', '-DT2TEST_AGAIN_ADD1'])
+        output = self.execute('thread2-test')
+        assert output == XXX
