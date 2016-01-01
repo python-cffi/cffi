@@ -26,4 +26,4 @@ ffi.embedding_init_code(r"""
 ffi.set_source("_add1_cffi", """
 """)
 
-ffi.compile()
+ffi.compile(verbose=True)
