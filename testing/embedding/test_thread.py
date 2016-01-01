@@ -46,3 +46,16 @@ class TestThread(EmbeddingTests):
                           "prepADD2\n"
                           "adding 1000 and 200 and 30\n"
                           "done\n")
+
+    def test_load_in_parallel_more(self):
+        self.prepare_module('add2')
+        self.prepare_module('add3')
+        self.compile('thread3-test', ['_add2_cffi', '_add3_cffi'], ['-pthread'])
+        for i in range(150):
+            output = self.execute('thread3-test')
+            for j in range(10):
+                output = self._take_out(output, "adding 40 and 2 and 100\n")
+                output = self._take_out(output, "adding 1000, 200, 30, 4\n")
+            assert output == ("starting\n"
+                              "prepADD2\n"
+                              "done\n")
