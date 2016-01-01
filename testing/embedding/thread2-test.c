@@ -3,19 +3,29 @@
 #include <semaphore.h>
 #include <assert.h>
 
-#define NTHREADS 10
-
-
 extern int add1(int, int);
+extern int add2(int, int, int);
 
 static sem_t done;
 
 
-static void *start_routine(void *arg)
+static void *start_routine_1(void *arg)
 {
-    int x, y, status;
+    int x, status;
     x = add1(40, 2);
     assert(x == 42);
+
+    status = sem_post(&done);
+    assert(status == 0);
+
+    return arg;
+}
+
+static void *start_routine_2(void *arg)
+{
+    int x, status;
+    x = add2(1000, 200, 30);
+    assert(x == 1230);
 
     status = sem_post(&done);
     assert(status == 0);
@@ -30,11 +40,12 @@ int main(void)
     assert(status == 0);
 
     printf("starting\n");
-    for (i = 0; i < NTHREADS; i++) {
-        status = pthread_create(&th, NULL, start_routine, NULL);
-        assert(status == 0);
-    }
-    for (i = 0; i < NTHREADS; i++) {
+    status = pthread_create(&th, NULL, start_routine_1, NULL);
+    assert(status == 0);
+    status = pthread_create(&th, NULL, start_routine_2, NULL);
+    assert(status == 0);
+
+    for (i = 0; i < 2; i++) {
         status = sem_wait(&done);
         assert(status == 0);
     }

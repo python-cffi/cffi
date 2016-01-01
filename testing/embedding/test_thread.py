@@ -11,3 +11,10 @@ class TestThread(EmbeddingTests):
                               "preparing...\n" +
                               "adding 40 and 2\n" * 10 +
                               "done\n")
+
+    def test_init_different_modules_in_different_threads(self):
+        self.prepare_module('add1')
+        self.prepare_module('add2')
+        self.compile('thread2-test', ['_add1_cffi', '_add2_cffi'], ['-pthread'])
+        output = self.execute('thread2-test')
+        assert output == XXX
