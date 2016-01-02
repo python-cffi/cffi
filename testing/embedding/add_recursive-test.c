@@ -6,6 +6,7 @@ extern int (*my_callback)(int);
 static int some_callback(int x)
 {
     printf("some_callback(%d)\n", x);
+    fflush(stdout);
     return add_rec(x, 9);
 }
 

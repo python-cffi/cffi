@@ -43,6 +43,7 @@ int main(void)
     assert(status == 0);
 
     printf("starting\n");
+    fflush(stdout);
     status = pthread_create(&th, NULL, start_routine_1, NULL);
     assert(status == 0);
     status = pthread_create(&th, NULL, start_routine_2, NULL);

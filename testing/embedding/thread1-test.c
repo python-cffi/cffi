@@ -30,6 +30,7 @@ int main(void)
     assert(status == 0);
 
     printf("starting\n");
+    fflush(stdout);
     for (i = 0; i < NTHREADS; i++) {
         status = pthread_create(&th, NULL, start_routine, NULL);
         assert(status == 0);
