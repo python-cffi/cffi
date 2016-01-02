@@ -13,9 +13,15 @@ static sem_t done;
 
 static void *start_routine(void *arg)
 {
-    int x, status;
-    x = add1(40, 2);
-    assert(x == 42);
+    int i, x, expected, status;
+
+    expected = add1(40, 2);
+    assert((expected % 1000) == 42);
+
+    for (i=0; i<10; i++) {
+        x = add1(40, 2);
+        assert(x == expected);
+    }
 
     status = sem_post(&done);
     assert(status == 0);
@@ -29,8 +35,6 @@ int main(void)
     int i, status = sem_init(&done, 0, 0);
     assert(status == 0);
 
-    printf("starting\n");
-    fflush(stdout);
     for (i = 0; i < NTHREADS; i++) {
         status = pthread_create(&th, NULL, start_routine, NULL);
         assert(status == 0);
