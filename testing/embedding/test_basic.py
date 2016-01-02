@@ -23,6 +23,12 @@ class EmbeddingTests:
         if name not in self._compiled_modules:
             path = self.get_path()
             filename = '%s.py' % name
+            # NOTE: if you have an .egg globally installed with an older
+            # version of cffi, this will not work, because sys.path ends
+            # up with the .egg before the PYTHONPATH entries.  I didn't
+            # find a solution to that: we can hack sys.path inside the
+            # script run here, but we can't hack it in the same way in
+            # execute().
             env = os.environ.copy()
             env['PYTHONPATH'] = os.path.dirname(os.path.dirname(local_dir))
             self._run([sys.executable, os.path.join(local_dir, filename)],
@@ -33,9 +39,22 @@ class EmbeddingTests:
         path = self.get_path()
         filename = '%s.c' % name
         shutil.copy(os.path.join(local_dir, filename), path)
-        self._run(['gcc', '-g', filename, '-o', name, '-L.'] +
-                  ['%s.so' % modname for modname in modules] +
-                  ['-lpython2.7', '-Wl,-rpath=$ORIGIN/'] + extra)
+        if '__pypy__' in sys.builtin_module_names:
+            # xxx a bit hackish, maybe ffi.compile() should do a better job
+            executable = os.path.abspath(sys.executable)
+            libpypy_c = os.path.join(os.path.dirname(executable),
+                                     'libpypy-c.so')
+            try:
+                os.symlink(libpypy_c, os.path.join(path, 'libpypy-c.so'))
+            except OSError:
+                pass
+            self._run(['gcc', '-g', filename, '-o', name, '-L.'] +
+                      ['%s.pypy-26.so' % modname for modname in modules] +
+                      ['-lpypy-c', '-Wl,-rpath=$ORIGIN/'] + extra)
+        else:
+            self._run(['gcc', '-g', filename, '-o', name, '-L.'] +
+                      ['%s.so' % modname for modname in modules] +
+                      ['-lpython2.7', '-Wl,-rpath=$ORIGIN/'] + extra)
 
     def execute(self, name):
         path = self.get_path()
