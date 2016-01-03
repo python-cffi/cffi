@@ -20,14 +20,16 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL,
                     DWORD     reason_for_call,
                     LPVOID    reserved)
 {
-    LPVOID tls;
+    LPVOID p;
+    struct cffi_errno_s *tls;
 
     switch (reason_for_call) {
 
     case DLL_THREAD_DETACH:
         if (cffi_tls_index != TLS_OUT_OF_INDEXES) {
-            tls = TlsGetValue(cffi_tls_index);
-            if (tls != NULL) {
+            p = TlsGetValue(cffi_tls_index);
+            if (p != NULL) {
+                tls = (struct cffi_errno_s *)p;
                 fprintf(stderr, "thread shutting down! %p\n",
                         tls->local_thread_state);
                 TlsSetValue(cffi_tls_index, NULL);
