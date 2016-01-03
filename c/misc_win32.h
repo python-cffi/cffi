@@ -1,18 +1,10 @@
 #include <malloc.h>   /* for alloca() */
 
+
 /************************************************************/
 /* errno and GetLastError support */
 
-struct cffi_errno_s {
-    /* The locally-made thread state.  This is only non-null in case
-       we build the thread state here.  It remains null if this thread
-       had already a thread state provided by CPython. */
-    PyThreadState *local_thread_state;
-
-    /* The saved errno and lasterror. */
-    int saved_errno;
-    int saved_lasterror;
-};
+#include "misc_thread_common.h"
 
 static DWORD cffi_tls_index = TLS_OUT_OF_INDEXES;
 
@@ -21,7 +13,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL,
                     LPVOID    reserved)
 {
     LPVOID p;
-    struct cffi_errno_s *tls;
 
     switch (reason_for_call) {
 
@@ -29,20 +20,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL,
         if (cffi_tls_index != TLS_OUT_OF_INDEXES) {
             p = TlsGetValue(cffi_tls_index);
             if (p != NULL) {
-                tls = (struct cffi_errno_s *)p;
-                fprintf(stderr, "thread shutting down! %p\n",
-                        tls->local_thread_state);
                 TlsSetValue(cffi_tls_index, NULL);
-
-                if (tls->local_thread_state != NULL) {
-                    /* We need to re-acquire the GIL temporarily to free the
-                       thread state.  I hope it is not a problem to do it in
-                       DLL_THREAD_DETACH.
-                    */
-                    PyEval_RestoreThread(tls->local_thread_state);
-                    PyThreadState_DeleteCurrent();
-                }
-                free(tls);
+                cffi_thread_shutdown(p);
             }
         }
         break;
@@ -62,7 +41,7 @@ static void init_cffi_tls(void)
     }
 }
 
-static struct cffi_errno_s *_geterrno_object(void)
+static struct cffi_tls_s *get_cffi_tls(void)
 {
     LPVOID p = TlsGetValue(cffi_tls_index);
 
@@ -76,13 +55,15 @@ static struct cffi_errno_s *_geterrno_object(void)
     return (struct cffi_errno_s *)p;
 }
 
+#ifdef USE__THREAD
+# error "unexpected USE__THREAD on Windows"
+#endif
+
 static void save_errno(void)
 {
     int current_err = errno;
     int current_lasterr = GetLastError();
-    struct cffi_errno_s *p;
-
-    p = _geterrno_object();
+    struct cffi_tls_s *p = get_cffi_tls();
     if (p != NULL) {
         p->saved_errno = current_err;
         p->saved_lasterror = current_lasterr;
@@ -90,23 +71,9 @@ static void save_errno(void)
     /* else: cannot report the error */
 }
 
-static void save_errno_only(void)
-{
-    int current_err = errno;
-    struct cffi_errno_s *p;
-
-    p = _geterrno_object();
-    if (p != NULL) {
-        p->saved_errno = current_err;
-    }
-    /* else: cannot report the error */
-}
-
 static void restore_errno(void)
 {
-    struct cffi_errno_s *p;
-
-    p = _geterrno_object();
+    struct cffi_tls_s *p = get_cffi_tls();
     if (p != NULL) {
         SetLastError(p->saved_lasterror);
         errno = p->saved_errno;
@@ -114,16 +81,8 @@ static void restore_errno(void)
     /* else: cannot report the error */
 }
 
-static void restore_errno_only(void)
-{
-    struct cffi_errno_s *p;
+/************************************************************/
 
-    p = _geterrno_object();
-    if (p != NULL) {
-        errno = p->saved_errno;
-    }
-    /* else: cannot report the error */
-}
 
 #if PY_MAJOR_VERSION >= 3
 static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
@@ -222,16 +181,6 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
     LocalFree(s_buf);
     return v;
 }
-#endif
-
-
-#ifdef WITH_THREAD
-/* XXX should port the code from misc_thread_posix.h */
-static PyGILState_STATE gil_ensure(void) { return PyGILState_Ensure(); }
-static void gil_release(PyGILState_STATE oldst) { PyGILState_Release(oldst); }
-#else
-static PyGILState_STATE gil_ensure(void) { return -1; }
-static void gil_release(PyGILState_STATE oldstate) { }
 #endif
 
 
