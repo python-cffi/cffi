@@ -9,9 +9,11 @@ struct cffi_tls_s {
        had already a thread state provided by CPython. */
     PyThreadState *local_thread_state;
 
+#ifndef USE__THREAD
     /* The saved errno.  If the C compiler supports '__thread', then
-       we use that instead; this value is not used at all in this case. */
+       we use that instead. */
     int saved_errno;
+#endif
 
 #ifdef MS_WIN32
     /* The saved lasterror, on Windows. */
