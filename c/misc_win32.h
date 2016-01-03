@@ -46,13 +46,13 @@ static struct cffi_tls_s *get_cffi_tls(void)
     LPVOID p = TlsGetValue(cffi_tls_index);
 
     if (p == NULL) {
-        p = malloc(sizeof(struct cffi_errno_s));
+        p = malloc(sizeof(struct cffi_tls_s));
         if (p == NULL)
             return NULL;
-        memset(p, 0, sizeof(struct cffi_errno_s));
+        memset(p, 0, sizeof(struct cffi_tls_s));
         TlsSetValue(cffi_tls_index, p);
     }
-    return (struct cffi_errno_s *)p;
+    return (struct cffi_tls_s *)p;
 }
 
 #ifdef USE__THREAD
@@ -97,8 +97,7 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
         return NULL;
 
     if (err == -1) {
-        struct cffi_errno_s *p;
-        p = _geterrno_object();
+        struct cffi_tls_s *p = get_cffi_tls();
         if (p == NULL)
             return PyErr_NoMemory();
         err = p->saved_lasterror;
@@ -139,7 +138,7 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
     int len;
     char *s;
     char *s_buf = NULL; /* Free via LocalFree */
-    char s_small_buf[28]; /* Room for "Windows Error 0xFFFFFFFF" */
+    char s_small_buf[40]; /* Room for "Windows Error 0xFFFFFFFFFFFFFFFF" */
     PyObject *v;
     static char *keywords[] = {"code", NULL};
 
@@ -147,8 +146,7 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
         return NULL;
 
     if (err == -1) {
-        struct cffi_errno_s *p;
-        p = _geterrno_object();
+        struct cffi_tls_s *p = get_cffi_tls();
         if (p == NULL)
             return PyErr_NoMemory();
         err = p->saved_lasterror;
