@@ -4,11 +4,52 @@
 /* errno and GetLastError support */
 
 struct cffi_errno_s {
+    /* The locally-made thread state.  This is only non-null in case
+       we build the thread state here.  It remains null if this thread
+       had already a thread state provided by CPython. */
+    PyThreadState *local_thread_state;
+
+    /* The saved errno and lasterror. */
     int saved_errno;
     int saved_lasterror;
 };
 
 static DWORD cffi_tls_index = TLS_OUT_OF_INDEXES;
+
+BOOL WINAPI DllMain(HINSTANCE hinstDLL,
+                    DWORD     reason_for_call,
+                    LPVOID    reserved)
+{
+    LPVOID tls;
+
+    switch (reason_for_call) {
+
+    case DLL_THREAD_DETACH:
+        if (cffi_tls_index != TLS_OUT_OF_INDEXES) {
+            tls = TlsGetValue(cffi_tls_index);
+            if (tls != NULL) {
+                fprintf(stderr, "thread shutting down! %p\n",
+                        tls->local_thread_state);
+                TlsSetValue(cffi_tls_index, NULL);
+
+                if (tls->local_thread_state != NULL) {
+                    /* We need to re-acquire the GIL temporarily to free the
+                       thread state.  I hope it is not a problem to do it in
+                       DLL_THREAD_DETACH.
+                    */
+                    PyEval_RestoreThread(tls->local_thread_state);
+                    PyThreadState_DeleteCurrent();
+                }
+                free(tls);
+            }
+        }
+        break;
+
+    default:
+        break;
+    }
+    return TRUE;
+}
 
 static void init_cffi_tls(void)
 {
@@ -24,7 +65,6 @@ static struct cffi_errno_s *_geterrno_object(void)
     LPVOID p = TlsGetValue(cffi_tls_index);
 
     if (p == NULL) {
-        /* XXX this malloc() leaks */
         p = malloc(sizeof(struct cffi_errno_s));
         if (p == NULL)
             return NULL;
