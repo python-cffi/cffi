@@ -43,6 +43,7 @@ static _cffi_call_python_fnptr _cffi_call_python = &_cffi_start_and_call_python;
 # endif
 #else
    /* --- Windows threads version --- */
+# include <Windows.h>
 # define cffi_compare_and_swap(l,o,n)  InterlockedCompareExchangePointer(l,n,o)
 # define cffi_write_barrier()       InterlockedCompareExchange(&_cffi_dummy,0,0)
 # define cffi_read_barrier()           (void)0
