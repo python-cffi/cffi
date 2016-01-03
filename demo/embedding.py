@@ -3,7 +3,9 @@ import cffi
 ffi = cffi.FFI()
 
 ffi.cdef("""
-    extern "Python" int add(int, int);
+    extern "Python" {
+        int add(int, int);
+    }
 """, dllexport=True)
 
 ffi.embedding_init_code("""
