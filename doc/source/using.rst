@@ -616,7 +616,10 @@ functions::
     }
 
 The ``extern "Python"`` functions cannot be variadic for now.  This
-may be implemented in the future.
+may be implemented in the future.  (`This demo`__ shows how to do it
+anyway, but it is a bit lengthy.)
+
+.. __: https://bitbucket.org/cffi/cffi/src/default/demo/extern_python_varargs.py
 
 Each corresponding Python callback function is defined with the
 ``@ffi.def_extern()`` decorator.  Be careful when writing this
