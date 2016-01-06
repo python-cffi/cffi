@@ -476,7 +476,7 @@ Python function object that is, at runtime, attached with
 ``@ffi.def_extern()``.
 
 The ``@ffi.def_extern()`` decorator should be applied to a global
-function, once.  This is because each function from the cdef with
+function, but *only once.*  This is because each function from the cdef with
 ``extern "Python"`` turns into only one C function.  To support some
 corner cases, it is possible to redefine the attached Python function
 by calling ``@ffi.def_extern()`` again---but this is not recommended!
