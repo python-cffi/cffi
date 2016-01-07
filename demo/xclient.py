@@ -1,40 +1,27 @@
-from cffi import FFI
+import sys, os
 
-ffi = FFI()
-ffi.cdef("""
+# run xclient_build first, then make sure the shared object is on sys.path
+from _xclient_cffi import ffi, lib
 
-typedef ... Display;
-typedef struct { ...; } Window;
 
-typedef struct { int type; ...; } XEvent;
+# ffi "knows" about the declared variables and functions from the
+#     cdef parts of the module xclient_build created,
+# lib "knows" how to call the functions from the set_source parts
+#     of the module.
 
-Display *XOpenDisplay(char *display_name);
-Window DefaultRootWindow(Display *display);
-int XMapRaised(Display *display, Window w);
-Window XCreateSimpleWindow(Display *display, Window parent, int x, int y,
-                           unsigned int width, unsigned int height,
-                           unsigned int border_width, unsigned long border,
-                           unsigned long background);
-int XNextEvent(Display *display, XEvent *event_return);
-""")
-lib = ffi.verify("""
-#include <X11/Xlib.h>
-""", libraries=['X11'])
-
-globals().update(lib.__dict__)
 
 class XError(Exception):
     pass
 
 def main():
-    display = XOpenDisplay(ffi.NULL)
+    display = lib.XOpenDisplay(ffi.NULL)
     if display == ffi.NULL:
         raise XError("cannot open display")
-    w = XCreateSimpleWindow(display, DefaultRootWindow(display),
+    w = lib.XCreateSimpleWindow(display, lib.DefaultRootWindow(display),
                             10, 10, 500, 350, 0, 0, 0)
-    XMapRaised(display, w)
+    lib.XMapRaised(display, w)
     event = ffi.new("XEvent *")
-    XNextEvent(display, event)
+    lib.XNextEvent(display, event)
 
 if __name__ == '__main__':
     main()

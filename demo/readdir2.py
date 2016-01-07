@@ -1,10 +1,12 @@
-# A Linux-only demo, using verify() instead of hard-coding the exact layouts
+# A Linux-only demo, using set_source() instead of hard-coding the exact layouts
 #
 import sys
-from _readdir2 import ffi, lib
 
 if not sys.platform.startswith('linux'):
     raise Exception("Linux-only demo")
+
+# run readdir2_build first, then make sure the shared object is on sys.path
+from _readdir2_cffi import ffi, lib
 
 
 def walk(basefd, path):

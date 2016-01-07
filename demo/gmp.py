@@ -1,32 +1,29 @@
 import sys
-import cffi
-
 #
 # This is only a demo based on the GMP library.
-# There is a rather more complete version available at:
+# There is a rather more complete (but perhaps outdated) version available at:
 # http://bazaar.launchpad.net/~tolot-solar-empire/+junk/gmpy_cffi/files
 #
 
-ffi = cffi.FFI()
+try:
+    from _gmp_cffi import ffi, lib
+except ImportError:
+    print 'run gmp_build first, then make sure the shared object is on sys.path'
+    sys.exit(1)
 
-ffi.cdef("""
-
-    typedef struct { ...; } MP_INT;
-    typedef MP_INT mpz_t[1];
-
-    int mpz_init_set_str (MP_INT *dest_integer, char *src_cstring, int base);
-    void mpz_add (MP_INT *sum, MP_INT *addend1, MP_INT *addend2);
-    char * mpz_get_str (char *string, int base, MP_INT *integer);
-
-""")
-
-lib = ffi.verify("#include <gmp.h>",
-                 libraries=['gmp', 'm'])
+# ffi "knows" about the declared variables and functions from the
+#     cdef parts of the module created from gmp_build
+# lib "knows" how to call the functions from the set_source parts
+#     of the module.
 
 # ____________________________________________________________
 
 a = ffi.new("mpz_t")
 b = ffi.new("mpz_t")
+
+if len(sys.argv) < 3:
+    print 'call as %s bigint1, bigint2' % sys.argv[0]
+    sys.exit(2)
 
 lib.mpz_init_set_str(a, sys.argv[1], 10)	# Assume decimal integers
 lib.mpz_init_set_str(b, sys.argv[2], 10)	# Assume decimal integers
