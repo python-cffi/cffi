@@ -1,14 +1,36 @@
 #include <malloc.h>   /* for alloca() */
 
+
 /************************************************************/
 /* errno and GetLastError support */
 
-struct cffi_errno_s {
-    int saved_errno;
-    int saved_lasterror;
-};
+#include "misc_thread_common.h"
 
 static DWORD cffi_tls_index = TLS_OUT_OF_INDEXES;
+
+BOOL WINAPI DllMain(HINSTANCE hinstDLL,
+                    DWORD     reason_for_call,
+                    LPVOID    reserved)
+{
+    LPVOID p;
+
+    switch (reason_for_call) {
+
+    case DLL_THREAD_DETACH:
+        if (cffi_tls_index != TLS_OUT_OF_INDEXES) {
+            p = TlsGetValue(cffi_tls_index);
+            if (p != NULL) {
+                TlsSetValue(cffi_tls_index, NULL);
+                cffi_thread_shutdown(p);
+            }
+        }
+        break;
+
+    default:
+        break;
+    }
+    return TRUE;
+}
 
 static void init_cffi_tls(void)
 {
@@ -19,28 +41,29 @@ static void init_cffi_tls(void)
     }
 }
 
-static struct cffi_errno_s *_geterrno_object(void)
+static struct cffi_tls_s *get_cffi_tls(void)
 {
     LPVOID p = TlsGetValue(cffi_tls_index);
 
     if (p == NULL) {
-        /* XXX this malloc() leaks */
-        p = malloc(sizeof(struct cffi_errno_s));
+        p = malloc(sizeof(struct cffi_tls_s));
         if (p == NULL)
             return NULL;
-        memset(p, 0, sizeof(struct cffi_errno_s));
+        memset(p, 0, sizeof(struct cffi_tls_s));
         TlsSetValue(cffi_tls_index, p);
     }
-    return (struct cffi_errno_s *)p;
+    return (struct cffi_tls_s *)p;
 }
+
+#ifdef USE__THREAD
+# error "unexpected USE__THREAD on Windows"
+#endif
 
 static void save_errno(void)
 {
     int current_err = errno;
     int current_lasterr = GetLastError();
-    struct cffi_errno_s *p;
-
-    p = _geterrno_object();
+    struct cffi_tls_s *p = get_cffi_tls();
     if (p != NULL) {
         p->saved_errno = current_err;
         p->saved_lasterror = current_lasterr;
@@ -48,23 +71,9 @@ static void save_errno(void)
     /* else: cannot report the error */
 }
 
-static void save_errno_only(void)
-{
-    int current_err = errno;
-    struct cffi_errno_s *p;
-
-    p = _geterrno_object();
-    if (p != NULL) {
-        p->saved_errno = current_err;
-    }
-    /* else: cannot report the error */
-}
-
 static void restore_errno(void)
 {
-    struct cffi_errno_s *p;
-
-    p = _geterrno_object();
+    struct cffi_tls_s *p = get_cffi_tls();
     if (p != NULL) {
         SetLastError(p->saved_lasterror);
         errno = p->saved_errno;
@@ -72,16 +81,8 @@ static void restore_errno(void)
     /* else: cannot report the error */
 }
 
-static void restore_errno_only(void)
-{
-    struct cffi_errno_s *p;
+/************************************************************/
 
-    p = _geterrno_object();
-    if (p != NULL) {
-        errno = p->saved_errno;
-    }
-    /* else: cannot report the error */
-}
 
 #if PY_MAJOR_VERSION >= 3
 static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
@@ -96,8 +97,7 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
         return NULL;
 
     if (err == -1) {
-        struct cffi_errno_s *p;
-        p = _geterrno_object();
+        struct cffi_tls_s *p = get_cffi_tls();
         if (p == NULL)
             return PyErr_NoMemory();
         err = p->saved_lasterror;
@@ -138,7 +138,7 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
     int len;
     char *s;
     char *s_buf = NULL; /* Free via LocalFree */
-    char s_small_buf[28]; /* Room for "Windows Error 0xFFFFFFFF" */
+    char s_small_buf[40]; /* Room for "Windows Error 0xFFFFFFFFFFFFFFFF" */
     PyObject *v;
     static char *keywords[] = {"code", NULL};
 
@@ -146,8 +146,7 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
         return NULL;
 
     if (err == -1) {
-        struct cffi_errno_s *p;
-        p = _geterrno_object();
+        struct cffi_tls_s *p = get_cffi_tls();
         if (p == NULL)
             return PyErr_NoMemory();
         err = p->saved_lasterror;
@@ -180,16 +179,6 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
     LocalFree(s_buf);
     return v;
 }
-#endif
-
-
-#ifdef WITH_THREAD
-/* XXX should port the code from misc_thread_posix.h */
-static PyGILState_STATE gil_ensure(void) { return PyGILState_Ensure(); }
-static void gil_release(PyGILState_STATE oldst) { PyGILState_Release(oldst); }
-#else
-static PyGILState_STATE gil_ensure(void) { return -1; }
-static void gil_release(PyGILState_STATE oldstate) { }
 #endif
 
 
