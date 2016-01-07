@@ -17,10 +17,9 @@ Window XCreateSimpleWindow(Display *display, Window parent, int x, int y,
 int XNextEvent(Display *display, XEvent *event_return);
 """)
 
-ffi.set_source('_xclient', """
+ffi.set_source('_xclient_cffi', """
             #include <X11/Xlib.h>
 """, libraries=['X11'])
 
 if __name__ == '__main__':
     ffi.compile()
-

@@ -1,14 +1,8 @@
 import sys, os
 
-# If the build script was run immediately before this script, the cffi module
-# ends up in the current directory. Make sure we can import it.
-sys.path.append('.')
+# run xclient_build first, then make sure the shared object is on sys.path
+from _xclient_cffi import ffi, lib
 
-try:
-    from _xclient import ffi, lib
-except ImportError:
-    print 'run xclient_build first, then make sure the shared object is on sys.path'
-    sys.exit(-1)
 
 # ffi "knows" about the declared variables and functions from the
 #     cdef parts of the module xclient_build created,
