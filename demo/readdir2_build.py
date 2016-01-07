@@ -20,7 +20,7 @@ ffi.cdef("""
     static const int DT_DIR;
 
 """)
-ffi.set_source("_readdir2", """
+ffi.set_source("_readdir2_cffi", """
 #ifndef _ATFILE_SOURCE
 #  define _ATFILE_SOURCE
 #endif

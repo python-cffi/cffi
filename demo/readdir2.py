@@ -5,15 +5,9 @@ import sys
 if not sys.platform.startswith('linux'):
     raise Exception("Linux-only demo")
 
-# If the build script was run immediately before this script, the cffi module
-# ends up in the current directory. Make sure we can import it.
-sys.path.append('.')
+# run readdir2_build first, then make sure the shared object is on sys.path
+from _readdir2_cffi import ffi, lib
 
-try:
-    from _readdir2 import ffi, lib
-except ImportError:
-    print 'run readdir2_build first, then make sure the shared object is on sys.path'
-    sys.exit(-1)
 
 def walk(basefd, path):
     print '{', path
