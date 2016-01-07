@@ -8,7 +8,7 @@ ffi.cdef("""     // some declarations from the man page
     struct passwd *getpwuid(int uid);
 """)
 
-ffi.set_source('_pwuid', """   // passed to the real C compiler
+ffi.set_source('_pwuid_cffi', """   // passed to the real C compiler
 #include <sys/types.h>
 #include <pwd.h>
 """)
