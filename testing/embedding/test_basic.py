@@ -39,6 +39,15 @@ class EmbeddingTests:
         path = self.get_path()
         filename = '%s.c' % name
         shutil.copy(os.path.join(local_dir, filename), path)
+        if 'CC' in os.environ:
+            args = os.environ['CC'].split()
+        else:
+            args = ['gcc']
+        if 'CFLAGS' in os.environ:
+            args.extend(os.environ['CFLAGS'].split())
+        if 'LDFLAGS' in os.environ:
+            args.extend(os.environ['LDFLAGS'].split())
+        args.extend(['-g', filename, '-o', name, '-L.'])
         if '__pypy__' in sys.builtin_module_names:
             # xxx a bit hackish, maybe ffi.compile() should do a better job
             executable = os.path.abspath(sys.executable)
@@ -48,13 +57,14 @@ class EmbeddingTests:
                 os.symlink(libpypy_c, os.path.join(path, 'libpypy-c.so'))
             except OSError:
                 pass
-            self._run(['gcc', '-g', filename, '-o', name, '-L.'] +
-                      ['%s.pypy-26.so' % modname for modname in modules] +
-                      ['-lpypy-c', '-Wl,-rpath=$ORIGIN/'] + extra)
+            args.extend(['%s.pypy-26.so' % modname for modname in modules])
+            args.append('-lpypy-c')
         else:
-            self._run(['gcc', '-g', filename, '-o', name, '-L.'] +
-                      ['%s.so' % modname for modname in modules] +
-                      ['-lpython2.7', '-Wl,-rpath=$ORIGIN/'] + extra)
+            args.extend(['%s.so' % modname for modname in modules])
+            args.append('-lpython2.7')
+        args.append('-Wl,-rpath=$ORIGIN/')
+        args.extend(extra)
+        self._run(args)
 
     def execute(self, name):
         path = self.get_path()
