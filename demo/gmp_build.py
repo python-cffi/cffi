@@ -19,7 +19,7 @@ ffi.cdef("""
 
 """)
 
-ffi.set_source('_gmp', "#include <gmp.h>",
+ffi.set_source('_gmp_cffi', "#include <gmp.h>",
                  libraries=['gmp', 'm'])
 
 if __name__ == '__main__':
