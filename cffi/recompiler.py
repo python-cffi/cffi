@@ -1365,6 +1365,8 @@ def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
     if ffi._windows_unicode:
         ffi._apply_windows_unicode(kwds)
     if preamble is not None:
+        if ffi._embedding_init_code is not None:
+            ffi._apply_embedding_fix(kwds)
         if c_file is None:
             c_file, parts = _modname_to_file(tmpdir, module_name,
                                              source_extension)

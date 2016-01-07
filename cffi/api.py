@@ -535,6 +535,20 @@ class FFI(object):
                                        ('_UNICODE', '1')]
         kwds['define_macros'] = defmacros
 
+    def _apply_embedding_fix(self, kwds):
+        # must include an argument like "-lpython2.7" for the compiler
+        if sys.platform == "win32":
+            template = "python%d%d"
+            if sys.flags.debug:
+                template = template + '_d'
+        else:
+            template = "python%d.%d"
+        pythonlib = (template %
+                (sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff))
+        libraries = kwds.get('libraries', [])
+        if pythonlib not in libraries:
+            kwds['libraries'] = libraries + [pythonlib]
+
     def set_source(self, module_name, source, source_extension='.c', **kwds):
         if hasattr(self, '_assigned_source'):
             raise ValueError("set_source() cannot be called several times "
