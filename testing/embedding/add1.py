@@ -15,6 +15,8 @@ ffi.embedding_init_code(r"""
         sys.stdout.write(".")
     sys.stdout.write("\n")
 
+    from _add1_cffi import ffi
+
     int(ord("A"))    # check that built-ins are there
 
     @ffi.def_extern()

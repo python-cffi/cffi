@@ -120,7 +120,7 @@ static int _cffi_initialize_python(void)
     */
     int result;
     PyGILState_STATE state;
-    PyObject *pycode=NULL, *m=NULL, *global_dict, *x;
+    PyObject *pycode=NULL, *global_dict=NULL, *x;
 
     /* Acquire the GIL.  We have no threadstate here.  If Python is 
        already initialized, it is possible that there is already one
@@ -165,17 +165,15 @@ static int _cffi_initialize_python(void)
 
     /* Now run the Python code provided to ffi.embedding_init_code().
      */
-    m = PyImport_ImportModule(_CFFI_MODULE_NAME);
-    if (m == NULL)
-        goto error;
     pycode = Py_CompileString(_CFFI_PYTHON_STARTUP_CODE,
                               "<init code for '" _CFFI_MODULE_NAME "'>",
                               Py_file_input);
     if (pycode == NULL)
         goto error;
-    global_dict = PyModule_GetDict(m);
-    if (PyDict_GetItemString(global_dict, "__builtins__") == NULL &&
-        PyDict_SetItemString(global_dict, "__builtins__",
+    global_dict = PyDict_New();
+    if (global_dict == NULL)
+        goto error;
+    if (PyDict_SetItemString(global_dict, "__builtins__",
                              PyThreadState_GET()->interp->builtins) < 0)
         goto error;
     x = PyEval_EvalCode((PyCodeObject *)pycode, global_dict, global_dict);
@@ -194,7 +192,7 @@ static int _cffi_initialize_python(void)
     result = 0;
  done:
     Py_XDECREF(pycode);
-    Py_XDECREF(m);
+    Py_XDECREF(global_dict);
     PyGILState_Release(state);
     return result;
 

@@ -9,6 +9,7 @@ ffi.cdef("""
 """, dllexport=True)
 
 ffi.embedding_init_code("""
+    from _embedding_cffi import ffi
     print "preparing"   # printed once
 
     @ffi.def_extern()

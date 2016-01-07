@@ -7,6 +7,7 @@ ffi.cdef("""
 """, dllexport=True)
 
 ffi.embedding_init_code(r"""
+    from _tlocal_cffi import ffi
     import thread, itertools
     tloc = thread._local()
     g_seen = itertools.count()

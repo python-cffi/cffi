@@ -8,6 +8,7 @@ ffi.cdef("""
 """, dllexport=True)
 
 ffi.embedding_init_code(r"""
+    from _add_recursive_cffi import ffi, lib
     print "preparing REC"
 
     @ffi.def_extern()

@@ -13,9 +13,7 @@ ffi.embedding_init_code(r"""
     assert '_add2_cffi' in sys.modules
     m = sys.modules['_add2_cffi']
     import _add2_cffi
-    assert m is _add2_cffi
-    assert _add2_cffi.ffi is ffi
-    assert _add2_cffi.lib is lib
+    ffi = _add2_cffi.ffi
 
     @ffi.def_extern()
     def add2(x, y, z):
