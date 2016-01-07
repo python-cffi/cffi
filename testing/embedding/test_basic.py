@@ -1,3 +1,4 @@
+import py
 import sys, os
 import shutil, subprocess
 from testing.udir import udir
@@ -35,10 +36,22 @@ class EmbeddingTests:
                       env=env)
             self._compiled_modules.add(name)
 
-    def compile(self, name, modules, extra=[]):
+    def compile(self, name, modules, **flags):
         path = self.get_path()
         filename = '%s.c' % name
         shutil.copy(os.path.join(local_dir, filename), path)
+        if sys.platform.startswith('linux'):
+            self._compile_linux(name, modules, **flags)
+        elif sys.platform.startswith('win'):
+            self._compile_win(name, modules, **flags)
+        else:
+            py.test.skip("don't know how to invoke the C compiler on %r" %
+                         (sys.platform,))
+
+    def _compile_linux(self, name, modules,
+                       opt=False, threads=False, defines={}):
+        path = self.get_path()
+        filename = '%s.c' % name
         if 'CC' in os.environ:
             args = os.environ['CC'].split()
         else:
@@ -47,6 +60,10 @@ class EmbeddingTests:
             args.extend(os.environ['CFLAGS'].split())
         if 'LDFLAGS' in os.environ:
             args.extend(os.environ['LDFLAGS'].split())
+        if threads:
+            args.append('-pthread')
+        if opt:
+            args.append('-O2')
         args.extend(['-g', filename, '-o', name, '-L.'])
         if '__pypy__' in sys.builtin_module_names:
             # xxx a bit hackish, maybe ffi.compile() should do a better job
@@ -63,8 +80,13 @@ class EmbeddingTests:
             args.extend(['%s.so' % modname for modname in modules])
             args.append('-lpython2.7')
         args.append('-Wl,-rpath=$ORIGIN/')
-        args.extend(extra)
+        for key, value in sorted(defines.items()):
+            args.append('-D%s=%s' % (key, value))
         self._run(args)
+
+    def _compile_win(self, name, modules,
+                     opt=False, threads=False, defines={}):
+        xxxx
 
     def execute(self, name):
         path = self.get_path()
