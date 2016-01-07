@@ -5,18 +5,14 @@ import sys, os
 if not sys.platform == 'win32':
     raise Exception("Windows-only demo")
 
-# If the build script was run immediately before this script, the cffi module
-# ends up in the current directory. Make sure we can import it.
-sys.path.append('.')
-
 try:
-    from _winclipboard import ffi, lib
+    from _winclipboard_cffi import ffi, lib
 except ImportError:
     print 'run winclipboard_build first, then make sure the shared object is on sys.path'
-    sys.exit(-1)
+    sys.exit(1)
 
 # ffi "knows" about the declared variables and functions from the
-#     cdef parts of the module xclient_build created,
+#     cdef parts of the module _winclipboard_cffi created,
 # lib "knows" how to call the functions from the set_source parts
 #     of the module.
 

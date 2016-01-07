@@ -28,7 +28,7 @@ ffi.cdef('''
     void * memcpy(void * s1, void * s2, int n);
     ''')
 
-ffi.set_source('_winclipboard', '''
+ffi.set_source('_winclipboard_cffi', '''
     #include <windows.h>
 ''', libraries=["user32"])
 
