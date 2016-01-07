@@ -4,9 +4,8 @@ import cffi
 # IN-PROGRESS.  See the demo at the end of the file
 
 
-dialect2ffi = {}
-
-def _make_ffi_from_dialect(dialect):
+def _make_ffi_from_dialect(dialect_name):
+    dialect = csv.get_dialect(dialect_name)
 
     ffi = cffi.FFI()
 
@@ -26,7 +25,7 @@ def _make_ffi_from_dialect(dialect):
     else:
         d['is_escape_char'] = '&& 0'
 
-    ffi.set_source('_fastcsv', r'''
+    ffi.set_source('_fastcsv_' + dialect_name, r'''
 
     typedef enum {
         START_RECORD, START_FIELD, ESCAPED_CHAR, IN_FIELD,
@@ -237,15 +236,16 @@ def _make_ffi_from_dialect(dialect):
     }
     ''' % d)
 
-    return ffi, lib
+    ffi.compile()
 
 
-def fastcsv_reader(f, dialect):
-    dialect = csv.get_dialect(dialect)
+def fastcsv_reader(f, dialect_name):
     try:
-        ffi, lib = dialect2ffi[dialect]
-    except KeyError:
-        ffi, lib = dialect2ffi[dialect] = _make_ffi_from_dialect(dialect)
+        module = __import__('_fastcsv_' + dialect_name)
+    except ImportError:
+        _make_ffi_from_dialect(dialect_name)
+        module = __import__('_fastcsv_' + dialect_name)
+    ffi, lib = module.ffi, module.lib
     #
     linelen = -1
     for line in f:
