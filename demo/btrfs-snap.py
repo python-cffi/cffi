@@ -22,6 +22,13 @@ ffi.cdef("""
     };
 """)
 
+ffi.set_source("_btrfs_cffi", "#include <btrfs/ioctl.h>")
+ffi.compile()
+
+# ____________________________________________________________
+
+
+from _btrfs_cffi import ffi, lib
 
 parser = argparse.ArgumentParser(usage=__doc__.strip())
 parser.add_argument('source', help='source subvolume')
@@ -38,7 +45,7 @@ args.name = opts.newname
 args.fd = source
 args_buffer = ffi.buffer(args)
 try:
-    fcntl.ioctl(target, v.BTRFS_IOC_SNAP_CREATE_V2, args_buffer)
+    fcntl.ioctl(target, lib.BTRFS_IOC_SNAP_CREATE_V2, args_buffer)
 except IOError as e:
     print e
     sys.exit(1)
