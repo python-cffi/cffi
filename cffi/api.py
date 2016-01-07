@@ -537,14 +537,17 @@ class FFI(object):
 
     def _apply_embedding_fix(self, kwds):
         # must include an argument like "-lpython2.7" for the compiler
-        if sys.platform == "win32":
-            template = "python%d%d"
-            if sys.flags.debug:
-                template = template + '_d'
+        if '__pypy__' in sys.builtin_module_names:
+            pythonlib = "pypy-c"
         else:
-            template = "python%d.%d"
-        pythonlib = (template %
-                (sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff))
+            if sys.platform == "win32":
+                template = "python%d%d"
+                if sys.flags.debug:
+                    template = template + '_d'
+            else:
+                template = "python%d.%d"
+            pythonlib = (template %
+                    (sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff))
         libraries = kwds.get('libraries', [])
         if pythonlib not in libraries:
             kwds['libraries'] = libraries + [pythonlib]

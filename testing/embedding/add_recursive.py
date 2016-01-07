@@ -24,4 +24,5 @@ ffi.set_source("_add_recursive_cffi", """
 int (*my_callback)(int);
 """)
 
-ffi.compile()
+fn = ffi.compile(verbose=True)
+print 'FILENAME:', fn

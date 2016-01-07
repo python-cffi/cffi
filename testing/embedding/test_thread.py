@@ -3,8 +3,8 @@ from testing.embedding.test_basic import EmbeddingTests
 
 class TestThread(EmbeddingTests):
     def test_first_calls_in_parallel(self):
-        self.prepare_module('add1')
-        self.compile('thread1-test', ['_add1_cffi'], threads=True)
+        add1_cffi = self.prepare_module('add1')
+        self.compile('thread1-test', [add1_cffi], threads=True)
         for i in range(50):
             output = self.execute('thread1-test')
             assert output == ("starting\n"
@@ -18,9 +18,9 @@ class TestThread(EmbeddingTests):
         return text[:i] + text[i+len(content):]
 
     def test_init_different_modules_in_different_threads(self):
-        self.prepare_module('add1')
-        self.prepare_module('add2')
-        self.compile('thread2-test', ['_add1_cffi', '_add2_cffi'], threads=True)
+        add1_cffi = self.prepare_module('add1')
+        add2_cffi = self.prepare_module('add2')
+        self.compile('thread2-test', [add1_cffi, add2_cffi], threads=True)
         output = self.execute('thread2-test')
         output = self._take_out(output, "preparing")
         output = self._take_out(output, ".")
@@ -34,9 +34,9 @@ class TestThread(EmbeddingTests):
                           "done\n")
 
     def test_alt_issue(self):
-        self.prepare_module('add1')
-        self.prepare_module('add2')
-        self.compile('thread2-test', ['_add1_cffi', '_add2_cffi'],
+        add1_cffi = self.prepare_module('add1')
+        add2_cffi = self.prepare_module('add2')
+        self.compile('thread2-test', [add1_cffi, add2_cffi],
                      threads=True, defines={'T2TEST_AGAIN_ADD1': '1'})
         output = self.execute('thread2-test')
         output = self._take_out(output, "adding 40 and 2\n")
@@ -48,9 +48,9 @@ class TestThread(EmbeddingTests):
                           "done\n")
 
     def test_load_in_parallel_more(self):
-        self.prepare_module('add2')
-        self.prepare_module('add3')
-        self.compile('thread3-test', ['_add2_cffi', '_add3_cffi'], threads=True)
+        add2_cffi = self.prepare_module('add2')
+        add3_cffi = self.prepare_module('add3')
+        self.compile('thread3-test', [add2_cffi, add3_cffi], threads=True)
         for i in range(150):
             output = self.execute('thread3-test')
             for j in range(10):

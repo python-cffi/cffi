@@ -24,4 +24,5 @@ ffi.embedding_init_code(r"""
 ffi.set_source("_add2_cffi", """
 """)
 
-ffi.compile()
+fn = ffi.compile(verbose=True)
+print 'FILENAME:', fn

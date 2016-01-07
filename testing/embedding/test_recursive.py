@@ -3,8 +3,8 @@ from testing.embedding.test_basic import EmbeddingTests
 
 class TestRecursive(EmbeddingTests):
     def test_recursive(self):
-        self.prepare_module('add_recursive')
-        self.compile('add_recursive-test', ['_add_recursive_cffi'])
+        add_recursive_cffi = self.prepare_module('add_recursive')
+        self.compile('add_recursive-test', [add_recursive_cffi])
         output = self.execute('add_recursive-test')
         assert output == ("preparing REC\n"
                           "some_callback(400)\n"
