@@ -81,7 +81,7 @@ class EmbeddingTests:
             if sys.platform == 'win32':
                 libfiles = []
                 for m in modules:
-                    assert '/' not in m and '\\' not in m
+                    m = os.path.basename(m)
                     assert m.endswith('.pyd')
                     libfiles.append('Release\\%s.lib' % m[:-4])
                 modules = libfiles
