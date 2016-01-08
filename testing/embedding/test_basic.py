@@ -105,7 +105,7 @@ class EmbeddingTests:
         print('running %r in %r' % (name, path))
         executable_name = name
         if sys.platform == 'win32':
-            executable_name += '.exe'
+            executable_name = os.path.join(path, executable_name + '.exe')
         popen = subprocess.Popen([executable_name], cwd=path, env=env,
                                  stdout=subprocess.PIPE,
                                  universal_newlines=True)
