@@ -103,7 +103,10 @@ class EmbeddingTests:
             libpath = path
         env['LD_LIBRARY_PATH'] = libpath
         print('running %r in %r' % (name, path))
-        popen = subprocess.Popen([name], cwd=path, env=env,
+        executable_name = name
+        if sys.platform == 'win32':
+            executable_name += '.exe'
+        popen = subprocess.Popen([executable_name], cwd=path, env=env,
                                  stdout=subprocess.PIPE,
                                  universal_newlines=True)
         result = popen.stdout.read()
