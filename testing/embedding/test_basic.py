@@ -78,7 +78,14 @@ class EmbeddingTests:
             c = distutils.ccompiler.new_compiler()
             print('compiling %s with %r' % (name, modules))
             extra_preargs = []
-            if threads and sys.platform != 'win32':
+            if sys.platform == 'win32':
+                libfiles = []
+                for m in modules:
+                    assert '/' not in m and '\\' not in m
+                    assert m.endswith('.pyd')
+                    libfiles.append('Release\\%s.lib' % m[:-4])
+                modules = libfiles
+            elif threads:
                 extra_preargs.append('-pthread')
             objects = c.compile([filename], macros=sorted(defines.items()), debug=True)
             c.link_executable(objects + modules, name, extra_preargs=extra_preargs)
