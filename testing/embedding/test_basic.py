@@ -97,7 +97,8 @@ class EmbeddingTests:
         env['LD_LIBRARY_PATH'] = libpath
         print('running %r in %r' % (name, path))
         popen = subprocess.Popen([name], cwd=path, env=env,
-                                 stdout=subprocess.PIPE)
+                                 stdout=subprocess.PIPE,
+                                 universal_newlines=True)
         result = popen.stdout.read()
         err = popen.wait()
         if err:

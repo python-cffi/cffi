@@ -13,6 +13,7 @@ ffi.embedding_init_code(r"""
     @ffi.def_extern()
     def add3(x, y, z, t):
         sys.stdout.write("adding %d, %d, %d, %d\n" % (x, y, z, t))
+        sys.stdout.flush()
         return x + y + z + t
 """)
 
