@@ -25,4 +25,4 @@ int (*my_callback)(int);
 """)
 
 fn = ffi.compile(verbose=True)
-print 'FILENAME:', fn
+print('FILENAME: %s' % (fn,))

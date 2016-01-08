@@ -176,7 +176,11 @@ static int _cffi_initialize_python(void)
     if (PyDict_SetItemString(global_dict, "__builtins__",
                              PyThreadState_GET()->interp->builtins) < 0)
         goto error;
-    x = PyEval_EvalCode((PyCodeObject *)pycode, global_dict, global_dict);
+    x = PyEval_EvalCode(
+#if PY_MAJOR_VERSION < 3
+                        (PyCodeObject *)
+#endif
+                        pycode, global_dict, global_dict);
     if (x == NULL)
         goto error;
     Py_DECREF(x);

@@ -2,14 +2,33 @@ import py
 import sys, os, re
 import shutil, subprocess, time
 from testing.udir import udir
+import cffi
 
 local_dir = os.path.dirname(os.path.abspath(__file__))
+_link_error = '?'
+
+def check_lib_python_found(tmpdir):
+    global _link_error
+    if _link_error == '?':
+        ffi = cffi.FFI()
+        kwds = {}
+        ffi._apply_embedding_fix(kwds)
+        ffi.set_source("_test_lib_python_found", "", **kwds)
+        try:
+            ffi.compile(tmpdir=tmpdir)
+        except cffi.VerificationError as e:
+            _link_error = e
+        else:
+            _link_error = None
+    if _link_error:
+        py.test.skip(str(_link_error))
 
 
 class EmbeddingTests:
     _compiled_modules = {}
 
     def setup_method(self, meth):
+        check_lib_python_found(str(udir.ensure('embedding', dir=1)))
         self._path = udir.join('embedding', meth.__name__)
 
     def get_path(self):
@@ -74,7 +93,7 @@ class EmbeddingTests:
         else:
             libpath = path
         env['LD_LIBRARY_PATH'] = libpath
-        print 'running %r in %r' % (name, path)
+        print('running %r in %r' % (name, path))
         popen = subprocess.Popen([name], cwd=path, env=env,
                                  stdout=subprocess.PIPE)
         result = popen.stdout.read()
