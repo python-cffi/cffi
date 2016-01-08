@@ -36,7 +36,9 @@ class EmbeddingTests:
 
     def _run(self, args, env=None):
         print(args)
-        popen = subprocess.Popen(args, env=env, cwd=self.get_path(), stdout=subprocess.PIPE)
+        popen = subprocess.Popen(args, env=env, cwd=self.get_path(),
+                                 stdout=subprocess.PIPE,
+                                 universal_newlines=True)
         output = popen.stdout.read()
         err = popen.wait()
         if err:
