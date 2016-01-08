@@ -548,6 +548,8 @@ class FFI(object):
                 template = "python%d.%d"
             pythonlib = (template %
                     (sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff))
+            if hasattr(sys, 'abiflags'):
+                pythonlib += sys.abiflags
         libraries = kwds.get('libraries', [])
         if pythonlib not in libraries:
             kwds['libraries'] = libraries + [pythonlib]
