@@ -68,7 +68,12 @@ class EmbeddingTests:
         path = self.get_path()
         env = os.environ.copy()
         env['PYTHONPATH'] = os.path.dirname(os.path.dirname(local_dir))
-        env['LD_LIBRARY_PATH'] = path
+        libpath = env.get('LD_LIBRARY_PATH')
+        if libpath:
+            libpath = path + ':' + libpath
+        else:
+            libpath = path
+        env['LD_LIBRARY_PATH'] = libpath
         print 'running %r in %r' % (name, path)
         popen = subprocess.Popen([name], cwd=path, env=env,
                                  stdout=subprocess.PIPE)
