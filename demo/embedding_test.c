@@ -1,7 +1,7 @@
 /* Link this program with libembedding_test.so.
    E.g. with gcc:
 
-      gcc -o embedding_test embedding_test.c _embedding_cffi.so
+      gcc -o embedding_test embedding_test.c _embedding_cffi*.so
 */
 
 #include <stdio.h>

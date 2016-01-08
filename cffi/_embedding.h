@@ -113,21 +113,8 @@ static void _cffi_release_reentrant_mutex(void)
 
 PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(void);   /* forward */
 
-static int _cffi_initialize_python(void)
+static void _cffi_py_initialize(void)
 {
-    /* This initializes Python, imports _cffi_backend, and then the
-       present .dll/.so is set up as a CPython C extension module.
-    */
-    int result;
-    PyGILState_STATE state;
-    PyObject *pycode=NULL, *global_dict=NULL, *x;
-
-    /* Acquire the GIL.  We have no threadstate here.  If Python is 
-       already initialized, it is possible that there is already one
-       existing for this thread, but it is not made current now.
-    */
-    PyEval_AcquireLock();
-
     /* XXX use initsigs=0, which "skips initialization registration of
        signal handlers, which might be useful when Python is
        embedded" according to the Python docs.  But review and think
@@ -137,6 +124,29 @@ static int _cffi_initialize_python(void)
        instead of to stderr.
     */
     Py_InitializeEx(0);
+}
+
+static int _cffi_initialize_python(void)
+{
+    /* This initializes Python, imports _cffi_backend, and then the
+       present .dll/.so is set up as a CPython C extension module.
+    */
+    int result;
+    PyGILState_STATE state;
+    PyObject *pycode=NULL, *global_dict=NULL, *x;
+
+#if PY_MAJOR_VERSION >= 3
+    /* see comments in _cffi_carefully_make_gil() about the
+       Python2/Python3 difference 
+    */
+#else
+    /* Acquire the GIL.  We have no threadstate here.  If Python is 
+       already initialized, it is possible that there is already one
+       existing for this thread, but it is not made current now.
+    */
+    PyEval_AcquireLock();
+
+    _cffi_py_initialize();
 
     /* The Py_InitializeEx() sometimes made a threadstate for us, but
        not always.  Indeed Py_InitializeEx() could be called and do
@@ -150,6 +160,7 @@ static int _cffi_initialize_python(void)
        correct threadstate.
     */
     PyEval_ReleaseLock();
+#endif
     state = PyGILState_Ensure();
 
     /* Call the initxxx() function from the present module.  It will
@@ -243,10 +254,19 @@ PyAPI_DATA(char *) _PyParser_TokenNames[];  /* from CPython */
 
 static int _cffi_carefully_make_gil(void)
 {
-    /* This initializes the GIL.  It can be called completely
-       concurrently from unrelated threads.  It assumes that we don't
-       hold the GIL before (if it exists), and we don't hold it
-       afterwards.
+    /* This does the basic initialization of Python.  It can be called
+       completely concurrently from unrelated threads.  It assumes
+       that we don't hold the GIL before (if it exists), and we don't
+       hold it afterwards.
+
+       What it really does is completely different in Python 2 and 
+       Python 3.
+
+    Python 2
+    ========
+
+       Initialize the GIL, without initializing the rest of Python,
+       by calling PyEval_InitThreads().
 
        PyEval_InitThreads() must not be called concurrently at all.
        So we use a global variable as a simple spin lock.  This global
@@ -258,7 +278,20 @@ static int _cffi_carefully_make_gil(void)
        string "ENDMARKER".  We change it temporarily to point to the
        next character in that string.  (Yes, I know it's REALLY
        obscure.)
+
+    Python 3
+    ========
+
+       In Python 3, PyEval_InitThreads() cannot be called before
+       Py_InitializeEx() any more.  So this function calls
+       Py_InitializeEx() first.  It uses the same obscure logic to
+       make sure we never call it concurrently.
+
+       Arguably, this is less good on the spinlock, because
+       Py_InitializeEx() takes much longer to run than
+       PyEval_InitThreads().  But I didn't find a way around it.
     */
+
 #ifdef WITH_THREAD
     char *volatile *lock = (char *volatile *)_PyParser_TokenNames;
     char *old_value;
@@ -278,18 +311,38 @@ static int _cffi_carefully_make_gil(void)
                this is only run at start-up anyway. */
         }
     }
+#endif
 
+#if PY_MAJOR_VERSION >= 3
+    /* Python 3: call Py_InitializeEx() */
+    {
+        PyGILState_STATE state = PyGILState_UNLOCKED;
+        if (!Py_IsInitialized())
+            _cffi_py_initialize();
+        else
+            state = PyGILState_Ensure();
+
+        PyEval_InitThreads();
+        PyGILState_Release(state);
+    }
+#else
+    /* Python 2: call PyEval_InitThreads() */
+# ifdef WITH_THREAD
     if (!PyEval_ThreadsInitialized()) {
         PyEval_InitThreads();    /* makes the GIL */
         PyEval_ReleaseLock();    /* then release it */
     }
     /* else: there is already a GIL, but we still needed to do the
        spinlock dance to make sure that we see it as fully ready */
+# endif
+#endif
 
+#ifdef WITH_THREAD
     /* release the lock */
     while (!cffi_compare_and_swap(lock, old_value + 1, old_value))
         ;
 #endif
+
     return 0;
 }
 
@@ -350,20 +403,17 @@ static _cffi_call_python_fnptr _cffi_start_python(void)
        Idea:
 
        * _cffi_carefully_make_gil(): "carefully" call
-         PyEval_InitThreads().  This can be called before
-         Py_Initialize().
+         PyEval_InitThreads() (possibly with Py_InitializeEx() first).
 
-       * then we use a custom lock to make sure that a call to this
-         cffi-based extension will wait if another call to the same
+       * then we use a (local) custom lock to make sure that a call to this
+         cffi-based extension will wait if another call to the *same*
          extension is running the initialization in another thread.
          It is reentrant, so that a recursive call will not block, but
          only one from a different thread.
 
-       * then we grab the GIL and call Py_Initialize(), which will
-         initialize Python or do nothing if already initialized.  We
-         know that concurrent calls to Py_Initialize() should not be
-         possible, even from different cffi-based extension, because
-         we have the GIL.
+       * then we grab the GIL and (Python 2) we call Py_InitializeEx().
+         At this point, concurrent calls to Py_InitializeEx() are not
+         possible: we have the GIL.
 
        * do the rest of the specific initialization, which may
          temporarily release the GIL but not the custom lock.
