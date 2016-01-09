@@ -650,14 +650,27 @@ class FFI(object):
     def embedding_init_code(self, pysource):
         if self._embedding_init_code is not None:
             raise ValueError("embedding_init_code() can only be called once")
-        # check for SyntaxErrors, at least, and automatically add a
-        # "if 1:" line in front of the code if the whole pysource is
-        # indented
-        try:
-            compile(pysource, "cffi_init", "exec")
-        except IndentationError:
-            pysource = 'if 1:\n' + pysource
-            compile(pysource, "cffi_init", "exec")
+        # fix 'pysource' before it gets dumped into the C file:
+        # - remove empty lines at the beginning, so it starts at "line 1"
+        # - dedent, if all non-empty lines are indented
+        # - check for SyntaxErrors
+        import re
+        match = re.match(r'\s*\n', pysource)
+        if match:
+            pysource = pysource[match.end():]
+        lines = pysource.splitlines() or ['']
+        prefix = re.match(r'\s*', lines[0]).group()
+        for i in range(1, len(lines)):
+            line = lines[i]
+            if line.rstrip():
+                while not line.startswith(prefix):
+                    prefix = prefix[:-1]
+        i = len(prefix)
+        lines = [line[i:]+'\n' for line in lines]
+        pysource = ''.join(lines)
+        #
+        compile(pysource, "cffi_init", "exec")
+        #
         self._embedding_init_code = pysource
 
 
