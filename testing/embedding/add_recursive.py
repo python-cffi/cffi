@@ -2,10 +2,10 @@ import cffi
 
 ffi = cffi.FFI()
 
-ffi.cdef("""
+ffi.embedding_api("""
     int (*my_callback)(int);
-    extern "Python" int add_rec(int, int);
-""", dllexport=True)
+    int add_rec(int, int);
+""")
 
 ffi.embedding_init_code(r"""
     from _add_recursive_cffi import ffi, lib

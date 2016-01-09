@@ -2,9 +2,9 @@ import cffi
 
 ffi = cffi.FFI()
 
-ffi.cdef("""
-    extern "Python" int add2(int, int, int);
-""", dllexport=True)
+ffi.embedding_api("""
+    int add2(int, int, int);
+""")
 
 ffi.embedding_init_code(r"""
     import sys

@@ -282,13 +282,13 @@ class Recompiler:
         lines[i:i+1] = self._rel_readlines('parse_c_type.h')
         prnt(''.join(lines))
         #
-        # if we have ffi._embedding_init_code, we give it here as a macro
+        # if we have ffi._embedding != None, we give it here as a macro
         # and include an extra file
         base_module_name = self.module_name.split('.')[-1]
-        if self.ffi._embedding_init_code is not None:
+        if self.ffi._embedding is not None:
             prnt('#define _CFFI_MODULE_NAME  "%s"' % (self.module_name,))
             prnt('#define _CFFI_PYTHON_STARTUP_CODE  %s' %
-                 (self._string_literal(self.ffi._embedding_init_code),))
+                 (self._string_literal(self.ffi._embedding),))
             prnt('#ifdef PYPY_VERSION')
             prnt('# define _CFFI_PYTHON_STARTUP_FUNC  _cffi_pypyinit_%s' % (
                 base_module_name,))
@@ -1365,7 +1365,7 @@ def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
     if ffi._windows_unicode:
         ffi._apply_windows_unicode(kwds)
     if preamble is not None:
-        if ffi._embedding_init_code is not None:
+        if ffi._embedding is not None:
             ffi._apply_embedding_fix(kwds)
         if c_file is None:
             c_file, parts = _modname_to_file(tmpdir, module_name,
