@@ -1,4 +1,9 @@
+import sys
 from testing.embedding.test_basic import EmbeddingTests
+
+if sys.platform == 'win32':
+    import py
+    py.test.skip("written with pthreads")
 
 
 class TestPerformance(EmbeddingTests):
