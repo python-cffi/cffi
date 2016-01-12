@@ -32,12 +32,12 @@ int sem_init(sem_t *sem, int pshared, unsigned int value)
 
 int sem_post(sem_t *sem)
 {
-    return ReleaseSemaphore(*res, 1, NULL) ? 0 : -1;
+    return ReleaseSemaphore(*sem, 1, NULL) ? 0 : -1;
 }
 
 int sem_wait(sem_t *sem)
 {
-    WaitForSingleObject(*res, INFINITE);
+    WaitForSingleObject(*sem, INFINITE);
     return 0;
 }
 
