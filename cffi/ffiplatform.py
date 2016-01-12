@@ -78,6 +78,8 @@ def _build(tmpdir, ext, compiler_verbose=0, target_extention='capi'):
                 _restore_val('EXT_SUFFIX', target_extention)
             distutils.log.set_verbosity(compiler_verbose)
             dist.run_command('build_ext')
+            cmd_obj = dist.get_command_obj('build_ext')
+            [soname] = cmd_obj.get_outputs()
         finally:
             distutils.log.set_threshold(old_level)
             _restore_val('SO', old_SO)
@@ -86,8 +88,6 @@ def _build(tmpdir, ext, compiler_verbose=0, target_extention='capi'):
             distutils.errors.LinkError) as e:
         raise VerificationError('%s: %s' % (e.__class__.__name__, e))
     #
-    cmd_obj = dist.get_command_obj('build_ext')
-    [soname] = cmd_obj.get_outputs()
     return soname
 
 try:

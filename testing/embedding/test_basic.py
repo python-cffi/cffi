@@ -68,6 +68,10 @@ class EmbeddingTests:
             match = re.compile(r"\bFILENAME: (.+)").search(output)
             assert match
             dynamic_lib_name = match.group(1)
+            if sys.platform == 'win32':
+                assert dynamic_lib_name.endswith('_cffi.dll')
+            else:
+                assert dynamic_lib_name.endswith('_cffi.so')
             self._compiled_modules[name] = dynamic_lib_name
         return self._compiled_modules[name]
 
