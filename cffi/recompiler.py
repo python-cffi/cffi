@@ -1359,7 +1359,7 @@ def _modname_to_file(outputdir, modname, extension):
 
 def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
               c_file=None, source_extension='.c', extradir=None,
-              compiler_verbose=1, **kwds):
+              compiler_verbose=1, target_extention=None, **kwds):
     if not isinstance(module_name, str):
         module_name = module_name.encode('ascii')
     if ffi._windows_unicode:
@@ -1378,10 +1378,16 @@ def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
         ext = ffiplatform.get_extension(ext_c_file, module_name, **kwds)
         updated = make_c_source(ffi, module_name, preamble, c_file)
         if call_c_compiler:
+            if target_extention is None:
+                if ffi._embedding is None:
+                    target_extention = 'capi'
+                else:
+                    target_extention = 'system'
             cwd = os.getcwd()
             try:
                 os.chdir(tmpdir)
-                outputfilename = ffiplatform.compile('.', ext, compiler_verbose)
+                outputfilename = ffiplatform.compile('.', ext, compiler_verbose,
+                                                     target_extention)
             finally:
                 os.chdir(cwd)
             return outputfilename

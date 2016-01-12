@@ -620,13 +620,25 @@ class FFI(object):
         recompile(self, module_name, source,
                   c_file=filename, call_c_compiler=False, **kwds)
 
-    def compile(self, tmpdir='.', verbose=0):
+    def compile(self, tmpdir='.', verbose=0, ext=None):
+        """Values recognized for the ext parameter:
+
+           - 'capi': use distutils' default to build CPython C API extensions
+           - 'system': use the system's default for dynamic libraries (.so/.dll)
+           - '.FOO': exactly .FOO
+
+           The default is 'capi' when building a non-embedded C API extension,
+           and 'system' when building an embedded library.
+        """
         from .recompiler import recompile
         #
         if not hasattr(self, '_assigned_source'):
             raise ValueError("set_source() must be called before compile()")
+        if ext not in (None, 'capi', 'system') and '.' not in ext:
+            raise ValueError("bad value for 'ext' argument: %r" % (ext,))
         module_name, source, source_extension, kwds = self._assigned_source
         return recompile(self, module_name, source, tmpdir=tmpdir,
+                         target_extention=ext,
                          source_extension=source_extension,
                          compiler_verbose=verbose, **kwds)
 

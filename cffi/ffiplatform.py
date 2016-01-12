@@ -21,12 +21,13 @@ def get_extension(srcfilename, modname, sources=(), **kwds):
         allsources.append(os.path.normpath(src))
     return Extension(name=modname, sources=allsources, **kwds)
 
-def compile(tmpdir, ext, compiler_verbose=0):
+def compile(tmpdir, ext, compiler_verbose=0, target_extention='capi'):
     """Compile a C extension module using distutils."""
 
     saved_environ = os.environ.copy()
     try:
-        outputfilename = _build(tmpdir, ext, compiler_verbose)
+        outputfilename = _build(tmpdir, ext, compiler_verbose,
+                                target_extention)
         outputfilename = os.path.abspath(outputfilename)
     finally:
         # workaround for a distutils bugs where some env vars can
@@ -36,7 +37,19 @@ def compile(tmpdir, ext, compiler_verbose=0):
                 os.environ[key] = value
     return outputfilename
 
-def _build(tmpdir, ext, compiler_verbose=0):
+def _save_val(name):
+    import distutils.sysconfig
+    config_vars = distutils.sysconfig.get_config_vars()
+    return config_vars.get(name, Ellipsis)
+
+def _restore_val(name, value):
+    import distutils.sysconfig
+    config_vars = distutils.sysconfig.get_config_vars()
+    config_vars[name] = value
+    if value is Ellipsis:
+        del config_vars[name]
+
+def _build(tmpdir, ext, compiler_verbose=0, target_extention='capi'):
     # XXX compact but horrible :-(
     from distutils.core import Distribution
     import distutils.errors, distutils.log
@@ -50,11 +63,25 @@ def _build(tmpdir, ext, compiler_verbose=0):
     #
     try:
         old_level = distutils.log.set_threshold(0) or 0
+        old_SO = _save_val('SO')
+        old_EXT_SUFFIX = _save_val('EXT_SUFFIX')
         try:
+            if target_extention == 'capi':
+                pass    # keep the values already in 'SO' and 'EXT_SUFFIX'
+            else:
+                if target_extention == 'system':
+                    if sys.platform == 'win32':
+                        target_extention = '.dll'
+                    else:
+                        target_extention = '.so'
+                _restore_val('SO', target_extention)
+                _restore_val('EXT_SUFFIX', target_extention)
             distutils.log.set_verbosity(compiler_verbose)
             dist.run_command('build_ext')
         finally:
             distutils.log.set_threshold(old_level)
+            _restore_val('SO', old_SO)
+            _restore_val('EXT_SUFFIX', old_EXT_SUFFIX)
     except (distutils.errors.CompileError,
             distutils.errors.LinkError) as e:
         raise VerificationError('%s: %s' % (e.__class__.__name__, e))
