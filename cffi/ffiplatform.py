@@ -58,6 +58,7 @@ def _win32_hack_for_embedding():
     MSVCCompiler._remove_visual_c_ref = lambda self,manifest_file: manifest_file
 
 def _win32_unhack_for_embedding():
+    from distutils.msvc9compiler import MSVCCompiler
     MSVCCompiler._remove_visual_c_ref = \
         MSVCCompiler._remove_visual_c_ref_CFFI_BAK
 

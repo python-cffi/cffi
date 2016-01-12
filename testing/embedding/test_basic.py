@@ -4,9 +4,6 @@ import shutil, subprocess, time
 from testing.udir import udir
 import cffi
 
-if sys.platform == 'win32':
-    py.test.skip("it 'should' work on Windows, but I did not manage at all"
-                 " to make these tests pass.  Please help")
 
 local_dir = os.path.dirname(os.path.abspath(__file__))
 _link_error = '?'
@@ -34,6 +31,8 @@ class EmbeddingTests:
     def setup_method(self, meth):
         check_lib_python_found(str(udir.ensure('embedding', dir=1)))
         self._path = udir.join('embedding', meth.__name__)
+        if sys.platform == "win32":
+            self._compiled_modules.clear()   # workaround
 
     def get_path(self):
         return str(self._path.ensure(dir=1))
@@ -90,7 +89,7 @@ class EmbeddingTests:
                 libfiles = []
                 for m in modules:
                     m = os.path.basename(m)
-                    assert m.endswith('.pyd')
+                    assert m.endswith('.dll')
                     libfiles.append('Release\\%s.lib' % m[:-4])
                 modules = libfiles
             elif threads:
