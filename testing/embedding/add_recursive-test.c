@@ -1,7 +1,13 @@
 #include <stdio.h>
 
-extern int add_rec(int, int);
-extern int (*my_callback)(int);
+#ifdef _MSC_VER
+#  define DLLIMPORT  __declspec(dllimport)
+#else
+#  define DLLIMPORT  extern
+#endif
+
+DLLIMPORT int add_rec(int, int);
+DLLIMPORT int (*my_callback)(int);
 
 static int some_callback(int x)
 {

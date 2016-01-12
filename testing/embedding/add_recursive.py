@@ -24,7 +24,9 @@ ffi.embedding_init_code(r"""
 """)
 
 ffi.set_source("_add_recursive_cffi", """
-int (*my_callback)(int);
+/* use CFFI_DLLEXPORT: on windows, it expands to __declspec(dllexport),
+   which is needed to export a variable from a dll */
+CFFI_DLLEXPORT int (*my_callback)(int);
 """)
 
 fn = ffi.compile(verbose=True)
