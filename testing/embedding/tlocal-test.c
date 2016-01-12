@@ -18,8 +18,8 @@ static void *start_routine(void *arg)
     assert((expected % 1000) == 42);
 
     for (i=0; i<10; i++) {
-        x = add1(40, 2);
-        assert(x == expected);
+        x = add1(50, i);
+        assert(x == expected + 8 + i);
     }
 
     status = sem_post(&done);
