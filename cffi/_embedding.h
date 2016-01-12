@@ -44,7 +44,8 @@ static _cffi_call_python_fnptr _cffi_call_python = &_cffi_start_and_call_python;
 #else
    /* --- Windows threads version --- */
 # include <Windows.h>
-# define cffi_compare_and_swap(l,o,n)  InterlockedCompareExchangePointer(l,n,o)
+# define cffi_compare_and_swap(l,o,n) \
+                               (InterlockedCompareExchangePointer(l,n,o) == (o))
 # define cffi_write_barrier()       InterlockedCompareExchange(&_cffi_dummy,0,0)
 # define cffi_read_barrier()           (void)0
 static volatile LONG _cffi_dummy;
@@ -62,7 +63,7 @@ static volatile LONG _cffi_dummy;
 
 static void _cffi_acquire_reentrant_mutex(void)
 {
-    static volatile void *lock = NULL;
+    static void *volatile lock = NULL;
 
     while (!cffi_compare_and_swap(&lock, NULL, (void *)1)) {
         /* should ideally do a spin loop instruction here, but
