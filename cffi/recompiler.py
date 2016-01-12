@@ -1365,7 +1365,8 @@ def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
     if ffi._windows_unicode:
         ffi._apply_windows_unicode(kwds)
     if preamble is not None:
-        if ffi._embedding is not None:
+        embedding = (ffi._embedding is not None)
+        if embedding:
             ffi._apply_embedding_fix(kwds)
         if c_file is None:
             c_file, parts = _modname_to_file(tmpdir, module_name,
@@ -1378,16 +1379,12 @@ def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
         ext = ffiplatform.get_extension(ext_c_file, module_name, **kwds)
         updated = make_c_source(ffi, module_name, preamble, c_file)
         if call_c_compiler:
-            if target_extention is None:
-                if ffi._embedding is None:
-                    target_extention = 'capi'
-                else:
-                    target_extention = 'system'
             cwd = os.getcwd()
             try:
                 os.chdir(tmpdir)
                 outputfilename = ffiplatform.compile('.', ext, compiler_verbose,
-                                                     target_extention)
+                                                     target_extention,
+                                                     embedding=embedding)
             finally:
                 os.chdir(cwd)
             return outputfilename

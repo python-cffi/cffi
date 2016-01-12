@@ -21,13 +21,14 @@ def get_extension(srcfilename, modname, sources=(), **kwds):
         allsources.append(os.path.normpath(src))
     return Extension(name=modname, sources=allsources, **kwds)
 
-def compile(tmpdir, ext, compiler_verbose=0, target_extention='capi'):
+def compile(tmpdir, ext, compiler_verbose=0, target_extention=None,
+            embedding=False):
     """Compile a C extension module using distutils."""
 
     saved_environ = os.environ.copy()
     try:
         outputfilename = _build(tmpdir, ext, compiler_verbose,
-                                target_extention)
+                                target_extention, embedding)
         outputfilename = os.path.abspath(outputfilename)
     finally:
         # workaround for a distutils bugs where some env vars can
@@ -49,7 +50,19 @@ def _restore_val(name, value):
     if value is Ellipsis:
         del config_vars[name]
 
-def _build(tmpdir, ext, compiler_verbose=0, target_extention='capi'):
+def _win32_hack_for_embedding():
+    from distutils.msvc9compiler import MSVCCompiler
+    if not hasattr(MSVCCompiler, '_remove_visual_c_ref_CFFI_BAK'):
+        MSVCCompiler._remove_visual_c_ref_CFFI_BAK = \
+            MSVCCompiler._remove_visual_c_ref
+    MSVCCompiler._remove_visual_c_ref = lambda self,manifest_file: manifest_file
+
+def _win32_unhack_for_embedding():
+    MSVCCompiler._remove_visual_c_ref = \
+        MSVCCompiler._remove_visual_c_ref_CFFI_BAK
+
+def _build(tmpdir, ext, compiler_verbose=0, target_extention=None,
+           embedding=False):
     # XXX compact but horrible :-(
     from distutils.core import Distribution
     import distutils.errors, distutils.log
@@ -62,10 +75,17 @@ def _build(tmpdir, ext, compiler_verbose=0, target_extention='capi'):
     options['build_temp'] = ('ffiplatform', tmpdir)
     #
     try:
+        if sys.platform == 'win32' and embedding:
+            _win32_hack_for_embedding()
         old_level = distutils.log.set_threshold(0) or 0
         old_SO = _save_val('SO')
         old_EXT_SUFFIX = _save_val('EXT_SUFFIX')
         try:
+            if target_extention is None:
+                if embedding:
+                    target_extention = 'system'
+                else:
+                    target_extention = 'capi'
             if target_extention == 'capi':
                 pass    # keep the values already in 'SO' and 'EXT_SUFFIX'
             else:
@@ -84,6 +104,8 @@ def _build(tmpdir, ext, compiler_verbose=0, target_extention='capi'):
             distutils.log.set_threshold(old_level)
             _restore_val('SO', old_SO)
             _restore_val('EXT_SUFFIX', old_EXT_SUFFIX)
+            if sys.platform == 'win32' and embedding:
+                _win32_unhack_for_embedding()
     except (distutils.errors.CompileError,
             distutils.errors.LinkError) as e:
         raise VerificationError('%s: %s' % (e.__class__.__name__, e))
