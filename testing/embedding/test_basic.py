@@ -78,6 +78,7 @@ class EmbeddingTests:
         path = self.get_path()
         filename = '%s.c' % name
         shutil.copy(os.path.join(local_dir, filename), path)
+        shutil.copy(os.path.join(local_dir, 'thread-test.h'), path)
         import distutils.ccompiler
         curdir = os.getcwd()
         try:

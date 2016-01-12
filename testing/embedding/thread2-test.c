@@ -1,7 +1,6 @@
 #include <stdio.h>
-#include <pthread.h>
-#include <semaphore.h>
 #include <assert.h>
+#include "thread-test.h"
 
 extern int add1(int, int);
 extern int add2(int, int, int);
