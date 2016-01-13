@@ -77,3 +77,93 @@ platforms.  As usual, it is produced by generating some intermediate
   standard library ``distutils`` package, which is really developed
   and tested for the purpose of making CPython extension modules, not
   other DLLs.
+
+
+More reading
+------------
+
+(XXX should point to a few places in the rest of the CFFI docs where
+people starting from embedding would like to go next)
+
+XXX copy the content of ffi.embedding() to a .h
+
+
+Embedding and Extending
+-----------------------
+
+The embedding mode is not incompatible with the non-embedding mode of
+CFFI.  The Python code can import not only ``ffi`` but also ``lib``
+from the module you define.  This ``lib`` contains all the C symbols
+that are available to Python.  This includes all functions and global
+variables declared in ``ffi.embedding_api()`` (it is how you should
+read/write the global variables from Python).
+
+But you can use ``ffi.cdef()`` *in addition to*
+``ffi.embedding_api()`` to exchange more C functions and global
+variables between C and Python, without also making them exports of
+the DLL.  See `here for more about cdef.`__
+
+.. __: cdef.html#cdef
+
+``ffi.cdef()`` is used to access functions and variables that you can,
+and should, define as ``static`` in ``set_source()``.  On the other
+hand, the C functions declared with ``ffi.embedding_api()`` work
+similarly to ``extern "Python"`` functions from ``ffi.cdef()``.
+See `here for more about extern "Python".`__  See `here for details
+about @ffi.def_extern().`__
+
+.. __: using.html#extern-python
+.. __: using.html#extern-python-ref
+
+In some cases, you want to write a DLL-exported C function in C
+directly, maybe to handle some cases before calling Python functions.
+To do that, you must *not* write the function's signature in
+``ffi.embedding_api()``.  You must only write the custom function
+definition in ``ffi.set_source()``, and prefix it with the macro
+CFFI_DLLEXPORT:
+
+.. code-block:: c
+
+    CFFI_DLLEXPORT int myfunc(int a, int b)
+    {
+        /* implementation here */
+    }
+
+This function can, if it wants, invoke Python functions using the
+general mechanism of "callbacks" (technically a call from C to Python,
+although in this case it is not calling anything back): you need a
+``ffi.cdef()`` with "``extern "Python" int mycb(int);``", and then you
+can write this in ``ffi.set_source()``:
+
+.. code-block:: c
+
+    static int mycb(int);   /* the callback: forward declaration, to make
+                               it accessible from the C code that follows */
+
+    CFFI_DLLEXPORT int myfunc(int a, int b)
+    {
+        int product = a * b;   /* some custom C code */
+        return mycb(product);
+    }
+
+and then the Python initialization code needs to contain the lines:
+
+.. code-block:: python
+
+    @ffi.def_extern()
+    def mycb(x):
+        print "hi, I'm called with x =", x
+        return x * 10
+
+This ``@ffi.def_extern`` is attaching a Python function to the C
+callback ``mycb``, which in this case is not exported from the DLL.
+Nevertheless, the automatic initialization of Python occurs at this
+time, if it happens that ``mycb()`` is the first function called
+from C.  (It does not happen when ``myfunc()`` is called: this is just
+a C function, with no extra code magically inserted around it.  It
+only happens when ``myfunc()`` calls ``mycb()``.)
+
+As the above explanation hints, this is how ``ffi.embedding_api()``
+actually implements function calls that directly invoke Python code;
+we have merely decomposed it explicitly, in order to add some custom C
+code in the middle.

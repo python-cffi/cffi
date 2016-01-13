@@ -603,6 +603,9 @@ useful if the logic in ``my_algo()`` is much more complex)::
         }
     """)
 
+
+.. _extern-python-ref:
+
 Extern "Python": reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 

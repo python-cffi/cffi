@@ -138,6 +138,8 @@ called ``__dict__`` (use instead ``dir(lib)``).  The same is true
 for ``lib.__class__`` before version 1.4.
 
 
+.. _cdef:
+
 ffi.cdef(): declaring types and functions
 -----------------------------------------
 
