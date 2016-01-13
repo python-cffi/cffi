@@ -8,6 +8,22 @@ You can use CFFI to generate a ``.so/.dll`` which exports the API of
 your choice to any C application that wants to link with this
 ``.so/.dll``.
 
+The general idea is as follows:
+
+* You write and execute a Python script, which produces a ``.so/.dll``
+  file with the API of your choice.  The script also gives some Python
+  code to be "frozen" inside the ``.so``.
+
+* At runtime, the C application loads this ``.so/.dll`` without having
+  to know that it was produced by Python and CFFI.
+
+* The first time a C function is called, Python is initialized and
+  the frozen Python code is executed.
+
+* The frozen Python code attaches Python functions that implement the
+  C functions of your API, which are then used for all subsequent C
+  function calls.
+
 This is entirely *new in version 1.5.*
 
 
@@ -74,29 +90,31 @@ Here are some details about the methods used above:
   ``ffi.set_source()``, as regular C code (see the point after next).
 
 * **ffi.embedding_init_code(python_code):** this gives
-  initialization-time Python source code.  This code is copied inside
-  the DLL.  At runtime, the code is executed when the DLL is first
-  initialized, just after Python itself is initialized.  This newly
-  initialized Python interpreter has got an extra module ready to be
-  imported, typically with a line like "``from my_plugin import ffi,
+  initialization-time Python source code.  This code is copied
+  ("frozen") inside the DLL.  At runtime, the code is executed when
+  the DLL is first initialized, just after Python itself is
+  initialized.  This newly initialized Python interpreter has got an
+  extra "built-in" module that will be loaded magically without
+  accessing any files, with a line like "``from my_plugin import ffi,
   lib``".  The name ``my_plugin`` comes from the first argument to
-  ``ffi.set_source()``.  (This module represents "the caller's C
-  world" from the point of view of Python.)
+  ``ffi.set_source()``.  This module represents "the caller's C world"
+  from the point of view of Python.
 
   The initialization-time Python code can import other modules or
-  packages as usual (it might need to set up ``sys.path`` first).  For
-  every function declared within ``ffi.embedding_api()``, it should
-  use the decorator ``@ffi.def_extern()`` to attach a corresponding
-  Python function to it.  (Of course, the decorator can appear either
-  directly in the initialization-time Python code, or in any other
-  module that it imports.  The usual Python rules apply, e.g. you need
-  "``from my_plugin import ffi``" in a module, otherwise you can't say
-  ``@ffi.def_extern()``.)
+  packages as usual.  You may have typical Python issues like needing
+  to set up ``sys.path`` somehow manually first.
+
+  For every function declared within ``ffi.embedding_api()``, the
+  initialization-time Python code or one of the modules it imports
+  should use the decorator ``@ffi.def_extern()`` to attach a
+  corresponding Python function to it.
 
   If the initialization-time Python code fails with an exception, then
-  you get tracebacks printed to stderr.  If some function remains
-  unattached but the C code calls it, an error message is also printed
-  to stderr and the function returns zero/null.
+  you get a traceback printed to stderr, along with more information
+  to help you identify problems like wrong ``sys.path``.  If some
+  function remains unattached at the time where the C code tries to
+  call it, an error message is also printed to stderr and the function
+  returns zero/null.
 
 * **ffi.set_source(c_module_name, c_code):** set the name of the
   module from Python's point of view.  It also gives more C code which
@@ -118,9 +136,9 @@ Here are some details about the methods used above:
   ``c_module_name.dll`` or ``c_module_name.so``, but the default can
   be changed with the optional ``target`` keyword argument.  You can
   use ``target="foo.*"`` with a literal ``*`` to ask for a file called
-  ``foo.dll`` on Windows or ``foo.so`` elsewhere.  (One point of the
-  separate ``target`` file name is to include characters not usually
-  allowed in Python module names, like "``plugin-1.5.*``".)
+  ``foo.dll`` on Windows or ``foo.so`` elsewhere.  One reason for
+  specifying an alternate ``target`` is to include characters not
+  usually allowed in Python module names, like "``plugin-1.5.*``".
 
   For more complicated cases, you can call instead
   ``ffi.emit_c_code("foo.c")`` and compile the resulting ``foo.c``
@@ -150,9 +168,9 @@ next:
   CFFI, in which the major direction is Python code calling C.  That's
   why the page `Using the ffi/lib objects`_ talks first about the
   latter, and why the direction "C code that calls Python" is
-  generally referred to as "callbacks" in that page.  (If you also
+  generally referred to as "callbacks" in that page.  If you also
   need to have your Python code call C code, read more about
-  `Embedding and Extending`_ below.)
+  `Embedding and Extending`_ below.
 
 * ``ffi.embedding_api(source)``: follows the same syntax as
   ``ffi.cdef()``, `documented here.`__  You can use the "``...``"
@@ -190,11 +208,7 @@ Embedding and Extending
 -----------------------
 
 The embedding mode is not incompatible with the non-embedding mode of
-CFFI.  The Python code can import not only ``ffi`` but also ``lib``
-from the module you define.  This ``lib`` contains all the C symbols
-that are available to Python.  This includes all functions and global
-variables declared in ``ffi.embedding_api()`` (it is how you should
-read/write the global variables from Python).
+CFFI.
 
 You can use *both* ``ffi.embedding_api()`` and ``ffi.cdef()`` in the
 same build script.  You put in the former the declarations you want to
@@ -218,8 +232,9 @@ prefix it with the macro CFFI_DLLEXPORT:
     }
 
 This function can, if it wants, invoke Python functions using the
-general mechanism of "callbacks" (technically a call from C to Python,
-although in this case it is not calling anything back):
+general mechanism of "callbacks"---called this way because it is a
+call from C to Python, although in this case it is not calling
+anything back:
 
 .. code-block:: python
 
@@ -252,9 +267,10 @@ This ``@ffi.def_extern`` is attaching a Python function to the C
 callback ``mycb``, which in this case is not exported from the DLL.
 Nevertheless, the automatic initialization of Python occurs at this
 time, if it happens that ``mycb()`` is the first function called
-from C.  (It does not happen when ``myfunc()`` is called: this is just
-a C function, with no extra code magically inserted around it.  It
-only happens when ``myfunc()`` calls ``mycb()``.)
+from C.  More precisely, it does not happen when ``myfunc()`` is
+called: this is just a C function, with no extra code magically
+inserted around it.  It only happens when ``myfunc()`` calls
+``mycb()``.
 
 As the above explanation hints, this is how ``ffi.embedding_api()``
 actually implements function calls that directly invoke Python code;
