@@ -604,8 +604,6 @@ useful if the logic in ``my_algo()`` is much more complex)::
     """)
 
 
-.. _extern-python-ref:
-
 Extern "Python": reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -631,6 +629,8 @@ the wrong type, then the exception cannot be propagated.  Instead, the
 exception is printed to stderr and the C-level callback is made to
 return a default value.  This can be controlled with ``error`` and
 ``onerror``, described below.
+
+.. _def-extern:
 
 The ``@ffi.def_extern()`` decorator takes these optional arguments:
 
