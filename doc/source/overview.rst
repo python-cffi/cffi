@@ -294,9 +294,9 @@ Embedding
 
 *New in version 1.5.*
 
-CFFI can also be used for embedding__, by creating a standard
-dynamically-linked library (``.dll`` under Windows, ``.so``
-elsewhere).  This DLL can then be used from any C application.
+CFFI can be used for embedding__: creating a standard
+dynamically-linked library (``.dll`` under Windows, ``.so`` elsewhere)
+which can be used from a C application.
 
 .. code-block:: python
 
@@ -307,10 +307,10 @@ elsewhere).  This DLL can then be used from any C application.
         int do_stuff(int, int);
     """)
 
-    ffi.set_source("mystuff", "")
+    ffi.set_source("my_plugin", "")
 
     ffi.embedding_init_code("""
-        from mystuff import ffi
+        from my_plugin import ffi
 
         @ffi.def_extern()
         def do_stuff(x, y):
@@ -318,18 +318,18 @@ elsewhere).  This DLL can then be used from any C application.
             return x + y
     """)
 
-    ffi.compile(verbose=True)
+    ffi.compile(target="plugin-1.5.*", verbose=True)
 
-This simple example creates ``mystuff.dll`` or ``mystuff.so`` as a DLL
-with a single exported function, ``do_stuff()``.  You execute the
-script above once, with the interpreter you want to have internally
-used; it can be CPython 2.x or 3.x or PyPy.  This DLL can then be used
-"as usual" from an application; the application doesn't need to know
-that it is talking with a library made with Python and CFFI.  At
-runtime, when the application calls ``int do_stuff(int, int)``, the
-Python interpreter is automatically initialized and ``def do_stuff(x,
-y):`` gets called.  `See the details in the documentation about
-embedding.`__
+This simple example creates ``plugin-1.5.dll`` or ``plugin-1.5.so`` as
+a DLL with a single exported function, ``do_stuff()``.  You execute
+the script above once, with the interpreter you want to have
+internally used; it can be CPython 2.x or 3.x or PyPy.  This DLL can
+then be used "as usual" from an application; the application doesn't
+need to know that it is talking with a library made with Python and
+CFFI.  At runtime, when the application calls ``int do_stuff(int,
+int)``, the Python interpreter is automatically initialized and ``def
+do_stuff(x, y):`` gets called.  `See the details in the documentation
+about embedding.`__
 
 .. __: embedding.html
 .. __: embedding.html
