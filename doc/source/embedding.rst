@@ -94,7 +94,7 @@ Here are some details about the methods used above:
   ("frozen") inside the DLL.  At runtime, the code is executed when
   the DLL is first initialized, just after Python itself is
   initialized.  This newly initialized Python interpreter has got an
-  extra "built-in" module that will be loaded magically without
+  extra "built-in" module that can be loaded magically without
   accessing any files, with a line like "``from my_plugin import ffi,
   lib``".  The name ``my_plugin`` comes from the first argument to
   ``ffi.set_source()``.  This module represents "the caller's C world"
@@ -264,9 +264,9 @@ and then the Python initialization code needs to contain the lines:
         return x * 10
 
 This ``@ffi.def_extern`` is attaching a Python function to the C
-callback ``mycb``, which in this case is not exported from the DLL.
-Nevertheless, the automatic initialization of Python occurs at this
-time, if it happens that ``mycb()`` is the first function called
+callback ``mycb()``, which in this case is not exported from the DLL.
+Nevertheless, the automatic initialization of Python occurs when
+``mycb()`` is called, if it happens to be the first function called
 from C.  More precisely, it does not happen when ``myfunc()`` is
 called: this is just a C function, with no extra code magically
 inserted around it.  It only happens when ``myfunc()`` calls
