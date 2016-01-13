@@ -21,14 +21,14 @@ def get_extension(srcfilename, modname, sources=(), **kwds):
         allsources.append(os.path.normpath(src))
     return Extension(name=modname, sources=allsources, **kwds)
 
-def compile(tmpdir, ext, compiler_verbose=0, target_extention=None,
+def compile(tmpdir, ext, compiler_verbose=0, target_extension=None,
             embedding=False):
     """Compile a C extension module using distutils."""
 
     saved_environ = os.environ.copy()
     try:
         outputfilename = _build(tmpdir, ext, compiler_verbose,
-                                target_extention, embedding)
+                                target_extension, embedding)
         outputfilename = os.path.abspath(outputfilename)
     finally:
         # workaround for a distutils bugs where some env vars can
@@ -62,7 +62,7 @@ def _win32_unhack_for_embedding():
     MSVCCompiler._remove_visual_c_ref = \
         MSVCCompiler._remove_visual_c_ref_CFFI_BAK
 
-def _build(tmpdir, ext, compiler_verbose=0, target_extention=None,
+def _build(tmpdir, ext, compiler_verbose=0, target_extension=None,
            embedding=False):
     # XXX compact but horrible :-(
     from distutils.core import Distribution
@@ -82,21 +82,9 @@ def _build(tmpdir, ext, compiler_verbose=0, target_extention=None,
         old_SO = _save_val('SO')
         old_EXT_SUFFIX = _save_val('EXT_SUFFIX')
         try:
-            if target_extention is None:
-                if embedding:
-                    target_extention = 'system'
-                else:
-                    target_extention = 'capi'
-            if target_extention == 'capi':
-                pass    # keep the values already in 'SO' and 'EXT_SUFFIX'
-            else:
-                if target_extention == 'system':
-                    if sys.platform == 'win32':
-                        target_extention = '.dll'
-                    else:
-                        target_extention = '.so'
-                _restore_val('SO', target_extention)
-                _restore_val('EXT_SUFFIX', target_extention)
+            if target_extension is not None:
+                _restore_val('SO', target_extension)
+                _restore_val('EXT_SUFFIX', target_extension)
             distutils.log.set_verbosity(compiler_verbose)
             dist.run_command('build_ext')
             cmd_obj = dist.get_command_obj('build_ext')

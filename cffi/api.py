@@ -620,26 +620,23 @@ class FFI(object):
         recompile(self, module_name, source,
                   c_file=filename, call_c_compiler=False, **kwds)
 
-    def compile(self, tmpdir='.', verbose=0, ext=None):
-        """Values recognized for the ext parameter:
+    def compile(self, tmpdir='.', verbose=0, target=None):
+        """The 'target' argument gives the final file name of the
+        compiled DLL.  Use '*' to force distutils' choice, suitable for
+        regular CPython C API modules.  Use a file name ending in '.*'
+        to ask for the system's default extension for dynamic libraries
+        (.so/.dll).
 
-           - 'capi': use distutils' default to build CPython C API extensions
-           - 'system': use the system's default for dynamic libraries (.so/.dll)
-           - '.FOO': exactly .FOO
-
-           The default is 'capi' when building a non-embedded C API extension,
-           and 'system' when building an embedded library.
+        The default is '*' when building a non-embedded C API extension,
+        and (module_name + '.*') when building an embedded library.
         """
         from .recompiler import recompile
         #
         if not hasattr(self, '_assigned_source'):
             raise ValueError("set_source() must be called before compile()")
-        if ext not in (None, 'capi', 'system') and '.' not in ext:
-            raise ValueError("bad value for 'ext' argument: %r" % (ext,))
         module_name, source, source_extension, kwds = self._assigned_source
         return recompile(self, module_name, source, tmpdir=tmpdir,
-                         target_extention=ext,
-                         source_extension=source_extension,
+                         target=target, source_extension=source_extension,
                          compiler_verbose=verbose, **kwds)
 
     def init_once(self, func, tag):
