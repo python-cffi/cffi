@@ -123,6 +123,9 @@ static void _cffi_py_initialize(void)
 
        XXX we should also give a way to write errors to a buffer
        instead of to stderr.
+
+       XXX if importing 'site' fails, CPython (any version) calls
+       exit().  Should we try to work around this behavior here?
     */
     Py_InitializeEx(0);
 }

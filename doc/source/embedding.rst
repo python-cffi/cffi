@@ -122,6 +122,10 @@ Here are some details about the methods used above:
   call it, an error message is also printed to stderr and the function
   returns zero/null.
 
+  Note that the CFFI module never calls ``exit()``, but CPython itself
+  contains code that calls ``exit()``, for example if importing
+  ``site`` fails.  This may be worked around in the future.
+
 * **ffi.set_source(c_module_name, c_code):** set the name of the
   module from Python's point of view.  It also gives more C code which
   will be included in the generated C code.  In trivial examples it
