@@ -278,9 +278,9 @@ the extension is ``.dll`` instead of ``.pyd``.  You have to rename or
 copy the file, or on POSIX use a symlink.
 
 The module then works like a regular CFFI extension module.  It is
-imported with ``from c_module_name import ffi, lib`` and exposes on
+imported with "``from c_module_name import ffi, lib``" and exposes on
 the ``lib`` object all C functions.  You can test it by calling these
-C functions.  The initialization-time Python code included with the
+C functions.  The initialization-time Python code frozen inside the
 DLL is executed the first time such a call is done.
 
 
