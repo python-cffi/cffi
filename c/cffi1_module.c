@@ -169,8 +169,10 @@ static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
     if (version < CFFI_VERSION_MIN || version > CFFI_VERSION_MAX) {
         if (!PyErr_Occurred())
             PyErr_Format(PyExc_ImportError,
-                         "cffi extension module '%s' has unknown version %p",
-                         module_name, (void *)version);
+                "cffi extension module '%s' uses an unknown version tag %p. "
+                "This module might need a more recent version of cffi "
+                "than the one currently installed, which is %s",
+                module_name, (void *)version, CFFI_VERSION);
         return NULL;
     }
 

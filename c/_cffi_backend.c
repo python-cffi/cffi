@@ -2,6 +2,8 @@
 #include <Python.h>
 #include "structmember.h"
 
+#define CFFI_VERSION  "1.4.2"
+
 #ifdef MS_WIN32
 #include <windows.h>
 #include "misc_win32.h"
@@ -6500,7 +6502,7 @@ init_cffi_backend(void)
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
         INITERROR;
 
-    v = PyText_FromString("1.4.2");
+    v = PyText_FromString(CFFI_VERSION);
     if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
         INITERROR;
 
