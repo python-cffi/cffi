@@ -24,6 +24,12 @@ The general idea is as follows:
   C functions of your API, which are then used for all subsequent C
   function calls.
 
+One of the goals of this approach is to be entirely independent from
+the CPython C API: no ``Py_Initialize()`` nor ``PyRun_SimpleString()``
+nor even ``PyObject``.  It works identically on CPython and PyPy.
+
+.. note:: PyPy release 4.0.1 contains CFFI 1.4 only.
+
 This is entirely *new in version 1.5.*
 
 
@@ -163,6 +169,9 @@ next:
 * ``@ffi.def_extern()``: see `documentation here,`__ notably on what
   happens if the Python function raises an exception.
 
+* To create Python objects attached to C data, one common solution is
+  to use ``ffi.new_handle()``.  See documentation here__.
+
 * In embedding mode, the major direction is C code that calls Python
   functions.  This is the opposite of the regular extending mode of
   CFFI, in which the major direction is Python code calling C.  That's
@@ -199,9 +208,80 @@ next:
 
 .. __: using.html#working
 .. __: using.html#def-extern
+.. __: using.html#ffi-new_handle
 .. __: cdef.html#cdef
 
 .. _`Using the ffi/lib objects`: using.html
+
+
+Troubleshooting
+---------------
+
+The error message
+
+    cffi extension module 'c_module_name' has unknown version 0x2701
+
+means that the running Python interpreter located a CFFI version older
+than 1.5.  CFFI 1.5 or newer must be installed in the running Python.
+
+
+Using multiple CFFI-made DLLs
+-----------------------------
+
+Multiple CFFI-made DLLs can be used by the same process.
+
+Note that all CFFI-made DLLs in a process share a single Python
+interpreter.  The effect is the same as the one you get by trying to
+build a large Python application by assembling a lot of unrelated
+packages.  Some of these might be libraries that monkey-patch some
+functions from the standard library, for example, which might be
+unexpected from other parts.
+
+
+Multithreading
+--------------
+
+Multithreading should work transparently, based on Python's standard
+Global Interpreter Lock.
+
+If two threads both try to call a C function when Python is not yet
+initialized, then locking occurs.  One thread proceeds with
+initialization and blocks the other thread.  The other thread will be
+allowed to continue only when the execution of the initialization-time
+Python code is done.
+
+If the two threads call two *different* CFFI-made DLLs, the Python
+initialization itself will still be serialized, but the two pieces of
+initialization-time Python code will not.  The idea is that there is a
+priori no reason for one DLL to wait for initialization of the other
+DLL to be complete.
+
+After initialization, Python's standard Global Interpreter Lock kicks
+in.  The end result is that when one CPU progresses on executing
+Python code, no other CPU can progress on executing more Python code
+from another thread of the same process.  At regular intervals, the
+lock switches to a different thread, so that no single thread should
+appear to block indefinitely.
+
+
+Testing
+-------
+
+For testing purposes, a CFFI-made DLL can be imported in a running
+Python interpreter instead of being loaded like a C shared library.
+
+You might have some issues with the file name: for example, on
+Windows, Python expects the file to be called ``c_module_name.pyd``,
+but the CFFI-made DLL is called ``target.dll`` instead.  The base name
+``target`` is the one specified in ``ffi.compile()``, and on Windows
+the extension is ``.dll`` instead of ``.pyd``.  You have to rename or
+copy the file, or on POSIX use a symlink.
+
+The module then works like a regular CFFI extension module.  It is
+imported with ``from c_module_name import ffi, lib`` and exposes on
+the ``lib`` object all C functions.  You can test it by calling these
+C functions.  The initialization-time Python code included with the
+DLL is executed the first time such a call is done.
 
 
 Embedding and Extending

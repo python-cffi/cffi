@@ -423,6 +423,7 @@ relying on compiler-specific extensions.  Nowadays virtually all code
 with ``int foo();`` really means ``int foo(void);``.)
 
 
+.. _extern-python:
 .. _`extern "Python"`:
 
 Extern "Python" (new-style callbacks)
@@ -1069,12 +1070,13 @@ and ``__exit__()`` methods, allocating and freeing the C data at known
 points in time, and using it in a ``with`` statement.
 
 
+.. _ffi-new_handle:
 .. _`ffi.new_handle()`:
 
 **ffi.new_handle(python_object)**: return a non-NULL cdata of type
 ``void *`` that contains an opaque reference to ``python_object``.  You
 can pass it around to C functions or store it into C structures.  Later,
-you can use **ffi.from_handle(p)** to retrive the original
+you can use **ffi.from_handle(p)** to retrieve the original
 ``python_object`` from a value with the same ``void *`` pointer.
 *Calling ffi.from_handle(p) is invalid and will likely crash if
 the cdata object returned by new_handle() is not kept alive!*
