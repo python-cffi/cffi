@@ -194,15 +194,15 @@ next:
   give to users of your DLL.  That's why the example above does this::
 
       with open('foo.h') as f:
-          ffi.embedding(f.read())
+          ffi.embedding_api(f.read())
 
-  Note that a drawback of this approach is that ``ffi.embedding()``
+  Note that a drawback of this approach is that ``ffi.embedding_api()``
   doesn't support ``#ifdef`` directives.  You may have to use a more
   convoluted expression like::
 
       with open('foo.h') as f:
           lines = [line for line in f if not line.startswith('#')]
-          ffi.embedding(''.join(lines))
+          ffi.embedding_api(''.join(lines))
 
   As in the example above, you can also use the same ``foo.h`` from
   ``ffi.set_source()``::
@@ -304,7 +304,7 @@ As an example of that, consider the case where you would like to have
 a DLL-exported C function written in C directly, maybe to handle some
 cases before calling Python functions.  To do that, you must *not* put
 the function's signature in ``ffi.embedding_api()``.  (Note that this
-requires more hacks if you use ``ffi.embedding(f.read())``.)  You must
+requires more hacks if you use ``ffi.embedding_api(f.read())``.)  You must
 only write the custom function definition in ``ffi.set_source()``, and
 prefix it with the macro CFFI_DLLEXPORT:
 
