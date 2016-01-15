@@ -3,6 +3,14 @@ What's New
 ======================
 
 
+v1.5.0
+======
+
+* Support for `using CFFI for embedding`__.
+
+.. __: embedding.html
+
+
 v1.4.2
 ======
 
