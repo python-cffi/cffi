@@ -3,7 +3,7 @@
 #include "realize_c_type.c"
 
 #define CFFI_VERSION_MIN    0x2601
-#define CFFI_VERSION_MAX    0x26FF
+#define CFFI_VERSION_MAX    0x27FF
 
 typedef struct FFIObject_s FFIObject;
 typedef struct LibObject_s LibObject;
@@ -213,6 +213,13 @@ static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
     if (PyDict_SetItemString(modules_dict, module_name_with_lib,
                              (PyObject *)lib) < 0)
         return NULL;
+
+#if PY_MAJOR_VERSION >= 3
+    /* add manually 'module_name' in sys.modules: it seems that 
+       Py_InitModule() is not enough to do that */
+    if (PyDict_SetItemString(modules_dict, module_name, m) < 0)
+        return NULL;
+#endif
 
     return m;
 }

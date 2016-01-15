@@ -144,9 +144,10 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='1.4.2',
+        version='1.4.3',
         packages=['cffi'] if cpython else [],
-        package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h']}
+        package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h', 
+                               '_embedding.h']}
                      if cpython else {},
         zip_safe=False,
 

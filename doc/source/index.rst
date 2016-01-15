@@ -18,6 +18,7 @@ interface declarations written in C.
    overview
    using
    cdef
+   embedding
 
 
 Goals

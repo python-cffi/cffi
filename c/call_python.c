@@ -94,7 +94,7 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
         return NULL;
 
     /* force _update_cache_to_call_python() to be called the next time
-       the C function invokes _cffi_call_python, to update the cache */
+       the C function invokes cffi_call_python, to update the cache */
     old1 = externpy->reserved1;
     externpy->reserved1 = Py_None;   /* a non-NULL value */
     Py_INCREF(Py_None);
@@ -143,7 +143,15 @@ static int _update_cache_to_call_python(struct _cffi_externpy_s *externpy)
     return 2;   /* out of memory? */
 }
 
-static void _cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
+#if (defined(WITH_THREAD) && !defined(_MSC_VER) &&   \
+     !defined(__amd64__) && !defined(__x86_64__) &&   \
+     !defined(__i386__) && !defined(__i386))
+# define read_barrier()  __sync_synchronize()
+#else
+# define read_barrier()  (void)0
+#endif
+
+static void cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
 {
     /* Invoked by the helpers generated from extern "Python" in the cdef.
 
@@ -164,6 +172,21 @@ static void _cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
        at least 8 bytes in size.
     */
     int err = 0;
+
+    /* This read barrier is needed for _embedding.h.  It is paired
+       with the write_barrier() there.  Without this barrier, we can
+       in theory see the following situation: the Python
+       initialization code already ran (in another thread), and the
+       '_cffi_call_python' function pointer directed execution here;
+       but any number of other data could still be seen as
+       uninitialized below.  For example, 'externpy' would still
+       contain NULLs even though it was correctly set up, or
+       'interpreter_lock' (the GIL inside CPython) would still be seen
+       as NULL, or 'autoInterpreterState' (used by
+       PyGILState_Ensure()) would be NULL or contain bogus fields.
+    */
+    read_barrier();
+
     save_errno();
 
     /* We need the infotuple here.  We could always go through
