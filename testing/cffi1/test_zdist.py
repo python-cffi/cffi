@@ -219,23 +219,6 @@ class TestDist(object):
         x = ffi.compile(target="foo.bar.*")
         if sys.platform != 'win32':
             sofile = self.check_produced_files({
-                'foo.bar.SO': None,
-                'mod_name_in_package': {'mymod.c': None,
-                                        'mymod.o': None}})
-            assert os.path.isabs(x) and os.path.samefile(x, sofile)
-        else:
-            self.check_produced_files({
-                'foo.bar.SO': None,
-                'mod_name_in_package': {'mymod.c': None},
-                'Release': '?'})
-
-    @chdir_to_tmp
-    def test_api_compile_explicit_target_2(self):
-        ffi = cffi.FFI()
-        ffi.set_source("mod_name_in_package.mymod", "/*code would be here*/")
-        x = ffi.compile(target=os.path.join("mod_name_in_package", "foo.bar.*"))
-        if sys.platform != 'win32':
-            sofile = self.check_produced_files({
                 'mod_name_in_package': {'foo.bar.SO': None,
                                         'mymod.c': None,
                                         'mymod.o': None}})
@@ -253,15 +236,16 @@ class TestDist(object):
         x = ffi.compile(target="foo.bar.baz")
         if sys.platform != 'win32':
             self.check_produced_files({
-                'foo.bar.baz': None,
-                'mod_name_in_package': {'mymod.c': None,
+                'mod_name_in_package': {'foo.bar.baz': None,
+                                        'mymod.c': None,
                                         'mymod.o': None}})
-            sofile = os.path.join(str(self.udir), 'foo.bar.baz')
+            sofile = os.path.join(str(self.udir),
+                                  'mod_name_in_package', 'foo.bar.baz')
             assert os.path.isabs(x) and os.path.samefile(x, sofile)
         else:
             self.check_produced_files({
-                'foo.bar.baz': None,
-                'mod_name_in_package': {'mymod.c': None},
+                'mod_name_in_package': {'foo.bar.baz': None,
+                                        'mymod.c': None},
                 'Release': '?'})
 
     @chdir_to_tmp
