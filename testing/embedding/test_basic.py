@@ -102,6 +102,7 @@ class EmbeddingTests:
                     assert m.endswith('.dll')
                     libfiles.append('Release\\%s.lib' % m[:-4])
                 modules = libfiles
+                extra_preargs.append('/MANIFEST')
             elif threads:
                 extra_preargs.append('-pthread')
             objects = c.compile([filename], macros=sorted(defines.items()), debug=True)
