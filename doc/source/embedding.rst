@@ -4,18 +4,18 @@ Using CFFI for embedding
 
 .. contents::
 
-You can use CFFI to generate a ``.so/.dll`` which exports the API of
-your choice to any C application that wants to link with this
-``.so/.dll``.
+You can use CFFI to generate a ``.so/.dll/.dylib`` which exports the
+API of your choice to any C application that wants to link with this
+``.so/.dll/.dylib``.
 
 The general idea is as follows:
 
-* You write and execute a Python script, which produces a ``.so/.dll``
-  file with the API of your choice.  The script also gives some Python
-  code to be "frozen" inside the ``.so``.
+* You write and execute a Python script, which produces a
+  ``.so/.dll/.dylib`` file with the API of your choice.  The script
+  also gives some Python code to be "frozen" inside the ``.so``.
 
-* At runtime, the C application loads this ``.so/.dll`` without having
-  to know that it was produced by Python and CFFI.
+* At runtime, the C application loads this ``.so/.dll/.dylib`` without
+  having to know that it was produced by Python and CFFI.
 
 * The first time a C function is called, Python is initialized and
   the frozen Python code is executed.
@@ -73,10 +73,10 @@ here this slightly expanded example:
     ffi.compile(target="plugin-1.5.*", verbose=True)
 
 Running the code above produces a *DLL*, i,e, a dynamically-loadable
-library.  It is a file with the extension ``.dll`` on Windows or
-``.so`` on other platforms.  As usual, it is produced by generating
-some intermediate ``.c`` code and then calling the regular
-platform-specific C compiler.
+library.  It is a file with the extension ``.dll`` on Windows,
+``.dylib`` on Mac OS/X, or ``.so`` on other platforms.  As usual, it
+is produced by generating some intermediate ``.c`` code and then
+calling the regular platform-specific C compiler.
 
 Here are some details about the methods used above:
 
@@ -143,12 +143,14 @@ Here are some details about the methods used above:
 
 * **ffi.compile([target=...] [, verbose=True]):** make the C code and
   compile it.  By default, it produces a file called
-  ``c_module_name.dll`` or ``c_module_name.so``, but the default can
-  be changed with the optional ``target`` keyword argument.  You can
-  use ``target="foo.*"`` with a literal ``*`` to ask for a file called
-  ``foo.dll`` on Windows or ``foo.so`` elsewhere.  One reason for
-  specifying an alternate ``target`` is to include characters not
-  usually allowed in Python module names, like "``plugin-1.5.*``".
+  ``c_module_name.dll``, ``c_module_name.dylib`` or
+  ``c_module_name.so``, but the default can be changed with the
+  optional ``target`` keyword argument.  You can use
+  ``target="foo.*"`` with a literal ``*`` to ask for a file called
+  ``foo.dll`` on Windows, ``foo.dylib`` on OS/X and ``foo.so``
+  elsewhere.  One reason for specifying an alternate ``target`` is to
+  include characters not usually allowed in Python module names, like
+  "``plugin-1.5.*``".
 
   For more complicated cases, you can call instead
   ``ffi.emit_c_code("foo.c")`` and compile the resulting ``foo.c``

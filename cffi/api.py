@@ -633,7 +633,7 @@ class FFI(object):
         compiled DLL.  Use '*' to force distutils' choice, suitable for
         regular CPython C API modules.  Use a file name ending in '.*'
         to ask for the system's default extension for dynamic libraries
-        (.so/.dll).
+        (.so/.dll/.dylib).
 
         The default is '*' when building a non-embedded C API extension,
         and (module_name + '.*') when building an embedded library.

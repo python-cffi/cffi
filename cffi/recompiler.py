@@ -1363,18 +1363,34 @@ def _modname_to_file(outputdir, modname, extension):
 # around that, in the _patch_for_*() functions...
 
 def _patch_meth(patchlist, cls, name, new_meth):
-    patchlist.append((cls, name, getattr(cls, name)))
+    old = getattr(cls, name)
+    patchlist.append((cls, name, old))
     setattr(cls, name, new_meth)
+    return old
 
 def _unpatch_meths(patchlist):
     for cls, name, old_meth in reversed(patchlist):
         setattr(cls, name, old_meth)
 
-def _patch_for_embedding_win32(patchlist):
-    from distutils.msvc9compiler import MSVCCompiler
-    # we must not remove the manifest when building for embedding!
-    _patch_meth(patchlist, MSVCCompiler, '_remove_visual_c_ref',
-                lambda self, manifest_file: manifest_file)
+def _patch_for_embedding(patchlist):
+    if sys.platform == 'win32':
+        # we must not remove the manifest when building for embedding!
+        from distutils.msvc9compiler import MSVCCompiler
+        _patch_meth(patchlist, MSVCCompiler, '_remove_visual_c_ref',
+                    lambda self, manifest_file: manifest_file)
+
+    if sys.platform == 'darwin':
+        # we must not make a '-bundle', but a '-dynamiclib' instead
+        from distutils.ccompiler import CCompiler
+        def my_link_shared_object(self, *args, **kwds):
+            if '-bundle' in self.linker_so:
+                self.linker_so = list(self.linker_so)
+                i = self.linker_so.index('-bundle')
+                self.linker_so[i] = '-dynamiclib'
+            return old_link_shared_object(self, *args, **kwds)
+        old_link_shared_object = _patch_meth(patchlist, CCompiler,
+                                             'link_shared_object',
+                                             my_link_shared_object)
 
 def _patch_for_target(patchlist, target):
     from distutils.command.build_ext import build_ext
@@ -1385,6 +1401,8 @@ def _patch_for_target(patchlist, target):
         target = target[:-2]
         if sys.platform == 'win32':
             target += '.dll'
+        elif sys.platform == 'darwin':
+            target += '.dylib'
         else:
             target += '.so'
     _patch_meth(patchlist, build_ext, 'get_ext_filename',
@@ -1423,8 +1441,8 @@ def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
             patchlist = []
             cwd = os.getcwd()
             try:
-                if embedding and sys.platform == 'win32':
-                    _patch_for_embedding_win32(patchlist)
+                if embedding:
+                    _patch_for_embedding(patchlist)
                 if target != '*':
                     _patch_for_target(patchlist, target)
                 os.chdir(tmpdir)

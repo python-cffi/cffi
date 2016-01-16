@@ -78,6 +78,8 @@ class EmbeddingTests:
             dynamic_lib_name = match.group(1)
             if sys.platform == 'win32':
                 assert dynamic_lib_name.endswith('_cffi.dll')
+            elif sys.platform == 'darwin':
+                assert dynamic_lib_name.endswith('_cffi.dylib')
             else:
                 assert dynamic_lib_name.endswith('_cffi.so')
             self._compiled_modules[name] = dynamic_lib_name
@@ -124,6 +126,8 @@ class EmbeddingTests:
         executable_name = name
         if sys.platform == 'win32':
             executable_name = os.path.join(path, executable_name + '.exe')
+        else:
+            executable_name = os.path.join('.', executable_name)
         popen = self._run_base([executable_name], env_extra, cwd=path,
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
