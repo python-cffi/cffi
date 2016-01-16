@@ -41,9 +41,14 @@ class EmbeddingTests:
     def get_path(self):
         return str(self._path.ensure(dir=1))
 
-    def _run(self, args, env=None):
-        print(args)
-        popen = subprocess.Popen(args, env=env, cwd=self.get_path(),
+    def _run_base(self, args, env_extra={}, **kwds):
+        print('RUNNING:', args, env_extra, kwds)
+        env = os.environ.copy()
+        env.update(env_extra)
+        return subprocess.Popen(args, env=env, **kwds)
+
+    def _run(self, args, env_extra={}):
+        popen = self._run_base(args, env_extra, cwd=self.get_path(),
                                  stdout=subprocess.PIPE,
                                  universal_newlines=True)
         output = popen.stdout.read()
@@ -64,10 +69,10 @@ class EmbeddingTests:
             # find a solution to that: we could hack sys.path inside the
             # script run here, but we can't hack it in the same way in
             # execute().
-            env = os.environ.copy()
-            env['PYTHONPATH'] = os.path.dirname(os.path.dirname(local_dir))
+            env_extra = {'PYTHONPATH':
+                         os.path.dirname(os.path.dirname(local_dir))}
             output = self._run([sys.executable, os.path.join(local_dir, filename)],
-                               env=env)
+                               env_extra=env_extra)
             match = re.compile(r"\bFILENAME: (.+)").search(output)
             assert match
             dynamic_lib_name = match.group(1)
@@ -106,21 +111,21 @@ class EmbeddingTests:
 
     def execute(self, name):
         path = self.get_path()
-        env = os.environ.copy()
-        env['PYTHONPATH'] = os.path.dirname(os.path.dirname(local_dir))
-        libpath = env.get('LD_LIBRARY_PATH')
+        env_extra = {}
+        env_extra['PYTHONPATH'] = os.path.dirname(os.path.dirname(local_dir))
+        libpath = os.environ.get('LD_LIBRARY_PATH')
         if libpath:
             libpath = path + ':' + libpath
         else:
             libpath = path
-        env['LD_LIBRARY_PATH'] = libpath
+        env_extra['LD_LIBRARY_PATH'] = libpath
         print('running %r in %r' % (name, path))
         executable_name = name
         if sys.platform == 'win32':
             executable_name = os.path.join(path, executable_name + '.exe')
-        popen = subprocess.Popen([executable_name], cwd=path, env=env,
-                                 stdout=subprocess.PIPE,
-                                 universal_newlines=True)
+        popen = self._run_base([executable_name], env_extra, cwd=path,
+                               stdout=subprocess.PIPE,
+                               universal_newlines=True)
         result = popen.stdout.read()
         err = popen.wait()
         if err:
