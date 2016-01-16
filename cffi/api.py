@@ -544,13 +544,15 @@ class FFI(object):
 
     def _apply_embedding_fix(self, kwds):
         # must include an argument like "-lpython2.7" for the compiler
+        def ensure(key, value):
+            lst = kwds.setdefault(key, [])
+            if value not in lst:
+                lst.append(value)
+        #
         if '__pypy__' in sys.builtin_module_names:
             if hasattr(sys, 'prefix'):
                 import os
-                libdir = os.path.join(sys.prefix, 'bin')
-                dirs = kwds.setdefault('library_dirs', [])
-                if libdir not in dirs:
-                    dirs.append(libdir)
+                ensure('library_dirs', os.path.join(sys.prefix, 'bin'))
             pythonlib = "pypy-c"
         else:
             if sys.platform == "win32":
@@ -563,9 +565,9 @@ class FFI(object):
                     (sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff))
             if hasattr(sys, 'abiflags'):
                 pythonlib += sys.abiflags
-        libraries = kwds.setdefault('libraries', [])
-        if pythonlib not in libraries:
-            libraries.append(pythonlib)
+        ensure('libraries', pythonlib)
+        if sys.platform == "win32":
+            ensure('extra_link_args', '/MANIFEST')
 
     def set_source(self, module_name, source, source_extension='.c', **kwds):
         if hasattr(self, '_assigned_source'):
