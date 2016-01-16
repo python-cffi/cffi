@@ -35,7 +35,7 @@ class EmbeddingTests:
     def setup_method(self, meth):
         check_lib_python_found(str(udir.ensure('embedding', dir=1)))
         self._path = udir.join('embedding', meth.__name__)
-        if sys.platform == "win32":
+        if sys.platform == "win32" or sys.platform == "darwin":
             self._compiled_modules.clear()   # workaround
 
     def get_path(self):
