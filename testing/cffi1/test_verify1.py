@@ -2091,20 +2091,20 @@ def test_verify_dlopen_flags():
     old = sys.getdlopenflags()
     try:
         ffi1 = FFI()
-        ffi1.cdef("int foo_verify_dlopen_flags;")
+        ffi1.cdef("int foo_verify_dlopen_flags_1;")
         sys.setdlopenflags(ffi1.RTLD_GLOBAL | ffi1.RTLD_NOW)
-        lib1 = ffi1.verify("int foo_verify_dlopen_flags;")
+        lib1 = ffi1.verify("int foo_verify_dlopen_flags_1;")
     finally:
         sys.setdlopenflags(old)
 
     ffi2 = FFI()
     ffi2.cdef("int *getptr(void);")
     lib2 = ffi2.verify("""
-        extern int foo_verify_dlopen_flags;
-        static int *getptr(void) { return &foo_verify_dlopen_flags; }
+        extern int foo_verify_dlopen_flags_1;
+        static int *getptr(void) { return &foo_verify_dlopen_flags_1; }
     """)
     p = lib2.getptr()
-    assert ffi1.addressof(lib1, 'foo_verify_dlopen_flags') == p
+    assert ffi1.addressof(lib1, 'foo_verify_dlopen_flags_1') == p
 
 def test_consider_not_implemented_function_type():
     ffi = FFI()
