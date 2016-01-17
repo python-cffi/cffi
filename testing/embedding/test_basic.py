@@ -31,10 +31,10 @@ def check_lib_python_found(tmpdir):
 
 def prefix_pythonpath():
     cffi_base = os.path.dirname(os.path.dirname(local_dir))
-    pythonpath = os.environ.get('PYTHONPATH', '').split(':')
+    pythonpath = os.environ.get('PYTHONPATH', '').split(os.pathsep)
     if cffi_base not in pythonpath:
         pythonpath.insert(0, cffi_base)
-    return ':'.join(pythonpath)
+    return os.pathsep.join(pythonpath)
 
 
 class EmbeddingTests:
