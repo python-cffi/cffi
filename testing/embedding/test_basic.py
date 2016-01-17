@@ -29,6 +29,14 @@ def check_lib_python_found(tmpdir):
         py.test.skip(str(_link_error))
 
 
+def prefix_pythonpath():
+    cffi_base = os.path.dirname(os.path.dirname(local_dir))
+    pythonpath = os.environ.get('PYTHONPATH', '').split(':')
+    if cffi_base not in pythonpath:
+        pythonpath.insert(0, cffi_base)
+    return ':'.join(pythonpath)
+
+
 class EmbeddingTests:
     _compiled_modules = {}
 
@@ -69,8 +77,7 @@ class EmbeddingTests:
             # find a solution to that: we could hack sys.path inside the
             # script run here, but we can't hack it in the same way in
             # execute().
-            env_extra = {'PYTHONPATH':
-                         os.path.dirname(os.path.dirname(local_dir))}
+            env_extra = {'PYTHONPATH': prefix_pythonpath()}
             output = self._run([sys.executable, os.path.join(local_dir, filename)],
                                env_extra=env_extra)
             match = re.compile(r"\bFILENAME: (.+)").search(output)
@@ -114,8 +121,7 @@ class EmbeddingTests:
 
     def execute(self, name):
         path = self.get_path()
-        env_extra = {}
-        env_extra['PYTHONPATH'] = os.path.dirname(os.path.dirname(local_dir))
+        env_extra = {'PYTHONPATH': prefix_pythonpath()}
         libpath = os.environ.get('LD_LIBRARY_PATH')
         if libpath:
             libpath = path + ':' + libpath
