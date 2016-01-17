@@ -565,6 +565,8 @@ class FFI(object):
                     (sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff))
             if hasattr(sys, 'abiflags'):
                 pythonlib += sys.abiflags
+            elif hasattr(sys, 'gettotalrefcount'):
+                pythonlib += '_d'
         ensure('libraries', pythonlib)
         if sys.platform == "win32":
             ensure('extra_link_args', '/MANIFEST')

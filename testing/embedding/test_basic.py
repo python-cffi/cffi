@@ -4,10 +4,6 @@ import shutil, subprocess, time
 from testing.udir import udir
 import cffi
 
-if hasattr(sys, 'gettotalrefcount'):
-    py.test.skip("tried hard and failed to have these tests run "
-                 "in a debug-mode python")
-
 
 local_dir = os.path.dirname(os.path.abspath(__file__))
 _link_error = '?'
