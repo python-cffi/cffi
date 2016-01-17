@@ -48,7 +48,8 @@ class TestDist(object):
             import setuptools
         except ImportError:
             py.test.skip("setuptools not found")
-        self.run(['setup.py', 'egg_info'], cwd=self.rootdir)
+        if os.path.exists(os.path.join(self.rootdir, 'setup.py')):
+            self.run(['setup.py', 'egg_info'], cwd=self.rootdir)
         TestDist._setuptools_ready = True
 
     def check_produced_files(self, content, curdir=None):
