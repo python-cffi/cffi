@@ -557,14 +557,16 @@ class FFI(object):
         else:
             if sys.platform == "win32":
                 template = "python%d%d"
+                if hasattr(sys, 'gettotalrefcount'):
+                    template += '_d'
             else:
                 template = "python%d.%d"
+                if sysconfig.get_config_var('DEBUG_EXT'):
+                    template += sysconfig.get_config_var('DEBUG_EXT')
             pythonlib = (template %
                     (sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff))
             if hasattr(sys, 'abiflags'):
                 pythonlib += sys.abiflags
-            elif sysconfig.get_config_var('DEBUG_EXT'):
-                pythonlib += sysconfig.get_config_var('DEBUG_EXT')
         ensure('libraries', pythonlib)
         if sys.platform == "win32":
             ensure('extra_link_args', '/MANIFEST')
