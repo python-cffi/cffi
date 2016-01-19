@@ -476,16 +476,20 @@ then points to this function.  What this function does is invoke the
 Python function object that is, at runtime, attached with
 ``@ffi.def_extern()``.
 
-The ``@ffi.def_extern()`` decorator should be applied to a global
-function, but *only once.*  This is because each function from the cdef with
-``extern "Python"`` turns into only one C function.  To support some
-corner cases, it is possible to redefine the attached Python function
-by calling ``@ffi.def_extern()`` again---but this is not recommended!
-Better write the single global Python function more flexibly in the
-first place.  Calling ``@ffi.def_extern()`` again changes the C logic
-to call the new Python function; the old Python function is not
-callable any more and the C function pointer you get from
-``lib.my_function`` is always the same.
+The ``@ffi.def_extern()`` decorator should be applied to **global
+functions,** one for each ``extern "Python"`` function of the same
+name.
+
+To support some corner cases, it is possible to redefine the attached
+Python function by calling ``@ffi.def_extern()`` again for the same
+name---but this is not recommended!  Better attach a single global
+Python function for this name, and write it more flexibly in the first
+place.  This is because each ``extern "Python"`` function turns into
+only one C function.  Calling ``@ffi.def_extern()`` again changes this
+function's C logic to call the new Python function; the old Python
+function is not callable any more.  The C function pointer you get
+from ``lib.my_function`` is always this C function's address, i.e. it
+remains the same.
 
 Extern "Python" and ``void *`` arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
