@@ -699,6 +699,10 @@ class FFI(object):
         #
         self._embedding = pysource
 
+    def def_extern(self, *args, **kwds):
+        raise ValueError("ffi.def_extern() is only available on API-mode FFI "
+                         "objects")
+
 
 def _load_backend_lib(backend, name, flags):
     if name is None:
