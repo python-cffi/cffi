@@ -118,12 +118,18 @@ class EmbeddingTests:
     def execute(self, name):
         path = self.get_path()
         env_extra = {'PYTHONPATH': prefix_pythonpath()}
-        libpath = os.environ.get('LD_LIBRARY_PATH')
-        if libpath:
-            libpath = path + ':' + libpath
+        if sys.platform == 'win32':
+            _path = os.environ.get('PATH')
+            # for libpypy-c.dll or Python27.dll
+            _path += ';' + os.path.split(sys.executable)[0]
+            env_extra['PATH'] = _path
         else:
-            libpath = path
-        env_extra['LD_LIBRARY_PATH'] = libpath
+            libpath = os.environ.get('LD_LIBRARY_PATH')
+            if libpath:
+                libpath = path + ':' + libpath
+            else:
+                libpath = path
+            env_extra['LD_LIBRARY_PATH'] = libpath
         print('running %r in %r' % (name, path))
         executable_name = name
         if sys.platform == 'win32':
