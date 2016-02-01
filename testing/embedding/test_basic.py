@@ -121,7 +121,7 @@ class EmbeddingTests:
         if sys.platform == 'win32':
             _path = os.environ.get('PATH')
             # for libpypy-c.dll or Python27.dll
-            _path += ';' + os.path.split(sys.executable)[0]
+            _path = os.path.split(sys.executable)[0] + ';' + _path
             env_extra['PATH'] = _path
         else:
             libpath = os.environ.get('LD_LIBRARY_PATH')
