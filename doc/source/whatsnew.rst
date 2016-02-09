@@ -3,6 +3,18 @@ What's New
 ======================
 
 
+v1.5.1
+======
+
+* A few installation-time tweaks (thanks Stefano!)
+
+* Issue #245: Win32: ``__stdcall`` was never generated for
+  ``extern "Python"`` functions
+
+* Issue #246: trying to be more robust against CPython's fragile
+  interpreter shutdown logic
+
+
 v1.5.0
 ======
 
