@@ -550,10 +550,19 @@ class FFI(object):
                 lst.append(value)
         #
         if '__pypy__' in sys.builtin_module_names:
-            if hasattr(sys, 'prefix'):
-                import os
-                ensure('library_dirs', os.path.join(sys.prefix, 'bin'))
-            pythonlib = "pypy-c"
+            if sys.platform == "win32":
+                # we need 'libpypy-c.lib' (included with recent pypy distrib)
+                # in addition to the runtime 'libpypy-c.dll'
+                pythonlib = "libpypy-c"
+                if hasattr(sys, 'prefix'):
+                    ensure('library_dirs', sys.prefix)
+            else:
+                # we need 'libpypy-c.{so,dylib}', which should be by
+                # default located in 'sys.prefix/bin'
+                pythonlib = "pypy-c"
+                if hasattr(sys, 'prefix'):
+                    import os
+                    ensure('library_dirs', os.path.join(sys.prefix, 'bin'))
         else:
             if sys.platform == "win32":
                 template = "python%d%d"
