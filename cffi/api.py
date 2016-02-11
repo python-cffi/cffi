@@ -549,25 +549,24 @@ class FFI(object):
             if value not in lst:
                 lst.append(value)
         #
-        if sys.platform == "win32":
-            # XXX pypy should not reuse the same import library name
-            template = "python%d%d"
-            if hasattr(sys, 'gettotalrefcount'):
-                template += '_d'
+        if '__pypy__' in sys.builtin_module_names:
+            if hasattr(sys, 'prefix'):
+                import os
+                ensure('library_dirs', os.path.join(sys.prefix, 'bin'))
+            pythonlib = "pypy-c"
         else:
-            if '__pypy__' in sys.builtin_module_names:
-                if hasattr(sys, 'prefix'):
-                    import os
-                    ensure('library_dirs', os.path.join(sys.prefix, 'bin'))
-                pythonlib = "pypy-c"
+            if sys.platform == "win32":
+                template = "python%d%d"
+                if hasattr(sys, 'gettotalrefcount'):
+                    template += '_d'
             else:
                 template = "python%d.%d"
                 if sysconfig.get_config_var('DEBUG_EXT'):
                     template += sysconfig.get_config_var('DEBUG_EXT')
-        pythonlib = (template %
-                (sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff))
-        if hasattr(sys, 'abiflags'):
-            pythonlib += sys.abiflags
+            pythonlib = (template %
+                    (sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff))
+            if hasattr(sys, 'abiflags'):
+                pythonlib += sys.abiflags
         ensure('libraries', pythonlib)
         if sys.platform == "win32":
             ensure('extra_link_args', '/MANIFEST')
