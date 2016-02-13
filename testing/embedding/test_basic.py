@@ -100,6 +100,7 @@ class EmbeddingTests:
             c = distutils.ccompiler.new_compiler()
             print('compiling %s with %r' % (name, modules))
             extra_preargs = []
+            debug = True
             if sys.platform == 'win32':
                 libfiles = []
                 for m in modules:
@@ -108,9 +109,12 @@ class EmbeddingTests:
                     libfiles.append('Release\\%s.lib' % m[:-4])
                 modules = libfiles
                 extra_preargs.append('/MANIFEST')
+                debug = False    # you need to install extra stuff
+                                 # for this to work
             elif threads:
                 extra_preargs.append('-pthread')
-            objects = c.compile([filename], macros=sorted(defines.items()), debug=True)
+            objects = c.compile([filename], macros=sorted(defines.items()),
+                                debug=debug)
             c.link_executable(objects + modules, name, extra_preargs=extra_preargs)
         finally:
             os.chdir(curdir)
