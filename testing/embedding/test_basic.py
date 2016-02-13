@@ -4,10 +4,6 @@ import shutil, subprocess, time
 from testing.udir import udir
 import cffi
 
-if hasattr(sys, 'gettotalrefcount'):
-    py.test.skip("tried hard and failed to have these tests run "
-                 "in a debug-mode python")
-
 
 local_dir = os.path.dirname(os.path.abspath(__file__))
 _link_error = '?'
@@ -27,6 +23,14 @@ def check_lib_python_found(tmpdir):
             _link_error = None
     if _link_error:
         py.test.skip(str(_link_error))
+
+
+def prefix_pythonpath():
+    cffi_base = os.path.dirname(os.path.dirname(local_dir))
+    pythonpath = os.environ.get('PYTHONPATH', '').split(os.pathsep)
+    if cffi_base not in pythonpath:
+        pythonpath.insert(0, cffi_base)
+    return os.pathsep.join(pythonpath)
 
 
 class EmbeddingTests:
@@ -69,8 +73,7 @@ class EmbeddingTests:
             # find a solution to that: we could hack sys.path inside the
             # script run here, but we can't hack it in the same way in
             # execute().
-            env_extra = {'PYTHONPATH':
-                         os.path.dirname(os.path.dirname(local_dir))}
+            env_extra = {'PYTHONPATH': prefix_pythonpath()}
             output = self._run([sys.executable, os.path.join(local_dir, filename)],
                                env_extra=env_extra)
             match = re.compile(r"\bFILENAME: (.+)").search(output)
@@ -114,14 +117,19 @@ class EmbeddingTests:
 
     def execute(self, name):
         path = self.get_path()
-        env_extra = {}
-        env_extra['PYTHONPATH'] = os.path.dirname(os.path.dirname(local_dir))
-        libpath = os.environ.get('LD_LIBRARY_PATH')
-        if libpath:
-            libpath = path + ':' + libpath
+        env_extra = {'PYTHONPATH': prefix_pythonpath()}
+        if sys.platform == 'win32':
+            _path = os.environ.get('PATH')
+            # for libpypy-c.dll or Python27.dll
+            _path = os.path.split(sys.executable)[0] + ';' + _path
+            env_extra['PATH'] = _path
         else:
-            libpath = path
-        env_extra['LD_LIBRARY_PATH'] = libpath
+            libpath = os.environ.get('LD_LIBRARY_PATH')
+            if libpath:
+                libpath = path + ':' + libpath
+            else:
+                libpath = path
+            env_extra['LD_LIBRARY_PATH'] = libpath
         print('running %r in %r' % (name, path))
         executable_name = name
         if sys.platform == 'win32':

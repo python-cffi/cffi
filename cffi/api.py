@@ -1,4 +1,4 @@
-import sys, types
+import sys, sysconfig, types
 from .lock import allocate_lock
 
 try:
@@ -550,17 +550,28 @@ class FFI(object):
                 lst.append(value)
         #
         if '__pypy__' in sys.builtin_module_names:
-            if hasattr(sys, 'prefix'):
-                import os
-                ensure('library_dirs', os.path.join(sys.prefix, 'bin'))
-            pythonlib = "pypy-c"
+            if sys.platform == "win32":
+                # we need 'libpypy-c.lib' (included with recent pypy distrib)
+                # in addition to the runtime 'libpypy-c.dll'
+                pythonlib = "libpypy-c"
+                if hasattr(sys, 'prefix'):
+                    ensure('library_dirs', sys.prefix)
+            else:
+                # we need 'libpypy-c.{so,dylib}', which should be by
+                # default located in 'sys.prefix/bin'
+                pythonlib = "pypy-c"
+                if hasattr(sys, 'prefix'):
+                    import os
+                    ensure('library_dirs', os.path.join(sys.prefix, 'bin'))
         else:
             if sys.platform == "win32":
                 template = "python%d%d"
-                if sys.flags.debug:
-                    template = template + '_d'
+                if hasattr(sys, 'gettotalrefcount'):
+                    template += '_d'
             else:
                 template = "python%d.%d"
+                if sysconfig.get_config_var('DEBUG_EXT'):
+                    template += sysconfig.get_config_var('DEBUG_EXT')
             pythonlib = (template %
                     (sys.hexversion >> 24, (sys.hexversion >> 16) & 0xff))
             if hasattr(sys, 'abiflags'):
@@ -696,6 +707,10 @@ class FFI(object):
         compile(pysource, "cffi_init", "exec")
         #
         self._embedding = pysource
+
+    def def_extern(self, *args, **kwds):
+        raise ValueError("ffi.def_extern() is only available on API-mode FFI "
+                         "objects")
 
 
 def _load_backend_lib(backend, name, flags):

@@ -1170,6 +1170,8 @@ class Recompiler:
         repr_arguments = ', '.join(arguments)
         repr_arguments = repr_arguments or 'void'
         name_and_arguments = '%s(%s)' % (name, repr_arguments)
+        if tp.abi == "__stdcall":
+            name_and_arguments = '_cffi_stdcall ' + name_and_arguments
         #
         def may_need_128_bits(tp):
             return (isinstance(tp, model.PrimitiveType) and

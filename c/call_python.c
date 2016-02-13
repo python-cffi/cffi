@@ -115,6 +115,7 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
 static int _update_cache_to_call_python(struct _cffi_externpy_s *externpy)
 {
     PyObject *interpstate_dict, *interpstate_key, *infotuple, *old1, *new1;
+    PyObject *old2;
 
     interpstate_dict = _get_interpstate_dict();
     if (interpstate_dict == NULL)
@@ -127,14 +128,17 @@ static int _update_cache_to_call_python(struct _cffi_externpy_s *externpy)
     infotuple = PyDict_GetItem(interpstate_dict, interpstate_key);
     Py_DECREF(interpstate_key);
     if (infotuple == NULL)
-        return 1;    /* no ffi.def_extern() from this subinterpreter */
+        return 3;    /* no ffi.def_extern() from this subinterpreter */
 
     new1 = PyThreadState_GET()->interp->modules;
     Py_INCREF(new1);
+    Py_INCREF(infotuple);
     old1 = (PyObject *)externpy->reserved1;
+    old2 = (PyObject *)externpy->reserved2;
     externpy->reserved1 = new1;         /* holds a reference        */
-    externpy->reserved2 = infotuple;    /* doesn't hold a reference */
+    externpy->reserved2 = infotuple;    /* holds a reference (issue #246) */
     Py_XDECREF(old1);
+    Py_XDECREF(old2);
 
     return 0;   /* no error */
 
@@ -213,9 +217,11 @@ static void cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
         gil_release(state);
     }
     if (err) {
-        static const char *msg[2] = {
+        static const char *msg[] = {
             "no code was attached to it yet with @ffi.def_extern()",
-            "got internal exception (out of memory?)" };
+            "got internal exception (out of memory / shutdown issue)",
+            "@ffi.def_extern() was not called in the current subinterpreter",
+        };
         fprintf(stderr, "extern \"Python\": function %s() called, "
                         "but %s.  Returning 0.\n", externpy->name, msg[err-1]);
         memset(args, 0, externpy->size_of_result);
