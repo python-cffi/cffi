@@ -1,4 +1,4 @@
-import sys, sysconfig, types
+import sys, types
 from .lock import allocate_lock
 
 try:
@@ -571,6 +571,10 @@ class FFI(object):
                 if hasattr(sys, 'gettotalrefcount'):
                     template += '_d'
             else:
+                try:
+                    import sysconfig
+                except ImportError:    # 2.6
+                    from distutils import sysconfig
                 template = "python%d.%d"
                 if sysconfig.get_config_var('DEBUG_EXT'):
                     template += sysconfig.get_config_var('DEBUG_EXT')
