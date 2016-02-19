@@ -303,8 +303,8 @@ inaccuracies in this paragraph or better ways to do things.)
   -Wl,-rpath=/path/to/libmyplugin``, possibly with ``$ORIGIN``.  The
   ``$`` in ``$ORIGIN`` causes various shell problems on its own: if
   using a common shell you need to say ``gcc
-  -Wl,-rpath=\$ORIGIN/../venv/bin``.  From a Makefile, you need to say
-  something like ``gcc -Wl,-rpath=\$$ORIGIN/../venv/bin``.
+  -Wl,-rpath=\$ORIGIN``.  From a Makefile, you need to say
+  something like ``gcc -Wl,-rpath=\$$ORIGIN``.
 
 
 Using multiple CFFI-made DLLs
