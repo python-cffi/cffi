@@ -76,7 +76,10 @@ Running the code above produces a *DLL*, i,e, a dynamically-loadable
 library.  It is a file with the extension ``.dll`` on Windows,
 ``.dylib`` on Mac OS/X, or ``.so`` on other platforms.  As usual, it
 is produced by generating some intermediate ``.c`` code and then
-calling the regular platform-specific C compiler.
+calling the regular platform-specific C compiler.  See below__ for
+some pointers to C-level issues with using the probuced library.
+
+.. __: `Issues about using the .so`_
 
 Here are some details about the methods used above:
 
@@ -229,6 +232,79 @@ The error message
 
 means that the running Python interpreter located a CFFI version older
 than 1.5.  CFFI 1.5 or newer must be installed in the running Python.
+
+
+Issues about using the .so
+--------------------------
+
+This paragraph describes issues that are not necessarily specific to
+CFFI.  It assumes that you have obtained the ``.so/.dylib/.dll`` file as
+described above, but that you have troubles using it.  (In summary: it
+is a mess.  This is my own experience, slowly built by using Google and
+by listening to reports from various platforms.  Please report any
+inaccuracies in this paragraph or better ways to do things.)
+
+* The file produced by CFFI should follow this naming pattern:
+  ``libmy_plugin.so`` on Linux, ``libmy_plugin.dylib`` on Mac, or
+  ``my_plugin.dll`` on Windows (no ``lib`` prefix on Windows).
+
+* First note that this file does not contain the Python interpreter
+  nor the standard library of Python.  You still need it to be
+  somewhere.  There are ways to compact it to a smaller number of files,
+  but this is outside the scope of CFFI (please report if you used some
+  of these ways successfully so that I can add some links here).
+
+* In what we'll call the "main program", the ``.so`` can be either
+  used dynamically (e.g. by calling ``dlopen()`` or ``LoadLibrary()``
+  inside the main program), or at compile-time (e.g. by compiling it
+  with ``gcc -lmy_plugin``).  The former case is always used if you're
+  building a plugin for a program, and the program itself doesn't need
+  to be recompiled.  The latter case is for making a CFFI library that
+  is more tightly integrated inside the main program.
+
+* In the case of compile-time usage: you can add the gcc
+  option ``-Lsome/path/`` before ``-lmy_plugin`` to describe where the
+  ``libmy_plugin.so`` is.  On some platforms, notably Linux, ``gcc``
+  will complain if it can find ``libmy_plugin.so`` but not
+  ``libpython27.so`` or ``libpypy-c.so``.  To fix it, you need to call
+  ``LD_LIBRARY_PATH=/some/path/to/libpypy gcc``.
+
+* When actually executing the main program, it needs to find the
+  ``libmy_plugin.so`` but also ``libpython27.so`` or ``libpypy-c.so``.
+  For PyPy, unpack a PyPy distribution and you get a full directory
+  structure with ``libpypy-c.so`` inside a ``bin`` subdirectory, or on
+  Windows ``pypy-c.dll`` inside the top directory; you must not move
+  this file around, but just point to it.  One way to point to it is by
+  running the main program with some environment variable:
+  ``LD_LIBRARY_PATH=/some/path/to/libpypy`` on Linux,
+  ``DYLD_LIBRARY_PATH=/some/path/to/libpypy`` on OS/X.
+
+* You can avoid the ``LD_LIBRARY_PATH`` issue if you compile
+  ``libmy_plugin.so`` with the path hard-coded inside in the first
+  place.  On Linux, this is done by ``gcc -Wl,-rpath=/some/path``.  You
+  would put this option in ``ffi.set_source("my_plugin", ...,
+  extra_link_args=['-Wl,-rpath=/some/path/to/libpypy'])``.  The path can
+  start with ``$ORIGIN`` to mean "the directory where
+  ``libmy_plugin.so`` is".  You can then specify a path relative to that
+  place, like ``extra_link_args=['-Wl,-rpath=$ORIGIN/../venv/bin']``.
+  Use ``ldd libmy_plugin.so`` to look at what path is currently compiled
+  in after the expansion of ``$ORIGIN``.)
+
+  After this, you don't need ``LD_LIBRARY_PATH`` any more to locate
+  ``libpython27.so`` or ``libpypy-c.so`` at runtime.  In theory it
+  should also cover the call to ``gcc`` for the main program.  I wasn't
+  able to make ``gcc`` happy without ``LD_LIBRARY_PATH`` on Linux if
+  the rpath starts with ``$ORIGIN``, though.
+
+* The same rpath trick might be used to let the main program find
+  ``libmy_plugin.so`` in the first place without ``LD_LIBRARY_PATH``.
+  (This doesn't apply if the main program uses ``dlopen()`` to load it
+  as a dynamic plugin.)  You'd make the main program with ``gcc
+  -Wl,-rpath=/path/to/libmyplugin``, possibly with ``$ORIGIN``.  The
+  ``$`` in ``$ORIGIN`` causes various shell problems on its own: if
+  using a common shell you need to say ``gcc
+  -Wl,-rpath=\$ORIGIN/../venv/bin``.  From a Makefile, you need to say
+  something like ``gcc -Wl,-rpath=\$$ORIGIN/../venv/bin``.
 
 
 Using multiple CFFI-made DLLs
