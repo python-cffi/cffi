@@ -109,6 +109,14 @@ In order of complexity:
         install_requires=["cffi>=1.0.0"],
     )
 
+* Note that some bundler tools that try to find all modules used by a
+  project, like PyInstaller, will miss ``_cffi_backend`` in the
+  out-of-line mode because your program contains no explicit ``import
+  cffi`` or ``import _cffi_backend``.  You need to add
+  ``_cffi_backend`` explicitly (as a "hidden import" in PyInstaller,
+  but it can also be done more generally by adding the line ``import
+  _cffi_backend`` in your main program).
+
 Note that CFFI actually contains two different ``FFI`` classes.  The
 page `Using the ffi/lib objects`_ describes the common functionality.
 It is what you get in the ``from package._foo import ffi`` lines above.
