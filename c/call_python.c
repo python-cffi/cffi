@@ -1,25 +1,52 @@
 
 static PyObject *_get_interpstate_dict(void)
 {
-    /* hack around to return a dict that is subinterpreter-local */
+    /* Hack around to return a dict that is subinterpreter-local.
+       Does not return a new reference.  Returns NULL in case of
+       error, but without setting any exception.  (If called late
+       during shutdown, we *can't* set an exception!)
+    */
+    static PyObject *attr_name = NULL;
+    PyThreadState *tstate;
+    PyObject *d, *builtins;
     int err;
-    PyObject *m, *modules = PyThreadState_GET()->interp->modules;
 
-    if (modules == NULL) {
-        PyErr_SetString(FFIError, "subinterpreter already gone?");
+    tstate = PyThreadState_GET();
+    if (tstate == NULL) {
+        /* no thread state! */
         return NULL;
     }
-    m = PyDict_GetItemString(modules, "_cffi_backend._extern_py");
-    if (m == NULL) {
-        m = PyModule_New("_cffi_backend._extern_py");
-        if (m == NULL)
-            return NULL;
-        err = PyDict_SetItemString(modules, "_cffi_backend._extern_py", m);
-        Py_DECREF(m);    /* sys.modules keeps one reference to m */
-        if (err < 0)
-            return NULL;
+
+    builtins = tstate->interp->builtins;
+    if (builtins == NULL) {
+        /* subinterpreter was cleared already, or is being cleared right now,
+           to a point that is too much for us to continue */
+        return NULL;
     }
-    return PyModule_GetDict(m);
+
+    /* from there on, we know the (sub-)interpreter is still valid */
+
+    if (attr_name == NULL) {
+        attr_name = PyString_InternFromString("__cffi_backend_extern_py");
+        if (attr_name == NULL)
+            goto error;
+    }
+
+    d = PyDict_GetItem(builtins, attr_name);
+    if (d == NULL) {
+        d = PyDict_New();
+        if (d == NULL)
+            goto error;
+        err = PyDict_SetItem(builtins, attr_name, d);
+        Py_DECREF(d);    /* if successful, there is one ref left in builtins */
+        if (err < 0)
+            goto error;
+    }
+    return d;
+
+ error:
+    PyErr_Clear();    /* typically a MemoryError */
+    return NULL;
 }
 
 static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
@@ -77,7 +104,7 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
     interpstate_dict = _get_interpstate_dict();
     if (interpstate_dict == NULL) {
         Py_DECREF(infotuple);
-        return NULL;
+        return PyErr_NoMemory();
     }
 
     externpy = (struct _cffi_externpy_s *)g->address;
@@ -119,7 +146,7 @@ static int _update_cache_to_call_python(struct _cffi_externpy_s *externpy)
 
     interpstate_dict = _get_interpstate_dict();
     if (interpstate_dict == NULL)
-        goto error;
+        return 4;    /* oops, shutdown issue? */
 
     interpstate_key = PyLong_FromVoidPtr((void *)externpy);
     if (interpstate_key == NULL)
@@ -219,8 +246,9 @@ static void cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
     if (err) {
         static const char *msg[] = {
             "no code was attached to it yet with @ffi.def_extern()",
-            "got internal exception (out of memory / shutdown issue)",
+            "got internal exception (out of memory?)",
             "@ffi.def_extern() was not called in the current subinterpreter",
+            "got internal exception (shutdown issue?)",
         };
         fprintf(stderr, "extern \"Python\": function %s() called, "
                         "but %s.  Returning 0.\n", externpy->name, msg[err-1]);
