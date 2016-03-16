@@ -142,7 +142,7 @@ class EmbeddingTests:
         env_extra[envname] = libpath
         for key, value in sorted(env_extra.items()):
             if os.environ.get(key) != value:
-                print '* setting env var %r to %r' % (key, value)
+                print('* setting env var %r to %r' % (key, value))
                 os.environ[key] = value
 
     def execute(self, name):
