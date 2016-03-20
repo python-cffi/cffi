@@ -28,9 +28,8 @@ One of the goals of this approach is to be entirely independent from
 the CPython C API: no ``Py_Initialize()`` nor ``PyRun_SimpleString()``
 nor even ``PyObject``.  It works identically on CPython and PyPy.
 
-.. note:: PyPy release 4.0.1 contains CFFI 1.4 only.
-
-This is entirely *new in version 1.5.*
+This is entirely *new in version 1.5.*  (PyPy contains CFFI 1.5 since
+release 5.0.)
 
 
 Usage
