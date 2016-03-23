@@ -2,9 +2,9 @@
 CFFI documentation
 ================================
 
-C Foreign Function Interface for Python. The goal is to provide a
-convenient and reliable way to call compiled C code from Python using
-interface declarations written in C.
+C Foreign Function Interface for Python.  Interact with almost any C
+code from Python, based on C-like declarations that you can often
+copy-paste from header files or documentation.
 
 * Goals_
 
