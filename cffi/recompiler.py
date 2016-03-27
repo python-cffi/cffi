@@ -1484,4 +1484,7 @@ def _verify(ffi, module_name, preamble, *args, **kwds):
     def typeof_disabled(*args, **kwds):
         raise NotImplementedError
     ffi._typeof = typeof_disabled
+    for name in dir(ffi):
+        if not name.startswith('_') and not hasattr(module.ffi, name):
+            setattr(ffi, name, NotImplemented)
     return module.lib

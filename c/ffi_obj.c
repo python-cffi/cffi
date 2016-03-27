@@ -862,6 +862,57 @@ static PyObject *ffi_int_const(FFIObject *self, PyObject *args, PyObject *kwds)
     return x;
 }
 
+PyDoc_STRVAR(ffi_list_types_doc,
+"Build and return a list of all user type names known in this FFI instance.\n"
+"\n"
+"Contains typedef names (sorted in alphabetical order), followed by the\n"
+"'struct xxx' (sorted) and finally the 'union xxx' (sorted as well).");
+
+static PyObject *ffi_list_types(FFIObject *self, PyObject *noargs)
+{
+    int is_union, look_for_union;
+    Py_ssize_t i, n1 = self->types_builder.ctx.num_typenames;
+    Py_ssize_t n23 = self->types_builder.ctx.num_struct_unions;
+    PyObject *o, *result = PyList_New(n1);
+    if (result == NULL)
+        return NULL;
+
+    for (i = 0; i < n1; i++) {
+        o = PyText_FromString(self->types_builder.ctx.typenames[i].name);
+        if (o == NULL)
+            goto error;
+        PyList_SET_ITEM(result, i, o);
+    }
+
+    for (look_for_union = 0; look_for_union < 2; look_for_union++) {
+        for (i = 0; i < n23; i++) {
+            const struct _cffi_struct_union_s *s;
+            int err;
+
+            s = &self->types_builder.ctx.struct_unions[i];
+            if (s->name[0] == '$')
+                continue;
+
+            is_union = (s->flags & _CFFI_F_UNION) != 0;
+            if (is_union != look_for_union)
+                continue;
+
+            o = PyText_FromFormat(is_union ? "union %s" : "struct %s", s->name);
+            if (o == NULL)
+                goto error;
+            err = PyList_Append(result, o);
+            Py_DECREF(o);
+            if (err < 0)
+                goto error;
+        }
+    }
+    return result;
+
+ error:
+    Py_DECREF(result);
+    return NULL;
+}
+
 PyDoc_STRVAR(ffi_memmove_doc,
 "ffi.memmove(dest, src, n) copies n bytes of memory from src to dest.\n"
 "\n"
@@ -1030,6 +1081,7 @@ static PyMethodDef ffi_methods[] = {
 #endif
  {"init_once",  (PyCFunction)ffi_init_once,  METH_VKW,     ffi_init_once_doc},
  {"integer_const",(PyCFunction)ffi_int_const,METH_VKW,     ffi_int_const_doc},
+ {"list_types", (PyCFunction)ffi_list_types, METH_NOARGS,  ffi_list_types_doc},
  {"memmove",    (PyCFunction)ffi_memmove,    METH_VKW,     ffi_memmove_doc},
  {"new",        (PyCFunction)ffi_new,        METH_VKW,     ffi_new_doc},
 {"new_allocator",(PyCFunction)ffi_new_allocator,METH_VKW,ffi_new_allocator_doc},

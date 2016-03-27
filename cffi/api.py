@@ -721,6 +721,27 @@ class FFI(object):
         raise ValueError("ffi.def_extern() is only available on API-mode FFI "
                          "objects")
 
+    def list_types(self):
+        """Build and return a list of all user type names known in this FFI
+        instance.  Contains typedef names (sorted in alphabetical order),
+        followed by the 'struct xxx' (sorted) and finally the 'union xxx'
+        (sorted as well).
+        """
+        typedefs = []
+        structs = []
+        unions = []
+        for key in self._parser._declarations:
+            if key.startswith('typedef '):
+                typedefs.append(key[8:])
+            elif key.startswith('struct '):
+                structs.append(key)
+            elif key.startswith('union '):
+                unions.append(key)
+        typedefs.sort()
+        structs.sort()
+        unions.sort()
+        return typedefs + structs + unions
+
 
 def _load_backend_lib(backend, name, flags):
     if name is None:
