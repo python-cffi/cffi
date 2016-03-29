@@ -1228,6 +1228,11 @@ example::
 
 .. __: https://bitbucket.org/cffi/cffi/issues/233/
 
+**ffi.list_types()**: builds and returns a list of all user type names
+known in this FFI instance.  The list contains typedef names (sorted in
+alphabetical order), followed by the 'struct xxx' (sorted) and finally
+the 'union xxx' (sorted as well).  *New in version 1.6.*
+
 
 .. _`Preparing and Distributing modules`: cdef.html#loading-libraries
 
