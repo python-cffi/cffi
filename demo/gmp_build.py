@@ -23,5 +23,4 @@ ffi.set_source('_gmp_cffi', "#include <gmp.h>",
                  libraries=['gmp', 'm'])
 
 if __name__ == '__main__':
-    ffi.compile()
-
+    ffi.compile(verbose=True)
