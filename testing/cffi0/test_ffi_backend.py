@@ -427,31 +427,32 @@ class TestBitfield:
     def test_introspect_typedef(self):
         ffi = FFI()
         ffi.cdef("typedef int foo_t;")
-        assert ffi.list_types() == ['foo_t']
+        assert ffi.list_types() == (['foo_t'], [], [])
         assert ffi.typeof('foo_t').kind == 'primitive'
         assert ffi.typeof('foo_t').cname == 'int'
         #
         ffi.cdef("typedef signed char a_t, c_t, g_t, b_t;")
-        assert ffi.list_types() == ['a_t', 'b_t', 'c_t', 'foo_t', 'g_t']
+        assert ffi.list_types() == (['a_t', 'b_t', 'c_t', 'foo_t', 'g_t'],
+                                    [], [])
 
     def test_introspect_struct(self):
         ffi = FFI()
         ffi.cdef("struct foo_s { int a; };")
-        assert ffi.list_types() == ['struct foo_s']
+        assert ffi.list_types() == ([], ['foo_s'], [])
         assert ffi.typeof('struct foo_s').kind == 'struct'
         assert ffi.typeof('struct foo_s').cname == 'struct foo_s'
 
     def test_introspect_union(self):
         ffi = FFI()
         ffi.cdef("union foo_s { int a; };")
-        assert ffi.list_types() == ['union foo_s']
+        assert ffi.list_types() == ([], [], ['foo_s'])
         assert ffi.typeof('union foo_s').kind == 'union'
         assert ffi.typeof('union foo_s').cname == 'union foo_s'
 
     def test_introspect_struct_and_typedef(self):
         ffi = FFI()
         ffi.cdef("typedef struct { int a; } foo_t;")
-        assert ffi.list_types() == ['foo_t']
+        assert ffi.list_types() == (['foo_t'], [], [])
         assert ffi.typeof('foo_t').kind == 'struct'
         assert ffi.typeof('foo_t').cname == 'foo_t'
 
@@ -460,14 +461,14 @@ class TestBitfield:
         ffi2 = FFI()
         ffi1.cdef("typedef signed char schar_t; struct sint_t { int x; };")
         ffi2.include(ffi1)
-        assert ffi1.list_types() == sorted(ffi2.list_types()) == [
-            'schar_t', 'struct sint_t']
+        assert ffi1.list_types() == ffi2.list_types() == (
+            ['schar_t'], ['sint_t'], [])
 
     def test_introspect_order(self):
         ffi = FFI()
         ffi.cdef("union aaa { int a; }; typedef struct ccc { int a; } b;")
         ffi.cdef("union g   { int a; }; typedef struct cc  { int a; } bbb;")
         ffi.cdef("union aa  { int a; }; typedef struct a   { int a; } bb;")
-        assert ffi.list_types() == ['b', 'bb', 'bbb',
-                                    'struct a', 'struct cc', 'struct ccc',
-                                    'union aa', 'union aaa', 'union g']
+        assert ffi.list_types() == (['b', 'bb', 'bbb'],
+                                    ['a', 'cc', 'ccc'],
+                                    ['aa', 'aaa', 'g'])

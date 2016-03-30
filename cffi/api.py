@@ -722,10 +722,9 @@ class FFI(object):
                          "objects")
 
     def list_types(self):
-        """Build and return a list of all user type names known in this FFI
-        instance.  Contains typedef names (sorted in alphabetical order),
-        followed by the 'struct xxx' (sorted) and finally the 'union xxx'
-        (sorted as well).
+        """Returns the user type names known to this FFI instance.
+        This returns a tuple containing three lists of names:
+        (typedef_names, names_of_structs, names_of_unions)
         """
         typedefs = []
         structs = []
@@ -734,13 +733,13 @@ class FFI(object):
             if key.startswith('typedef '):
                 typedefs.append(key[8:])
             elif key.startswith('struct '):
-                structs.append(key)
+                structs.append(key[7:])
             elif key.startswith('union '):
-                unions.append(key)
+                unions.append(key[6:])
         typedefs.sort()
         structs.sort()
         unions.sort()
-        return typedefs + structs + unions
+        return (typedefs, structs, unions)
 
 
 def _load_backend_lib(backend, name, flags):

@@ -863,54 +863,57 @@ static PyObject *ffi_int_const(FFIObject *self, PyObject *args, PyObject *kwds)
 }
 
 PyDoc_STRVAR(ffi_list_types_doc,
-"Build and return a list of all user type names known in this FFI instance.\n"
-"\n"
-"Contains typedef names (sorted in alphabetical order), followed by the\n"
-"'struct xxx' (sorted) and finally the 'union xxx' (sorted as well).");
+"Returns the user type names known to this FFI instance.\n"
+"This returns a tuple containing three lists of names:\n"
+"(typedef_names, names_of_structs, names_of_unions)");
 
 static PyObject *ffi_list_types(FFIObject *self, PyObject *noargs)
 {
-    int is_union, look_for_union;
     Py_ssize_t i, n1 = self->types_builder.ctx.num_typenames;
     Py_ssize_t n23 = self->types_builder.ctx.num_struct_unions;
-    PyObject *o, *result = PyList_New(n1);
-    if (result == NULL)
-        return NULL;
+    PyObject *o, *lst[3] = {NULL, NULL, NULL}, *result = NULL;
+
+    lst[0] = PyList_New(n1);
+    if (lst[0] == NULL)
+        goto error;
+    lst[1] = PyList_New(0);
+    if (lst[1] == NULL)
+        goto error;
+    lst[2] = PyList_New(0);
+    if (lst[2] == NULL)
+        goto error;
 
     for (i = 0; i < n1; i++) {
         o = PyText_FromString(self->types_builder.ctx.typenames[i].name);
         if (o == NULL)
             goto error;
-        PyList_SET_ITEM(result, i, o);
+        PyList_SET_ITEM(lst[0], i, o);
     }
 
-    for (look_for_union = 0; look_for_union < 2; look_for_union++) {
-        for (i = 0; i < n23; i++) {
-            const struct _cffi_struct_union_s *s;
-            int err;
+    for (i = 0; i < n23; i++) {
+        const struct _cffi_struct_union_s *s;
+        int err, index;
 
-            s = &self->types_builder.ctx.struct_unions[i];
-            if (s->name[0] == '$')
-                continue;
+        s = &self->types_builder.ctx.struct_unions[i];
+        if (s->name[0] == '$')
+            continue;
 
-            is_union = (s->flags & _CFFI_F_UNION) != 0;
-            if (is_union != look_for_union)
-                continue;
-
-            o = PyText_FromFormat(is_union ? "union %s" : "struct %s", s->name);
-            if (o == NULL)
-                goto error;
-            err = PyList_Append(result, o);
-            Py_DECREF(o);
-            if (err < 0)
-                goto error;
-        }
+        o = PyText_FromString(s->name);
+        if (o == NULL)
+            goto error;
+        index = (s->flags & _CFFI_F_UNION) ? 2 : 1;
+        err = PyList_Append(lst[index], o);
+        Py_DECREF(o);
+        if (err < 0)
+            goto error;
     }
-    return result;
-
+    result = PyTuple_Pack(3, lst[0], lst[1], lst[2]);
+    /* fall-through */
  error:
-    Py_DECREF(result);
-    return NULL;
+    Py_XDECREF(lst[2]);
+    Py_XDECREF(lst[1]);
+    Py_XDECREF(lst[0]);
+    return result;
 }
 
 PyDoc_STRVAR(ffi_memmove_doc,
