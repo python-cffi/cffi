@@ -80,7 +80,7 @@ void *volatile _PyThreadState_Current;
 
 static PyThreadState *get_current_ts(void)
 {
-#if PY_MAJOR_VERSION >= 3
+#if defined(_Py_atomic_load_relaxed)
     return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
 #else
     return _PyThreadState_Current;
