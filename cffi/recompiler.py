@@ -1231,7 +1231,7 @@ class Recompiler:
             if c == '\n': return '\\n'
             return '\\%03o' % ord(c)
         lines = []
-        for line in s.splitlines(True):
+        for line in s.splitlines(True) or ['']:
             lines.append('"%s"' % ''.join([_char_repr(c) for c in line]))
         return ' \\\n'.join(lines)
 
