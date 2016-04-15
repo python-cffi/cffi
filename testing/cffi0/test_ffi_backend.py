@@ -475,9 +475,9 @@ class TestBitfield:
 
     def test_rawstring(self):
         ffi = FFI()
-        p = ffi.new("char[]", "abc\x00def")
-        assert ffi.rawstring(p) == "abc\x00def\x00"
-        assert ffi.rawstring(p[1:6]) == "bc\x00de"
+        p = ffi.new("char[]", b"abc\x00def")
+        assert ffi.rawstring(p) == b"abc\x00def\x00"
+        assert ffi.rawstring(p[1:6]) == b"bc\x00de"
         p = ffi.new("wchar_t[]", u"abc\x00def")
         assert ffi.rawstring(p) == u"abc\x00def\x00"
         assert ffi.rawstring(p[1:6]) == u"bc\x00de"
