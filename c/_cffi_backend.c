@@ -5582,6 +5582,36 @@ static PyObject *b_string(PyObject *self, PyObject *args, PyObject *kwds)
     return NULL;
 }
 
+static PyObject *b_rawstring(PyObject *self, PyObject *arg)
+{
+    CDataObject *cd;
+    Py_ssize_t length;
+
+    if (!CData_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "expected a 'cdata' object");
+        return NULL;
+    }
+    cd = (CDataObject *)arg;
+    if (!(cd->c_type->ct_flags & CT_ARRAY) ||
+        !(cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR)) {
+        PyErr_Format(PyExc_TypeError,
+                     "expected an array of 'char' or 'wchar_t', got '%s'",
+                     cd->c_type->ct_name);
+        return NULL;
+    }
+
+    length = get_array_length(cd);
+    if (cd->c_type->ct_itemdescr->ct_size == sizeof(char))
+        return PyBytes_FromStringAndSize(cd->c_data, length);
+#ifdef HAVE_WCHAR_H
+    else if (cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t))
+        return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, length);
+#endif
+
+    PyErr_SetString(PyExc_SystemError, "bad size for char-like");
+    return NULL;
+}
+
 static PyObject *b_buffer(PyObject *self, PyObject *args, PyObject *kwds)
 {
     CDataObject *cd;
@@ -6225,6 +6255,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"rawaddressof", b_rawaddressof, METH_VARARGS},
     {"getcname", b_getcname, METH_VARARGS},
     {"string", (PyCFunction)b_string, METH_VARARGS | METH_KEYWORDS},
+    {"rawstring", b_rawstring, METH_O},
     {"buffer", (PyCFunction)b_buffer, METH_VARARGS | METH_KEYWORDS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_O},

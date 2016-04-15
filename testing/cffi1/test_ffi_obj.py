@@ -495,3 +495,15 @@ def test_init_once_multithread_failure():
         assert i < 20
         time.sleep(0.51)
     assert seen == ['init!', 'oops'] * 3
+
+def test_rawstring():
+    ffi = _cffi1_backend.FFI()
+    p = ffi.new("char[]", "abc\x00def")
+    assert ffi.rawstring(p) == "abc\x00def\x00"
+    assert ffi.rawstring(p[1:6]) == "bc\x00de"
+    p = ffi.new("wchar_t[]", u"abc\x00def")
+    assert ffi.rawstring(p) == u"abc\x00def\x00"
+    assert ffi.rawstring(p[1:6]) == u"bc\x00de"
+    #
+    py.test.raises(TypeError, ffi.rawstring, "foobar")
+    py.test.raises(TypeError, ffi.rawstring, p + 1)

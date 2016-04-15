@@ -299,6 +299,18 @@ class FFI(object):
         """
         return self._backend.string(cdata, maxlen)
 
+    def rawstring(self, cdata):
+        """Convert a cdata that is an array of 'char' or 'wchar_t' to
+        a byte or unicode string.  Unlike ffi.string(), it does not stop
+        at the first null.
+
+        Note that if you have a pointer and an explicit length, you
+        can use 'p[0:length]' to make an array view.  This is similar to
+        the construct 'list(p[0:length])', which returns a list of chars/
+        unichars/ints/floats.
+        """
+        return self._backend.rawstring(cdata)
+
     def buffer(self, cdata, size=-1):
         """Return a read-write buffer object that references the raw C data
         pointed to by the given 'cdata'.  The 'cdata' must be a pointer or
