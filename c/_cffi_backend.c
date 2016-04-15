@@ -5585,6 +5585,7 @@ static PyObject *b_string(PyObject *self, PyObject *args, PyObject *kwds)
 static PyObject *b_rawstring(PyObject *self, PyObject *arg)
 {
     CDataObject *cd;
+    CTypeDescrObject *ctitem;
     Py_ssize_t length;
 
     if (!CData_Check(arg)) {
@@ -5592,23 +5593,25 @@ static PyObject *b_rawstring(PyObject *self, PyObject *arg)
         return NULL;
     }
     cd = (CDataObject *)arg;
-    if (!(cd->c_type->ct_flags & CT_ARRAY) ||
-        !(cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR)) {
-        PyErr_Format(PyExc_TypeError,
-                     "expected an array of 'char' or 'wchar_t', got '%s'",
-                     cd->c_type->ct_name);
-        return NULL;
-    }
-
-    length = get_array_length(cd);
-    if (cd->c_type->ct_itemdescr->ct_size == sizeof(char))
-        return PyBytes_FromStringAndSize(cd->c_data, length);
+    ctitem = cd->c_type->ct_itemdescr;
+    if ((cd->c_type->ct_flags & CT_ARRAY) &&
+        (ctitem->ct_flags & (CT_PRIMITIVE_CHAR |
+                             CT_PRIMITIVE_SIGNED |
+                             CT_PRIMITIVE_UNSIGNED))) {
+        length = get_array_length(cd);
+        if (ctitem->ct_size == sizeof(char))
+            return PyBytes_FromStringAndSize(cd->c_data, length);
 #ifdef HAVE_WCHAR_H
-    else if (cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t))
-        return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, length);
+        else if (ctitem->ct_flags & CT_PRIMITIVE_CHAR) {
+            assert(ctitem->ct_size == sizeof(wchar_t));
+            return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, length);
+        }
 #endif
-
-    PyErr_SetString(PyExc_SystemError, "bad size for char-like");
+    }
+    PyErr_Format(PyExc_TypeError,
+                 "expected a 'char[]' or 'uint8_t[]' or 'int8_t[]' "
+                 "or 'wchar_t[]', got '%s'",
+                 cd->c_type->ct_name);
     return NULL;
 }
 

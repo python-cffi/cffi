@@ -3537,6 +3537,10 @@ def test_rawstring():
     p = newp(BArray, u"abc\x00def")
     assert rawstring(p) == u"abc\x00def\x00\x00\x00"
     assert rawstring(p[1:6]) == u"bc\x00de"
+    BChar = new_primitive_type("uint8_t")
+    BArray = new_array_type(new_pointer_type(BChar), 10)   # uint8_t[10]
+    p = newp(BArray, [65 + i for i in range(10)])
+    assert rawstring(p) == "ABCDEFGHIJ"
     #
     py.test.raises(TypeError, rawstring, "foobar")
     py.test.raises(TypeError, rawstring, p + 1)
