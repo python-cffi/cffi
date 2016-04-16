@@ -3563,8 +3563,30 @@ def test_unpack():
     py.test.raises(TypeError, unpack, p)
     py.test.raises(TypeError, unpack, b"foobar", 6)
     py.test.raises(TypeError, unpack, cast(BInt, 42), 1)
+    #
+    BPtr = new_pointer_type(BInt)
+    random_ptr = cast(BPtr, -424344)
+    other_ptr = cast(BPtr, 54321)
+    BArray = new_array_type(new_pointer_type(BPtr), None)
+    lst = unpack(newp(BArray, [random_ptr, other_ptr]), 2)
+    assert lst == [random_ptr, other_ptr]
+    #
     BFunc = new_function_type((BInt, BInt), BInt, False)
-    py.test.raises(TypeError, unpack, cast(new_pointer_type(BFunc), 42), 1)
+    BFuncPtr = new_pointer_type(BFunc)
+    lst = unpack(newp(new_array_type(BFuncPtr, None), 2), 2)
+    assert len(lst) == 2
+    assert not lst[0] and not lst[1]
+    assert typeof(lst[0]) is BFunc
+    #
+    BStruct = new_struct_type("foo")
+    BStructPtr = new_pointer_type(BStruct)
+    e = py.test.raises(ValueError, unpack, cast(BStructPtr, 42), 5)
+    assert str(e.value) == "'foo *' points to items of unknown size"
+    complete_struct_or_union(BStruct, [('a1', BInt, -1),
+                                       ('a2', BInt, -1)])
+    lst = unpack(newp(new_array_type(BStructPtr, None), [[4,5], [6,7]]), 2)
+    assert typeof(lst[0]) is BStruct
+    assert lst[0].a1 == 4 and lst[1].a2 == 7
     #
     py.test.raises(RuntimeError, unpack, cast(new_pointer_type(BChar), 0), 0)
     py.test.raises(RuntimeError, unpack, cast(new_pointer_type(BChar), 0), 10)

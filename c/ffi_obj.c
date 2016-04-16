@@ -460,17 +460,19 @@ PyDoc_STRVAR(ffi_string_doc,
                                     from _cffi_backend.c */
 
 PyDoc_STRVAR(ffi_unpack_doc,
-"Unpack an array of primitive C data of the given length,\n"
+"Unpack an array of C data of the given length,\n"
 "returning a Python string/unicode/list.\n"
 "\n"
 "If 'cdata' is a pointer to 'char', returns a byte string.\n"
-"Unlike ffi.string(), it does not stop at the first null.\n"
+"It does not stop at the first null.  This is equivalent to:\n"
+"ffi.buffer(cdata, length)[:]\n"
 "\n"
 "If 'cdata' is a pointer to 'wchar_t', returns a unicode string.\n"
 "'length' is measured in wchar_t's; it is not the size in bytes.\n"
 "\n"
-"If 'cdata' is a pointer to some other integer or floating-point\n"
-"type, returns a list of 'length' integers or floats.");
+"If 'cdata' is a pointer to anything else, returns a list of\n"
+"'length' items.  This is a faster equivalent to:\n"
+"[cdata[i] for i in range(length)]");
 
 #define ffi_unpack  b_unpack     /* ffi_unpack() => b_unpack()
                                     from _cffi_backend.c */

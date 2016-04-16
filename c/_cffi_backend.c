@@ -5586,7 +5586,7 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
 {
     CDataObject *cd;
     CTypeDescrObject *ctitem;
-    Py_ssize_t i, length, itemsize, best_alignment;
+    Py_ssize_t i, length, itemsize;
     PyObject *result;
     char *src;
     int casenum;
@@ -5596,11 +5596,9 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
                                      &CData_Type, &cd, &length))
         return NULL;
 
-    ctitem = cd->c_type->ct_itemdescr;
-    if (!(cd->c_type->ct_flags & (CT_ARRAY|CT_POINTER)) ||
-        !(ctitem->ct_flags & CT_PRIMITIVE_ANY)) {
+    if (!(cd->c_type->ct_flags & (CT_ARRAY|CT_POINTER))) {
         PyErr_Format(PyExc_TypeError,
-                     "expected a pointer to a primitive type, got '%s'",
+                     "expected a pointer or array, got '%s'",
                      cd->c_type->ct_name);
         return NULL;
     }
@@ -5620,6 +5618,7 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
     }
 
     /* byte- and unicode strings */
+    ctitem = cd->c_type->ct_itemdescr;
     if (ctitem->ct_flags & CT_PRIMITIVE_CHAR) {
         if (ctitem->ct_size == sizeof(char))
             return PyBytes_FromStringAndSize(cd->c_data, length);
@@ -5630,17 +5629,34 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
     }
 
     /* else, the result is a list.  This implementation should be
-       equivalent to, but on CPython much faster than, 'list(p[0:length])'.
+       equivalent to but much faster than '[p[i] for i in range(length)]'.
+       (Note that on PyPy, 'list(p[0:length])' should be equally fast,
+       but arguably, finding out that there *is* such an unexpected way
+       to write things down is the real problem.)
     */
-    result = PyList_New(length); if (result == NULL) return NULL;
+    result = PyList_New(length);
+    if (result == NULL)
+        return NULL;
 
     src = cd->c_data;
     itemsize = ctitem->ct_size;
-    best_alignment = ctitem->ct_length;
+    if (itemsize < 0) {
+        PyErr_Format(PyExc_ValueError, "'%s' points to items of unknown size",
+                     cd->c_type->ct_name);
+        return NULL;
+    }
+
+    /* Determine some common fast-paths for the loop below.  The case -1
+       is the fall-back, which always gives the right answer. */
+
+#define ALIGNMENT_CHECK(align)                          \
+        (((align) & ((align) - 1)) == 0 &&              \
+         (((uintptr_t)src) & ((align) - 1)) == 0)
 
     casenum = -1;
-    if ((best_alignment & (best_alignment - 1)) == 0 &&
-        (((uintptr_t)src) & (best_alignment - 1)) == 0) {
+
+    if ((ctitem->ct_flags & CT_PRIMITIVE_ANY) &&
+            ALIGNMENT_CHECK(ctitem->ct_length)) {
         /* Source data is fully aligned; we can directly read without
            memcpy().  The unaligned case is expected to be rare; in
            this situation it is ok to fall back to the general
@@ -5667,6 +5683,10 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
             else if (itemsize == sizeof(float))  casenum = 8;
         }
     }
+    else if (ctitem->ct_flags & (CT_POINTER | CT_FUNCTIONPTR)) {
+        casenum = 10;    /* any pointer */
+    }
+#undef ALIGNMENT_CHECK
 
     for (i = 0; i < length; i++) {
         PyObject *x;
@@ -5685,6 +5705,7 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
         case 7: x = PyLong_FromUnsignedLong(*(unsigned long *)src); break;
         case 8: x = PyFloat_FromDouble(*(float *)src); break;
         case 9: x = PyFloat_FromDouble(*(double *)src); break;
+        case 10: x = new_simple_cdata(*(char **)src, ctitem); break;
         }
         if (x == NULL) {
             Py_DECREF(result);

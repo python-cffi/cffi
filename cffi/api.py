@@ -300,17 +300,19 @@ class FFI(object):
         return self._backend.string(cdata, maxlen)
 
     def unpack(self, cdata, length):
-        """Unpack an array of primitive C data of the given length,
+        """Unpack an array of C data of the given length, 
         returning a Python string/unicode/list.
 
         If 'cdata' is a pointer to 'char', returns a byte string.
-        Unlike ffi.string(), it does not stop at the first null.
+        It does not stop at the first null.  This is equivalent to:
+        ffi.buffer(cdata, length)[:]
 
         If 'cdata' is a pointer to 'wchar_t', returns a unicode string.
         'length' is measured in wchar_t's; it is not the size in bytes.
 
-        If 'cdata' is a pointer to some other integer or floating-point
-        type, returns a list of 'length' integers or floats.
+        If 'cdata' is a pointer to anything else, returns a list of
+        'length' items.  This is a faster equivalent to:
+        [cdata[i] for i in range(length)]
         """
         return self._backend.unpack(cdata, length)
 
