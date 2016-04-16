@@ -5582,37 +5582,118 @@ static PyObject *b_string(PyObject *self, PyObject *args, PyObject *kwds)
     return NULL;
 }
 
-static PyObject *b_rawstring(PyObject *self, PyObject *arg)
+static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
 {
     CDataObject *cd;
     CTypeDescrObject *ctitem;
-    Py_ssize_t length;
+    Py_ssize_t i, length, itemsize, best_alignment;
+    PyObject *result;
+    char *src;
+    int casenum;
+    static char *keywords[] = {"cdata", "length", NULL};
 
-    if (!CData_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "expected a 'cdata' object");
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!n:unpack", keywords,
+                                     &CData_Type, &cd, &length))
+        return NULL;
+
+    ctitem = cd->c_type->ct_itemdescr;
+    if (!(cd->c_type->ct_flags & (CT_ARRAY|CT_POINTER)) ||
+        !(ctitem->ct_flags & CT_PRIMITIVE_ANY)) {
+        PyErr_Format(PyExc_TypeError,
+                     "expected a pointer to a primitive type, got '%s'",
+                     cd->c_type->ct_name);
         return NULL;
     }
-    cd = (CDataObject *)arg;
-    ctitem = cd->c_type->ct_itemdescr;
-    if ((cd->c_type->ct_flags & CT_ARRAY) &&
-        (ctitem->ct_flags & (CT_PRIMITIVE_CHAR |
-                             CT_PRIMITIVE_SIGNED |
-                             CT_PRIMITIVE_UNSIGNED))) {
-        length = get_array_length(cd);
+    if (length < 0) {
+        PyErr_SetString(PyExc_ValueError, "'length' cannot be negative");
+        return NULL;
+    }
+    if (cd->c_data == NULL) {
+        PyObject *s = cdata_repr(cd);
+        if (s != NULL) {
+            PyErr_Format(PyExc_RuntimeError,
+                         "cannot use unpack() on %s",
+                         PyText_AS_UTF8(s));
+            Py_DECREF(s);
+        }
+        return NULL;
+    }
+
+    /* byte- and unicode strings */
+    if (ctitem->ct_flags & CT_PRIMITIVE_CHAR) {
         if (ctitem->ct_size == sizeof(char))
             return PyBytes_FromStringAndSize(cd->c_data, length);
 #ifdef HAVE_WCHAR_H
-        else if (ctitem->ct_flags & CT_PRIMITIVE_CHAR) {
-            assert(ctitem->ct_size == sizeof(wchar_t));
+        else if (ctitem->ct_size == sizeof(wchar_t))
             return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, length);
-        }
 #endif
     }
-    PyErr_Format(PyExc_TypeError,
-                 "expected a 'char[]' or 'uint8_t[]' or 'int8_t[]' "
-                 "or 'wchar_t[]', got '%s'",
-                 cd->c_type->ct_name);
-    return NULL;
+
+    /* else, the result is a list.  This implementation should be
+       equivalent to, but on CPython much faster than, 'list(p[0:length])'.
+    */
+    result = PyList_New(length); if (result == NULL) return NULL;
+
+    src = cd->c_data;
+    itemsize = ctitem->ct_size;
+    best_alignment = ctitem->ct_length;
+
+    casenum = -1;
+    if ((best_alignment & (best_alignment - 1)) == 0 &&
+        (((uintptr_t)src) & (best_alignment - 1)) == 0) {
+        /* Source data is fully aligned; we can directly read without
+           memcpy().  The unaligned case is expected to be rare; in
+           this situation it is ok to fall back to the general
+           convert_to_object() in the loop.  For now we also use this
+           fall-back for types that are too large.
+        */
+        if (ctitem->ct_flags & CT_PRIMITIVE_SIGNED) {
+            if (itemsize == sizeof(long))             casenum = 3;
+            else if (itemsize == sizeof(int))         casenum = 2;
+            else if (itemsize == sizeof(short))       casenum = 1;
+            else if (itemsize == sizeof(signed char)) casenum = 0;
+        }
+        else if (ctitem->ct_flags & CT_PRIMITIVE_UNSIGNED) {
+            /* Note: we never pick case 6 if sizeof(int) == sizeof(long),
+               so that case 6 below can assume that the 'unsigned int' result
+               would always fit in a 'signed long'. */
+            if      (itemsize == sizeof(unsigned long))  casenum = 7;
+            else if (itemsize == sizeof(unsigned int))   casenum = 6;
+            else if (itemsize == sizeof(unsigned short)) casenum = 5;
+            else if (itemsize == sizeof(unsigned char))  casenum = 4;
+        }
+        else if (ctitem->ct_flags & CT_PRIMITIVE_FLOAT) {
+            if      (itemsize == sizeof(double)) casenum = 9;
+            else if (itemsize == sizeof(float))  casenum = 8;
+        }
+    }
+
+    for (i = 0; i < length; i++) {
+        PyObject *x;
+        switch (casenum) {
+            /* general case */
+        default: x = convert_to_object(src, ctitem); break;
+
+            /* special cases for performance only */
+        case 0: x = PyInt_FromLong(*(signed char *)src); break;
+        case 1: x = PyInt_FromLong(*(short *)src); break;
+        case 2: x = PyInt_FromLong(*(int *)src); break;
+        case 3: x = PyInt_FromLong(*(long *)src); break;
+        case 4: x = PyInt_FromLong(*(unsigned char *)src); break;
+        case 5: x = PyInt_FromLong(*(unsigned short *)src); break;
+        case 6: x = PyInt_FromLong((long)*(unsigned int *)src); break;
+        case 7: x = PyLong_FromUnsignedLong(*(unsigned long *)src); break;
+        case 8: x = PyFloat_FromDouble(*(float *)src); break;
+        case 9: x = PyFloat_FromDouble(*(double *)src); break;
+        }
+        if (x == NULL) {
+            Py_DECREF(result);
+            return NULL;
+        }
+        PyList_SET_ITEM(result, i, x);
+        src += itemsize;
+    }
+    return result;
 }
 
 static PyObject *b_buffer(PyObject *self, PyObject *args, PyObject *kwds)
@@ -6258,7 +6339,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"rawaddressof", b_rawaddressof, METH_VARARGS},
     {"getcname", b_getcname, METH_VARARGS},
     {"string", (PyCFunction)b_string, METH_VARARGS | METH_KEYWORDS},
-    {"rawstring", b_rawstring, METH_O},
+    {"unpack", (PyCFunction)b_unpack, METH_VARARGS | METH_KEYWORDS},
     {"buffer", (PyCFunction)b_buffer, METH_VARARGS | METH_KEYWORDS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_O},

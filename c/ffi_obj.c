@@ -459,18 +459,21 @@ PyDoc_STRVAR(ffi_string_doc,
 #define ffi_string  b_string     /* ffi_string() => b_string()
                                     from _cffi_backend.c */
 
-PyDoc_STRVAR(ffi_rawstring_doc,
-"Convert a cdata that is an array of 'char' or 'wchar_t' to\n"
-"a byte or unicode string.  Unlike ffi.string(), it does not stop\n"
-"at the first null.\n"
+PyDoc_STRVAR(ffi_unpack_doc,
+"Unpack an array of primitive C data of the given length,\n"
+"returning a Python string/unicode/list.\n"
 "\n"
-"Note that if you have a pointer and an explicit length, you\n"
-"can use 'p[0:length]' to make an array view.  This is similar to\n"
-"the construct 'list(p[0:length])', which returns a list of chars/\n"
-"unichars/ints/floats.");
+"If 'cdata' is a pointer to 'char', returns a byte string.\n"
+"Unlike ffi.string(), it does not stop at the first null.\n"
+"\n"
+"If 'cdata' is a pointer to 'wchar_t', returns a unicode string.\n"
+"'length' is measured in wchar_t's; it is not the size in bytes.\n"
+"\n"
+"If 'cdata' is a pointer to some other integer or floating-point\n"
+"type, returns a list of 'length' integers or floats.");
 
-#define ffi_rawstring  b_rawstring     /* ffi_rawstring() => b_rawstring()
-                                          from _cffi_backend.c */
+#define ffi_unpack  b_unpack     /* ffi_unpack() => b_unpack()
+                                    from _cffi_backend.c */
 
 PyDoc_STRVAR(ffi_buffer_doc,
 "Return a read-write buffer object that references the raw C data\n"
@@ -1103,10 +1106,10 @@ static PyMethodDef ffi_methods[] = {
 {"new_allocator",(PyCFunction)ffi_new_allocator,METH_VKW,ffi_new_allocator_doc},
  {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
- {"rawstring",  (PyCFunction)ffi_rawstring,  METH_O,       ffi_rawstring_doc},
  {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
  {"string",     (PyCFunction)ffi_string,     METH_VKW,     ffi_string_doc},
  {"typeof",     (PyCFunction)ffi_typeof,     METH_O,       ffi_typeof_doc},
+ {"unpack",     (PyCFunction)ffi_unpack,     METH_VKW,     ffi_unpack_doc},
  {NULL}
 };
 

@@ -3526,21 +3526,48 @@ def test_get_common_types():
     _get_common_types(d)
     assert d['bool'] == '_Bool'
 
-def test_rawstring():
+def test_unpack():
     BChar = new_primitive_type("char")
     BArray = new_array_type(new_pointer_type(BChar), 10)   # char[10]
     p = newp(BArray, b"abc\x00def")
-    assert rawstring(p) == b"abc\x00def\x00\x00\x00"
-    assert rawstring(p[1:6]) == b"bc\x00de"
+    p0 = p
+    assert unpack(p, 10) == b"abc\x00def\x00\x00\x00"
+    assert unpack(p+1, 5) == b"bc\x00de"
     BWChar = new_primitive_type("wchar_t")
     BArray = new_array_type(new_pointer_type(BWChar), 10)   # wchar_t[10]
     p = newp(BArray, u"abc\x00def")
-    assert rawstring(p) == u"abc\x00def\x00\x00\x00"
-    assert rawstring(p[1:6]) == u"bc\x00de"
-    BChar = new_primitive_type("uint8_t")
-    BArray = new_array_type(new_pointer_type(BChar), 10)   # uint8_t[10]
-    p = newp(BArray, [65 + i for i in range(10)])
-    assert rawstring(p) == b"ABCDEFGHIJ"
+    assert unpack(p, 10) == u"abc\x00def\x00\x00\x00"
+
+    for typename, samples in [
+            ("uint8_t",  [0, 2**8-1]),
+            ("uint16_t", [0, 2**16-1]),
+            ("uint32_t", [0, 2**32-1]),
+            ("uint64_t", [0, 2**64-1]),
+            ("int8_t",  [-2**7, 2**7-1]),
+            ("int16_t", [-2**15, 2**15-1]),
+            ("int32_t", [-2**31, 2**31-1]),
+            ("int64_t", [-2**63, 2**63-1]),
+            ("_Bool", [0, 1]),
+            ("float", [0.0, 10.5]),
+            ("double", [12.34, 56.78]),
+            ]:
+        BItem = new_primitive_type(typename)
+        BArray = new_array_type(new_pointer_type(BItem), 10)
+        p = newp(BArray, samples)
+        result = unpack(p, len(samples))
+        assert result == samples
+        for i in range(len(samples)):
+            assert result[i] == p[i] and type(result[i]) is type(p[i])
     #
-    py.test.raises(TypeError, rawstring, "foobar")
-    py.test.raises(TypeError, rawstring, p + 1)
+    BInt = new_primitive_type("int")
+    py.test.raises(TypeError, unpack, p)
+    py.test.raises(TypeError, unpack, b"foobar", 6)
+    py.test.raises(TypeError, unpack, cast(BInt, 42), 1)
+    BFunc = new_function_type((BInt, BInt), BInt, False)
+    py.test.raises(TypeError, unpack, cast(new_pointer_type(BFunc), 42), 1)
+    #
+    py.test.raises(RuntimeError, unpack, cast(new_pointer_type(BChar), 0), 0)
+    py.test.raises(RuntimeError, unpack, cast(new_pointer_type(BChar), 0), 10)
+    #
+    py.test.raises(ValueError, unpack, p0, -1)
+    py.test.raises(ValueError, unpack, p, -1)

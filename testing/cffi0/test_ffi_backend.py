@@ -473,11 +473,9 @@ class TestBitfield:
                                     ['a', 'cc', 'ccc'],
                                     ['aa', 'aaa', 'g'])
 
-    def test_rawstring(self):
+    def test_unpack(self):
         ffi = FFI()
         p = ffi.new("char[]", b"abc\x00def")
-        assert ffi.rawstring(p) == b"abc\x00def\x00"
-        assert ffi.rawstring(p[1:6]) == b"bc\x00de"
-        p = ffi.new("wchar_t[]", u"abc\x00def")
-        assert ffi.rawstring(p) == u"abc\x00def\x00"
-        assert ffi.rawstring(p[1:6]) == u"bc\x00de"
+        assert ffi.unpack(p+1, 7) == b"bc\x00def\x00"
+        p = ffi.new("int[]", [-123456789])
+        assert ffi.unpack(p, 1) == [-123456789]
