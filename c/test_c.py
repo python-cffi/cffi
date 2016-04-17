@@ -3584,7 +3584,8 @@ def test_unpack():
     assert str(e.value) == "'foo *' points to items of unknown size"
     complete_struct_or_union(BStruct, [('a1', BInt, -1),
                                        ('a2', BInt, -1)])
-    lst = unpack(newp(new_array_type(BStructPtr, None), [[4,5], [6,7]]), 2)
+    array_of_structs = newp(new_array_type(BStructPtr, None), [[4,5], [6,7]])
+    lst = unpack(array_of_structs, 2)
     assert typeof(lst[0]) is BStruct
     assert lst[0].a1 == 4 and lst[1].a2 == 7
     #
