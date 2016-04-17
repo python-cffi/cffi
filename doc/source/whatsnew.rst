@@ -8,6 +8,8 @@ v1.6
 
 * ffi.list_types()
 
+* ffi.unpack()
+
 
 v1.5.2
 ======
