@@ -4659,7 +4659,8 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
 
 #undef ALIGN_ARG
 
-static void fb_cat_name(struct funcbuilder_s *fb, char *piece, int piecelen)
+static void fb_cat_name(struct funcbuilder_s *fb, const char *piece,
+                        int piecelen)
 {
     if (fb->bufferp == NULL) {
         fb->nb_bytes += piecelen;
@@ -4670,10 +4671,11 @@ static void fb_cat_name(struct funcbuilder_s *fb, char *piece, int piecelen)
     }
 }
 
-static int fb_build_name(struct funcbuilder_s *fb, PyObject *fargs,
-                         CTypeDescrObject *fresult, int ellipsis, int fabi)
+static int fb_build_name(struct funcbuilder_s *fb, const char *repl,
+                         CTypeDescrObject **pfargs, Py_ssize_t nargs,
+                         CTypeDescrObject *fresult, int ellipsis)
 {
-    Py_ssize_t i, nargs = PyTuple_GET_SIZE(fargs);
+    Py_ssize_t i;
     fb->nargs = nargs;
 
     /* name: the function type name we build here is, like in C, made
@@ -4682,25 +4684,22 @@ static int fb_build_name(struct funcbuilder_s *fb, PyObject *fargs,
          RESULT_TYPE_HEAD (*)(ARG_1_TYPE, ARG_2_TYPE, etc) RESULT_TYPE_TAIL
     */
     fb_cat_name(fb, fresult->ct_name, fresult->ct_name_position);
-    fb_cat_name(fb, "(", 1);
-    i = 2;
-#if defined(MS_WIN32) && !defined(_WIN64)
-    if (fabi == FFI_STDCALL) {
-        fb_cat_name(fb, "__stdcall ", 10);
-        i += 10;
-    }
-#endif
-    fb_cat_name(fb, "*)(", 3);
+    if (repl[0] != '(' &&
+        fresult->ct_name[fresult->ct_name_position - 1] != '*')
+        fb_cat_name(fb, " ", 1);   /* add a space */
+    fb_cat_name(fb, repl, strlen(repl));
     if (fb->fct) {
-        i = fresult->ct_name_position + i;  /* between '(*' and ')(' */
-        fb->fct->ct_name_position = i;
+        i = strlen(repl) - 1;      /* between '(*' and ')' */
+        assert(repl[i] == ')');
+        fb->fct->ct_name_position = fresult->ct_name_position + i;
     }
+    fb_cat_name(fb, "(", 1);
 
     /* loop over the arguments */
     for (i=0; i<nargs; i++) {
         CTypeDescrObject *farg;
 
-        farg = (CTypeDescrObject *)PyTuple_GET_ITEM(fargs, i);
+        farg = pfargs[i];
         if (!CTypeDescr_Check(farg)) {
             PyErr_SetString(PyExc_TypeError, "expected a tuple of ctypes");
             return -1;
@@ -4730,14 +4729,23 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
                                           CTypeDescrObject *fresult,
                                           int ellipsis, int fabi)
 {
-    CTypeDescrObject *fct;
+    CTypeDescrObject *fct, **pfargs;
+    Py_ssize_t nargs;
+    char *repl = "(*)";
 
     fb->nb_bytes = 0;
     fb->bufferp = NULL;
     fb->fct = NULL;
 
+    pfargs = (CTypeDescrObject **)&PyTuple_GET_ITEM(fargs, 0);
+    nargs = PyTuple_GET_SIZE(fargs);
+#if defined(MS_WIN32) && !defined(_WIN64)
+    if (fabi == FFI_STDCALL)
+        repl = "(__stdcall *)";
+#endif
+
     /* compute the total size needed for the name */
-    if (fb_build_name(fb, fargs, fresult, ellipsis, fabi) < 0)
+    if (fb_build_name(fb, repl, pfargs, nargs, fresult, ellipsis) < 0)
         return NULL;
 
     /* allocate the function type */
@@ -4748,7 +4756,7 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
 
     /* call again fb_build_name() to really build the ct_name */
     fb->bufferp = fct->ct_name;
-    if (fb_build_name(fb, fargs, fresult, ellipsis, fabi) < 0)
+    if (fb_build_name(fb, repl, pfargs, nargs, fresult, ellipsis) < 0)
         goto error;
     assert(fb->bufferp == fct->ct_name + fb->nb_bytes);
 

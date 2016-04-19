@@ -645,6 +645,33 @@ realize_c_type_or_func(builder_c_t *builder,
     return x;
 };
 
+static CTypeDescrObject *
+realize_c_func_return_type(builder_c_t *builder,
+                           _cffi_opcode_t opcodes[], int index)
+{
+    PyObject *x;
+    CTypeDescrObject *ct;
+    _cffi_opcode_t op = opcodes[index];
+
+    if ((((uintptr_t)op) & 1) == 0) {
+        /* already built: assert that it is a function and fish
+           for the return type */
+        x = (PyObject *)op;
+        assert(PyTuple_Check(x));   /* from _CFFI_OP_FUNCTION */
+        x = PyTuple_GET_ITEM(x, 0);
+        assert(CTypeDescr_Check(x));
+        assert(((CTypeDescrObject *)x)->ct_flags & CT_FUNCTIONPTR);
+        x = PyTuple_GET_ITEM(((CTypeDescrObject *)x)->ct_stuff, 1);
+        assert(CTypeDescr_Check(x));
+        Py_INCREF(x);
+        return (CTypeDescrObject *)x;
+    }
+    else {
+        assert(_CFFI_GETOP(op) == _CFFI_OP_FUNCTION);
+        return realize_c_type(builder, opcodes, _CFFI_GETARG(opcodes[index]));
+    }
+}
+
 static int do_realize_lazy_struct(CTypeDescrObject *ct)
 {
     /* This is called by force_lazy_struct() in _cffi_backend.c */

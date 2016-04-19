@@ -3,8 +3,12 @@
    module originally created by recompile().
 
    A Lib object is special in the sense that it has a custom
-   __getattr__ which returns C globals, functions and constants.  It
-   raises AttributeError for anything else, even attrs like '__class__'.
+   __getattr__ which returns C globals, functions and constants.  The
+   original idea was to raise AttributeError for anything else, even
+   attrs like '__class__', but it breaks various things; now, standard
+   attrs are returned, but in the unlikely case where a user cdef()s
+   the same name, then the standard attr is hidden (and the various
+   things like introspection might break).
 
    A Lib object has got a reference to the _cffi_type_context_s
    structure, which is used to create lazily the objects returned by
@@ -15,9 +19,8 @@ struct CPyExtFunc_s {
     PyMethodDef md;
     void *direct_fn;
     int type_index;
+    char doc[1];
 };
-static const char cpyextfunc_doc[] =
-    "direct call to the C function of the same name";
 
 struct LibObject_s {
     PyObject_HEAD
@@ -30,18 +33,22 @@ struct LibObject_s {
 
 static struct CPyExtFunc_s *_cpyextfunc_get(PyObject *x)
 {
-    struct CPyExtFunc_s *exf;
+    PyObject *y;
+    LibObject *lo;
+    PyCFunctionObject *fo;
 
     if (!PyCFunction_Check(x))
         return NULL;
-    if (!LibObject_Check(PyCFunction_GET_SELF(x)))
+    y = PyCFunction_GET_SELF(x);
+    if (!LibObject_Check(y))
         return NULL;
 
-    exf = (struct CPyExtFunc_s *)(((PyCFunctionObject *)x) -> m_ml);
-    if (exf->md.ml_doc != cpyextfunc_doc)
+    fo = (PyCFunctionObject *)x;
+    lo = (LibObject *)y;
+    if (lo->l_libname != fo->m_module)
         return NULL;
 
-    return exf;
+    return (struct CPyExtFunc_s *)(fo->m_ml);
 }
 
 static PyObject *_cpyextfunc_type(LibObject *lib, struct CPyExtFunc_s *exf)
@@ -111,56 +118,82 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
        built.  The C extension code can then assume that they are,
        by calling _cffi_type().
     */
-    CTypeDescrObject *ct;
+    PyObject *result = NULL;
+    CTypeDescrObject **pfargs;
+    CTypeDescrObject *fresult;
+    Py_ssize_t nargs = 0;
     struct CPyExtFunc_s *xfunc;
     int i, type_index = _CFFI_GETARG(g->type_op);
     _cffi_opcode_t *opcodes = lib->l_types_builder->ctx.types;
+    static const char *const format = ";\n\nCFFI C function from %s.lib";
+    char *libname = PyText_AS_UTF8(lib->l_libname);
+    struct funcbuilder_s funcbuilder;
 
-    if ((((uintptr_t)opcodes[type_index]) & 1) == 0) {
-        /* the function type was already built.  No need to force
-           the arg and return value to be built again. */
-    }
-    else {
-        assert(_CFFI_GETOP(opcodes[type_index]) == _CFFI_OP_FUNCTION);
+    /* return type: */
+    fresult = realize_c_func_return_type(lib->l_types_builder, opcodes,
+                                       type_index);
+    if (fresult == NULL)
+        goto error;
 
-        /* return type: */
-        ct = realize_c_type(lib->l_types_builder, opcodes,
-                            _CFFI_GETARG(opcodes[type_index]));
+    /* argument types: */
+    /* note that if the arguments are already built, they have a
+       pointer in the 'opcodes' array, and GETOP() returns a
+       random even value.  But OP_FUNCTION_END is odd, so the
+       condition below still works correctly. */
+    i = type_index + 1;
+    while (_CFFI_GETOP(opcodes[i]) != _CFFI_OP_FUNCTION_END)
+        i++;
+    pfargs = alloca(sizeof(CTypeDescrObject *) * (i - type_index - 1));
+    i = type_index + 1;
+    while (_CFFI_GETOP(opcodes[i]) != _CFFI_OP_FUNCTION_END) {
+        CTypeDescrObject *ct = realize_c_type(lib->l_types_builder, opcodes, i);
         if (ct == NULL)
-            return NULL;
-        Py_DECREF(ct);
-
-        /* argument types: */
-        i = type_index + 1;
-        while (_CFFI_GETOP(opcodes[i]) != _CFFI_OP_FUNCTION_END) {
-            ct = realize_c_type(lib->l_types_builder, opcodes, i);
-            if (ct == NULL)
-                return NULL;
-            Py_DECREF(ct);
-            i++;
-        }
+            goto error;
+        pfargs[nargs++] = ct;
+        i++;
     }
+
+    memset(&funcbuilder, 0, sizeof(funcbuilder));
+    if (fb_build_name(&funcbuilder, g->name, pfargs, nargs, fresult, 0) < 0)
+        goto error;
 
     /* xxx the few bytes of memory we allocate here leak, but it's a
        minor concern because it should only occur for CPYTHON_BLTN.
        There is one per real C function in a CFFI C extension module.
        CPython never unloads its C extension modules anyway.
     */
-    xfunc = PyMem_Malloc(sizeof(struct CPyExtFunc_s));
+    xfunc = PyMem_Malloc(sizeof(struct CPyExtFunc_s) +
+                         funcbuilder.nb_bytes +
+                         strlen(format) + strlen(libname));
     if (xfunc == NULL) {
         PyErr_NoMemory();
-        return NULL;
+        goto error;
     }
     memset((char *)xfunc, 0, sizeof(struct CPyExtFunc_s));
     assert(g->address);
     xfunc->md.ml_meth = (PyCFunction)g->address;
     xfunc->md.ml_flags = flags;
     xfunc->md.ml_name = g->name;
-    xfunc->md.ml_doc = cpyextfunc_doc;
+    xfunc->md.ml_doc = xfunc->doc;
     xfunc->direct_fn = g->size_or_direct_fn;
     xfunc->type_index = type_index;
 
-    return PyCFunction_NewEx(&xfunc->md, (PyObject *)lib, lib->l_libname);
+    /* build the docstring */
+    funcbuilder.bufferp = xfunc->doc;
+    if (fb_build_name(&funcbuilder, g->name, pfargs, nargs, fresult, 0) < 0)
+        goto error;
+    sprintf(funcbuilder.bufferp - 1, format, libname);
+    /* done building the docstring */
+
+    result = PyCFunction_NewEx(&xfunc->md, (PyObject *)lib, lib->l_libname);
+    /* fall-through */
+ error:
+    Py_XDECREF(fresult);
+    while (nargs > 0) {
+        --nargs;
+        Py_DECREF(pfargs[nargs]);
+    }
+    return result;
 }
 
 static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,

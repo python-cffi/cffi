@@ -10,6 +10,13 @@ v1.6
 
 * ffi.unpack()
 
+* extern "Python+C"
+
+* in API mode, ``help(lib.foo)`` returns a docstring containing the C
+  signature now.  Note that ``help(lib)`` itself is still useless; I
+  haven't figured out the hacks needed to convince ``pydoc`` of
+  showing more.  You can use ``dir(lib)`` but it is not most helpful.
+
 
 v1.5.2
 ======
