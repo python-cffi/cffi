@@ -12,10 +12,11 @@ v1.6
 
 * extern "Python+C"
 
-* in API mode, ``help(lib.foo)`` returns a docstring containing the C
-  signature now.  Note that ``help(lib)`` itself is still useless; I
-  haven't figured out the hacks needed to convince ``pydoc`` of
-  showing more.  You can use ``dir(lib)`` but it is not most helpful.
+* in API mode, ``lib.foo.__doc__`` contains the C signature now.  On
+  CPython you can say ``help(lib.foo)``, but for some reason
+  ``help(lib)`` (or ``help(lib.foo)`` on PyPy) is still useless; I
+  haven't yet figured out the hacks needed to convince ``pydoc`` to
+  show more.  (You can use ``dir(lib)`` but it is not most helpful.)
 
 
 v1.5.2
