@@ -53,6 +53,9 @@ instance of the named C type initialized with the given value.  The
 value is casted between integers or pointers of any type.
 
 
+.. _ffi-errno:
+.. _ffi-getwinerror:
+
 ffi.errno, ffi.getwinerror()
 ++++++++++++++++++++++++++++
 
@@ -70,6 +73,9 @@ a message instead of using ``GetLastError()``.
 function as usual.)
 
 
+.. _ffi-string:
+.. _ffi-unpack:
+
 ffi.string(), ffi.unpack()
 ++++++++++++++++++++++++++
 
@@ -78,8 +84,9 @@ string) from the 'cdata'.
 
 - If 'cdata' is a pointer or array of characters or bytes, returns the
   null-terminated string.  The returned string extends until the first
-  null character, or at most 'maxlen' characters.  If 'cdata' is an
-  array then 'maxlen' defaults to its length.  See ``ffi.buffer()`` below
+  null character.  The 'maxlen' argument limits how far we look for a
+  null character.  If 'cdata' is an
+  array then 'maxlen' defaults to its length.  See ``ffi.unpack()`` below
   for a way to continue past the first null character.  *Python 3:* this
   returns a ``bytes``, not a ``str``.
 
@@ -94,8 +101,26 @@ string) from the 'cdata'.
   If the value is out of range, it is simply returned as the stringified
   integer.
 
-**ffi.unpack(...)**: XXXXXXXXXXX
+**ffi.unpack(cdata, length)**: unpacks an array of C data of the given
+length, returning a Python string/unicode/list.  The 'cdata' should be
+a pointer; if it is an array it is first converted to the pointer
+type.  *New in version 1.6.*
 
+- If 'cdata' is a pointer to 'char', returns a byte string.  It does
+  not stop at the first null.  (An equivalent way to do that is
+  ``ffi.buffer(cdata, length)[:]``.)
+
+- If 'cdata' is a pointer to 'wchar_t', returns a unicode string.
+  ('length' is measured in number of wchar_t; it is not the size in
+  bytes.)
+
+- If 'cdata' is a pointer to anything else, returns a list, of the
+  given 'length'.  (A slower way to do that is ``[cdata[i] for i in
+  range(length)]``.)
+
+
+.. _ffi-buffer:
+.. _ffi-from-buffer:
 
 ffi.buffer(), ffi.from_buffer()
 +++++++++++++++++++++++++++++++
@@ -180,6 +205,10 @@ buffer.  *New in version 1.3.*  Examples:
   the memory at ``myptr`` to the memory at ``myptr + 1``.
 
 
+.. _ffi-typeof:
+.. _ffi-sizeof:
+.. _ffi-alignof:
+
 ffi.typeof(), ffi.sizeof(), ffi.alignof()
 +++++++++++++++++++++++++++++++++++++++++
 
@@ -216,6 +245,7 @@ like in the equivalent ``sizeof`` operator in C.
 the argument.  Corresponds to the ``__alignof__`` operator in GCC.
 
 
+.. _ffi-offsetof:
 .. _ffi-addressof:
 
 ffi.offsetof(), ffi.addressof()
@@ -260,6 +290,9 @@ address can be taken, use ``ffi.new("int[1]")`` in the first place;
 similarly, for a pointer, use ``ffi.new("foo_t *[1]")``.
 
 
+.. _ffi-cdata:
+.. _ffi-ctype:
+
 ffi.CData, ffi.CType
 ++++++++++++++++++++
 
@@ -296,6 +329,9 @@ In these cases, consider writing a wrapper class with custom ``__enter__()``
 and ``__exit__()`` methods, allocating and freeing the C data at known
 points in time, and using it in a ``with`` statement.
 
+
+.. _ffi-new-handle:
+.. _ffi-from-handle:
 
 ffi.new_handle(), ffi.from_handle()
 +++++++++++++++++++++++++++++++++++
@@ -340,6 +376,9 @@ to a global set.  It can later be removed from the set by
 ``global_set.discard(p)``, with ``p`` any cdata object whose ``void *``
 value compares equal.
 
+
+.. _ffi-dlopen:
+.. _ffi-dlclose:
 
 ffi.dlopen(), ffi.dlclose()
 +++++++++++++++++++++++++++
@@ -427,6 +466,9 @@ example::
 
 .. __: https://bitbucket.org/cffi/cffi/issues/233/
 
+
+.. _ffi-getctype:
+.. _ffi-list-types:
 
 ffi.getctype(), ffi.list_types()
 ++++++++++++++++++++++++++++++++

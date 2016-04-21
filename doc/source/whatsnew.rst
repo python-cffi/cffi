@@ -6,11 +6,11 @@ What's New
 v1.6
 ====
 
-* ffi.list_types()
+* `ffi.list_types()`_
 
-* ffi.unpack()
+* `ffi.unpack()`_
 
-* extern "Python+C"
+* `extern "Python+C"`_
 
 * in API mode, ``lib.foo.__doc__`` contains the C signature now.  On
   CPython you can say ``help(lib.foo)``, but for some reason
@@ -18,8 +18,12 @@ v1.6
   haven't yet figured out the hacks needed to convince ``pydoc`` to
   show more.  (You can use ``dir(lib)`` but it is not most helpful.)
 
-* Yet another attempt at robustness against CPython's interpreter
-  shutdown logic
+* Yet another attempt at robustness of ``ffi.def_extern()`` against
+  CPython's interpreter shutdown logic.
+
+.. _`ffi.list_types()`: ref.html#ffi-list-types
+.. _`ffi.unpack()`: ref.html#ffi-unpack
+.. _`extern "Python+C"`: using.html#extern-python-c
 
 
 v1.5.2
@@ -101,8 +105,8 @@ v1.4.0
   the docs`__ of ``ffi.new_handle()`` has been here since v0.8!)
 
 .. __: using.html#extern-python
-.. __: ref.html#ffi-initonce
-.. __: using.html#ffi-new-handle
+.. __: ref.html#ffi-init-once
+.. __: ref.html#ffi-new-handle
 
 
 v1.3.1
@@ -212,7 +216,7 @@ v1.2.0
   support for `alternative allocators`__.
 
 .. __: using.html#callbacks
-.. __: ref.html#new-allocator
+.. __: ref.html#ffi-new-allocator
 
 
 v1.1.2

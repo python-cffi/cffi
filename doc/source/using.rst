@@ -577,11 +577,14 @@ Extern "Python" accessed from C directly
 
 In case you want to access some ``extern "Python"`` function directly
 from the C code written in ``set_source()``, you need to write a
-forward static declaration.  The real implementation of this function
+forward declaration.  (By default it needs to be static, but see
+`next paragraph`__.)  The real implementation of this function
 is added by CFFI *after* the C code---this is needed because the
 declaration might use types defined by ``set_source()``
 (e.g. ``event_t`` above, from the ``#include``), so it cannot be
 generated before.
+
+.. __: `extern-python-c`_
 
 ::
 
@@ -610,6 +613,46 @@ useful if the logic in ``my_algo()`` is much more complex)::
                 sum += f(i);     /* call f() here */
             return sum;
         }
+    """)
+
+.. _extern-python-c:
+
+Extern "Python+C"
+~~~~~~~~~~~~~~~~~
+
+Functions declared with ``extern "Python"`` are generated as
+``static`` functions in the C source.  However, in some cases it is
+convenient to make them non-static, typically when you want to make
+them directly callable from other C source files.  To do that, you can
+say ``extern "Python+C"`` instead of just ``extern "Python"``.  *New
+in version 1.6.*
+
++------------------------------------+--------------------------------------+
+| if the cdef contains               | then CFFI generates                  |
++------------------------------------+--------------------------------------+
+| ``extern "Python" int f(int);``    | ``static int f(int) { /* code */ }`` |
++------------------------------------+--------------------------------------+
+| ``extern "Python+C" int f(int);``  | ``int f(int) { /* code */ }``        |
++------------------------------------+--------------------------------------+
+
+The name ``extern "Python+C"`` comes from the fact that we want an
+extern function in both senses: as an ``extern "Python"``, and as a
+C function that is not static.
+
+You cannot make CFFI generate additional macros or other
+compiler-specific stuff like the GCC ``__attribute__``.  You can only
+control whether the function should be ``static`` or not.  But often,
+these attributes must be written alongside the function *header*, and
+it is fine if the function *implementation* does not repeat them::
+
+    ffi.cdef("""
+        extern "Python+C" int f(int);      /* not static */
+    """)
+    ffi.set_source("_example_cffi", """
+        /* the forward declaration, setting a gcc attribute
+           (this line could also be in some .h file, to be included
+           both here and in the other C files of the project) */
+        int f(int) __attribute__((visibility("hidden")));
     """)
 
 
