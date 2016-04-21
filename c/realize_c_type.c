@@ -650,7 +650,6 @@ realize_c_func_return_type(builder_c_t *builder,
                            _cffi_opcode_t opcodes[], int index)
 {
     PyObject *x;
-    CTypeDescrObject *ct;
     _cffi_opcode_t op = opcodes[index];
 
     if ((((uintptr_t)op) & 1) == 0) {
