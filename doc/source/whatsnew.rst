@@ -18,6 +18,9 @@ v1.6
   haven't yet figured out the hacks needed to convince ``pydoc`` to
   show more.  (You can use ``dir(lib)`` but it is not most helpful.)
 
+* Yet another attempt at robustness against CPython's interpreter
+  shutdown logic
+
 
 v1.5.2
 ======
@@ -98,7 +101,7 @@ v1.4.0
   the docs`__ of ``ffi.new_handle()`` has been here since v0.8!)
 
 .. __: using.html#extern-python
-.. __: using.html#initonce
+.. __: ref.html#ffi-initonce
 .. __: using.html#ffi-new-handle
 
 
@@ -147,7 +150,7 @@ v1.3.0
   which had unwanted side-effects.  Try saying ``import setuptools``
   first, which patches distutils...
 
-.. _`ffi.memmove()`: using.html#memmove
+.. _`ffi.memmove()`: ref.html#ffi-memmove
 .. __: https://bugs.python.org/issue23246
 .. __: https://bitbucket.org/cffi/cffi/pull-requests/65/remove-_hack_at_distutils-which-imports/diff
 .. _`calling convention`: using.html#windows-calling-conventions
@@ -209,7 +212,7 @@ v1.2.0
   support for `alternative allocators`__.
 
 .. __: using.html#callbacks
-.. __: using.html#alternative-allocators
+.. __: ref.html#new-allocator
 
 
 v1.1.2

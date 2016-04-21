@@ -216,7 +216,7 @@ next:
 
 .. __: using.html#working
 .. __: using.html#def-extern
-.. __: using.html#ffi-new_handle
+.. __: ref.html#ffi-new-handle
 .. __: cdef.html#cdef
 
 .. _`Using the ffi/lib objects`: using.html

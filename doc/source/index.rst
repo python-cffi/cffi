@@ -17,6 +17,7 @@ copy-paste from header files or documentation.
    installation
    overview
    using
+   ref
    cdef
    embedding
 
