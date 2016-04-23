@@ -321,19 +321,20 @@ argument and may mutate it!):
     assert lib.strlen("hello") == 5
 
 You can also pass unicode strings as ``wchar_t *`` arguments.  Note that
-in general, there is no difference between C argument declarations that
+the C language makes no difference between argument declarations that
 use ``type *`` or ``type[]``.  For example, ``int *`` is fully
-equivalent to ``int[]`` (or even ``int[5]``; the 5 is ignored).  So you
-can pass an ``int *`` as a list of integers:
+equivalent to ``int[]`` (or even ``int[5]``; the 5 is ignored).  For CFFI,
+this means that you can always pass arguments that can be converted to
+either ``int *`` or ``int[]``.  For example:
 
 .. code-block:: python
 
     # void do_something_with_array(int *array);
 
-    lib.do_something_with_array([1, 2, 3, 4, 5])
+    lib.do_something_with_array([1, 2, 3, 4, 5])    # works for int[]
 
 See `Reference: conversions`__ for a similar way to pass ``struct foo_s
-*`` arguments---but in general, it is clearer to simply pass
+*`` arguments---but in general, it is clearer in this case to pass
 ``ffi.new('struct foo_s *', initializer)``.
 
 __ ref.html#conversions
