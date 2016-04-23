@@ -3,6 +3,13 @@ What's New
 ======================
 
 
+v1.next
+=======
+
+* ``ffi.gc(p, None)`` removes the destructor on an object previously
+  created by another call to ``ffi.gc()``
+
+
 v1.6
 ====
 

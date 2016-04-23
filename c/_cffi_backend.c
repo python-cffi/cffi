@@ -6065,6 +6065,17 @@ static PyObject *b_gcp(PyObject *self, PyObject *args, PyObject *kwds)
                                      &CData_Type, &origobj, &destructor))
         return NULL;
 
+    if (destructor == Py_None) {
+	if (!PyObject_TypeCheck(origobj, &CDataGCP_Type)) {
+	    PyErr_SetString(PyExc_TypeError,
+			    "Can remove destructor only on a object "
+			    "previously returned by ffi.gc()");
+	    return NULL;
+	}
+	Py_CLEAR(((CDataObject_gcp *)origobj)->destructor);
+	Py_RETURN_NONE;
+    }
+
     cd = allocate_gcp_object(origobj, origobj->c_type, destructor);
     return (PyObject *)cd;
 }

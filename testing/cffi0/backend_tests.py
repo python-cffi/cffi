@@ -1522,6 +1522,20 @@ class BackendTests:
         import gc; gc.collect(); gc.collect(); gc.collect()
         assert seen == [3]
 
+    def test_gc_disable(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int *", 123)
+        py.test.raises(TypeError, ffi.gc, p, None)
+        seen = []
+        q1 = ffi.gc(p, lambda p: seen.append(1))
+        q2 = ffi.gc(q1, lambda p: seen.append(2))
+        import gc; gc.collect()
+        assert seen == []
+        assert ffi.gc(q1, None) is None
+        del q1, q2
+        import gc; gc.collect(); gc.collect(); gc.collect()
+        assert seen == [2]
+
     def test_gc_finite_list(self):
         ffi = FFI(backend=self.Backend())
         p = ffi.new("int *", 123)
