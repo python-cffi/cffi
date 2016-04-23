@@ -1524,19 +1524,14 @@ class BackendTests:
 
     def test_gc_finite_list(self):
         ffi = FFI(backend=self.Backend())
-        public = not hasattr(ffi._backend, 'gcp')
         p = ffi.new("int *", 123)
         keepalive = []
         for i in range(10):
             keepalive.append(ffi.gc(p, lambda p: None))
-            if public:
-                assert len(ffi.gc_weakrefs.data) == i + 1
         del keepalive[:]
         import gc; gc.collect(); gc.collect()
         for i in range(10):
             keepalive.append(ffi.gc(p, lambda p: None))
-        if public:
-            assert len(ffi.gc_weakrefs.data) == 10
 
     def test_CData_CType(self):
         ffi = FFI(backend=self.Backend())
