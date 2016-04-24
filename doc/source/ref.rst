@@ -318,6 +318,11 @@ returned by ``ffi.new()``, the returned pointer objects have *ownership*,
 which means the destructor is called as soon as *this* exact returned
 object is garbage-collected.
 
+**ffi.gc(ptr, None)**: removes the ownership on a object returned by a
+regular call to ``ffi.gc``, and no destructor will be called when it
+is garbage-collected.  The object is modified in-place, and the
+function returns ``None``.
+
 Note that this should be avoided for large memory allocations or
 for limited resources.  This is particularly true on PyPy: its GC does
 not know how much memory or how many resources the returned ``ptr``

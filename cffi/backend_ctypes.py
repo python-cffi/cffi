@@ -993,6 +993,31 @@ class CTypesBackend(object):
         assert onerror is None   # XXX not implemented
         return BType(source, error)
 
+    def gcp(self, cdata, destructor):
+        BType = self.typeof(cdata)
+
+        if destructor is None:
+            if not (hasattr(BType, '_gcp_type') and
+                    BType._gcp_type is BType):
+                raise TypeError("Can remove destructor only on a object "
+                                "previously returned by ffi.gc()")
+            cdata._destructor = None
+            return None
+
+        try:
+            gcp_type = BType._gcp_type
+        except AttributeError:
+            class CTypesDataGcp(BType):
+                __slots__ = ['_orig', '_destructor']
+                def __del__(self):
+                    if self._destructor is not None:
+                        self._destructor(self._orig)
+            gcp_type = BType._gcp_type = CTypesDataGcp
+        new_cdata = self.cast(gcp_type, cdata)
+        new_cdata._orig = cdata
+        new_cdata._destructor = destructor
+        return new_cdata
+
     typeof = type
 
     def getcname(self, BType, replace_with):

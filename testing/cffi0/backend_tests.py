@@ -1522,21 +1522,30 @@ class BackendTests:
         import gc; gc.collect(); gc.collect(); gc.collect()
         assert seen == [3]
 
+    def test_gc_disable(self):
+        ffi = FFI(backend=self.Backend())
+        p = ffi.new("int *", 123)
+        py.test.raises(TypeError, ffi.gc, p, None)
+        seen = []
+        q1 = ffi.gc(p, lambda p: seen.append(1))
+        q2 = ffi.gc(q1, lambda p: seen.append(2))
+        import gc; gc.collect()
+        assert seen == []
+        assert ffi.gc(q1, None) is None
+        del q1, q2
+        import gc; gc.collect(); gc.collect(); gc.collect()
+        assert seen == [2]
+
     def test_gc_finite_list(self):
         ffi = FFI(backend=self.Backend())
-        public = not hasattr(ffi._backend, 'gcp')
         p = ffi.new("int *", 123)
         keepalive = []
         for i in range(10):
             keepalive.append(ffi.gc(p, lambda p: None))
-            if public:
-                assert len(ffi.gc_weakrefs.data) == i + 1
         del keepalive[:]
         import gc; gc.collect(); gc.collect()
         for i in range(10):
             keepalive.append(ffi.gc(p, lambda p: None))
-        if public:
-            assert len(ffi.gc_weakrefs.data) == 10
 
     def test_CData_CType(self):
         ffi = FFI(backend=self.Backend())
