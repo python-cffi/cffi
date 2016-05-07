@@ -187,6 +187,9 @@ For example, with virtualenv:
 
 * ``cd ~/path/to/sources/of/cffi``
 
+* ``~/venv/bin/python setup.py build --force`` # forcing a rebuild to
+  make sure
+
 * ``~/venv/bin/python setup.py install``
 
 This will compile and install CFFI in this virtualenv, using the
