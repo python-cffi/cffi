@@ -3,8 +3,10 @@ What's New
 ======================
 
 
-v1.next
-=======
+v1.7
+====
+
+(NOT RELEASED YET)
 
 * ``ffi.gc(p, None)`` removes the destructor on an object previously
   created by another call to ``ffi.gc()``
