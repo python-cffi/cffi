@@ -166,16 +166,28 @@ concerned.
 Linux and OS/X: UCS2 versus UCS4
 ++++++++++++++++++++++++++++++++
 
-This is about getting an error like ``Symbol not found:
-_PyUnicodeUCS2_AsASCIIString``.  This error occurs in Python 2 as soon
-as you mix "ucs2" and "ucs4" builds of Python.
+This is about getting an ImportError about ``_cffi_backend.so`` with a
+message like ``Symbol not found: _PyUnicodeUCS2_AsASCIIString``.  This
+error occurs in Python 2 as soon as you mix "ucs2" and "ucs4" builds of
+Python.  It means that you are now running a Python compiled with
+"ucs4", but the extension module ``_cffi_backend.so`` was compiled by a
+different Python: one that was running "ucs2".  (If the opposite problem
+occurs, you get an error about ``_PyUnicodeUCS4_AsASCIIString``
+instead.)
 
 If you are using ``pyenv``, then see
 https://github.com/yyuu/pyenv/issues/257.
 
-Otherwise, you can download the sources of CFFI (instead of a prebuilt
-binary) and make sure that you build it with the same version of Python
-that will use it.  For example, if you use ``virtualenv ~/venv``, then
-``. ~/venv/bin/activate``, then you are sure that running ``python
-setup.py install`` inside a copy of the sources of CFFI will build CFFI
-using exactly the version of Python from this virtualenv.
+More generally, the solution that should always work is to download the
+sources of CFFI (instead of a prebuilt binary) and make sure that you
+build it with the same version of Python than the one that will use it.
+For example, with virtualenv:
+
+* ``virtualenv ~/venv``
+
+* ``cd ~/path/to/sources/of/cffi``
+
+* ``~/venv/bin/python setup.py install``
+
+This will compile and install CFFI in this virtualenv, using the
+Python from this virtualenv.
