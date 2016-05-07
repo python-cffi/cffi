@@ -158,6 +158,7 @@ def test_float_types():
         assert bool(cast(p, -1e-42)) is True
         assert bool(cast(p, INF))
         assert bool(cast(p, -INF))
+        assert bool(cast(p, float("nan")))
         assert int(cast(p, -150)) == -150
         assert int(cast(p, 61.91)) == 61
         assert long(cast(p, 61.91)) == 61
