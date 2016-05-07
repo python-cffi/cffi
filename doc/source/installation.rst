@@ -161,3 +161,21 @@ concerned.
 
 .. _`issue 9`: https://bitbucket.org/cffi/cffi/issue/9
 .. _`Python issue 7546`: http://bugs.python.org/issue7546
+
+
+Linux and OS/X: UCS2 versus UCS4
+++++++++++++++++++++++++++++++++
+
+This is about getting an error like ``Symbol not found:
+_PyUnicodeUCS2_AsASCIIString``.  This error occurs in Python 2 as soon
+as you mix "ucs2" and "ucs4" builds of Python.
+
+If you are using ``pyenv``, then see
+https://github.com/yyuu/pyenv/issues/257.
+
+Otherwise, you can download the sources of CFFI (instead of a prebuilt
+binary) and make sure that you build it with the same version of Python
+that will use it.  For example, if you use ``virtualenv ~/venv``, then
+``. ~/venv/bin/activate``, then you are sure that running ``python
+setup.py install`` inside a copy of the sources of CFFI will build CFFI
+using exactly the version of Python from this virtualenv.
