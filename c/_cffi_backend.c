@@ -1858,6 +1858,18 @@ static PyObject *cdataowninggc_repr(CDataObject *cd)
 
 static int cdata_nonzero(CDataObject *cd)
 {
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_ANY) {
+        if (cd->c_type->ct_flags & (CT_PRIMITIVE_SIGNED |
+                                    CT_PRIMITIVE_UNSIGNED |
+                                    CT_PRIMITIVE_CHAR))
+            return read_raw_unsigned_data(cd->c_data, cd->c_type->ct_size) != 0;
+
+        if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
+            if (cd->c_type->ct_flags & CT_IS_LONGDOUBLE)
+                return read_raw_longdouble_data(cd->c_data) != 0.0;
+            return read_raw_float_data(cd->c_data, cd->c_type->ct_size) != 0.0;
+        }
+    }
     return cd->c_data != NULL;
 }
 
