@@ -11,6 +11,11 @@ v1.7
 * ``ffi.gc(p, None)`` removes the destructor on an object previously
   created by another call to ``ffi.gc()``
 
+* ``bool(ffi.cast("primitive type", x))`` now returns False if the
+  value is zero (including ``-0.0``), and True otherwise.  Previously
+  this would only return False for cdata objects of a pointer type when
+  the pointer is NULL.
+
 
 v1.6
 ====
