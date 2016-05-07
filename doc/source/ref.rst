@@ -508,24 +508,24 @@ allowed.
 +---------------+------------------------+------------------+----------------+
 |    C type     |   writing into         | reading from     |other operations|
 +===============+========================+==================+================+
-|   integers    | an integer or anything | a Python int or  | int()          |
-|   and enums   | on which int() works   | long, depending  |                |
+|   integers    | an integer or anything | a Python int or  | int(), bool()  |
+|   and enums   | on which int() works   | long, depending  | `(******)`     |
 |   `(*****)`   | (but not a float!).    | on the type      |                |
 |               | Must be within range.  |                  |                |
 +---------------+------------------------+------------------+----------------+
-|   ``char``    | a string of length 1   | a string of      | int()          |
+|   ``char``    | a string of length 1   | a string of      | int(), bool()  |
 |               | or another <cdata char>| length 1         |                |
 +---------------+------------------------+------------------+----------------+
 |  ``wchar_t``  | a unicode of length 1  | a unicode of     |                |
-|               | (or maybe 2 if         | length 1         | int()          |
+|               | (or maybe 2 if         | length 1         | int(), bool()  |
 |               | surrogates) or         | (or maybe 2 if   |                |
 |               | another <cdata wchar_t>| surrogates)      |                |
 +---------------+------------------------+------------------+----------------+
-|  ``float``,   | a float or anything on | a Python float   | float(), int() |
-|  ``double``   | which float() works    |                  |                |
+|  ``float``,   | a float or anything on | a Python float   | float(), int(),|
+|  ``double``   | which float() works    |                  | bool()         |
 +---------------+------------------------+------------------+----------------+
-|``long double``| another <cdata> with   | a <cdata>, to    | float(), int() |
-|               | a ``long double``, or  | avoid loosing    |                |
+|``long double``| another <cdata> with   | a <cdata>, to    | float(), int(),|
+|               | a ``long double``, or  | avoid loosing    | bool()         |
 |               | anything on which      | precision `(***)`|                |
 |               | float() works          |                  |                |
 +---------------+------------------------+------------------+----------------+
@@ -635,3 +635,8 @@ allowed.
    compare their value symbolically, use code like ``if x.field ==
    lib.FOO``.  If you really want to get their value as a string, use
    ``ffi.string(ffi.cast("the_enum_type", x.field))``.
+
+`(******)` bool() on a primitive cdata:
+
+   *New in version 1.7.*  In previous versions, it only worked on
+   pointers; for primitives it always returned True.
