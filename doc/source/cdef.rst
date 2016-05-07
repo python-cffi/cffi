@@ -598,7 +598,8 @@ ffi.cdef() limitations
 
 All of the ANSI C *declarations* should be supported in ``cdef()``,
 and some of C99.  (This excludes any ``#include`` or ``#ifdef``.)
-Known missing features that are GCC or MSVC extensions:
+Known missing features that are either in C99, or are GCC or MSVC
+extensions:
 
 * Any ``__attribute__`` or ``#pragma pack(n)``
 
@@ -612,9 +613,6 @@ Known missing features that are GCC or MSVC extensions:
   You need to write wrapper functions in C, e.g. ``void
   foo_wrapper(struct my_complex c) { foo(c.real + c.imag*1j); }``, and
   call ``foo_wrapper`` rather than ``foo`` directly.
-
-* Function pointers with non-default calling conventions (e.g. on
-  Windows, "stdcall").
 
 Note that declarations like ``int field[];`` in
 structures are interpreted as variable-length structures.  Declarations
