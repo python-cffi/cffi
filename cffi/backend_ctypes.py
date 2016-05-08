@@ -460,6 +460,11 @@ class CTypesBackend(object):
                         return x._value
                     raise TypeError("character expected, got %s" %
                                     type(x).__name__)
+                def __nonzero__(self):
+                    return ord(self._value) != 0
+            else:
+                def __nonzero__(self):
+                    return self._value != 0
 
             if kind == 'float':
                 @staticmethod
