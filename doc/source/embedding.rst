@@ -76,7 +76,7 @@ library.  It is a file with the extension ``.dll`` on Windows,
 ``.dylib`` on Mac OS/X, or ``.so`` on other platforms.  As usual, it
 is produced by generating some intermediate ``.c`` code and then
 calling the regular platform-specific C compiler.  See below__ for
-some pointers to C-level issues with using the probuced library.
+some pointers to C-level issues with using the produced library.
 
 .. __: `Issues about using the .so`_
 
