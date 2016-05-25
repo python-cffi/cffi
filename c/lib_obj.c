@@ -516,14 +516,18 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
     }
     if (strcmp(p, "__class__") == 0) {
         PyErr_Clear();
-        x = (PyObject *)Py_TYPE(lib);
+        x = (PyObject *)&PyModule_Type;
+        /* ^^^ used to be Py_TYPE(lib).  But HAAAAAACK!  That makes
+           help() behave correctly.  I couldn't find a more reasonable
+           way.  Urgh. */
         Py_INCREF(x);
         return x;
     }
-    /* this hack is for Python 3.5 */
+    /* this hack is for Python 3.5, and also to give a more 
+       module-like behavior */
     if (strcmp(p, "__name__") == 0) {
         PyErr_Clear();
-        return lib_repr(lib);
+        return PyText_FromFormat("%s.lib", PyText_AS_UTF8(lib->l_libname));
     }
     return NULL;
 }
