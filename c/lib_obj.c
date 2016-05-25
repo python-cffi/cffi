@@ -93,7 +93,7 @@ static void lib_dealloc(LibObject *lib)
     Py_DECREF(lib->l_dict);
     Py_DECREF(lib->l_libname);
     Py_DECREF(lib->l_ffi);
-    PyObject_Del(lib);
+    PyObject_GC_Del(lib);
 }
 
 static int lib_traverse(LibObject *lib, visitproc visit, void *arg)
@@ -578,7 +578,7 @@ static PyTypeObject Lib_Type = {
     (getattrofunc)lib_getattr,                  /* tp_getattro */
     (setattrofunc)lib_setattr,                  /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
     0,                                          /* tp_doc */
     (traverseproc)lib_traverse,                 /* tp_traverse */
     0,                                          /* tp_clear */
@@ -610,7 +610,7 @@ static LibObject *lib_internal_new(FFIObject *ffi, char *module_name,
     if (dict == NULL)
         goto err2;
 
-    lib = PyObject_New(LibObject, &Lib_Type);
+    lib = (LibObject *)PyType_GenericAlloc(&Lib_Type, 0);
     if (lib == NULL)
         goto err3;
 
