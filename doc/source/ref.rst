@@ -189,6 +189,9 @@ can directly pass ``ffi.from_buffer(python_buffer)`` as argument to
 the call.
 
 *New in version 1.7:* the python_buffer can be a bytearray object.
+Be careful: if the bytearray gets resized (e.g. its ``.append()``
+method is called), then the ``<cdata>`` object will point to freed
+memory and must not be used any more.
 
 
 ffi.memmove()
