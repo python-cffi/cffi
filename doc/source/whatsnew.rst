@@ -16,6 +16,16 @@ v1.7
   this would only return False for cdata objects of a pointer type when
   the pointer is NULL.
 
+* bytearrays: ``ffi.from_buffer(bytearray-object)`` is now supported.
+  (The reason it was not supported was that it was hard to do in PyPy,
+  but it works since PyPy 5.2.)  You can call C functions with a
+  ``char *`` argument from any buffer object, now including
+  bytearrays, by giving them ``ffi.from_buffer(..)`` as argument.
+  Additionally, you can now do ``p[0:length] = bytearray-object``.
+  The problem with this was that a iterating over bytearrays gives
+  *numbers* instead of *characters*.  (Now it is implemented with just
+  a memcpy, of course, not actually iterating over the characters.)
+
 
 v1.6
 ====

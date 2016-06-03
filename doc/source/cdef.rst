@@ -183,11 +183,11 @@ can assume to exist are the standard types:
   ``c_f = ffi.cast("FILE *", fileobj)`` and then pass around ``c_f``.
 
 * all `common Windows types`_ are defined if you run
-  on Windows (``DWORD``, ``LPARAM``, etc.).  *Changed in version 0.9:* the
-  types ``TBYTE TCHAR LPCTSTR PCTSTR LPTSTR PTSTR PTBYTE PTCHAR`` are no
-  longer automatically defined; see `ffi.set_unicode()`_.
+  on Windows (``DWORD``, ``LPARAM``, etc.).  Exception:
+  ``TBYTE TCHAR LPCTSTR PCTSTR LPTSTR PTSTR PTBYTE PTCHAR`` are
+  not automatically defined; see `ffi.set_unicode()`_.
 
-* *New in version 0.9.3:* the other standard integer types from
+* the other standard integer types from
   stdint.h, like ``intmax_t``, as long as they map to integers of 1,
   2, 4 or 8 bytes.  Larger integers are not supported.
 
@@ -253,7 +253,7 @@ declare the types ``TBYTE TCHAR LPCTSTR PCTSTR LPTSTR PTSTR PTBYTE
 PTCHAR`` to be (pointers to) ``wchar_t``.  If ``enabled_flag`` is
 False, declare these types to be (pointers to) plain 8-bit characters.
 (These types are not predeclared at all if you don't call
-``set_unicode()``.)  *New in version 0.9.*
+``set_unicode()``.)
 
 The reason behind this method is that a lot of standard functions have
 two versions, like ``MessageBoxA()`` and ``MessageBoxW()``.  The
@@ -724,9 +724,8 @@ Extra arguments to ``ffi.verify()``:
 
 * ``source_extension`` has the same meaning as in ``ffi.set_source()``.
 
-*  The optional ``flags`` argument has been added in version 0.9;
-   see ``man dlopen``
-   (ignored on Windows).  It defaults to ``ffi.RTLD_NOW``.  (With
+*  The optional ``flags`` argument (ignored on Windows) defaults to
+   ``ffi.RTLD_NOW``; see ``man dlopen``.  (With
    ``ffi.set_source()``, you would use ``sys.setdlopenflags()``.)
 
 *  The optional ``relative_to`` argument is useful if you need to list

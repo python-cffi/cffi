@@ -171,16 +171,24 @@ points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
 a reference to the existing data, not a copy; for this
 reason, and for PyPy compatibility, it does not work with the built-in
-types str or unicode or bytearray (or buffers/memoryviews on them).
+types str or unicode (or buffers/memoryviews on them).
 It is meant to be used on objects
-containing large quantities of raw data, like ``array.array`` or numpy
+containing large quantities of raw data, like bytearrays
+or ``array.array`` or numpy
 arrays.  It supports both the old buffer API (in Python 2.x) and the
 new memoryview API.  Note that if you pass a read-only buffer object,
 you still get a regular ``<cdata 'char[]'>``; it is your responsibility
 not to write there if the original buffer doesn't expect you to.
 The original object is kept alive (and, in case
 of memoryview, locked) as long as the cdata object returned by
-``ffi.from_buffer()`` is alive.  *New in version 0.9.*
+``ffi.from_buffer()`` is alive.
+
+A common use case is calling a C function with some ``char *`` that
+points to the internal buffer of a Python object; for this case you
+can directly pass ``ffi.from_buffer(python_buffer)`` as argument to
+the call.
+
+*New in version 1.7:* the python_buffer can be a bytearray object.
 
 
 ffi.memmove()
@@ -255,7 +263,6 @@ ffi.offsetof(), ffi.addressof()
 offset within the struct of the given field.  Corresponds to ``offsetof()``
 in C.
 
-*New in version 0.9:*
 You can give several field names in case of nested structures.  You
 can also give numeric values which correspond to array items, in case
 of a pointer or array type.  For example, ``ffi.offsetof("int[5]", 2)``
