@@ -3328,13 +3328,12 @@ def test_from_buffer():
     cast(p, c)[1] += 500
     assert list(a) == [10000, 20500, 30000]
 
-def test_from_buffer_not_str_unicode_bytearray():
+def test_from_buffer_not_str_unicode():
     BChar = new_primitive_type("char")
     BCharP = new_pointer_type(BChar)
     BCharA = new_array_type(BCharP, None)
     py.test.raises(TypeError, from_buffer, BCharA, b"foo")
     py.test.raises(TypeError, from_buffer, BCharA, u+"foo")
-    py.test.raises(TypeError, from_buffer, BCharA, bytearray(b"foo"))
     try:
         from __builtin__ import buffer
     except ImportError:
@@ -3342,16 +3341,27 @@ def test_from_buffer_not_str_unicode_bytearray():
     else:
         py.test.raises(TypeError, from_buffer, BCharA, buffer(b"foo"))
         py.test.raises(TypeError, from_buffer, BCharA, buffer(u+"foo"))
-        py.test.raises(TypeError, from_buffer, BCharA,
-                       buffer(bytearray(b"foo")))
     try:
         from __builtin__ import memoryview
     except ImportError:
         pass
     else:
         py.test.raises(TypeError, from_buffer, BCharA, memoryview(b"foo"))
-        py.test.raises(TypeError, from_buffer, BCharA,
-                       memoryview(bytearray(b"foo")))
+
+def test_from_buffer_bytearray():
+    a = bytearray(b"xyz")
+    BChar = new_primitive_type("char")
+    BCharP = new_pointer_type(BChar)
+    BCharA = new_array_type(BCharP, None)
+    p = from_buffer(BCharA, a)
+    assert typeof(p) is BCharA
+    assert len(p) == 3
+    assert repr(p) == "<cdata 'char[]' buffer len 3 from 'bytearray' object>"
+    assert p[2] == b"z"
+    p[2] = b"."
+    assert a[2] == ord(".")
+    a[2] = ord("?")
+    assert p[2] == b"?"
 
 def test_from_buffer_more_cases():
     try:

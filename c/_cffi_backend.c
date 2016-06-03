@@ -5945,8 +5945,8 @@ static int invalid_input_buffer_type(PyObject *x)
 
     if (PyBytes_Check(x) || PyUnicode_Check(x))
         return 1;
-    if (PyByteArray_Check(x)) /* <= this one here for PyPy compatibility */
-        return 1;
+    /* From PyPy 5.2, bytearray buffers can fetch a raw pointer, so
+       there is no reason any more to prevent from_buffer(bytearray()). */
     return 0;
 }
 
@@ -5958,8 +5958,7 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x)
     if (invalid_input_buffer_type(x)) {
         PyErr_SetString(PyExc_TypeError,
                         "from_buffer() cannot return the address of the "
-                        "raw string within a "STR_OR_BYTES" or unicode or "
-                        "bytearray object");
+                        "raw string within a "STR_OR_BYTES" or unicode object");
         return NULL;
     }
 
