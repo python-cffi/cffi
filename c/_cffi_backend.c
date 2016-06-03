@@ -2155,21 +2155,34 @@ cdata_ass_slice(CDataObject *cd, PySliceObject *slice, PyObject *v)
         }
     }
 
-    /* A fast path for <char[]>[0:N] = b"somestring", which also adds
-       support for Python 3: otherwise, you get integers while enumerating
-       the string, and you can't set them to characters :-/
+    /* A fast path for <char[]>[0:N] = b"somestring" or bytearray, which
+       also adds support for Python 3: otherwise, you get integers while
+       enumerating the string, and you can't set them to characters :-/
     */
-    if (PyBytes_Check(v) && (ct->ct_flags & CT_PRIMITIVE_CHAR)
-            && itemsize == sizeof(char)) {
-        if (PyBytes_GET_SIZE(v) != length) {
+    if ((ct->ct_flags & CT_PRIMITIVE_CHAR) && itemsize == sizeof(char)) {
+        char *src;
+        Py_ssize_t srclen;
+        if (PyBytes_Check(v)) {
+            srclen = PyBytes_GET_SIZE(v);
+            src = PyBytes_AS_STRING(v);
+        }
+        else if (PyByteArray_Check(v)) {
+            srclen = PyByteArray_GET_SIZE(v);
+            src = PyByteArray_AS_STRING(v);
+        }
+        else
+            goto other_types;
+
+        if (srclen != length) {
             PyErr_Format(PyExc_ValueError,
                          "need a string of length %zd, got %zd",
-                         length, PyBytes_GET_SIZE(v));
+                         length, srclen);
             return -1;
         }
-        memcpy(cdata, PyBytes_AS_STRING(v), length);
+        memcpy(cdata, src, length);
         return 0;
     }
+   other_types:
 
     it = PyObject_GetIter(v);
     if (it == NULL)

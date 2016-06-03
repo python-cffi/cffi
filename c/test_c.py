@@ -2697,10 +2697,12 @@ def test_newp_from_bytearray_doesnt_work():
     BCharArray = new_array_type(
         new_pointer_type(new_primitive_type("char")), None)
     py.test.raises(TypeError, newp, BCharArray, bytearray(b"foo"))
-    p = newp(BCharArray, 4)
-    buffer(p)[:] = bytearray(b"foo\x00")
-    assert len(p) == 4
-    assert list(p) == [b"f", b"o", b"o", b"\x00"]
+    p = newp(BCharArray, 5)
+    buffer(p)[:] = bytearray(b"foo.\x00")
+    assert len(p) == 5
+    assert list(p) == [b"f", b"o", b"o", b".", b"\x00"]
+    p[1:3] = bytearray(b"XY")
+    assert list(p) == [b"f", b"X", b"Y", b".", b"\x00"]
 
 # XXX hack
 if sys.version_info >= (3,):
