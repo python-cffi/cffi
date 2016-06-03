@@ -2704,6 +2704,13 @@ def test_newp_from_bytearray_doesnt_work():
     p[1:3] = bytearray(b"XY")
     assert list(p) == [b"f", b"X", b"Y", b".", b"\x00"]
 
+def test_string_assignment_to_byte_array():
+    BByteArray = new_array_type(
+        new_pointer_type(new_primitive_type("unsigned char")), None)
+    p = newp(BByteArray, 5)
+    p[0:3] = bytearray(b"XYZ")
+    assert list(p) == [ord("X"), ord("Y"), ord("Z"), 0, 0]
+
 # XXX hack
 if sys.version_info >= (3,):
     try:
