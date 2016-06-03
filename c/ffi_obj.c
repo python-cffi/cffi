@@ -707,7 +707,7 @@ PyDoc_STRVAR(ffi_from_handle_doc,
 PyDoc_STRVAR(ffi_from_buffer_doc,
 "Return a <cdata 'char[]'> that points to the data of the given Python\n"
 "object, which must support the buffer interface.  Note that this is\n"
-"not meant to be used on the built-in types str, unicode, or bytearray\n"
+"not meant to be used on the built-in types str or unicode\n"
 "(you can build 'char[]' arrays explicitly) but only on objects\n"
 "containing large quantities of raw data in some other format, like\n"
 "'array.array' or numpy arrays.");
