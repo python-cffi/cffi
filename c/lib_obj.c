@@ -119,7 +119,7 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
        by calling _cffi_type().
     */
     PyObject *result = NULL;
-    CTypeDescrObject **pfargs;
+    CTypeDescrObject **pfargs = NULL;
     CTypeDescrObject *fresult;
     Py_ssize_t nargs = 0;
     struct CPyExtFunc_s *xfunc;
