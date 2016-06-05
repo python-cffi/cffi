@@ -6,8 +6,6 @@ What's New
 v1.7
 ====
 
-(NOT RELEASED YET)
-
 * ``ffi.gc(p, None)`` removes the destructor on an object previously
   created by another call to ``ffi.gc()``
 
@@ -26,7 +24,7 @@ v1.7
   *numbers* instead of *characters*.  (Now it is implemented with just
   a memcpy, of course, not actually iterating over the characters.)
 
-* C++: compiling the generated C code with C++ is supposed to work,
+* C++: compiling the generated C code with C++ was supposed to work,
   but failed if you make use the ``bool`` type (because that is rendered
   as the C ``_Bool`` type, which doesn't exist in C++).
 
