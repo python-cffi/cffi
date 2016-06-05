@@ -66,19 +66,20 @@ on the version of libraries detected on the system).
 
     # file "simple_example_build.py"
 
-    # Note: this particular example fails before version 1.0.2
-    # because it combines variadic function and ABI level.
+    # Note: we instantiate the same 'cffi.FFI' class as in the previous
+    # example, but call the result 'ffibuilder' now instead of 'ffi';
+    # this is to avoid confusion with the other 'ffi' object you get below
 
     from cffi import FFI
 
-    ffi = FFI()
-    ffi.set_source("_simple_example", None)
-    ffi.cdef("""
+    ffibuilder = FFI()
+    ffibuilder.set_source("_simple_example", None)
+    ffibuilder.cdef("""
         int printf(const char *format, ...);
     """)
 
     if __name__ == "__main__":
-        ffi.compile()
+        ffibuilder.compile(verbose=True)
 
 Running it once produces ``_simple_example.py``.  Your main program
 only imports this generated module, not ``simple_example_build.py``
@@ -115,7 +116,7 @@ you can say in the ``setup.py``:
     setup(
         ...
         setup_requires=["cffi>=1.0.0"],
-        cffi_modules=["simple_example_build.py:ffi"],
+        cffi_modules=["simple_example_build.py:ffibuilder"],
         install_requires=["cffi>=1.0.0"],
     )
 
@@ -131,9 +132,9 @@ Real example (API level, out-of-line)
     # file "example_build.py"
 
     from cffi import FFI
-    ffi = FFI()
+    ffibuilder = FFI()
 
-    ffi.set_source("_example",
+    ffibuilder.set_source("_example",
         """ // passed to the real C compiler
             #include <sys/types.h>
             #include <pwd.h>
@@ -142,7 +143,7 @@ Real example (API level, out-of-line)
         # (more arguments like setup.py's Extension class:
         # include_dirs=[..], extra_objects=[..], and so on)
 
-    ffi.cdef("""     // some declarations from the man page
+    ffibuilder.cdef("""     // some declarations from the man page
         struct passwd {
             char *pw_name;
             ...;     // literally dot-dot-dot
@@ -151,7 +152,7 @@ Real example (API level, out-of-line)
     """)
 
     if __name__ == "__main__":
-        ffi.compile()
+        ffibuilder.compile(verbose=True)
 
 You need to run the ``example_build.py`` script once to generate
 "source code" into the file ``_example.c`` and compile this to a
@@ -189,7 +190,7 @@ To integrate it inside a ``setup.py`` distribution with Setuptools:
     setup(
         ...
         setup_requires=["cffi>=1.0.0"],
-        cffi_modules=["example_build.py:ffi"],
+        cffi_modules=["example_build.py:ffibuilder"],
         install_requires=["cffi>=1.0.0"],
     )
 
@@ -252,11 +253,11 @@ directly in the build script:
     # file "example_build.py"
 
     from cffi import FFI
-    ffi = FFI()
+    ffibuilder = FFI()
 
-    ffi.cdef("int foo(int *, int *, int);")
+    ffibuilder.cdef("int foo(int *, int *, int);")
 
-    ffi.set_source("_example",
+    ffibuilder.set_source("_example",
     """
         static int foo(int *buffer_in, int *buffer_out, int x)
         {
@@ -265,7 +266,7 @@ directly in the build script:
     """)
 
     if __name__ == "__main__":
-        ffi.compile()
+        ffibuilder.compile(verbose=True)
 
 .. code-block:: python
 
@@ -301,15 +302,15 @@ which can be used from a C application.
 .. code-block:: python
 
     import cffi
-    ffi = cffi.FFI()
+    ffibuilder = cffi.FFI()
 
-    ffi.embedding_api("""
+    ffibuilder.embedding_api("""
         int do_stuff(int, int);
     """)
 
-    ffi.set_source("my_plugin", "")
+    ffibuilder.set_source("my_plugin", "")
 
-    ffi.embedding_init_code("""
+    ffibuilder.embedding_init_code("""
         from my_plugin import ffi
 
         @ffi.def_extern()
@@ -318,7 +319,7 @@ which can be used from a C application.
             return x + y
     """)
 
-    ffi.compile(target="plugin-1.5.*", verbose=True)
+    ffibuilder.compile(target="plugin-1.5.*", verbose=True)
 
 This simple example creates ``plugin-1.5.dll`` or ``plugin-1.5.so`` as
 a DLL with a single exported function, ``do_stuff()``.  You execute

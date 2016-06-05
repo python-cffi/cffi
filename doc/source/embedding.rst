@@ -51,16 +51,16 @@ here this slightly expanded example:
 
     # file plugin_build.py
     import cffi
-    ffi = cffi.FFI()
+    ffibuilder = cffi.FFI()
 
     with open('plugin.h') as f:
-        ffi.embedding_api(f.read())
+        ffibuilder.embedding_api(f.read())
 
-    ffi.set_source("my_plugin", '''
+    ffibuilder.set_source("my_plugin", '''
         #include "plugin.h"
     ''')
 
-    ffi.embedding_init_code("""
+    ffibuilder.embedding_init_code("""
         from my_plugin import ffi
 
         @ffi.def_extern()
@@ -69,7 +69,7 @@ here this slightly expanded example:
             return p.x + p.y
     """)
 
-    ffi.compile(target="plugin-1.5.*", verbose=True)
+    ffibuilder.compile(target="plugin-1.5.*", verbose=True)
 
 Running the code above produces a *DLL*, i,e, a dynamically-loadable
 library.  It is a file with the extension ``.dll`` on Windows,
@@ -82,7 +82,7 @@ some pointers to C-level issues with using the produced library.
 
 Here are some details about the methods used above:
 
-* **ffi.embedding_api(source):** parses the given C source, which
+* **ffibuilder.embedding_api(source):** parses the given C source, which
   declares functions that you want to be exported by the DLL.  It can
   also declare types, constants and global variables that are part of
   the C-level API of your DLL.
@@ -95,9 +95,9 @@ Here are some details about the methods used above:
 
   The global variables, on the other hand, are not automatically
   produced.  You have to write their definition explicitly in
-  ``ffi.set_source()``, as regular C code (see the point after next).
+  ``ffibuilder.set_source()``, as regular C code (see the point after next).
 
-* **ffi.embedding_init_code(python_code):** this gives
+* **ffibuilder.embedding_init_code(python_code):** this gives
   initialization-time Python source code.  This code is copied
   ("frozen") inside the DLL.  At runtime, the code is executed when
   the DLL is first initialized, just after Python itself is
@@ -105,14 +105,14 @@ Here are some details about the methods used above:
   extra "built-in" module that can be loaded magically without
   accessing any files, with a line like "``from my_plugin import ffi,
   lib``".  The name ``my_plugin`` comes from the first argument to
-  ``ffi.set_source()``.  This module represents "the caller's C world"
+  ``ffibuilder.set_source()``.  This module represents "the caller's C world"
   from the point of view of Python.
 
   The initialization-time Python code can import other modules or
   packages as usual.  You may have typical Python issues like needing
   to set up ``sys.path`` somehow manually first.
 
-  For every function declared within ``ffi.embedding_api()``, the
+  For every function declared within ``ffibuilder.embedding_api()``, the
   initialization-time Python code or one of the modules it imports
   should use the decorator ``@ffi.def_extern()`` to attach a
   corresponding Python function to it.
@@ -128,7 +128,7 @@ Here are some details about the methods used above:
   contains code that calls ``exit()``, for example if importing
   ``site`` fails.  This may be worked around in the future.
 
-* **ffi.set_source(c_module_name, c_code):** set the name of the
+* **ffibuilder.set_source(c_module_name, c_code):** set the name of the
   module from Python's point of view.  It also gives more C code which
   will be included in the generated C code.  In trivial examples it
   can be an empty string.  It is where you would ``#include`` some
@@ -136,14 +136,14 @@ Here are some details about the methods used above:
   ``CFFI_DLLEXPORT`` is available to this C code: it expands to the
   platform-specific way of saying "the following declaration should be
   exported from the DLL".  For example, you would put "``extern int
-  my_glob;``" in ``ffi.embedding_api()`` and "``CFFI_DLLEXPORT int
-  my_glob = 42;``" in ``ffi.set_source()``.
+  my_glob;``" in ``ffibuilder.embedding_api()`` and "``CFFI_DLLEXPORT int
+  my_glob = 42;``" in ``ffibuilder.set_source()``.
 
-  Currently, any *type* declared in ``ffi.embedding_api()`` must also
+  Currently, any *type* declared in ``ffibuilder.embedding_api()`` must also
   be present in the ``c_code``.  This is automatic if this code
   contains a line like ``#include "plugin.h"`` in the example above.
 
-* **ffi.compile([target=...] [, verbose=True]):** make the C code and
+* **ffibuilder.compile([target=...] [, verbose=True]):** make the C code and
   compile it.  By default, it produces a file called
   ``c_module_name.dll``, ``c_module_name.dylib`` or
   ``c_module_name.so``, but the default can be changed with the
@@ -155,7 +155,7 @@ Here are some details about the methods used above:
   "``plugin-1.5.*``".
 
   For more complicated cases, you can call instead
-  ``ffi.emit_c_code("foo.c")`` and compile the resulting ``foo.c``
+  ``ffibuilder.emit_c_code("foo.c")`` and compile the resulting ``foo.c``
   file using other means.  CFFI's compilation logic is based on the
   standard library ``distutils`` package, which is really developed
   and tested for the purpose of making CPython extension modules, not
@@ -189,29 +189,29 @@ next:
   need to have your Python code call C code, read more about
   `Embedding and Extending`_ below.
 
-* ``ffi.embedding_api(source)``: follows the same syntax as
-  ``ffi.cdef()``, `documented here.`__  You can use the "``...``"
+* ``ffibuilder.embedding_api(source)``: follows the same syntax as
+  ``ffibuilder.cdef()``, `documented here.`__  You can use the "``...``"
   syntax as well, although in practice it may be less useful than it
   is for ``cdef()``.  On the other hand, it is expected that often the
-  C sources that you need to give to ``ffi.embedding_api()`` would be
+  C sources that you need to give to ``ffibuilder.embedding_api()`` would be
   exactly the same as the content of some ``.h`` file that you want to
   give to users of your DLL.  That's why the example above does this::
 
       with open('foo.h') as f:
-          ffi.embedding_api(f.read())
+          ffibuilder.embedding_api(f.read())
 
-  Note that a drawback of this approach is that ``ffi.embedding_api()``
+  Note that a drawback of this approach is that ``ffibuilder.embedding_api()``
   doesn't support ``#ifdef`` directives.  You may have to use a more
   convoluted expression like::
 
       with open('foo.h') as f:
           lines = [line for line in f if not line.startswith('#')]
-          ffi.embedding_api(''.join(lines))
+          ffibuilder.embedding_api(''.join(lines))
 
   As in the example above, you can also use the same ``foo.h`` from
-  ``ffi.set_source()``::
+  ``ffibuilder.set_source()``::
 
-      ffi.set_source('module_name', '#include "foo.h"')
+      ffibuilder.set_source('module_name', '#include "foo.h"')
 
 
 .. __: using.html#working
@@ -281,7 +281,7 @@ inaccuracies in this paragraph or better ways to do things.)
 * You can avoid the ``LD_LIBRARY_PATH`` issue if you compile
   ``libmy_plugin.so`` with the path hard-coded inside in the first
   place.  On Linux, this is done by ``gcc -Wl,-rpath=/some/path``.  You
-  would put this option in ``ffi.set_source("my_plugin", ...,
+  would put this option in ``ffibuilder.set_source("my_plugin", ...,
   extra_link_args=['-Wl,-rpath=/some/path/to/libpypy'])``.  The path can
   start with ``$ORIGIN`` to mean "the directory where
   ``libmy_plugin.so`` is".  You can then specify a path relative to that
@@ -354,7 +354,7 @@ Python interpreter instead of being loaded like a C shared library.
 You might have some issues with the file name: for example, on
 Windows, Python expects the file to be called ``c_module_name.pyd``,
 but the CFFI-made DLL is called ``target.dll`` instead.  The base name
-``target`` is the one specified in ``ffi.compile()``, and on Windows
+``target`` is the one specified in ``ffibuilder.compile()``, and on Windows
 the extension is ``.dll`` instead of ``.pyd``.  You have to rename or
 copy the file, or on POSIX use a symlink.
 
@@ -371,7 +371,8 @@ Embedding and Extending
 The embedding mode is not incompatible with the non-embedding mode of
 CFFI.
 
-You can use *both* ``ffi.embedding_api()`` and ``ffi.cdef()`` in the
+You can use *both* ``ffibuilder.embedding_api()`` and
+``ffibuilder.cdef()`` in the
 same build script.  You put in the former the declarations you want to
 be exported by the DLL; you put in the latter only the C functions and
 types that you want to share between C and Python, but not export from
@@ -380,10 +381,10 @@ the DLL.
 As an example of that, consider the case where you would like to have
 a DLL-exported C function written in C directly, maybe to handle some
 cases before calling Python functions.  To do that, you must *not* put
-the function's signature in ``ffi.embedding_api()``.  (Note that this
-requires more hacks if you use ``ffi.embedding_api(f.read())``.)  You must
-only write the custom function definition in ``ffi.set_source()``, and
-prefix it with the macro CFFI_DLLEXPORT:
+the function's signature in ``ffibuilder.embedding_api()``.  (Note that this
+requires more hacks if you use ``ffibuilder.embedding_api(f.read())``.)
+You must only write the custom function definition in
+``ffibuilder.set_source()``, and prefix it with the macro CFFI_DLLEXPORT:
 
 .. code-block:: c
 
@@ -399,11 +400,11 @@ anything back:
 
 .. code-block:: python
 
-    ffi.cdef("""
+    ffibuilder.cdef("""
         extern "Python" int mycb(int);
     """)
 
-    ffi.set_source("my_plugin", """
+    ffibuilder.set_source("my_plugin", """
 
         static int mycb(int);   /* the callback: forward declaration, to make
                                    it accessible from the C code that follows */
@@ -433,7 +434,7 @@ called: this is just a C function, with no extra code magically
 inserted around it.  It only happens when ``myfunc()`` calls
 ``mycb()``.
 
-As the above explanation hints, this is how ``ffi.embedding_api()``
+As the above explanation hints, this is how ``ffibuilder.embedding_api()``
 actually implements function calls that directly invoke Python code;
 here, we have merely decomposed it explicitly, in order to add some
 custom C code in the middle.

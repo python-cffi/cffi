@@ -358,7 +358,7 @@ to a union is fine), nor a struct which uses bitfields (but a
 "``...;``" in the ``cdef()``; you need to declare it completely in
 ``cdef()``.  You can work around these limitations by writing a C
 function with a simpler signature in the C header code passed to
-``ffi.set_source()``, and have this C function call the real one.
+``ffibuilder.set_source()``, and have this C function call the real one.
 
 Aside from these limitations, functions and callbacks can receive and
 return structs.
@@ -450,12 +450,12 @@ use libffi's callbacks at all.)
 In the builder script, declare in the cdef a function prefixed with
 ``extern "Python"``::
 
-    ffi.cdef("""
+    ffibuilder.cdef("""
         extern "Python" int my_callback(int, int);
 
         void library_function(int(*callback)(int, int));
     """)
-    ffi.set_source("_my_example", """
+    ffibuilder.set_source("_my_example", """
         #include <some_library.h>
     """)
 
@@ -515,14 +515,14 @@ and you register events by calling this function::
 
 Then you would write this in the build script::
 
-    ffi.cdef("""
+    ffibuilder.cdef("""
         typedef ... event_t;
         typedef void (*event_cb_t)(event_t *evt, void *userdata);
         void event_cb_register(event_cb_t cb, void *userdata);
 
         extern "Python" void my_event_callback(event_t *, void *);
     """)
-    ffi.set_source("_demo_cffi", """
+    ffibuilder.set_source("_demo_cffi", """
         #include <the_event_library.h>
     """)
 
@@ -589,7 +589,7 @@ generated before.
 
 ::
 
-    ffi.set_source("_demo_cffi", """
+    ffibuilder.set_source("_demo_cffi", """
         #include <the_event_library.h>
 
         static void my_event_callback(widget_t *, event_t *);
@@ -601,11 +601,11 @@ This can also be used to write custom C code which calls Python
 directly.  Here is an example (inefficient in this case, but might be
 useful if the logic in ``my_algo()`` is much more complex)::
 
-    ffi.cdef("""
+    ffibuilder.cdef("""
         extern "Python" int f(int);
         int my_algo(int);
     """)
-    ffi.set_source("_example_cffi", """
+    ffibuilder.set_source("_example_cffi", """
         static int f(int);   /* the forward declaration */
 
         static int my_algo(int n) {
@@ -646,10 +646,10 @@ control whether the function should be ``static`` or not.  But often,
 these attributes must be written alongside the function *header*, and
 it is fine if the function *implementation* does not repeat them::
 
-    ffi.cdef("""
+    ffibuilder.cdef("""
         extern "Python+C" int f(int);      /* not static */
     """)
-    ffi.set_source("_example_cffi", """
+    ffibuilder.set_source("_example_cffi", """
         /* the forward declaration, setting a gcc attribute
            (this line could also be in some .h file, to be included
            both here and in the other C files of the project) */
@@ -805,12 +805,12 @@ arguments are passed:
 
     import cffi
 
-    ffi = cffi.FFI()
-    ffi.cdef("""
+    ffibuilder = cffi.FFI()
+    ffibuilder.cdef("""
         int (*python_callback)(int how_many, int *values);
         void *const c_callback;   /* pass this const ptr to C routines */
     """)
-    lib = ffi.set_source("_example", """
+    ffibuilder.set_source("_example", """
         #include <stdarg.h>
         #include <alloca.h>
         static int (*python_callback)(int how_many, int *values);
@@ -825,6 +825,7 @@ arguments are passed:
             return python_callback(how_many, values);
         }
     """)
+    ffibuilder.compile(verbose=True)
 
 .. code-block:: python
     
@@ -872,7 +873,7 @@ in the type, like in C::
 
 or::
 
-    ffi.cdef("""
+    ffibuilder.cdef("""
         struct foo_s {
             int (__stdcall *MyFuncPtr)(int, int);
         };

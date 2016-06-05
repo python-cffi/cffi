@@ -333,7 +333,7 @@ regular call to ``ffi.gc``, and no destructor will be called when it
 is garbage-collected.  The object is modified in-place, and the
 function returns ``None``.  *New in version 1.7: ffi.gc(ptr, None)*
 
-Note that this should be avoided for large memory allocations or
+Note that ``ffi.gc()`` should be avoided for large memory allocations or
 for limited resources.  This is particularly true on PyPy: its GC does
 not know how much memory or how many resources the returned ``ptr``
 holds.  It will only run its GC when enough memory it knows about has

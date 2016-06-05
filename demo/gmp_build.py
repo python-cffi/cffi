@@ -6,9 +6,9 @@ import cffi
 # http://bazaar.launchpad.net/~tolot-solar-empire/+junk/gmpy_cffi/files
 #
 
-ffi = cffi.FFI()
+ffibuilder = cffi.FFI()
 
-ffi.cdef("""
+ffibuilder.cdef("""
 
     typedef struct { ...; } MP_INT;
     typedef MP_INT mpz_t[1];
@@ -19,8 +19,8 @@ ffi.cdef("""
 
 """)
 
-ffi.set_source('_gmp_cffi', "#include <gmp.h>",
+ffibuilder.set_source('_gmp_cffi', "#include <gmp.h>",
                  libraries=['gmp', 'm'])
 
 if __name__ == '__main__':
-    ffi.compile(verbose=True)
+    ffibuilder.compile(verbose=True)

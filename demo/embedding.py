@@ -1,12 +1,12 @@
 import cffi
 
-ffi = cffi.FFI()
+ffibuilder = cffi.FFI()
 
-ffi.embedding_api("""
+ffibuilder.embedding_api("""
     int add(int, int);
 """)
 
-ffi.embedding_init_code("""
+ffibuilder.embedding_init_code("""
     from _embedding_cffi import ffi
     print("preparing")   # printed once
 
@@ -16,6 +16,6 @@ ffi.embedding_init_code("""
         return x + y
 """)
 
-ffi.set_source("_embedding_cffi", "")
+ffibuilder.set_source("_embedding_cffi", "")
 
-ffi.compile(verbose=True)
+ffibuilder.compile(verbose=True)

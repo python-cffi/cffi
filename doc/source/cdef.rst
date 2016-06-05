@@ -29,12 +29,12 @@ In order of complexity:
     # in a separate file "package/foo_build.py"
     import cffi
 
-    ffi = cffi.FFI()
-    ffi.set_source("package._foo", None)
-    ffi.cdef("C-like declarations")
+    ffibuilder = cffi.FFI()
+    ffibuilder.set_source("package._foo", None)
+    ffibuilder.cdef("C-like declarations")
 
     if __name__ == "__main__":
-        ffi.compile()
+        ffibuilder.compile()
 
   Running ``python foo_build.py`` produces a file ``_foo.py``, which
   can then be imported in the main program:
@@ -57,12 +57,12 @@ In order of complexity:
     # in a separate file "package/foo_build.py"
     import cffi
 
-    ffi = cffi.FFI()
-    ffi.set_source("package._foo", "real C code")   # <=
-    ffi.cdef("C-like declarations with '...'")
+    ffibuilder = cffi.FFI()
+    ffibuilder.set_source("package._foo", "real C code")   # <=
+    ffibuilder.cdef("C-like declarations with '...'")
 
     if __name__ == "__main__":
-        ffi.compile(verbose=True)
+        ffibuilder.compile(verbose=True)
 
   Running ``python foo_build.py`` produces a file ``_foo.c`` and
   invokes the C compiler to turn it into a file ``_foo.so`` (or
@@ -91,7 +91,7 @@ In order of complexity:
 
     setup(
         ...,
-        ext_modules=[foo_build.ffi.distutils_extension()],
+        ext_modules=[foo_build.ffibuilder.distutils_extension()],
     )
 
   For Setuptools (out-of-line, but works in ABI or API mode;
@@ -105,7 +105,7 @@ In order of complexity:
     setup(
         ...,
         setup_requires=["cffi>=1.0.0"],
-        cffi_modules=["package/foo_build.py:ffi"],
+        cffi_modules=["package/foo_build.py:ffibuilder"],
         install_requires=["cffi>=1.0.0"],
     )
 
@@ -121,9 +121,13 @@ Note that CFFI actually contains two different ``FFI`` classes.  The
 page `Using the ffi/lib objects`_ describes the common functionality.
 It is what you get in the ``from package._foo import ffi`` lines above.
 On the other hand, the extended ``FFI`` class is the one you get from
-``import cffi; ffi = cffi.FFI()``.  It has the same functionality (for
-in-line use), but also the extra methods described below (to prepare
-the FFI).
+``import cffi; ffi_or_ffibuilder = cffi.FFI()``.  It has the same
+functionality (for in-line use), but also the extra methods described
+below (to prepare the FFI).  NOTE: We use the name ``ffibuilder``
+instead of ``ffi`` in the out-of-line context, when the code is about
+producing a ``_foo.so`` file; this is an attempt to distinguish it
+from the different ``ffi`` object that you get by later saying
+``from _foo import ffi``.
 
 .. _`Using the ffi/lib objects`: using.html
 
@@ -143,15 +147,16 @@ Similarly, the ``lib`` objects returned by the C version are read-only,
 apart from writes to global variables.  Also, ``lib.__dict__`` does
 not work before version 1.2 or if ``lib`` happens to declare a name
 called ``__dict__`` (use instead ``dir(lib)``).  The same is true
-for ``lib.__class__`` before version 1.4.
+for ``lib.__class__``, ``lib.__all__`` and ``lib.__name__`` added
+in successive versions.
 
 
 .. _cdef:
 
-ffi.cdef(): declaring types and functions
------------------------------------------
+ffi/ffibuilder.cdef(): declaring types and functions
+----------------------------------------------------
 
-**ffi.cdef(source)**: parses the given C source.
+**ffi/ffibuilder.cdef(source)**: parses the given C source.
 It registers all the functions, types, constants and global variables in
 the C source.  The types can be used immediately in ``ffi.new()`` and
 other functions.  Before you can access the functions and global
@@ -326,18 +331,18 @@ look for the library's filename.  This also means that
 ``ffi.dlopen(ctypes.util.find_library('c'))``.
 
 
-ffi.set_source(): preparing out-of-line modules
------------------------------------------------
+ffibuilder.set_source(): preparing out-of-line modules
+------------------------------------------------------
 
-**ffi.set_source(module_name, c_header_source, [\*\*keywords...])**:
+**ffibuilder.set_source(module_name, c_header_source, [\*\*keywords...])**:
 prepare the ffi for producing out-of-line an external module called
 ``module_name``.  *New in version 1.0.*
 
-``ffi.set_source()`` by itself does not write any file, but merely
+``ffibuilder.set_source()`` by itself does not write any file, but merely
 records its arguments for later.  It can therefore be called before or
-after ``ffi.cdef()``.
+after ``ffibuilder.cdef()``.
 
-In **ABI mode,** you call ``ffi.set_source(module_name, None)``.  The
+In **ABI mode,** you call ``ffibuilder.set_source(module_name, None)``.  The
 argument is the name (or dotted name inside a package) of the Python
 module to generate.  In this mode, no C compiler is called.
 
@@ -384,7 +389,7 @@ compatibility):
 
 .. code-block:: python
 
-    ffi.set_source("mymodule", '''
+    ffibuilder.set_source("mymodule", '''
     extern "C" {
         int somefunc(int somearg) { return real_cpp_func(somearg); }
     }
@@ -504,22 +509,23 @@ above`_ as primitive (so ``long long a[5];`` and ``int64_t a[5]`` are
 different declarations).
 
 
-ffi.compile() etc.: compiling out-of-line modules
--------------------------------------------------
+ffibuilder.compile() etc.: compiling out-of-line modules
+--------------------------------------------------------
 
 You can use one of the following functions to actually generate the
-.py or .c file prepared with ``ffi.set_source()`` and ``ffi.cdef()``.
+.py or .c file prepared with ``ffibuilder.set_source()`` and
+``ffibuilder.cdef()``.
 
 Note that these function won't overwrite a .py/.c file with exactly
 the same content, to preserve the mtime.  In some cases where you need
 the mtime to be updated anyway, delete the file before calling the
 functions.
 
-**ffi.compile(tmpdir='.', verbose=False):**
+**ffibuilder.compile(tmpdir='.', verbose=False):**
 explicitly generate the .py or .c file,
 and (if .c) compile it.  The output file is (or are) put in the
 directory given by ``tmpdir``.  In the examples given here, we use
-``if __name__ == "__main__": ffi.compile()`` in the build scripts---if
+``if __name__ == "__main__": ffibuilder.compile()`` in the build scripts---if
 they are directly executed, this makes them rebuild the .py/.c file in
 the current directory.  (Note: if a package is specified in the call
 to ``set_source()``, then a corresponding subdirectory of the ``tmpdir``
@@ -530,13 +536,13 @@ usual distutils output, including the command lines that call the
 compiler.  (This parameter might be changed to True by default in a
 future release.)
 
-**ffi.emit_python_code(filename):** generate the given .py file (same
-as ``ffi.compile()`` for ABI mode, with an explicitly-named file to
+**ffibuilder.emit_python_code(filename):** generate the given .py file (same
+as ``ffibuilder.compile()`` for ABI mode, with an explicitly-named file to
 write).  If you choose, you can include this .py file pre-packaged in
 your own distributions: it is identical for any Python version (2 or
 3).
 
-**ffi.emit_c_code(filename):** generate the given .c file (for API
+**ffibuilder.emit_c_code(filename):** generate the given .c file (for API
 mode) without compiling it.  Can be used if you have some other method
 to compile it, e.g. if you want to integrate with some larger build
 system that will compile this file for you.  You can also distribute
@@ -545,25 +551,25 @@ platform, the .c file itself is generic (it would be exactly the same
 if produced on a different OS, with a different version of CPython, or
 with PyPy; it is done with generating the appropriate ``#ifdef``).
 
-**ffi.distutils_extension(tmpdir='build', verbose=True):** for
+**ffibuilder.distutils_extension(tmpdir='build', verbose=True):** for
 distutils-based ``setup.py`` files.  Calling this creates the .c file
 if needed in the given ``tmpdir``, and returns a
 ``distutils.core.Extension`` instance.
 
 For Setuptools, you use instead the line
-``cffi_modules=["path/to/foo_build.py:ffi"]`` in ``setup.py``.  This
+``cffi_modules=["path/to/foo_build.py:ffibuilder"]`` in ``setup.py``.  This
 line asks Setuptools to import and use a helper provided by CFFI,
 which in turn executes the file ``path/to/foo_build.py`` (as with
-``execfile()``) and looks up its global variable called ``ffi``.  You
+``execfile()``) and looks up its global variable called ``ffibuilder``.  You
 can also say ``cffi_modules=["path/to/foo_build.py:maker"]``, where
 ``maker`` names a global function; it is called with no argument and
 is supposed to return a ``FFI`` object.
 
 
-ffi.include(): combining multiple CFFI interfaces
--------------------------------------------------
+ffi/ffibuilder.include(): combining multiple CFFI interfaces
+------------------------------------------------------------
 
-**ffi.include(other_ffi)**: includes the typedefs, structs, unions,
+**ffi/ffibuilder.include(other_ffi)**: includes the typedefs, structs, unions,
 enums and constants defined in another FFI instance.  This is meant
 for large projects where one CFFI-based interface depends on some
 types declared in a different CFFI-based interface.
@@ -574,9 +580,10 @@ inter-dependent libraries.*  For only one library, make one ``ffi``
 object.  (You can write several ``cdef()`` calls over the same ``ffi``
 from several Python files, if one file would be too large.)
 
-For out-of-line modules, the ``ffi.include(other_ffi)`` line should
-occur in the build script, and the ``other_ffi`` argument should be
-another FFI that comes from another build script.  When the two build
+For out-of-line modules, the ``ffibuilder.include(other_ffibuilder)``
+line should
+occur in the build script, and the ``other_ffibuilder`` argument should be
+another FFI instance that comes from another build script.  When the two build
 scripts are turned into generated files, say ``_ffi.so`` and
 ``_other_ffi.so``, then importing ``_ffi.so`` will internally cause
 ``_other_ffi.so`` to be imported.  At that point, the real
@@ -722,11 +729,11 @@ Extra arguments to ``ffi.verify()``:
    check.  Be sure to have other means of clearing the ``tmpdir``
    whenever you change your sources.
 
-* ``source_extension`` has the same meaning as in ``ffi.set_source()``.
+* ``source_extension`` has the same meaning as in ``ffibuilder.set_source()``.
 
 *  The optional ``flags`` argument (ignored on Windows) defaults to
    ``ffi.RTLD_NOW``; see ``man dlopen``.  (With
-   ``ffi.set_source()``, you would use ``sys.setdlopenflags()``.)
+   ``ffibuilder.set_source()``, you would use ``sys.setdlopenflags()``.)
 
 *  The optional ``relative_to`` argument is useful if you need to list
    local files passed to the C compiler::

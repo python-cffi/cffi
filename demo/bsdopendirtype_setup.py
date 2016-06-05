@@ -6,7 +6,7 @@ setup(
     py_modules=["bsdopendirtype"],
     setup_requires=["cffi>=1.0.dev0"],
     cffi_modules=[
-        "bsdopendirtype_build.py:ffi",
+        "bsdopendirtype_build.py:ffibuilder",
     ],
     install_requires=["cffi>=1.0.dev0"],   # should maybe be "cffi-backend" only?
     zip_safe=False,
