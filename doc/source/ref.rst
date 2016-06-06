@@ -410,9 +410,9 @@ case, you can implement it like this (out-of-line API mode)::
             lib.process_document(lib.my_callback,   # the callback
                                  h,                 # 'void *data'
                                  args...)
-            # 'h' stay alive until here, which means that the
+            # 'h' stays alive until here, which means that the
             # ffi.from_handle() done in my_callback() during
-            # the call to process_document() are safe
+            # the call to process_document() is safe
 
         def callback(self, arg1, arg2):
             ...
