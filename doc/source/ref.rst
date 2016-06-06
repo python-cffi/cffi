@@ -359,6 +359,8 @@ you can use **ffi.from_handle(p)** to retrieve the original
 *Calling ffi.from_handle(p) is invalid and will likely crash if
 the cdata object returned by new_handle() is not kept alive!*
 
+See a `typical usage example`_ below.
+
 (In case you are wondering, this ``void *`` is not the ``PyObject *``
 pointer.  This wouldn't make sense on PyPy anyway.)
 
@@ -390,6 +392,33 @@ Python-side place to attach it to, then the easiest is to ``add()`` it
 to a global set.  It can later be removed from the set by
 ``global_set.discard(p)``, with ``p`` any cdata object whose ``void *``
 value compares equal.
+
+.. _`typical usage example`:
+
+Usage example: suppose you have a C library where you must call a
+``lib.process_document()`` function which invokes some callback.  The
+``process_document()`` function receives a pointer to a callback and a
+``void *`` argument.  The callback is then invoked with the ``void
+*data`` argument that is equal to the provided value.  In this typical
+case, you can implement it like this (out-of-line API mode)::
+
+    class MyDocument:
+        ...
+
+        def process(self):
+            lib.process_document(lib.my_callback,       # the callback
+                                 ffi.new_handle(self),  # 'void *data'
+                                 args...)
+            # 'self' stay alive at least until here, which means that
+            # the ffi.from_handle() done in my_callback() are safe
+
+        def callback(self, arg1, arg2):
+            ...
+
+    # the actual callback is this one-liner global function:
+    @ffi.def_extern
+    def my_callback(arg1, arg2, data):
+        return ffi.from_handle(data).callback(arg1, arg2)
 
 
 .. _ffi-dlopen:
