@@ -16,13 +16,13 @@ v1.7
 
 * bytearrays: ``ffi.from_buffer(bytearray-object)`` is now supported.
   (The reason it was not supported was that it was hard to do in PyPy,
-  but it works since PyPy 5.2.)  You can call C functions with a
-  ``char *`` argument from any buffer object, now including
-  bytearrays, by giving them ``ffi.from_buffer(..)`` as argument.
-  Additionally, you can now do ``p[0:length] = bytearray-object``.
-  The problem with this was that a iterating over bytearrays gives
-  *numbers* instead of *characters*.  (Now it is implemented with just
-  a memcpy, of course, not actually iterating over the characters.)
+  but it works since PyPy 5.3.)  To call a C function with a ``char *``
+  argument from a buffer object---now including bytearrays---you write
+  ``lib.foo(ffi.from_buffer(x))``.  Additionally, this is now supported:
+  ``p[0:length] = bytearray-object``.  The problem with this was that a
+  iterating over bytearrays gives *numbers* instead of *characters*.
+  (Now it is implemented with just a memcpy, of course, not actually
+  iterating over the characters.)
 
 * C++: compiling the generated C code with C++ was supposed to work,
   but failed if you make use the ``bool`` type (because that is rendered
