@@ -28,6 +28,8 @@ v1.7
   but failed if you make use the ``bool`` type (because that is rendered
   as the C ``_Bool`` type, which doesn't exist in C++).
 
+* ``help(lib)`` and ``help(lib.myfunc)`` now give useful information.
+
 
 v1.6
 ====
