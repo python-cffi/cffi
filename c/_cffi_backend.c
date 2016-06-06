@@ -2703,6 +2703,27 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     return res;
 }
 
+static PyObject *cdata_dir(PyObject *cd, PyObject *noarg)
+{
+    CTypeDescrObject *ct = ((CDataObject *)cd)->c_type;
+
+    /* replace the type 'pointer-to-t' with just 't' */
+    if (ct->ct_flags & CT_POINTER) {
+        ct = ct->ct_itemdescr;
+    }
+    if ((ct->ct_flags & (CT_STRUCT | CT_UNION)) &&
+        !(ct->ct_flags & CT_IS_OPAQUE)) {
+
+        /* for non-opaque structs or unions */
+        if (force_lazy_struct(ct) < 0)
+            return NULL;
+        return PyDict_Keys(ct->ct_stuff);
+    }
+    else {
+        return PyList_New(0);   /* empty list for the other cases */
+    }
+}
+
 static PyObject *cdata_iter(CDataObject *);
 
 static PyNumberMethods CData_as_number = {
@@ -2751,6 +2772,11 @@ static PyMappingMethods CDataOwn_as_mapping = {
     (objobjargproc)cdata_ass_sub, /*mp_ass_subscript*/
 };
 
+static PyMethodDef cdata_methods[] = {
+    {"__dir__",   cdata_dir,      METH_NOARGS},
+    {NULL,        NULL}           /* sentinel */
+};
+
 static PyTypeObject CData_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "_cffi_backend.CData",
@@ -2779,6 +2805,7 @@ static PyTypeObject CData_Type = {
     offsetof(CDataObject, c_weakreflist),       /* tp_weaklistoffset */
     (getiterfunc)cdata_iter,                    /* tp_iter */
     0,                                          /* tp_iternext */
+    cdata_methods,                              /* tp_methods */
 };
 
 static PyTypeObject CDataOwning_Type = {
