@@ -5258,7 +5258,20 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
                         "libffi failed to build this callback");
         goto error;
     }
-    assert(closure->user_data == infotuple);
+    if (closure->user_data != infotuple) {
+        /* Issue #266.  Should not occur, but could, if we are using
+           at runtime a version of libffi compiled with a different
+           'ffi_closure' structure than the one we expect from ffi.h
+           (e.g. difference in details of the platform): a difference
+           in FFI_TRAMPOLINE_SIZE means that the 'user_data' field
+           ends up somewhere else, and so the test above fails.
+        */
+        PyErr_SetString(PyExc_SystemError,
+            "ffi_prep_closure(): bad user_data (it seems that the "
+            "version of the libffi library seen at runtime is "
+            "different from the 'ffi.h' file seen at compile-time)");
+        goto error;
+    }
     return (PyObject *)cd;
 
  error:
