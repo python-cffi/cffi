@@ -44,81 +44,14 @@ Note that on Python 3 you need to pass byte strings to ``char *``
 arguments.  In the above example it would be ``b"world"`` and ``b"hi
 there, %s!\n"``.  In general it is ``somestring.encode(myencoding)``.
 
-*This example does not call any C compiler.*
+*This example does not call any C compiler.  It works in the so-called
+ABI mode, which means that it will crash if you call some function or
+access some fields of a structure that was slightly misdeclared in the
+cdef().*
 
-
-.. _out-of-line-abi-level:
-
-Out-of-line example (ABI level, out-of-line)
---------------------------------------------
-
-In a real program, you would not include the ``ffi.cdef()`` in your
-main program's modules.  Instead, you can rewrite it as follows.  It
-massively reduces the import times, because it is slow to parse a
-large C header.  It also allows you to do more detailed checkings
-during build-time without worrying about performance (e.g. calling
-``cdef()`` many times with small pieces of declarations, based
-on the version of libraries detected on the system).
-
-*This example does not call any C compiler.*
-
-.. code-block:: python
-
-    # file "simple_example_build.py"
-
-    # Note: we instantiate the same 'cffi.FFI' class as in the previous
-    # example, but call the result 'ffibuilder' now instead of 'ffi';
-    # this is to avoid confusion with the other 'ffi' object you get below
-
-    from cffi import FFI
-
-    ffibuilder = FFI()
-    ffibuilder.set_source("_simple_example", None)
-    ffibuilder.cdef("""
-        int printf(const char *format, ...);
-    """)
-
-    if __name__ == "__main__":
-        ffibuilder.compile(verbose=True)
-
-Running it once produces ``_simple_example.py``.  Your main program
-only imports this generated module, not ``simple_example_build.py``
-any more:
-
-.. code-block:: python
-
-    from _simple_example import ffi
-
-    lib = ffi.dlopen(None)      # Unix: open the standard C library
-    #import ctypes.util         # or, try this on Windows:
-    #lib = ffi.dlopen(ctypes.util.find_library("c"))
-
-    lib.printf(b"hi there, number %d\n", ffi.cast("int", 2))
-
-Note that this ``ffi.dlopen()``, unlike the one from in-line mode,
-does not invoke any additional magic to locate the library: it must be
-a path name (with or without a directory), as required by the C
-``dlopen()`` or ``LoadLibrary()`` functions.  This means that
-``ffi.dlopen("libfoo.so")`` is ok, but ``ffi.dlopen("foo")`` is not.
-In the latter case, you could replace it with
-``ffi.dlopen(ctypes.util.find_library("foo"))``.  Also, None is only
-recognized on Unix to open the standard C library.
-
-For distribution purposes, remember that there is a new
-``_simple_example.py`` file generated.  You can either include it
-statically within your project's source files, or, with Setuptools,
-you can say in the ``setup.py``:
-
-.. code-block:: python
-
-    from setuptools import setup
-
-    setup(
-        ...
-        setup_requires=["cffi>=1.0.0"],
-        cffi_modules=["simple_example_build.py:ffibuilder"],
-        install_requires=["cffi>=1.0.0"],
-    )
+If using a C compiler to install your module is an option, it is highly
+recommended to use the API mode described in the next paragraph.  (It is
+also a bit faster at runtime.)
 
 
 .. _out-of-line-api-level:
@@ -130,6 +63,10 @@ Real example (API level, out-of-line)
 .. code-block:: python
 
     # file "example_build.py"
+
+    # Note: we instantiate the same 'cffi.FFI' class as in the previous
+    # example, but call the result 'ffibuilder' now instead of 'ffi';
+    # this is to avoid confusion with the other 'ffi' object you get below
 
     from cffi import FFI
     ffibuilder = FFI()
@@ -230,11 +167,11 @@ and get a two-dimensional array.
 *This example does not call any C compiler.*
 
 This example also admits an out-of-line equivalent.  It is similar to
-`Out-of-line example (ABI level, out-of-line)`_ above, but without any
-call to ``ffi.dlopen()``.  In the main program, you write ``from
-_simple_example import ffi`` and then the same content as the in-line
-example above starting from the line ``image = ffi.new("pixel_t[]",
-800*600)``.
+`Real example (API level, out-of-line)`_ above, but passing ``None`` as
+the second argument to ``ffibuilder.set_source()``.  Then in the main
+program you write ``from _simple_example import ffi`` and then the same
+content as the in-line example above starting from the line ``image =
+ffi.new("pixel_t[]", 800*600)``.
 
 
 .. _performance:
@@ -286,6 +223,77 @@ directly in the build script:
 *You need a C compiler to run example_build.py, once.  It produces a
 file called e.g. _example.so or _example.pyd.  If needed, it can be
 distributed in precompiled form like any other extension module.*
+
+
+.. _out-of-line-abi-level:
+
+Out-of-line, ABI level
+----------------------
+
+The out-of-line ABI mode is a mixture of the regular (API) out-of-line
+mode and the in-line ABI mode.  It lets you use the ABI mode, with its
+advantages (not requiring a C compiler) and problems (crashes more
+easily).
+
+This mixture mode lets you massively reduces the import times, because
+it is slow to parse a large C header.  It also allows you to do more
+detailed checkings during build-time without worrying about performance
+(e.g. calling ``cdef()`` many times with small pieces of declarations,
+based on the version of libraries detected on the system).
+
+.. code-block:: python
+
+    # file "simple_example_build.py"
+
+    from cffi import FFI
+
+    ffibuilder = FFI()
+    ffibuilder.set_source("_simple_example", None)
+    ffibuilder.cdef("""
+        int printf(const char *format, ...);
+    """)
+
+    if __name__ == "__main__":
+        ffibuilder.compile(verbose=True)
+
+Running it once produces ``_simple_example.py``.  Your main program
+only imports this generated module, not ``simple_example_build.py``
+any more:
+
+.. code-block:: python
+
+    from _simple_example import ffi
+
+    lib = ffi.dlopen(None)      # Unix: open the standard C library
+    #import ctypes.util         # or, try this on Windows:
+    #lib = ffi.dlopen(ctypes.util.find_library("c"))
+
+    lib.printf(b"hi there, number %d\n", ffi.cast("int", 2))
+
+Note that this ``ffi.dlopen()``, unlike the one from in-line mode,
+does not invoke any additional magic to locate the library: it must be
+a path name (with or without a directory), as required by the C
+``dlopen()`` or ``LoadLibrary()`` functions.  This means that
+``ffi.dlopen("libfoo.so")`` is ok, but ``ffi.dlopen("foo")`` is not.
+In the latter case, you could replace it with
+``ffi.dlopen(ctypes.util.find_library("foo"))``.  Also, None is only
+recognized on Unix to open the standard C library.
+
+For distribution purposes, remember that there is a new
+``_simple_example.py`` file generated.  You can either include it
+statically within your project's source files, or, with Setuptools,
+you can say in the ``setup.py``:
+
+.. code-block:: python
+
+    from setuptools import setup
+
+    setup(
+        ...
+        setup_requires=["cffi>=1.0.0"],
+        cffi_modules=["simple_example_build.py:ffibuilder"],
+        install_requires=["cffi>=1.0.0"],
+    )
 
 
 .. _embedding:
@@ -418,18 +426,18 @@ then you can directly declare them in the ``cdef()`` as if they were
 functions.)
 
 The generated piece of C code should be the same independently on the
-platform on which you run it (or the Python version),
-so in simple cases you can directly
-distribute the pre-generated C code and treat it as a regular C
-extension module.  The special Setuptools lines in the `example
+platform on which you run it (or the Python version), so in simple cases
+you can directly distribute the pre-generated C code and treat it as a
+regular C extension module (which depends on the ``_cffi_backend``
+module, on CPython).  The special Setuptools lines in the `example
 above`__ are meant for the more complicated cases where we need to
 regenerate the C sources as well---e.g. because the Python script that
-regenerates this file will itself look around the system to know what
-it should include or not.
+regenerates this file will itself look around the system to know what it
+should include or not.
 
 .. __: real-example_
 
-Note that the "API level + in-line" mode combination is deprecated.
-It used to be done with ``lib = ffi.verify("C header")``.  The
-out-of-line variant with ``set_source("modname", "C header")`` is
+Note that the "API level + in-line" mode combination exists but is long
+deprecated.  It used to be done with ``lib = ffi.verify("C header")``.
+The out-of-line variant with ``set_source("modname", "C header")`` is
 preferred.

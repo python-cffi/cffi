@@ -537,7 +537,7 @@ and in your main application you register events like this::
             lib.event_cb_register(lib.my_event_callback, userdata)
 
         def process_event(self, evt):
-            ...
+            print "got event!"
 
     @ffi.def_extern()
     def my_event_callback(evt, userdata):
@@ -566,7 +566,7 @@ Then you can use the ``void *`` field in the low-level
             lib.event_cb_register(ll_widget, lib.my_event_callback)
 
         def process_event(self, evt):
-            ...
+            print "got event!"
 
     @ffi.def_extern()
     def my_event_callback(ll_widget, evt):
@@ -789,7 +789,7 @@ module-level only, and to pass "context" information around with
             lib.register_stuff_with_callback_and_voidp_arg(my_global_callback, handle)
 
         def some_method(self, x):
-            ...
+            print "method called!"
 
 (See also the section about `extern "Python"`_ above, where the same
 general style is used.)
@@ -881,7 +881,7 @@ or::
 
 ``__cdecl`` is supported but is always the default so it can be left
 out.  In the ``cdef()``, you can also use ``WINAPI`` as equivalent to
-``__stdcall``.  As mentioned above, it is not needed (but doesn't
+``__stdcall``.  As mentioned above, it is mostly not needed (but doesn't
 hurt) to say ``WINAPI`` or ``__stdcall`` when declaring a plain
 function in the ``cdef()``.  (The difference can still be seen if you
 take explicitly a pointer to this function with ``ffi.addressof()``,
