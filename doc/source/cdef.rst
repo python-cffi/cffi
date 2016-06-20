@@ -636,6 +636,15 @@ Thread-local variables (``__thread``) can be accessed, as well as
 variables defined as dynamic macros (``#define myvar  (*fetchme())``).
 Before version 1.2, you need to write getter/setter functions.
 
+Note that if you declare a variable in ``cdef()`` without using
+``const``, CFFI assumes it is a read-write variable and generates two
+pieces of code, one to read it and one to write it.  If the variable
+cannot in fact be written to in C code, for one reason or another, it
+will not compile.  In this case, you can declare it as a constant: for
+example, instead of ``foo_t *myglob;`` you would use ``foo_t *const
+myglob;``.  Note also that ``const foo_t *myglob;``  is a *variable;* it
+contains a variable pointer to a constant ``foo_t``.
+
 
 Debugging dlopen'ed C libraries
 -------------------------------
