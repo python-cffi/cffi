@@ -506,7 +506,10 @@ more complex types (e.g. you cannot misdeclare a ``int *`` argument as
 ``long *``) or in other locations (e.g. a global array ``int a[5];``
 must not be misdeclared ``long a[5];``).  CFFI considers `all types listed
 above`_ as primitive (so ``long long a[5];`` and ``int64_t a[5]`` are
-different declarations).
+different declarations).  The reason for that is detailed in `a comment
+about an issue.`__
+
+.. __: https://bitbucket.org/cffi/cffi/issues/265/cffi-doesnt-allow-creating-pointers-to#comment-28406958
 
 
 ffibuilder.compile() etc.: compiling out-of-line modules
