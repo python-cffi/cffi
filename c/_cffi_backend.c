@@ -3778,7 +3778,7 @@ static PyObject *new_primitive_type(const char *name)
        EPTYPE(um, uintmax_t, CT_PRIMITIVE_UNSIGNED)             \
        EPTYPE(pd, ptrdiff_t, CT_PRIMITIVE_SIGNED)               \
        EPTYPE(sz, size_t, CT_PRIMITIVE_UNSIGNED)                \
-       EPTYPE(ssz, ssize_t, CT_PRIMITIVE_SIGNED)
+       EPTYPE(ssz, Py_ssize_t, CT_PRIMITIVE_SIGNED)
 
 #ifdef HAVE_WCHAR_H
 # define ENUM_PRIMITIVE_TYPES_WCHAR                             \
