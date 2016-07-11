@@ -5472,7 +5472,7 @@ static CTypeDescrObject *direct_typeoffsetof(CTypeDescrObject *ct,
         *offset = cf->cf_offset;
     }
     else {
-        ssize_t index = PyInt_AsSsize_t(fieldname);
+        Py_ssize_t index = PyInt_AsSsize_t(fieldname);
         if (index < 0 && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError,
                             "field name or array index expected");
