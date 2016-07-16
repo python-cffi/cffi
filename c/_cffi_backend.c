@@ -3778,7 +3778,7 @@ static PyObject *new_primitive_type(const char *name)
        EPTYPE(um, uintmax_t, CT_PRIMITIVE_UNSIGNED)             \
        EPTYPE(pd, ptrdiff_t, CT_PRIMITIVE_SIGNED)               \
        EPTYPE(sz, size_t, CT_PRIMITIVE_UNSIGNED)                \
-       EPTYPE(ssz, Py_ssize_t, CT_PRIMITIVE_SIGNED)
+       EPTYPE2(ssz, "ssize_t", Py_ssize_t, CT_PRIMITIVE_SIGNED)
 
 #ifdef HAVE_WCHAR_H
 # define ENUM_PRIMITIVE_TYPES_WCHAR                             \
@@ -3787,21 +3787,24 @@ static PyObject *new_primitive_type(const char *name)
 # define ENUM_PRIMITIVE_TYPES_WCHAR   /* nothing */
 #endif
 
-#define EPTYPE(code, typename, flags)                   \
+#define EPTYPE(code, typename, flags)  EPTYPE2(code, #typename, typename, flags)
+
+#define EPTYPE2(code, export_name, typename, flags)     \
     struct aligncheck_##code { char x; typename y; };
     ENUM_PRIMITIVE_TYPES
-#undef EPTYPE
+#undef EPTYPE2
 
     CTypeDescrObject *td;
     static const struct descr_s { const char *name; int size, align, flags; }
     types[] = {
-#define EPTYPE(code, typename, flags)                   \
-        { #typename,                                    \
+#define EPTYPE2(code, export_name, typename, flags)     \
+        { export_name,                                  \
           sizeof(typename),                             \
           offsetof(struct aligncheck_##code, y),        \
           flags                                         \
         },
     ENUM_PRIMITIVE_TYPES
+#undef EPTYPE2
 #undef EPTYPE
 #undef ENUM_PRIMITIVE_TYPES_WCHAR
 #undef ENUM_PRIMITIVE_TYPES
