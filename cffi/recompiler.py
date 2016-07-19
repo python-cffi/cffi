@@ -275,6 +275,8 @@ class Recompiler:
     def write_c_source_to_f(self, f, preamble):
         self._f = f
         prnt = self._prnt
+        if self.ffi._embedding is None:
+            prnt('#define Py_LIMITED_API')
         #
         # first the '#include' (actually done by inlining the file's content)
         lines = self._rel_readlines('_cffi_include.h')
@@ -683,13 +685,11 @@ class Recompiler:
             rng = range(len(tp.args))
             for i in rng:
                 prnt('  PyObject *arg%d;' % i)
-            prnt('  PyObject **aa;')
             prnt()
-            prnt('  aa = _cffi_unpack_args(args, %d, "%s");' % (len(rng), name))
-            prnt('  if (aa == NULL)')
+            prnt('  if (!PyArg_UnpackTuple(args, "%s", %d, %d, %s))' % (
+                name, len(rng), len(rng),
+                ', '.join(['&arg%d' % i for i in rng])))
             prnt('    return NULL;')
-            for i in rng:
-                prnt('  arg%d = aa[%d];' % (i, i))
         prnt()
         #
         for i, type in enumerate(tp.args):

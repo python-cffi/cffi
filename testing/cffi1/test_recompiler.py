@@ -851,9 +851,12 @@ def test_unpack_args():
     assert str(e2.value) == "foo0() takes no arguments (2 given)"
     assert str(e3.value) == "foo1() takes exactly one argument (0 given)"
     assert str(e4.value) == "foo1() takes exactly one argument (2 given)"
-    assert str(e5.value) == "foo2() takes exactly 2 arguments (0 given)"
-    assert str(e6.value) == "foo2() takes exactly 2 arguments (1 given)"
-    assert str(e7.value) == "foo2() takes exactly 2 arguments (3 given)"
+    assert str(e5.value) in ["foo2 expected 2 arguments, got 0",
+                             "foo2() takes exactly 2 arguments (0 given)"]
+    assert str(e6.value) in ["foo2 expected 2 arguments, got 1",
+                             "foo2() takes exactly 2 arguments (1 given)"]
+    assert str(e7.value) in ["foo2 expected 2 arguments, got 3",
+                             "foo2() takes exactly 2 arguments (3 given)"]
 
 def test_address_of_function():
     ffi = FFI()
