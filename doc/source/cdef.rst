@@ -524,6 +524,17 @@ the same content, to preserve the mtime.  In some cases where you need
 the mtime to be updated anyway, delete the file before calling the
 functions.
 
+*New in version 1.8:* the C code produced by ``emit_c_code()`` or
+``compile()`` contains ``#define Py_LIMITED_API``.  This means that on
+CPython >= 3.2, compiling this source produces a binary .so/.dll that
+should work for any version of CPython >= 3.2 (as opposed to only for
+the same version of CPython x.y).  However, the standard ``distutils``
+package will still produce a file called e.g.
+``NAME.cpython-35m-x86_64-linux-gnu.so``.  You can manually rename it to
+``NAME.abi3.so``.  There are certainly other ways to compile the C code
+that produce directly the correct file name, but I know of no
+widely-used solution.
+
 **ffibuilder.compile(tmpdir='.', verbose=False):**
 explicitly generate the .py or .c file,
 and (if .c) compile it.  The output file is (or are) put in the
