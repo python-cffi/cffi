@@ -862,6 +862,8 @@ class Recompiler:
             enumfields = list(tp.enumfields())
             for fldname, fldtype, fbitsize, fqual in enumfields:
                 fldtype = self._field_type(tp, fldname, fldtype)
+                self._check_not_opaque(fldtype,
+                                       "field '%s.%s'" % (tp.name, fldname))
                 # cname is None for _add_missing_struct_unions() only
                 op = OP_NOOP
                 if fbitsize >= 0:
@@ -910,6 +912,13 @@ class Recompiler:
             StructUnionExpr(tp.name, type_index, flags, size, align, comment,
                             first_field_index, c_fields))
         self._seen_struct_unions.add(tp)
+
+    def _check_not_opaque(self, tp, location):
+        while isinstance(tp, model.ArrayType):
+            tp = tp.item
+        if isinstance(tp, model.StructOrUnion) and tp.fldtypes is None:
+            raise TypeError(
+                "%s is of an opaque type (not declared in cdef())" % location)
 
     def _add_missing_struct_unions(self):
         # not very nice, but some struct declarations might be missing

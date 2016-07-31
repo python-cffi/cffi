@@ -1918,3 +1918,35 @@ def test_bool_in_cpp():
     ffi.cdef("bool f(void);")
     lib = verify(ffi, "test_bool_in_cpp", "char f(void) { return 2; }")
     assert lib.f() == 1
+
+def test_struct_field_opaque():
+    ffi = FFI()
+    ffi.cdef("struct a { struct b b; };")
+    e = py.test.raises(TypeError, verify,
+                       ffi, "test_struct_field_opaque", "?")
+    assert str(e.value) == ("struct a: field 'a.b' is of an opaque"
+                            " type (not declared in cdef())")
+    ffi = FFI()
+    ffi.cdef("struct a { struct b b[2]; };")
+    e = py.test.raises(TypeError, verify,
+                       ffi, "test_struct_field_opaque", "?")
+    assert str(e.value) == ("struct a: field 'a.b' is of an opaque"
+                            " type (not declared in cdef())")
+    ffi = FFI()
+    ffi.cdef("struct a { struct b b[]; };")
+    e = py.test.raises(TypeError, verify,
+                       ffi, "test_struct_field_opaque", "?")
+    assert str(e.value) == ("struct a: field 'a.b' is of an opaque"
+                            " type (not declared in cdef())")
+
+def test_function_arg_opaque():
+    py.test.skip("can currently declare a function with an opaque struct "
+                 "as argument, but AFAICT it's impossible to call it later")
+
+def test_function_returns_opaque():
+    ffi = FFI()
+    ffi.cdef("struct a foo(int);")
+    e = py.test.raises(TypeError, verify,
+                       ffi, "test_function_returns_opaque", "?")
+    assert str(e.value) == ("function foo: 'struct a' is used as result type,"
+                            " but is opaque")
