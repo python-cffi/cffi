@@ -5974,6 +5974,11 @@ static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view,
 
 static int invalid_input_buffer_type(PyObject *x)
 {
+    /* From PyPy 5.4, from_buffer() accepts strings (but still not buffers
+       or memoryviews on strings). */
+    if (PyBytes_Check(x))
+        return 0;
+
 #if PY_MAJOR_VERSION < 3
     if (PyBuffer_Check(x)) {
         /* XXX fish fish fish in an inofficial way */

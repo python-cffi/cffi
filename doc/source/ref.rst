@@ -171,7 +171,7 @@ points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
 a reference to the existing data, not a copy; for this
 reason, and for PyPy compatibility, it does not work with the built-in
-types str or unicode (or buffers/memoryviews on them).
+type unicode; nor buffers/memoryviews to byte or unicode strings.
 It is meant to be used on objects
 containing large quantities of raw data, like bytearrays
 or ``array.array`` or numpy
@@ -192,6 +192,9 @@ the call.
 Be careful: if the bytearray gets resized (e.g. its ``.append()``
 method is called), then the ``<cdata>`` object will point to freed
 memory and must not be used any more.
+
+*New in version 1.8:* the python_buffer can be a byte string (but still
+not a buffer/memoryview on a string).
 
 
 ffi.memmove()

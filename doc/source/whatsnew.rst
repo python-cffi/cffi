@@ -3,6 +3,13 @@ What's New
 ======================
 
 
+v1.8
+====
+
+* Removed the restriction that ``ffi.from_buffer()`` cannot be used on
+  byte strings (PyPy was improved and can now support that case).
+
+
 v1.7
 ====
 
