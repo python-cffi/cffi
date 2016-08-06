@@ -7,7 +7,14 @@ v1.8
 ====
 
 * Removed the restriction that ``ffi.from_buffer()`` cannot be used on
-  byte strings (PyPy was improved and can now support that case).
+  byte strings.  Now you can get a ``char *`` out of a byte string,
+  which is valid as long as the string object is kept alive.  (But
+  don't use it to *modify* the string object!  If you need this, use
+  ``bytearray`` or other official techniques.)
+
+* PyPy 5.4 can now pass a byte string directly to a ``char *``
+  argument (in older versions, a copy would be made).  This used to be
+  a CPython-only optimization.
 
 
 v1.7

@@ -627,12 +627,12 @@ allowed.
    *`` argument might be passed as ``[[x, y]]`` or ``[{'x': 5, 'y':
    10}]``.
 
-   As an optimization, the CPython version of CFFI assumes that a
+   As an optimization, CFFI assumes that a
    function with a ``char *`` argument to which you pass a Python
    string will not actually modify the array of characters passed in,
    and so passes directly a pointer inside the Python string object.
-   (PyPy might in the future do the same, but it is harder because
-   strings are not naturally zero-terminated in PyPy.)
+   (On PyPy, this optimization is only available since PyPy 5.4
+   with CFFI 1.8.)
 
 `(**)` C function calls are done with the GIL released.
 

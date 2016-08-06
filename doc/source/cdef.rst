@@ -837,8 +837,8 @@ sometimes needed with ``verify()`` but is just creating confusion with
 .. __: distutils-setuptools_
 
 The following example should work both with old (pre-1.0) and new
-versions of CFFI---supporting both is important to run on PyPy,
-because CFFI 1.0 does not work in PyPy < 2.6:
+versions of CFFI---supporting both is important to run on old
+versions of PyPy (CFFI 1.0 does not work in PyPy < 2.6):
 
 .. code-block:: python
 
