@@ -2355,8 +2355,16 @@ cdata_sub(PyObject *v, PyObject *w)
             return NULL;
         }
         itemsize = ct->ct_itemdescr->ct_size;
-        if (itemsize <= 0) itemsize = 1;
-        diff = (cdv->c_data - cdw->c_data) / itemsize;
+        diff = cdv->c_data - cdw->c_data;
+        if (itemsize > 1) {
+            if (diff % itemsize) {
+                PyErr_SetString(PyExc_ValueError,
+                     "pointer subtraction: the distance between the two "
+                     "pointers is not a multiple of the item size");
+                return NULL;
+            }
+            diff = diff / itemsize;
+        }
 #if PY_MAJOR_VERSION < 3
         return PyInt_FromSsize_t(diff);
 #else
