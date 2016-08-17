@@ -81,6 +81,33 @@ cannot, be attached to the underlying raw memory.)  Example:
         # away, then the weak dictionary entry will be removed.
         return s1
 
+Usually you don't need a weak dict: for example, to call a function with
+a ``char * *`` argument that contains a pointer to a ``char *`` pointer,
+it is enough to do this:
+
+.. code-block:: python
+
+    p = ffi.new("char[]", "hello, world")    # p is a 'char *'
+    q = ffi.new("char **", p)                # q is a 'char **'
+    lib.myfunction(q)
+    # p is alive at least until here, so that's fine
+
+However, this is always wrong (usage of freed memory):
+
+.. code-block:: python
+
+    p = ffi.new("char **", ffi.new("char[]", "hello, world"))
+    # WRONG!  as soon as p is built, the inner ffi.new() gets freed!
+
+This is wrong too, for the same reason:
+
+.. code-block:: python
+
+    p = ffi.new("struct my_stuff")
+    p.foo = ffi.new("char[]", "hello, world")
+    # WRONG!  as soon as p.foo is set, the ffi.new() gets freed!
+
+
 The cdata objects support mostly the same operations as in C: you can
 read or write from pointers, arrays and structures.  Dereferencing a
 pointer is done usually in C with the syntax ``*p``, which is not valid
