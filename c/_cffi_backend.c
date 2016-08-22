@@ -4623,6 +4623,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
                 ct = ct->ct_itemdescr;
             }
             ffifield = fb_fill_type(fb, ct, 0);
+            if (PyErr_Occurred())
+                return NULL;
             if (elements != NULL) {
                 for (j=0; j<flat; j++)
                     elements[nflat++] = ffifield;
