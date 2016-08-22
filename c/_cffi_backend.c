@@ -3042,13 +3042,14 @@ static CDataObject *allocate_owning_object(Py_ssize_t size,
 static PyObject *
 convert_struct_to_owning_object(char *data, CTypeDescrObject *ct)
 {
+    /* also accepts unions, for the API mode */
     CDataObject *cd;
     Py_ssize_t dataoffset = offsetof(CDataObject_own_nolength, alignment);
     Py_ssize_t datasize = ct->ct_size;
 
-    if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) != CT_STRUCT) {
+    if (datasize < 0) {
         PyErr_SetString(PyExc_TypeError,
-                        "return type is not a struct or is opaque");
+                        "return type is an opaque structure or union");
         return NULL;
     }
     cd = allocate_owning_object(dataoffset + datasize, ct);
@@ -4623,6 +4624,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
                 ct = ct->ct_itemdescr;
             }
             ffifield = fb_fill_type(fb, ct, 0);
+            if (PyErr_Occurred())
+                return NULL;
             if (elements != NULL) {
                 for (j=0; j<flat; j++)
                     elements[nflat++] = ffifield;
