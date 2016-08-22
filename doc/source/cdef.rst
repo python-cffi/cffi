@@ -269,9 +269,7 @@ specialized versions, and declares the correct (unicode or not) types.
 
 Usually, the right thing to do is to call this method with True.  Be
 aware (particularly on Python 2) that, afterwards, you need to pass unicode
-strings as arguments instead of byte strings.  (Before cffi version 0.9,
-``TCHAR`` and friends where hard-coded as unicode, but ``UNICODE`` was,
-inconsistently, not defined by default.)
+strings as arguments instead of byte strings.
 
 
 .. _loading-libraries:
@@ -336,7 +334,7 @@ ffibuilder.set_source(): preparing out-of-line modules
 
 **ffibuilder.set_source(module_name, c_header_source, [\*\*keywords...])**:
 prepare the ffi for producing out-of-line an external module called
-``module_name``.  *New in version 1.0.*
+``module_name``.
 
 ``ffibuilder.set_source()`` by itself does not write any file, but merely
 records its arguments for later.  It can therefore be called before or
@@ -425,7 +423,7 @@ in the details.  These places are:
    declaration which doesn't use "``...``" is assumed to be exact, but this is
    checked: you get an error if it is not correct.
 
-*  *New in version 1.1:* integer types: the syntax "``typedef
+*  integer types: the syntax "``typedef
    int... foo_t;``" declares the type ``foo_t`` as an integer type
    whose exact size and signedness is not specified.  The compiler will
    figure it out.  (Note that this requires ``set_source()``; it does
@@ -462,8 +460,8 @@ in the details.  These places are:
    length is completed by the C compiler.
    This is slightly different from "``int n[];``", because the latter
    means that the length is not known even to the C compiler, and thus
-   no attempt is made to complete it.  *New in version 1.1:* support
-   for multidimensional arrays: "``int n[...][...];``".
+   no attempt is made to complete it.  This supports
+   multidimensional arrays: "``int n[...][...];``".
 
    *New in version 1.2:* "``int m[][...];``", i.e. ``...`` can be used
    in the innermost dimensions without being also used in the outermost

@@ -292,7 +292,7 @@ and in C, where ``&array[index]`` is just ``array + index``.
 
 3. ``ffi.addressof(<library>, "name")`` returns the address of the
 named function or global variable from the given library object.
-*New in version 1.1:* for functions, it returns a regular cdata
+For functions, it returns a regular cdata
 object containing a pointer to the function.
 
 Note that the case 1. cannot be used to take the address of a

@@ -366,8 +366,8 @@ See `Reference: conversions`__ for a similar way to pass ``struct foo_s
 
 __ ref.html#conversions
 
-CFFI supports passing and returning structs to functions and callbacks.
-Example:
+CFFI supports passing and returning structs and unions to functions and
+callbacks.  Example:
 
 .. code-block:: python
 
@@ -377,36 +377,33 @@ Example:
     myfoo = lib.function_returning_a_struct()
     # `myfoo`: <cdata 'struct foo_s' owning 8 bytes>
 
-There are a few (obscure) limitations to the argument types and return
-type.  You cannot pass directly as argument a union (but a *pointer*
-to a union is fine), nor a struct which uses bitfields (but a
-*pointer* to such a struct is fine).  If you pass a struct (not a
-*pointer* to a struct), the struct type cannot have been declared with
-"``...;``" in the ``cdef()``; you need to declare it completely in
-``cdef()``.  You can work around these limitations by writing a C
-function with a simpler signature in the C header code passed to
-``ffibuilder.set_source()``, and have this C function call the real one.
-
-Aside from these limitations, functions and callbacks can receive and
-return structs.
-
-For performance, API-level functions are not returned as ``<cdata>``
-objects, but as a different type (on CPython, ``<built-in
-function>``).  This means you cannot e.g. pass them to some other C
+For performance, non-variadic API-level functions that you get by
+writing ``lib.some_function`` are not ``<cdata>``
+objects, but an object of a different type (on CPython, ``<built-in
+function>``).  This means you cannot pass them directly to some other C
 function expecting a function pointer argument.  Only ``ffi.typeof()``
 works on them.  To get a cdata containing a regular function pointer,
-use ``ffi.addressof(lib, "name")`` (new in version 1.1).
+use ``ffi.addressof(lib, "name")``.
 
-Before version 1.1 (or with the deprecated ``ffi.verify()``), if you
-really need a cdata pointer to the function, use the following
-workaround:
+There are a few (obscure) limitations to the supported argument and
+return types.  These limitations come from libffi and apply only to
+calling ``<cdata>`` function pointers; in other words, they don't
+apply to non-variadic ``cdef()``-declared functions if you are using
+the API mode.  The limitations are that you cannot pass directly as
+argument or return type:
 
-.. code-block:: python
-  
-    ffi.cdef(""" int (*foo)(int a, int b); """)
+* a union (but a *pointer* to a union is fine);
 
-i.e. declare them as pointer-to-function in the cdef (even if they are
-regular functions in the C code).
+* a struct which uses bitfields (but a *pointer* to such a struct is
+  fine);
+
+* a struct that was declared with "``...``" in the ``cdef()``.
+
+In API mode, you can work around these limitations: for example, if you
+need to call such a function pointer from Python, you can instead write
+a custom C function that accepts the function pointer and the real
+arguments and that does the call from C.  Then declare that custom C
+function in the ``cdef()`` and use it from Python.
 
 
 Variadic function calls
