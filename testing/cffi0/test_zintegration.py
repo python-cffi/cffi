@@ -160,9 +160,6 @@ class TestZIntegration(object):
             kwds = _set_py_limited_api(Extension, {})
             assert kwds['py_limited_api'] == True
 
-            kwds = _set_py_limited_api(Extension.__base__, {})
-            assert not kwds
-
             setuptools.__version__ = '25.0'
             kwds = _set_py_limited_api(Extension, {})
             assert not kwds

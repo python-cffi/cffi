@@ -75,7 +75,7 @@ def _set_py_limited_api(Extension, kwds):
     Do not alter the setting if it already exists.
     Setuptools takes care of ignoring the flag on Python 2 and PyPy.
     """
-    if Extension.__module__.startswith('setuptools.') and not 'py_limited_api' in kwds:
+    if 'py_limited_api' not in kwds:
         import setuptools
         try:
             setuptools_major_version = int(setuptools.__version__.partition('.')[0])
