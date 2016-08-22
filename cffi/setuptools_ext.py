@@ -82,7 +82,10 @@ def _set_py_limited_api(Extension, kwds):
             if setuptools_major_version >= 26:
                 kwds['py_limited_api'] = True
         except ValueError:  # certain development versions of setuptools
-            pass
+            # If we don't know the version number of setuptools, we
+            # try to set 'py_limited_api' anyway.  At worst, we get a
+            # warning.
+            kwds['py_limited_api'] = True
     return kwds
 
 def _add_c_module(dist, ffi, module_name, source, source_extension, kwds):
