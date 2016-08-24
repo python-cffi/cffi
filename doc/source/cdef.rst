@@ -529,9 +529,7 @@ should work for any version of CPython >= 3.2 (as opposed to only for
 the same version of CPython x.y).  However, the standard ``distutils``
 package will still produce a file called e.g.
 ``NAME.cpython-35m-x86_64-linux-gnu.so``.  You can manually rename it to
-``NAME.abi3.so``.  There are certainly other ways to compile the C code
-that produce directly the correct file name, but I know of no
-widely-used solution.
+``NAME.abi3.so``, or use setuptools version 26 or later.
 
 **ffibuilder.compile(tmpdir='.', verbose=False):**
 explicitly generate the .py or .c file,

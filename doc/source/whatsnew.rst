@@ -6,6 +6,13 @@ What's New
 v1.8
 ====
 
+* CPython 3.x: experimental: the generated C extension modules now use
+  the "limited API", which means that, as a compiled .so/.dll, it should
+  work directly on any version of CPython >= 3.2.  The name produced by
+  distutils is still version-specific.  To get the version-independent
+  name, you can rename it manually to ``NAME.abi3.so``, or use the very
+  recent setuptools 26.
+
 * Removed the restriction that ``ffi.from_buffer()`` cannot be used on
   byte strings.  Now you can get a ``char *`` out of a byte string,
   which is valid as long as the string object is kept alive.  (But
