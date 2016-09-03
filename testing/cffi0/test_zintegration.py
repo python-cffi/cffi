@@ -166,7 +166,7 @@ class TestZIntegration(object):
 
             setuptools.__version__ = 'development'
             kwds = _set_py_limited_api(Extension, {})
-            assert not kwds
+            assert kwds['py_limited_api'] == True
 
         finally:
             setuptools.__version__ = orig_version
