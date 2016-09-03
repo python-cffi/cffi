@@ -23,6 +23,10 @@ v1.8
   argument (in older versions, a copy would be made).  This used to be
   a CPython-only optimization.
 
+* Removed the ctypes backend.  If ``_cffi_backend`` was not compiled,
+  you could ask (using an undocumented interface) for ``backend_ctypes``
+  instead.  That was never fully functional and long deprecated.
+
 
 v1.7
 ====

@@ -920,15 +920,6 @@ def test_access_callback_function_typedef():
     lib.cb = my_callback
     assert lib.foo(4) == 887
 
-def test_ctypes_backend_forces_generic_engine():
-    from cffi.backend_ctypes import CTypesBackend
-    ffi = FFI(backend=CTypesBackend())
-    ffi.cdef("int func(int a);")
-    lib = ffi.verify("int func(int a) { return a * 42; }")
-    assert not hasattr(lib, '_cffi_python_module')
-    assert hasattr(lib, '_cffi_generic_module')
-    assert lib.func(100) == 4200
-
 def test_call_with_struct_ptr():
     ffi = FFI()
     ffi.cdef("typedef struct { int x; ...; } foo_t; int foo(foo_t *);")

@@ -1,21 +1,12 @@
 import py, sys, platform
 import pytest
-from testing.cffi0 import backend_tests, test_function, test_ownlib
 from cffi import FFI
-import _cffi_backend
 
 
-class TestFFI(backend_tests.BackendTests,
-              test_function.TestFunction,
-              test_ownlib.TestOwnLib):
-    TypeRepr = "<ctype '%s'>"
-
-    @staticmethod
-    def Backend():
-        return _cffi_backend
+class TestFFI(object):
 
     def test_not_supported_bitfield_in_result(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("struct foo_s { int a,b,c,d,e; int x:1; };")
         e = py.test.raises(NotImplementedError, ffi.callback,
                            "struct foo_s foo(void)", lambda: 42)
@@ -23,14 +14,14 @@ class TestFFI(backend_tests.BackendTests,
             "callback with unsupported argument or return type or with '...'")
 
     def test_inspecttype(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         assert ffi.typeof("long").kind == "primitive"
         assert ffi.typeof("long(*)(long, long**, ...)").cname == (
             "long(*)(long, long * *, ...)")
         assert ffi.typeof("long(*)(long, long**, ...)").ellipsis is True
 
     def test_new_handle(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         o = [2, 3, 4]
         p = ffi.new_handle(o)
         assert ffi.typeof(p) == ffi.typeof("void *")
@@ -39,7 +30,7 @@ class TestFFI(backend_tests.BackendTests,
         py.test.raises(RuntimeError, ffi.from_handle, ffi.NULL)
 
     def test_callback_onerror(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         seen = []
         def oops(*args):
             seen.append(args)
@@ -58,7 +49,7 @@ class TestFFI(backend_tests.BackendTests,
         assert tb.tb_frame.f_locals['n'] == 234
 
     def test_ffi_new_allocator_2(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         seen = []
         def myalloc(size):
             seen.append(size)
@@ -90,7 +81,7 @@ class TestFFI(backend_tests.BackendTests,
         assert repr(seen[3]) == "<cdata 'char[]' owning 41 bytes>"
 
     def test_ffi_new_allocator_3(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         seen = []
         def myalloc(size):
             seen.append(size)
@@ -103,7 +94,7 @@ class TestFFI(backend_tests.BackendTests,
         assert p1[5] == 0
 
     def test_ffi_new_allocator_4(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         py.test.raises(TypeError, ffi.new_allocator, free=lambda x: None)
         #
         def myalloc2(size):

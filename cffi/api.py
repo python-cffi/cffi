@@ -46,20 +46,21 @@ class FFI(object):
     '''
 
     def __init__(self, backend=None):
-        """Create an FFI instance.  The 'backend' argument is used to
-        select a non-default backend, mostly for tests.
+        """Create an FFI instance.
+
+        The 'backend' argument is not used any more and must be set to None.
+        It is still present only so that 'FFI(None)' still works, and
+        for a few tests.
         """
         from . import cparser, model
+
         if backend is None:
-            # You need PyPy (>= 2.0 beta), or a CPython (>= 2.6) with
-            # _cffi_backend.so compiled.
+            # You need the corresponding version of PyPy, or CPython
+            # with the '_cffi_backend' C extension module compiled.
             import _cffi_backend as backend
             from . import __version__
             assert backend.__version__ == __version__, \
                "version mismatch, %s != %s" % (backend.__version__, __version__)
-            # (If you insist you can also try to pass the option
-            # 'backend=backend_ctypes.CTypesBackend()', but don't
-            # rely on it!  It's probably not going to work well.)
 
         self._backend = backend
         self._lock = allocate_lock()
@@ -75,8 +76,6 @@ class FFI(object):
         self._init_once_cache = {}
         self._cdef_version = None
         self._embedding = None
-        if hasattr(backend, 'set_ffi'):
-            backend.set_ffi(self)
         for name in backend.__dict__:
             if name.startswith('RTLD_'):
                 setattr(self, name, getattr(backend, name))
@@ -84,15 +83,10 @@ class FFI(object):
         with self._lock:
             self.BVoidP = self._get_cached_btype(model.voidp_type)
             self.BCharA = self._get_cached_btype(model.char_array_type)
-        if isinstance(backend, types.ModuleType):
-            # _cffi_backend: attach these constants to the class
-            if not hasattr(FFI, 'NULL'):
-                FFI.NULL = self.cast(self.BVoidP, 0)
-                FFI.CData, FFI.CType = backend._get_types()
-        else:
-            # ctypes backend: attach these constants to the instance
-            self.NULL = self.cast(self.BVoidP, 0)
-            self.CData, self.CType = backend._get_types()
+        # attach these constants to the class
+        if not hasattr(FFI, 'NULL'):
+            FFI.NULL = self.cast(self.BVoidP, 0)
+            FFI.CData, FFI.CType = backend._get_types()
 
     def cdef(self, csource, override=False, packed=False):
         """Parse the given C source.  This registers all declared functions,

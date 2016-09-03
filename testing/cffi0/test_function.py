@@ -2,7 +2,6 @@ import py
 from cffi import FFI, CDefError
 import math, os, sys
 import ctypes.util
-from cffi.backend_ctypes import CTypesBackend
 from testing.udir import udir
 from testing.support import FdWriteCapture
 
@@ -20,10 +19,9 @@ if sys.platform == 'win32':
         lib_m = 'msvcrt'
 
 class TestFunction(object):
-    Backend = CTypesBackend
 
     def test_sin(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             double sin(double x);
         """)
@@ -34,7 +32,7 @@ class TestFunction(object):
     def test_sinf(self):
         if sys.platform == 'win32':
             py.test.skip("no sinf found in the Windows stdlib")
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             float sinf(float x);
         """)
@@ -46,7 +44,7 @@ class TestFunction(object):
 
     def test_sin_no_return_value(self):
         # check that 'void'-returning functions work too
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             void sin(double x);
         """)
@@ -58,7 +56,7 @@ class TestFunction(object):
         path = ctypes.util.find_library(lib_m)
         if not path:
             py.test.skip("%s not found" % lib_m)
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             double cos(double x);
         """)
@@ -71,7 +69,7 @@ class TestFunction(object):
         assert x == math.cos(1.23)
 
     def test_dlopen_flags(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             double cos(double x);
         """)
@@ -80,7 +78,7 @@ class TestFunction(object):
         assert x == math.cos(1.23)
 
     def test_dlopen_constant(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             #define FOOBAR 42
             static const float baz = 42.5;   /* not visible */
@@ -93,9 +91,7 @@ class TestFunction(object):
     def test_tlsalloc(self):
         if sys.platform != 'win32':
             py.test.skip("win32 only")
-        if self.Backend is CTypesBackend:
-            py.test.skip("ctypes complains on wrong calling conv")
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("long TlsAlloc(void); int TlsFree(long);")
         lib = ffi.dlopen('KERNEL32.DLL')
         x = lib.TlsAlloc()
@@ -106,7 +102,7 @@ class TestFunction(object):
     def test_fputs(self):
         if not sys.platform.startswith('linux'):
             py.test.skip("probably no symbol 'stderr' in the lib")
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             int fputs(const char *, void *);
             void *stderr;
@@ -122,7 +118,7 @@ class TestFunction(object):
     def test_fputs_without_const(self):
         if not sys.platform.startswith('linux'):
             py.test.skip("probably no symbol 'stderr' in the lib")
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             int fputs(char *, void *);
             void *stderr;
@@ -138,7 +134,7 @@ class TestFunction(object):
     def test_vararg(self):
         if not sys.platform.startswith('linux'):
             py.test.skip("probably no symbol 'stderr' in the lib")
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
            int fprintf(void *, const char *format, ...);
            void *stderr;
@@ -165,7 +161,7 @@ class TestFunction(object):
                        b"hello (nil)\n")
 
     def test_must_specify_type_of_vararg(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
            int printf(const char *format, ...);
         """)
@@ -175,18 +171,17 @@ class TestFunction(object):
                                 "needs to be a cdata object (got int)")
 
     def test_function_has_a_c_type(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             int puts(const char *);
         """)
         ffi.C = ffi.dlopen(None)
         fptr = ffi.C.puts
         assert ffi.typeof(fptr) == ffi.typeof("int(*)(const char*)")
-        if self.Backend is CTypesBackend:
-            assert repr(fptr).startswith("<cdata 'int puts(char *)' 0x")
+        assert repr(fptr).startswith("<cdata 'int(*)(char *)' 0x")
 
     def test_function_pointer(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         def cb(charp):
             assert repr(charp).startswith("<cdata 'char *' 0x")
             return 42
@@ -212,7 +207,7 @@ class TestFunction(object):
         assert res == b'world\n'
 
     def test_callback_returning_void(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         for returnvalue in [None, 42]:
             def cb():
                 return returnvalue
@@ -231,7 +226,7 @@ class TestFunction(object):
                 assert "None" in printed
 
     def test_passing_array(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             int strlen(char[]);
         """)
@@ -243,7 +238,7 @@ class TestFunction(object):
     def test_write_variable(self):
         if not sys.platform.startswith('linux'):
             py.test.skip("probably no symbol 'stdout' in the lib")
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             void *stdout;
         """)
@@ -255,7 +250,7 @@ class TestFunction(object):
         assert C.stdout == pout
 
     def test_strchr(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             char *strchr(const char *s, int c);
         """)
@@ -267,10 +262,7 @@ class TestFunction(object):
     def test_function_with_struct_argument(self):
         if sys.platform == 'win32':
             py.test.skip("no 'inet_ntoa'")
-        if (self.Backend is CTypesBackend and
-            '__pypy__' in sys.builtin_module_names):
-            py.test.skip("ctypes limitation on pypy")
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             struct in_addr { unsigned int s_addr; };
             char *inet_ntoa(struct in_addr in);
@@ -281,7 +273,7 @@ class TestFunction(object):
         assert ffi.string(a) == b'4.4.4.4'
 
     def test_function_typedef(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             typedef double func_t(double);
             func_t sin;
@@ -291,10 +283,8 @@ class TestFunction(object):
         assert x == math.sin(1.23)
 
     def test_fputs_custom_FILE(self):
-        if self.Backend is CTypesBackend:
-            py.test.skip("FILE not supported with the ctypes backend")
         filename = str(udir.join('fputs_custom_FILE'))
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("int fputs(const char *, FILE *);")
         C = ffi.dlopen(None)
         with open(filename, 'wb') as f:
@@ -308,7 +298,7 @@ class TestFunction(object):
         assert res == b'[hello from custom file][some more output]'
 
     def test_constants_on_lib(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""enum foo_e { AA, BB, CC=5, DD };
                     typedef enum { EE=-5, FF } some_enum_t;""")
         lib = ffi.dlopen(None)
@@ -320,32 +310,28 @@ class TestFunction(object):
         assert lib.FF == -4
 
     def test_void_star_accepts_string(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""int strlen(const void *);""")
         lib = ffi.dlopen(None)
         res = lib.strlen(b"hello")
         assert res == 5
 
     def test_signed_char_star_accepts_string(self):
-        if self.Backend is CTypesBackend:
-            py.test.skip("not supported by the ctypes backend")
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""int strlen(signed char *);""")
         lib = ffi.dlopen(None)
         res = lib.strlen(b"hello")
         assert res == 5
 
     def test_unsigned_char_star_accepts_string(self):
-        if self.Backend is CTypesBackend:
-            py.test.skip("not supported by the ctypes backend")
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""int strlen(unsigned char *);""")
         lib = ffi.dlopen(None)
         res = lib.strlen(b"hello")
         assert res == 5
 
     def test_missing_function(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             int nonexistent();
         """)
@@ -354,7 +340,7 @@ class TestFunction(object):
 
     def test_wraps_from_stdlib(self):
         import functools
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             double sin(double x);
         """)
@@ -369,8 +355,6 @@ class TestFunction(object):
         assert x == math.sin(1.23) + 100
 
     def test_free_callback_cycle(self):
-        if self.Backend is CTypesBackend:
-            py.test.skip("seems to fail with the ctypes backend on windows")
         import weakref
         def make_callback(data):
             container = [data]
@@ -381,7 +365,7 @@ class TestFunction(object):
 
         class Data(object):
             pass
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         data = Data()
         callback = make_callback(data)
         wr = weakref.ref(data)
@@ -394,9 +378,7 @@ class TestFunction(object):
     def test_windows_stdcall(self):
         if sys.platform != 'win32':
             py.test.skip("Windows-only test")
-        if self.Backend is CTypesBackend:
-            py.test.skip("not with the ctypes backend")
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             BOOL QueryPerformanceFrequency(LONGLONG *lpFrequency);
         """)
@@ -409,11 +391,9 @@ class TestFunction(object):
     def test_explicit_cdecl_stdcall(self):
         if sys.platform != 'win32':
             py.test.skip("Windows-only test")
-        if self.Backend is CTypesBackend:
-            py.test.skip("not with the ctypes backend")
         win64 = (sys.maxsize > 2**32)
         #
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             BOOL QueryPerformanceFrequency(LONGLONG *lpFrequency);
         """)
@@ -421,7 +401,7 @@ class TestFunction(object):
         tp = ffi.typeof(m.QueryPerformanceFrequency)
         assert str(tp) == "<ctype 'int(*)(long long *)'>"
         #
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             BOOL __cdecl QueryPerformanceFrequency(LONGLONG *lpFrequency);
         """)
@@ -429,7 +409,7 @@ class TestFunction(object):
         tpc = ffi.typeof(m.QueryPerformanceFrequency)
         assert tpc is tp
         #
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             BOOL WINAPI QueryPerformanceFrequency(LONGLONG *lpFrequency);
         """)
@@ -441,7 +421,7 @@ class TestFunction(object):
             assert tps is not tpc
             assert str(tps) == "<ctype 'int(__stdcall *)(long long *)'>"
         #
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("typedef int (__cdecl *fnc_t)(int);")
         ffi.cdef("typedef int (__stdcall *fns_t)(int);")
         tpc = ffi.typeof("fnc_t")
@@ -461,11 +441,10 @@ class TestFunction(object):
         ffi.new("fns_t[]", [fns])
 
     def test_stdcall_only_on_windows(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("double __stdcall sin(double x);")     # stdcall ignored
         m = ffi.dlopen(lib_m)
-        if (sys.platform == 'win32' and sys.maxsize < 2**32 and
-                self.Backend is not CTypesBackend):
+        if sys.platform == 'win32' and sys.maxsize < 2**32:
             assert "double(__stdcall *)(double)" in str(ffi.typeof(m.sin))
         else:
             assert "double(*)(double)" in str(ffi.typeof(m.sin))
@@ -473,7 +452,7 @@ class TestFunction(object):
         assert x == math.sin(1.23)
 
     def test_dir_on_dlopen_lib(self):
-        ffi = FFI(backend=self.Backend())
+        ffi = FFI()
         ffi.cdef("""
             typedef enum { MYE1, MYE2 } myenum_t;
             double myfunc(double);
