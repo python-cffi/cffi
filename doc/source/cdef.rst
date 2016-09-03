@@ -529,7 +529,9 @@ should work for any version of CPython >= 3.2 (as opposed to only for
 the same version of CPython x.y).  However, the standard ``distutils``
 package will still produce a file called e.g.
 ``NAME.cpython-35m-x86_64-linux-gnu.so``.  You can manually rename it to
-``NAME.abi3.so``, or use setuptools version 26 or later.
+``NAME.abi3.so``, or use setuptools version 26 or later.  Also, note
+that compiling with a debug version of Python will not actually define
+``Py_LIMITED_API``, as doing so makes ``Python.h`` unhappy.
 
 **ffibuilder.compile(tmpdir='.', verbose=False):**
 explicitly generate the .py or .c file,
