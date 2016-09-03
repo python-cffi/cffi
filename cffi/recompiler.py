@@ -275,8 +275,8 @@ class Recompiler:
     def write_c_source_to_f(self, f, preamble):
         self._f = f
         prnt = self._prnt
-        if self.ffi._embedding is None:
-            prnt('#define Py_LIMITED_API')
+        if self.ffi._embedding is not None:
+            prnt('#define _CFFI_USE_EMBEDDING')
         #
         # first the '#include' (actually done by inlining the file's content)
         lines = self._rel_readlines('_cffi_include.h')
