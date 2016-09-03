@@ -1004,9 +1004,11 @@ class CTypesBackend(object):
             import weakref
             class MyRef(weakref.ref):
                 def __eq__(self, other):
-                    return self() is other()
+                    myref = self()
+                    return self is other or (
+                        myref is not None and myref is other())
                 def __ne__(self, other):
-                    return self() is not other()
+                    return not (self == other)
             self._weakref_cache_ref = {}, MyRef
         weak_cache, MyRef = self._weakref_cache_ref
 
