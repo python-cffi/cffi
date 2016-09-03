@@ -533,7 +533,7 @@ package will still produce a file called e.g.
 that compiling with a debug version of Python will not actually define
 ``Py_LIMITED_API``, as doing so makes ``Python.h`` unhappy.
 
-**ffibuilder.compile(tmpdir='.', verbose=False):**
+**ffibuilder.compile(tmpdir='.', verbose=False, debug=None):**
 explicitly generate the .py or .c file,
 and (if .c) compile it.  The output file is (or are) put in the
 directory given by ``tmpdir``.  In the examples given here, we use
@@ -547,6 +547,13 @@ is used.)
 usual distutils output, including the command lines that call the
 compiler.  (This parameter might be changed to True by default in a
 future release.)
+
+*New in version 1.8.1:* ``debug`` argument.  If set to a bool, it
+controls whether the C code is compiled in debug mode or not.  The
+default None means to use the host Python's ``sys.flags.debug``.
+Starting with version 1.8.1, if you are running a debug-mode Python, the
+C code is thus compiled in debug mode by default (note that it is anyway
+necessary to do so on Windows).
 
 **ffibuilder.emit_python_code(filename):** generate the given .py file (same
 as ``ffibuilder.compile()`` for ABI mode, with an explicitly-named file to

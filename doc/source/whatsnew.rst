@@ -3,8 +3,8 @@ What's New
 ======================
 
 
-v1.8
-====
+v1.8.1
+======
 
 * CPython 3.x: experimental: the generated C extension modules now use
   the "limited API", which means that, as a compiled .so/.dll, it should
@@ -12,6 +12,18 @@ v1.8
   distutils is still version-specific.  To get the version-independent
   name, you can rename it manually to ``NAME.abi3.so``, or use the very
   recent setuptools 26.
+
+* Removed the ctypes backend.  If ``_cffi_backend`` was not compiled,
+  you could ask (using an undocumented interface) for ``backend_ctypes``
+  instead.  That was never fully functional and long deprecated.
+
+* Added ``ffi.compile(debug=...)``, similar to ``python setup.py build
+  --debug`` but defaulting to True if we are running a debugging
+  version of Python itself.
+
+
+v1.8
+====
 
 * Removed the restriction that ``ffi.from_buffer()`` cannot be used on
   byte strings.  Now you can get a ``char *`` out of a byte string,
@@ -22,10 +34,6 @@ v1.8
 * PyPy 5.4 can now pass a byte string directly to a ``char *``
   argument (in older versions, a copy would be made).  This used to be
   a CPython-only optimization.
-
-* Removed the ctypes backend.  If ``_cffi_backend`` was not compiled,
-  you could ask (using an undocumented interface) for ``backend_ctypes``
-  instead.  That was never fully functional and long deprecated.
 
 
 v1.7
