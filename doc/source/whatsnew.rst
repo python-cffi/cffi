@@ -13,10 +13,6 @@ v1.8.1
   name, you can rename it manually to ``NAME.abi3.so``, or use the very
   recent setuptools 26.
 
-* Removed the ctypes backend.  If ``_cffi_backend`` was not compiled,
-  you could ask (using an undocumented interface) for ``backend_ctypes``
-  instead.  That was never fully functional and long deprecated.
-
 * Added ``ffi.compile(debug=...)``, similar to ``python setup.py build
   --debug`` but defaulting to True if we are running a debugging
   version of Python itself.
