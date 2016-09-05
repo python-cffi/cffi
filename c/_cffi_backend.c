@@ -187,10 +187,12 @@ typedef struct cfieldobject_s {
     Py_ssize_t cf_offset;
     short cf_bitshift;   /* >= 0: bitshift; or BS_REGULAR or BS_EMPTY_ARRAY */
     short cf_bitsize;
+    unsigned char cf_flags;   /* BF_... */
     struct cfieldobject_s *cf_next;
 } CFieldObject;
 #define BS_REGULAR     (-1)      /* a regular field, not with bitshift */
 #define BS_EMPTY_ARRAY (-2)      /* a field which is an array 'type[0]' */
+#define BF_IGNORE_IN_CTOR  0x01  /* union field not in the first place */
 
 static PyTypeObject CTypeDescr_Type;
 static PyTypeObject CField_Type;
@@ -657,6 +659,7 @@ static PyMemberDef cfield_members[] = {
     {"offset", T_PYSSIZET, OFF(cf_offset), READONLY},
     {"bitshift", T_SHORT, OFF(cf_bitshift), READONLY},
     {"bitsize", T_SHORT, OFF(cf_bitsize), READONLY},
+    {"flags", T_UBYTE, OFF(cf_flags), READONLY},
     {NULL}      /* Sentinel */
 };
 #undef OFF
@@ -1274,24 +1277,14 @@ convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
         return -1;
     }
 
-    if (ct->ct_flags & CT_UNION) {
-        Py_ssize_t n = PyObject_Size(init);
-        if (n < 0)
-            return -1;
-        if (n > 1) {
-            PyErr_Format(PyExc_ValueError,
-                         "initializer for '%s': %zd items given, but "
-                         "only one supported (use a dict if needed)",
-                         ct->ct_name, n);
-            return -1;
-        }
-    }
     if (PyList_Check(init) || PyTuple_Check(init)) {
         PyObject **items = PySequence_Fast_ITEMS(init);
         Py_ssize_t i, n = PySequence_Fast_GET_SIZE(init);
         CFieldObject *cf = (CFieldObject *)ct->ct_extra;
 
         for (i=0; i<n; i++) {
+            while (cf != NULL && (cf->cf_flags & BF_IGNORE_IN_CTOR))
+                cf = cf->cf_next;
             if (cf == NULL) {
                 PyErr_Format(PyExc_ValueError,
                              "too many initializers for '%s' (got %zd)",
@@ -4085,7 +4078,7 @@ static PyObject *b_new_union_type(PyObject *self, PyObject *args)
 
 static CFieldObject *
 _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
-           Py_ssize_t offset, int bitshift, int fbitsize)
+           Py_ssize_t offset, int bitshift, int fbitsize, int flags)
 {
     int err;
     Py_ssize_t prev_size;
@@ -4098,6 +4091,7 @@ _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
     cf->cf_offset = offset;
     cf->cf_bitshift = bitshift;
     cf->cf_bitsize = fbitsize;
+    cf->cf_flags = flags;
 
     Py_INCREF(fname);
     PyText_InternInPlace(&fname);
@@ -4184,7 +4178,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     int totalalignment = -1;
     CFieldObject **previous;
     int prev_bitfield_size, prev_bitfield_free;
-    int sflags = 0;
+    int sflags = 0, fflags;
 
     if (!PyArg_ParseTuple(args, "O!O!|Onii:complete_struct_or_union",
                           &CTypeDescr_Type, &ct,
@@ -4270,6 +4264,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         if (alignment < falign && do_align)
             alignment = falign;
 
+        fflags = (is_union && i > 0) ? BF_IGNORE_IN_CTOR : 0;
+
         if (fbitsize < 0) {
             /* not a bitfield: common case */
             int bs_flag;
@@ -4305,7 +4301,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                                            cfsrc->cf_type,
                                            boffset / 8 + cfsrc->cf_offset,
                                            cfsrc->cf_bitshift,
-                                           cfsrc->cf_bitsize);
+                                           cfsrc->cf_bitsize,
+                                           cfsrc->cf_flags | fflags);
                     if (*previous == NULL)
                         goto error;
                     previous = &(*previous)->cf_next;
@@ -4315,7 +4312,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             }
             else {
                 *previous = _add_field(interned_fields, fname, ftype,
-                                        boffset / 8, bs_flag, -1);
+                                        boffset / 8, bs_flag, -1, fflags);
                 if (*previous == NULL)
                     goto error;
                 previous = &(*previous)->cf_next;
@@ -4445,7 +4442,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     bitshift = 8 * ftype->ct_size - fbitsize - bitshift;
 
                 *previous = _add_field(interned_fields, fname, ftype,
-                                       field_offset_bytes, bitshift, fbitsize);
+                                       field_offset_bytes, bitshift, fbitsize,
+                                       fflags);
                 if (*previous == NULL)
                     goto error;
                 previous = &(*previous)->cf_next;
