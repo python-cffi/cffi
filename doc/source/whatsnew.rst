@@ -3,6 +3,15 @@ What's New
 ======================
 
 
+v1.8.2
+======
+
+* Issue #283: fixed ``ffi.new()`` on structures/unions with nested
+  anonymous structures/unions, when there is at least one union in
+  the mix.  When initialized with a list or a dict, it should now
+  behave more closely like the ``{ }`` syntax does in GCC.
+
+
 v1.8.1
 ======
 
