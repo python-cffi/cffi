@@ -2536,6 +2536,25 @@ def test_nested_anonymous_struct():
     assert d[2][1].bitshift == -1
     assert d[2][1].bitsize == -1
 
+def test_nested_anonymous_struct_2():
+    BInt = new_primitive_type("int")
+    BStruct = new_struct_type("struct foo")
+    BInnerUnion = new_union_type("union bar")
+    complete_struct_or_union(BInnerUnion, [('a1', BInt, -1),
+                                           ('a2', BInt, -1)])
+    complete_struct_or_union(BStruct, [('b1', BInt, -1),
+                                       ('', BInnerUnion, -1),
+                                       ('b2', BInt, -1)])
+    assert sizeof(BInnerUnion) == sizeof(BInt)
+    assert sizeof(BStruct) == sizeof(BInt) * 3
+    fields = [(name, fld.offset, fld.flags) for (name, fld) in BStruct.fields]
+    assert fields == [
+        ('b1', 0 * sizeof(BInt), 0),
+        ('a1', 1 * sizeof(BInt), 0),
+        ('a2', 1 * sizeof(BInt), 1),
+        ('b2', 2 * sizeof(BInt), 0),
+    ]
+
 def test_sizeof_union():
     # a union has the largest alignment of its members, and a total size
     # that is the largest of its items *possibly further aligned* if
