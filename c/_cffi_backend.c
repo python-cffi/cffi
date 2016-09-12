@@ -5814,7 +5814,11 @@ static PyObject *b_buffer(PyObject *self, PyObject *args, PyObject *kwds)
                                      &CData_Type, &cd, &size))
         return NULL;
 
-    if (cd->c_type->ct_flags & CT_POINTER) {
+    if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
+        if (size < 0)
+            size = ((CDataObject_own_structptr *)cd)->length;
+    }
+    else if (cd->c_type->ct_flags & CT_POINTER) {
         if (size < 0)
             size = cd->c_type->ct_itemdescr->ct_size;
     }
