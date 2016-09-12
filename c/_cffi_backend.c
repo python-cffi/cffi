@@ -238,6 +238,7 @@ typedef struct {
 
 typedef struct {
     CDataObject head;
+    Py_ssize_t length;     /* same as CDataObject_own_length up to here */
     PyObject *structobj;
 } CDataObject_own_structptr;
 
@@ -3199,6 +3200,7 @@ static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init,
         }
         /* store the only reference to cds into cd */
         ((CDataObject_own_structptr *)cd)->structobj = (PyObject *)cds;
+        ((CDataObject_own_structptr *)cd)->length = datasize;
         assert(explicitlength < 0);
 
         cd->c_data = cds->c_data;
