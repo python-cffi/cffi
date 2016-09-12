@@ -1814,7 +1814,9 @@ static PyObject *_cdata_repr2(CDataObject *cd, char *text, PyObject *x)
 static PyObject *cdataowning_repr(CDataObject *cd)
 {
     Py_ssize_t size;
-    if (cd->c_type->ct_flags & CT_POINTER)
+    if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED)
+        size = ((CDataObject_own_structptr *)cd)->length;
+    else if (cd->c_type->ct_flags & CT_POINTER)
         size = cd->c_type->ct_itemdescr->ct_size;
     else if (cd->c_type->ct_flags & CT_ARRAY)
         size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
