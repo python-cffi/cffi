@@ -906,6 +906,23 @@ new_simple_cdata(char *data, CTypeDescrObject *ct)
     return (PyObject *)cd;
 }
 
+static PyObject *
+new_sized_cdata(char *data, CTypeDescrObject *ct, Py_ssize_t length)
+{
+    CDataObject_own_length *scd;
+    
+    scd = (CDataObject_own_length *)PyObject_Malloc(
+        offsetof(CDataObject_own_length, alignment));
+    if (PyObject_Init((PyObject *)scd, &CData_Type) == NULL)
+        return NULL;
+    Py_INCREF(ct);
+    scd->head.c_type = ct;
+    scd->head.c_data = data;
+    scd->head.c_weakreflist = NULL;
+    scd->length = length;
+    return (PyObject *)scd;
+}
+
 static CDataObject *_new_casted_primitive(CTypeDescrObject *ct);  /*forward*/
 
 static PyObject *
@@ -2387,7 +2404,15 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
             if (cf != NULL) {
                 /* read the field 'cf' */
                 char *data = cd->c_data + cf->cf_offset;
-                if (cf->cf_bitshift == BS_REGULAR)
+
+                if ((cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) &&  // Is owned struct (or union)
+                    (cf->cf_type->ct_flags & CT_ARRAY) &&  // field is an array
+                    (cf->cf_type->ct_size == -1)) { // unknown length array
+                    /* if reading variable length array from variable length struct, calculate array type from allocated length*/
+                    Py_ssize_t array_len = (((CDataObject_own_structptr *)cd)->length - ct->ct_size) / cf->cf_type->ct_itemdescr->ct_size;
+                    return new_sized_cdata(data, cf->cf_type, array_len);
+                }
+                else if (cf->cf_bitshift == BS_REGULAR)
                     return convert_to_object(data, cf->cf_type);
                 else if (cf->cf_bitshift == BS_EMPTY_ARRAY)
                     return new_simple_cdata(data,
