@@ -3172,7 +3172,7 @@ def test_struct_array_no_length():
     assert d[1][0] == 'y'
     assert d[1][1].type is BArray
     assert d[1][1].offset == size_of_int()
-    assert d[1][1].bitshift == -1
+    assert d[1][1].bitshift == -3
     assert d[1][1].bitsize == -1
     #
     p = newp(new_pointer_type(BStruct))

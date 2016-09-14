@@ -185,14 +185,15 @@ typedef struct cfieldobject_s {
     PyObject_HEAD
     CTypeDescrObject *cf_type;
     Py_ssize_t cf_offset;
-    short cf_bitshift;   /* >= 0: bitshift; or BS_REGULAR or BS_EMPTY_ARRAY */
+    short cf_bitshift;   /* >= 0: bitshift; or BS_REGULAR or BS_EMPTY_ARRAY or BS_VARSIZESTRUCT_ARRAY */
     short cf_bitsize;
     unsigned char cf_flags;   /* BF_... */
     struct cfieldobject_s *cf_next;
 } CFieldObject;
-#define BS_REGULAR     (-1)      /* a regular field, not with bitshift */
-#define BS_EMPTY_ARRAY (-2)      /* a field which is an array 'type[0]' */
-#define BF_IGNORE_IN_CTOR  0x01  /* union field not in the first place */
+#define BS_REGULAR             (-1) /* a regular field, not with bitshift */
+#define BS_EMPTY_ARRAY         (-2) /* a field which is an array 'type[0]' */
+#define BS_VARSIZESTRUCT_ARRAY (-3) /* a variable sized struct variable field 'type[]' */
+#define BF_IGNORE_IN_CTOR      0x01 /* union field not in the first place */
 
 static PyTypeObject CTypeDescr_Type;
 static PyTypeObject CField_Type;
@@ -2406,8 +2407,7 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
                 char *data = cd->c_data + cf->cf_offset;
 
                 if ((cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) &&  // Is owned struct (or union)
-                    (cf->cf_type->ct_flags & CT_ARRAY) &&  // field is an array
-                    (cf->cf_type->ct_size == -1)) { // unknown length array
+                    (cf->cf_bitshift == BS_VARSIZESTRUCT_ARRAY)) { // variable length array
                     /* if reading variable length array from variable length struct, calculate array type from allocated length*/
                     Py_ssize_t array_len = (((CDataObject_own_structptr *)cd)->length - ct->ct_size) / cf->cf_type->ct_itemdescr->ct_size;
                     return new_sized_cdata(data, cf->cf_type, array_len);
@@ -3227,6 +3227,7 @@ static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init,
         }
         /* store the only reference to cds into cd */
         ((CDataObject_own_structptr *)cd)->structobj = (PyObject *)cds;
+        /* store information about the allocated size of the struct */
         ((CDataObject_own_structptr *)cd)->length = datasize;
         assert(explicitlength < 0);
 
@@ -4299,7 +4300,9 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             /* not a bitfield: common case */
             int bs_flag;
 
-            if (ftype->ct_flags & CT_ARRAY && ftype->ct_length == 0)
+            if (ftype->ct_flags & CT_ARRAY && ftype->ct_length == -1 && i == nb_fields - 1)
+                bs_flag = BS_VARSIZESTRUCT_ARRAY;
+            else if (ftype->ct_flags & CT_ARRAY && ftype->ct_length == 0)
                 bs_flag = BS_EMPTY_ARRAY;
             else
                 bs_flag = BS_REGULAR;
