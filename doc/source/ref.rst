@@ -575,12 +575,12 @@ allowed.
 +---------------+------------------------+------------------+----------------+
 |  pointers     | another <cdata> with   | a <cdata>        |``[]`` `(****)`,|
 |               | a compatible type (i.e.|                  |``+``, ``-``,   |
-|               | same type or ``char*`` |                  |bool()          |
+|               | same type              |                  |bool()          |
 |               | or ``void*``, or as an |                  |                |
 |               | array instead) `(*)`   |                  |                |
 +---------------+------------------------+                  |                |
-|  ``void *``,  | another <cdata> with   |                  |                |
-|  ``char *``   | any pointer or array   |                  |                |
+|  ``void *``   | another <cdata> with   |                  |                |
+|               | any pointer or array   |                  |                |
 |               | type                   |                  |                |
 +---------------+------------------------+                  +----------------+
 |  pointers to  | same as pointers       |                  | ``[]``, ``+``, |
