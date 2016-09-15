@@ -128,7 +128,7 @@
 #define CT_VOID             512    /* void */
 
 /* other flags that may also be set in addition to the base flag: */
-#define CT_CAST_ANYTHING         1024    /* 'char *' and 'void *' only */
+#define CT_IS_VOIDCHAR_PTR       1024
 #define CT_PRIMITIVE_FITS_LONG   2048
 #define CT_IS_OPAQUE             4096
 #define CT_IS_ENUM               8192
@@ -1358,9 +1358,26 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             }
         }
         if (ctinit != ct) {
-            if ((ct->ct_flags & CT_CAST_ANYTHING) ||
-                (ctinit->ct_flags & CT_CAST_ANYTHING))
-                ;   /* accept void* or char* as either source or target */
+            int combined_flags = ct->ct_flags | ctinit->ct_flags;
+            if (combined_flags & CT_IS_VOID_PTR)
+                ;   /* accept "void *" as either source or target */
+            else if (combined_flags & CT_IS_VOIDCHAR_PTR) {
+                /* for backward compatibility, accept "char *" as either
+                   source of target.  This is not what C does, though,
+                   so emit a warning that will eventually turn into an
+                   error. */
+                char *msg = (ct->ct_flags & CT_IS_VOIDCHAR_PTR ?
+                    "implicit cast to 'char *' from a different pointer type: "
+                    "will be forbidden in the future (check that the types "
+                    "are as you expect; use an explicit ffi.cast() if they "
+                    "are correct)" :
+                    "implicit cast from 'char *' to a different pointer type: "
+                    "will be forbidden in the future (check that the types "
+                    "are as you expect; use an explicit ffi.cast() if they "
+                    "are correct)");
+                if (PyErr_WarnEx(PyExc_UserWarning, msg, 1))
+                    return -1;
+            }
             else {
                 expected = "pointer to same type";
                 goto cannot_convert;
@@ -2476,7 +2493,7 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
     if (PyBytes_Check(init)) {
         /* from a string: just returning the string here is fine.
            We assume that the C code won't modify the 'char *' data. */
-        if ((ctptr->ct_flags & CT_CAST_ANYTHING) ||
+        if ((ctptr->ct_flags & CT_IS_VOIDCHAR_PTR) ||
             ((ctitem->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED))
              && (ctitem->ct_size == sizeof(char)))) {
 #if defined(CFFI_MEM_DEBUG) || defined(CFFI_MEM_LEAK)
@@ -3929,7 +3946,7 @@ static PyObject *new_pointer_type(CTypeDescrObject *ctitem)
     if ((ctitem->ct_flags & CT_VOID) ||
         ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
          ctitem->ct_size == sizeof(char)))
-        td->ct_flags |= CT_CAST_ANYTHING;   /* 'void *' or 'char *' only */
+        td->ct_flags |= CT_IS_VOIDCHAR_PTR;   /* 'void *' or 'char *' only */
     unique_key[0] = ctitem;
     return get_unique_type(td, unique_key, 1);
 }
@@ -5903,7 +5920,7 @@ static PyObject *b_from_handle(PyObject *self, PyObject *arg)
         return NULL;
     }
     ct = ((CDataObject *)arg)->c_type;
-    if (!(ct->ct_flags & CT_CAST_ANYTHING)) {
+    if (!(ct->ct_flags & CT_IS_VOIDCHAR_PTR)) {
         PyErr_Format(PyExc_TypeError,
                      "expected a 'cdata' object with a 'void *' out of "
                      "new_handle(), got '%s'", ct->ct_name);
