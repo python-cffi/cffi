@@ -3679,6 +3679,8 @@ def test_cdata_dir():
 
 def test_char_pointer_conversion():
     import warnings
+    assert __version__.startswith(("1.8", "1.9")), (
+        "consider turning the warning into an error")
     BCharP = new_pointer_type(new_primitive_type("char"))
     BIntP = new_pointer_type(new_primitive_type("int"))
     BVoidP = new_pointer_type(new_void_type())

@@ -3,6 +3,19 @@ What's New
 ======================
 
 
+v1.8.3
+======
+
+* When passing a ``void *`` argument to a function with a different
+  pointer type, or vice-versa, the cast occurs automatically, like in C.
+  The same occurs for initialization with ``ffi.new()`` and a few other
+  places.  However, I thought that ``char *`` had the same
+  property---but I was mistaken.  In C you get the usual warning if you
+  try to give a ``char *`` to a ``char **`` argument, for example.
+  Sorry about the confusion.  This has been fixed in CFFI by giving for
+  now a warning, too.  It will turn into an error in a future version.
+
+
 v1.8.2
 ======
 
