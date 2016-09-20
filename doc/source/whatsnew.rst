@@ -3,6 +3,14 @@ What's New
 ======================
 
 
+v1.8.4
+======
+
+* Add support in ``cdef()/set_source()`` for unspecified-length arrays
+  in typedefs: ``typedef int foo_t[...];``.  It was already supported
+  for global variables or structure fields.
+
+
 v1.8.3
 ======
 
