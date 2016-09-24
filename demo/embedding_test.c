@@ -16,7 +16,8 @@
    There are platform-specific options to gcc to avoid needing
    that, too.  Linux:
 
-      gcc -o embedding_test embedding_test.c _embedding_cffi*.so -Wl,-rpath=.
+      gcc -o embedding_test embedding_test.c _embedding_cffi*.so  \
+          -Wl,-rpath=\$ORIGIN/
 
    =====2=====
 
