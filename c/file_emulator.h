@@ -31,7 +31,7 @@ static void _close_file_capsule(PyObject *ob_capsule)
 static FILE *PyFile_AsFile(PyObject *ob_file)
 {
     PyObject *ob, *ob_capsule = NULL, *ob_mode = NULL;
-    FILE *f = NULL;
+    FILE *f;
     int fd;
     char *mode;
 
@@ -80,7 +80,11 @@ static FILE *PyFile_AsFile(PyObject *ob_file)
         if (PyObject_SetAttrString(ob_file, "__cffi_FILE", ob_capsule) < 0)
             goto fail;
     }
-    return PyCapsule_GetPointer(ob_capsule, "FILE");
+    else {
+        f = PyCapsule_GetPointer(ob_capsule, "FILE");
+    }
+    Py_DECREF(ob_capsule);   /* assumes still at least one reference */
+    return f;
 
  fail:
     Py_XDECREF(ob_mode);
