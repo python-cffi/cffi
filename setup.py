@@ -51,12 +51,17 @@ def no_working_compiler_found():
     see http://stackoverflow.com/questions/22313407/ .)\n""")
     sys.exit(1)
 
-def ask_supports_thread():
+def get_config():
     from distutils.core import Distribution
     from distutils.sysconfig import get_config_vars
     get_config_vars()      # workaround for a bug of distutils, e.g. on OS/X
     config = Distribution().get_command_obj('config')
-    ok = config.try_compile('__thread int some_threadlocal_variable_42;')
+    return config
+
+def ask_supports_thread():
+    config = get_config()
+    ok = (sys.platform != 'win32' and
+          config.try_compile('__thread int some_threadlocal_variable_42;'))
     if ok:
         define_macros.append(('USE__THREAD', None))
     else:
@@ -65,6 +70,10 @@ def ask_supports_thread():
             no_working_compiler_found()
         sys.stderr.write("Note: will not use '__thread' in the C code\n")
         sys.stderr.write("The above error message can be safely ignored\n")
+
+def uses_msvc():
+    config = get_config()
+    return config.try_compile('#ifndef _MSC_VER\n#error "not MSVC"\n#endif')
 
 def use_pkg_config():
     if sys.platform == 'darwin' and os.path.exists('/usr/local/bin/brew'):
@@ -86,7 +95,7 @@ def use_homebrew_for_libffi():
         os.environ.get('PKG_CONFIG_PATH', '') + ':' + pkgconfig)
 
 
-if sys.platform == 'win32':
+if sys.platform == 'win32' and uses_msvc():
     COMPILE_LIBFFI = 'c/libffi_msvc'    # from the CPython distribution
 else:
     COMPILE_LIBFFI = None

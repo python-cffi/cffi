@@ -231,6 +231,9 @@ ffi_prep_closure_loc (ffi_closure*,
 		  void *user_data,
 		  void *codeloc);
 
+/* AR: for cffi we need the following API, and not the _loc version */
+#define ffi_prep_closure(a,b,c,d)  ffi_prep_closure_loc(a,b,c,d,a)
+
 typedef struct {
   char tramp[FFI_TRAMPOLINE_SIZE];
 

@@ -234,8 +234,3 @@ static const char *dlerror(void)
     sprintf(buf, "error 0x%x", (unsigned int)dw);
     return buf;
 }
-
-/************************************************************/
-/* obscure */
-
-#define ffi_prep_closure(a,b,c,d)  ffi_prep_closure_loc(a,b,c,d,a)
