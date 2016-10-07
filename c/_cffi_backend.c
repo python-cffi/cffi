@@ -266,6 +266,9 @@ typedef struct {
     Py_ssize_t exchange_offset_arg[1];
 } cif_description_t;
 
+#define ADD_WRAPAROUND(x, y)  ((Py_ssize_t)(((size_t)(x)) + ((size_t)(y))))
+#define MUL_WRAPAROUND(x, y)  ((Py_ssize_t)(((size_t)(x)) * ((size_t)(y))))
+
 
 /* whenever running Python code, the errno is saved in this thread-local
    variable */
@@ -1161,7 +1164,8 @@ convert_vfield_from_object(char *data, CFieldObject *cf, PyObject *value,
             Py_ssize_t size, itemsize;
             assert(data == NULL);
             itemsize = cf->cf_type->ct_itemdescr->ct_size;
-            size = cf->cf_offset + itemsize * varsizelength;
+            size = ADD_WRAPAROUND(cf->cf_offset,
+                                  MUL_WRAPAROUND(itemsize, varsizelength));
             if (size < 0 ||
                 ((size - cf->cf_offset) / itemsize) != varsizelength) {
                 PyErr_SetString(PyExc_OverflowError,
@@ -2527,7 +2531,7 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
 
     if (ctitem->ct_size <= 0)
         goto convert_default;
-    datasize = length * ctitem->ct_size;
+    datasize = MUL_WRAPAROUND(length, ctitem->ct_size);
     if ((datasize / ctitem->ct_size) != length) {
         PyErr_SetString(PyExc_OverflowError,
                         "array size would overflow a Py_ssize_t");
@@ -3181,7 +3185,7 @@ static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init,
                 return NULL;
             ctitem = ct->ct_itemdescr;
             dataoffset = offsetof(CDataObject_own_length, alignment);
-            datasize = explicitlength * ctitem->ct_size;
+            datasize = MUL_WRAPAROUND(explicitlength, ctitem->ct_size);
             if (explicitlength > 0 &&
                     (datasize / explicitlength) != ctitem->ct_size) {
                 PyErr_SetString(PyExc_OverflowError,
@@ -4014,7 +4018,7 @@ new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length)
     }
     else {
         sprintf(extra_text, "[%llu]", (unsigned PY_LONG_LONG)length);
-        arraysize = length * ctitem->ct_size;
+        arraysize = MUL_WRAPAROUND(length, ctitem->ct_size);
         if (length > 0 && (arraysize / length) != ctitem->ct_size) {
             PyErr_SetString(PyExc_OverflowError,
                             "array size would overflow a Py_ssize_t");
@@ -5516,7 +5520,7 @@ static CTypeDescrObject *direct_typeoffsetof(CTypeDescrObject *ct,
             return NULL;
         }
         res = ct->ct_itemdescr;
-        *offset = index * ct->ct_itemdescr->ct_size;
+        *offset = MUL_WRAPAROUND(index, ct->ct_itemdescr->ct_size);
         if ((*offset / ct->ct_itemdescr->ct_size) != index) {
             PyErr_SetString(PyExc_OverflowError,
                             "array offset would overflow a Py_ssize_t");
