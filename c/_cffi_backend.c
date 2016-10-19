@@ -132,7 +132,7 @@
 #define CT_PRIMITIVE_FITS_LONG   2048
 #define CT_IS_OPAQUE             4096
 #define CT_IS_ENUM               8192
-#define CT_IS_PTR_TO_OWNED      16384
+#define CT_IS_PTR_TO_OWNED      16384   /* only if CDataOwning_Type! */
 #define CT_CUSTOM_FIELD_POS     32768
 #define CT_IS_LONGDOUBLE        65536
 #define CT_IS_BOOL             131072
@@ -185,7 +185,8 @@ typedef struct cfieldobject_s {
     PyObject_HEAD
     CTypeDescrObject *cf_type;
     Py_ssize_t cf_offset;
-    short cf_bitshift;   /* >= 0: bitshift; or BS_REGULAR or BS_EMPTY_ARRAY or BS_VARSIZESTRUCT_ARRAY */
+    short cf_bitshift;   /* >= 0: bitshift; or BS_REGULAR or BS_EMPTY_ARRAY
+                                            or BS_VARSIZESTRUCT_ARRAY */
     short cf_bitsize;
     unsigned char cf_flags;   /* BF_... */
     struct cfieldobject_s *cf_next;
@@ -239,7 +240,6 @@ typedef struct {
 
 typedef struct {
     CDataObject head;
-    Py_ssize_t length;     /* same as CDataObject_own_length up to here */
     PyObject *structobj;
 } CDataObject_own_structptr;
 
@@ -1854,7 +1854,7 @@ static PyObject *cdataowning_repr(CDataObject *cd)
 {
     Py_ssize_t size;
     if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED)
-        size = ((CDataObject_own_structptr *)cd)->length;
+        size = ((CDataObject_own_length *)cd)->length;
     else if (cd->c_type->ct_flags & CT_POINTER)
         size = cd->c_type->ct_itemdescr->ct_size;
     else if (cd->c_type->ct_flags & CT_ARRAY)
@@ -2427,10 +2427,17 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
                 /* read the field 'cf' */
                 char *data = cd->c_data + cf->cf_offset;
 
-                if ((cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) &&  // Is owned struct (or union)
-                    (cf->cf_bitshift == BS_VARSIZESTRUCT_ARRAY)) { // variable length array
-                    /* if reading variable length array from variable length struct, calculate array type from allocated length*/
-                    Py_ssize_t array_len = (((CDataObject_own_structptr *)cd)->length - ct->ct_size) / cf->cf_type->ct_itemdescr->ct_size;
+                if (cf->cf_bitshift == BS_VARSIZESTRUCT_ARRAY) {
+                    /* variable-length array */
+                    if (!CDataOwn_Check(cd)) {
+                        return new_simple_cdata(data,
+                            (CTypeDescrObject *)cf->cf_type->ct_stuff);
+                    }
+                    /* if reading variable length array from variable length
+                       struct, calculate array type from allocated length*/
+                    Py_ssize_t array_len =
+                       (((CDataObject_own_structptr *)cd)->length - ct->ct_size)
+                       / cf->cf_type->ct_itemdescr->ct_size;
                     return new_sized_cdata(data, cf->cf_type, array_len);
                 }
                 else if (cf->cf_bitshift == BS_REGULAR)
@@ -3192,12 +3199,15 @@ static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init,
         if (ctitem->ct_flags & CT_PRIMITIVE_CHAR)
             datasize *= 2;   /* forcefully add another character: a null */
 
+        if (force_lazy_struct(ctitem) < 0)   /* for CT_WITH_VAR_ARRAY */
+            return NULL;
+        if (ctitem->ct_flags & CT_WITH_VAR_ARRAY)
+            dataoffset = offsetof(CDataObject_own_length, alignment);
+
         if ((ctitem->ct_flags & (CT_STRUCT | CT_UNION)) && init != Py_None) {
-            if (force_lazy_struct(ctitem) < 0)   /* for CT_WITH_VAR_ARRAY */
-                return NULL;
             if (ctitem->ct_flags & CT_WITH_VAR_ARRAY) {
                 Py_ssize_t optvarsize = datasize;
-                if (convert_struct_from_object(NULL,ctitem, init,
+                if (convert_struct_from_object(NULL, ctitem, init,
                                                &optvarsize) < 0)
                     return NULL;
                 datasize = optvarsize;
@@ -3249,7 +3259,7 @@ static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init,
         /* store the only reference to cds into cd */
         ((CDataObject_own_structptr *)cd)->structobj = (PyObject *)cds;
         /* store information about the allocated size of the struct */
-        ((CDataObject_own_structptr *)cd)->length = datasize;
+        ((CDataObject_own_length *)cds)->length = datasize;
         assert(explicitlength < 0);
 
         cd->c_data = cds->c_data;
@@ -4321,7 +4331,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             /* not a bitfield: common case */
             int bs_flag;
 
-            if (ftype->ct_flags & CT_ARRAY && ftype->ct_length == -1 && i == nb_fields - 1)
+            if ((i == nb_fields - 1) && (ct->ct_flags & CT_WITH_VAR_ARRAY))
                 bs_flag = BS_VARSIZESTRUCT_ARRAY;
             else if (ftype->ct_flags & CT_ARRAY && ftype->ct_length == 0)
                 bs_flag = BS_EMPTY_ARRAY;
@@ -5865,7 +5875,8 @@ static PyObject *b_buffer(PyObject *self, PyObject *args, PyObject *kwds)
                                      &CData_Type, &cd, &size))
         return NULL;
 
-    if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
+    if ((cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) && CDataOwn_Check(cd)) {
+        abort();
         if (size < 0)
             size = ((CDataObject_own_structptr *)cd)->length;
     }

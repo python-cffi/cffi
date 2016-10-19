@@ -3200,7 +3200,9 @@ def test_struct_array_no_length():
             assert p.y[2] == 0
             p.y[2] = 400
         assert len(p.y) == 3
+        assert len(p[0].y) == 3
         assert len(buffer(p)) == sizeof(BInt) * 4
+        assert len(buffer(p[0])) == sizeof(BInt) * 4
         plist.append(p)
     for i in range(20):
         p = plist[i]
@@ -3211,8 +3213,23 @@ def test_struct_array_no_length():
         assert list(p.y) == [200, i, 400]
     #
     # the following assignment works, as it normally would, for any array field
-    p.y = [500, 600]
-    assert list(p.y) == [500, 600, 400]
+    p.y = [501, 601]
+    assert list(p.y) == [501, 601, 400]
+    p[0].y = [500, 600]
+    assert list(p[0].y) == [500, 600, 400]
+    assert repr(p) == "<cdata 'foo *' owning %d bytes>" % (
+        sizeof(BStruct) + 3 * sizeof(BInt),)
+    assert repr(p[0]) == "<cdata 'foo' owning %d bytes>" % (
+        sizeof(BStruct) + 3 * sizeof(BInt),)
+    #
+    # from a non-owning pointer, we can't get the length
+    q = cast(new_pointer_type(BStruct), p)
+    assert q.y[0] == 500
+    assert q[0].y[0] == 500
+    py.test.raises(TypeError, len, q.y)
+    py.test.raises(TypeError, len, q[0].y)
+    assert typeof(q.y) is BIntP
+    assert typeof(q[0].y) is BIntP
     #
     # error cases
     py.test.raises(IndexError, "p.y[4]")
