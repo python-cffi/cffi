@@ -3172,17 +3172,19 @@ def test_struct_array_no_length():
     assert d[1][0] == 'y'
     assert d[1][1].type is BArray
     assert d[1][1].offset == size_of_int()
-    assert d[1][1].bitshift == -1
+    assert d[1][1].bitshift == -3
     assert d[1][1].bitsize == -1
     #
     p = newp(new_pointer_type(BStruct))
     p.x = 42
     assert p.x == 42
-    assert typeof(p.y) is BIntP
+    assert typeof(p.y) is BArray
+    assert len(p.y) == 0
     assert p.y == cast(BIntP, p) + 1
     #
     p = newp(new_pointer_type(BStruct), [100])
     assert p.x == 100
+    assert len(p.y) == 0
     #
     # Tests for
     #    ffi.new("struct_with_var_array *", [field.., [the_array_items..]])
@@ -3197,6 +3199,8 @@ def test_struct_array_no_length():
             p.y[0] = 200
             assert p.y[2] == 0
             p.y[2] = 400
+        assert len(p.y) == 3
+        assert len(buffer(p)) == sizeof(BInt) * 4
         plist.append(p)
     for i in range(20):
         p = plist[i]
@@ -3204,13 +3208,14 @@ def test_struct_array_no_length():
         assert p.y[0] == 200
         assert p.y[1] == i
         assert p.y[2] == 400
-        assert list(p.y[0:3]) == [200, i, 400]
+        assert list(p.y) == [200, i, 400]
     #
     # the following assignment works, as it normally would, for any array field
     p.y = [500, 600]
-    assert list(p.y[0:3]) == [500, 600, 400]
+    assert list(p.y) == [500, 600, 400]
     #
     # error cases
+    py.test.raises(IndexError, "p.y[4]")
     py.test.raises(TypeError, "p.y = cast(BIntP, 0)")
     py.test.raises(TypeError, "p.y = 15")
     py.test.raises(TypeError, "p.y = None")
