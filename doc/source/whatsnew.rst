@@ -61,6 +61,21 @@ v1.8
   argument (in older versions, a copy would be made).  This used to be
   a CPython-only optimization.
 
+* Turned a warning from ``cffi/model.py`` into an error: ``'enum xxx'
+  has no values explicitly defined: refusing to guess which integer type
+  it is meant to be (unsigned/signed, int/long)``.  The problem is that
+  CFFI can't handle opaque enums.  It can only handle enums as ``int``
+  or ``long`` integer types.  That seems to be enough in almost all
+  cases, but strictly speaking, C code *can* handle opaque enums without
+  knowing whether it is an ``int`` or a ``long``---i.e. without knowing
+  its size.  In this situation, in C you can pass pointers to such an
+  enum around, and that's about it.  CFFI can't do that so far.  There
+  is no fits-all solution, but try adding to the cdef: ``enum foo {
+  FOO_MAX_VALUE=1 };``; and, if using API mode, add ``#define
+  FOO_MAX_VALUE 1`` in the ``set_source()``.  Replace ``1`` with
+  ``9999999999`` in both places in the rare case where the enum needs to
+  fit values larger than an int.
+
 
 v1.7
 ====
