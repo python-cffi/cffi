@@ -912,7 +912,7 @@ static PyObject *
 new_sized_cdata(char *data, CTypeDescrObject *ct, Py_ssize_t length)
 {
     CDataObject_own_length *scd;
-    
+
     scd = (CDataObject_own_length *)PyObject_Malloc(
         offsetof(CDataObject_own_length, alignment));
     if (PyObject_Init((PyObject *)scd, &CData_Type) == NULL)
@@ -2154,7 +2154,6 @@ static PyObject *
 cdata_slice(CDataObject *cd, PySliceObject *slice)
 {
     Py_ssize_t bounds[2];
-    CDataObject_own_length *scd;
     CTypeDescrObject *ct = _cdata_getslicearg(cd, slice, bounds);
     if (ct == NULL)
         return NULL;
@@ -2166,16 +2165,8 @@ cdata_slice(CDataObject *cd, PySliceObject *slice)
     }
     ct = (CTypeDescrObject *)ct->ct_stuff;
 
-    scd = (CDataObject_own_length *)PyObject_Malloc(
-              offsetof(CDataObject_own_length, alignment));
-    if (PyObject_Init((PyObject *)scd, &CData_Type) == NULL)
-        return NULL;
-    Py_INCREF(ct);
-    scd->head.c_type = ct;
-    scd->head.c_data = cd->c_data + ct->ct_itemdescr->ct_size * bounds[0];
-    scd->head.c_weakreflist = NULL;
-    scd->length = bounds[1];
-    return (PyObject *)scd;
+    char *cdata = cd->c_data + ct->ct_itemdescr->ct_size * bounds[0];
+    return new_sized_cdata(cdata, ct, bounds[1]);
 }
 
 static int
