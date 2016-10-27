@@ -5483,20 +5483,25 @@ static PyObject *b_alignof(PyObject *self, PyObject *arg)
     return PyInt_FromLong(align);
 }
 
+static Py_ssize_t direct_sizeof_cdata(CDataObject *cd)
+{
+    Py_ssize_t size;
+    if (cd->c_type->ct_flags & CT_ARRAY)
+        size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
+    else {
+        size = _cdata_var_byte_size(cd);
+        if (size < 0)
+            size = cd->c_type->ct_size;
+    }
+    return size;
+}
+
 static PyObject *b_sizeof(PyObject *self, PyObject *arg)
 {
     Py_ssize_t size;
 
     if (CData_Check(arg)) {
-        CDataObject *cd = (CDataObject *)arg;
-
-        if (cd->c_type->ct_flags & CT_ARRAY)
-            size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
-        else {
-            size = _cdata_var_byte_size(cd);
-            if (size < 0)
-                size = cd->c_type->ct_size;
-        }
+        size = direct_sizeof_cdata((CDataObject *)arg);
     }
     else if (CTypeDescr_Check(arg)) {
         size = ((CTypeDescrObject *)arg)->ct_size;
