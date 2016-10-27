@@ -5492,8 +5492,11 @@ static PyObject *b_sizeof(PyObject *self, PyObject *arg)
 
         if (cd->c_type->ct_flags & CT_ARRAY)
             size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
-        else
-            size = cd->c_type->ct_size;
+        else {
+            size = _cdata_var_byte_size(cd);
+            if (size < 0)
+                size = cd->c_type->ct_size;
+        }
     }
     else if (CTypeDescr_Check(arg)) {
         size = ((CTypeDescrObject *)arg)->ct_size;

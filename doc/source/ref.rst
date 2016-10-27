@@ -141,7 +141,8 @@ Here are a few examples of where buffer() would be useful:
    into a struct over a socket, rewriting the contents of mystruct[0]
 
 Remember that like in C, you can use ``array + index`` to get the pointer
-to the index'th item of an array.
+to the index'th item of an array.  (In C you might more naturally write
+``&array[index]``, but that is equivalent.)
 
 The returned object is not a built-in buffer nor memoryview object,
 because these objects' API changes too much across Python versions.
@@ -254,6 +255,14 @@ lengths.
 **ffi.sizeof("C type" or cdata object)**: return the size of the
 argument in bytes.  The argument can be either a C type, or a cdata object,
 like in the equivalent ``sizeof`` operator in C.
+
+For ``array = ffi.new("T[]", n)``, then ``ffi.sizeof(array)`` returns
+``n * ffi.sizeof("T")``.  *New in version 1.9:* Similar rules apply for
+structures with aa variable-sized array at the end.  More precisely, if
+``p`` was returned by ``ffi.new("struct foo *", ...)``, then
+``ffi.sizeof(p[0])`` now returns the total allocated size.  In previous
+versions, it used to just return ``ffi.sizeof(ffi.typeof(p[0]))``, which
+is the size of the structure ignoring the variable-sized part.
 
 **ffi.alignof("C type")**: return the natural alignment size in bytes of
 the argument.  Corresponds to the ``__alignof__`` operator in GCC.

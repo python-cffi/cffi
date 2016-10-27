@@ -3202,6 +3202,7 @@ def test_struct_array_no_length():
         assert len(p.y) == 3
         assert len(p[0].y) == 3
         assert len(buffer(p)) == sizeof(BInt) * 4
+        assert sizeof(p[0]) == sizeof(BInt) * 4
         plist.append(p)
     for i in range(20):
         p = plist[i]
@@ -3220,6 +3221,7 @@ def test_struct_array_no_length():
         sizeof(BStruct) + 3 * sizeof(BInt),)
     assert repr(p[0]) == "<cdata 'foo' owning %d bytes>" % (
         sizeof(BStruct) + 3 * sizeof(BInt),)
+    assert sizeof(p[0]) == sizeof(BStruct) + 3 * sizeof(BInt)
     #
     # from a non-owning pointer, we can't get the length
     q = cast(new_pointer_type(BStruct), p)
@@ -3229,6 +3231,7 @@ def test_struct_array_no_length():
     py.test.raises(TypeError, len, q[0].y)
     assert typeof(q.y) is BIntP
     assert typeof(q[0].y) is BIntP
+    assert sizeof(q[0]) == sizeof(BStruct)
     #
     # error cases
     py.test.raises(IndexError, "p.y[4]")

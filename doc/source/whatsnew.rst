@@ -3,8 +3,18 @@ What's New
 ======================
 
 
-v1.8.4
-======
+v1.9
+====
+
+* Structs with variable-sized arrays as their last field: now we track
+  the length of the array after ``ffi.new()`` is called, just like we
+  always tracked the length of ``ffi.new("int[]", 42)``.  This lets us
+  detect out-of-range accesses to array items.  This also lets us
+  display a better ``repr()``, and have the total size returned by
+  ``ffi.sizeof()`` and ``ffi.buffer()``.  Previously both functions
+  would return a result based on the size of the declared structure
+  type, with an assumed empty array.  (Thanks andrew for starting this
+  refactoring.)
 
 * Add support in ``cdef()/set_source()`` for unspecified-length arrays
   in typedefs: ``typedef int foo_t[...];``.  It was already supported
@@ -16,6 +26,16 @@ v1.8.4
   turning it back to a warning again; it seems that guessing that the
   enum has size ``int`` is a 99%-safe bet.  (But not 100%, so it stays
   as a warning.)
+
+* Fix leaks in the code handling ``FILE *`` arguments.  In CPython 3
+  there is a remaining issue that is hard to fix: if you pass a Python
+  file object to a ``FILE *`` argument, then ``os.dup()`` is used and
+  the new file descriptor is only closed when the GC reclaims the Python
+  file object---and not at the earlier time when you call ``close()``,
+  which only closes the original file descriptor.  If this is an issue,
+  you should avoid this automatic convertion of Python file objects:
+  instead, explicitly manipulate file descriptors and call ``fdopen()``
+  from C (...via cffi).
 
 
 v1.8.3
