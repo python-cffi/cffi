@@ -2431,6 +2431,7 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
             if (cf != NULL) {
                 /* read the field 'cf' */
                 char *data = cd->c_data + cf->cf_offset;
+                Py_ssize_t array_len, size;
 
                 if (cf->cf_bitshift == BS_REGULAR) {
                     return convert_to_object(data, cf->cf_type);
@@ -2439,16 +2440,13 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
                     return convert_to_object_bitfield(data, cf);
                 }
 
-                if (cf->cf_offset == ct->ct_size) {
-                    /* variable-length array */
-                    /* if reading variable length array from variable length
-                       struct, calculate array type from allocated length */
-                    Py_ssize_t array_len, size = _cdata_var_byte_size(cd);
-                    size -= ct->ct_size;
-                    if (size >= 0) {
-                        array_len = size / cf->cf_type->ct_itemdescr->ct_size;
-                        return new_sized_cdata(data, cf->cf_type, array_len);
-                    }
+                /* variable-length array: */
+                /* if reading variable length array from variable length
+                   struct, calculate array type from allocated length */
+                size = _cdata_var_byte_size(cd) - cf->cf_offset;
+                if (size >= 0) {
+                    array_len = size / cf->cf_type->ct_itemdescr->ct_size;
+                    return new_sized_cdata(data, cf->cf_type, array_len);
                 }
                 return new_simple_cdata(data,
                     (CTypeDescrObject *)cf->cf_type->ct_stuff);
@@ -5489,7 +5487,9 @@ static Py_ssize_t direct_sizeof_cdata(CDataObject *cd)
     if (cd->c_type->ct_flags & CT_ARRAY)
         size = get_array_length(cd) * cd->c_type->ct_itemdescr->ct_size;
     else {
-        size = _cdata_var_byte_size(cd);
+        size = -1;
+        if (cd->c_type->ct_flags & (CT_STRUCT | CT_UNION))
+            size = _cdata_var_byte_size(cd);
         if (size < 0)
             size = cd->c_type->ct_size;
     }
