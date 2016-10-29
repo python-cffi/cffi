@@ -262,7 +262,9 @@ structures with aa variable-sized array at the end.  More precisely, if
 ``p`` was returned by ``ffi.new("struct foo *", ...)``, then
 ``ffi.sizeof(p[0])`` now returns the total allocated size.  In previous
 versions, it used to just return ``ffi.sizeof(ffi.typeof(p[0]))``, which
-is the size of the structure ignoring the variable-sized part.
+is the size of the structure ignoring the variable-sized part.  (Note
+that due to alignment, it is possible for ``ffi.sizeof(p[0])`` to return
+a value smaller than ``ffi.sizeof(ffi.typeof(p[0]))``.)
 
 **ffi.alignof("C type")**: return the natural alignment size in bytes of
 the argument.  Corresponds to the ``__alignof__`` operator in GCC.
