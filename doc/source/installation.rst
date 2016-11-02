@@ -51,7 +51,7 @@ Requirements:
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-1.8.4.tar.gz
+* http://pypi.python.org/packages/source/c/cffi/cffi-1.9.0.tar.gz
 
    - MD5: ...
 
