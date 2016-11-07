@@ -6,13 +6,10 @@ C Foreign Function Interface for Python.  Interact with almost any C
 code from Python, based on C-like declarations that you can often
 copy-paste from header files or documentation.
 
-* Goals_
-
-  * `Comments and bugs`_
-
 .. toctree::
    :maxdepth: 2
 
+   index
    whatsnew
    installation
    overview
