@@ -58,7 +58,7 @@ In order of complexity:
     import cffi
 
     ffibuilder = cffi.FFI()
-    ffibuilder.set_source("package._foo", "real C code")   # <=
+    ffibuilder.set_source("package._foo", r"""real C code""")   # <=
     ffibuilder.cdef("C-like declarations with '...'")
 
     if __name__ == "__main__":
@@ -345,7 +345,9 @@ argument is the name (or dotted name inside a package) of the Python
 module to generate.  In this mode, no C compiler is called.
 
 In **API mode,** the ``c_header_source`` argument is a string that
-will be pasted into the .c file generated.  This piece of C code
+will be pasted into the .c file generated.  Typically, it is specified as
+``r""" ...multiple lines of C code... """`` (the ``r`` prefix allows these
+lines to contain a literal ``\n``, for example).  This piece of C code
 typically contains some ``#include``, but may also contain more,
 like definitions for custom "wrapper" C functions.  The goal is that
 the .c file can be generated like this::
@@ -387,7 +389,7 @@ compatibility):
 
 .. code-block:: python
 
-    ffibuilder.set_source("mymodule", '''
+    ffibuilder.set_source("mymodule", r'''
     extern "C" {
         int somefunc(int somearg) { return real_cpp_func(somearg); }
     }
@@ -851,7 +853,7 @@ versions of PyPy (CFFI 1.0 does not work in PyPy < 2.6):
     import cffi
 
     ffi = cffi.FFI()
-    C_HEADER_SRC = '''
+    C_HEADER_SRC = r'''
         #include "somelib.h"
     '''
     C_KEYWORDS = dict(libraries=['somelib'])

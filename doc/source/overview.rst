@@ -72,7 +72,7 @@ Real example (API level, out-of-line)
     ffibuilder = FFI()
 
     ffibuilder.set_source("_example",
-        """ // passed to the real C compiler
+       r""" // passed to the real C compiler
             #include <sys/types.h>
             #include <pwd.h>
         """,
@@ -195,7 +195,7 @@ directly in the build script:
     ffibuilder.cdef("int foo(int *, int *, int);")
 
     ffibuilder.set_source("_example",
-    """
+    r"""
         static int foo(int *buffer_in, int *buffer_out, int x)
         {
             /* some algorithm that is seriously faster in C than in Python */

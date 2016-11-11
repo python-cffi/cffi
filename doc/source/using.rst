@@ -479,7 +479,7 @@ In the builder script, declare in the cdef a function prefixed with
 
         void library_function(int(*callback)(int, int));
     """)
-    ffibuilder.set_source("_my_example", """
+    ffibuilder.set_source("_my_example", r"""
         #include <some_library.h>
     """)
 
@@ -546,7 +546,7 @@ Then you would write this in the build script::
 
         extern "Python" void my_event_callback(event_t *, void *);
     """)
-    ffibuilder.set_source("_demo_cffi", """
+    ffibuilder.set_source("_demo_cffi", r"""
         #include <the_event_library.h>
     """)
 
@@ -613,7 +613,7 @@ generated before.
 
 ::
 
-    ffibuilder.set_source("_demo_cffi", """
+    ffibuilder.set_source("_demo_cffi", r"""
         #include <the_event_library.h>
 
         static void my_event_callback(widget_t *, event_t *);
@@ -629,7 +629,7 @@ useful if the logic in ``my_algo()`` is much more complex)::
         extern "Python" int f(int);
         int my_algo(int);
     """)
-    ffibuilder.set_source("_example_cffi", """
+    ffibuilder.set_source("_example_cffi", r"""
         static int f(int);   /* the forward declaration */
 
         static int my_algo(int n) {
@@ -673,7 +673,7 @@ it is fine if the function *implementation* does not repeat them::
     ffibuilder.cdef("""
         extern "Python+C" int f(int);      /* not static */
     """)
-    ffibuilder.set_source("_example_cffi", """
+    ffibuilder.set_source("_example_cffi", r"""
         /* the forward declaration, setting a gcc attribute
            (this line could also be in some .h file, to be included
            both here and in the other C files of the project) */
@@ -834,7 +834,7 @@ arguments are passed:
         int (*python_callback)(int how_many, int *values);
         void *const c_callback;   /* pass this const ptr to C routines */
     """)
-    ffibuilder.set_source("_example", """
+    ffibuilder.set_source("_example", r"""
         #include <stdarg.h>
         #include <alloca.h>
         static int (*python_callback)(int how_many, int *values);

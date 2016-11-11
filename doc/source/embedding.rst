@@ -56,7 +56,7 @@ here this slightly expanded example:
     with open('plugin.h') as f:
         ffibuilder.embedding_api(f.read())
 
-    ffibuilder.set_source("my_plugin", '''
+    ffibuilder.set_source("my_plugin", r'''
         #include "plugin.h"
     ''')
 
@@ -211,7 +211,9 @@ next:
   As in the example above, you can also use the same ``foo.h`` from
   ``ffibuilder.set_source()``::
 
-      ffibuilder.set_source('module_name', '#include "foo.h"')
+      ffibuilder.set_source('module_name', r'''
+          #include "foo.h"
+      ''')
 
 
 .. __: using.html#working
@@ -404,7 +406,7 @@ anything back:
         extern "Python" int mycb(int);
     """)
 
-    ffibuilder.set_source("my_plugin", """
+    ffibuilder.set_source("my_plugin", r"""
 
         static int mycb(int);   /* the callback: forward declaration, to make
                                    it accessible from the C code that follows */
