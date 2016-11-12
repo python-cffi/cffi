@@ -2,7 +2,7 @@
 #include <Python.h>
 #include "structmember.h"
 
-#define CFFI_VERSION  "1.9.0"
+#define CFFI_VERSION  "1.9.1"
 
 #ifdef MS_WIN32
 #include <windows.h>
@@ -2153,6 +2153,7 @@ _cdata_getslicearg(CDataObject *cd, PySliceObject *slice, Py_ssize_t bounds[])
 static PyObject *
 cdata_slice(CDataObject *cd, PySliceObject *slice)
 {
+    char *cdata;
     Py_ssize_t bounds[2];
     CTypeDescrObject *ct = _cdata_getslicearg(cd, slice, bounds);
     if (ct == NULL)
@@ -2165,7 +2166,7 @@ cdata_slice(CDataObject *cd, PySliceObject *slice)
     }
     ct = (CTypeDescrObject *)ct->ct_stuff;
 
-    char *cdata = cd->c_data + ct->ct_itemdescr->ct_size * bounds[0];
+    cdata = cd->c_data + ct->ct_itemdescr->ct_size * bounds[0];
     return new_sized_cdata(cdata, ct, bounds[1]);
 }
 
