@@ -122,6 +122,20 @@ else:
 if 'freebsd' in sys.platform:
     include_dirs.append('/usr/local/include')
 
+if 'darwin' in sys.platform:
+    try:
+        p = subprocess.Popen(['xcrun', '--show-sdk-path'],
+                             stdout=subprocess.PIPE)
+    except OSError as e:
+        if e.errno not in [errno.ENOENT, errno.EACCES]:
+            raise
+    else:
+        t = p.stdout.read().decode().strip()
+        p.stdout.close()
+        if p.wait() == 0:
+            include_dirs.append(t + '/usr/include/ffi')
+
+
 
 if __name__ == '__main__':
     from setuptools import setup, Distribution, Extension
