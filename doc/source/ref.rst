@@ -44,6 +44,11 @@ data can be used as long as this object is kept alive, but must not be
 used for a longer time.  Be careful about that when copying the
 pointer to the memory somewhere else, e.g. into another structure.
 
+The returned memory is initially cleared (filled with zeroes), before
+the optional initializer is applied.  For performance, see
+`ffi.new_allocator()`_ for a way to allocate non-zero-initialized
+memory.
+
 
 ffi.cast()
 ++++++++++
@@ -471,7 +476,16 @@ default alloc/free combination is used.  (In other words, the call
 
 If ``should_clear_after_alloc`` is set to False, then the memory
 returned by ``alloc()`` is assumed to be already cleared (or you are
-fine with garbage); otherwise CFFI will clear it.
+fine with garbage); otherwise CFFI will clear it.  Example: for
+performance, if you are using ``ffi.new()`` to allocate large chunks of
+memory where the initial content can be left uninitialized, you can do::
+
+    # at module level
+    new_nonzero = ffi.new_allocator(should_clear_after_alloc)
+
+    # then replace `p = ffi.new("char[]", bigsize)` with:
+        p = new_nonzero("char[]", bigsize)
+        
 
 
 ffi.init_once()
