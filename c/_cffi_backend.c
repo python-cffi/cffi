@@ -1605,6 +1605,13 @@ static void cdata_dealloc(CDataObject *cd)
 #endif
 }
 
+static PyObject *
+cdataowning_no_generic_alloc(PyTypeObject *type, Py_ssize_t nitems)
+{
+    PyErr_SetString(PyExc_SystemError, "cdataowning: no generic alloc");
+    return NULL;
+}
+
 static void cdataowning_dealloc(CDataObject *cd)
 {
     assert(!(cd->c_type->ct_flags & (CT_IS_VOID_PTR | CT_FUNCTIONPTR)));
@@ -2867,6 +2874,17 @@ static PyTypeObject CData_Type = {
     (getiterfunc)cdata_iter,                    /* tp_iter */
     0,                                          /* tp_iternext */
     cdata_methods,                              /* tp_methods */
+    0,                                          /* tp_members */
+    0,                                          /* tp_getset */
+    0,                                          /* tp_base */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    0,                                          /* tp_init */
+    PyType_GenericAlloc,                        /* tp_alloc */
+    PyType_GenericNew,                          /* tp_new */
+    PyObject_Del,                               /* tp_free */
 };
 
 static PyTypeObject CDataOwning_Type = {
@@ -2901,6 +2919,14 @@ static PyTypeObject CDataOwning_Type = {
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
     &CData_Type,                                /* tp_base */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    0,                                          /* tp_init */
+    cdataowning_no_generic_alloc,               /* tp_alloc */
+    PyType_GenericNew,                          /* tp_new */
+    free,                                       /* tp_free */
 };
 
 static PyTypeObject CDataOwningGC_Type = {
@@ -2936,6 +2962,14 @@ static PyTypeObject CDataOwningGC_Type = {
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
     &CDataOwning_Type,                          /* tp_base */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    0,                                          /* tp_init */
+    PyType_GenericAlloc,                        /* tp_alloc */
+    PyType_GenericNew,                          /* tp_new */
+    PyObject_GC_Del,                            /* tp_free */
 };
 
 static PyTypeObject CDataGCP_Type = {
@@ -3079,10 +3113,14 @@ cdata_iter(CDataObject *cd)
 /************************************************************/
 
 static CDataObject *allocate_owning_object(Py_ssize_t size,
-                                           CTypeDescrObject *ct)
+                                           CTypeDescrObject *ct,
+                                           int dont_clear)
 {
     CDataObject *cd;
-    cd = (CDataObject *)PyObject_Malloc(size);
+    if (dont_clear)
+        cd = malloc(size);
+    else
+        cd = calloc(size, 1);
     if (PyObject_Init((PyObject *)cd, &CDataOwning_Type) == NULL)
         return NULL;
 
@@ -3109,7 +3147,7 @@ convert_struct_to_owning_object(char *data, CTypeDescrObject *ct)
         PyErr_SetString(PyExc_TypeError,
                   "return type is a struct/union with a varsize array member");
     }
-    cd = allocate_owning_object(dataoffset + datasize, ct);
+    cd = allocate_owning_object(dataoffset + datasize, ct, /*dont_clear=*/1);
     if (cd == NULL)
         return NULL;
     cd->c_data = ((char *)cd) + dataoffset;
@@ -3147,7 +3185,8 @@ static CDataObject *allocate_with_allocator(Py_ssize_t basesize,
     CDataObject *cd;
 
     if (allocator->ca_alloc == NULL) {
-        cd = allocate_owning_object(basesize + datasize, ct);
+        cd = allocate_owning_object(basesize + datasize, ct,
+                                    allocator->ca_dont_clear);
         if (cd == NULL)
             return NULL;
         cd->c_data = ((char *)cd) + basesize;
@@ -3180,9 +3219,9 @@ static CDataObject *allocate_with_allocator(Py_ssize_t basesize,
 
         cd = allocate_gcp_object(cd, ct, allocator->ca_free);
         Py_DECREF(res);
+        if (!allocator->ca_dont_clear)
+            memset(cd->c_data, 0, datasize);
     }
-    if (!allocator->ca_dont_clear)
-        memset(cd->c_data, 0, datasize);
     return cd;
 }
 
@@ -3262,7 +3301,8 @@ static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init,
         if (cds == NULL)
             return NULL;
 
-        cd = allocate_owning_object(sizeof(CDataObject_own_structptr), ct);
+        cd = allocate_owning_object(sizeof(CDataObject_own_structptr), ct,
+                                    /*dont_clear=*/1);
         if (cd == NULL) {
             Py_DECREF(cds);
             return NULL;
