@@ -1605,13 +1605,6 @@ static void cdata_dealloc(CDataObject *cd)
 #endif
 }
 
-static PyObject *
-cdataowning_no_generic_alloc(PyTypeObject *type, Py_ssize_t nitems)
-{
-    PyErr_SetString(PyExc_SystemError, "cdataowning: no generic alloc");
-    return NULL;
-}
-
 static void cdataowning_dealloc(CDataObject *cd)
 {
     assert(!(cd->c_type->ct_flags & (CT_IS_VOID_PTR | CT_FUNCTIONPTR)));
@@ -2882,8 +2875,8 @@ static PyTypeObject CData_Type = {
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
     0,                                          /* tp_init */
-    PyType_GenericAlloc,                        /* tp_alloc */
-    PyType_GenericNew,                          /* tp_new */
+    0,                                          /* tp_alloc */
+    0,                                          /* tp_new */
     PyObject_Del,                               /* tp_free */
 };
 
@@ -2924,8 +2917,8 @@ static PyTypeObject CDataOwning_Type = {
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
     0,                                          /* tp_init */
-    cdataowning_no_generic_alloc,               /* tp_alloc */
-    PyType_GenericNew,                          /* tp_new */
+    0,                                          /* tp_alloc */
+    0,                                          /* tp_new */
     free,                                       /* tp_free */
 };
 
@@ -2967,8 +2960,8 @@ static PyTypeObject CDataOwningGC_Type = {
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
     0,                                          /* tp_init */
-    PyType_GenericAlloc,                        /* tp_alloc */
-    PyType_GenericNew,                          /* tp_new */
+    0,                                          /* tp_alloc */
+    0,                                          /* tp_new */
     PyObject_GC_Del,                            /* tp_free */
 };
 
