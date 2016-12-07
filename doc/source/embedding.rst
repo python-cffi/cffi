@@ -47,6 +47,20 @@ here this slightly expanded example:
     typedef struct { int x, y; } point_t;
     extern int do_stuff(point_t *);
 
+.. code-block:: c
+
+    /* file plugin.h, Windows-friendly version */
+    typedef struct { int x, y; } point_t;
+
+    /* When including this file from ffibuilder.set_source(),
+       this macro is defined to __declspec(dllexport).  When
+       including this file directly from your C program, we
+       define it to __declspec(dllimport) instead. */
+    #ifndef CFFI_DLLEXPORT
+    #  define CFFI_DLLEXPORT __declspec(dllimport)
+    #endif
+    CFFI_DLLEXPORT int do_stuff(point_t *);
+
 .. code-block:: python
 
     # file plugin_build.py
@@ -54,7 +68,11 @@ here this slightly expanded example:
     ffibuilder = cffi.FFI()
 
     with open('plugin.h') as f:
-        ffibuilder.embedding_api(f.read())
+        # read plugin.h and pass it to embedding_api(), manually
+        # removing the '#' directives and the CFFI_DLLEXPORT
+        data = ''.join([line for line in f if not line.startswith('#')])
+        data = data.replace('CFFI_DLLEXPORT', '')
+        ffibuilder.embedding_api(data)
 
     ffibuilder.set_source("my_plugin", r'''
         #include "plugin.h"
