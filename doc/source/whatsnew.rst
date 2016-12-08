@@ -3,6 +3,19 @@ What's New
 ======================
 
 
+v1.9.2
+======
+
+* Issue #295: use calloc() directly instead of
+  PyObject_Malloc()+memset() to handle ffi.new() with a default
+  allocator.  Speeds up ``ffi.new(large-array)`` where most of the time
+  you never touch most of the array.  (But avoid doing that too often:
+  on 32-bit PyPy it will quickly exhaust the address space.  This case
+  is best handled by explicit calls to calloc() and free().)
+
+* some OS/X build fixes ("only with Xcode but without CLT").
+
+
 v1.9
 ====
 
