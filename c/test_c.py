@@ -3426,18 +3426,16 @@ def test_from_buffer_not_str_unicode():
     BCharA = new_array_type(BCharP, None)
     p1 = from_buffer(BCharA, b"foo")
     assert p1 == from_buffer(BCharA, b"foo")
-    import gc; gc.collect()
-    assert p1 == from_buffer(BCharA, b"foo")
     try:
         from __builtin__ import buffer
     except ImportError:
-        # python3 does not allow a buffer from unicode!
-        raises(TypeError, from_buffer, BCharA, u+"foo")
+        # python3 does not allow from to get buffer from unicode!
+        py.test.raises(TypeError, from_buffer, BCharA, u+"foo")
     else:
         contents = from_buffer(BCharA, buffer(b"foo"))
         for i in range(len(contents)):
             assert contents[i] == p1[i]
-        p4 = from_buffer(BCharA, u+"foo")
+        p4 = from_buffer(BCharA, b"f\x00\x00\x00o\x00\x00\x00o\x00\x00\x00")
         contents = from_buffer(BCharA, buffer(u+"foo"))
         for i in range(len(contents)):
             assert contents[i] == p4[i]

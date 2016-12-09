@@ -6110,24 +6110,13 @@ static int invalid_input_buffer_type(PyObject *x)
 
 #if PY_MAJOR_VERSION < 3
     if (PyBuffer_Check(x)) {
-        /* XXX fish fish fish in an inofficial way */
-        typedef struct {
-            PyObject_HEAD
-            PyObject *b_base;
-        } _my_PyBufferObject;
-
-        _my_PyBufferObject *b = (_my_PyBufferObject *)x;
-        x = b->b_base;
-        if (x == NULL)
-            return 0;
+        return 0;
     }
     else
 #endif
 #if PY_MAJOR_VERSION > 2 || PY_MINOR_VERSION > 6
     if (PyMemoryView_Check(x)) {
-        x = PyMemoryView_GET_BASE(x);
-        if (x == NULL)
-            return 0;
+        return 0;
     }
     else
 #endif
