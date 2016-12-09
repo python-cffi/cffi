@@ -183,9 +183,7 @@ can assume to exist are the standard types:
 * _Bool and bool (equivalent).  If not directly supported by the C
   compiler, this is declared with the size of ``unsigned char``.
 
-* FILE.  You can declare C functions taking a ``FILE *`` argument and
-  call them with a Python file object.  If needed, you can also do
-  ``c_f = ffi.cast("FILE *", fileobj)`` and then pass around ``c_f``.
+* FILE.  `See here.`__
 
 * all `common Windows types`_ are defined if you run
   on Windows (``DWORD``, ``LPARAM``, etc.).  Exception:
@@ -196,6 +194,7 @@ can assume to exist are the standard types:
   stdint.h, like ``intmax_t``, as long as they map to integers of 1,
   2, 4 or 8 bytes.  Larger integers are not supported.
 
+.. __: ref.html#file
 .. _`common Windows types`: http://msdn.microsoft.com/en-us/library/windows/desktop/aa383751%28v=vs.85%29.aspx
 
 The declarations can also contain "``...``" at various places; these are

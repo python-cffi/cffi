@@ -709,3 +709,35 @@ allowed.
 
    *New in version 1.7.*  In previous versions, it only worked on
    pointers; for primitives it always returned True.
+
+.. _file:
+
+Support for FILE
+++++++++++++++++
+
+You can declare C functions taking a ``FILE *`` argument and
+call them with a Python file object.  If needed, you can also do ``c_f
+= ffi.cast("FILE *", fileobj)`` and then pass around ``c_f``.
+
+Note, however, that CFFI does this by a best-effort approach.  If you
+need finer control over buffering, flushing, and timely closing of the
+``FILE *``, then you should not use this special support for ``FILE *``.
+Instead, you can handle regular ``FILE *`` cdata objects that you
+explicitly make using fdopen(), like this:
+
+.. code-block:: python
+
+    ffi.cdef('''
+        FILE *fdopen(int, const char *);   // from the C <stdio.h>
+        int fclose(FILE *);
+    ''')
+
+    myfile.flush()                    # make sure the file is flushed
+    newfd = os.dup(myfile.fileno())   # make a copy of the file descriptor
+    fp = lib.fdopen(newfd, "w")       # make a cdata 'FILE *' around newfd
+    lib.write_stuff_to_file(fp)       # invoke the external function
+    lib.fclose(fp)                    # when you're done, close fp (and newfd)
+
+The special support for ``FILE *`` is anyway implemented in a similar manner
+on CPython 3.x and on PyPy, because these Python implementations' files are
+not natively based on ``FILE *``.  Doing it explicity offers more control.
