@@ -200,7 +200,7 @@ method is called), then the ``<cdata>`` object will point to freed
 memory and must not be used any more.
 
 *New in version 1.8:* the python_buffer can be a byte string (but still
-not a buffer/memoryview on a string).
+not a buffer/memoryview on a string).  Never modify a byte string!
 
 
 ffi.memmove()
