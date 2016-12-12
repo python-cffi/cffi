@@ -263,7 +263,7 @@ like in the equivalent ``sizeof`` operator in C.
 
 For ``array = ffi.new("T[]", n)``, then ``ffi.sizeof(array)`` returns
 ``n * ffi.sizeof("T")``.  *New in version 1.9:* Similar rules apply for
-structures with aa variable-sized array at the end.  More precisely, if
+structures with a variable-sized array at the end.  More precisely, if
 ``p`` was returned by ``ffi.new("struct foo *", ...)``, then
 ``ffi.sizeof(p[0])`` now returns the total allocated size.  In previous
 versions, it used to just return ``ffi.sizeof(ffi.typeof(p[0]))``, which
@@ -481,7 +481,7 @@ performance, if you are using ``ffi.new()`` to allocate large chunks of
 memory where the initial content can be left uninitialized, you can do::
 
     # at module level
-    new_nonzero = ffi.new_allocator(should_clear_after_alloc)
+    new_nonzero = ffi.new_allocator(should_clear_after_alloc=False)
 
     # then replace `p = ffi.new("char[]", bigsize)` with:
         p = new_nonzero("char[]", bigsize)
