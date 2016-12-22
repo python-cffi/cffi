@@ -4758,11 +4758,17 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
         }
         return ffistruct;
     }
+    else if (ct->ct_flags & CT_UNION) {
+        PyErr_Format(PyExc_NotImplementedError,
+                     "ctype '%s' not supported as %s.  "
+                     "Unions" SUPPORTED_IN_API_MODE,
+                     ct->ct_name, place, place);
+        return NULL;
+    }
     else {
         PyErr_Format(PyExc_NotImplementedError,
-                     "ctype '%s' (size %zd) not supported as %s.  "
-                     "Unions" SUPPORTED_IN_API_MODE,
-                     ct->ct_name, ct->ct_size, place, place);
+                     "ctype '%s' (size %zd) not supported as %s",
+                     ct->ct_name, ct->ct_size, place);
         return NULL;
     }
 }
