@@ -141,6 +141,7 @@
 #define CT_WITH_VAR_ARRAY     1048576
 #define CT_IS_UNSIZED_CHAR_A  2097152
 #define CT_LAZY_FIELD_LIST    4194304
+#define CT_WITH_PACKED_CHANGE 8388608
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -4280,7 +4281,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     CTypeDescrObject *ct;
     PyObject *fields, *interned_fields, *ignored;
     int is_union, alignment;
-    Py_ssize_t boffset, i, nb_fields, boffsetmax, alignedsize;
+    Py_ssize_t boffset, i, nb_fields, boffsetmax, alignedsize, boffsetorg;
     Py_ssize_t totalsize = -1;
     int totalalignment = -1;
     CFieldObject **previous;
@@ -4308,7 +4309,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                   "first arg must be a non-initialized struct or union ctype");
         return NULL;
     }
-    ct->ct_flags &= ~CT_CUSTOM_FIELD_POS;
+    ct->ct_flags &= ~(CT_CUSTOM_FIELD_POS | CT_WITH_PACKED_CHANGE);
 
     alignment = 1;
     boffset = 0;         /* this number is in *bits*, not bytes! */
@@ -4325,7 +4326,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     for (i=0; i<nb_fields; i++) {
         PyObject *fname;
         CTypeDescrObject *ftype;
-        int fbitsize = -1, falign, do_align;
+        int fbitsize = -1, falign, falignorg, do_align;
         Py_ssize_t foffset = -1;
 
         if (!PyArg_ParseTuple(PyList_GET_ITEM(fields, i), "O!O!|in:list item",
@@ -4353,7 +4354,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 
         /* update the total alignment requirement, but skip it if the
            field is an anonymous bitfield or if SF_PACKED */
-        falign = (sflags & SF_PACKED) ? 1 : get_alignment(ftype);
+        falignorg = get_alignment(ftype);
+        falign = (sflags & SF_PACKED) ? 1 : falignorg;
         if (falign < 0)
             goto error;
 
@@ -4383,7 +4385,11 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                 bs_flag = BS_REGULAR;
 
             /* align this field to its own 'falign' by inserting padding */
+            boffsetorg = (boffset + falignorg*8-1) & ~(falignorg*8-1); /*bits!*/
             boffset = (boffset + falign*8-1) & ~(falign*8-1); /* bits! */
+            if (boffsetorg != boffset) {
+                ct->ct_flags |= CT_WITH_PACKED_CHANGE;
+            }
 
             if (foffset >= 0) {
                 /* a forced field position: ignore the offset just computed,
@@ -4398,6 +4404,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             if (PyText_GetSize(fname) == 0 &&
                     ftype->ct_flags & (CT_STRUCT|CT_UNION)) {
                 /* a nested anonymous struct or union */
+                /* note: it seems we only get here with ffi.verify() */
                 CFieldObject *cfsrc = (CFieldObject *)ftype->ct_extra;
                 for (; cfsrc != NULL; cfsrc = cfsrc->cf_next) {
                     /* broken complexity in the call to get_field_name(),
@@ -4684,7 +4691,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
            Another reason for CT_CUSTOM_FIELD_POS would be anonymous
            nested structures: we lost the information about having it
            here, so better safe (and forbid it) than sorry (and maybe
-           crash).
+           crash).  Note: it seems we only get in this case with
+           ffi.verify().
         */
         if (force_lazy_struct(ct) < 0)
             return NULL;
@@ -4692,9 +4700,16 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
             /* these NotImplementedErrors may be caught and ignored until
                a real call is made to a function of this type */
             return fb_unsupported(ct, place,
-                "It can be a struct declared with \"...;\": then the C "
-                "calling convention may depend on the missing fields.  "
-                "Or, it can be a struct with nested anonymous structs/unions");
+                "It is a struct declared with \"...;\", but the C "
+                "calling convention may depend on the missing fields; "
+                "or, it contains anonymous struct/unions");
+        }
+        /* Another reason: __attribute__((packed)) is not supported by libffi.
+        */
+        if (ct->ct_flags & CT_WITH_PACKED_CHANGE) {
+            return fb_unsupported(ct, place,
+                "It is a 'packed' structure, with a different layout than "
+                "expected by libffi");
         }
 
         n = PyDict_Size(ct->ct_stuff);
@@ -4709,7 +4724,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
             assert(cf != NULL);
             if (cf->cf_bitshift >= 0) {
                 return fb_unsupported(ct, place,
-                                      "It is a struct with bit fields");
+                    "It is a struct with bit fields, which libffi does not "
+                    "support");
             }
             flat = 1;
             ct1 = cf->cf_type;
@@ -4719,7 +4735,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
             }
             if (flat <= 0) {
                 return fb_unsupported(ct, place,
-                    "It is a struct with a zero-length array");
+                    "It is a struct with a zero-length array, which libffi "
+                    "does not support");
             }
             nflat += flat;
             cf = cf->cf_next;
@@ -4760,7 +4777,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
     }
     else if (ct->ct_flags & CT_UNION) {
         PyErr_Format(PyExc_NotImplementedError,
-                     "ctype '%s' not supported as %s.  "
+                     "ctype '%s' not supported as %s by libffi.  "
                      "Unions" SUPPORTED_IN_API_MODE,
                      ct->ct_name, place, place);
         return NULL;

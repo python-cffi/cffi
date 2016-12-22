@@ -1095,9 +1095,13 @@ def test_cannot_call_with_a_autocompleted_struct():
     BFunc = new_function_type((BStruct,), BDouble)   # internally not callable
     dummy_func = cast(BFunc, 42)
     e = py.test.raises(NotImplementedError, dummy_func, "?")
-    msg = ("ctype \'struct foo\' not supported as argument (it is a struct "
-           'declared with "...;", but the C calling convention may depend on '
-           'the missing fields)')
+    msg = ("ctype 'struct foo' not supported as argument.  It is a struct "
+           'declared with "...;", but the C calling convention may depend '
+           "on the missing fields; or, it contains anonymous struct/unions.  "
+           "Such structs are only supported as argument if the function is "
+           "'API mode' and non-variadic (i.e. declared inside ffibuilder."
+           "cdef()+ffibuilder.set_source() and not taking a final '...' "
+           "argument)")
     assert str(e.value) == msg
 
 def test_new_charp():
