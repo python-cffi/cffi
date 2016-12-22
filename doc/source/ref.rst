@@ -342,7 +342,8 @@ ffi.gc()
 **ffi.gc(cdata, destructor)**: return a new cdata object that points to the
 same data.  Later, when this new cdata object is garbage-collected,
 ``destructor(old_cdata_object)`` will be called.  Example of usage:
-``ptr = ffi.gc(lib.malloc(42), lib.free)``.  Note that like objects
+``ptr = ffi.gc(lib.custom_malloc(42), lib.custom_free)``.
+Note that like objects
 returned by ``ffi.new()``, the returned pointer objects have *ownership*,
 which means the destructor is called as soon as *this* exact returned
 object is garbage-collected.
@@ -485,7 +486,24 @@ memory where the initial content can be left uninitialized, you can do::
 
     # then replace `p = ffi.new("char[]", bigsize)` with:
         p = new_nonzero("char[]", bigsize)
-        
+
+Note anyway that it might be a better idea to use explicit calls to
+``lib.malloc()`` and ``lib.free()``, because the memory returned by
+``new()`` or ``new_allocator()()`` is only freed when the garbage
+collector runs (i.e. not always instantly after the reference to the
+object goes away, particularly but not only on PyPy).  Example::
+
+    ffibuilder.cdef("""
+        void *malloc(size_t size);
+        void free(void *ptr);
+    """)
+
+    # then in your code:
+        p = lib.malloc(bigsize)
+        try:
+            ...
+        finally:
+            lib.free(p)
 
 
 ffi.init_once()
