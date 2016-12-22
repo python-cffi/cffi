@@ -4629,6 +4629,22 @@ static void *fb_alloc(struct funcbuilder_s *fb, Py_ssize_t size)
     }
 }
 
+#define SUPPORTED_IN_API_MODE                                            \
+        " are only supported as %s if the function is "                  \
+        "'API mode' and non-variadic (i.e. declared inside ffibuilder"   \
+        ".cdef()+ffibuilder.set_source() and not taking a final '...' "  \
+        "argument)"
+
+static ffi_type *fb_unsupported(CTypeDescrObject *ct, const char *place,
+                                const char *detail)
+{
+    PyErr_Format(PyExc_NotImplementedError,
+        "ctype '%s' not supported as %s.  %s.  "
+        "Such structs" SUPPORTED_IN_API_MODE,
+        ct->ct_name, place, detail, place);
+    return NULL;
+}
+
 static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
                               int is_result_type)
 {
@@ -4675,11 +4691,10 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
         if (ct->ct_flags & CT_CUSTOM_FIELD_POS) {
             /* these NotImplementedErrors may be caught and ignored until
                a real call is made to a function of this type */
-            PyErr_Format(PyExc_NotImplementedError,
-                "ctype '%s' not supported as %s (it is a struct declared "
-                "with \"...;\", but the C calling convention may depend "
-                "on the missing fields)", ct->ct_name, place);
-            return NULL;
+            return fb_unsupported(ct, place,
+                "It can be a struct declared with \"...;\": then the C "
+                "calling convention may depend on the missing fields.  "
+                "Or, it can be a struct with nested anonymous structs/unions");
         }
 
         n = PyDict_Size(ct->ct_stuff);
@@ -4693,11 +4708,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
             CTypeDescrObject *ct1;
             assert(cf != NULL);
             if (cf->cf_bitshift >= 0) {
-                PyErr_Format(PyExc_NotImplementedError,
-                     "ctype '%s' not supported as %s"
-                     " (it is a struct with bit fields)",
-                     ct->ct_name, place);
-                return NULL;
+                return fb_unsupported(ct, place,
+                                      "It is a struct with bit fields");
             }
             flat = 1;
             ct1 = cf->cf_type;
@@ -4706,11 +4718,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
                 ct1 = ct1->ct_itemdescr;
             }
             if (flat <= 0) {
-                PyErr_Format(PyExc_NotImplementedError,
-                     "ctype '%s' not supported as %s"
-                     " (it is a struct with a zero-length array)",
-                     ct->ct_name, place);
-                return NULL;
+                return fb_unsupported(ct, place,
+                    "It is a struct with a zero-length array");
             }
             nflat += flat;
             cf = cf->cf_next;
@@ -4751,8 +4760,9 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
     }
     else {
         PyErr_Format(PyExc_NotImplementedError,
-                     "ctype '%s' (size %zd) not supported as %s",
-                     ct->ct_name, ct->ct_size, place);
+                     "ctype '%s' (size %zd) not supported as %s.  "
+                     "Unions" SUPPORTED_IN_API_MODE,
+                     ct->ct_name, ct->ct_size, place, place);
         return NULL;
     }
 }
