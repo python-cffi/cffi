@@ -2088,3 +2088,25 @@ def test_call_with_union():
     assert lib.f().a == 42
     e = py.test.raises(NotImplementedError, lib.g, 0)
     print str(e.value)
+
+def test_call_with_packed_struct():
+    if sys.platform == 'win32':
+        py.test.skip("needs a GCC extension")
+    ffi = FFI()
+    ffi.cdef("""
+        struct foo { char y; int x; };
+        struct foo f(void);
+        struct foo g(int, ...);
+    """, packed=True)
+    lib = verify(ffi, "test_call_with_packed_struct", """
+        struct foo { char y; int x; } __attribute__((packed));
+        struct foo f(void) {
+            struct foo s = { 40, 200 };
+            return s;
+        }
+        struct foo g(int a, ...) { }
+    """)
+    assert lib.f().y == chr(40)
+    assert lib.f().x == 200
+    e = py.test.raises(NotImplementedError, lib.g, 0)
+    print str(e.value)
