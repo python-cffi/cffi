@@ -902,7 +902,7 @@ Then we use the ``requires_cffi`` variable to give different arguments to
         from package.foo_build import ffi
         extra_args = dict(
             ext_modules=[ffi.verifier.get_extension()],
-            ext_packages="...",    # if needed
+            ext_package="...",    # if needed
         )
     else:
         extra_args = dict(
