@@ -10,10 +10,15 @@ v1.9.2
   PyObject_Malloc()+memset() to handle ffi.new() with a default
   allocator.  Speeds up ``ffi.new(large-array)`` where most of the time
   you never touch most of the array.  (But avoid doing that too often:
-  on 32-bit PyPy it will quickly exhaust the address space.  This case
-  is best handled by explicit calls to calloc() and free().)
+  on 32-bit PyPy it will quickly exhaust the address space.  If possible,
+  use instead explicit calls to calloc() and free().)
 
-* some OS/X build fixes ("only with Xcode but without CLT").
+* Some OS/X build fixes ("only with Xcode but without CLT").
+
+* Improve a couple of error messages: when getting mismatched versions
+  of cffi and its backend; and when calling functions which cannot be
+  called with libffi because an argument is a struct that is "too
+  complicated" (not a struct *pointer*).
 
 
 v1.9
