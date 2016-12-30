@@ -1,5 +1,6 @@
 
 import sys, os, py
+import importlib
 from cffi import FFI, VerificationError, FFIError
 from cffi import recompiler
 from testing.udir import udir
@@ -520,6 +521,8 @@ def test_module_name_in_package():
         assert len(os.listdir(str(package_dir))) > 0
         assert os.path.exists(str(package_dir.join('mymod.c')))
         package_dir.join('__init__.py').write('')
+        #
+        getattr(importlib, 'invalidate_caches', object)()
         #
         sys.path.insert(0, str(udir))
         import test_module_name_in_package.mymod
