@@ -1,11 +1,15 @@
 
 import sys, os, py
-import importlib
 from cffi import FFI, VerificationError, FFIError
 from cffi import recompiler
 from testing.udir import udir
 from testing.support import u, long
 from testing.support import FdWriteCapture, StdErrCapture
+
+try:
+    import importlib
+except ImportError:
+    importlib = None
 
 
 def check_type_table(input, expected_output, included=None):
