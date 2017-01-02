@@ -2166,7 +2166,7 @@ def test_call_with_packed_struct():
             return s;
         }
     """)
-    assert lib.f().y == chr(40)
+    assert ord(lib.f().y) == 40
     assert lib.f().x == 200
     e = py.test.raises(NotImplementedError, lib.g, 0)
     assert str(e.value) == (
