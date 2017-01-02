@@ -177,7 +177,20 @@ static int _update_cache_to_call_python(struct _cffi_externpy_s *externpy)
 #if (defined(WITH_THREAD) && !defined(_MSC_VER) &&   \
      !defined(__amd64__) && !defined(__x86_64__) &&   \
      !defined(__i386__) && !defined(__i386))
-# define read_barrier()  __sync_synchronize()
+# if defined(__GNUC__)
+#   define read_barrier()  __sync_synchronize()
+# elif defined(_AIX)
+#   define read_barrier()  __lwsync()
+# elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+#   include <mbarrier.h>
+#   define read_barrier()  __compiler_barrier()
+# elif defined(__hpux)
+#   define read_barrier()  _Asm_mf()
+# else
+#   define read_barrier()  /* missing */
+#   warning "no definition for read_barrier(), missing synchronization for\
+ multi-thread initialization in embedded mode"
+# endif
 #else
 # define read_barrier()  (void)0
 #endif
