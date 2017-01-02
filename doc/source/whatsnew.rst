@@ -20,6 +20,9 @@ v1.9.2
   called with libffi because an argument is a struct that is "too
   complicated" (not a struct *pointer*).
 
+* Add support for some obscure compilers (non-msvc, non-gcc, non-icc,
+  non-clang)
+
 
 v1.9
 ====
