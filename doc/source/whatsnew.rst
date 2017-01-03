@@ -15,6 +15,8 @@ v1.9.2
 
 * some OS/X build fixes ("only with Xcode but without CLT").
 
+* ``ffi.from_buffer`` allows Python 2 strings and Python 3 bytes to be
+  passed. Unicode is the only type disallowed.
 
 v1.9
 ====
