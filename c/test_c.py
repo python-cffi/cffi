@@ -3434,11 +3434,14 @@ def test_from_buffer_not_str_unicode():
     except ImportError:
         pass
     else:
+        # Python 2 only
         contents = from_buffer(BCharA, buffer(b"foo"))
+        assert len(contents) == len(p1)
         for i in range(len(contents)):
             assert contents[i] == p1[i]
-        p4 = from_buffer(BCharA, b"f\x00\x00\x00o\x00\x00\x00o\x00\x00\x00")
+        p4 = buffer(u+"foo")
         contents = from_buffer(BCharA, buffer(u+"foo"))
+        assert len(contents) == len(p4)
         for i in range(len(contents)):
             assert contents[i] == p4[i]
     try:
@@ -3447,6 +3450,7 @@ def test_from_buffer_not_str_unicode():
         pass
     else:
         contents = from_buffer(BCharA, memoryview(b"foo"))
+        assert len(contents) == len(p1)
         for i in range(len(contents)):
             assert contents[i] == p1[i]
 
