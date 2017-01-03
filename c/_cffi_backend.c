@@ -6101,43 +6101,18 @@ static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view,
     return 0;
 }
 
-static int invalid_input_buffer_type(PyObject *x)
-{
-    /* From PyPy 5.4, from_buffer() accepts strings (but still not buffers
-       or memoryviews on strings). */
-    if (PyBytes_Check(x))
-        return 0;
-
-#if PY_MAJOR_VERSION < 3
-    if (PyBuffer_Check(x)) {
-        return 0;
-    }
-    else
-#endif
-#if PY_MAJOR_VERSION > 2 || PY_MINOR_VERSION > 6
-    if (PyMemoryView_Check(x)) {
-        return 0;
-    }
-    else
-#endif
-        ;
-
-    if (PyBytes_Check(x) || PyUnicode_Check(x))
-        return 1;
-    /* From PyPy 5.2, bytearray buffers can fetch a raw pointer, so
-       there is no reason any more to prevent from_buffer(bytearray()). */
-    return 0;
-}
-
 static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x)
 {
     CDataObject *cd;
     Py_buffer *view;
 
-    if (invalid_input_buffer_type(x)) {
+    /* PyPy 5.7 can obtain buffers for string (python 2)
+       or bytes (python 3). from_buffer(u"foo") is disallowed.
+     */
+    if (PyUnicode_Check(x)) {
         PyErr_SetString(PyExc_TypeError,
-                        "from_buffer() cannot return the address of the "
-                        "raw string within a "STR_OR_BYTES" or unicode object");
+                        "from_buffer() cannot return the address "
+                        "of a unicode object");
         return NULL;
     }
 

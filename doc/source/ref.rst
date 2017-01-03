@@ -175,9 +175,8 @@ byte strings).  Use ``buf[:]`` instead.
 **ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
 points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
-a reference to the existing data, not a copy; for this
-reason, and for PyPy compatibility, it does not work with the built-in
-type unicode; nor buffers/memoryviews to byte or unicode strings.
+a reference to the existing data, not a copy; It does not work with the built-in
+type unicode.
 It is meant to be used on objects
 containing large quantities of raw data, like bytearrays
 or ``array.array`` or numpy
