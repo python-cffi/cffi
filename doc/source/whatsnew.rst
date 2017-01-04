@@ -3,8 +3,8 @@ What's New
 ======================
 
 
-v1.9.2
-======
+v1.10
+=====
 
 * Issue #295: use calloc() directly instead of
   PyObject_Malloc()+memset() to handle ffi.new() with a default
@@ -23,8 +23,13 @@ v1.9.2
 * Add support for some obscure compilers (non-msvc, non-gcc, non-icc,
   non-clang)
 
-* ``ffi.from_buffer`` allows Python 2 strings and Python 3 bytes to be
-  passed. Unicode is the only type disallowed.
+* Implemented the remaining cases for ``ffi.from_buffer``.  Now all
+  buffer/memoryview objects can be passed.  The one remaining check is
+  against passing unicode strings in Python 2.  (They support the buffer
+  interface, but that gives the raw bytes behind the UTF16/UCS4 storage,
+  which is most of the times not what you expect.  In Python 3 this has
+  been fixed and the unicode strings don't support the memoryview
+  interface any more.)
 
 v1.9
 ====

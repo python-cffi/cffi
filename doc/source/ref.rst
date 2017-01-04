@@ -175,15 +175,16 @@ byte strings).  Use ``buf[:]`` instead.
 **ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
 points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
-a reference to the existing data, not a copy; It does not work with the built-in
-type unicode.
+a reference to the existing data, not a copy.
 It is meant to be used on objects
 containing large quantities of raw data, like bytearrays
 or ``array.array`` or numpy
-arrays.  It supports both the old buffer API (in Python 2.x) and the
-new memoryview API.  Note that if you pass a read-only buffer object,
+arrays.  It supports both the old *buffer* API (in Python 2.x) and the
+new *memoryview* API.  Note that if you pass a read-only buffer object,
 you still get a regular ``<cdata 'char[]'>``; it is your responsibility
 not to write there if the original buffer doesn't expect you to.
+*In particular, never modify byte strings!*
+
 The original object is kept alive (and, in case
 of memoryview, locked) as long as the cdata object returned by
 ``ffi.from_buffer()`` is alive.
@@ -193,13 +194,11 @@ points to the internal buffer of a Python object; for this case you
 can directly pass ``ffi.from_buffer(python_buffer)`` as argument to
 the call.
 
-*New in version 1.7:* the python_buffer can be a bytearray object.
-Be careful: if the bytearray gets resized (e.g. its ``.append()``
-method is called), then the ``<cdata>`` object will point to freed
-memory and must not be used any more.
-
-*New in version 1.8:* the python_buffer can be a byte string (but still
-not a buffer/memoryview on a string).  Never modify a byte string!
+*New in version 1.10:* the ``python_buffer`` can be anything supporting
+the buffer/memoryview interface (except unicode strings).  Previously,
+bytearray objects were supported in version 1.7 onwards (careful, if you
+resize the bytearray, the ``<cdata>`` object will point to freed
+memory); and byte strings were supported in version 1.8 onwards.
 
 
 ffi.memmove()
@@ -211,8 +210,7 @@ C functions ``memcpy()`` and ``memmove()``---like the latter, the
 areas can overlap.  Each of ``dest`` and ``src`` can be either a cdata
 pointer or a Python object supporting the buffer/memoryview interface.
 In the case of ``dest``, the buffer/memoryview must be writable.
-Unlike ``ffi.from_buffer()``, there are no restrictions on the type of
-buffer.  *New in version 1.3.*  Examples:
+*New in version 1.3.*  Examples:
 
 * ``ffi.memmove(myptr, b"hello", 5)`` copies the 5 bytes of
   ``b"hello"`` to the area that ``myptr`` points to.
@@ -223,6 +221,8 @@ buffer.  *New in version 1.3.*  Examples:
 * ``ffi.memmove(myptr + 1, myptr, 100)`` shifts 100 bytes from
   the memory at ``myptr`` to the memory at ``myptr + 1``.
 
+In versions before 1.10, ``ffi.from_buffer()`` had restrictions on the
+type of buffer, which made ``ffi.memmove()`` more general.
 
 .. _ffi-typeof:
 .. _ffi-sizeof:
