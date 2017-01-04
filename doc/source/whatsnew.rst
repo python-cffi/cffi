@@ -23,6 +23,8 @@ v1.9.2
 * Add support for some obscure compilers (non-msvc, non-gcc, non-icc,
   non-clang)
 
+* ``ffi.from_buffer`` allows Python 2 strings and Python 3 bytes to be
+  passed. Unicode is the only type disallowed.
 
 v1.9
 ====
