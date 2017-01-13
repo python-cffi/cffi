@@ -69,7 +69,22 @@ def ask_supports_thread():
         if not ok1:
             no_working_compiler_found()
         sys.stderr.write("Note: will not use '__thread' in the C code\n")
-        sys.stderr.write("The above error message can be safely ignored\n")
+        _safe_to_ignore()
+
+def ask_supports_sync_synchronize():
+    if sys.platform == 'win32':
+        return
+    config = get_config()
+    ok = config.try_link('int main(void) { __sync_synchronize(); return 0; }')
+    if ok:
+        define_macros.append(('HAVE_SYNC_SYNCHRONIZE', None))
+    else:
+        sys.stderr.write("Note: will not use '__sync_synchronize()'"
+                         " in the C code\n")
+        _safe_to_ignore()
+
+def _safe_to_ignore():
+    sys.stderr.write("***** The above error message can be safely ignored.\n\n")
 
 def uses_msvc():
     config = get_config()
@@ -118,6 +133,7 @@ if COMPILE_LIBFFI:
 else:
     use_pkg_config()
     ask_supports_thread()
+    ask_supports_sync_synchronize()
 
 if 'freebsd' in sys.platform:
     include_dirs.append('/usr/local/include')
