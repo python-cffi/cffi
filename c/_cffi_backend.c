@@ -127,6 +127,8 @@
 #define CT_FUNCTIONPTR      256    /* pointer to function */
 #define CT_VOID             512    /* void */
 
+#define CT_PRIMITIVE_COMPLEX 16777216  /* float _Complex, double _Complex */
+
 /* other flags that may also be set in addition to the base flag: */
 #define CT_IS_VOIDCHAR_PTR       1024
 #define CT_PRIMITIVE_FITS_LONG   2048
@@ -145,7 +147,8 @@
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
-                           CT_PRIMITIVE_FLOAT)
+                           CT_PRIMITIVE_FLOAT |         \
+                           CT_PRIMITIVE_COMPLEX)
 
 typedef struct _ctypedescr {
     PyObject_VAR_HEAD
@@ -3855,6 +3858,8 @@ static PyObject *new_primitive_type(const char *name)
        EPTYPE(f, float, CT_PRIMITIVE_FLOAT )                    \
        EPTYPE(d, double, CT_PRIMITIVE_FLOAT )                   \
        EPTYPE(ld, long double, CT_PRIMITIVE_FLOAT | CT_IS_LONGDOUBLE ) \
+       EPTYPE(fc, float _Complex, CT_PRIMITIVE_COMPLEX )        \
+       EPTYPE(dc, double _Complex, CT_PRIMITIVE_COMPLEX )       \
        ENUM_PRIMITIVE_TYPES_WCHAR                               \
        EPTYPE(b, _Bool, CT_PRIMITIVE_UNSIGNED | CT_IS_BOOL )    \
      /* the following types are not primitive in the C sense */ \
@@ -3924,6 +3929,8 @@ static PyObject *new_primitive_type(const char *name)
     const void *unique_key[1];
     int name_size;
     ffi_type *ffitype;
+
+    printf("hello\n");
 
     for (ptypes=types; ; ptypes++) {
         if (ptypes->name == NULL) {

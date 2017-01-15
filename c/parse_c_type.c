@@ -25,7 +25,7 @@ enum token_e {
     /* keywords */
     TOK__BOOL,
     TOK_CHAR,
-    //TOK__COMPLEX,
+    TOK__COMPLEX,
     TOK_CONST,
     TOK_DOUBLE,
     TOK_ENUM,
@@ -797,6 +797,7 @@ static
 int parse_c_type_from(struct _cffi_parse_info_s *info, size_t *output_index,
                       const char *input)
 {
+    printf("parse_c_type_from\n");
     int result;
     token_t token;
 

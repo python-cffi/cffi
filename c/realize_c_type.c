@@ -101,6 +101,7 @@ static int init_builder_c(builder_c_t *builder,
 
 static PyObject *build_primitive_type(int num)
 {
+    fprintf(stderr, "fooooooooooooo    num=%d\n",num);
     /* XXX too many translations between here and new_primitive_type() */
     static const char *primitive_name[] = {
         NULL,
@@ -151,6 +152,8 @@ static PyObject *build_primitive_type(int num)
         "uint_fast64_t",
         "intmax_t",
         "uintmax_t",
+        "float _Complex",
+        "double _Complex",
     };
     PyObject *x;
 
