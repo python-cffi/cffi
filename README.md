@@ -15,6 +15,7 @@ Contact
 
 [Mailing list](https://groups.google.com/forum/#!forum/python-cffi)
 
-To run tests under CPython, run:
+To run tests under CPython, run::
 
-python setup.py build_ext -i
+    python setup.py build_ext -f -i
+    py.test c/ test/
