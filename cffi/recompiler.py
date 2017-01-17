@@ -391,6 +391,10 @@ class Recompiler:
         prnt()
         #
         # the init function
+        prnt('#ifdef __GNUC__')
+        prnt('#  pragma GCC visibility push(default)  /* for -fvisibility= */')
+        prnt('#endif')
+        prnt()
         prnt('#ifdef PYPY_VERSION')
         prnt('PyMODINIT_FUNC')
         prnt('_cffi_pypyinit_%s(const void *p[])' % (base_module_name,))
@@ -428,6 +432,10 @@ class Recompiler:
         prnt('  _cffi_init("%s", %s, &_cffi_type_context);' % (
             self.module_name, version))
         prnt('}')
+        prnt('#endif')
+        prnt()
+        prnt('#ifdef __GNUC__')
+        prnt('#  pragma GCC visibility pop')
         prnt('#endif')
 
     def _to_py(self, x):

@@ -31,6 +31,7 @@ def verify(ffi, module_name, source, *args, **kwds):
         kwds.setdefault('source_extension', '.cpp')
         source = 'extern "C" {\n%s\n}' % (source,)
     else:
+        # add '-Werror' to the existing 'extra_compile_args' flags
         kwds['extra_compile_args'] = (kwds.get('extra_compile_args', []) +
                                       ['-Werror'])
     return recompiler._verify(ffi, module_name, source, *args, **kwds)
@@ -2175,3 +2176,15 @@ def test_call_with_packed_struct():
         "  Such structs are only supported as return value if the function is "
         "'API mode' and non-variadic (i.e. declared inside ffibuilder.cdef()"
         "+ffibuilder.set_source() and not taking a final '...' argument)")
+
+def test_gcc_visibility_hidden():
+    if sys.platform == 'win32':
+        py.test.skip("test for gcc/clang")
+    ffi = FFI()
+    ffi.cdef("""
+    int f(int);
+    """)
+    lib = verify(ffi, "test_gcc_visibility_hidden", """
+    int f(int a) { return a + 40; }
+    """, extra_compile_args=['-fvisibility=hidden'])
+    assert lib.f(2) == 42
