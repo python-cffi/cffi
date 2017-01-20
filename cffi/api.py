@@ -1,7 +1,7 @@
 import sys, types
 from .lock import allocate_lock
 from .error import CDefError
-from . import cparser, model
+from . import model
 
 try:
     callable
@@ -60,6 +60,7 @@ class FFI(object):
             # 'backend=backend_ctypes.CTypesBackend()', but don't
             # rely on it!  It's probably not going to work well.)
 
+        from . import cparser
         self._backend = backend
         self._lock = allocate_lock()
         self._parser = cparser.Parser()

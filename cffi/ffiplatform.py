@@ -1,5 +1,5 @@
 import sys, os
-from .error import VerificationError, VerificationMissing
+from .error import VerificationError
 
 
 LIST_OF_FILE_NAMES = ['sources', 'include_dirs', 'library_dirs',
