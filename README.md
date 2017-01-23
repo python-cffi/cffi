@@ -21,8 +21,9 @@ Testing/development tips
 To run tests under CPython, run::
 
     pip install pytest     # if you don't have py.test already
+    pip install pycparser
     python setup.py build_ext -f -i
-    py.test c/ test/
+    py.test c/ testing/
 
 If you run in another directory (either the tests or another program),
 you should use the environment variable ``PYTHONPATH=/path`` to point
