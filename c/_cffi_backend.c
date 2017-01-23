@@ -899,6 +899,25 @@ write_raw_longdouble_data(char *target, long double source)
     _write_raw_data(long double);
 }
 
+#define _write_raw_complex_data(type)                      \
+    do {                                                   \
+        if (size == 2*sizeof(type)) {                      \
+            type r = (type)source.real;                    \
+            memcpy(target, &r, sizeof(type));              \
+            type i = (type)source.imag;                    \
+            memcpy(target+sizeof(type), &i, sizeof(type)); \
+            return;                                        \
+        }                                                  \
+    } while(0)
+
+static void
+write_raw_complex_data(char *target, Py_complex source, int size)
+{
+    _write_raw_complex_data(float);
+    _write_raw_complex_data(double);
+    Py_FatalError("write_raw_complex_data: bad float size");
+}
+
 static PyObject *
 new_simple_cdata(char *data, CTypeDescrObject *ct)
 {
@@ -3574,6 +3593,40 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
         }
         return (PyObject *)cd;
     }
+
+
+    else if (ct->ct_flags & CT_PRIMITIVE_COMPLEX) {
+        /* cast to a complex */
+        Py_complex value;
+        PyObject *io;
+        printf("_cffi_backend.c do_cast  ct->ct_size=%ld\n", ct->ct_size);
+        if (CData_Check(ob)) {
+            CDataObject *cdsrc = (CDataObject *)ob;
+
+            if (!(cdsrc->c_type->ct_flags & CT_PRIMITIVE_ANY))
+                goto cannot_cast;
+            io = convert_to_object(cdsrc->c_data, cdsrc->c_type);
+            if (io == NULL)
+                return NULL;
+        }
+        else {
+            io = ob;
+            Py_INCREF(io);
+        }
+
+        value = PyComplex_AsCComplex(io);
+        Py_DECREF(io);
+        if (value.real == -1.0 && value.imag == 0.0 && PyErr_Occurred())
+            return NULL;
+
+        cd = _new_casted_primitive(ct);
+        if (cd != NULL) {
+            write_raw_complex_data(cd->c_data, value, ct->ct_size);
+        }
+        return (PyObject *)cd;
+    }
+
+
     else {
         PyErr_Format(PyExc_TypeError, "cannot cast to ctype '%s'",
                      ct->ct_name);

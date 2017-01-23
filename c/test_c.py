@@ -183,10 +183,9 @@ def test_float_types():
         py.test.raises(TypeError, cast, p, None)
 
 def test_complex_types():
-    py.test.skip("later")
     INF = 1E200 * 1E200
-    for name in ["float", "double"]:
-        p = new_primitive_type("_Complex " + name)
+    for name in ["float"]:  #, "double"]:
+        p = new_primitive_type(name + " _Complex")
         assert bool(cast(p, 0))
         assert bool(cast(p, INF))
         assert bool(cast(p, -INF))
