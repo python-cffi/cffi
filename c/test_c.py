@@ -12,9 +12,9 @@ from _cffi_backend import _testfunc, _get_types, _get_common_types, __version__
 # ____________________________________________________________
 
 import sys
-assert __version__ == "1.9.2", ("This test_c.py file is for testing a version"
-                                " of cffi that differs from the one that we"
-                                " get from 'import _cffi_backend'")
+assert __version__ == "1.10.0", ("This test_c.py file is for testing a version"
+                                 " of cffi that differs from the one that we"
+                                 " get from 'import _cffi_backend'")
 if sys.version_info < (3,):
     type_or_class = "type"
     mandatory_b_prefix = ''
