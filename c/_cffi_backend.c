@@ -970,8 +970,23 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         /*READ(data, ct->ct_size)*/
         value = read_raw_unsigned_data(data, ct->ct_size);
 
-        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
+        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG) {
+            if (ct->ct_flags & CT_IS_BOOL) {
+                PyObject *x;
+                switch ((int)value) {
+                case 0: x = Py_False; break;
+                case 1: x = Py_True; break;
+                default:
+                    PyErr_Format(PyExc_ValueError,
+                                 "got a _Bool of value %d, expected 0 or 1",
+                                 (int)value);
+                    return NULL;
+                }
+                Py_INCREF(x);
+                return x;
+            }
             return PyInt_FromLong((long)value);
+        }
         else
             return PyLong_FromUnsignedLongLong(value);
     }
@@ -1208,6 +1223,20 @@ convert_vfield_from_object(char *data, CFieldObject *cf, PyObject *value,
 }
 
 static int
+must_be_array_of_zero_or_one(const char *data, Py_ssize_t n)
+{
+    Py_ssize_t i;
+    for (i = 0; i < n; i++) {
+        if (((unsigned char)data[i]) > 1) {
+            PyErr_SetString(PyExc_ValueError,
+                "an array of _Bool can only contain \\x00 or \\x01");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int
 convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
     /* used by convert_from_object(), and also to decode lists/tuples/unicodes
@@ -1254,6 +1283,9 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             if (n != ct->ct_length)
                 n++;
             srcdata = PyBytes_AS_STRING(init);
+            if (ctitem->ct_flags & CT_IS_BOOL)
+                if (must_be_array_of_zero_or_one(srcdata, n) < 0)
+                    return -1;
             memcpy(data, srcdata, n);
             return 0;
         }
@@ -1424,12 +1456,15 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(init, 1);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
             return -1;
-        if (ct->ct_flags & CT_IS_BOOL)
-            if (value & ~1)      /* value != 0 && value != 1 */
+        if (ct->ct_flags & CT_IS_BOOL) {
+            if (value > 1ULL)      /* value != 0 && value != 1 */
                 goto overflow;
-        write_raw_integer_data(buf, value, ct->ct_size);
-        if (value != read_raw_unsigned_data(buf, ct->ct_size))
-            goto overflow;
+        }
+        else {
+            write_raw_integer_data(buf, value, ct->ct_size);
+            if (value != read_raw_unsigned_data(buf, ct->ct_size))
+                goto overflow;
+        }
         write_raw_integer_data(data, value, ct->ct_size);
         return 0;
     }
@@ -2544,6 +2579,10 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
             length = PyBytes_GET_SIZE(init) + 1;
 #else
             *output_data = PyBytes_AS_STRING(init);
+            if (ctitem->ct_flags & CT_IS_BOOL)
+                if (must_be_array_of_zero_or_one(*output_data,
+                                                 PyBytes_GET_SIZE(init)) < 0)
+                    return -1;
             return 0;
 #endif
         }
@@ -5740,7 +5779,8 @@ static PyObject *b_string(PyObject *self, PyObject *args, PyObject *kwds)
     if (cd->c_type->ct_itemdescr != NULL &&
         cd->c_type->ct_itemdescr->ct_flags & (CT_PRIMITIVE_CHAR |
                                               CT_PRIMITIVE_SIGNED |
-                                              CT_PRIMITIVE_UNSIGNED)) {
+                                              CT_PRIMITIVE_UNSIGNED) &&
+        !(cd->c_type->ct_itemdescr->ct_flags & CT_IS_BOOL)) {
         Py_ssize_t length = maxlen;
         if (cd->c_data == NULL) {
             PyObject *s = cdata_repr(cd);
@@ -5904,7 +5944,8 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
             else if (itemsize == sizeof(short))       casenum = 1;
             else if (itemsize == sizeof(signed char)) casenum = 0;
         }
-        else if (ctitem->ct_flags & CT_PRIMITIVE_UNSIGNED) {
+        else if ((ctitem->ct_flags & (CT_PRIMITIVE_UNSIGNED | CT_IS_BOOL))
+                 == CT_PRIMITIVE_UNSIGNED) {
             /* Note: we never pick case 6 if sizeof(int) == sizeof(long),
                so that case 6 below can assume that the 'unsigned int' result
                would always fit in a 'signed long'. */

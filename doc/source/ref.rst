@@ -597,7 +597,8 @@ allowed.
 |   integers    | an integer or anything | a Python int or  | int(), bool()  |
 |   and enums   | on which int() works   | long, depending  | `(******)`     |
 |   `(*****)`   | (but not a float!).    | on the type      |                |
-|               | Must be within range.  |                  |                |
+|               | Must be within range.  | (ver. 1.10: or a |                |
+|               |                        | bool)            |                |
 +---------------+------------------------+------------------+----------------+
 |   ``char``    | a string of length 1   | a string of      | int(), bool()  |
 |               | or another <cdata char>| length 1         |                |
@@ -637,12 +638,13 @@ allowed.
 |               | items                  |                  |``[]`` `(****)`,|
 |               |                        |                  |``+``, ``-``    |
 +---------------+------------------------+                  +----------------+
-|  ``char[]``   | same as arrays, or a   |                  | len(), iter(), |
-|               | Python string          |                  | ``[]``, ``+``, |
-|               |                        |                  | ``-``          |
+| ``char[]``,   | same as arrays, or a   |                  | len(), iter(), |
+| ``un/signed`` | Python byte string     |                  | ``[]``, ``+``, |
+| ``char[]``,   |                        |                  | ``-``          |
+| ``_Bool[]``   |                        |                  |                |
 +---------------+------------------------+                  +----------------+
 | ``wchar_t[]`` | same as arrays, or a   |                  | len(), iter(), |
-|               | Python unicode         |                  | ``[]``,        |
+|               | Python unicode string  |                  | ``[]``,        |
 |               |                        |                  | ``+``, ``-``   |
 |               |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
@@ -726,6 +728,14 @@ allowed.
 
    *New in version 1.7.*  In previous versions, it only worked on
    pointers; for primitives it always returned True.
+
+   *New in version 1.10:*  The C type ``_Bool`` or ``bool`` converts to
+   Python booleans now.  You get an exception if a C ``_Bool`` happens
+   to contain a value different from 0 and 1 (this case triggers
+   undefined behavior in C; if you really have to interface with a
+   library relying on this, don't use ``_Bool`` in the CFFI side).
+   Also, when converting from a byte string to a ``_Bool[]``, only the
+   bytes ``\x00`` and ``\x01`` are accepted.
 
 .. _file:
 
