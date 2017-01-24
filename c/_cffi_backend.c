@@ -5944,12 +5944,12 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
             else if (itemsize == sizeof(short))       casenum = 1;
             else if (itemsize == sizeof(signed char)) casenum = 0;
         }
-        else if ((ctitem->ct_flags & (CT_PRIMITIVE_UNSIGNED | CT_IS_BOOL))
-                 == CT_PRIMITIVE_UNSIGNED) {
+        else if (ctitem->ct_flags & CT_PRIMITIVE_UNSIGNED) {
             /* Note: we never pick case 6 if sizeof(int) == sizeof(long),
                so that case 6 below can assume that the 'unsigned int' result
                would always fit in a 'signed long'. */
-            if      (itemsize == sizeof(unsigned long))  casenum = 7;
+            if (ctitem->ct_flags & CT_IS_BOOL)           casenum = 11;
+            else if (itemsize == sizeof(unsigned long))  casenum = 7;
             else if (itemsize == sizeof(unsigned int))   casenum = 6;
             else if (itemsize == sizeof(unsigned short)) casenum = 5;
             else if (itemsize == sizeof(unsigned char))  casenum = 4;
@@ -5982,6 +5982,13 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
         case 8: x = PyFloat_FromDouble(*(float *)src); break;
         case 9: x = PyFloat_FromDouble(*(double *)src); break;
         case 10: x = new_simple_cdata(*(char **)src, ctitem); break;
+        case 11:
+            switch (*(unsigned char *)src) {
+            case 0: x = Py_False; Py_INCREF(x); break;
+            case 1: x = Py_True;  Py_INCREF(x); break;
+            default: x = convert_to_object(src, ctitem); /* error */
+            }
+            break;
         }
         if (x == NULL) {
             Py_DECREF(result);
