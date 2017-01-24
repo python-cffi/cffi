@@ -455,6 +455,8 @@ static PyObject *ctypeget_length(CTypeDescrObject *ct, void *context)
 static PyObject *
 get_field_name(CTypeDescrObject *ct, CFieldObject *cf);   /* forward */
 
+/* returns 0 if the struct ctype is opaque, 1 if it is not, or -1 if
+   an exception occurs */
 #define force_lazy_struct(ct)                                           \
     ((ct)->ct_stuff != NULL ? 1 : do_realize_lazy_struct(ct))
 
@@ -2452,11 +2454,26 @@ cdata_sub(PyObject *v, PyObject *w)
     return _cdata_add_or_sub(v, w, -1);
 }
 
+static void
+_cdata_attr_errmsg(char *errmsg, CDataObject *cd, PyObject *attr)
+{
+    char *text;
+    if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+        return;
+    PyErr_Clear();
+    text = PyText_AsUTF8(attr);
+    if (text == NULL)
+        return;
+    PyErr_Format(PyExc_AttributeError, errmsg, cd->c_type->ct_name, text);
+}
+
 static PyObject *
 cdata_getattro(CDataObject *cd, PyObject *attr)
 {
     CFieldObject *cf;
     CTypeDescrObject *ct = cd->c_type;
+    char *errmsg = "cdata '%s' has no attribute '%s'";
+    PyObject *x;
 
     if (ct->ct_flags & CT_POINTER)
         ct = ct->ct_itemdescr;
@@ -2488,14 +2505,19 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
                 return new_simple_cdata(data,
                     (CTypeDescrObject *)cf->cf_type->ct_stuff);
             }
+            errmsg = "cdata '%s' has no field '%s'";
             break;
         case -1:
             return NULL;
         default:
+            errmsg = "cdata '%s' points to an opaque type: cannot read fields";
             break;
         }
     }
-    return PyObject_GenericGetAttr((PyObject *)cd, attr);
+    x = PyObject_GenericGetAttr((PyObject *)cd, attr);
+    if (x == NULL)
+        _cdata_attr_errmsg(errmsg, cd, attr);
+    return x;
 }
 
 static int
@@ -2503,6 +2525,8 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
 {
     CFieldObject *cf;
     CTypeDescrObject *ct = cd->c_type;
+    char *errmsg = "cdata '%s' has no attribute '%s'";
+    int x;
 
     if (ct->ct_flags & CT_POINTER)
         ct = ct->ct_itemdescr;
@@ -2522,14 +2546,19 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
                     return -1;
                 }
             }
+            errmsg = "cdata '%s' has no field '%s'";
             break;
         case -1:
             return -1;
         default:
+            errmsg = "cdata '%s' points to an opaque type: cannot write fields";
             break;
         }
     }
-    return PyObject_GenericSetAttr((PyObject *)cd, attr, value);
+    x = PyObject_GenericSetAttr((PyObject *)cd, attr, value);
+    if (x < 0)
+        _cdata_attr_errmsg(errmsg, cd, attr);
+    return x;
 }
 
 static PyObject *
