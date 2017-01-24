@@ -784,6 +784,11 @@ def test_struct_instance():
     assert str(e.value) == "cdata 'int *' has no attribute 'foobar'"
     e = py.test.raises(AttributeError, "j.foobar = 42")
     assert str(e.value) == "cdata 'int *' has no attribute 'foobar'"
+    pp = newp(new_pointer_type(BStructPtr), p)
+    e = py.test.raises(AttributeError, "pp.a1")
+    assert str(e.value) == "cdata 'struct foo * *' has no attribute 'a1'"
+    e = py.test.raises(AttributeError, "pp.a1 = 42")
+    assert str(e.value) == "cdata 'struct foo * *' has no attribute 'a1'"
 
 def test_union_instance():
     BInt = new_primitive_type("int")
