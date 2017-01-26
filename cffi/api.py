@@ -593,11 +593,15 @@ class FFI(object):
             ensure('extra_link_args', '/MANIFEST')
 
     def set_source(self, module_name, source, source_extension='.c', **kwds):
+        import os
         if hasattr(self, '_assigned_source'):
             raise ValueError("set_source() cannot be called several times "
                              "per ffi object")
         if not isinstance(module_name, basestring):
             raise TypeError("'module_name' must be a string")
+        if os.sep in module_name or (os.altsep and os.altsep in module_name):
+            raise ValueError("'module_name' must not contain '/': use a dotted "
+                             "name to make a 'package.module' location")
         self._assigned_source = (str(module_name), source,
                                  source_extension, kwds)
 
