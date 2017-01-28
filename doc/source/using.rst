@@ -776,13 +776,21 @@ ffi.callback() and the result is the same.
     Callbacks are provided for the ABI mode or for backward
     compatibility.  If you are using the out-of-line API mode, it is
     recommended to use the `extern "Python"`_ mechanism instead of
-    callbacks: it gives faster and cleaner code.  It also avoids a
-    SELinux issue whereby the setting of ``deny_execmem`` must be left
-    to ``off`` in order to use callbacks.  (A fix in cffi was
-    attempted---see the ``ffi_closure_alloc`` branch---but was not
-    merged because it creates potential memory corruption with
-    ``fork()``.  For more information, `see here.`__)
+    callbacks: it gives faster and cleaner code.  It also avoids several
+    issues with old-style callbacks:
 
+    - On less common architecture, libffi is more likely to crash on
+      callbacks (`e.g. on NetBSD`__);
+
+    - On hardened systems like PAX and SELinux, the extra memory
+      protections can interfere (for example, on SELinux you need to
+      run with ``deny_execmem`` set to ``off``).
+
+    Note also that a cffi fix for the latter issue was attempted---see
+    the ``ffi_closure_alloc`` branch---but was not merged because it
+    creates potential `memory corruption`__ with ``fork()``.
+
+.. __: https://github.com/pyca/pyopenssl/issues/596
 .. __: https://bugzilla.redhat.com/show_bug.cgi?id=1249685
 
 Warning: like ffi.new(), ffi.callback() returns a cdata that has
