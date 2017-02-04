@@ -93,6 +93,7 @@ class FFI(object):
             # ctypes backend: attach these constants to the instance
             self.NULL = self.cast(self.BVoidP, 0)
             self.CData, self.CType = backend._get_types()
+        self.buffer = backend.buffer
 
     def cdef(self, csource, override=False, packed=False):
         """Parse the given C source.  This registers all declared functions,
@@ -316,18 +317,18 @@ class FFI(object):
         """
         return self._backend.unpack(cdata, length)
 
-    def buffer(self, cdata, size=-1):
-        """Return a read-write buffer object that references the raw C data
-        pointed to by the given 'cdata'.  The 'cdata' must be a pointer or
-        an array.  Can be passed to functions expecting a buffer, or directly
-        manipulated with:
-
-            buf[:]          get a copy of it in a regular string, or
-            buf[idx]        as a single character
-            buf[:] = ...
-            buf[idx] = ...  change the content
-        """
-        return self._backend.buffer(cdata, size)
+   #def buffer(self, cdata, size=-1):
+   #    """Return a read-write buffer object that references the raw C data
+   #    pointed to by the given 'cdata'.  The 'cdata' must be a pointer or
+   #    an array.  Can be passed to functions expecting a buffer, or directly
+   #    manipulated with:
+   #
+   #        buf[:]          get a copy of it in a regular string, or
+   #        buf[idx]        as a single character
+   #        buf[:] = ...
+   #        buf[idx] = ...  change the content
+   #    """
+   #    note that 'buffer' is a type, set on this instance by __init__
 
     def from_buffer(self, python_buffer):
         """Return a <cdata 'char[]'> that points to the data of the

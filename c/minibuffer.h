@@ -238,6 +238,22 @@ static PyMappingMethods mb_as_mapping = {
 # define MINIBUF_TPFLAGS (Py_TPFLAGS_HAVE_GETCHARBUFFER | Py_TPFLAGS_HAVE_NEWBUFFER)
 #endif
 
+PyDoc_STRVAR(ffi_buffer_doc,
+"ffi.buffer(cdata):\n"
+"Return a read-write buffer object that references the raw C data\n"
+"pointed to by the given 'cdata'.  The 'cdata' must be a pointer or an\n"
+"array.  Can be passed to functions expecting a buffer, or directly\n"
+"manipulated with:\n"
+"\n"
+"    buf[:]          get a copy of it in a regular string, or\n"
+"    buf[idx]        as a single character\n"
+"    buf[:] = ...\n"
+"    buf[idx] = ...  change the content");
+
+static PyObject *            /* forward, implemented in _cffi_backend.c */
+b_buffer_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+
+
 static PyTypeObject MiniBuffer_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "_cffi_backend.buffer",
@@ -268,11 +284,25 @@ static PyTypeObject MiniBuffer_Type = {
     &mb_as_buffer,                              /* tp_as_buffer */
     (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
         MINIBUF_TPFLAGS),                       /* tp_flags */
-    0,                                          /* tp_doc */
+    ffi_buffer_doc,                             /* tp_doc */
     (traverseproc)mb_traverse,                  /* tp_traverse */
     (inquiry)mb_clear,                          /* tp_clear */
     0,                                          /* tp_richcompare */
     offsetof(MiniBufferObj, mb_weakreflist),    /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    0,                                          /* tp_methods */
+    0,                                          /* tp_members */
+    0,                                          /* tp_getset */
+    0,                                          /* tp_base */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    0,                                          /* tp_init */
+    0,                                          /* tp_alloc */
+    b_buffer_new,                               /* tp_new */
+    0,                                          /* tp_free */
 };
 
 static PyObject *minibuffer_new(char *data, Py_ssize_t size,

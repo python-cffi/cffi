@@ -172,6 +172,9 @@ because it gives inconsistent results between Python 2 and Python 3.
 (This is similar to how ``str()`` gives inconsistent results on regular
 byte strings).  Use ``buf[:]`` instead.
 
+*New in version 1.10:* ``ffi.buffer`` is now the type of the returned
+buffer objects; ``ffi.buffer()`` actually calls the constructor.
+
 **ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
 points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
@@ -333,6 +336,10 @@ a number of attributes for introspection: ``kind`` and ``cname`` are
 always present, and depending on the kind they may also have
 ``item``, ``length``, ``fields``, ``args``, ``result``, ``ellipsis``,
 ``abi``, ``elements`` and ``relements``.
+
+*New in version 1.10:* ``ffi.buffer`` is now `a type`__ as well.
+
+.. __: #ffi-buffer
 
 
 ffi.gc()

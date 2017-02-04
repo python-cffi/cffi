@@ -6029,8 +6029,10 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
     return result;
 }
 
-static PyObject *b_buffer(PyObject *self, PyObject *args, PyObject *kwds)
+static PyObject *
+b_buffer_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+    /* this is the constructor of the type implemented in minibuffer.h */
     CDataObject *cd;
     Py_ssize_t size = -1;
     static char *keywords[] = {"cdata", "size", NULL};
@@ -6655,7 +6657,6 @@ static PyMethodDef FFIBackendMethods[] = {
     {"getcname", b_getcname, METH_VARARGS},
     {"string", (PyCFunction)b_string, METH_VARARGS | METH_KEYWORDS},
     {"unpack", (PyCFunction)b_unpack, METH_VARARGS | METH_KEYWORDS},
-    {"buffer", (PyCFunction)b_buffer, METH_VARARGS | METH_KEYWORDS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_O},
     {"newp_handle", b_newp_handle, METH_VARARGS},
@@ -6958,6 +6959,10 @@ init_cffi_backend(void)
                                     all_dlopen_flags[i].value) < 0)
             INITERROR;
     }
+
+    Py_INCREF(&MiniBuffer_Type);
+    if (PyModule_AddObject(m, "buffer", (PyObject *)&MiniBuffer_Type) < 0)
+        INITERROR;
 
     init_cffi_tls();
     if (PyErr_Occurred())

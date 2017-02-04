@@ -43,6 +43,9 @@ v1.10
   aside, ``ffi.string()`` no longer works on ``_Bool[]`` (but it never
   made much sense, as this function stops on the first zero).
 
+* ``ffi.buffer`` is now the name of cffi's buffer type, and
+  ``ffi.buffer()`` works like before but is the constructor of that type.
+
 
 v1.9
 ====
