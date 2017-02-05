@@ -239,7 +239,7 @@ static PyMappingMethods mb_as_mapping = {
 #endif
 
 PyDoc_STRVAR(ffi_buffer_doc,
-"ffi.buffer(cdata):\n"
+"ffi.buffer(cdata[, byte_size]):\n"
 "Return a read-write buffer object that references the raw C data\n"
 "pointed to by the given 'cdata'.  The 'cdata' must be a pointer or an\n"
 "array.  Can be passed to functions expecting a buffer, or directly\n"
