@@ -197,12 +197,12 @@ def test_complex_types():
         py.test.raises(TypeError, float, cast(p, -150))
         assert complex(cast(p, 1.25)) == 1.25
         assert complex(cast(p, 1.25j)) == 1.25j
-        assert float(cast(p, INF*1j)) == INF*1j
-        assert float(cast(p, -INF)) == -INF
+        assert complex(cast(p, complex(0,INF))) == complex(0,INF)
+        assert complex(cast(p, -INF)) == -INF
         if name == "float":
             assert complex(cast(p, 1.1j)) != 1.1j         # rounding error
             assert complex(cast(p, 1E200+3j)) == INF+3j   # limited range
-            assert complex(cast(p, 3+1E200j)) == 3+INF*1j # limited range
+            assert complex(cast(p, complex(3,1E200))) == complex(3,INF) # limited range
 
         assert cast(p, -1.1j) != cast(p, -1.1j)
         assert repr(complex(cast(p, -0.0)).real) == '-0.0'

@@ -884,6 +884,26 @@ read_raw_longdouble_data(char *target)
     return 0;
 }
 
+static Py_complex
+read_raw_complex_data(char *target, int size)
+{
+    Py_complex r = {.real=0, .imag=0};
+    if (size == 2*sizeof(float)) {
+        float real_part, imag_part;
+        memcpy(&real_part, target + 0,             sizeof(float));
+        memcpy(&imag_part, target + sizeof(float), sizeof(float));
+        r.real = real_part;
+        r.imag = imag_part;
+        return r;
+    }
+    if (size == 2*sizeof(double)) {
+        memcpy(&(r.real), target, 2*sizeof(double));
+        return r;
+    }
+    Py_FatalError("read_raw_complex_data: bad float size");
+    return r;
+}
+
 static void
 write_raw_float_data(char *target, double source, int size)
 {
@@ -1010,6 +1030,10 @@ convert_to_object(char *data, CTypeDescrObject *ct)
                 write_raw_longdouble_data(cd->c_data, value);
             return (PyObject *)cd;
         }
+    }
+    else if (ct->ct_flags & CT_PRIMITIVE_COMPLEX) {
+        Py_complex value = read_raw_complex_data(data, ct->ct_size);
+        return PyComplex_FromCComplex(value);
     }
     else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
         /*READ(data, ct->ct_size)*/
@@ -2009,6 +2033,10 @@ static PyObject *cdata_float(CDataObject *cd)
         }
         return PyFloat_FromDouble(value);
     }
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_COMPLEX) {
+        double value = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
+        return PyComplex_FromDoubles(value, 0.0);
+    }
     PyErr_Format(PyExc_TypeError, "float() not supported on cdata '%s'",
                  cd->c_type->ct_name);
     return NULL;
@@ -2808,6 +2836,19 @@ static PyObject *cdata_dir(PyObject *cd, PyObject *noarg)
     }
 }
 
+static PyObject *cdata_complex(PyObject *cd_, PyObject *noarg)
+{
+    CDataObject *cd = (CDataObject *)cd_;
+
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_COMPLEX) {
+        Py_complex value = read_raw_complex_data(cd->c_data, cd->c_type->ct_size);
+        return PyComplex_FromCComplex(value);
+    }
+    PyErr_Format(PyExc_TypeError, "complex() not supported on cdata '%s'",
+                 cd->c_type->ct_name);
+    return NULL;
+}
+
 static PyObject *cdata_iter(CDataObject *);
 
 static PyNumberMethods CData_as_number = {
@@ -2857,8 +2898,9 @@ static PyMappingMethods CDataOwn_as_mapping = {
 };
 
 static PyMethodDef cdata_methods[] = {
-    {"__dir__",   cdata_dir,      METH_NOARGS},
-    {NULL,        NULL}           /* sentinel */
+    {"__dir__",     cdata_dir,      METH_NOARGS},
+    {"__complex__", cdata_complex,  METH_NOARGS},
+    {NULL,          NULL}           /* sentinel */
 };
 
 static PyTypeObject CData_Type = {
@@ -3599,7 +3641,6 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
         /* cast to a complex */
         Py_complex value;
         PyObject *io;
-        printf("_cffi_backend.c do_cast  ct->ct_size=%ld\n", ct->ct_size);
         if (CData_Check(ob)) {
             CDataObject *cdsrc = (CDataObject *)ob;
 
@@ -3982,8 +4023,6 @@ static PyObject *new_primitive_type(const char *name)
     const void *unique_key[1];
     int name_size;
     ffi_type *ffitype;
-
-    printf("hello\n");
 
     for (ptypes=types; ; ptypes++) {
         if (ptypes->name == NULL) {
