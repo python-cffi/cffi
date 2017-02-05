@@ -352,7 +352,7 @@ static PyTypeObject MiniBuffer_Type = {
     0,                                          /* tp_doc */
     (traverseproc)mb_traverse,                  /* tp_traverse */
     (inquiry)mb_clear,                          /* tp_clear */
-    0,                                          /* tp_richcompare */
+    (richcmpfunc)mb_richcompare,                /* tp_richcompare */
     offsetof(MiniBufferObj, mb_weakreflist),    /* tp_weaklistoffset */
 };
 
