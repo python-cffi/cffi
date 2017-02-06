@@ -173,12 +173,6 @@ mb_richcompare(PyObject *self, PyObject *other, int op)
     if (rc < 0)
         return NULL;
     if (rc) {
-        if (Py_BytesWarningFlag && (op == Py_EQ || op == Py_NE)) {
-            if (PyErr_WarnEx(PyExc_BytesWarning,
-                            "Comparison between bytearray and string", 1))
-                return NULL;
-        }
-
         Py_INCREF(Py_NotImplemented);
         return Py_NotImplemented;
     }
