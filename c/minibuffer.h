@@ -155,6 +155,87 @@ mb_clear(MiniBufferObj *ob)
     return 0;
 }
 
+static PyObject *
+mb_richcompare(PyObject *self, PyObject *other, int op)
+{
+    Py_ssize_t self_size, other_size;
+    Py_buffer self_bytes, other_bytes;
+    PyObject *res;
+    Py_ssize_t minsize;
+    int cmp, rc;
+
+    /* Bytes can be compared to anything that supports the (binary)
+       buffer API.  Except that a comparison with Unicode is always an
+       error, even if the comparison is for equality. */
+    rc = PyObject_IsInstance(self, (PyObject*)&PyUnicode_Type);
+    if (!rc)
+        rc = PyObject_IsInstance(other, (PyObject*)&PyUnicode_Type);
+    if (rc < 0)
+        return NULL;
+    if (rc) {
+        if (Py_BytesWarningFlag && (op == Py_EQ || op == Py_NE)) {
+            if (PyErr_WarnEx(PyExc_BytesWarning,
+                            "Comparison between bytearray and string", 1))
+                return NULL;
+        }
+
+        Py_INCREF(Py_NotImplemented);
+        return Py_NotImplemented;
+    }
+
+    if (PyObject_GetBuffer(self, &self_bytes, PyBUF_SIMPLE) != 0) {
+        PyErr_Clear();
+        Py_INCREF(Py_NotImplemented);
+        return Py_NotImplemented;
+
+    }
+    self_size = self_bytes.len;
+
+    if (PyObject_GetBuffer(other, &other_bytes, PyBUF_SIMPLE) != 0) {
+        PyErr_Clear();
+        PyBuffer_Release(&self_bytes);
+        Py_INCREF(Py_NotImplemented);
+        return Py_NotImplemented;
+
+    }
+    other_size = other_bytes.len;
+
+    if (self_size != other_size && (op == Py_EQ || op == Py_NE)) {
+        /* Shortcut: if the lengths differ, the objects differ */
+        cmp = (op == Py_NE);
+    }
+    else {
+        minsize = self_size;
+        if (other_size < minsize)
+            minsize = other_size;
+
+        cmp = memcmp(self_bytes.buf, other_bytes.buf, minsize);
+        /* In ISO C, memcmp() guarantees to use unsigned bytes! */
+
+        if (cmp == 0) {
+            if (self_size < other_size)
+                cmp = -1;
+            else if (self_size > other_size)
+                cmp = 1;
+        }
+
+        switch (op) {
+        case Py_LT: cmp = cmp <  0; break;
+        case Py_LE: cmp = cmp <= 0; break;
+        case Py_EQ: cmp = cmp == 0; break;
+        case Py_NE: cmp = cmp != 0; break;
+        case Py_GT: cmp = cmp >  0; break;
+        case Py_GE: cmp = cmp >= 0; break;
+        }
+    }
+
+    res = cmp ? Py_True : Py_False;
+    PyBuffer_Release(&self_bytes);
+    PyBuffer_Release(&other_bytes);
+    Py_INCREF(res);
+    return res;
+}
+
 #if PY_MAJOR_VERSION >= 3
 /* pfffffffffffff pages of copy-paste from listobject.c */
 static PyObject *mb_subscript(MiniBufferObj *self, PyObject *item)
@@ -287,7 +368,7 @@ static PyTypeObject MiniBuffer_Type = {
     ffi_buffer_doc,                             /* tp_doc */
     (traverseproc)mb_traverse,                  /* tp_traverse */
     (inquiry)mb_clear,                          /* tp_clear */
-    0,                                          /* tp_richcompare */
+    (richcmpfunc)mb_richcompare,                /* tp_richcompare */
     offsetof(MiniBufferObj, mb_weakreflist),    /* tp_weaklistoffset */
     0,                                          /* tp_iter */
     0,                                          /* tp_iternext */

@@ -1226,6 +1226,23 @@ class BackendTests:
         assert list(a)[:1000] + [0] * (len(a)-1000) == list(b)
         f.close()
 
+    def test_ffi_buffer_comparisons(self):
+        ffi = FFI(backend=self.Backend())
+        ba = bytearray(range(100, 110))
+        a = ffi.new("uint8_t[]", list(ba))
+        try:
+            b_full = ffi.buffer(a)
+            b_short = ffi.buffer(a, 3)
+            b_mid = ffi.buffer(a, 6)
+        except NotImplementedError as e:
+            py.test.skip(str(e))
+        else:
+            content = b_full[:]
+            assert content == b_full == ba
+            assert b_short < b_mid < b_full
+            assert ba > b_mid > ba[0:2]
+            assert b_short != ba[1:4]
+
     def test_array_in_struct(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo_s { int len; short data[5]; };")
