@@ -3691,19 +3691,14 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
     CTypeDescrObject *ct;
     char *funcname;
     void *funcptr;
-    int ok;
 
     if (!PyArg_ParseTuple(args, "O!s:load_function",
                           &CTypeDescr_Type, &ct, &funcname))
         return NULL;
 
-    ok = 0;
-    if (ct->ct_flags & CT_FUNCTIONPTR)
-        ok = 1;
-    if ((ct->ct_flags & CT_POINTER) && (ct->ct_itemdescr->ct_flags & CT_VOID))
-        ok = 1;
-    if (!ok) {
-        PyErr_Format(PyExc_TypeError, "function cdata expected, got '%s'",
+    if (!(ct->ct_flags & (CT_FUNCTIONPTR | CT_POINTER | CT_ARRAY))) {
+        PyErr_Format(PyExc_TypeError,
+                     "function or pointer or array cdata expected, got '%s'",
                      ct->ct_name);
         return NULL;
     }
@@ -3711,12 +3706,15 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
     funcptr = dlsym(dlobj->dl_handle, funcname);
     if (funcptr == NULL) {
         const char *error = dlerror();
-        PyErr_Format(PyExc_KeyError,
-                     "function '%s' not found in library '%s': %s",
+        PyErr_Format(PyExc_AttributeError,
+                     "function/symbol '%s' not found in library '%s': %s",
                      funcname, dlobj->dl_name, error);
         return NULL;
     }
 
+    if ((ct->ct_flags & CT_ARRAY) && ct->ct_length < 0) {
+        ct = (CTypeDescrObject *)ct->ct_stuff;
+    }
     return new_simple_cdata(funcptr, ct);
 }
 

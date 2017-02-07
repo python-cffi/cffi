@@ -46,6 +46,10 @@ v1.10
 * ``ffi.buffer`` is now the name of cffi's buffer type, and
   ``ffi.buffer()`` works like before but is the constructor of that type.
 
+* ``ffi.addressof(lib, "name")``  now works also in in-line mode, not
+  only in out-of-line mode.  This is useful for taking the address of
+  global variables.
+
 
 v1.9
 ====
