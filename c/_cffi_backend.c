@@ -2842,7 +2842,10 @@ static PyObject *cdata_complex(PyObject *cd_, PyObject *noarg)
 
     if (cd->c_type->ct_flags & CT_PRIMITIVE_COMPLEX) {
         Py_complex value = read_raw_complex_data(cd->c_data, cd->c_type->ct_size);
-        return PyComplex_FromCComplex(value);
+        PyObject *op = PyComplex_FromCComplex(value);
+        PyComplexObject *opc = (PyComplexObject *) op;
+        printf("%f %f\n",opc->cval.real,opc->cval.imag);
+        return op;
     }
     PyErr_Format(PyExc_TypeError, "complex() not supported on cdata '%s'",
                  cd->c_type->ct_name);

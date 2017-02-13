@@ -211,8 +211,8 @@ def test_complex_types():
         assert complex(cast(p, True)) == 1.0
         py.test.raises(TypeError, cast, p, None)
         #
-        py.test.raises(cast, new_primitive_type(name), 1+2j)
-    py.test.raises(cast, new_primitive_type("int"), 1+2j)
+        py.test.raises(TypeError, cast, new_primitive_type(name), 1+2j)
+    py.test.raises(TypeError, cast, new_primitive_type("int"), 1+2j)
 
 def test_character_type():
     p = new_primitive_type("char")
