@@ -50,6 +50,13 @@ v1.10
   only in out-of-line mode.  This is useful for taking the address of
   global variables.
 
+* Issue #255: ``cdata`` objects of a primitive type (integers, floats,
+  char) are now compared and ordered by value.  For example, ``<cdata
+  'int' 42>`` compares equal to ``42`` and ``<cdata 'char' b'A'>``
+  compares equal to ``b'A'``.  Unlike C, ``<cdata 'int' -1>`` does not
+  compare equal to ``ffi.cast("unsigned int", -1)``: it compares
+  smaller, because ``-1 < 4294967295``.
+
 
 v1.9
 ====

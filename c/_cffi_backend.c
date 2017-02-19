@@ -2031,47 +2031,97 @@ static PyObject *cdata_float(CDataObject *cd)
 
 static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
 {
-    int res;
+    int v_is_ptr, w_is_ptr;
     PyObject *pyres;
-    char *v_cdata, *w_cdata;
 
     assert(CData_Check(v));
-    if (!CData_Check(w)) {
+
+    /* Comparisons involving a primitive cdata work differently than
+     * comparisons involving a struct/array/pointer.
+     *
+     * If v or w is a struct/array/pointer, then the other must be too
+     * (otherwise we return NotImplemented and leave the case to
+     * Python).  If both are, then we compare the addresses.
+     *
+     * If v and/or w is a primitive cdata, then we convert the cdata(s)
+     * to regular Python objects and redo the comparison there.
+     */
+
+    v_is_ptr = !(((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY);
+    w_is_ptr = CData_Check(w) &&
+                  !(((CDataObject *)w)->c_type->ct_flags & CT_PRIMITIVE_ANY);
+
+    if (v_is_ptr && w_is_ptr) {
+        int res;
+        char *v_cdata = ((CDataObject *)v)->c_data;
+        char *w_cdata = ((CDataObject *)w)->c_data;
+
+        switch (op) {
+        case Py_EQ: res = (v_cdata == w_cdata); break;
+        case Py_NE: res = (v_cdata != w_cdata); break;
+        case Py_LT: res = (v_cdata <  w_cdata); break;
+        case Py_LE: res = (v_cdata <= w_cdata); break;
+        case Py_GT: res = (v_cdata >  w_cdata); break;
+        case Py_GE: res = (v_cdata >= w_cdata); break;
+        default: res = -1;
+        }
+        pyres = res ? Py_True : Py_False;
+    }
+    else if (v_is_ptr || w_is_ptr) {
         pyres = Py_NotImplemented;
-        goto done;
+    }
+    else {
+        PyObject *aa[2];
+        int i;
+
+        aa[0] = v; Py_INCREF(v);
+        aa[1] = w; Py_INCREF(w);
+        pyres = NULL;
+
+        for (i = 0; i < 2; i++) {
+            v = aa[i];
+            if (!CData_Check(v))
+                continue;
+            w = convert_to_object(((CDataObject *)v)->c_data,
+                                  ((CDataObject *)v)->c_type);
+            if (w == NULL)
+                goto error;
+            if (CData_Check(w)) {
+                Py_DECREF(w);
+                PyErr_Format(PyExc_NotImplementedError,
+                             "cannot use <cdata '%s'> in a comparison",
+                             ((CDataObject *)v)->c_type->ct_name);
+                goto error;
+            }
+            aa[i] = w;
+            Py_DECREF(v);
+        }
+        pyres = PyObject_RichCompare(aa[0], aa[1], op);
+     error:
+        Py_DECREF(aa[1]);
+        Py_DECREF(aa[0]);
+        return pyres;
     }
 
-    if ((op != Py_EQ && op != Py_NE) &&
-        ((((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY) ||
-         (((CDataObject *)w)->c_type->ct_flags & CT_PRIMITIVE_ANY)))
-        goto Error;
-
-    v_cdata = ((CDataObject *)v)->c_data;
-    w_cdata = ((CDataObject *)w)->c_data;
-
-    switch (op) {
-    case Py_EQ: res = (v_cdata == w_cdata); break;
-    case Py_NE: res = (v_cdata != w_cdata); break;
-    case Py_LT: res = (v_cdata <  w_cdata); break;
-    case Py_LE: res = (v_cdata <= w_cdata); break;
-    case Py_GT: res = (v_cdata >  w_cdata); break;
-    case Py_GE: res = (v_cdata >= w_cdata); break;
-    default: res = -1;
-    }
-    pyres = res ? Py_True : Py_False;
- done:
     Py_INCREF(pyres);
     return pyres;
-
- Error:
-    PyErr_SetString(PyExc_TypeError,
-                    "cannot do comparison on a primitive cdata");
-    return NULL;
 }
 
-static long cdata_hash(CDataObject *cd)
+static long cdata_hash(CDataObject *v)
 {
-    return _Py_HashPointer(cd->c_data);
+    if (((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY) {
+        PyObject *vv = convert_to_object(((CDataObject *)v)->c_data,
+                                         ((CDataObject *)v)->c_type);
+        if (vv == NULL)
+            return -1;
+        if (!CData_Check(vv)) {
+            long hash = PyObject_Hash(vv);
+            Py_DECREF(vv);
+            return hash;
+        }
+        Py_DECREF(vv);
+    }
+    return _Py_HashPointer(v->c_data);
 }
 
 static Py_ssize_t

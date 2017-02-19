@@ -602,21 +602,21 @@ allowed.
 |    C type     |   writing into         | reading from     |other operations|
 +===============+========================+==================+================+
 |   integers    | an integer or anything | a Python int or  | int(), bool()  |
-|   and enums   | on which int() works   | long, depending  | `(******)`     |
-|   `(*****)`   | (but not a float!).    | on the type      |                |
+|   and enums   | on which int() works   | long, depending  | `(******)`,    |
+|   `(*****)`   | (but not a float!).    | on the type      | ``<``          |
 |               | Must be within range.  | (ver. 1.10: or a |                |
 |               |                        | bool)            |                |
 +---------------+------------------------+------------------+----------------+
-|   ``char``    | a string of length 1   | a string of      | int(), bool()  |
-|               | or another <cdata char>| length 1         |                |
+|   ``char``    | a string of length 1   | a string of      | int(), bool(), |
+|               | or another <cdata char>| length 1         | ``<``          |
 +---------------+------------------------+------------------+----------------+
 |  ``wchar_t``  | a unicode of length 1  | a unicode of     |                |
-|               | (or maybe 2 if         | length 1         | int(), bool()  |
-|               | surrogates) or         | (or maybe 2 if   |                |
+|               | (or maybe 2 if         | length 1         | int(), bool(), |
+|               | surrogates) or         | (or maybe 2 if   | ``<``          |
 |               | another <cdata wchar_t>| surrogates)      |                |
 +---------------+------------------------+------------------+----------------+
 |  ``float``,   | a float or anything on | a Python float   | float(), int(),|
-|  ``double``   | which float() works    |                  | bool()         |
+|  ``double``   | which float() works    |                  | bool(), ``<``  |
 +---------------+------------------------+------------------+----------------+
 |``long double``| another <cdata> with   | a <cdata>, to    | float(), int(),|
 |               | a ``long double``, or  | avoid loosing    | bool()         |
