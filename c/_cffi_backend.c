@@ -3536,6 +3536,36 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
     return cd;
 }
 
+static void check_bytes_for_float_compatible(
+        PyObject *io,
+        double * value,
+        int * got_value_indicator,
+        int * cannot_cast_indicator)
+{
+    *got_value_indicator = 0;
+    *cannot_cast_indicator = 0;
+    if (PyBytes_Check(io)) {
+        if (PyBytes_GET_SIZE(io) != 1) {
+            Py_DECREF(io);
+            *cannot_cast_indicator = 1;
+        }
+        *value = (unsigned char)PyBytes_AS_STRING(io)[0];
+        *got_value_indicator = 1;
+    }
+#if HAVE_WCHAR_H
+    else if (PyUnicode_Check(io)) {
+        wchar_t ordinal;
+        if (_my_PyUnicode_AsSingleWideChar(io, &ordinal) < 0) {
+            Py_DECREF(io);
+            *cannot_cast_indicator = 1;
+        }
+        *value = (long)ordinal;
+        *got_value_indicator = 1;
+    }
+#endif
+
+}
+
 static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
 {
     CDataObject *cd;
@@ -3592,23 +3622,16 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
             Py_INCREF(io);
         }
 
-        if (PyBytes_Check(io)) {
-            if (PyBytes_GET_SIZE(io) != 1) {
-                Py_DECREF(io);
-                goto cannot_cast;
-            }
-            value = (unsigned char)PyBytes_AS_STRING(io)[0];
+        int got_value_indicator;
+        int cannot_cast_indicator;
+        check_bytes_for_float_compatible(io, &value,
+                &got_value_indicator, &cannot_cast_indicator);
+        if (cannot_cast_indicator) {
+            goto cannot_cast;
         }
-#if HAVE_WCHAR_H
-        else if (PyUnicode_Check(io)) {
-            wchar_t ordinal;
-            if (_my_PyUnicode_AsSingleWideChar(io, &ordinal) < 0) {
-                Py_DECREF(io);
-                goto cannot_cast;
-            }
-            value = (long)ordinal;
+        if (got_value_indicator) {
+            // got it from string
         }
-#endif
         else if ((ct->ct_flags & CT_IS_LONGDOUBLE) &&
                  CData_Check(io) &&
                  (((CDataObject *)io)->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
@@ -3658,11 +3681,23 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
             Py_INCREF(io);
         }
 
-        value = PyComplex_AsCComplex(io);
+        int got_value_indicator;
+        int cannot_cast_indicator;
+        check_bytes_for_float_compatible(io, &(value.real),
+                &got_value_indicator, &cannot_cast_indicator);
+        if (cannot_cast_indicator) {
+            goto cannot_cast;
+        }
+        if (got_value_indicator) {
+            // got it from string
+            value.imag = 0.0;
+        } else {
+            value = PyComplex_AsCComplex(io);
+        }
         Py_DECREF(io);
-        if (value.real == -1.0 && value.imag == 0.0 && PyErr_Occurred())
+        if (value.real == -1.0 && value.imag == 0.0 && PyErr_Occurred()) {
             return NULL;
-
+        }
         cd = _new_casted_primitive(ct);
         if (cd != NULL) {
             write_raw_complex_data(cd->c_data, value, ct->ct_size);

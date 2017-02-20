@@ -206,8 +206,9 @@ def test_complex_types():
 
         assert cast(p, -1.1j) != cast(p, -1.1j)
         assert repr(complex(cast(p, -0.0)).real) == '-0.0'
-        assert repr(complex(cast(p, -0j))) == '-0j'
-        assert complex(cast(p, '\x09')) == 9.0
+        #assert repr(complex(cast(p, -0j))) == '-0j'   # http://bugs.python.org/issue29602
+        assert complex(cast(p, b'\x09')) == 9.0
+        assert complex(cast(p, u+'\x09')) == 9.0
         assert complex(cast(p, True)) == 1.0
         py.test.raises(TypeError, cast, p, None)
         #
