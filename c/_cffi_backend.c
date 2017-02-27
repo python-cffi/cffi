@@ -62,6 +62,8 @@
 
 #include "malloc_closure.h"
 
+#include <complex.h>
+
 #if PY_MAJOR_VERSION >= 3
 # define STR_OR_BYTES "bytes"
 # define PyText_Type PyUnicode_Type
@@ -6588,6 +6590,10 @@ static int _testfunc23(char *p)
         return 1000 * p[0];
     return -42;
 }
+static float _Complex _testfunc24(float a, float b)
+{
+    return a + I*2.0*b;
+}
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
@@ -6621,6 +6627,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 21: f = &_testfunc21; break;
     case 22: f = &_testfunc22; break;
     case 23: f = &_testfunc23; break;
+    case 24: f = &_testfunc24; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;

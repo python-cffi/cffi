@@ -1084,6 +1084,16 @@ def test_call_function_9():
     BSShort = new_primitive_type("short")
     assert f(3, cast(BSChar, -3), cast(BUChar, 200), cast(BSShort, -5)) == 192
 
+def test_call_function_24():
+    BFloat = new_primitive_type("float")
+    BFloatComplex = new_primitive_type("float _Complex")
+    BFunc3 = new_function_type((BFloat, BFloat), BFloatComplex, False)
+    f = cast(BFunc3, _testfunc(24))
+    result = f(1.25, 5.1)
+    assert type(result) == complex
+    assert result.real == 1.25   # exact
+    assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-5) # inexact  
+
 def test_cannot_call_with_a_autocompleted_struct():
     BSChar = new_primitive_type("signed char")
     BDouble = new_primitive_type("double")
