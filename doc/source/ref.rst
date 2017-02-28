@@ -8,6 +8,14 @@ CFFI Reference
 FFI Interface
 -------------
 
+*This page documents the runtime interface of the two types "FFI" and
+"CompiledFFI".  These two types are very similar to each other.  You get
+a CompiledFFI object if you import an out-of-line module.  You get a FFI
+object from explicitly writing cffi.FFI().  Unlike CompiledFFI, the type
+FFI has also got additional methods documented on the* `next page`__.
+
+.. __: cdef.html
+
 
 ffi.NULL
 ++++++++
