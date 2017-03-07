@@ -452,7 +452,7 @@ case, you can implement it like this (out-of-line API mode)::
             ...
 
     # the actual callback is this one-liner global function:
-    @ffi.def_extern
+    @ffi.def_extern()
     def my_callback(arg1, arg2, data):
         return ffi.from_handle(data).callback(arg1, arg2)
 
