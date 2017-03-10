@@ -57,6 +57,10 @@ v1.10
   compare equal to ``ffi.cast("unsigned int", -1)``: it compares
   smaller, because ``-1 < 4294967295``.
 
+* PyPy: ``ffi.new()`` and ``ffi.new_allocator()()`` did not record
+  "memory pressure", causing the GC to run too infrequently if you call
+  ``ffi.new()`` very often and/or with large arrays.  Fixed in PyPy 5.7.
+
 
 v1.9
 ====

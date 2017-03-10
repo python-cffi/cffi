@@ -501,23 +501,31 @@ memory where the initial content can be left uninitialized, you can do::
     # then replace `p = ffi.new("char[]", bigsize)` with:
         p = new_nonzero("char[]", bigsize)
 
-Note anyway that it might be a better idea to use explicit calls to
-``lib.malloc()`` and ``lib.free()``, because the memory returned by
-``new()`` or ``new_allocator()()`` is only freed when the garbage
-collector runs (i.e. not always instantly after the reference to the
-object goes away, particularly but not only on PyPy).  Example::
+**NOTE:** the following is a general warning that applies particularly
+(but not only) to PyPy versions 5.6 or older (PyPy > 5.6 attempts to
+account for the memory returned by ``ffi.new()`` or a custom allocator;
+and CPython uses reference counting).  If you do large allocations, then
+there is no hard guarantee about when the memory will be freed.  You
+should avoid both ``new()`` and ``new_allocator()()`` if you want to be
+sure that the memory is promptly released, e.g. before you allocate more
+of it.
 
-    ffibuilder.cdef("""
-        void *malloc(size_t size);
-        void free(void *ptr);
-    """)
+An alternative is to declare and call the C ``malloc()`` and ``free()``
+functions, or some variant like ``mmap()`` and ``munmap()``.  Then you
+control exactly when the memory is allocated and freed.  For example,
+add these two lines to your existing ``ffibuilder.cdef()``::
 
-    # then in your code:
-        p = lib.malloc(bigsize)
-        try:
-            ...
-        finally:
-            lib.free(p)
+    void *malloc(size_t size);
+    void free(void *ptr);
+
+and then call these two functions manually::
+
+    p = lib.malloc(bigsize)
+    try:
+        my_array = ffi.cast("some_other_type_than_void*", p)
+        ...
+    finally:
+        lib.free(p)
 
 
 ffi.init_once()
