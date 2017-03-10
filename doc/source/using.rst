@@ -452,6 +452,59 @@ relying on compiler-specific extensions.  Nowadays virtually all code
 with ``int foo();`` really means ``int foo(void);``.)
 
 
+Memory pressure (PyPy)
+----------------------
+
+This paragraph applies only to PyPy, because its garbage collector (GC)
+is different from CPython's.  It is very common in C code to have pairs
+of functions, one which performs memory allocations or acquires other
+resources, and the other which frees them again.  Depending on how you
+structure your Python code, the freeing function is only called when the
+GC decides a particular (Python) object can be freed.  This occurs
+notably in these cases:
+
+* If you use a ``__del__()`` method to call the freeing function.
+
+* If you use ``ffi.gc()``.
+
+* This does not occur if you call the freeing function at a
+  deterministic time, like in a regular ``try: finally:`` block.  It
+  does however occur *inside a generator---* if the generator is not
+  explicitly exhausted but forgotten at a ``yield`` point, then the code
+  in the enclosing ``finally`` block is only invoked at the next GC.
+
+In these cases, you may have to use the built-in function
+``__pypy__.add_memory_pressure(n)``.  Its argument ``n`` is an estimate
+of how much memory pressure to add.  For example, if the pair of C
+functions that we are talking about is ``malloc(n)`` and ``free()`` or
+similar, you would call ``__pypy__.add_memory_pressure(n)`` after
+``malloc(n)``.  Doing so is not always a complete answer to the problem,
+but it makes the next GC occur earlier, which is often enough.
+
+The same applies if the memory allocations are indirect, e.g. the C
+function allocates some internal data structures.  In that case, call
+``__pypy__.add_memory_pressure(n)`` with an argument ``n`` that is an
+rough estimation.  Knowing the exact size is not important, and memory
+pressure doesn't have to be manually brought down again after calling
+the freeing function.  If you are writing wrappers for the allocating /
+freeing pair of functions, you should probably call
+``__pypy__.add_memory_pressure()`` in the former even if the user may
+invoke the latter at a known point with a ``finally:`` block.
+
+In case this solution is not sufficient, or if the acquired resource is
+not memory but something else more limited (like file descriptors), then
+there is no better way than restructuring your code to make sure the
+freeing function is called at a known point and not indirectly by the
+GC.
+
+Note that in PyPy <= 5.6 the discussion above also applies to
+``ffi.new()``.  In more recent versions of PyPy, both ``ffi.new()`` and
+``ffi.new_allocator()()`` automatically account for the memory pressure
+they create.  (In case you need to support both older and newer PyPy's,
+try calling ``__pypy__.add_memory_pressure()`` anyway; it is better to
+overestimate than not account for the memory pressure.)
+
+
 .. _extern-python:
 .. _`extern "Python"`:
 
