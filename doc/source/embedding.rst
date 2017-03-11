@@ -9,6 +9,21 @@ to any C application that wants to link with this C code.  This API,
 which you define yourself, ends up as the API of a ``.so/.dll/.dylib``
 library---or you can statically link it within a larger application.
 
+Possible use cases:
+
+* Exposing a library written in Python directly to C/C++ programs.
+
+* Using Python to make a "plug-in" for an existing program that is
+  already written to load them.
+
+* Using Python to implement part of a larger C/C++ application (with
+  static linking).
+
+* Writing a small C/C++ wrapper around Python, hiding the fact that the
+  application is actually written in Python (to make a custom
+  command-line interface; for distribution purposes; or simply to make
+  it a bit harder to reverse-engineer the application).
+
 The general idea is as follows:
 
 * You write and execute a Python script, which produces a ``.c`` file
@@ -26,21 +41,6 @@ The general idea is as follows:
 * The frozen Python code defines more Python functions that implement the
   C functions of your API, which are then used for all subsequent C
   function calls.
-
-Possible use cases:
-
-* Exposing a library written in Python directly to C/C++ programs.
-
-* Using Python to make a "plug-in" for an existing program that is
-  already written to load them.
-
-* Using Python to implement part of a larger C/C++ application (with
-  static linking).
-
-* Writing a small C/C++ wrapper around Python, hiding the fact that the
-  application is actually written in Python (to make a custom
-  command-line interface; for distribution purposes; or simply to make
-  it a bit harder to reverse-engineer the application).
 
 One of the goals of this approach is to be entirely independent from
 the CPython C API: no ``Py_Initialize()`` nor ``PyRun_SimpleString()``
