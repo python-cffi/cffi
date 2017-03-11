@@ -4,25 +4,43 @@ Using CFFI for embedding
 
 .. contents::
 
-You can use CFFI to generate a ``.so/.dll/.dylib`` which exports the
-API of your choice to any C application that wants to link with this
-``.so/.dll/.dylib``.
+You can use CFFI to generate C code which exports the API of your choice
+to any C application that wants to link with this C code.  This API,
+which you define yourself, ends up as the API of a ``.so/.dll/.dylib``
+library---or you can statically link it within a larger application.
 
 The general idea is as follows:
 
-* You write and execute a Python script, which produces a
-  ``.so/.dll/.dylib`` file with the API of your choice.  The script
-  also gives some Python code to be "frozen" inside the ``.so``.
+* You write and execute a Python script, which produces a ``.c`` file
+  with the API of your choice (and optionally compile it into a
+  ``.so/.dll/.dylib``).  The script also gives some Python code to be
+  "frozen" inside the ``.so``.
 
-* At runtime, the C application loads this ``.so/.dll/.dylib`` without
-  having to know that it was produced by Python and CFFI.
+* At runtime, the C application loads this ``.so/.dll/.dylib`` (or is
+  statically linked with the ``.c`` source) without having to know that
+  it was produced from Python and CFFI.
 
 * The first time a C function is called, Python is initialized and
   the frozen Python code is executed.
 
-* The frozen Python code attaches Python functions that implement the
+* The frozen Python code defines more Python functions that implement the
   C functions of your API, which are then used for all subsequent C
   function calls.
+
+Possible use cases:
+
+* Exposing a library written in Python directly to C/C++ programs.
+
+* Using Python to make a "plug-in" for an existing program that is
+  already written to load them.
+
+* Using Python to implement part of a larger C/C++ application (with
+  static linking).
+
+* Writing a small C/C++ wrapper around Python, hiding the fact that the
+  application is actually written in Python (to make a custom
+  command-line interface; for distribution purposes; or simply to make
+  it a bit harder to reverse-engineer the application).
 
 One of the goals of this approach is to be entirely independent from
 the CPython C API: no ``Py_Initialize()`` nor ``PyRun_SimpleString()``
@@ -188,8 +206,11 @@ Here are some details about the methods used above:
   ``ffibuilder.emit_c_code("foo.c")`` and compile the resulting ``foo.c``
   file using other means.  CFFI's compilation logic is based on the
   standard library ``distutils`` package, which is really developed
-  and tested for the purpose of making CPython extension modules, not
-  other DLLs.
+  and tested for the purpose of making CPython extension modules; it
+  might not always be appropriate for making general DLLs.  Also, just
+  getting the C code is what you need if you do not want to make a
+  stand-alone ``.so/.dll/.dylib`` file: this C file can be compiled
+  and statically linked as part of a larger application.
 
 
 More reading
