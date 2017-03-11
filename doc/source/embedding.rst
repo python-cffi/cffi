@@ -13,7 +13,7 @@ Possible use cases:
 
 * Exposing a library written in Python directly to C/C++ programs.
 
-* Using Python to make a "plug-in" for an existing program that is
+* Using Python to make a "plug-in" for an existing C/C++ program that is
   already written to load them.
 
 * Using Python to implement part of a larger C/C++ application (with
@@ -118,6 +118,7 @@ here this slightly expanded example:
     """)
 
     ffibuilder.compile(target="plugin-1.5.*", verbose=True)
+    # or: ffibuilder.emit_c_code("my_plugin.c")
 
 Running the code above produces a *DLL*, i,e, a dynamically-loadable
 library.  It is a file with the extension ``.dll`` on Windows,
