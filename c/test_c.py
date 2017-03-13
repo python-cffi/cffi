@@ -184,7 +184,7 @@ def test_float_types():
 
 def test_complex_types():
     INF = 1E200 * 1E200
-    for name in ["float"]:  #, "double"]:
+    for name in ["float", "double"]:
         p = new_primitive_type(name + " _Complex")
         assert bool(cast(p, 0))
         assert bool(cast(p, INF))
@@ -1085,6 +1085,7 @@ def test_call_function_9():
     assert f(3, cast(BSChar, -3), cast(BUChar, 200), cast(BSShort, -5)) == 192
 
 def test_call_function_24():
+    py.test.skip("libffi returning nonsense silently")
     BFloat = new_primitive_type("float")
     BFloatComplex = new_primitive_type("float _Complex")
     BFunc3 = new_function_type((BFloat, BFloat), BFloatComplex, False)
@@ -1093,6 +1094,18 @@ def test_call_function_24():
     assert type(result) == complex
     assert result.real == 1.25   # exact
     assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-5) # inexact  
+
+def test_call_function_25():
+    py.test.skip("libffi returning nonsense silently")
+    BDouble = new_primitive_type("double")
+    BDoubleComplex = new_primitive_type("double _Complex")
+    BFunc3 = new_function_type((BDouble, BDouble), BDoubleComplex, False)
+    f = cast(BFunc3, _testfunc(25))
+    result = f(1.25, 5.1)
+    assert type(result) == complex
+    assert result.real == 1.25   # exact
+    assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-10) # inexact  
+
 
 def test_cannot_call_with_a_autocompleted_struct():
     BSChar = new_primitive_type("signed char")

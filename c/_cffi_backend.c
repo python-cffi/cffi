@@ -2035,7 +2035,8 @@ static PyObject *cdata_float(CDataObject *cd)
         }
         return PyFloat_FromDouble(value);
     }
-    if (cd->c_type->ct_flags & CT_PRIMITIVE_COMPLEX) {
+    if ((cd->c_type->ct_flags & CT_PRIMITIVE_COMPLEX) &&
+        (cd->c_type->ct_size<16)) {
         double value = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
         return PyComplex_FromDoubles(value, 0.0);
     }
@@ -4101,6 +4102,16 @@ static PyObject *new_primitive_type(const char *name)
             else
                 ffitype = &ffi_type_longdouble;
         }
+        else
+            goto bad_ffi_type;
+    }
+    else if (ptypes->flags & CT_PRIMITIVE_COMPLEX) {
+        // as of March 2017, still no libffi support for complex
+        // but it fails silently.
+        if (strcmp(ptypes->name, "float _Complex") == 0)
+            ffitype = &ffi_type_complex_float;
+        else if (strcmp(ptypes->name, "double _Complex") == 0)
+            ffitype = &ffi_type_complex_double;
         else
             goto bad_ffi_type;
     }
@@ -6594,6 +6605,10 @@ static float _Complex _testfunc24(float a, float b)
 {
     return a + I*2.0*b;
 }
+static double _Complex _testfunc25(double a, double b)
+{
+    return a + I*2.0*b;
+}
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
@@ -6628,6 +6643,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 22: f = &_testfunc22; break;
     case 23: f = &_testfunc23; break;
     case 24: f = &_testfunc24; break;
+    case 25: f = &_testfunc25; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;

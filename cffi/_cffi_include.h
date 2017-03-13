@@ -110,6 +110,9 @@ extern "C" {
             PyInt_FromLong((long)x) :                                    \
             PyLong_FromLongLong((long long)x)))
 
+#define _cffi_from_c_float__Complex(x)  PyComplex_FromDoubles(crealf(x), cimagf(x))
+#define _cffi_from_c_double__Complex(x) PyComplex_FromDoubles(creal(x), cimag(x))
+
 #define _cffi_to_c_int(o, type)                                          \
     ((type)(                                                             \
      sizeof(type) == 1 ? (((type)-1) > 0 ? (type)_cffi_to_c_u8(o)        \

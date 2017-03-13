@@ -1994,6 +1994,30 @@ def test_function_returns_partial_struct():
     """)
     assert lib.f1(52).a == 52
 
+def test_function_returns_float_complex():
+    ffi = FFI()
+    ffi.cdef("float _Complex f1(float a, float b);");
+    lib = verify(ffi, "test_function_returns_float_complex", """
+        #include <complex.h>
+        static float _Complex f1 (float a, float b) { return a + I*2.0*b; }
+    """)
+    result = lib.f1(1.25, 5.1)
+    assert type(result) == complex
+    assert result.real == 1.25   # exact
+    assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-5) # inexact  
+
+def test_function_returns_double_complex():
+    ffi = FFI()
+    ffi.cdef("double _Complex f1(double a, double b);");
+    lib = verify(ffi, "test_function_returns_double_complex", """
+        #include <complex.h>
+        static double _Complex f1 (double a, double b) { return a + I*2.0*b; }
+    """)
+    result = lib.f1(1.25, 5.1)
+    assert type(result) == complex
+    assert result.real == 1.25   # exact
+    assert result.imag == 2*5.1  # exact  
+
 def test_typedef_array_dotdotdot():
     ffi = FFI()
     ffi.cdef("""
