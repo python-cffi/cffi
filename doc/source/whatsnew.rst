@@ -31,6 +31,37 @@ v1.10
   been fixed and the unicode strings don't support the memoryview
   interface any more.)
 
+* The C type ``_Bool`` or ``bool`` now converts to a Python boolean
+  when reading, instead of the content of the byte as an integer.  The
+  change here is mostly what occurs if the byte happens to contain a
+  value different from 0 and 1.  Previously, it would just return it;
+  with this change, CFFI raises an exception in this case.  But this
+  case means "undefined behavior" in C; if you really have to interface
+  with a library relying on this, don't use ``_Bool`` in the CFFI side.
+  Also, it is still valid to use a byte string as initializer for a
+  ``_Bool[]``, but now it must only contain ``\x00`` or ``\x01``.  As an
+  aside, ``ffi.string()`` no longer works on ``_Bool[]`` (but it never
+  made much sense, as this function stops on the first zero).
+
+* ``ffi.buffer`` is now the name of cffi's buffer type, and
+  ``ffi.buffer()`` works like before but is the constructor of that type.
+
+* ``ffi.addressof(lib, "name")``  now works also in in-line mode, not
+  only in out-of-line mode.  This is useful for taking the address of
+  global variables.
+
+* Issue #255: ``cdata`` objects of a primitive type (integers, floats,
+  char) are now compared and ordered by value.  For example, ``<cdata
+  'int' 42>`` compares equal to ``42`` and ``<cdata 'char' b'A'>``
+  compares equal to ``b'A'``.  Unlike C, ``<cdata 'int' -1>`` does not
+  compare equal to ``ffi.cast("unsigned int", -1)``: it compares
+  smaller, because ``-1 < 4294967295``.
+
+* PyPy: ``ffi.new()`` and ``ffi.new_allocator()()`` did not record
+  "memory pressure", causing the GC to run too infrequently if you call
+  ``ffi.new()`` very often and/or with large arrays.  Fixed in PyPy 5.7.
+
+
 v1.9
 ====
 

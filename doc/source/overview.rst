@@ -8,7 +8,7 @@ CFFI can be used in one of four modes: "ABI" versus "API" level,
 each with "in-line" or "out-of-line" preparation (or compilation).
 
 The **ABI mode** accesses libraries at the binary level, whereas the
-**API mode** accesses them with a C compiler.  This is described in
+faster **API mode** accesses them with a C compiler.  This is described in
 detail below__.
 
 .. __: `abi-versus-api`_
@@ -51,7 +51,7 @@ cdef().*
 
 If using a C compiler to install your module is an option, it is highly
 recommended to use the API mode described in the next paragraph.  (It is
-also a bit faster at runtime.)
+also faster.)
 
 
 .. _out-of-line-api-level:
@@ -116,7 +116,8 @@ a C compiler in order to run ``example_build.py``, but it is much more
 portable than trying to get the details of the fields of ``struct
 passwd`` exactly right.  Similarly, we declared ``getpwuid()`` as
 taking an ``int`` argument.  On some platforms this might be slightly
-incorrect---but it does not matter.
+incorrect---but it does not matter.  It is also faster than the ABI
+mode.
 
 To integrate it inside a ``setup.py`` distribution with Setuptools:
 
@@ -391,17 +392,25 @@ ABI versus API
 --------------
 
 Accessing the C library at the binary level ("ABI") is fraught
-with problems, particularly on non-Windows platforms.  You are not
-meant to access fields by guessing where they are in the structures.
-*The C libraries are typically meant to be used with a C compiler.*
+with problems, particularly on non-Windows platforms.
 
-The "real example" above shows how to do that: this example uses
-``set_source(..., "C source...")`` and never ``dlopen()``.
-When using this approach,
+The most immediate drawback of the ABI level is that calling functions
+needs to go through the very general *libffi* library, which is slow
+(and not always perfectly tested on non-standard platforms).  The API
+mode instead compiles a CPython C wrapper that directly invokes the
+target function.  It is, comparatively, massively faster (and works
+better than libffi ever can).
+
+The more fundamental reason to prefer the API mode is that *the C
+libraries are typically meant to be used with a C compiler.* You are not
+supposed to do things like guess where fields are in the structures.
+The "real example" above shows how CFFI uses a C compiler under the
+hood: this example uses ``set_source(..., "C source...")`` and never
+``dlopen()``.  When using this approach,
 we have the advantage that we can use literally "``...``" at various places in
 the ``cdef()``, and the missing information will be completed with the
-help of the C compiler.  Actually, a single C source file is produced,
-which contains first the "C source" part unmodified, followed by some
+help of the C compiler.  CFFI will turn this into a single C source file,
+which contains the "C source" part unmodified, followed by some
 "magic" C code and declarations derived from the ``cdef()``.  When
 this C file is compiled, the resulting C extension module will contain
 all the information we need---or the C compiler will give warnings or

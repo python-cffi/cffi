@@ -2,7 +2,7 @@
 #include <Python.h>
 #include "structmember.h"
 
-#define CFFI_VERSION  "1.9.2"
+#define CFFI_VERSION  "1.10.0"
 
 #ifdef MS_WIN32
 #include <windows.h>
@@ -460,6 +460,8 @@ static PyObject *ctypeget_length(CTypeDescrObject *ct, void *context)
 static PyObject *
 get_field_name(CTypeDescrObject *ct, CFieldObject *cf);   /* forward */
 
+/* returns 0 if the struct ctype is opaque, 1 if it is not, or -1 if
+   an exception occurs */
 #define force_lazy_struct(ct)                                           \
     ((ct)->ct_stuff != NULL ? 1 : do_realize_lazy_struct(ct))
 
@@ -1014,8 +1016,23 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         /*READ(data, ct->ct_size)*/
         value = read_raw_unsigned_data(data, ct->ct_size);
 
-        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG)
+        if (ct->ct_flags & CT_PRIMITIVE_FITS_LONG) {
+            if (ct->ct_flags & CT_IS_BOOL) {
+                PyObject *x;
+                switch ((int)value) {
+                case 0: x = Py_False; break;
+                case 1: x = Py_True; break;
+                default:
+                    PyErr_Format(PyExc_ValueError,
+                                 "got a _Bool of value %d, expected 0 or 1",
+                                 (int)value);
+                    return NULL;
+                }
+                Py_INCREF(x);
+                return x;
+            }
             return PyInt_FromLong((long)value);
+        }
         else
             return PyLong_FromUnsignedLongLong(value);
     }
@@ -1256,6 +1273,20 @@ convert_vfield_from_object(char *data, CFieldObject *cf, PyObject *value,
 }
 
 static int
+must_be_array_of_zero_or_one(const char *data, Py_ssize_t n)
+{
+    Py_ssize_t i;
+    for (i = 0; i < n; i++) {
+        if (((unsigned char)data[i]) > 1) {
+            PyErr_SetString(PyExc_ValueError,
+                "an array of _Bool can only contain \\x00 or \\x01");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int
 convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
     /* used by convert_from_object(), and also to decode lists/tuples/unicodes
@@ -1302,6 +1333,9 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             if (n != ct->ct_length)
                 n++;
             srcdata = PyBytes_AS_STRING(init);
+            if (ctitem->ct_flags & CT_IS_BOOL)
+                if (must_be_array_of_zero_or_one(srcdata, n) < 0)
+                    return -1;
             memcpy(data, srcdata, n);
             return 0;
         }
@@ -1472,12 +1506,15 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         unsigned PY_LONG_LONG value = _my_PyLong_AsUnsignedLongLong(init, 1);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
             return -1;
-        if (ct->ct_flags & CT_IS_BOOL)
-            if (value & ~1)      /* value != 0 && value != 1 */
+        if (ct->ct_flags & CT_IS_BOOL) {
+            if (value > 1ULL)      /* value != 0 && value != 1 */
                 goto overflow;
-        write_raw_integer_data(buf, value, ct->ct_size);
-        if (value != read_raw_unsigned_data(buf, ct->ct_size))
-            goto overflow;
+        }
+        else {
+            write_raw_integer_data(buf, value, ct->ct_size);
+            if (value != read_raw_unsigned_data(buf, ct->ct_size))
+                goto overflow;
+        }
         write_raw_integer_data(data, value, ct->ct_size);
         return 0;
     }
@@ -2047,47 +2084,97 @@ static PyObject *cdata_float(CDataObject *cd)
 
 static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
 {
-    int res;
+    int v_is_ptr, w_is_ptr;
     PyObject *pyres;
-    char *v_cdata, *w_cdata;
 
     assert(CData_Check(v));
-    if (!CData_Check(w)) {
+
+    /* Comparisons involving a primitive cdata work differently than
+     * comparisons involving a struct/array/pointer.
+     *
+     * If v or w is a struct/array/pointer, then the other must be too
+     * (otherwise we return NotImplemented and leave the case to
+     * Python).  If both are, then we compare the addresses.
+     *
+     * If v and/or w is a primitive cdata, then we convert the cdata(s)
+     * to regular Python objects and redo the comparison there.
+     */
+
+    v_is_ptr = !(((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY);
+    w_is_ptr = CData_Check(w) &&
+                  !(((CDataObject *)w)->c_type->ct_flags & CT_PRIMITIVE_ANY);
+
+    if (v_is_ptr && w_is_ptr) {
+        int res;
+        char *v_cdata = ((CDataObject *)v)->c_data;
+        char *w_cdata = ((CDataObject *)w)->c_data;
+
+        switch (op) {
+        case Py_EQ: res = (v_cdata == w_cdata); break;
+        case Py_NE: res = (v_cdata != w_cdata); break;
+        case Py_LT: res = (v_cdata <  w_cdata); break;
+        case Py_LE: res = (v_cdata <= w_cdata); break;
+        case Py_GT: res = (v_cdata >  w_cdata); break;
+        case Py_GE: res = (v_cdata >= w_cdata); break;
+        default: res = -1;
+        }
+        pyres = res ? Py_True : Py_False;
+    }
+    else if (v_is_ptr || w_is_ptr) {
         pyres = Py_NotImplemented;
-        goto done;
+    }
+    else {
+        PyObject *aa[2];
+        int i;
+
+        aa[0] = v; Py_INCREF(v);
+        aa[1] = w; Py_INCREF(w);
+        pyres = NULL;
+
+        for (i = 0; i < 2; i++) {
+            v = aa[i];
+            if (!CData_Check(v))
+                continue;
+            w = convert_to_object(((CDataObject *)v)->c_data,
+                                  ((CDataObject *)v)->c_type);
+            if (w == NULL)
+                goto error;
+            if (CData_Check(w)) {
+                Py_DECREF(w);
+                PyErr_Format(PyExc_NotImplementedError,
+                             "cannot use <cdata '%s'> in a comparison",
+                             ((CDataObject *)v)->c_type->ct_name);
+                goto error;
+            }
+            aa[i] = w;
+            Py_DECREF(v);
+        }
+        pyres = PyObject_RichCompare(aa[0], aa[1], op);
+     error:
+        Py_DECREF(aa[1]);
+        Py_DECREF(aa[0]);
+        return pyres;
     }
 
-    if ((op != Py_EQ && op != Py_NE) &&
-        ((((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY) ||
-         (((CDataObject *)w)->c_type->ct_flags & CT_PRIMITIVE_ANY)))
-        goto Error;
-
-    v_cdata = ((CDataObject *)v)->c_data;
-    w_cdata = ((CDataObject *)w)->c_data;
-
-    switch (op) {
-    case Py_EQ: res = (v_cdata == w_cdata); break;
-    case Py_NE: res = (v_cdata != w_cdata); break;
-    case Py_LT: res = (v_cdata <  w_cdata); break;
-    case Py_LE: res = (v_cdata <= w_cdata); break;
-    case Py_GT: res = (v_cdata >  w_cdata); break;
-    case Py_GE: res = (v_cdata >= w_cdata); break;
-    default: res = -1;
-    }
-    pyres = res ? Py_True : Py_False;
- done:
     Py_INCREF(pyres);
     return pyres;
-
- Error:
-    PyErr_SetString(PyExc_TypeError,
-                    "cannot do comparison on a primitive cdata");
-    return NULL;
 }
 
-static long cdata_hash(CDataObject *cd)
+static long cdata_hash(CDataObject *v)
 {
-    return _Py_HashPointer(cd->c_data);
+    if (((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY) {
+        PyObject *vv = convert_to_object(((CDataObject *)v)->c_data,
+                                         ((CDataObject *)v)->c_type);
+        if (vv == NULL)
+            return -1;
+        if (!CData_Check(vv)) {
+            long hash = PyObject_Hash(vv);
+            Py_DECREF(vv);
+            return hash;
+        }
+        Py_DECREF(vv);
+    }
+    return _Py_HashPointer(v->c_data);
 }
 
 static Py_ssize_t
@@ -2470,11 +2557,26 @@ cdata_sub(PyObject *v, PyObject *w)
     return _cdata_add_or_sub(v, w, -1);
 }
 
+static void
+_cdata_attr_errmsg(char *errmsg, CDataObject *cd, PyObject *attr)
+{
+    char *text;
+    if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+        return;
+    PyErr_Clear();
+    text = PyText_AsUTF8(attr);
+    if (text == NULL)
+        return;
+    PyErr_Format(PyExc_AttributeError, errmsg, cd->c_type->ct_name, text);
+}
+
 static PyObject *
 cdata_getattro(CDataObject *cd, PyObject *attr)
 {
     CFieldObject *cf;
     CTypeDescrObject *ct = cd->c_type;
+    char *errmsg = "cdata '%s' has no attribute '%s'";
+    PyObject *x;
 
     if (ct->ct_flags & CT_POINTER)
         ct = ct->ct_itemdescr;
@@ -2506,14 +2608,19 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
                 return new_simple_cdata(data,
                     (CTypeDescrObject *)cf->cf_type->ct_stuff);
             }
+            errmsg = "cdata '%s' has no field '%s'";
             break;
         case -1:
             return NULL;
         default:
+            errmsg = "cdata '%s' points to an opaque type: cannot read fields";
             break;
         }
     }
-    return PyObject_GenericGetAttr((PyObject *)cd, attr);
+    x = PyObject_GenericGetAttr((PyObject *)cd, attr);
+    if (x == NULL)
+        _cdata_attr_errmsg(errmsg, cd, attr);
+    return x;
 }
 
 static int
@@ -2521,6 +2628,8 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
 {
     CFieldObject *cf;
     CTypeDescrObject *ct = cd->c_type;
+    char *errmsg = "cdata '%s' has no attribute '%s'";
+    int x;
 
     if (ct->ct_flags & CT_POINTER)
         ct = ct->ct_itemdescr;
@@ -2540,14 +2649,19 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
                     return -1;
                 }
             }
+            errmsg = "cdata '%s' has no field '%s'";
             break;
         case -1:
             return -1;
         default:
+            errmsg = "cdata '%s' points to an opaque type: cannot write fields";
             break;
         }
     }
-    return PyObject_GenericSetAttr((PyObject *)cd, attr, value);
+    x = PyObject_GenericSetAttr((PyObject *)cd, attr, value);
+    if (x < 0)
+        _cdata_attr_errmsg(errmsg, cd, attr);
+    return x;
 }
 
 static PyObject *
@@ -2597,6 +2711,10 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
             length = PyBytes_GET_SIZE(init) + 1;
 #else
             *output_data = PyBytes_AS_STRING(init);
+            if (ctitem->ct_flags & CT_IS_BOOL)
+                if (must_be_array_of_zero_or_one(*output_data,
+                                                 PyBytes_GET_SIZE(init)) < 0)
+                    return -1;
             return 0;
 #endif
         }
@@ -3761,19 +3879,14 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
     CTypeDescrObject *ct;
     char *funcname;
     void *funcptr;
-    int ok;
 
     if (!PyArg_ParseTuple(args, "O!s:load_function",
                           &CTypeDescr_Type, &ct, &funcname))
         return NULL;
 
-    ok = 0;
-    if (ct->ct_flags & CT_FUNCTIONPTR)
-        ok = 1;
-    if ((ct->ct_flags & CT_POINTER) && (ct->ct_itemdescr->ct_flags & CT_VOID))
-        ok = 1;
-    if (!ok) {
-        PyErr_Format(PyExc_TypeError, "function cdata expected, got '%s'",
+    if (!(ct->ct_flags & (CT_FUNCTIONPTR | CT_POINTER | CT_ARRAY))) {
+        PyErr_Format(PyExc_TypeError,
+                     "function or pointer or array cdata expected, got '%s'",
                      ct->ct_name);
         return NULL;
     }
@@ -3781,12 +3894,15 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
     funcptr = dlsym(dlobj->dl_handle, funcname);
     if (funcptr == NULL) {
         const char *error = dlerror();
-        PyErr_Format(PyExc_KeyError,
-                     "function '%s' not found in library '%s': %s",
+        PyErr_Format(PyExc_AttributeError,
+                     "function/symbol '%s' not found in library '%s': %s",
                      funcname, dlobj->dl_name, error);
         return NULL;
     }
 
+    if ((ct->ct_flags & CT_ARRAY) && ct->ct_length < 0) {
+        ct = (CTypeDescrObject *)ct->ct_stuff;
+    }
     return new_simple_cdata(funcptr, ct);
 }
 
@@ -5890,7 +6006,8 @@ static PyObject *b_string(PyObject *self, PyObject *args, PyObject *kwds)
     if (cd->c_type->ct_itemdescr != NULL &&
         cd->c_type->ct_itemdescr->ct_flags & (CT_PRIMITIVE_CHAR |
                                               CT_PRIMITIVE_SIGNED |
-                                              CT_PRIMITIVE_UNSIGNED)) {
+                                              CT_PRIMITIVE_UNSIGNED) &&
+        !(cd->c_type->ct_itemdescr->ct_flags & CT_IS_BOOL)) {
         Py_ssize_t length = maxlen;
         if (cd->c_data == NULL) {
             PyObject *s = cdata_repr(cd);
@@ -6058,7 +6175,8 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
             /* Note: we never pick case 6 if sizeof(int) == sizeof(long),
                so that case 6 below can assume that the 'unsigned int' result
                would always fit in a 'signed long'. */
-            if      (itemsize == sizeof(unsigned long))  casenum = 7;
+            if (ctitem->ct_flags & CT_IS_BOOL)           casenum = 11;
+            else if (itemsize == sizeof(unsigned long))  casenum = 7;
             else if (itemsize == sizeof(unsigned int))   casenum = 6;
             else if (itemsize == sizeof(unsigned short)) casenum = 5;
             else if (itemsize == sizeof(unsigned char))  casenum = 4;
@@ -6091,6 +6209,13 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
         case 8: x = PyFloat_FromDouble(*(float *)src); break;
         case 9: x = PyFloat_FromDouble(*(double *)src); break;
         case 10: x = new_simple_cdata(*(char **)src, ctitem); break;
+        case 11:
+            switch (*(unsigned char *)src) {
+            case 0: x = Py_False; Py_INCREF(x); break;
+            case 1: x = Py_True;  Py_INCREF(x); break;
+            default: x = convert_to_object(src, ctitem); /* error */
+            }
+            break;
         }
         if (x == NULL) {
             Py_DECREF(result);
@@ -6102,8 +6227,10 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
     return result;
 }
 
-static PyObject *b_buffer(PyObject *self, PyObject *args, PyObject *kwds)
+static PyObject *
+b_buffer_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+    /* this is the constructor of the type implemented in minibuffer.h */
     CDataObject *cd;
     Py_ssize_t size = -1;
     static char *keywords[] = {"cdata", "size", NULL};
@@ -6738,7 +6865,6 @@ static PyMethodDef FFIBackendMethods[] = {
     {"getcname", b_getcname, METH_VARARGS},
     {"string", (PyCFunction)b_string, METH_VARARGS | METH_KEYWORDS},
     {"unpack", (PyCFunction)b_unpack, METH_VARARGS | METH_KEYWORDS},
-    {"buffer", (PyCFunction)b_buffer, METH_VARARGS | METH_KEYWORDS},
     {"get_errno", b_get_errno, METH_NOARGS},
     {"set_errno", b_set_errno, METH_O},
     {"newp_handle", b_newp_handle, METH_VARARGS},
@@ -7041,6 +7167,10 @@ init_cffi_backend(void)
                                     all_dlopen_flags[i].value) < 0)
             INITERROR;
     }
+
+    Py_INCREF(&MiniBuffer_Type);
+    if (PyModule_AddObject(m, "buffer", (PyObject *)&MiniBuffer_Type) < 0)
+        INITERROR;
 
     init_cffi_tls();
     if (PyErr_Occurred())

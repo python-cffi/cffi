@@ -8,6 +8,14 @@ CFFI Reference
 FFI Interface
 -------------
 
+*This page documents the runtime interface of the two types "FFI" and
+"CompiledFFI".  These two types are very similar to each other.  You get
+a CompiledFFI object if you import an out-of-line module.  You get a FFI
+object from explicitly writing cffi.FFI().  Unlike CompiledFFI, the type
+FFI has also got additional methods documented on the* `next page`__.
+
+.. __: cdef.html
+
 
 ffi.NULL
 ++++++++
@@ -172,6 +180,9 @@ because it gives inconsistent results between Python 2 and Python 3.
 (This is similar to how ``str()`` gives inconsistent results on regular
 byte strings).  Use ``buf[:]`` instead.
 
+*New in version 1.10:* ``ffi.buffer`` is now the type of the returned
+buffer objects; ``ffi.buffer()`` actually calls the constructor.
+
 **ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
 points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
@@ -334,6 +345,10 @@ always present, and depending on the kind they may also have
 ``item``, ``length``, ``fields``, ``args``, ``result``, ``ellipsis``,
 ``abi``, ``elements`` and ``relements``.
 
+*New in version 1.10:* ``ffi.buffer`` is now `a type`__ as well.
+
+.. __: #ffi-buffer
+
 
 ffi.gc()
 ++++++++
@@ -437,7 +452,7 @@ case, you can implement it like this (out-of-line API mode)::
             ...
 
     # the actual callback is this one-liner global function:
-    @ffi.def_extern
+    @ffi.def_extern()
     def my_callback(arg1, arg2, data):
         return ffi.from_handle(data).callback(arg1, arg2)
 
@@ -486,23 +501,31 @@ memory where the initial content can be left uninitialized, you can do::
     # then replace `p = ffi.new("char[]", bigsize)` with:
         p = new_nonzero("char[]", bigsize)
 
-Note anyway that it might be a better idea to use explicit calls to
-``lib.malloc()`` and ``lib.free()``, because the memory returned by
-``new()`` or ``new_allocator()()`` is only freed when the garbage
-collector runs (i.e. not always instantly after the reference to the
-object goes away, particularly but not only on PyPy).  Example::
+**NOTE:** the following is a general warning that applies particularly
+(but not only) to PyPy versions 5.6 or older (PyPy > 5.6 attempts to
+account for the memory returned by ``ffi.new()`` or a custom allocator;
+and CPython uses reference counting).  If you do large allocations, then
+there is no hard guarantee about when the memory will be freed.  You
+should avoid both ``new()`` and ``new_allocator()()`` if you want to be
+sure that the memory is promptly released, e.g. before you allocate more
+of it.
 
-    ffibuilder.cdef("""
-        void *malloc(size_t size);
-        void free(void *ptr);
-    """)
+An alternative is to declare and call the C ``malloc()`` and ``free()``
+functions, or some variant like ``mmap()`` and ``munmap()``.  Then you
+control exactly when the memory is allocated and freed.  For example,
+add these two lines to your existing ``ffibuilder.cdef()``::
 
-    # then in your code:
-        p = lib.malloc(bigsize)
-        try:
-            ...
-        finally:
-            lib.free(p)
+    void *malloc(size_t size);
+    void free(void *ptr);
+
+and then call these two functions manually::
+
+    p = lib.malloc(bigsize)
+    try:
+        my_array = ffi.cast("some_other_type_than_void*", p)
+        ...
+    finally:
+        lib.free(p)
 
 
 ffi.init_once()
@@ -595,20 +618,21 @@ allowed.
 |    C type     |   writing into         | reading from     |other operations|
 +===============+========================+==================+================+
 |   integers    | an integer or anything | a Python int or  | int(), bool()  |
-|   and enums   | on which int() works   | long, depending  | `(******)`     |
-|   `(*****)`   | (but not a float!).    | on the type      |                |
-|               | Must be within range.  |                  |                |
+|   and enums   | on which int() works   | long, depending  | `(******)`,    |
+|   `(*****)`   | (but not a float!).    | on the type      | ``<``          |
+|               | Must be within range.  | (ver. 1.10: or a |                |
+|               |                        | bool)            |                |
 +---------------+------------------------+------------------+----------------+
-|   ``char``    | a string of length 1   | a string of      | int(), bool()  |
-|               | or another <cdata char>| length 1         |                |
+|   ``char``    | a string of length 1   | a string of      | int(), bool(), |
+|               | or another <cdata char>| length 1         | ``<``          |
 +---------------+------------------------+------------------+----------------+
 |  ``wchar_t``  | a unicode of length 1  | a unicode of     |                |
-|               | (or maybe 2 if         | length 1         | int(), bool()  |
-|               | surrogates) or         | (or maybe 2 if   |                |
+|               | (or maybe 2 if         | length 1         | int(), bool(), |
+|               | surrogates) or         | (or maybe 2 if   | ``<``          |
 |               | another <cdata wchar_t>| surrogates)      |                |
 +---------------+------------------------+------------------+----------------+
 |  ``float``,   | a float or anything on | a Python float   | float(), int(),|
-|  ``double``   | which float() works    |                  | bool()         |
+|  ``double``   | which float() works    |                  | bool(), ``<``  |
 +---------------+------------------------+------------------+----------------+
 |``long double``| another <cdata> with   | a <cdata>, to    | float(), int(),|
 |               | a ``long double``, or  | avoid loosing    | bool()         |
@@ -637,12 +661,13 @@ allowed.
 |               | items                  |                  |``[]`` `(****)`,|
 |               |                        |                  |``+``, ``-``    |
 +---------------+------------------------+                  +----------------+
-|  ``char[]``   | same as arrays, or a   |                  | len(), iter(), |
-|               | Python string          |                  | ``[]``, ``+``, |
-|               |                        |                  | ``-``          |
+| ``char[]``,   | same as arrays, or a   |                  | len(), iter(), |
+| ``un/signed`` | Python byte string     |                  | ``[]``, ``+``, |
+| ``char[]``,   |                        |                  | ``-``          |
+| ``_Bool[]``   |                        |                  |                |
 +---------------+------------------------+                  +----------------+
 | ``wchar_t[]`` | same as arrays, or a   |                  | len(), iter(), |
-|               | Python unicode         |                  | ``[]``,        |
+|               | Python unicode string  |                  | ``[]``,        |
 |               |                        |                  | ``+``, ``-``   |
 |               |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
@@ -726,6 +751,14 @@ allowed.
 
    *New in version 1.7.*  In previous versions, it only worked on
    pointers; for primitives it always returned True.
+
+   *New in version 1.10:*  The C type ``_Bool`` or ``bool`` converts to
+   Python booleans now.  You get an exception if a C ``_Bool`` happens
+   to contain a value different from 0 and 1 (this case triggers
+   undefined behavior in C; if you really have to interface with a
+   library relying on this, don't use ``_Bool`` in the CFFI side).
+   Also, when converting from a byte string to a ``_Bool[]``, only the
+   bytes ``\x00`` and ``\x01`` are accepted.
 
 .. _file:
 

@@ -45,6 +45,9 @@ static int init_ffi_lib(PyObject *m)
         if (PyDict_SetItemString(FFI_Type.tp_dict, "CData",
                                  (PyObject *)&CData_Type) < 0)
             return -1;
+        if (PyDict_SetItemString(FFI_Type.tp_dict, "buffer",
+                                 (PyObject *)&MiniBuffer_Type) < 0)
+            return -1;
 
         for (i = 0; all_dlopen_flags[i].name != NULL; i++) {
             x = PyInt_FromLong(all_dlopen_flags[i].value);

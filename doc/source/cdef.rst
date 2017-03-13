@@ -48,9 +48,9 @@ In order of complexity:
 
 .. _out-of-line-api:
 
-* The **"out-of-line", "API mode"** gives you the most flexibility to
-  access a C library at the level of C, instead of at the binary
-  level:
+* The **"out-of-line", "API mode"** gives you the most flexibility
+  and speed to access a C library at the level of C, instead of at the
+  binary level:
 
   .. code-block:: python
 
@@ -278,8 +278,10 @@ ffi.dlopen(): loading libraries in ABI mode
 
 ``ffi.dlopen(libpath, [flags])``: this function opens a shared library and
 returns a module-like library object.  Use this when you are fine with
-the limitations of ABI-level access to the system.  In case of doubt, read
-again `ABI versus API`_ in the overview.
+the limitations of ABI-level access to the system (dependency on ABI
+details, getting crashes instead of C compiler errors/warnings, and
+higher overhead to call the C functions).  In case of doubt, read again
+`ABI versus API`_ in the overview.
 
 .. _`ABI versus API`: overview.html#abi-versus-api
 

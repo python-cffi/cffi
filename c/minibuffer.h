@@ -155,6 +155,81 @@ mb_clear(MiniBufferObj *ob)
     return 0;
 }
 
+static PyObject *
+mb_richcompare(PyObject *self, PyObject *other, int op)
+{
+    Py_ssize_t self_size, other_size;
+    Py_buffer self_bytes, other_bytes;
+    PyObject *res;
+    Py_ssize_t minsize;
+    int cmp, rc;
+
+    /* Bytes can be compared to anything that supports the (binary)
+       buffer API.  Except that a comparison with Unicode is always an
+       error, even if the comparison is for equality. */
+    rc = PyObject_IsInstance(self, (PyObject*)&PyUnicode_Type);
+    if (!rc)
+        rc = PyObject_IsInstance(other, (PyObject*)&PyUnicode_Type);
+    if (rc < 0)
+        return NULL;
+    if (rc) {
+        Py_INCREF(Py_NotImplemented);
+        return Py_NotImplemented;
+    }
+
+    if (PyObject_GetBuffer(self, &self_bytes, PyBUF_SIMPLE) != 0) {
+        PyErr_Clear();
+        Py_INCREF(Py_NotImplemented);
+        return Py_NotImplemented;
+
+    }
+    self_size = self_bytes.len;
+
+    if (PyObject_GetBuffer(other, &other_bytes, PyBUF_SIMPLE) != 0) {
+        PyErr_Clear();
+        PyBuffer_Release(&self_bytes);
+        Py_INCREF(Py_NotImplemented);
+        return Py_NotImplemented;
+
+    }
+    other_size = other_bytes.len;
+
+    if (self_size != other_size && (op == Py_EQ || op == Py_NE)) {
+        /* Shortcut: if the lengths differ, the objects differ */
+        cmp = (op == Py_NE);
+    }
+    else {
+        minsize = self_size;
+        if (other_size < minsize)
+            minsize = other_size;
+
+        cmp = memcmp(self_bytes.buf, other_bytes.buf, minsize);
+        /* In ISO C, memcmp() guarantees to use unsigned bytes! */
+
+        if (cmp == 0) {
+            if (self_size < other_size)
+                cmp = -1;
+            else if (self_size > other_size)
+                cmp = 1;
+        }
+
+        switch (op) {
+        case Py_LT: cmp = cmp <  0; break;
+        case Py_LE: cmp = cmp <= 0; break;
+        case Py_EQ: cmp = cmp == 0; break;
+        case Py_NE: cmp = cmp != 0; break;
+        case Py_GT: cmp = cmp >  0; break;
+        case Py_GE: cmp = cmp >= 0; break;
+        }
+    }
+
+    res = cmp ? Py_True : Py_False;
+    PyBuffer_Release(&self_bytes);
+    PyBuffer_Release(&other_bytes);
+    Py_INCREF(res);
+    return res;
+}
+
 #if PY_MAJOR_VERSION >= 3
 /* pfffffffffffff pages of copy-paste from listobject.c */
 static PyObject *mb_subscript(MiniBufferObj *self, PyObject *item)
@@ -238,6 +313,22 @@ static PyMappingMethods mb_as_mapping = {
 # define MINIBUF_TPFLAGS (Py_TPFLAGS_HAVE_GETCHARBUFFER | Py_TPFLAGS_HAVE_NEWBUFFER)
 #endif
 
+PyDoc_STRVAR(ffi_buffer_doc,
+"ffi.buffer(cdata[, byte_size]):\n"
+"Return a read-write buffer object that references the raw C data\n"
+"pointed to by the given 'cdata'.  The 'cdata' must be a pointer or an\n"
+"array.  Can be passed to functions expecting a buffer, or directly\n"
+"manipulated with:\n"
+"\n"
+"    buf[:]          get a copy of it in a regular string, or\n"
+"    buf[idx]        as a single character\n"
+"    buf[:] = ...\n"
+"    buf[idx] = ...  change the content");
+
+static PyObject *            /* forward, implemented in _cffi_backend.c */
+b_buffer_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+
+
 static PyTypeObject MiniBuffer_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "_cffi_backend.buffer",
@@ -268,11 +359,25 @@ static PyTypeObject MiniBuffer_Type = {
     &mb_as_buffer,                              /* tp_as_buffer */
     (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
         MINIBUF_TPFLAGS),                       /* tp_flags */
-    0,                                          /* tp_doc */
+    ffi_buffer_doc,                             /* tp_doc */
     (traverseproc)mb_traverse,                  /* tp_traverse */
     (inquiry)mb_clear,                          /* tp_clear */
-    0,                                          /* tp_richcompare */
+    (richcmpfunc)mb_richcompare,                /* tp_richcompare */
     offsetof(MiniBufferObj, mb_weakreflist),    /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    0,                                          /* tp_methods */
+    0,                                          /* tp_members */
+    0,                                          /* tp_getset */
+    0,                                          /* tp_base */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    0,                                          /* tp_init */
+    0,                                          /* tp_alloc */
+    b_buffer_new,                               /* tp_new */
+    0,                                          /* tp_free */
 };
 
 static PyObject *minibuffer_new(char *data, Py_ssize_t size,
