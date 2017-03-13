@@ -2106,6 +2106,8 @@ def test_call_with_bitfield():
         "set_source() and not taking a final '...' argument)")
 
 def test_call_with_zero_length_field():
+    if sys.platform == 'win32':
+        py.test.skip("zero-length field not supported by MSVC")
     ffi = FFI()
     ffi.cdef("""
         struct foo { int a; int x[0]; };
