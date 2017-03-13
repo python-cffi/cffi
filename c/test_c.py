@@ -206,7 +206,7 @@ def test_complex_types():
             assert complex(cast(p, 1E200+3j)) == INF+3j   # limited range
             assert complex(cast(p, complex(3,1E200))) == complex(3,INF) # limited range
 
-        assert cast(p, -1.1j) != cast(p, -1.1j)
+        assert cast(p, -1.1j) == cast(p, -1.1j)
         assert repr(complex(cast(p, -0.0)).real) == '-0.0'
         #assert repr(complex(cast(p, -0j))) == '-0j'   # http://bugs.python.org/issue29602
         assert complex(cast(p, b'\x09')) == 9.0
