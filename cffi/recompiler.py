@@ -1180,7 +1180,7 @@ class Recompiler:
             size_of_result = '(int)sizeof(%s)' % (
                 tp.result.get_c_name('', context),)
         prnt('static struct _cffi_externpy_s _cffi_externpy__%s =' % name)
-        prnt('  { "%s", %s };' % (name, size_of_result))
+        prnt('  { "%s.%s", %s };' % (self.module_name, name, size_of_result))
         prnt()
         #
         arguments = []
