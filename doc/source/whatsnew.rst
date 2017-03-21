@@ -9,18 +9,16 @@ v1.10
 * Issue #295: use calloc() directly instead of
   PyObject_Malloc()+memset() to handle ffi.new() with a default
   allocator.  Speeds up ``ffi.new(large-array)`` where most of the time
-  you never touch most of the array.  (But avoid doing that too often:
-  on 32-bit PyPy it will quickly exhaust the address space.  If possible,
-  use instead explicit calls to calloc() and free().)
+  you never touch most of the array.
 
 * Some OS/X build fixes ("only with Xcode but without CLT").
 
 * Improve a couple of error messages: when getting mismatched versions
   of cffi and its backend; and when calling functions which cannot be
   called with libffi because an argument is a struct that is "too
-  complicated" (not a struct *pointer*).
+  complicated" (and not a struct *pointer*, which always works).
 
-* Add support for some obscure compilers (non-msvc, non-gcc, non-icc,
+* Add support for some unusual compilers (non-msvc, non-gcc, non-icc,
   non-clang)
 
 * Implemented the remaining cases for ``ffi.from_buffer``.  Now all
@@ -33,15 +31,15 @@ v1.10
 
 * The C type ``_Bool`` or ``bool`` now converts to a Python boolean
   when reading, instead of the content of the byte as an integer.  The
-  change here is mostly what occurs if the byte happens to contain a
+  potential incompatibility here is what occurs if the byte contains a
   value different from 0 and 1.  Previously, it would just return it;
   with this change, CFFI raises an exception in this case.  But this
   case means "undefined behavior" in C; if you really have to interface
-  with a library relying on this, don't use ``_Bool`` in the CFFI side.
+  with a library relying on this, don't use ``bool`` in the CFFI side.
   Also, it is still valid to use a byte string as initializer for a
-  ``_Bool[]``, but now it must only contain ``\x00`` or ``\x01``.  As an
-  aside, ``ffi.string()`` no longer works on ``_Bool[]`` (but it never
-  made much sense, as this function stops on the first zero).
+  ``bool[]``, but now it must only contain ``\x00`` or ``\x01``.  As an
+  aside, ``ffi.string()`` no longer works on ``bool[]`` (but it never
+  made much sense, as this function stops at the first zero).
 
 * ``ffi.buffer`` is now the name of cffi's buffer type, and
   ``ffi.buffer()`` works like before but is the constructor of that type.
@@ -60,6 +58,11 @@ v1.10
 * PyPy: ``ffi.new()`` and ``ffi.new_allocator()()`` did not record
   "memory pressure", causing the GC to run too infrequently if you call
   ``ffi.new()`` very often and/or with large arrays.  Fixed in PyPy 5.7.
+
+* Support in ``ffi.cdef()`` for numeric expressions with ``+`` or
+  ``-``.  Assumes that there is no overflow; it should be fixed first
+  before we add more general support for arbitrary arithmetic on
+  constants.
 
 
 v1.9
