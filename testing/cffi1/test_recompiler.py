@@ -1552,7 +1552,8 @@ def test_extern_python_1():
         res = lib.bar(4, 5)
     assert res == 0
     assert f.getvalue() == (
-        b"extern \"Python\": function bar() called, but no code was attached "
+        b"extern \"Python\": function _CFFI_test_extern_python_1.bar() called, "
+        b"but no code was attached "
         b"to it yet with @ffi.def_extern().  Returning 0.\n")
 
     @ffi.def_extern("bar")
