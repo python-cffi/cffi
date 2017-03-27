@@ -45,8 +45,14 @@ def test_funcptr_rewrite_args():
 
 def test_all_primitives():
     for name in cffi_opcode.PRIMITIVE_TO_INDEX:
-        check(name, name)
+        if '_Complex' not in name:
+            check(name, name)
 
+def test_complex_primitives():
+    py.test.xfail("ffi does not support complex yet")
+    for name in cffi_opcode.PRIMITIVE_TO_INDEX:
+        if '_Complex' in name:
+            check(name, name)
 
 def check_func(input, expected_output=None):
     import _cffi_backend

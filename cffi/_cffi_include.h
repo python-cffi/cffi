@@ -16,6 +16,7 @@
 #endif
 
 #include <Python.h>
+#include <complex.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -99,6 +100,29 @@ extern "C" {
 #define _cffi_to_c_double PyFloat_AsDouble
 #define _cffi_to_c_float PyFloat_AsDouble
 
+#define _cffi_from_c_float__Complex(x)  PyComplex_FromDoubles(crealf(x), cimagf(x))
+#define _cffi_from_c_double__Complex(x) PyComplex_FromDoubles(creal(x), cimag(x))
+
+/* inefficient - converts twice! */
+#define _cffi_to_c_float__Complex(op)                                    \
+   (  ((float)(PyComplex_AsCComplex(op).real))  +                       \
+    I*((float)(PyComplex_AsCComplex(op).imag))     )
+/* not safe!
+//#define _cffi_to_c_float__Complex(op)                                  \
+//    (  ((float)((PyComplexObject *)(op))->cval.real)  +                \
+//     I*((float)((PyComplexObject *)(op))->cval.imag)     )
+*/
+
+/* inefficient - converts twice! */
+#define _cffi_to_c_double__Complex(op)                                   \
+   (  (PyComplex_AsCComplex(op).real)  +                                \
+    I*(PyComplex_AsCComplex(op).imag)     )
+/* not safe!
+//#define _cffi_to_c_double__Complex(op)                                   \
+//    (  (((PyComplexObject *)(op))->cval.real)  +                         \
+//     I*(((PyComplexObject *)(op))->cval.imag)     )
+*/
+
 #define _cffi_from_c_int(x, type)                                        \
     (((type)-1) > 0 ? /* unsigned */                                     \
         (sizeof(type) < sizeof(long) ?                                   \
@@ -109,9 +133,6 @@ extern "C" {
         (sizeof(type) <= sizeof(long) ?                                  \
             PyInt_FromLong((long)x) :                                    \
             PyLong_FromLongLong((long long)x)))
-
-#define _cffi_from_c_float__Complex(x)  PyComplex_FromDoubles(crealf(x), cimagf(x))
-#define _cffi_from_c_double__Complex(x) PyComplex_FromDoubles(creal(x), cimag(x))
 
 #define _cffi_to_c_int(o, type)                                          \
     ((type)(                                                             \

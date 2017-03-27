@@ -797,7 +797,6 @@ static
 int parse_c_type_from(struct _cffi_parse_info_s *info, size_t *output_index,
                       const char *input)
 {
-    printf("parse_c_type_from\n");
     int result;
     token_t token;
 

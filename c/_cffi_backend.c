@@ -2964,8 +2964,19 @@ static PyObject *cdata_complex(PyObject *cd_, PyObject *noarg)
     if (cd->c_type->ct_flags & CT_PRIMITIVE_COMPLEX) {
         Py_complex value = read_raw_complex_data(cd->c_data, cd->c_type->ct_size);
         PyObject *op = PyComplex_FromCComplex(value);
-        PyComplexObject *opc = (PyComplexObject *) op;
         return op;
+    }
+    // floats can also be converted to complex
+    if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
+        Py_complex value;
+        if (!(cd->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
+            value.real = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
+        }
+        else {
+            value.real = (double)read_raw_longdouble_data(cd->c_data);
+        }
+        value.imag = 0.0;
+        return PyComplex_FromCComplex(value);
     }
     PyErr_Format(PyExc_TypeError, "complex() not supported on cdata '%s'",
                  cd->c_type->ct_name);

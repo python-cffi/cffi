@@ -806,6 +806,7 @@ class VCPythonEngine(object):
 cffimod_header = r'''
 #include <Python.h>
 #include <stddef.h>
+#include <complex.h>
 
 /* this block of #ifs should be kept exactly identical between
    c/_cffi_backend.c, cffi/vengine_cpy.py, cffi/vengine_gen.py */
@@ -872,6 +873,29 @@ cffimod_header = r'''
 
 #define _cffi_to_c_double PyFloat_AsDouble
 #define _cffi_to_c_float PyFloat_AsDouble
+
+#define _cffi_from_c_float__Complex(x)  PyComplex_FromDoubles(crealf(x), cimagf(x))
+#define _cffi_from_c_double__Complex(x) PyComplex_FromDoubles(creal(x), cimag(x))
+
+/* inefficient - converts twice! */
+#define _cffi_to_c_float__Complex(op)                                    \
+    (  ((float)(PyComplex_AsCComplex(op).real))  +                       \
+     I*((float)(PyComplex_AsCComplex(op).imag))     )
+/* not safe!
+//#define _cffi_to_c_float__Complex(op)                                  \
+//    (  ((float)((PyComplexObject *)(op))->cval.real)  +                \
+//     I*((float)((PyComplexObject *)(op))->cval.imag)     )
+*/
+
+/* inefficient - converts twice! */
+#define _cffi_to_c_double__Complex(op)                                   \
+    (  (PyComplex_AsCComplex(op).real)  +                                \
+     I*(PyComplex_AsCComplex(op).imag)     )
+/* not safe!
+//#define _cffi_to_c_double__Complex(op)                                   \
+//    (  (((PyComplexObject *)(op))->cval.real)  +                         \
+//     I*(((PyComplexObject *)(op))->cval.imag)     )
+*/
 
 #define _cffi_from_c_int_const(x)                                        \
     (((x) > 0) ?                                                         \

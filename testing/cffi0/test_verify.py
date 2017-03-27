@@ -241,14 +241,15 @@ def test_primitive_category():
         F = tp.is_float_type()
         I = tp.is_integer_type()
         assert C == (typename in ('char', 'wchar_t'))
-        assert F == (typename in ('float', 'double', 'long double'))
+        assert F == (typename in ('float', 'double', 'long double', 'float _Complex', 'double _Complex'))
         assert I + F + C == 1      # one and only one of them is true
 
 def test_all_integer_and_float_types():
     typenames = []
     for typename in all_primitive_types:
         if (all_primitive_types[typename] == 'c' or
-            typename == '_Bool' or typename == 'long double'):
+            typename == '_Bool' or typename == 'long double'
+            or '_Complex' in typename):  # omit _Complex since ffi does not yet support
             pass
         else:
             typenames.append(typename)
