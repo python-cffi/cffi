@@ -29,12 +29,7 @@ static void cffi_thread_shutdown(void *p)
     struct cffi_tls_s *tls = (struct cffi_tls_s *)p;
 
     if (tls->local_thread_state != NULL) {
-        /* We need to re-acquire the GIL temporarily to free the
-           thread state.  I hope it is not a problem to do it in
-           a thread-local destructor.
-        */
-        PyEval_RestoreThread(tls->local_thread_state);
-        PyThreadState_DeleteCurrent();
+        PyThreadState_Delete(tls->local_thread_state);
     }
     free(tls);
 }
