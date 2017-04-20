@@ -113,3 +113,16 @@ def flatten(x):
     f = cStringIO.StringIO()
     _flatten(x, f)
     return f.getvalue()
+
+def _hack_at_distutils():
+    # Windows-only workaround for some configurations: see
+    # https://bugs.python.org/issue23246 (Python 2.7 with 
+    # a specific MS compiler suite download)
+    if sys.platform == "win32":
+        try:
+            import setuptools    # for side-effects, patches distutils
+        except ImportError:
+            pass
+
+# this must be done before get_extension() and before compile()
+_hack_at_distutils()
