@@ -254,7 +254,7 @@ preprocessor-like directives in the following format: ``# NUMBER
 string passed to ``cdef()`` and there is an error two lines later, then
 it is reported with an error message that starts with ``foo.h:43:`` (the
 line which is given the number 42 is the line immediately after the
-directive).  *New in version 1.11:*  CFFI automatically puts the line
+directive).  *New in version 1.10.1:*  CFFI automatically puts the line
 ``# 1 "<cdef source string>"`` just before the string you give to
 ``cdef()``.
 
