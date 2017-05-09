@@ -1484,7 +1484,7 @@ def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
                         msg = 'the current directory is'
                     else:
                         msg = 'setting the current directory to'
-                    print '%s %r' % (msg, os.path.abspath(tmpdir))
+                    print('%s %r' % (msg, os.path.abspath(tmpdir)))
                 os.chdir(tmpdir)
                 outputfilename = ffiplatform.compile('.', ext,
                                                      compiler_verbose, debug)
