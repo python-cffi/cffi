@@ -248,6 +248,16 @@ like this::
         );
       """))
 
+Note also that pycparser, the underlying C parser, recognizes
+preprocessor-like directives in the following format: ``# NUMBER
+"FILE"``.  For example, if you put ``# 42 "foo.h"`` in the middle of the
+string passed to ``cdef()`` and there is an error two lines later, then
+it is reported with an error message that starts with ``foo.h:43:`` (the
+line which is given the number 42 is the line immediately after the
+directive).  *New in version 1.11:*  CFFI automatically puts the line
+``# 1 "<cdef source string>"`` just before the string you give to
+``cdef()``.
+
 
 .. _`ffi.set_unicode()`:
 
