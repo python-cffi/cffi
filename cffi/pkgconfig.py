@@ -48,6 +48,9 @@ def pkgconfig_kwargs (libs):
             return tuple (string [2:].split ('=', 2))
         return [_macros (x) for x in string.split () if x.startswith ("-D")]
 
+    def drop_macros (string):
+        return [x for x in string.split () if not x.startswith ("-D")]
+
     # pkg-config call
     def pc (libname, *args):
         a = ["pkg-config", "--print-errors"]
@@ -61,7 +64,9 @@ def pkgconfig_kwargs (libs):
                 "include_dirs" : dropILl (pc (libname, "--cflags-only-I")),
                 "library_dirs" : dropILl (pc (libname, "--libs-only-L")),
                 "libraries" : dropILl (pc (libname, "--libs-only-l")),
-                "define_macros" : macros (pc (libname, "--cflags")),
+                "define_macros" : macros (pc (libname, "--cflags-only-other")),
+                "extra_compile_args" : drop_macros (pc (libname, "--cflags-only-other")),
+                "extra_link_args" : pc (libname, "--libs-only-other").split ()
                 }
 
     # merge all arguments together
