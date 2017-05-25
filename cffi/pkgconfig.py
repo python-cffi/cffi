@@ -38,7 +38,7 @@ def pkgconfig_kwargs (libs):
     # drop starting -I -L -l from cflags
     def dropILl (string):
         def _dropILl (string):
-            if string.startswith ("-I") or string.startswith ("-L") or string.startswith ("-l"):
+            if string.startswith (b"-I") or string.startswith (b"-L") or string.startswith (b"-l"):
                 return string [2:]
         return [_dropILl (x) for x in string.split ()]
 

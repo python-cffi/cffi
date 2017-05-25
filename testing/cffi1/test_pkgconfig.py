@@ -26,5 +26,5 @@ def test_pkgconfig ():
     except subprocess.CalledProcessError as e:
         py.test.skip ("No python%s pkg-config file installed" % version)
     
-    assert any ("python" in lib for lib in kwargs ["libraries"]) == True
-    assert any ("python" in dir for dir in kwargs ["include_dirs"]) == True
+    assert any (b"python" in lib for lib in kwargs ["libraries"]) == True
+    assert any (b"python" in dir for dir in kwargs ["include_dirs"]) == True
