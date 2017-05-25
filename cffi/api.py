@@ -623,7 +623,6 @@ class FFI(object):
                     del kwds ["pkgconfig"]
                 except KeyError:
                     pass
-        print (kwds)
         self._assigned_source = (str(module_name), source,
                                  source_extension, kwds)
 
