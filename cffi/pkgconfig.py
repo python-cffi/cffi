@@ -2,6 +2,7 @@
 import subprocess
 
 def pkgconfig_installed ():
+    """Check if pkg=config is installed or not"""
     try:
         subprocess.check_output (["pkg-config", "--version"])
         return True
@@ -9,6 +10,7 @@ def pkgconfig_installed ():
         return False
 
 def merge_dicts (d1, d2):
+    """Helper function to merge two dicts with lists"""
     for key, value in d2.items ():
         if not key in d1:
             d1 [key] = value
@@ -17,9 +19,16 @@ def merge_dicts (d1, d2):
     return d1
 
 def pkgconfig_kwargs (libs):
-    """If pkg-config is available, then return kwargs for set_source based on pkg-config output
-    
-    It setup include_dirs, library_dirs, libraries and define_macros
+    r"""Return kwargs for FFI.set_source based on pkg-config output
+
+    Usage
+        ...
+        ffibuilder.set_source ("_foo", libraries = ["foo", "bar"], pkgconfig = ["libfoo", "libbar"])
+
+    If pkg-config is installed on build machine, then arguments include_dirs,
+    library_dirs and define_macros are extended with an output of pkg-config
+    [command] libfoo and pkgconfig [command] libbar. Argument libraries is
+    replaced by an output of pkgconfig --libs-only-l calls.
     """
 
     # make API great again!
