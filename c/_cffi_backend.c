@@ -7,8 +7,6 @@
 #ifdef MS_WIN32
 #include <windows.h>
 #include "misc_win32.h"
-typedef float cffi_float_complex_t[2];
-typedef double cffi_double_complex_t[2];
 #else
 #include <stddef.h>
 #include <stdint.h>
@@ -16,8 +14,6 @@ typedef double cffi_double_complex_t[2];
 #include <errno.h>
 #include <ffi.h>
 #include <sys/mman.h>
-typedef float _Complex cffi_float_complex_t; /* use the def above if your C */
-typedef double _Complex cffi_double_complex_t; /*   compiler complains here */
 #endif
 
 /* this block of #ifs should be kept exactly identical between
@@ -4081,6 +4077,11 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
     Py_DECREF(x);
     return NULL;
 }
+
+/* according to the C standard, these types should be equivalent to the
+   _Complex types for the purposes of storage (not arguments in calls!) */
+typedef float cffi_float_complex_t[2];
+typedef double cffi_double_complex_t[2];
 
 static PyObject *new_primitive_type(const char *name)
 {

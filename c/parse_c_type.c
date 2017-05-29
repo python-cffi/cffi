@@ -798,7 +798,7 @@ static int parse_complete(token_t *tok)
     if (tok->kind == TOK__COMPLEX)
     {
         if (t1complex == 0)
-            return parse_error(tok,"_Complex type combination unsupported");
+            return parse_error(tok, "_Complex type combination unsupported");
         t1 = t1complex;
         next_token(tok);
     }
