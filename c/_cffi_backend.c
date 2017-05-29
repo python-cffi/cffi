@@ -924,8 +924,8 @@ write_raw_longdouble_data(char *target, long double source)
     do {                                                   \
         if (size == 2*sizeof(type)) {                      \
             type r = (type)source.real;                    \
-            memcpy(target, &r, sizeof(type));              \
             type i = (type)source.imag;                    \
+            memcpy(target, &r, sizeof(type));              \
             memcpy(target+sizeof(type), &i, sizeof(type)); \
             return;                                        \
         }                                                  \
@@ -3729,6 +3729,7 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
         /* cast to a float */
         double value;
         PyObject *io;
+        int res;
 
         if (CData_Check(ob)) {
             CDataObject *cdsrc = (CDataObject *)ob;
@@ -3744,7 +3745,7 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
             Py_INCREF(io);
         }
 
-        int res = check_bytes_for_float_compatible(io, &value);
+        res = check_bytes_for_float_compatible(io, &value);
         if (res == -1)
             goto cannot_cast;
         if (res == 0) {
@@ -3780,6 +3781,8 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
         /* cast to a complex */
         Py_complex value;
         PyObject *io;
+        int res;
+
         if (CData_Check(ob)) {
             CDataObject *cdsrc = (CDataObject *)ob;
 
@@ -3794,7 +3797,7 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
             Py_INCREF(io);
         }
 
-        int res = check_bytes_for_float_compatible(io, &value.real);
+        res = check_bytes_for_float_compatible(io, &value.real);
         if (res == -1)
             goto cannot_cast;
         if (res == 1) {
