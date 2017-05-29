@@ -7,6 +7,8 @@
 #ifdef MS_WIN32
 #include <windows.h>
 #include "misc_win32.h"
+typedef float cffi_float_complex_t[2];
+typedef double cffi_double_complex_t[2];
 #else
 #include <stddef.h>
 #include <stdint.h>
@@ -14,6 +16,8 @@
 #include <errno.h>
 #include <ffi.h>
 #include <sys/mman.h>
+typedef float _Complex cffi_float_complex_t; /* use the def above if your C */
+typedef double _Complex cffi_double_complex_t; /*   compiler complains here */
 #endif
 
 /* this block of #ifs should be kept exactly identical between
@@ -4095,8 +4099,8 @@ static PyObject *new_primitive_type(const char *name)
        EPTYPE(f, float, CT_PRIMITIVE_FLOAT )                    \
        EPTYPE(d, double, CT_PRIMITIVE_FLOAT )                   \
        EPTYPE(ld, long double, CT_PRIMITIVE_FLOAT | CT_IS_LONGDOUBLE ) \
-       EPTYPE(fc, float _Complex, CT_PRIMITIVE_COMPLEX )        \
-       EPTYPE(dc, double _Complex, CT_PRIMITIVE_COMPLEX )       \
+       EPTYPE2(fc, "float _Complex", cffi_float_complex_t, CT_PRIMITIVE_COMPLEX ) \
+       EPTYPE2(dc, "double _Complex", cffi_double_complex_t, CT_PRIMITIVE_COMPLEX ) \
        ENUM_PRIMITIVE_TYPES_WCHAR                               \
        EPTYPE(b, _Bool, CT_PRIMITIVE_UNSIGNED | CT_IS_BOOL )    \
      /* the following types are not primitive in the C sense */ \
@@ -6720,6 +6724,7 @@ static int _testfunc23(char *p)
 }
 
 #if 0   /* libffi doesn't properly support complexes currently */
+        /* also, MSVC might not support _Complex... */
 static float _Complex _testfunc24(float a, float b)
 {
     return a + I*2.0*b;
