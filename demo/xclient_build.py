@@ -22,4 +22,4 @@ ffi.set_source('_xclient_cffi', """
 """, libraries=['X11'])
 
 if __name__ == '__main__':
-    ffi.compile()
+    ffi.compile(verbose=True)
