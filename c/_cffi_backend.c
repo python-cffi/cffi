@@ -901,7 +901,7 @@ read_raw_complex_data(char *target, int size)
         memcpy(&r, target, 2*sizeof(double));
         return r;
     }
-    Py_FatalError("read_raw_complex_data: bad float size");
+    Py_FatalError("read_raw_complex_data: bad complex size");
     return r;
 }
 
@@ -936,7 +936,7 @@ write_raw_complex_data(char *target, Py_complex source, int size)
 {
     _write_raw_complex_data(float);
     _write_raw_complex_data(double);
-    Py_FatalError("write_raw_complex_data: bad float size");
+    Py_FatalError("write_raw_complex_data: bad complex size");
 }
 
 static PyObject *
@@ -1047,10 +1047,6 @@ convert_to_object(char *data, CTypeDescrObject *ct)
             return (PyObject *)cd;
         }
     }
-    else if (ct->ct_flags & CT_PRIMITIVE_COMPLEX) {
-        Py_complex value = read_raw_complex_data(data, ct->ct_size);
-        return PyComplex_FromCComplex(value);
-    }
     else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
         /*READ(data, ct->ct_size)*/
         if (ct->ct_size == sizeof(char))
@@ -1059,6 +1055,10 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         else
             return _my_PyUnicode_FromWideChar((wchar_t *)data, 1);
 #endif
+    }
+    else if (ct->ct_flags & CT_PRIMITIVE_COMPLEX) {
+        Py_complex value = read_raw_complex_data(data, ct->ct_size);
+        return PyComplex_FromCComplex(value);
     }
 
     PyErr_Format(PyExc_SystemError,
@@ -3663,34 +3663,29 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
     return cd;
 }
 
-static void check_bytes_for_float_compatible(
-        PyObject *io,
-        double * value,
-        int * got_value_indicator,
-        int * cannot_cast_indicator)
+/* returns -1 if cannot cast, 0 if we don't get a value, 1 if we do */
+static int check_bytes_for_float_compatible(PyObject *io, double *out_value)
 {
-    *got_value_indicator = 0;
-    *cannot_cast_indicator = 0;
     if (PyBytes_Check(io)) {
         if (PyBytes_GET_SIZE(io) != 1) {
             Py_DECREF(io);
-            *cannot_cast_indicator = 1;
+            return -1;
         }
-        *value = (unsigned char)PyBytes_AS_STRING(io)[0];
-        *got_value_indicator = 1;
+        *out_value = (unsigned char)PyBytes_AS_STRING(io)[0];
+        return 1;
     }
 #if HAVE_WCHAR_H
     else if (PyUnicode_Check(io)) {
         wchar_t ordinal;
         if (_my_PyUnicode_AsSingleWideChar(io, &ordinal) < 0) {
             Py_DECREF(io);
-            *cannot_cast_indicator = 1;
+            return -1;
         }
-        *value = (long)ordinal;
-        *got_value_indicator = 1;
+        *out_value = (long)ordinal;
+        return 1;
     }
 #endif
-
+    return 0;
 }
 
 static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
@@ -3749,30 +3744,23 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
             Py_INCREF(io);
         }
 
-        int got_value_indicator;
-        int cannot_cast_indicator;
-        check_bytes_for_float_compatible(io, &value,
-                &got_value_indicator, &cannot_cast_indicator);
-        if (cannot_cast_indicator) {
+        int res = check_bytes_for_float_compatible(io, &value);
+        if (res == -1)
             goto cannot_cast;
-        }
-        if (got_value_indicator) {
-            // got it from string
-        }
-        else if ((ct->ct_flags & CT_IS_LONGDOUBLE) &&
+        if (res == 0) {
+            if ((ct->ct_flags & CT_IS_LONGDOUBLE) &&
                  CData_Check(io) &&
                  (((CDataObject *)io)->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
-            long double lvalue;
-            char *data = ((CDataObject *)io)->c_data;
-            /*READ(data, sizeof(long double)*/
-            lvalue = read_raw_longdouble_data(data);
-            Py_DECREF(io);
-            cd = _new_casted_primitive(ct);
-            if (cd != NULL)
-                write_raw_longdouble_data(cd->c_data, lvalue);
-            return (PyObject *)cd;
-        }
-        else {
+                long double lvalue;
+                char *data = ((CDataObject *)io)->c_data;
+                /*READ(data, sizeof(long double)*/
+                lvalue = read_raw_longdouble_data(data);
+                Py_DECREF(io);
+                cd = _new_casted_primitive(ct);
+                if (cd != NULL)
+                    write_raw_longdouble_data(cd->c_data, lvalue);
+                return (PyObject *)cd;
+            }
             value = PyFloat_AsDouble(io);
         }
         Py_DECREF(io);
@@ -3806,21 +3794,17 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
             Py_INCREF(io);
         }
 
-        int got_value_indicator;
-        int cannot_cast_indicator;
-        check_bytes_for_float_compatible(io, &(value.real),
-                &got_value_indicator, &cannot_cast_indicator);
-        if (cannot_cast_indicator) {
+        int res = check_bytes_for_float_compatible(io, &value.real);
+        if (res == -1)
             goto cannot_cast;
-        }
-        if (got_value_indicator) {
+        if (res == 1) {
             // got it from string
             value.imag = 0.0;
         } else {
             value = PyComplex_AsCComplex(io);
         }
         Py_DECREF(io);
-        if (value.real == -1.0 && value.imag == 0.0 && PyErr_Occurred()) {
+        if (PyErr_Occurred()) {
             return NULL;
         }
         cd = _new_casted_primitive(ct);
