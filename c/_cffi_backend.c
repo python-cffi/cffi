@@ -6725,6 +6725,8 @@ static int _testfunc23(char *p)
 
 #if 0   /* libffi doesn't properly support complexes currently */
         /* also, MSVC might not support _Complex... */
+        /* if this is enabled one day, remember to also add _Complex
+         * arguments in addition to return values. */
 static float _Complex _testfunc24(float a, float b)
 {
     return a + I*2.0*b;
