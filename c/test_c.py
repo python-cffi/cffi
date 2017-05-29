@@ -1130,27 +1130,32 @@ def test_call_function_9():
     assert f(3, cast(BSChar, -3), cast(BUChar, 200), cast(BSShort, -5)) == 192
 
 def test_call_function_24():
-    py.test.skip("libffi returning nonsense silently")
     BFloat = new_primitive_type("float")
     BFloatComplex = new_primitive_type("float _Complex")
     BFunc3 = new_function_type((BFloat, BFloat), BFloatComplex, False)
-    f = cast(BFunc3, _testfunc(24))
-    result = f(1.25, 5.1)
-    assert type(result) == complex
-    assert result.real == 1.25   # exact
-    assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-5) # inexact  
+    if 0:   # libffi returning nonsense silently, so logic disabled for now
+        f = cast(BFunc3, _testfunc(24))
+        result = f(1.25, 5.1)
+        assert type(result) == complex
+        assert result.real == 1.25   # exact
+        assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-5) # inexact
+    else:
+        f = cast(BFunc3, _testfunc(9))
+        py.test.raises(NotImplementedError, f, 12.3, 34.5)
 
 def test_call_function_25():
-    py.test.skip("libffi returning nonsense silently")
     BDouble = new_primitive_type("double")
     BDoubleComplex = new_primitive_type("double _Complex")
     BFunc3 = new_function_type((BDouble, BDouble), BDoubleComplex, False)
-    f = cast(BFunc3, _testfunc(25))
-    result = f(1.25, 5.1)
-    assert type(result) == complex
-    assert result.real == 1.25   # exact
-    assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-10) # inexact  
-
+    if 0:   # libffi returning nonsense silently, so logic disabled for now
+        f = cast(BFunc3, _testfunc(25))
+        result = f(1.25, 5.1)
+        assert type(result) == complex
+        assert result.real == 1.25   # exact
+        assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-10) # inexact
+    else:
+        f = cast(BFunc3, _testfunc(9))
+        py.test.raises(NotImplementedError, f, 12.3, 34.5)
 
 def test_cannot_call_with_a_autocompleted_struct():
     BSChar = new_primitive_type("signed char")

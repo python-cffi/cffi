@@ -888,7 +888,7 @@ read_raw_longdouble_data(char *target)
 static Py_complex
 read_raw_complex_data(char *target, int size)
 {
-    Py_complex r = {.real=0, .imag=0};
+    Py_complex r = {0.0, 0.0};
     if (size == 2*sizeof(float)) {
         float real_part, imag_part;
         memcpy(&real_part, target + 0,             sizeof(float));
@@ -898,7 +898,7 @@ read_raw_complex_data(char *target, int size)
         return r;
     }
     if (size == 2*sizeof(double)) {
-        memcpy(&(r.real), target, 2*sizeof(double));
+        memcpy(&r, target, 2*sizeof(double));
         return r;
     }
     Py_FatalError("read_raw_complex_data: bad float size");
@@ -4224,14 +4224,11 @@ static PyObject *new_primitive_type(const char *name)
             goto bad_ffi_type;
     }
     else if (ptypes->flags & CT_PRIMITIVE_COMPLEX) {
-        // as of March 2017, still no libffi support for complex
-        // but it fails silently.
-        if (strcmp(ptypes->name, "float _Complex") == 0)
-            ffitype = &ffi_type_complex_float;
-        else if (strcmp(ptypes->name, "double _Complex") == 0)
-            ffitype = &ffi_type_complex_double;
-        else
-            goto bad_ffi_type;
+        /* As of March 2017, still no libffi support for complex.
+           It fails silently if we try to use ffi_type_complex_float
+           or ffi_type_complex_double.  Better not use it at all.
+         */
+        ffitype = NULL;
     }
     else {
         switch (ptypes->size) {
@@ -4925,7 +4922,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
 {
     const char *place = is_result_type ? "return value" : "argument";
 
-    if (ct->ct_flags & CT_PRIMITIVE_ANY) {
+    if (ct->ct_flags & (CT_PRIMITIVE_ANY & ~CT_PRIMITIVE_COMPLEX)) {
         return (ffi_type *)ct->ct_extra;
     }
     else if (ct->ct_flags & (CT_POINTER|CT_FUNCTIONPTR)) {
@@ -5051,9 +5048,16 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
         return NULL;
     }
     else {
+        char *extra = "";
+        if (ct->ct_flags & CT_PRIMITIVE_COMPLEX)
+            extra = " (the support for complex types inside libffi "
+                    "is mostly missing at this point, so CFFI only "
+                    "supports complex types as arguments or return "
+                    "value in API-mode functions)";
+
         PyErr_Format(PyExc_NotImplementedError,
-                     "ctype '%s' (size %zd) not supported as %s",
-                     ct->ct_name, ct->ct_size, place);
+                     "ctype '%s' (size %zd) not supported as %s%s",
+                     ct->ct_name, ct->ct_size, place, extra);
         return NULL;
     }
 }
