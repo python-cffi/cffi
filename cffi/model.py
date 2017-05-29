@@ -95,7 +95,8 @@ void_type = VoidType()
 
 
 class BasePrimitiveType(BaseType):
-    pass
+    def is_complex_type(self):
+        return False
 
 
 class PrimitiveType(BasePrimitiveType):
