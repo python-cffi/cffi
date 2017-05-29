@@ -62,8 +62,6 @@
 
 #include "malloc_closure.h"
 
-#include <complex.h>
-
 #if PY_MAJOR_VERSION >= 3
 # define STR_OR_BYTES "bytes"
 # define PyText_Type PyUnicode_Type
@@ -118,34 +116,33 @@
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
-#define CT_PRIMITIVE_SIGNED   1    /* signed integer */
-#define CT_PRIMITIVE_UNSIGNED 2    /* unsigned integer */
-#define CT_PRIMITIVE_CHAR     4    /* char, wchar_t */
-#define CT_PRIMITIVE_FLOAT    8    /* float, double, long double */
-#define CT_POINTER           16    /* pointer, excluding ptr-to-func */
-#define CT_ARRAY             32    /* array */
-#define CT_STRUCT            64    /* struct */
-#define CT_UNION            128    /* union */
-#define CT_FUNCTIONPTR      256    /* pointer to function */
-#define CT_VOID             512    /* void */
-
-#define CT_PRIMITIVE_COMPLEX 16777216  /* float _Complex, double _Complex */
+#define CT_PRIMITIVE_SIGNED   0x001   /* signed integer */
+#define CT_PRIMITIVE_UNSIGNED 0x002   /* unsigned integer */
+#define CT_PRIMITIVE_CHAR     0x004   /* char, wchar_t */
+#define CT_PRIMITIVE_FLOAT    0x008   /* float, double, long double */
+#define CT_POINTER            0x010   /* pointer, excluding ptr-to-func */
+#define CT_ARRAY              0x020   /* array */
+#define CT_STRUCT             0x040   /* struct */
+#define CT_UNION              0x080   /* union */
+#define CT_FUNCTIONPTR        0x100   /* pointer to function */
+#define CT_VOID               0x200   /* void */
+#define CT_PRIMITIVE_COMPLEX  0x400   /* float _Complex, double _Complex */
 
 /* other flags that may also be set in addition to the base flag: */
-#define CT_IS_VOIDCHAR_PTR       1024
-#define CT_PRIMITIVE_FITS_LONG   2048
-#define CT_IS_OPAQUE             4096
-#define CT_IS_ENUM               8192
-#define CT_IS_PTR_TO_OWNED      16384   /* only owned if CDataOwning_Type */
-#define CT_CUSTOM_FIELD_POS     32768
-#define CT_IS_LONGDOUBLE        65536
-#define CT_IS_BOOL             131072
-#define CT_IS_FILE             262144
-#define CT_IS_VOID_PTR         524288
-#define CT_WITH_VAR_ARRAY     1048576
-#define CT_IS_UNSIZED_CHAR_A  2097152
-#define CT_LAZY_FIELD_LIST    4194304
-#define CT_WITH_PACKED_CHANGE 8388608
+#define CT_IS_VOIDCHAR_PTR     0x00001000
+#define CT_PRIMITIVE_FITS_LONG 0x00002000
+#define CT_IS_OPAQUE           0x00004000
+#define CT_IS_ENUM             0x00008000
+#define CT_IS_PTR_TO_OWNED     0x00010000 /* only owned if CDataOwning_Type */
+#define CT_CUSTOM_FIELD_POS    0x00020000
+#define CT_IS_LONGDOUBLE       0x00040000
+#define CT_IS_BOOL             0x00080000
+#define CT_IS_FILE             0x00100000
+#define CT_IS_VOID_PTR         0x00200000
+#define CT_WITH_VAR_ARRAY      0x00400000
+#define CT_IS_UNSIZED_CHAR_A   0x00800000
+#define CT_LAZY_FIELD_LIST     0x01000000
+#define CT_WITH_PACKED_CHANGE  0x02000000
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -1567,6 +1564,9 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         }
         return convert_struct_from_object(data, ct, init, NULL);
     }
+    if (ct->ct_flags & CT_PRIMITIVE_COMPLEX) {
+        abort(); // XXX
+    }
     PyErr_Format(PyExc_SystemError,
                  "convert_from_object: '%s'", ct->ct_name);
     return -1;
@@ -2004,6 +2004,9 @@ static int cdata_nonzero(CDataObject *cd)
                 return read_raw_longdouble_data(cd->c_data) != 0.0;
             return read_raw_float_data(cd->c_data, cd->c_type->ct_size) != 0.0;
         }
+        if (cd->c_type->ct_flags & CT_PRIMITIVE_COMPLEX) {
+            abort(); // XXX
+        }
     }
     return cd->c_data != NULL;
 }
@@ -2071,11 +2074,6 @@ static PyObject *cdata_float(CDataObject *cd)
             value = (double)read_raw_longdouble_data(cd->c_data);
         }
         return PyFloat_FromDouble(value);
-    }
-    if ((cd->c_type->ct_flags & CT_PRIMITIVE_COMPLEX) &&
-        (cd->c_type->ct_size<16)) {
-        double value = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
-        return PyComplex_FromDoubles(value, 0.0);
     }
     PyErr_Format(PyExc_TypeError, "float() not supported on cdata '%s'",
                  cd->c_type->ct_name);
@@ -2978,6 +2976,7 @@ static PyObject *cdata_complex(PyObject *cd_, PyObject *noarg)
         value.imag = 0.0;
         return PyComplex_FromCComplex(value);
     }
+    abort(); // XXX ints, etc.
     PyErr_Format(PyExc_TypeError, "complex() not supported on cdata '%s'",
                  cd->c_type->ct_name);
     return NULL;
@@ -3792,8 +3791,6 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
         }
         return (PyObject *)cd;
     }
-
-
     else if (ct->ct_flags & CT_PRIMITIVE_COMPLEX) {
         /* cast to a complex */
         Py_complex value;
@@ -3835,8 +3832,6 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
         }
         return (PyObject *)cd;
     }
-
-
     else {
         PyErr_Format(PyExc_TypeError, "cannot cast to ctype '%s'",
                      ct->ct_name);
@@ -6738,6 +6733,8 @@ static int _testfunc23(char *p)
         return 1000 * p[0];
     return -42;
 }
+
+#if 0   /* libffi doesn't properly support complexes currently */
 static float _Complex _testfunc24(float a, float b)
 {
     return a + I*2.0*b;
@@ -6746,6 +6743,7 @@ static double _Complex _testfunc25(double a, double b)
 {
     return a + I*2.0*b;
 }
+#endif
 
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
@@ -6779,8 +6777,10 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 21: f = &_testfunc21; break;
     case 22: f = &_testfunc22; break;
     case 23: f = &_testfunc23; break;
+#if 0
     case 24: f = &_testfunc24; break;
     case 25: f = &_testfunc25; break;
+#endif
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;

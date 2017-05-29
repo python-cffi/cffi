@@ -188,12 +188,13 @@ def test_complex_types():
     INF = 1E200 * 1E200
     for name in ["float", "double"]:
         p = new_primitive_type(name + " _Complex")
-        assert bool(cast(p, 0))
+        assert bool(cast(p, 0)) is False
         assert bool(cast(p, INF))
         assert bool(cast(p, -INF))
-        assert bool(cast(p, 0j))
+        assert bool(cast(p, 0j)) is False
         assert bool(cast(p, INF*1j))
         assert bool(cast(p, -INF*1j))
+        # "can't convert complex to float", like CPython's "float(0j)"
         py.test.raises(TypeError, int, cast(p, -150))
         py.test.raises(TypeError, long, cast(p, -150))
         py.test.raises(TypeError, float, cast(p, -150))
@@ -209,13 +210,24 @@ def test_complex_types():
         assert cast(p, -1.1j) == cast(p, -1.1j)
         assert repr(complex(cast(p, -0.0)).real) == '-0.0'
         #assert repr(complex(cast(p, -0j))) == '-0j'   # http://bugs.python.org/issue29602
-        assert complex(cast(p, b'\x09')) == 9.0
-        assert complex(cast(p, u+'\x09')) == 9.0
-        assert complex(cast(p, True)) == 1.0
+        assert complex(cast(p, b'\x09')) == 9.0 + 0j
+        assert complex(cast(p, u+'\x09')) == 9.0 + 0j
+        assert complex(cast(p, True)) == 1.0 + 0j
         py.test.raises(TypeError, cast, p, None)
         #
-        py.test.raises(TypeError, cast, new_primitive_type(name), 1+2j)
-    py.test.raises(TypeError, cast, new_primitive_type("int"), 1+2j)
+        py.test.raises(TypeError, cast, new_primitive_type(name), 1+0j)
+        #
+        assert complex(cast(new_primitive_type("char"), "A")) == 65 + 0j
+        assert complex(cast(new_primitive_type("int"), 65)) == 65 + 0j
+        assert complex(cast(new_primitive_type("uint64_t"), 65)) == 65 + 0j
+        assert complex(cast(new_primitive_type("float"), 65.5)) == 65.5 + 0j
+        #
+        BArray = new_array_type(new_pointer_type(p), 10)
+        x = newp(BArray, None)
+        x[5] = 12.34 + 56.78j
+        assert type(x[5]) is complex
+        assert x[5] == 12.34 + 56.78j
+    py.test.raises(TypeError, cast, new_primitive_type("int"), 1+0j)
 
 def test_character_type():
     p = new_primitive_type("char")
