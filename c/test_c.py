@@ -217,16 +217,17 @@ def test_complex_types():
         #
         py.test.raises(TypeError, cast, new_primitive_type(name), 1+0j)
         #
-        assert complex(cast(new_primitive_type("char"), "A")) == 65 + 0j
-        assert complex(cast(new_primitive_type("int"), 65)) == 65 + 0j
-        assert complex(cast(new_primitive_type("uint64_t"), 65)) == 65 + 0j
-        assert complex(cast(new_primitive_type("float"), 65.5)) == 65.5 + 0j
+        for basetype in ["char", "int", "uint64_t", "float",
+                         "double", "long double"]:
+            baseobj = cast(new_primitive_type(basetype), 65)
+            py.test.raises(TypeError, complex, baseobj)
         #
         BArray = new_array_type(new_pointer_type(p), 10)
         x = newp(BArray, None)
         x[5] = 12.34 + 56.78j
         assert type(x[5]) is complex
-        assert x[5] == 12.34 + 56.78j
+        assert abs(x[5] - (12.34 + 56.78j)) < 1e-5
+        assert (x[5] == 12.34 + 56.78j) == (name == "double")  # rounding error
     py.test.raises(TypeError, cast, new_primitive_type("int"), 1+0j)
 
 def test_character_type():

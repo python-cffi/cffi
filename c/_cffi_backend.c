@@ -1565,7 +1565,11 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         return convert_struct_from_object(data, ct, init, NULL);
     }
     if (ct->ct_flags & CT_PRIMITIVE_COMPLEX) {
-        abort(); // XXX
+        Py_complex value = PyComplex_AsCComplex(init);
+        if (PyErr_Occurred())
+            return -1;
+        write_raw_complex_data(data, value, ct->ct_size);
+        return 0;
     }
     PyErr_Format(PyExc_SystemError,
                  "convert_from_object: '%s'", ct->ct_name);
@@ -2005,7 +2009,9 @@ static int cdata_nonzero(CDataObject *cd)
             return read_raw_float_data(cd->c_data, cd->c_type->ct_size) != 0.0;
         }
         if (cd->c_type->ct_flags & CT_PRIMITIVE_COMPLEX) {
-            abort(); // XXX
+            Py_complex value = read_raw_complex_data(cd->c_data,
+                                                     cd->c_type->ct_size);
+            return value.real != 0.0 || value.imag != 0.0;
         }
     }
     return cd->c_data != NULL;
@@ -2964,19 +2970,10 @@ static PyObject *cdata_complex(PyObject *cd_, PyObject *noarg)
         PyObject *op = PyComplex_FromCComplex(value);
         return op;
     }
-    // floats can also be converted to complex
-    if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
-        Py_complex value;
-        if (!(cd->c_type->ct_flags & CT_IS_LONGDOUBLE)) {
-            value.real = read_raw_float_data(cd->c_data, cd->c_type->ct_size);
-        }
-        else {
-            value.real = (double)read_raw_longdouble_data(cd->c_data);
-        }
-        value.imag = 0.0;
-        return PyComplex_FromCComplex(value);
-    }
-    abort(); // XXX ints, etc.
+    /* <cdata 'float'> or <cdata 'int'> cannot be directly converted by
+       calling complex(), just like <cdata 'int'> cannot be directly
+       converted by calling float() */
+
     PyErr_Format(PyExc_TypeError, "complex() not supported on cdata '%s'",
                  cd->c_type->ct_name);
     return NULL;
