@@ -3,6 +3,15 @@ What's New
 ======================
 
 
+v1.10.1
+=======
+
+* Fixed the line numbers reported in case of ``cdef()`` errors.
+  Also, I just noticed, but pycparser always supported the preprocessor
+  directive ``# 42 "foo.h"`` to mean "from the next line, we're in file
+  foo.h starting from line 42", which it puts in the error messages.
+
+
 v1.10
 =====
 

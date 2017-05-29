@@ -73,8 +73,8 @@ ffi.errno, ffi.getwinerror()
 ++++++++++++++++++++++++++++
 
 **ffi.errno**: the value of ``errno`` received from the most recent C call
-in this thread, and passed to the following C call.  (This is a read-write
-property.)
+in this thread, and passed to the following C call.  (This is a thread-local
+read-write property.)
 
 **ffi.getwinerror(code=-1)**: on Windows, in addition to ``errno`` we
 also save and restore the ``GetLastError()`` value across function
