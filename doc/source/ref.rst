@@ -618,8 +618,8 @@ allowed.
 |    C type     |   writing into         | reading from     |other operations|
 +===============+========================+==================+================+
 |   integers    | an integer or anything | a Python int or  | int(), bool()  |
-|   and enums   | on which int() works   | long, depending  | `(******)`,    |
-|   `(*****)`   | (but not a float!).    | on the type      | ``<``          |
+|   and enums   | on which int() works   | long, depending  | `[6]`,         |
+|   `[5]`       | (but not a float!).    | on the type      | ``<``          |
 |               | Must be within range.  | (ver. 1.10: or a |                |
 |               |                        | bool)            |                |
 +---------------+------------------------+------------------+----------------+
@@ -636,14 +636,19 @@ allowed.
 +---------------+------------------------+------------------+----------------+
 |``long double``| another <cdata> with   | a <cdata>, to    | float(), int(),|
 |               | a ``long double``, or  | avoid loosing    | bool()         |
-|               | anything on which      | precision `(***)`|                |
+|               | anything on which      | precision `[3]`  |                |
 |               | float() works          |                  |                |
 +---------------+------------------------+------------------+----------------+
-|  pointers     | another <cdata> with   | a <cdata>        |``[]`` `(****)`,|
+| ``float``     | a complex number       | a Python complex | complex(),     |
+| ``_Complex``, | or anything on which   | number           | bool()         |
+| ``double``    | complex() works        |                  | `[7]`          |
+| ``_Complex``  |                        |                  |                |
++---------------+------------------------+------------------+----------------+
+|  pointers     | another <cdata> with   | a <cdata>        |``[]`` `[4]`,   |
 |               | a compatible type (i.e.|                  |``+``, ``-``,   |
 |               | same type              |                  |bool()          |
 |               | or ``void*``, or as an |                  |                |
-|               | array instead) `(*)`   |                  |                |
+|               | array instead) `[1]`   |                  |                |
 +---------------+------------------------+                  |                |
 |  ``void *``   | another <cdata> with   |                  |                |
 |               | any pointer or array   |                  |                |
@@ -655,10 +660,10 @@ allowed.
 |               |                        |                  | struct fields  |
 +---------------+------------------------+                  +----------------+
 | function      | same as pointers       |                  | bool(),        |
-| pointers      |                        |                  | call `(**)`    |
+| pointers      |                        |                  | call `[2]`     |
 +---------------+------------------------+------------------+----------------+
 |  arrays       | a list or tuple of     | a <cdata>        |len(), iter(),  |
-|               | items                  |                  |``[]`` `(****)`,|
+|               | items                  |                  |``[]`` `[4]`,   |
 |               |                        |                  |``+``, ``-``    |
 +---------------+------------------------+                  +----------------+
 | ``char[]``,   | same as arrays, or a   |                  | len(), iter(), |
@@ -680,7 +685,7 @@ allowed.
 |               | with at most one field |                  | fields         |
 +---------------+------------------------+------------------+----------------+
 
-`(*)` ``item *`` is ``item[]`` in function arguments:
+`[1]` ``item *`` is ``item[]`` in function arguments:
 
    In a function declaration, as per the C standard, a ``item *``
    argument is identical to a ``item[]`` argument (and ``ffi.cdef()``
@@ -701,7 +706,7 @@ allowed.
    (On PyPy, this optimization is only available since PyPy 5.4
    with CFFI 1.8.)
 
-`(**)` C function calls are done with the GIL released.
+`[2]` C function calls are done with the GIL released.
 
    Note that we assume that the called functions are *not* using the
    Python API from Python.h.  For example, we don't check afterwards
@@ -713,7 +718,7 @@ allowed.
    ``libpypy-c.dll`` on their own.  But really, don't do that in the
    first place.)
 
-`(***)` ``long double`` support:
+`[3]` ``long double`` support:
 
    We keep ``long double`` values inside a cdata object to avoid
    loosing precision.  Normal Python floating-point numbers only
@@ -724,7 +729,7 @@ allowed.
    and use a family of C functions like ``long double add(long double
    a, long double b);``.
 
-`(****)` Slicing with ``x[start:stop]``:
+`[4]` Slicing with ``x[start:stop]``:
 
    Slicing is allowed, as long as you specify explicitly both ``start``
    and ``stop`` (and don't give any ``step``).  It gives a cdata
@@ -738,7 +743,7 @@ allowed.
    say ``chararray[10:15] = "hello"``, but the assigned string must be of
    exactly the correct length; no implicit null character is added.)
 
-`(*****)` Enums are handled like ints:
+`[5]` Enums are handled like ints:
 
    Like C, enum types are mostly int types (unsigned or signed, int or
    long; note that GCC's first choice is unsigned).  Reading an enum
@@ -747,7 +752,7 @@ allowed.
    lib.FOO``.  If you really want to get their value as a string, use
    ``ffi.string(ffi.cast("the_enum_type", x.field))``.
 
-`(******)` bool() on a primitive cdata:
+`[6]` bool() on a primitive cdata:
 
    *New in version 1.7.*  In previous versions, it only worked on
    pointers; for primitives it always returned True.
@@ -759,6 +764,13 @@ allowed.
    library relying on this, don't use ``_Bool`` in the CFFI side).
    Also, when converting from a byte string to a ``_Bool[]``, only the
    bytes ``\x00`` and ``\x01`` are accepted.
+
+`[7]` libffi does not support complex numbers:
+
+   *New in version 1.11:* CFFI now supports complex numbers directly.
+   Note however that libffi does not.  This means that C functions that
+   take directly as argument types or return type a complex type cannot
+   be called by CFFI, unless they are directly using the API mode.
 
 .. _file:
 

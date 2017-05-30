@@ -642,16 +642,15 @@ extensions:
 
 * Any ``__attribute__`` or ``#pragma pack(n)``
 
-* Additional types: complex numbers, special-size floating and fixed
-  point types, vector types, and so on.  You might be able to access an
-  array of complex numbers by declaring it as an array of ``struct
-  my_complex { double real, imag; }``, but in general you should declare
-  them as ``struct { ...; }`` and cannot access them directly.  This
-  means that you cannot call any function which has an argument or
-  return value of this type (this would need added support in libffi).
-  You need to write wrapper functions in C, e.g. ``void
-  foo_wrapper(struct my_complex c) { foo(c.real + c.imag*1j); }``, and
-  call ``foo_wrapper`` rather than ``foo`` directly.
+* Additional types: special-size floating and fixed
+  point types, vector types, and so on.
+
+* The C99 types ``float _Complex`` and ``double _Complex`` are supported
+  by cffi since version 1.11, but not libffi: you cannot call C
+  functions with complex arguments or return value, except if they are
+  directly API-mode functions.  The type ``long double _Complex`` is not
+  supported at all (declare and use it as if it were an array of two
+  ``long double``, and write wrapper functions in C with set_source()).
 
 Note that declarations like ``int field[];`` in
 structures are interpreted as variable-length structures.  Declarations

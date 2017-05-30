@@ -228,6 +228,12 @@ def test_complex_types():
         assert type(x[5]) is complex
         assert abs(x[5] - (12.34 + 56.78j)) < 1e-5
         assert (x[5] == 12.34 + 56.78j) == (name == "double")  # rounding error
+        #
+        class Foo:
+            def __complex__(self):
+                return 2 + 3j
+        assert complex(Foo()) == 2 + 3j
+        assert complex(cast(p, Foo())) == 2 + 3j
     py.test.raises(TypeError, cast, new_primitive_type("int"), 1+0j)
 
 def test_character_type():
