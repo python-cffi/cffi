@@ -506,7 +506,7 @@ class Recompiler:
 
     def _convert_funcarg_to_c(self, tp, fromvar, tovar, errcode):
         extraarg = ''
-        if isinstance(tp, model.BasePrimitiveType):
+        if isinstance(tp, model.BasePrimitiveType) and not tp.is_complex_type():
             if tp.is_integer_type() and tp.name != '_Bool':
                 converter = '_cffi_to_c_int'
                 extraarg = ', %s' % tp.name
@@ -524,8 +524,10 @@ class Recompiler:
                                                     tovar, errcode)
             return
         #
-        elif isinstance(tp, model.StructOrUnionOrEnum):
-            # a struct (not a struct pointer) as a function argument
+        elif (isinstance(tp, model.StructOrUnionOrEnum) or
+              isinstance(tp, model.BasePrimitiveType)):
+            # a struct (not a struct pointer) as a function argument;
+            # or, a complex (the same code works)
             self._prnt('  if (_cffi_to_c((char *)&%s, _cffi_type(%d), %s) < 0)'
                       % (tovar, self._gettypenum(tp), fromvar))
             self._prnt('    %s;' % errcode)
@@ -570,7 +572,7 @@ class Recompiler:
                 return '_cffi_from_c_int(%s, %s)' % (var, tp.name)
             elif isinstance(tp, model.UnknownFloatType):
                 return '_cffi_from_c_double(%s)' % (var,)
-            elif tp.name != 'long double':
+            elif tp.name != 'long double' and not tp.is_complex_type():
                 return '_cffi_from_c_%s(%s)' % (tp.name.replace(' ', '_'), var)
             else:
                 return '_cffi_from_c_deref((char *)&%s, _cffi_type(%d))' % (
