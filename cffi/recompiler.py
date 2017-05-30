@@ -736,21 +736,26 @@ class Recompiler:
         #
         # the PyPy version: need to replace struct/union arguments with
         # pointers, and if the result is a struct/union, insert a first
-        # arg that is a pointer to the result.
+        # arg that is a pointer to the result.  We also do that for
+        # complex args and return type.
+        def need_indirection(type):
+            return (isinstance(type, model.StructOrUnion) or
+                    (isinstance(type, model.PrimitiveType) and
+                     type.is_complex_type()))
         difference = False
         arguments = []
         call_arguments = []
         context = 'argument of %s' % name
         for i, type in enumerate(tp.args):
             indirection = ''
-            if isinstance(type, model.StructOrUnion):
+            if need_indirection(type):
                 indirection = '*'
                 difference = True
             arg = type.get_c_name(' %sx%d' % (indirection, i), context)
             arguments.append(arg)
             call_arguments.append('%sx%d' % (indirection, i))
         tp_result = tp.result
-        if isinstance(tp_result, model.StructOrUnion):
+        if need_indirection(tp_result):
             context = 'result of %s' % name
             arg = tp_result.get_c_name(' *result', context)
             arguments.insert(0, arg)
