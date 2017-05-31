@@ -1672,6 +1672,8 @@ class TestNewFFI1:
             "double",
             "long double",
             "wchar_t",
+            "char16_t",
+            "char32_t",
             "_Bool",
             "int8_t",
             "uint8_t",
