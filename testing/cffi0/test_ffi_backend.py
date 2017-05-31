@@ -1,6 +1,7 @@
 import py, sys, platform
 import pytest
 from testing.cffi0 import backend_tests, test_function, test_ownlib
+from testing.support import u
 from cffi import FFI
 import _cffi_backend
 
@@ -397,6 +398,8 @@ class TestBitfield:
             "double",
             "long double",
             "wchar_t",
+            "char16_t",
+            "char32_t",
             "_Bool",
             "int8_t",
             "uint8_t",
@@ -508,3 +511,38 @@ class TestBitfield:
             py.test.raises(TypeError, cd)
             py.test.raises(TypeError, cd, ffi.NULL)
             py.test.raises(TypeError, cd, ffi.typeof("void *"))
+
+    def test_explicitly_defined_char16_t(self):
+        ffi = FFI()
+        ffi.cdef("typedef uint16_t char16_t;")
+        x = ffi.cast("char16_t", 1234)
+        assert ffi.typeof(x) is ffi.typeof("uint16_t")
+
+    def test_char16_t(self):
+        ffi = FFI()
+        x = ffi.new("char16_t[]", 5)
+        assert len(x) == 5 and ffi.sizeof(x) == 10
+        x[2] = u+'\u1324'
+        assert x[2] == u+'\u1324'
+        y = ffi.new("char16_t[]", u+'\u1234\u5678')
+        assert len(y) == 3
+        assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
+        assert ffi.string(y) == u+'\u1234\u5678'
+        z = ffi.new("char16_t[]", u+'\U00012345')
+        assert len(z) == 3
+        assert list(z) == [u+'\ud808', u+'\udf45', u+'\x00']
+        assert ffi.string(z) == u+'\U00012345'
+
+    def test_char32_t(self):
+        ffi = FFI()
+        x = ffi.new("char32_t[]", 5)
+        assert len(x) == 5 and ffi.sizeof(x) == 20
+        x[3] = u+'\U00013245'
+        assert x[3] == u+'\U00013245'
+        y = ffi.new("char32_t[]", u+'\u1234\u5678')
+        assert len(y) == 3
+        assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
+        z = ffi.new("char32_t[]", u+'\U00012345')
+        assert len(z) == 2
+        assert list(z) == [u+'\U00012345', u+'\x00'] # maybe a 2-unichars string
+        assert ffi.string(z) == u+'\U00012345'

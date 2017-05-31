@@ -80,29 +80,31 @@ _my_PyUnicode_FromChar32(const cffi_char32_t *w, Py_ssize_t size)
 static PyObject *
 _my_PyUnicode_FromChar16(const cffi_char16_t *w, Py_ssize_t size)
 {
+    /* 'size' is the length of the 'w' array */
     PyObject *result = PyUnicode_FromUnicode(NULL, size);
 
     if (result != NULL) {
         Py_UNICODE *u_base = PyUnicode_AS_UNICODE(result);
         Py_UNICODE *u = u_base;
-        Py_ssize_t consumed;
 
-        while (size > 0) {
-            cffi_char32_t ch = *w++;
-            size--;
-            if (0xD800 <= ch && ch <= 0xDBFF && size > 0) {
-                cffi_char32_t ch2 = *w;
-                if (0xDC00 <= ch2 && ch2 <= 0xDFFF) {
-                    ch = (((ch & 0x3FF)<<10) | (ch2 & 0x3FF)) + 0x10000;
-                    w++;
-                    size--;
-                }
-            }
-            *u++ = ch;
+        if (size == 1) {      /* performance only */
+            *u = (cffi_char32_t)*w;
         }
-        consumed = u - u_base;
-        if (consumed < size) {
-            if (PyUnicode_Resize(&result, consumed) < 0) {
+        else {
+            while (size > 0) {
+                cffi_char32_t ch = *w++;
+                size--;
+                if (0xD800 <= ch && ch <= 0xDBFF && size > 0) {
+                    cffi_char32_t ch2 = *w;
+                    if (0xDC00 <= ch2 && ch2 <= 0xDFFF) {
+                        ch = (((ch & 0x3FF)<<10) | (ch2 & 0x3FF)) + 0x10000;
+                        w++;
+                        size--;
+                    }
+                }
+                *u++ = ch;
+            }
+            if (PyUnicode_Resize(&result, u - u_base) < 0) {
                 Py_DECREF(result);
                 return NULL;
             }

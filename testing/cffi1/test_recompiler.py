@@ -2250,3 +2250,9 @@ def test_gcc_visibility_hidden():
     int f(int a) { return a + 40; }
     """, extra_compile_args=['-fvisibility=hidden'])
     assert lib.f(2) == 42
+
+def test_override_default_definition():
+    ffi = FFI()
+    ffi.cdef("typedef long int16_t, char16_t;")
+    lib = verify(ffi, "test_override_default_definition", "")
+    assert ffi.typeof("int16_t") is ffi.typeof("char16_t") is ffi.typeof("long")
