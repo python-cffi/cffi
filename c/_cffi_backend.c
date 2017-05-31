@@ -1231,10 +1231,10 @@ get_new_array_length(CTypeDescrObject *ctitem, PyObject **pvalue)
     else if (PyUnicode_Check(value)) {
         /* from a unicode, we add the null terminator */
         int length;
-        if (ctitem->ct_size == 4)
-            length = _my_PyUnicode_SizeAsChar32(value);
+        if (ctitem->ct_size == 2)
+            length = _my_PyUnicode_SizeAsChar16(value);
         else
-            length = PyUnicode_GET_SIZE(value);
+            length = _my_PyUnicode_SizeAsChar32(value);
         return length + 1;
     }
     else {
@@ -1266,7 +1266,8 @@ convert_vfield_from_object(char *data, CFieldObject *cf, PyObject *value,
 {
     /* a special case for var-sized C99 arrays */
     if ((cf->cf_type->ct_flags & CT_ARRAY) && cf->cf_type->ct_size < 0) {
-        Py_ssize_t varsizelength = get_new_array_length(&value);
+        Py_ssize_t varsizelength = get_new_array_length(
+                                      cf->cf_type->ct_itemdescr, &value);
         if (varsizelength < 0)
             return -1;
         if (optvarsize != NULL) {
@@ -1595,6 +1596,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                 return -1;
             *(cffi_char32_t *)data = res;
             return 0;
+        }
         }
     }
     if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
@@ -2777,7 +2779,11 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
     }
     else if (PyUnicode_Check(init)) {
         /* from a unicode, we add the null terminator */
-        length = _my_PyUnicode_SizeAsWideChar(init) + 1;
+        if (ctitem->ct_size == 2)
+            length = _my_PyUnicode_SizeAsChar16(init);
+        else
+            length = _my_PyUnicode_SizeAsChar32(init);
+        length += 1;
     }
     else if ((ctitem->ct_flags & CT_IS_FILE) && PyFile_Check(init)) {
         *output_data = (char *)PyFile_AsFile(init);
@@ -3503,7 +3509,7 @@ static PyObject *direct_newp(CTypeDescrObject *ct, PyObject *init,
         dataoffset = offsetof(CDataObject_own_nolength, alignment);
         datasize = ct->ct_size;
         if (datasize < 0) {
-            explicitlength = get_new_array_length(&init);
+            explicitlength = get_new_array_length(ct->ct_itemdescr, &init);
             if (explicitlength < 0)
                 return NULL;
             ctitem = ct->ct_itemdescr;
@@ -6120,6 +6126,7 @@ static PyObject *b_string(PyObject *self, PyObject *args, PyObject *kwds)
                         length++;
                 }
                 return _my_PyUnicode_FromChar32(start, length);
+            }
             }
         }
     }
