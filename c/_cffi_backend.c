@@ -118,7 +118,7 @@
 /* base type flag: exactly one of the following: */
 #define CT_PRIMITIVE_SIGNED   0x001   /* signed integer */
 #define CT_PRIMITIVE_UNSIGNED 0x002   /* unsigned integer */
-#define CT_PRIMITIVE_CHAR     0x004   /* char, wchar_t */
+#define CT_PRIMITIVE_CHAR     0x004   /* char, wchar_t, charN_t */
 #define CT_PRIMITIVE_FLOAT    0x008   /* float, double, long double */
 #define CT_POINTER            0x010   /* pointer, excluding ptr-to-func */
 #define CT_ARRAY              0x020   /* array */
@@ -285,9 +285,7 @@ typedef struct {
 # include "file_emulator.h"
 #endif
 
-#ifdef HAVE_WCHAR_H
-# include "wchar_helper.h"
-#endif
+#include "wchar_helper.h"
 
 typedef struct _cffi_allocator_s {
     PyObject *ca_alloc, *ca_free;
@@ -1049,12 +1047,14 @@ convert_to_object(char *data, CTypeDescrObject *ct)
     }
     else if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
         /*READ(data, ct->ct_size)*/
-        if (ct->ct_size == sizeof(char))
+        switch (ct->ct_size) {
+        case sizeof(char):
             return PyBytes_FromStringAndSize(data, 1);
-#ifdef HAVE_WCHAR_H
-        else
-            return _my_PyUnicode_FromWideChar((wchar_t *)data, 1);
-#endif
+        case 2:
+            return _my_PyUnicode_FromChar16((cffi_char16_t *)data, 1);
+        case 4:
+            return _my_PyUnicode_FromChar32((cffi_char32_t *)data, 1);
+        }
     }
     else if (ct->ct_flags & CT_PRIMITIVE_COMPLEX) {
         Py_complex value = read_raw_complex_data(data, ct->ct_size);
@@ -1133,27 +1133,53 @@ static int _convert_to_char(PyObject *init)
     return -1;
 }
 
-#ifdef HAVE_WCHAR_H
-static wchar_t _convert_to_wchar_t(PyObject *init)
+static cffi_char16_t _convert_to_char16_t(PyObject *init)
 {
+    char err_got[80];
+    err_got[0] = 0;
+
     if (PyUnicode_Check(init)) {
-        wchar_t ordinal;
-        if (_my_PyUnicode_AsSingleWideChar(init, &ordinal) == 0)
+        cffi_char16_t ordinal;
+        if (_my_PyUnicode_AsSingleChar16(init, &ordinal, err_got) == 0)
             return ordinal;
     }
     if (CData_Check(init) &&
            (((CDataObject *)init)->c_type->ct_flags & CT_PRIMITIVE_CHAR) &&
-           (((CDataObject *)init)->c_type->ct_size == sizeof(wchar_t))) {
+           (((CDataObject *)init)->c_type->ct_size == 2)) {
         char *data = ((CDataObject *)init)->c_data;
-        /*READ(data, sizeof(wchar_t))*/
-        return *(wchar_t *)data;
+        /*READ(data, 2)*/
+        return *(cffi_char16_t *)data;
     }
     PyErr_Format(PyExc_TypeError,
-                 "initializer for ctype 'wchar_t' must be a unicode string "
-                 "of length 1, not %.200s", Py_TYPE(init)->tp_name);
-    return (wchar_t)-1;
+                 "initializer for ctype 'char16_t' must be a unicode string "
+                 "of length 1, not %.200s",
+                 err_got[0] == 0 ? Py_TYPE(init)->tp_name : err_got);
+    return (cffi_char16_t)-1;
 }
-#endif
+
+static cffi_char32_t _convert_to_char32_t(PyObject *init)
+{
+    char err_got[80];
+    err_got[0] = 0;
+
+    if (PyUnicode_Check(init)) {
+        cffi_char32_t ordinal;
+        if (_my_PyUnicode_AsSingleChar32(init, &ordinal, err_got) == 0)
+            return ordinal;
+    }
+    if (CData_Check(init) &&
+           (((CDataObject *)init)->c_type->ct_flags & CT_PRIMITIVE_CHAR) &&
+           (((CDataObject *)init)->c_type->ct_size == 4)) {
+        char *data = ((CDataObject *)init)->c_data;
+        /*READ(data, 4)*/
+        return *(cffi_char32_t *)data;
+    }
+    PyErr_Format(PyExc_TypeError,
+                 "initializer for ctype 'char32_t' must be a unicode string "
+                 "of length 1, not %.200s",
+                 err_got[0] == 0 ? Py_TYPE(init)->tp_name : err_got);
+    return (cffi_char32_t)-1;
+}
 
 static int _convert_error(PyObject *init, const char *ct_name,
                           const char *expected)
@@ -1191,7 +1217,7 @@ static int    /* forward */
 convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init);
 
 static Py_ssize_t
-get_new_array_length(PyObject **pvalue)
+get_new_array_length(CTypeDescrObject *ctitem, PyObject **pvalue)
 {
     PyObject *value = *pvalue;
 
@@ -1204,7 +1230,12 @@ get_new_array_length(PyObject **pvalue)
     }
     else if (PyUnicode_Check(value)) {
         /* from a unicode, we add the null terminator */
-        return _my_PyUnicode_SizeAsWideChar(value) + 1;
+        int length;
+        if (ctitem->ct_size == 4)
+            length = _my_PyUnicode_SizeAsChar32(value);
+        else
+            length = PyUnicode_GET_SIZE(value);
+        return length + 1;
     }
     else {
         Py_ssize_t explicitlength;
@@ -1336,14 +1367,18 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             memcpy(data, srcdata, n);
             return 0;
         }
-#ifdef HAVE_WCHAR_H
         else {
             Py_ssize_t n;
             if (!PyUnicode_Check(init)) {
                 expected = "unicode or list or tuple";
                 goto cannot_convert;
             }
-            n = _my_PyUnicode_SizeAsWideChar(init);
+
+            if (ctitem->ct_size == 4)
+                n = _my_PyUnicode_SizeAsChar32(init);
+            else
+                n = _my_PyUnicode_SizeAsChar16(init);
+
             if (ct->ct_length >= 0 && n > ct->ct_length) {
                 PyErr_Format(PyExc_IndexError,
                              "initializer unicode is too long for '%s' "
@@ -1352,10 +1387,12 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             }
             if (n != ct->ct_length)
                 n++;
-            _my_PyUnicode_AsWideChar(init, (wchar_t *)data, n);
+            if (ctitem->ct_size == 4)
+                _my_PyUnicode_AsChar32(init, (cffi_char32_t *)data, n);
+            else
+                _my_PyUnicode_AsChar16(init, (cffi_char16_t *)data, n);
             return 0;
         }
-#endif
     }
     else {
         expected = "list or tuple";
@@ -1537,22 +1574,28 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         return 0;
     }
     if (ct->ct_flags & CT_PRIMITIVE_CHAR) {
-        if (ct->ct_size == sizeof(char)) {
+        switch (ct->ct_size) {
+        case sizeof(char): {
             int res = _convert_to_char(init);
             if (res < 0)
                 return -1;
             data[0] = res;
             return 0;
         }
-#ifdef HAVE_WCHAR_H
-        else {
-            wchar_t res = _convert_to_wchar_t(init);
-            if (res == (wchar_t)-1 && PyErr_Occurred())
+        case 2: {
+            cffi_char16_t res = _convert_to_char16_t(init);
+            if (res == (cffi_char16_t)-1 && PyErr_Occurred())
                 return -1;
-            *(wchar_t *)data = res;
+            *(cffi_char16_t *)data = res;
             return 0;
         }
-#endif
+        case 4: {
+            int res = _convert_to_char32_t(init);
+            if (res == -1 && PyErr_Occurred())
+                return -1;
+            *(cffi_char32_t *)data = res;
+            return 0;
+        }
     }
     if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
 
@@ -2033,12 +2076,16 @@ static PyObject *cdata_int(CDataObject *cd)
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
         /*READ(cd->c_data, cd->c_type->ct_size)*/
-        if (cd->c_type->ct_size == sizeof(char))
+        switch (cd->c_type->ct_size) {
+        case sizeof(char):
             return PyInt_FromLong((unsigned char)cd->c_data[0]);
-#ifdef HAVE_WCHAR_H
-        else
-            return PyInt_FromLong((long)*(wchar_t *)cd->c_data);
-#endif
+        case 2:
+            return PyInt_FromLong((long)*(cffi_char16_t *)cd->c_data);
+        case 4:
+            /* NB. cast via int32_t instead of cffi_char32_t, so that
+               we expose a signed result to the user */
+            return PyInt_FromLong((long)*(int32_t *)cd->c_data);
+        }
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
         PyObject *o = cdata_float(cd);
@@ -3626,18 +3673,17 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
         value = (unsigned char)PyString_AS_STRING(ob)[0];
     }
 #endif
-#ifdef HAVE_WCHAR_H
     else if (PyUnicode_Check(ob)) {
-        wchar_t ordinal;
-        if (_my_PyUnicode_AsSingleWideChar(ob, &ordinal) < 0) {
+        char err_buf[80];
+        cffi_char32_t ordinal;
+        if (_my_PyUnicode_AsSingleChar32(ob, &ordinal, err_buf) < 0) {
             PyErr_Format(PyExc_TypeError,
-                      "cannot cast unicode string of length %zd to ctype '%s'",
-                         PyUnicode_GET_SIZE(ob), ct->ct_name);
+                         "cannot cast %s to ctype '%s'", err_buf, ct->ct_name);
             return NULL;
         }
-        value = (long)ordinal;
+        /* the user sees char32_t being signed, but not char16_t */
+        value = (int32_t)ordinal;
     }
-#endif
     else if (PyBytes_Check(ob)) {
         int res = _convert_to_char(ob);
         if (res < 0)
@@ -3674,17 +3720,16 @@ static int check_bytes_for_float_compatible(PyObject *io, double *out_value)
         *out_value = (unsigned char)PyBytes_AS_STRING(io)[0];
         return 1;
     }
-#if HAVE_WCHAR_H
     else if (PyUnicode_Check(io)) {
-        wchar_t ordinal;
-        if (_my_PyUnicode_AsSingleWideChar(io, &ordinal) < 0) {
+        char ignored[80];
+        cffi_char32_t ordinal;
+        if (_my_PyUnicode_AsSingleChar32(io, &ordinal, ignored) < 0) {
             Py_DECREF(io);
             return -1;
         }
-        *out_value = (long)ordinal;
+        *out_value = (int32_t)ordinal;
         return 1;
     }
-#endif
     return 0;
 }
 
@@ -4106,6 +4151,8 @@ static PyObject *new_primitive_type(const char *name)
        EPTYPE2(fc, "float _Complex", cffi_float_complex_t, CT_PRIMITIVE_COMPLEX ) \
        EPTYPE2(dc, "double _Complex", cffi_double_complex_t, CT_PRIMITIVE_COMPLEX ) \
        ENUM_PRIMITIVE_TYPES_WCHAR                               \
+       EPTYPE2(c16, "char16_t", cffi_char16_t, CT_PRIMITIVE_CHAR ) \
+       EPTYPE2(c32, "char32_t", cffi_char32_t, CT_PRIMITIVE_CHAR ) \
        EPTYPE(b, _Bool, CT_PRIMITIVE_UNSIGNED | CT_IS_BOOL )    \
      /* the following types are not primitive in the C sense */ \
        EPTYPE(i8, int8_t, CT_PRIMITIVE_SIGNED)                  \
@@ -6036,27 +6083,45 @@ static PyObject *b_string(PyObject *self, PyObject *args, PyObject *kwds)
             }
             return PyBytes_FromStringAndSize(start, length);
         }
-#ifdef HAVE_WCHAR_H
         else if (cd->c_type->ct_itemdescr->ct_flags & CT_PRIMITIVE_CHAR) {
-            const wchar_t *start = (wchar_t *)cd->c_data;
-            assert(cd->c_type->ct_itemdescr->ct_size == sizeof(wchar_t));
-            if (length < 0) {
-                /*READ(start, sizeof(wchar_t))*/
-                length = 0;
-                while (start[length])
-                    length++;
-                /*READ(start, sizeof(wchar_t) * length)*/
+            switch (cd->c_type->ct_itemdescr->ct_size) {
+            case 2: {
+                const cffi_char16_t *start = (cffi_char16_t *)cd->c_data;
+                if (length < 0) {
+                    /*READ(start, 2)*/
+                    length = 0;
+                    while (start[length])
+                        length++;
+                    /*READ(start, 2 * length)*/
+                }
+                else {
+                    /*READ(start, 2 * length)*/
+                    maxlen = length;
+                    length = 0;
+                    while (length < maxlen && start[length])
+                        length++;
+                }
+                return _my_PyUnicode_FromChar16(start, length);
             }
-            else {
-                /*READ(start, sizeof(wchar_t) * length)*/
-                maxlen = length;
-                length = 0;
-                while (length < maxlen && start[length])
-                    length++;
+            case 4: {
+                const cffi_char32_t *start = (cffi_char32_t *)cd->c_data;
+                if (length < 0) {
+                    /*READ(start, 4)*/
+                    length = 0;
+                    while (start[length])
+                        length++;
+                    /*READ(start, 4 * length)*/
+                }
+                else {
+                    /*READ(start, 4 * length)*/
+                    maxlen = length;
+                    length = 0;
+                    while (length < maxlen && start[length])
+                        length++;
+                }
+                return _my_PyUnicode_FromChar32(start, length);
             }
-            return _my_PyUnicode_FromWideChar(start, length);
         }
-#endif
     }
     else if (cd->c_type->ct_flags & CT_IS_ENUM) {
         return convert_cdata_to_enum_string(cd, 0);
@@ -6070,12 +6135,14 @@ static PyObject *b_string(PyObject *self, PyObject *args, PyObject *kwds)
         /*READ(cd->c_data, cd->c_type->ct_size)*/
         if (cd->c_type->ct_size == sizeof(char))
             return PyBytes_FromStringAndSize(cd->c_data, 1);
-#ifdef HAVE_WCHAR_H
         else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
-            assert(cd->c_type->ct_size == sizeof(wchar_t));
-            return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, 1);
+            switch (cd->c_type->ct_size) {
+            case 2:
+                return _my_PyUnicode_FromChar16((cffi_char16_t *)cd->c_data, 1);
+            case 4:
+                return _my_PyUnicode_FromChar32((cffi_char32_t *)cd->c_data, 1);
+            }
         }
-#endif
     }
     PyErr_Format(PyExc_TypeError, "string(): unexpected cdata '%s' argument",
                  cd->c_type->ct_name);
@@ -6120,12 +6187,14 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
     /* byte- and unicode strings */
     ctitem = cd->c_type->ct_itemdescr;
     if (ctitem->ct_flags & CT_PRIMITIVE_CHAR) {
-        if (ctitem->ct_size == sizeof(char))
+        switch (ctitem->ct_size) {
+        case sizeof(char):
             return PyBytes_FromStringAndSize(cd->c_data, length);
-#ifdef HAVE_WCHAR_H
-        else if (ctitem->ct_size == sizeof(wchar_t))
-            return _my_PyUnicode_FromWideChar((wchar_t *)cd->c_data, length);
-#endif
+        case 2:
+            return _my_PyUnicode_FromChar16((cffi_char16_t *)cd->c_data,length);
+        case 4:
+            return _my_PyUnicode_FromChar32((cffi_char32_t *)cd->c_data,length);
+        }
     }
 
     /* else, the result is a list.  This implementation should be
@@ -6992,11 +7061,50 @@ static PyObject *_cffi_from_c_char(char x) {
     return PyBytes_FromStringAndSize(&x, 1);
 }
 
+/* backward-compatibility hack: instead of _cffi_to_c_char16_t() and
+ * _cffi_to_c_char32_t(), we have _cffi_to_c_wchar_t() handling whatever
+ * size is wchar_t, and _cffi_to_c_wchar3216_t() handling the opposite.
+ */
 #ifdef HAVE_WCHAR_H
-static PyObject *_cffi_from_c_wchar_t(wchar_t x) {
-    return _my_PyUnicode_FromWideChar(&x, 1);
-}
+typedef wchar_t cffi_wchar_t;
+#else
+typedef uint16_t cffi_wchar_t;   /* random pick... */
 #endif
+
+static cffi_wchar_t _cffi_to_c_wchar_t(PyObject *init)
+{
+    if (sizeof(cffi_wchar_t) == 2)
+        return (cffi_wchar_t)_convert_to_char16_t(init);
+    else
+        return (cffi_wchar_t)_convert_to_char32_t(init);
+}
+static PyObject *_cffi_from_c_wchar_t(cffi_wchar_t x) {
+    if (sizeof(cffi_wchar_t) == 2) {
+        cffi_char16_t input = x;
+        return _my_PyUnicode_FromChar16(&input, 1);
+    }
+    else {
+        cffi_char32_t input = x;
+        return _my_PyUnicode_FromChar32(&input, 1);
+    }
+}
+static int _cffi_to_c_wchar3216_t(PyObject *init)
+{
+    if (sizeof(cffi_wchar_t) == 4)
+        return (int)_convert_to_char16_t(init);
+    else
+        return (int)_convert_to_char32_t(init);
+}
+static PyObject *_cffi_from_c_wchar3216_t(int x) {
+    if (sizeof(cffi_wchar_t) == 4) {
+        cffi_char16_t input = x;
+        return _my_PyUnicode_FromChar16(&input, 1);
+    }
+    else {
+        cffi_char32_t input = x;
+        return _my_PyUnicode_FromChar32(&input, 1);
+    }
+}
 
 struct _cffi_externpy_s;      /* forward declaration */
 static void cffi_call_python(struct _cffi_externpy_s *, char *args);
@@ -7021,18 +7129,15 @@ static void *cffi_exports[] = {
     convert_to_object,
     convert_from_object,
     convert_struct_to_owning_object,
-#ifdef HAVE_WCHAR_H
-    _convert_to_wchar_t,
+    _cffi_to_c_wchar_t,
     _cffi_from_c_wchar_t,
-#else
-    0,
-    0,
-#endif
     _cffi_to_c_long_double,
     _cffi_to_c__Bool,
     _prepare_pointer_call_argument,
     convert_array_from_object,
     cffi_call_python,
+    _cffi_to_c_wchar3216_t,
+    _cffi_from_c_wchar3216_t,
 };
 
 static struct { const char *name; int value; } all_dlopen_flags[] = {
