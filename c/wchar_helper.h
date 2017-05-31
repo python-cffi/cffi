@@ -134,7 +134,7 @@ _my_PyUnicode_AsSingleChar16(PyObject *unicode, cffi_char16_t *result,
 #if Py_UNICODE_SIZE == 4
     if (((unsigned int)u[0]) > 0xFFFF)
     {
-        sprintf(err_got, "unicode character too large for 16 bits");
+        sprintf(err_got, "larger-than-0xFFFF character");
         return -1;
     }
 #endif

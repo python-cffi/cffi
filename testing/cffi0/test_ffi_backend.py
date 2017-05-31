@@ -542,7 +542,12 @@ class TestBitfield:
         y = ffi.new("char32_t[]", u+'\u1234\u5678')
         assert len(y) == 3
         assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
-        z = ffi.new("char32_t[]", u+'\U00012345')
+        py_uni = u+'\U00012345'
+        z = ffi.new("char32_t[]", py_uni)
         assert len(z) == 2
-        assert list(z) == [u+'\U00012345', u+'\x00'] # maybe a 2-unichars string
-        assert ffi.string(z) == u+'\U00012345'
+        assert list(z) == [py_uni, u+'\x00']    # maybe a 2-unichars string
+        assert ffi.string(z) == py_uni
+        if len(py_uni) == 1:    # 4-bytes unicodes in Python
+            s = ffi.new("char32_t[]", u+'\ud808\udf00')
+            assert len(s) == 3
+            assert list(s) == [u+'\ud808', u+'\udf00', u+'\x00']
