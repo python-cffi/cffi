@@ -153,6 +153,8 @@ static PyObject *build_primitive_type(int num)
         "uintmax_t",
         "float _Complex",
         "double _Complex",
+        "char16_t",
+        "char32_t",
     };
     PyObject *x;
 

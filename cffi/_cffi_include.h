@@ -62,11 +62,16 @@ extern "C" {
     typedef unsigned char _Bool;
 #  endif
 # endif
+# if _MSC_VER < 1900 || !defined(__cplusplus)   /* MSVC < 2015, or plain C */
+    typedef uint16_t char16_t;
+    typedef int32_t char32_t;
+# endif
 #else
 # include <stdint.h>
 # if (defined (__SVR4) && defined (__sun)) || defined(_AIX) || defined(__hpux)
 #  include <alloca.h>
 # endif
+# include <uchar.h>
 #endif
 
 #ifdef __GNUC__
@@ -174,7 +179,11 @@ extern "C" {
 #define _CFFI_CPIDX  25
 #define _cffi_call_python                                                \
     ((void(*)(struct _cffi_externpy_s *, char *))_cffi_exports[_CFFI_CPIDX])
-#define _CFFI_NUM_EXPORTS 26
+#define _cffi_to_c_wchar3216_t                                           \
+    ((int(*)(PyObject *))_cffi_exports[26])
+#define _cffi_from_c_wchar3216_t                                         \
+    ((PyObject *(*)(int))_cffi_exports[27])
+#define _CFFI_NUM_EXPORTS 28
 
 struct _cffi_ctypedescr;
 
@@ -214,6 +223,46 @@ static PyObject *_cffi_init(const char *module_name, Py_ssize_t version,
     Py_XDECREF(module);
     return NULL;
 }
+
+
+#ifdef HAVE_WCHAR_H
+typedef wchar_t _cffi_wchar_t;
+#else
+typedef uint16_t _cffi_wchar_t;   /* same random pick as _cffi_backend.c */
+#endif
+
+_CFFI_UNUSED_FN static int _cffi_to_c_char16_t(PyObject *o)
+{
+    if (sizeof(_cffi_wchar_t) == 2)
+        return _cffi_to_c_wchar_t(o);
+    else
+        return _cffi_to_c_wchar3216_t(o);
+}
+
+_CFFI_UNUSED_FN static PyObject *_cffi_from_c_char16_t(int x)
+{
+    if (sizeof(_cffi_wchar_t) == 2)
+        return _cffi_from_c_wchar_t(x);
+    else
+        return _cffi_from_c_wchar3216_t(x);
+}
+
+_CFFI_UNUSED_FN static int _cffi_to_c_char32_t(PyObject *o)
+{
+    if (sizeof(_cffi_wchar_t) == 4)
+        return _cffi_to_c_wchar_t(o);
+    else
+        return _cffi_to_c_wchar3216_t(o);
+}
+
+_CFFI_UNUSED_FN static PyObject *_cffi_from_c_char32_t(int x)
+{
+    if (sizeof(_cffi_wchar_t) == 4)
+        return _cffi_from_c_wchar_t(x);
+    else
+        return _cffi_from_c_wchar3216_t(x);
+}
+
 
 /**********  end CPython-specific section  **********/
 #else
