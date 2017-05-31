@@ -3,6 +3,15 @@ What's New
 ======================
 
 
+v1.11
+=====
+
+* Support the C99 types ``float _Complex`` and ``double _Complex``.
+  Note that libffi doesn't support them, which means that in the ABI
+  mode you still cannot call C functions that take complex numbers
+  directly as arguments or return type.
+
+
 v1.10.1
 =======
 
