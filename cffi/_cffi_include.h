@@ -164,9 +164,9 @@ extern "C" {
 #define _cffi_from_c_struct                                              \
     ((PyObject *(*)(char *, struct _cffi_ctypedescr *))_cffi_exports[18])
 #define _cffi_to_c_wchar_t                                               \
-    ((wchar_t(*)(PyObject *))_cffi_exports[19])
+    ((_cffi_wchar_t(*)(PyObject *))_cffi_exports[19])
 #define _cffi_from_c_wchar_t                                             \
-    ((PyObject *(*)(wchar_t))_cffi_exports[20])
+    ((PyObject *(*)(_cffi_wchar_t))_cffi_exports[20])
 #define _cffi_to_c_long_double                                           \
     ((long double(*)(PyObject *))_cffi_exports[21])
 #define _cffi_to_c__Bool                                                 \
@@ -231,15 +231,15 @@ typedef wchar_t _cffi_wchar_t;
 typedef uint16_t _cffi_wchar_t;   /* same random pick as _cffi_backend.c */
 #endif
 
-_CFFI_UNUSED_FN static int _cffi_to_c_char16_t(PyObject *o)
+_CFFI_UNUSED_FN static uint16_t _cffi_to_c_char16_t(PyObject *o)
 {
     if (sizeof(_cffi_wchar_t) == 2)
-        return _cffi_to_c_wchar_t(o);
+        return (uint16_t)_cffi_to_c_wchar_t(o);
     else
-        return _cffi_to_c_wchar3216_t(o);
+        return (uint16_t)_cffi_to_c_wchar3216_t(o);
 }
 
-_CFFI_UNUSED_FN static PyObject *_cffi_from_c_char16_t(int x)
+_CFFI_UNUSED_FN static PyObject *_cffi_from_c_char16_t(uint16_t x)
 {
     if (sizeof(_cffi_wchar_t) == 2)
         return _cffi_from_c_wchar_t(x);
@@ -250,9 +250,9 @@ _CFFI_UNUSED_FN static PyObject *_cffi_from_c_char16_t(int x)
 _CFFI_UNUSED_FN static int _cffi_to_c_char32_t(PyObject *o)
 {
     if (sizeof(_cffi_wchar_t) == 4)
-        return _cffi_to_c_wchar_t(o);
+        return (int)_cffi_to_c_wchar_t(o);
     else
-        return _cffi_to_c_wchar3216_t(o);
+        return (int)_cffi_to_c_wchar3216_t(o);
 }
 
 _CFFI_UNUSED_FN static PyObject *_cffi_from_c_char32_t(int x)

@@ -2272,6 +2272,8 @@ def test_char16_char32_type(no_cpp=False):
     assert lib.foo_4bytes(u+'\u1234') == u+'\u125e'
     assert lib.foo_4bytes(u+'\U00012345') == u+'\U0001236f'
     py.test.raises(TypeError, lib.foo_2bytes, u+'\U00012345')
+    py.test.raises(TypeError, lib.foo_2bytes, 1234)
+    py.test.raises(TypeError, lib.foo_4bytes, 1234)
 
 def test_char16_char32_plain_c():
     test_char16_char32_type(no_cpp=True)
