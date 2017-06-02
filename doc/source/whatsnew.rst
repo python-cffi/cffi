@@ -22,6 +22,8 @@ v1.11
 v1.10.1
 =======
 
+(only released inside PyPy 5.8.0)
+
 * Fixed the line numbers reported in case of ``cdef()`` errors.
   Also, I just noticed, but pycparser always supported the preprocessor
   directive ``# 42 "foo.h"`` to mean "from the next line, we're in file
