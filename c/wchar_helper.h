@@ -2,31 +2,28 @@
  * wchar_t helpers
  */
 
-#if (Py_UNICODE_SIZE == 2) && (SIZEOF_WCHAR_T == 4)
-# define CONVERT_WCHAR_TO_SURROGATES
-#endif
+typedef uint16_t cffi_char16_t;
+typedef uint32_t cffi_char32_t;
+/* NB. cffi_char32_t is unsigned to make the logic here a bit easier */
 
 
-#ifdef CONVERT_WCHAR_TO_SURROGATES
+#if Py_UNICODE_SIZE == 2
 
 /* Before Python 2.7, PyUnicode_FromWideChar is not able to convert
    wchar_t values greater than 65535 into two-unicode-characters surrogates.
    But even the Python 2.7 version doesn't detect wchar_t values that are
    out of range(1114112), and just returns nonsense.
+
+   From cffi 1.11 we can't use it anyway, because we need a version
+   with char32_t input types.
 */
 static PyObject *
-_my_PyUnicode_FromWideChar(register const wchar_t *w,
-                           Py_ssize_t size)
+_my_PyUnicode_FromChar32(const cffi_char32_t *w, Py_ssize_t size)
 {
     PyObject *unicode;
     register Py_ssize_t i;
     Py_ssize_t alloc;
-    const wchar_t *orig_w;
-
-    if (w == NULL) {
-        PyErr_BadInternalCall();
-        return NULL;
-    }
+    const cffi_char32_t *orig_w;
 
     alloc = size;
     orig_w = w;
@@ -45,11 +42,11 @@ _my_PyUnicode_FromWideChar(register const wchar_t *w,
         register Py_UNICODE *u;
         u = PyUnicode_AS_UNICODE(unicode);
         for (i = size; i > 0; i--) {
-            if (((unsigned int)*w) > 0xFFFF) {
-                wchar_t ordinal;
-                if (((unsigned int)*w) > 0x10FFFF) {
+            if (*w > 0xFFFF) {
+                cffi_char32_t ordinal;
+                if (*w > 0x10FFFF) {
                     PyErr_Format(PyExc_ValueError,
-                                 "wchar_t out of range for "
+                                 "char32_t out of range for "
                                  "conversion to unicode: 0x%x", (int)*w);
                     Py_DECREF(unicode);
                     return NULL;
@@ -66,9 +63,55 @@ _my_PyUnicode_FromWideChar(register const wchar_t *w,
     return unicode;
 }
 
-#else
+static PyObject *
+_my_PyUnicode_FromChar16(const cffi_char16_t *w, Py_ssize_t size)
+{
+    return PyUnicode_FromUnicode((const Py_UNICODE *)w, size);
+}
 
-# define _my_PyUnicode_FromWideChar PyUnicode_FromWideChar
+#else   /* Py_UNICODE_SIZE == 4 */
+
+static PyObject *
+_my_PyUnicode_FromChar32(const cffi_char32_t *w, Py_ssize_t size)
+{
+    return PyUnicode_FromUnicode((const Py_UNICODE *)w, size);
+}
+
+static PyObject *
+_my_PyUnicode_FromChar16(const cffi_char16_t *w, Py_ssize_t size)
+{
+    /* 'size' is the length of the 'w' array */
+    PyObject *result = PyUnicode_FromUnicode(NULL, size);
+
+    if (result != NULL) {
+        Py_UNICODE *u_base = PyUnicode_AS_UNICODE(result);
+        Py_UNICODE *u = u_base;
+
+        if (size == 1) {      /* performance only */
+            *u = (cffi_char32_t)*w;
+        }
+        else {
+            while (size > 0) {
+                cffi_char32_t ch = *w++;
+                size--;
+                if (0xD800 <= ch && ch <= 0xDBFF && size > 0) {
+                    cffi_char32_t ch2 = *w;
+                    if (0xDC00 <= ch2 && ch2 <= 0xDFFF) {
+                        ch = (((ch & 0x3FF)<<10) | (ch2 & 0x3FF)) + 0x10000;
+                        w++;
+                        size--;
+                    }
+                }
+                *u++ = ch;
+            }
+            if (PyUnicode_Resize(&result, u - u_base) < 0) {
+                Py_DECREF(result);
+                return NULL;
+            }
+        }
+    }
+    return result;
+}
 
 #endif
 
@@ -78,28 +121,70 @@ _my_PyUnicode_FromWideChar(register const wchar_t *w,
 #define AS_SURROGATE(u)   (0x10000 + (((u)[0] - 0xD800) << 10) +     \
                                      ((u)[1] - 0xDC00))
 
-static int _my_PyUnicode_AsSingleWideChar(PyObject *unicode, wchar_t *result)
+static int
+_my_PyUnicode_AsSingleChar16(PyObject *unicode, cffi_char16_t *result,
+                             char *err_got)
+{
+    Py_UNICODE *u = PyUnicode_AS_UNICODE(unicode);
+    if (PyUnicode_GET_SIZE(unicode) != 1) {
+        sprintf(err_got, "unicode string of length %zd",
+                PyUnicode_GET_SIZE(unicode));
+        return -1;
+    }
+#if Py_UNICODE_SIZE == 4
+    if (((unsigned int)u[0]) > 0xFFFF)
+    {
+        sprintf(err_got, "larger-than-0xFFFF character");
+        return -1;
+    }
+#endif
+    *result = (cffi_char16_t)u[0];
+    return 0;
+}
+
+static int
+_my_PyUnicode_AsSingleChar32(PyObject *unicode, cffi_char32_t *result,
+                             char *err_got)
 {
     Py_UNICODE *u = PyUnicode_AS_UNICODE(unicode);
     if (PyUnicode_GET_SIZE(unicode) == 1) {
-        *result = (wchar_t)(u[0]);
+        *result = (cffi_char32_t)u[0];
         return 0;
     }
-#ifdef CONVERT_WCHAR_TO_SURROGATES
+#if Py_UNICODE_SIZE == 2
     if (PyUnicode_GET_SIZE(unicode) == 2 && IS_SURROGATE(u)) {
         *result = AS_SURROGATE(u);
         return 0;
     }
 #endif
+    sprintf(err_got, "unicode string of length %zd",
+            PyUnicode_GET_SIZE(unicode));
     return -1;
 }
 
-static Py_ssize_t _my_PyUnicode_SizeAsWideChar(PyObject *unicode)
+static Py_ssize_t _my_PyUnicode_SizeAsChar16(PyObject *unicode)
 {
     Py_ssize_t length = PyUnicode_GET_SIZE(unicode);
     Py_ssize_t result = length;
 
-#ifdef CONVERT_WCHAR_TO_SURROGATES
+#if Py_UNICODE_SIZE == 4
+    Py_UNICODE *u = PyUnicode_AS_UNICODE(unicode);
+    Py_ssize_t i;
+
+    for (i=0; i<length; i++) {
+        if (u[i] > 0xFFFF)
+            result++;
+    }
+#endif
+    return result;
+}
+
+static Py_ssize_t _my_PyUnicode_SizeAsChar32(PyObject *unicode)
+{
+    Py_ssize_t length = PyUnicode_GET_SIZE(unicode);
+    Py_ssize_t result = length;
+
+#if Py_UNICODE_SIZE == 2
     Py_UNICODE *u = PyUnicode_AS_UNICODE(unicode);
     Py_ssize_t i;
 
@@ -111,15 +196,41 @@ static Py_ssize_t _my_PyUnicode_SizeAsWideChar(PyObject *unicode)
     return result;
 }
 
-static void _my_PyUnicode_AsWideChar(PyObject *unicode,
-                                     wchar_t *result,
-                                     Py_ssize_t resultlen)
+static void _my_PyUnicode_AsChar16(PyObject *unicode,
+                                   cffi_char16_t *result,
+                                   Py_ssize_t resultlen)
+{
+    Py_ssize_t len = PyUnicode_GET_SIZE(unicode);
+    Py_UNICODE *u = PyUnicode_AS_UNICODE(unicode);
+    Py_ssize_t i;
+    for (i=0; i<len; i++) {
+#if Py_UNICODE_SIZE == 2
+        cffi_char16_t ordinal = u[i];
+#else
+        cffi_char32_t ordinal = u[i];
+        if (ordinal > 0xFFFF) {
+            /* NB. like CPython, ignore the problem of unicode string objects
+             * containing characters greater than sys.maxunicode.  It is
+             * easier to not add exception handling here */
+            ordinal -= 0x10000;
+            *result++ = 0xD800 | (ordinal >> 10);
+            *result++ = 0xDC00 | (ordinal & 0x3FF);
+            continue;
+        }
+#endif
+        *result++ = ordinal;
+    }
+}
+
+static void _my_PyUnicode_AsChar32(PyObject *unicode,
+                                   cffi_char32_t *result,
+                                   Py_ssize_t resultlen)
 {
     Py_UNICODE *u = PyUnicode_AS_UNICODE(unicode);
     Py_ssize_t i;
     for (i=0; i<resultlen; i++) {
-        wchar_t ordinal = *u;
-#ifdef CONVERT_WCHAR_TO_SURROGATES
+        cffi_char32_t ordinal = *u;
+#if Py_UNICODE_SIZE == 2
         if (IS_SURROGATE(u)) {
             ordinal = AS_SURROGATE(u);
             u++;
