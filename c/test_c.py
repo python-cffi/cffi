@@ -2099,6 +2099,10 @@ def test_cast_with_functionptr():
 
 def test_wchar():
     _test_wchar_variant("wchar_t")
+    if sys.platform.startswith("linux"):
+        BWChar = new_primitive_type("wchar_t")
+        assert sizeof(BWChar) == 4
+        assert int(cast(BWChar, -1)) == -1        # signed, on linux
 
 def test_char16():
     BChar16 = new_primitive_type("char16_t")
