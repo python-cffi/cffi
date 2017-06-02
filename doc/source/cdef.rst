@@ -178,7 +178,8 @@ can assume to exist are the standard types:
 * intN_t, uintN_t (for N=8,16,32,64), intptr_t, uintptr_t, ptrdiff_t,
   size_t, ssize_t
 
-* wchar_t (if supported by the backend)
+* wchar_t (if supported by the backend).  *New in version 1.11:*
+  char16_t and char32_t.
 
 * _Bool and bool (equivalent).  If not directly supported by the C
   compiler, this is declared with the size of ``unsigned char``.

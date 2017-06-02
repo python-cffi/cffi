@@ -25,6 +25,11 @@ unicode string of length 2.  If you need to convert such a 2-chars
 unicode string to an integer, ``ord(x)`` does not work; use instead
 ``int(ffi.cast('wchar_t', x))``.
 
+*New in version 1.11:* in addition to ``wchar_t``, the C types
+``char16_t`` and ``char32_t`` work the same but with a known fixed size.
+In previous versions, this could be achieved using ``uint16_t`` and
+``int32_t`` but without automatic convertion to Python unicodes.
+
 Pointers, structures and arrays are more complex: they don't have an
 obvious Python equivalent.  Thus, they correspond to objects of type
 ``cdata``, which are printed for example as
@@ -197,9 +202,10 @@ which case a terminating null character is appended implicitly::
     >>> ffi.string(x) # interpret 'x' as a regular null-terminated string
     'Hello'
 
-Similarly, arrays of wchar_t can be initialized from a unicode string,
+Similarly, arrays of wchar_t or char16_t or char32_t can be initialized
+from a unicode string,
 and calling ``ffi.string()`` on the cdata object returns the current unicode
-string stored in the wchar_t array (adding surrogates if necessary).
+string stored in the source array (adding surrogates if necessary).
 
 Note that unlike Python lists or tuples, but like C, you *cannot* index in
 a C array from the end using negative numbers.
@@ -347,7 +353,8 @@ argument and may mutate it!):
 
     assert lib.strlen("hello") == 5
 
-You can also pass unicode strings as ``wchar_t *`` arguments.  Note that
+You can also pass unicode strings as ``wchar_t *`` or ``char16_t *`` or
+``char32_t *`` arguments.  Note that
 the C language makes no difference between argument declarations that
 use ``type *`` or ``type[]``.  For example, ``int *`` is fully
 equivalent to ``int[]`` (or even ``int[5]``; the 5 is ignored).  For CFFI,

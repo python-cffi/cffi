@@ -104,11 +104,13 @@ string) from the 'cdata'.
   returns a ``bytes``, not a ``str``.
 
 - If 'cdata' is a pointer or array of wchar_t, returns a unicode string
-  following the same rules.
+  following the same rules.  *New in version 1.11:* can also be
+  char16_t or char32_t.
 
-- If 'cdata' is a single character or byte or a wchar_t, returns it as a
-  byte string or unicode string.  (Note that in some situation a single
-  wchar_t may require a Python unicode string of length 2.)
+- If 'cdata' is a single character or byte or a wchar_t or charN_t,
+  returns it as a byte string or unicode string.  (Note that in some
+  situation a single wchar_t or char32_t may require a Python unicode
+  string of length 2.)
 
 - If 'cdata' is an enum, returns the value of the enumerator as a string.
   If the value is out of range, it is simply returned as the stringified
@@ -125,7 +127,7 @@ type.  *New in version 1.6.*
 
 - If 'cdata' is a pointer to 'wchar_t', returns a unicode string.
   ('length' is measured in number of wchar_t; it is not the size in
-  bytes.)
+  bytes.)  *New in version 1.11:* can also be char16_t or char32_t.
 
 - If 'cdata' is a pointer to anything else, returns a list, of the
   given 'length'.  (A slower way to do that is ``[cdata[i] for i in
@@ -626,10 +628,10 @@ allowed.
 |   ``char``    | a string of length 1   | a string of      | int(), bool(), |
 |               | or another <cdata char>| length 1         | ``<``          |
 +---------------+------------------------+------------------+----------------+
-|  ``wchar_t``  | a unicode of length 1  | a unicode of     |                |
-|               | (or maybe 2 if         | length 1         | int(), bool(), |
-|               | surrogates) or         | (or maybe 2 if   | ``<``          |
-|               | another <cdata wchar_t>| surrogates)      |                |
+| ``wchar_t``,  | a unicode of length 1  | a unicode of     |                |
+| ``char16_t``, | (or maybe 2 if         | length 1         | int(), bool(), |
+| ``char32_t``  | surrogates) or         | (or maybe 2 if   | ``<``          |
+|               | another similar <cdata>| surrogates)      |                |
 +---------------+------------------------+------------------+----------------+
 |  ``float``,   | a float or anything on | a Python float   | float(), int(),|
 |  ``double``   | which float() works    |                  | bool(), ``<``  |
@@ -671,9 +673,9 @@ allowed.
 | ``char[]``,   |                        |                  | ``-``          |
 | ``_Bool[]``   |                        |                  |                |
 +---------------+------------------------+                  +----------------+
-| ``wchar_t[]`` | same as arrays, or a   |                  | len(), iter(), |
-|               | Python unicode string  |                  | ``[]``,        |
-|               |                        |                  | ``+``, ``-``   |
+|``wchar_t[]``, | same as arrays, or a   |                  | len(), iter(), |
+|``char16_t[]``,| Python unicode string  |                  | ``[]``,        |
+|``char32_t[]`` |                        |                  | ``+``, ``-``   |
 |               |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
 | structure     | a list or tuple or     | a <cdata>        | read/write     |

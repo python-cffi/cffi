@@ -6,6 +6,13 @@ What's New
 v1.11
 =====
 
+* Support the modern standard types ``char16_t`` and ``char32_t``.
+  These work like ``wchar_t``: they represent one unicode character, or
+  when used as ``charN_t *`` or ``charN_t[]`` they represent a unicode
+  string.  The difference with ``wchar_t`` is that they have a known,
+  fixed size.  They should work at all places that used to work with
+  ``wchar_t`` (please report an issue if I missing something).
+
 * Support the C99 types ``float _Complex`` and ``double _Complex``.
   Note that libffi doesn't support them, which means that in the ABI
   mode you still cannot call C functions that take complex numbers
