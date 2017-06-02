@@ -2246,6 +2246,22 @@ def _test_wchar_variant(typename):
         x = cast(BWChar, -1)
         py.test.raises(ValueError, string, x)
 
+def test_wchar_variants_mix():
+    BWChar  = new_primitive_type("wchar_t")
+    BChar16 = new_primitive_type("char16_t")
+    BChar32 = new_primitive_type("char32_t")
+    assert int(cast(BChar32, cast(BChar16, -2))) == 0xfffe
+    assert int(cast(BWChar, cast(BChar16, -2))) == 0xfffe
+    assert int(cast(BChar16, cast(BChar32, 0x0001f345))) == 0xf345
+    assert int(cast(BChar16, cast(BWChar, 0x0001f345))) == 0xf345
+    #
+    BChar16A = new_array_type(new_pointer_type(BChar16), None)
+    BChar32A = new_array_type(new_pointer_type(BChar32), None)
+    x = cast(BChar32, 'A')
+    py.test.raises(TypeError, newp, BChar16A, [x])
+    x = cast(BChar16, 'A')
+    py.test.raises(TypeError, newp, BChar32A, [x])
+
 def test_keepalive_struct():
     # exception to the no-keepalive rule: p=newp(BStructPtr) returns a
     # pointer owning the memory, and p[0] returns a pointer to the
