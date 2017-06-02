@@ -629,8 +629,8 @@ allowed.
 |               | or another <cdata char>| length 1         | ``<``          |
 +---------------+------------------------+------------------+----------------+
 | ``wchar_t``,  | a unicode of length 1  | a unicode of     |                |
-| ``char16_t``, | (or maybe 2 if         | length 1         | int(), bool(), |
-| ``char32_t``  | surrogates) or         | (or maybe 2 if   | ``<``          |
+| ``char16_t``, | (or maybe 2 if         | length 1         | int() `[8]`,   |
+| ``char32_t``  | surrogates) or         | (or maybe 2 if   | bool(), ``<``  |
 |               | another similar <cdata>| surrogates)      |                |
 +---------------+------------------------+------------------+----------------+
 |  ``float``,   | a float or anything on | a Python float   | float(), int(),|
@@ -773,6 +773,13 @@ allowed.
    Note however that libffi does not.  This means that C functions that
    take directly as argument types or return type a complex type cannot
    be called by CFFI, unless they are directly using the API mode.
+
+`[8]` sign of ``wchar_t``, ``char16_t`` and ``char32_t``
+
+   The ``wchar_t`` type has the same signedness as the underlying
+   platform's.  For example, on Linux, it is a signed 32-bit integer.
+   However, the types ``char16_t`` and ``char32_t`` (*new in version
+   1.11*) are always unsigned.
 
 .. _file:
 
