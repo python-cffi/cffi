@@ -143,6 +143,7 @@
 #define CT_IS_UNSIZED_CHAR_A   0x00800000
 #define CT_LAZY_FIELD_LIST     0x01000000
 #define CT_WITH_PACKED_CHANGE  0x02000000
+#define CT_IS_SIGNED_WCHAR     0x04000000
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
                            CT_PRIMITIVE_CHAR |          \
@@ -1591,8 +1592,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             return 0;
         }
         case 4: {
-            int res = _convert_to_char32_t(init);
-            if (res == -1 && PyErr_Occurred())
+            cffi_char32_t res = _convert_to_char32_t(init);
+            if (res == (cffi_char32_t)-1 && PyErr_Occurred())
                 return -1;
             *(cffi_char32_t *)data = res;
             return 0;
@@ -2084,9 +2085,12 @@ static PyObject *cdata_int(CDataObject *cd)
         case 2:
             return PyInt_FromLong((long)*(cffi_char16_t *)cd->c_data);
         case 4:
-            /* NB. cast via int32_t instead of cffi_char32_t, so that
-               we expose a signed result to the user */
-            return PyInt_FromLong((long)*(int32_t *)cd->c_data);
+            if (cd->c_type->ct_flags & CT_IS_SIGNED_WCHAR)
+                return PyInt_FromLong((long)*(int32_t *)cd->c_data);
+            else if (sizeof(long) > 4)
+                return PyInt_FromLong(*(uint32_t *)cd->c_data);
+            else
+                return PyLong_FromUnsignedLong(*(uint32_t *)cd->c_data);
         }
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_FLOAT) {
@@ -3687,8 +3691,15 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
                          "cannot cast %s to ctype '%s'", err_buf, ct->ct_name);
             return NULL;
         }
-        /* the user sees char32_t being signed, but not char16_t */
-        value = (int32_t)ordinal;
+        /* the types char16_t and char32_t are both unsigned.  However,
+           wchar_t might be signed.  In theory it does not matter,
+           because 'ordinal' comes from a regular Python unicode. */
+#ifdef HAVE_WCHAR_H
+        if (ct->ct_flags & CT_IS_SIGNED_WCHAR)
+            value = (wchar_t)ordinal;
+        else
+#endif
+            value = ordinal;
     }
     else if (PyBytes_Check(ob)) {
         int res = _convert_to_char(ob);
@@ -3733,7 +3744,10 @@ static int check_bytes_for_float_compatible(PyObject *io, double *out_value)
             Py_DECREF(io);
             return -1;
         }
-        *out_value = (int32_t)ordinal;
+        /* the signness of the 32-bit version of wide chars should not
+         * matter here, because 'ordinal' comes from a normal Python
+         * unicode string */
+        *out_value = ordinal;
         return 1;
     }
     return 0;
@@ -4195,7 +4209,8 @@ static PyObject *new_primitive_type(const char *name)
 
 #ifdef HAVE_WCHAR_H
 # define ENUM_PRIMITIVE_TYPES_WCHAR                             \
-       EPTYPE(wc, wchar_t, CT_PRIMITIVE_CHAR )
+       EPTYPE(wc, wchar_t, CT_PRIMITIVE_CHAR |                  \
+                           (((wchar_t)-1) > 0 ? 0 : CT_IS_SIGNED_WCHAR))
 #else
 # define ENUM_PRIMITIVE_TYPES_WCHAR   /* nothing */
 #endif

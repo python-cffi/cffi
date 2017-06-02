@@ -64,7 +64,7 @@ extern "C" {
 # endif
 # if _MSC_VER < 1900 || !defined(__cplusplus)   /* MSVC < 2015, or plain C */
     typedef uint16_t char16_t;
-    typedef int32_t char32_t;
+    typedef uint32_t char32_t;
 # endif
 #else
 # include <stdint.h>

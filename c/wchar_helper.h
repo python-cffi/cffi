@@ -4,7 +4,6 @@
 
 typedef uint16_t cffi_char16_t;
 typedef uint32_t cffi_char32_t;
-/* NB. cffi_char32_t is unsigned to make the logic here a bit easier */
 
 
 #if Py_UNICODE_SIZE == 2

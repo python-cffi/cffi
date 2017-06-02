@@ -2101,12 +2101,16 @@ def test_wchar():
     _test_wchar_variant("wchar_t")
 
 def test_char16():
-    assert sizeof(new_primitive_type("char16_t")) == 2
+    BChar16 = new_primitive_type("char16_t")
+    assert sizeof(BChar16) == 2
     _test_wchar_variant("char16_t")
+    assert int(cast(BChar16, -1)) == 0xffff       # always unsigned
 
 def test_char32():
-    assert sizeof(new_primitive_type("char32_t")) == 4
+    BChar32 = new_primitive_type("char32_t")
+    assert sizeof(BChar32) == 4
     _test_wchar_variant("char32_t")
+    assert int(cast(BChar32, -1)) == 0xffffffff   # always unsigned
 
 def _test_wchar_variant(typename):
     BWChar = new_primitive_type(typename)
