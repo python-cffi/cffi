@@ -1936,7 +1936,11 @@ def test_string_byte():
         assert string(a, 8).startswith(b'ABC')  # may contain additional garbage
 
 def test_string_wchar():
-    BWChar = new_primitive_type("wchar_t")
+    for typename in ["wchar_t", "char16_t", "char32_t"]:
+        _test_string_wchar_variant(typename)
+
+def _test_string_wchar_variant(typename):
+    BWChar = new_primitive_type(typename)
     assert string(cast(BWChar, 42)) == u+'*'
     assert string(cast(BWChar, 0x4253)) == u+'\u4253'
     assert string(cast(BWChar, 0)) == u+'\x00'
@@ -3488,14 +3492,15 @@ def test_ass_slice():
     py.test.raises(TypeError, "p[1:5] = u+'XYZT'")
     py.test.raises(TypeError, "p[1:5] = [1, 2, 3, 4]")
     #
-    BUniChar = new_primitive_type("wchar_t")
-    BArray = new_array_type(new_pointer_type(BUniChar), None)
-    p = newp(BArray, u+"foobar")
-    p[2:5] = [u+"*", u+"Z", u+"T"]
-    p[1:3] = u+"XY"
-    assert list(p) == [u+"f", u+"X", u+"Y", u+"Z", u+"T", u+"r", u+"\x00"]
-    py.test.raises(TypeError, "p[1:5] = b'XYZT'")
-    py.test.raises(TypeError, "p[1:5] = [1, 2, 3, 4]")
+    for typename in ["wchar_t", "char16_t", "char32_t"]:
+        BUniChar = new_primitive_type(typename)
+        BArray = new_array_type(new_pointer_type(BUniChar), None)
+        p = newp(BArray, u+"foobar")
+        p[2:5] = [u+"*", u+"Z", u+"T"]
+        p[1:3] = u+"XY"
+        assert list(p) == [u+"f", u+"X", u+"Y", u+"Z", u+"T", u+"r", u+"\x00"]
+        py.test.raises(TypeError, "p[1:5] = b'XYZT'")
+        py.test.raises(TypeError, "p[1:5] = [1, 2, 3, 4]")
 
 def test_void_p_arithmetic():
     BVoid = new_void_type()
@@ -3808,10 +3813,12 @@ def test_unpack():
     p0 = p
     assert unpack(p, 10) == b"abc\x00def\x00\x00\x00"
     assert unpack(p+1, 5) == b"bc\x00de"
-    BWChar = new_primitive_type("wchar_t")
-    BArray = new_array_type(new_pointer_type(BWChar), 10)   # wchar_t[10]
-    p = newp(BArray, u"abc\x00def")
-    assert unpack(p, 10) == u"abc\x00def\x00\x00\x00"
+
+    for typename in ["wchar_t", "char16_t", "char32_t"]:
+        BWChar = new_primitive_type(typename)
+        BArray = new_array_type(new_pointer_type(BWChar), 10)   # wchar_t[10]
+        p = newp(BArray, u"abc\x00def")
+        assert unpack(p, 10) == u"abc\x00def\x00\x00\x00"
 
     for typename, samples in [
             ("uint8_t",  [0, 2**8-1]),
