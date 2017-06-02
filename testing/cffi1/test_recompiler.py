@@ -31,7 +31,7 @@ def verify(ffi, module_name, source, *args, **kwds):
     if not os.environ.get('NO_CPP') and not no_cpp:   # test the .cpp mode too
         kwds.setdefault('source_extension', '.cpp')
         source = 'extern "C" {\n%s\n}' % (source,)
-    else:
+    elif sys.platform != 'win32':
         # add '-Werror' to the existing 'extra_compile_args' flags
         kwds['extra_compile_args'] = (kwds.get('extra_compile_args', []) +
                                       ['-Werror'])
