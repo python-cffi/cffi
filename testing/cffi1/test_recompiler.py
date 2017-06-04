@@ -2010,7 +2010,7 @@ def test_function_returns_float_complex():
     lib = verify(ffi, "test_function_returns_float_complex", """
         #include <complex.h>
         static float _Complex f1(float a, float b) { return a + I*2.0*b; }
-    """)
+    """, no_cpp=True)    # <complex.h> fails on some systems with C++
     result = lib.f1(1.25, 5.1)
     assert type(result) == complex
     assert result.real == 1.25   # exact
@@ -2024,7 +2024,7 @@ def test_function_returns_double_complex():
     lib = verify(ffi, "test_function_returns_double_complex", """
         #include <complex.h>
         static double _Complex f1(double a, double b) { return a + I*2.0*b; }
-    """)
+    """, no_cpp=True)    # <complex.h> fails on some systems with C++
     result = lib.f1(1.25, 5.1)
     assert type(result) == complex
     assert result.real == 1.25   # exact
@@ -2038,7 +2038,7 @@ def test_function_argument_float_complex():
     lib = verify(ffi, "test_function_argument_float_complex", """
         #include <complex.h>
         static float f1(float _Complex x) { return cabsf(x); }
-    """)
+    """, no_cpp=True)    # <complex.h> fails on some systems with C++
     x = complex(12.34, 56.78)
     result = lib.f1(x)
     assert abs(result - abs(x)) < 1e-5
@@ -2051,7 +2051,7 @@ def test_function_argument_double_complex():
     lib = verify(ffi, "test_function_argument_double_complex", """
         #include <complex.h>
         static double f1(double _Complex x) { return cabs(x); }
-    """)
+    """, no_cpp=True)    # <complex.h> fails on some systems with C++
     x = complex(12.34, 56.78)
     result = lib.f1(x)
     assert abs(result - abs(x)) < 1e-11
