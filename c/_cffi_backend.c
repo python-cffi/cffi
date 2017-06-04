@@ -4137,7 +4137,10 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
 
     assert(x->ct_unique_key == NULL);
     x->ct_unique_key = key; /* the key will be freed in ctypedescr_dealloc() */
-    Py_DECREF(x);          /* the 'value' in unique_cache doesn't count as 1 */
+    /* the 'value' in unique_cache doesn't count as 1, but don't use
+       Py_DECREF(x) here because it will confuse debug builds into thinking
+       there was an extra DECREF in total. */
+    ((PyObject *)x)->ob_refcnt--;
     return (PyObject *)x;
 
  error:
@@ -6231,6 +6234,7 @@ static PyObject *b_unpack(PyObject *self, PyObject *args, PyObject *kwds)
     src = cd->c_data;
     itemsize = ctitem->ct_size;
     if (itemsize < 0) {
+        Py_DECREF(result);
         PyErr_Format(PyExc_ValueError, "'%s' points to items of unknown size",
                      cd->c_type->ct_name);
         return NULL;
