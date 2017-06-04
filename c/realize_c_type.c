@@ -269,8 +269,11 @@ realize_c_type(builder_c_t *builder, _cffi_opcode_t opcodes[], int index)
     PyObject *x = realize_c_type_or_func(builder, opcodes, index);
     if (x == NULL || CTypeDescr_Check(x))
         return (CTypeDescrObject *)x;
-    else
-        return unexpected_fn_type(x);
+    else {
+        unexpected_fn_type(x);
+        Py_DECREF(x);
+        return NULL;
+    }
 }
 
 static void _realize_name(char *target, const char *prefix, const char *srcname)
