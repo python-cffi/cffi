@@ -629,9 +629,9 @@ allowed.
 |               | or another <cdata char>| length 1         | ``<``          |
 +---------------+------------------------+------------------+----------------+
 | ``wchar_t``,  | a unicode of length 1  | a unicode of     |                |
-| ``char16_t``, | (or maybe 2 if         | length 1         | int() `[8]`,   |
+| ``char16_t``, | (or maybe 2 if         | length 1         | int(),         |
 | ``char32_t``  | surrogates) or         | (or maybe 2 if   | bool(), ``<``  |
-|               | another similar <cdata>| surrogates)      |                |
+| `[8]`         | another similar <cdata>| surrogates)      |                |
 +---------------+------------------------+------------------+----------------+
 |  ``float``,   | a float or anything on | a Python float   | float(), int(),|
 |  ``double``   | which float() works    |                  | bool(), ``<``  |
@@ -774,12 +774,22 @@ allowed.
    take directly as argument types or return type a complex type cannot
    be called by CFFI, unless they are directly using the API mode.
 
-`[8]` sign of ``wchar_t``, ``char16_t`` and ``char32_t``
+`[8]` ``wchar_t``, ``char16_t`` and ``char32_t``
 
    The ``wchar_t`` type has the same signedness as the underlying
    platform's.  For example, on Linux, it is a signed 32-bit integer.
    However, the types ``char16_t`` and ``char32_t`` (*new in version
-   1.11*) are always unsigned.
+   1.11*) are always unsigned.  **Warning:** for now, if you use
+   ``char16_t`` and ``char32_t`` with ``cdef()`` and ``set_source()``,
+   you have to make sure yourself that the types are declared by the C
+   source you provide to ``set_source()``.  They would be declared if
+   you ``#include`` a library that explicitly uses them, for example,
+   or when using C++11.  Otherwise, you need ``#include <uchar.h>`` on
+   Linux, or more generally something like ``typedef uint_least16_t
+   char16_t;``.  This is not done automatically by CFFI because
+   ``uchar.h`` is not standard across platforms, and writing a
+   ``typedef`` like above would crash if the type happens to be
+   already defined.
 
 .. _file:
 
