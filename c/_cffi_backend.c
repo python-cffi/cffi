@@ -1390,10 +1390,9 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
             if (n != ct->ct_length)
                 n++;
             if (ctitem->ct_size == 4)
-                _my_PyUnicode_AsChar32(init, (cffi_char32_t *)data, n);
+                return _my_PyUnicode_AsChar32(init, (cffi_char32_t *)data, n);
             else
-                _my_PyUnicode_AsChar16(init, (cffi_char16_t *)data, n);
-            return 0;
+                return _my_PyUnicode_AsChar16(init, (cffi_char16_t *)data, n);
         }
     }
     else {

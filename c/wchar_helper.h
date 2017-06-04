@@ -195,9 +195,9 @@ static Py_ssize_t _my_PyUnicode_SizeAsChar32(PyObject *unicode)
     return result;
 }
 
-static void _my_PyUnicode_AsChar16(PyObject *unicode,
-                                   cffi_char16_t *result,
-                                   Py_ssize_t resultlen)
+static int _my_PyUnicode_AsChar16(PyObject *unicode,
+                                  cffi_char16_t *result,
+                                  Py_ssize_t resultlen)
 {
     Py_ssize_t len = PyUnicode_GET_SIZE(unicode);
     Py_UNICODE *u = PyUnicode_AS_UNICODE(unicode);
@@ -208,9 +208,12 @@ static void _my_PyUnicode_AsChar16(PyObject *unicode,
 #else
         cffi_char32_t ordinal = u[i];
         if (ordinal > 0xFFFF) {
-            /* NB. like CPython, ignore the problem of unicode string objects
-             * containing characters greater than sys.maxunicode.  It is
-             * easier to not add exception handling here */
+            if (ordinal > 0x10FFFF) {
+                PyErr_Format(PyExc_ValueError,
+                             "unicode character out of range for "
+                             "conversion to char16_t: 0x%x", (int)ordinal);
+                return -1;
+            }
             ordinal -= 0x10000;
             *result++ = 0xD800 | (ordinal >> 10);
             *result++ = 0xDC00 | (ordinal & 0x3FF);
@@ -219,11 +222,12 @@ static void _my_PyUnicode_AsChar16(PyObject *unicode,
 #endif
         *result++ = ordinal;
     }
+    return 0;
 }
 
-static void _my_PyUnicode_AsChar32(PyObject *unicode,
-                                   cffi_char32_t *result,
-                                   Py_ssize_t resultlen)
+static int _my_PyUnicode_AsChar32(PyObject *unicode,
+                                  cffi_char32_t *result,
+                                  Py_ssize_t resultlen)
 {
     Py_UNICODE *u = PyUnicode_AS_UNICODE(unicode);
     Py_ssize_t i;
@@ -238,4 +242,5 @@ static void _my_PyUnicode_AsChar32(PyObject *unicode,
         result[i] = ordinal;
         u++;
     }
+    return 0;
 }
