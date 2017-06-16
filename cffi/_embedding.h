@@ -110,6 +110,133 @@ static void _cffi_release_reentrant_mutex(void)
 #ifndef PYPY_VERSION
 
 
+#ifdef _MSC_VER
+/* Windows only: logic to take the Python-CFFI embedding logic
+   initialization errors and display them in a background thread
+   with MessageBox.  The idea is that if the whole program closes
+   as a result of this problem, then likely it is already a console
+   program and you can read the stderr output in the console too.
+   If it is not a console program, then it will likely show its own
+   dialog to complain, or generally not abruptly close, and for this
+   case the background thread should stay alive.
+*/
+static PyObject *_cffi_bootstrap_string;
+static void *volatile _cffi_bootstrap_text;
+
+static PyObject *_cffi_start_error_capture(void)
+{
+    PyObject *result = NULL;
+    PyObject *x, *m, *bi;
+
+    if (!cffi_compare_and_swap(&_cffi_bootstrap_text, NULL, (void *)1))
+        return (PyObject *)1;
+
+    m = PyImport_AddModule("_cffi_error_capture");
+    if (m == NULL)
+        goto error;
+
+    result = PyModule_GetDict(m);
+    if (result == NULL)
+        goto error;
+
+    bi = PyImport_ImportModule("__builtin__");
+    if (bi == NULL)
+        goto error;
+    PyDict_SetItemString(result, "__builtins__", bi);
+    Py_DECREF(bi);
+
+    x = PyRun_String(
+        "import sys\n"
+        "class FileLike:\n"
+        "  def write(self, x):\n"
+        "    sys.__stderr__.write(x)\n"
+        "    self.buf += x\n"
+        "fl = FileLike()\n"
+        "fl.buf = ''\n"
+        "sys.stderr = fl\n"
+        "def done():\n"
+        "  sys.stderr = sys.__stderr__\n"
+        "  return fl.buf\n",   /* make sure the returned value stays alive */
+        Py_file_input,
+        result, result);
+    Py_XDECREF(x);
+
+ error:
+    if (PyErr_Occurred())
+    {
+        PyErr_WriteUnraisable(Py_None);
+        PyErr_Clear();
+    }
+    return result;
+}
+
+#pragma comment(lib, "user32.lib")
+
+static DWORD WINAPI _cffi_bootstrap_dialog(LPVOID ignored)
+{
+    Sleep(666);    /* may be interrupted if the whole process is closing */
+#if PY_MAJOR_VERSION >= 3
+    MessageBoxW(NULL, (wchar_t *)_cffi_bootstrap_text,
+                L"Python-CFFI embedding error",
+                MB_OK | MB_ICONERROR);
+#else
+    MessageBoxA(NULL, (char *)_cffi_bootstrap_text,
+                "Python-CFFI embedding error",
+                MB_OK | MB_ICONERROR);
+#endif
+    _cffi_bootstrap_text = NULL;
+    return 0;
+}
+
+static void _cffi_stop_error_capture(PyObject *ecap)
+{
+    PyObject *s;
+    void *text;
+
+    if (ecap == (PyObject *)1)
+        return;
+
+    if (ecap == NULL)
+        goto error;
+
+    s = PyRun_String("done()", Py_eval_input, ecap, ecap);
+    if (s == NULL)
+        goto error;
+
+    /* Show a dialog box, but in a background thread, and
+       never show multiple dialog boxes at once. */
+#if PY_MAJOR_VERSION >= 3
+    text = PyUnicode_AsWideCharString(s, NULL);
+#else
+    text = PyString_AsString(s);
+#endif
+
+    _cffi_bootstrap_text = text;
+
+    if (text != NULL)
+    {
+        HANDLE h;
+        h = CreateThread(NULL, 0, _cffi_bootstrap_dialog,
+                         NULL, 0, NULL);
+        if (h != NULL)
+            CloseHandle(h);
+    }
+    /* decref the string, but it should stay alive as 'fl.buf'
+       in the small module above.  It will really be freed only if
+       we later get another similar error.  So it's a leak of at
+       most one copy of the small module.  That's fine for this
+       situation which is usually a "fatal error" anyway. */
+    Py_DECREF(s);
+    PyErr_Clear();
+    return;
+
+  error:
+    _cffi_bootstrap_text = NULL;
+    PyErr_Clear();
+}
+#endif
+
+
 #define _cffi_call_python_org  _cffi_exports[_CFFI_CPIDX]
 
 PyMODINIT_FUNC _CFFI_PYTHON_STARTUP_FUNC(void);   /* forward */
@@ -220,8 +347,20 @@ static int _cffi_initialize_python(void)
         /* Print as much information as potentially useful.
            Debugging load-time failures with embedding is not fun
         */
+#ifdef _MSC_VER
+        PyObject *ecap;
+#endif
         PyObject *exception, *v, *tb, *f, *modules, *mod;
         PyErr_Fetch(&exception, &v, &tb);
+#ifdef _MSC_VER
+        ecap = _cffi_start_error_capture();
+#endif
+        f = PySys_GetObject((char *)"stderr");
+        if (f != NULL && f != Py_None) {
+            PyFile_WriteString(
+                "Failed to initialize the Python-CFFI embedding logic:\n\n", f);
+        }
+
         if (exception != NULL) {
             PyErr_NormalizeException(&exception, &v, &tb);
             PyErr_Display(exception, v, tb);
@@ -230,7 +369,6 @@ static int _cffi_initialize_python(void)
         Py_XDECREF(v);
         Py_XDECREF(tb);
 
-        f = PySys_GetObject((char *)"stderr");
         if (f != NULL && f != Py_None) {
             PyFile_WriteString("\nFrom: " _CFFI_MODULE_NAME
                                "\ncompiled with cffi version: 1.11.0"
@@ -249,6 +387,9 @@ static int _cffi_initialize_python(void)
             PyFile_WriteObject(PySys_GetObject((char *)"path"), f, 0);
             PyFile_WriteString("\n\n", f);
         }
+#ifdef _MSC_VER
+        _cffi_stop_error_capture(ecap);
+#endif
     }
     result = -1;
     goto done;
