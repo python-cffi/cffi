@@ -20,6 +20,12 @@ v1.11
   mode you still cannot call C functions that take complex numbers
   directly as arguments or return type.
 
+* Fixed a rare race condition when creating multiple ``FFI`` instances
+  from multiple threads.  (Note that you aren't meant to create many
+  ``FFI`` instances: in inline mode, you should write ``ffi =
+  cffi.FFI()`` at module level just after ``import cffi``; and in
+  out-of-line mode you don't instantiate ``FFI`` explicitly at all.)
+
 
 v1.10.1
 =======
