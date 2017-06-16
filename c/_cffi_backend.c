@@ -288,6 +288,8 @@ typedef struct {
 
 #include "wchar_helper.h"
 
+#include "../cffi/_cffi_errors.h"
+
 typedef struct _cffi_allocator_s {
     PyObject *ca_alloc, *ca_free;
     int ca_dont_clear;
@@ -1829,7 +1831,8 @@ static int cdataowninggc_clear(CDataObject *cd)
 }
 
 /* forward */
-static void _my_PyErr_WriteUnraisable(char *objdescr, PyObject *obj,
+static void _my_PyErr_WriteUnraisable(PyObject *t, PyObject *v, PyObject *tb,
+                                      char *objdescr, PyObject *obj,
                                       char *extra_error_line);
 
 
@@ -1849,8 +1852,12 @@ static void gcp_finalize(PyObject *destructor, PyObject *origobj)
             Py_DECREF(result);
         }
         else {
-            _my_PyErr_WriteUnraisable("From callback for ffi.gc ",
+            PyObject *ecap, *t, *v, *tb;
+            PyErr_Fetch(&t, &v, &tb);
+            ecap = _cffi_start_error_capture();
+            _my_PyErr_WriteUnraisable(t, v, tb, "From callback for ffi.gc ",
                                       origobj, NULL);
+            _cffi_stop_error_capture(ecap);
         }
         Py_DECREF(destructor);
 
@@ -5500,12 +5507,12 @@ static int convert_from_object_fficallback(char *result,
     return convert_from_object(result, ctype, pyobj);
 }
 
-static void _my_PyErr_WriteUnraisable(char *objdescr, PyObject *obj,
+static void _my_PyErr_WriteUnraisable(PyObject *t, PyObject *v, PyObject *tb,
+                                      char *objdescr, PyObject *obj,
                                       char *extra_error_line)
 {
     /* like PyErr_WriteUnraisable(), but write a full traceback */
-    PyObject *f, *t, *v, *tb;
-    PyErr_Fetch(&t, &v, &tb);
+    PyObject *f;
 #if PY_MAJOR_VERSION >= 3
     /* jump through hoops to ensure the tb is attached to v, on Python 3 */
     PyErr_NormalizeException(&t, &v, &tb);
@@ -5595,8 +5602,12 @@ static void general_invoke_callback(int decode_args_from_libffi,
     }
     onerror_cb = PyTuple_GET_ITEM(cb_args, 3);
     if (onerror_cb == Py_None) {
-        _my_PyErr_WriteUnraisable("From cffi callback ", py_ob,
+        PyObject *ecap, *t, *v, *tb;
+        PyErr_Fetch(&t, &v, &tb);
+        ecap = _cffi_start_error_capture();
+        _my_PyErr_WriteUnraisable(t, v, tb, "From cffi callback ", py_ob,
                                   extra_error_line);
+        _cffi_stop_error_capture(ecap);
     }
     else {
         PyObject *exc1, *val1, *tb1, *res1, *exc2, *val2, *tb2;
@@ -5620,14 +5631,17 @@ static void general_invoke_callback(int decode_args_from_libffi,
         }
         else {
             /* double exception! print a double-traceback... */
+            PyObject *ecap;
             PyErr_Fetch(&exc2, &val2, &tb2);
-            PyErr_Restore(exc1, val1, tb1);
-            _my_PyErr_WriteUnraisable("From cffi callback ", py_ob,
+            ecap = _cffi_start_error_capture();
+            _my_PyErr_WriteUnraisable(exc1, val1, tb1,
+                                      "From cffi callback ", py_ob,
                                       extra_error_line);
-            PyErr_Restore(exc2, val2, tb2);
             extra_error_line = ("\nDuring the call to 'onerror', "
                                 "another exception occurred:\n\n");
-            _my_PyErr_WriteUnraisable(NULL, NULL, extra_error_line);
+            _my_PyErr_WriteUnraisable(exc2, val2, tb2,
+                                      NULL, NULL, extra_error_line);
+            _cffi_stop_error_capture(ecap);
         }
     }
     goto done;

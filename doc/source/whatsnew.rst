@@ -26,6 +26,18 @@ v1.11
   cffi.FFI()`` at module level just after ``import cffi``; and in
   out-of-line mode you don't instantiate ``FFI`` explicitly at all.)
 
+* Windows: using callbacks can be messy because the CFFI internal error
+  messages show up to stderr---but stderr goes nowhere in many
+  applications.  This makes it particularly hard to get started with the
+  embedding mode.  (Once you get started, you can at least use
+  ``@ffi.def_extern(onerror=...)`` and send the error logs where it
+  makes sense for your application, or record them in log files, and so
+  on.)  So what is new in CFFI is that now, on Windows CFFI will try to
+  open a non-modal MessageBox (in addition to sending raw messages to
+  stderr).  The MessageBox is only visible if the process stays alive:
+  typically, console applications that crash close immediately, but that
+  is also the situation where stderr should be visible anyway.
+
 
 v1.10.1
 =======
