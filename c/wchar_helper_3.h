@@ -143,13 +143,7 @@ static int _my_PyUnicode_AsChar32(PyObject *unicode,
                                   cffi_char32_t *result,
                                   Py_ssize_t resultlen)
 {
-    Py_ssize_t len = PyUnicode_GET_LENGTH(unicode);
-    unsigned int kind = PyUnicode_KIND(unicode);
-    void *data = PyUnicode_DATA(unicode);
-    Py_ssize_t i;
-
-    for (i = 0; i < len; i++)
-        result[i] = PyUnicode_READ(kind, data, i);
-
+    if (PyUnicode_AsUCS4(unicode, (Py_UCS4 *)result, resultlen, 0) == NULL)
+        return -1;
     return 0;
 }
