@@ -286,7 +286,11 @@ typedef struct {
 # include "file_emulator.h"
 #endif
 
-#include "wchar_helper.h"
+#ifdef PyUnicode_KIND     /* Python >= 3.3 */
+# include "wchar_helper_3.h"
+#else
+# include "wchar_helper.h"
+#endif
 
 #include "../cffi/_cffi_errors.h"
 
