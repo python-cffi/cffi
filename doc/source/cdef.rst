@@ -306,7 +306,10 @@ The ``libpath`` is the file name of the shared library, which can
 contain a full path or not (in which case it is searched in standard
 locations, as described in ``man dlopen``), with extensions or not.
 Alternatively, if ``libpath`` is None, it returns the standard C library
-(which can be used to access the functions of glibc, on Linux).
+(which can be used to access the functions of glibc, on Linux).  Note
+that ``libpath`` `cannot be None`__ on Windows with Python 3.
+
+.. __: http://bugs.python.org/issue23606
 
 Let me state it again: this gives ABI-level access to the library, so
 you need to have all types declared manually exactly as they were

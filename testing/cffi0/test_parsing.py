@@ -1,5 +1,7 @@
 import py, sys, re
 from cffi import FFI, FFIError, CDefError, VerificationError
+from .backend_tests import needs_dlopen_none
+
 
 class FakeBackend(object):
 
@@ -90,6 +92,7 @@ def test_simple():
 def test_pipe():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("int pipe(int pipefd[2]);")
+    needs_dlopen_none()
     C = ffi.dlopen(None)
     func = C.pipe
     assert func.name == 'pipe'
@@ -98,6 +101,7 @@ def test_pipe():
 def test_vararg():
     ffi = FFI(backend=FakeBackend())
     ffi.cdef("short foo(int, ...);")
+    needs_dlopen_none()
     C = ffi.dlopen(None)
     func = C.foo
     assert func.name == 'foo'
@@ -108,6 +112,7 @@ def test_no_args():
     ffi.cdef("""
         int foo(void);
         """)
+    needs_dlopen_none()
     C = ffi.dlopen(None)
     assert C.foo.BType == '<func (), <int>, False>'
 
@@ -118,6 +123,7 @@ def test_typedef():
         typedef UInt UIntReally;
         UInt foo(void);
         """)
+    needs_dlopen_none()
     C = ffi.dlopen(None)
     assert str(ffi.typeof("UIntReally")) == '<unsigned int>'
     assert C.foo.BType == '<func (), <unsigned int>, False>'
@@ -128,6 +134,7 @@ def test_typedef_more_complex():
         typedef struct { int a, b; } foo_t, *foo_p;
         int foo(foo_p[]);
         """)
+    needs_dlopen_none()
     C = ffi.dlopen(None)
     assert str(ffi.typeof("foo_t")) == '<int>a, <int>b'
     assert str(ffi.typeof("foo_p")) == '<pointer to <int>a, <int>b>'
@@ -217,6 +224,7 @@ def test_unnamed_struct():
 
 def test_override():
     ffi = FFI(backend=FakeBackend())
+    needs_dlopen_none()
     C = ffi.dlopen(None)
     ffi.cdef("int foo(void);")
     py.test.raises(FFIError, ffi.cdef, "long foo(void);")
@@ -403,6 +411,7 @@ def test_enum():
     ffi.cdef("""
         enum Enum { POS = +1, TWO = 2, NIL = 0, NEG = -1, OP = (POS+TWO)-1};
         """)
+    needs_dlopen_none()
     C = ffi.dlopen(None)
     assert C.POS == 1
     assert C.TWO == 2
