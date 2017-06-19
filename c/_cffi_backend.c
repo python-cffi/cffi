@@ -1852,12 +1852,15 @@ static void gcp_finalize(PyObject *destructor, PyObject *origobj)
             Py_DECREF(result);
         }
         else {
-            PyObject *ecap, *t, *v, *tb;
+            PyObject *t, *v, *tb;
             PyErr_Fetch(&t, &v, &tb);
-            ecap = _cffi_start_error_capture();
+            /* Don't use error capture here, because it is very much
+             * like errors at __del__(), and these ones are not captured
+             * either */
+            /* ecap = _cffi_start_error_capture(); */
             _my_PyErr_WriteUnraisable(t, v, tb, "From callback for ffi.gc ",
                                       origobj, NULL);
-            _cffi_stop_error_capture(ecap);
+            /* _cffi_stop_error_capture(ecap); */
         }
         Py_DECREF(destructor);
 
