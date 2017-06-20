@@ -186,7 +186,7 @@ Contact
         version='1.11.0',
         packages=['cffi'] if cpython else [],
         package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h', 
-                               '_embedding.h']}
+                               '_embedding.h', '_cffi_errors.h']}
                      if cpython else {},
         zip_safe=False,
 
