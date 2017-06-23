@@ -510,16 +510,26 @@ in the details.  These places are:
    ``static char *const FOO;``).
 
 Currently, it is not supported to find automatically which of the
-various integer or float types you need at which place.
-If a type is named, and an integer type, then use ``typedef
-int... the_type_name;``.  In the case of
-function arguments or return type, when it is a simple integer/float
-type, it may be misdeclared (if you misdeclare a function ``void
-f(long)`` as ``void f(int)``, it still works, but you have to call it
-with arguments that fit an int).  But it doesn't work any longer for
-more complex types (e.g. you cannot misdeclare a ``int *`` argument as
-``long *``) or in other locations (e.g. a global array ``int a[5];``
-must not be misdeclared ``long a[5];``).  CFFI considers `all types listed
+various integer or float types you need at which place---except in the
+following case: if such a type is explicitly named.  For an integer
+type, use ``typedef int... the_type_name;``, or another type like
+``typedef unsigned long... the_type_name;``.  Both are equivalent and
+replaced by the real C type, which must be an integer type.
+Similarly, for floating-point types, use ``typedef float...
+the_type_name;`` or equivalently ``typedef double...  the_type_name;``.
+Note that ``long double`` cannot be detected this way.
+
+In the case of function arguments or return types, when it is a simple
+integer/float type, you can simply misdeclare it.  If you misdeclare a
+function ``void f(long)`` as ``void f(int)``, it still works (but you
+have to call it with arguments that fit an int).  It works because the C
+compiler will do the casting for us.  This C-level casting of arguments
+and return types only works for regular function, and not for function
+pointer types; currently, it also does not work for variadic functions.
+
+For more complex types, you have no choice but be precise.  For example,
+you cannot misdeclare a ``int *`` argument as ``long *``, or a global
+array ``int a[5];`` as ``long a[5];``.  CFFI considers `all types listed
 above`_ as primitive (so ``long long a[5];`` and ``int64_t a[5]`` are
 different declarations).  The reason for that is detailed in `a comment
 about an issue.`__
