@@ -201,9 +201,5 @@ Python from this virtualenv.
 NetBSD
 ++++++
 
-Reports on NetBSD are not good.  You first need to make sure you have an
-up-to-date version of libffi, which fixes some bugs.  However, there are
-still a number of segfaults and failures running the CFFI tests (see
-`issue 321`__).  Contributions welcome.
-
-.. __: https://bitbucket.org/cffi/cffi/issues/321/cffi-191-segmentation-fault-during-self
+You need to make sure you have an up-to-date version of libffi, which
+fixes some bugs.

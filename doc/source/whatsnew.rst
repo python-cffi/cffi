@@ -38,6 +38,10 @@ v1.11
   typically, console applications that crash close immediately, but that
   is also the situation where stderr should be visible anyway.
 
+* Progress on support for `callbacks in NetBSD`__.
+
+.. __: https://bitbucket.org/cffi/cffi/issues/321/cffi-191-segmentation-fault-during-self
+
 
 v1.10.1
 =======

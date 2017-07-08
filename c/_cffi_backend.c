@@ -60,7 +60,38 @@
 # endif
 #endif
 
-#include "malloc_closure.h"
+
+/* Define the following macro ONLY if you trust libffi's version of
+ * ffi_closure_alloc() more than the code in malloc_closure.h.
+ * IMPORTANT: DO NOT ENABLE THIS ON LINUX, unless you understand exactly
+ * why I recommend against it and decide that you trust it more than my
+ * analysis below.
+ *
+ * There are two versions of this code: one inside libffi itself, and
+ * one inside malloc_closure.h here.  Both should be fine as long as the
+ * Linux distribution does _not_ enable extra security features.  If it
+ * does, then the code in malloc_closure.h will cleanly crash because
+ * there is no reasonable way to obtain a read-write-execute memory
+ * page.  On the other hand, the code in libffi will appear to
+ * work---but will actually randomly crash after a fork() if the child
+ * does not immediately call exec().  This second crash is of the kind
+ * that can be turned into an attack vector by a motivated attacker.
+ * So, _enabling_ extra security features _opens_ an attack vector.
+ * That sounds like a horribly bad idea to me, and is the reason for why
+ * I prefer CFFI crashing cleanly.
+ *
+ * Currently, we use libffi's ffi_closure_alloc() only on NetBSD.  It is
+ * known that on the NetBSD kernel, a different strategy is used which
+ * should not be open to the fork() bug.
+ */
+#ifdef __NetBSD__
+# define CFFI_TRUST_LIBFFI
+#endif
+
+#ifndef CFFI_TRUST_LIBFFI
+# include "malloc_closure.h"
+#endif
+
 
 #if PY_MAJOR_VERSION >= 3
 # define STR_OR_BYTES "bytes"
@@ -257,6 +288,11 @@ typedef struct {
     PyObject *origobj;
     PyObject *destructor;
 } CDataObject_gcp;
+
+typedef struct {
+    CDataObject head;
+    ffi_closure *closure;
+} CDataObject_closure;
 
 typedef struct {
     ffi_cif cif;
@@ -1781,10 +1817,14 @@ static void cdataowninggc_dealloc(CDataObject *cd)
         Py_DECREF(x);
     }
     else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
-        ffi_closure *closure = (ffi_closure *)cd->c_data;
+        ffi_closure *closure = ((CDataObject_closure *)cd)->closure;
         PyObject *args = (PyObject *)(closure->user_data);
         Py_XDECREF(args);
+#ifdef CFFI_TRUST_LIBFFI
+        ffi_closure_free(closure);
+#else
         cffi_closure_free(closure);
+#endif
     }
     else if (cd->c_type->ct_flags & CT_IS_UNSIZED_CHAR_A) {  /* from_buffer */
         Py_buffer *view = ((CDataObject_owngc_frombuf *)cd)->bufferview;
@@ -1801,7 +1841,7 @@ static int cdataowninggc_traverse(CDataObject *cd, visitproc visit, void *arg)
         Py_VISIT(x);
     }
     else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
-        ffi_closure *closure = (ffi_closure *)cd->c_data;
+        ffi_closure *closure = ((CDataObject_closure *)cd)->closure;
         PyObject *args = (PyObject *)(closure->user_data);
         Py_VISIT(args);
     }
@@ -1822,7 +1862,7 @@ static int cdataowninggc_clear(CDataObject *cd)
         Py_DECREF(x);
     }
     else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
-        ffi_closure *closure = (ffi_closure *)cd->c_data;
+        ffi_closure *closure = ((CDataObject_closure *)cd)->closure;
         PyObject *args = (PyObject *)(closure->user_data);
         closure->user_data = NULL;
         Py_XDECREF(args);
@@ -2036,7 +2076,8 @@ static PyObject *cdataowninggc_repr(CDataObject *cd)
         return _cdata_repr2(cd, "handle to", x);
     }
     else if (cd->c_type->ct_flags & CT_FUNCTIONPTR) {   /* a callback */
-        PyObject *args = (PyObject *)((ffi_closure *)cd->c_data)->user_data;
+        ffi_closure *closure = ((CDataObject_closure *)cd)->closure;
+        PyObject *args = (PyObject *)closure->user_data;
         if (args == NULL)
             return cdata_repr(cd);
         else
@@ -5727,11 +5768,12 @@ static PyObject *prepare_callback_info_tuple(CTypeDescrObject *ct,
 static PyObject *b_callback(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
-    CDataObject *cd;
+    CDataObject_closure *cd;
     PyObject *ob, *error_ob = Py_None, *onerror_ob = Py_None;
     PyObject *infotuple;
     cif_description_t *cif_descr;
     ffi_closure *closure;
+    void *closure_exec;
 
     if (!PyArg_ParseTuple(args, "O!O|OO:callback", &CTypeDescr_Type, &ct, &ob,
                           &error_ob, &onerror_ob))
@@ -5741,15 +5783,24 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     if (infotuple == NULL)
         return NULL;
 
+#ifdef CFFI_TRUST_LIBFFI
+    closure = ffi_closure_alloc(sizeof(ffi_closure), &closure_exec);
+#else
     closure = cffi_closure_alloc();
-
-    cd = PyObject_GC_New(CDataObject, &CDataOwningGC_Type);
+    closure_exec = closure;
+#endif
+    if (closure == NULL) {
+        Py_DECREF(infotuple);
+        return NULL;
+    }
+    cd = PyObject_GC_New(CDataObject_closure, &CDataOwningGC_Type);
     if (cd == NULL)
         goto error;
     Py_INCREF(ct);
-    cd->c_type = ct;
-    cd->c_data = (char *)closure;
-    cd->c_weakreflist = NULL;
+    cd->head.c_type = ct;
+    cd->head.c_data = (char *)closure_exec;
+    cd->head.c_weakreflist = NULL;
+    cd->closure = closure;
     PyObject_GC_Track(cd);
 
     cif_descr = (cif_description_t *)ct->ct_extra;
@@ -5759,8 +5810,13 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
                      "return type or with '...'", ct->ct_name);
         goto error;
     }
+#ifdef CFFI_TRUST_LIBFFI
+    if (ffi_prep_closure_loc(closure, &cif_descr->cif,
+                         invoke_callback, infotuple, closure_exec) != FFI_OK) {
+#else
     if (ffi_prep_closure(closure, &cif_descr->cif,
                          invoke_callback, infotuple) != FFI_OK) {
+#endif
         PyErr_SetString(PyExc_SystemError,
                         "libffi failed to build this callback");
         goto error;
@@ -5783,8 +5839,13 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
 
  error:
     closure->user_data = NULL;
-    if (cd == NULL)
+    if (cd == NULL) {
+#ifdef CFFI_TRUST_LIBFFI
+        ffi_closure_free(closure);
+#else
         cffi_closure_free(closure);
+#endif
+    }
     else
         Py_DECREF(cd);
     Py_XDECREF(infotuple);
