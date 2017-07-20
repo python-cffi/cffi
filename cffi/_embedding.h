@@ -1,6 +1,11 @@
 
 /***** Support code for embedding *****/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #if defined(_MSC_VER)
 #  define CFFI_DLLEXPORT  __declspec(dllexport)
 #elif defined(__GNUC__)
@@ -525,3 +530,7 @@ static int cffi_start_python(void)
 #undef cffi_compare_and_swap
 #undef cffi_write_barrier
 #undef cffi_read_barrier
+
+#ifdef __cplusplus
+}
+#endif

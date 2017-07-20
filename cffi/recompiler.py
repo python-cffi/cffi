@@ -412,6 +412,9 @@ class Recompiler:
             prnt('    }')
         prnt('    p[0] = (const void *)0x%x;' % self._version)
         prnt('    p[1] = &_cffi_type_context;')
+        prnt('#if PY_MAJOR_VERSION >= 3')
+        prnt('    return NULL;')
+        prnt('#endif')
         prnt('}')
         # on Windows, distutils insists on putting init_cffi_xyz in
         # 'export_symbols', so instead of fighting it, just give up and
