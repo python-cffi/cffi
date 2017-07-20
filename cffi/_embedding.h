@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 #  define CFFI_DLLEXPORT  __declspec(dllexport)
 #elif defined(__GNUC__)
 #  define CFFI_DLLEXPORT  __attribute__((visibility("default")))
