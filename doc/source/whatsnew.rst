@@ -40,6 +40,9 @@ v1.11
 
 * Progress on support for `callbacks in NetBSD`__.
 
+* Functions returning booleans would in some case still return 0 or 1
+  instead of False or True.  Fixed.
+
 .. __: https://bitbucket.org/cffi/cffi/issues/321/cffi-191-segmentation-fault-during-self
 
 

@@ -581,7 +581,7 @@ class Recompiler:
 
     def _convert_expr_from_c(self, tp, var, context):
         if isinstance(tp, model.BasePrimitiveType):
-            if tp.is_integer_type():
+            if tp.is_integer_type() and tp.name != '_Bool':
                 return '_cffi_from_c_int(%s, %s)' % (var, tp.name)
             elif isinstance(tp, model.UnknownFloatType):
                 return '_cffi_from_c_double(%s)' % (var,)
