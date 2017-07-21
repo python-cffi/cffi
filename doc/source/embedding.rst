@@ -359,6 +359,15 @@ inaccuracies in this paragraph or better ways to do things.)
   -Wl,-rpath=\$ORIGIN``.  From a Makefile, you need to say
   something like ``gcc -Wl,-rpath=\$$ORIGIN``.
 
+* On some Linux distributions, notably Debian, the ``.so`` files of
+  CPython C extension modules may be compiled without saying that they
+  depend on ``libpythonX.Y.so``.  This makes such Python systems
+  unsuitable for embedding if the embedder uses ``dlopen(...,
+  RTLD_LOCAL)``.  You get the error ``undefined symbol:
+  PyExc_SystemError``.  See `issue #264`__.
+
+.. __: https://bitbucket.org/cffi/cffi/issues/264/
+
 
 Using multiple CFFI-made DLLs
 -----------------------------
