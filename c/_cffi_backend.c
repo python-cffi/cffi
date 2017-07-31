@@ -4737,9 +4737,9 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         /* update the total alignment requirement, but skip it if the
            field is an anonymous bitfield or if SF_PACKED */
         falignorg = get_alignment(ftype);
-        falign = (sflags & SF_PACKED) ? 1 : falignorg;
-        if (falign < 0)
+        if (falignorg < 0)
             goto error;
+        falign = (sflags & SF_PACKED) ? 1 : falignorg;
 
         do_align = 1;
         if (!(sflags & SF_GCC_ARM_BITFIELDS) && fbitsize >= 0) {
