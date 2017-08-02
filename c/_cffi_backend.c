@@ -6708,10 +6708,12 @@ static PyObject *b_gcp(PyObject *self, PyObject *args, PyObject *kwds)
     CDataObject *cd;
     CDataObject *origobj;
     PyObject *destructor;
-    static char *keywords[] = {"cdata", "destructor", NULL};
+    Py_ssize_t ignored;   /* for pypy */
+    static char *keywords[] = {"cdata", "destructor", "size", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O:gc", keywords,
-                                     &CData_Type, &origobj, &destructor))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O|n:gc", keywords,
+                                     &CData_Type, &origobj, &destructor,
+                                     &ignored))
         return NULL;
 
     if (destructor == Py_None) {

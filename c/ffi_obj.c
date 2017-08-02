@@ -705,7 +705,12 @@ static PyObject *ffi_from_buffer(PyObject *self, PyObject *arg)
 PyDoc_STRVAR(ffi_gc_doc,
 "Return a new cdata object that points to the same data.\n"
 "Later, when this new cdata object is garbage-collected,\n"
-"'destructor(old_cdata_object)' will be called.");
+"'destructor(old_cdata_object)' will be called.\n"
+"\n"
+"The optional 'size' gives an estimate of the size, used to\n"
+"trigger the garbage collection more eagerly.  So far only used\n"
+"on PyPy.  It tells the GC that the returned object keeps alive\n"
+"roughly 'size' bytes of external memory.");
 
 #define ffi_gc  b_gcp     /* ffi_gc() => b_gcp()
                              from _cffi_backend.c */
