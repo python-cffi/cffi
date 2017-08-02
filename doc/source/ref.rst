@@ -352,10 +352,13 @@ always present, and depending on the kind they may also have
 .. __: #ffi-buffer
 
 
+.. _ffi-gc:
+
 ffi.gc()
 ++++++++
 
-**ffi.gc(cdata, destructor)**: return a new cdata object that points to the
+**ffi.gc(cdata, destructor, size=0)**:
+return a new cdata object that points to the
 same data.  Later, when this new cdata object is garbage-collected,
 ``destructor(old_cdata_object)`` will be called.  Example of usage:
 ``ptr = ffi.gc(lib.custom_malloc(42), lib.custom_free)``.
@@ -364,21 +367,38 @@ returned by ``ffi.new()``, the returned pointer objects have *ownership*,
 which means the destructor is called as soon as *this* exact returned
 object is garbage-collected.
 
-**ffi.gc(ptr, None)**: removes the ownership on a object returned by a
+**ffi.gc(ptr, None, size=0)**:
+removes the ownership on a object returned by a
 regular call to ``ffi.gc``, and no destructor will be called when it
 is garbage-collected.  The object is modified in-place, and the
 function returns ``None``.  *New in version 1.7: ffi.gc(ptr, None)*
 
-Note that ``ffi.gc()`` should be avoided for large memory allocations or
-for limited resources.  This is particularly true on PyPy: its GC does
-not know how much memory or how many resources the returned ``ptr``
-holds.  It will only run its GC when enough memory it knows about has
-been allocated (and thus run the destructor possibly later than you
-would expect).  Moreover, the destructor is called in whatever thread
-PyPy is at that moment, which might be a problem for some C libraries.
-In these cases, consider writing a wrapper class with custom ``__enter__()``
-and ``__exit__()`` methods, allocating and freeing the C data at known
-points in time, and using it in a ``with`` statement.
+Note that ``ffi.gc()`` should be avoided for limited resources, or (with
+cffi below 1.11) for large memory allocations.  This is particularly
+true on PyPy: its GC does not know how much memory or how many resources
+the returned ``ptr`` holds.  It will only run its GC when enough memory
+it knows about has been allocated (and thus run the destructor possibly
+later than you would expect).  Moreover, the destructor is called in
+whatever thread PyPy is at that moment, which might be a problem for
+some C libraries.  In these cases, consider writing a wrapper class with
+custom ``__enter__()`` and ``__exit__()`` methods, allocating and
+freeing the C data at known points in time, and using it in a ``with``
+statement.
+
+*New in version 1.11:* the ``size`` argument.  If given, this should be
+an estimate of the size (in bytes) that ``ptr`` keeps alive.  This
+information is passed on to the garbage collector, fixing part of the
+problem described above.  The ``size`` argument is most important on
+PyPy; on CPython, it is ignored so far, but in the future it could be
+used to trigger more eagerly the cyclic reference GC, too (see CPython
+`issue 31105`__).
+
+The form ``ffi.gc(ptr, None, size=0)`` can be called with a negative
+``size``, to cancel the estimate.  It is not mandatory, though:
+nothing gets out of sync if the size estimates do not match.  It only
+makes the next GC start more or less early.
+
+.. __: http://bugs.python.org/issue31105
 
 
 .. _ffi-new-handle:

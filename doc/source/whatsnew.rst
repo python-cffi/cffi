@@ -43,7 +43,16 @@ v1.11
 * Functions returning booleans would in some case still return 0 or 1
   instead of False or True.  Fixed.
 
+* `ffi.gc()`__ now takes an optional third parameter, which gives an
+  estimate of the size (in bytes) of the object.  So far, this is only
+  used by PyPy, to make the next GC occur more quickly (`issue #320`__).
+  In the future, this might have an effect on CPython too (provided
+  the CPython `issue 31105`__ is addressed).
+
 .. __: https://bitbucket.org/cffi/cffi/issues/321/cffi-191-segmentation-fault-during-self
+.. __: ref.html#ffi-gc
+.. __: https://bitbucket.org/cffi/cffi/issues/320/improve-memory_pressure-management
+.. __: http://bugs.python.org/issue31105
 
 
 v1.10.1
