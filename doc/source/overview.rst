@@ -44,6 +44,10 @@ Note that on Python 3 you need to pass byte strings to ``char *``
 arguments.  In the above example it would be ``b"world"`` and ``b"hi
 there, %s!\n"``.  In general it is ``somestring.encode(myencoding)``.
 
+*Python 3 on Windows:* ``ffi.dlopen(None)`` does not work.  This problem
+is messy and not really fixable.  The example above could be fixed by
+calling another function from a specific DLL that exists on your system.
+
 *This example does not call any C compiler.  It works in the so-called
 ABI mode, which means that it will crash if you call some function or
 access some fields of a structure that was slightly misdeclared in the
