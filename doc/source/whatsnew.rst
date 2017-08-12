@@ -49,6 +49,10 @@ v1.11
   In the future, this might have an effect on CPython too (provided
   the CPython `issue 31105`__ is addressed).
 
+* Add a note to the documentation: the ABI mode gives function objects
+  that are *slower* to call than the API mode does.  For some reason it
+  is often thought to be faster.  It is not!
+
 .. __: https://bitbucket.org/cffi/cffi/issues/321/cffi-191-segmentation-fault-during-self
 .. __: ref.html#ffi-gc
 .. __: https://bitbucket.org/cffi/cffi/issues/320/improve-memory_pressure-management
