@@ -314,7 +314,9 @@ that ``libpath`` `cannot be None`__ on Windows with Python 3.
 Let me state it again: this gives ABI-level access to the library, so
 you need to have all types declared manually exactly as they were
 while the library was made.  No checking is done.  Mismatches can
-cause random crashes.
+cause random crashes.  API-level access, on the other hand, is safer.
+Speed-wise, API-level access is much faster (it is common to have
+the opposite misconception about performance).
 
 Note that only functions and global variables live in library objects;
 the types exist in the ``ffi`` instance independently of library objects.
