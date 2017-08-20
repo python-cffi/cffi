@@ -89,6 +89,7 @@ static void *cdlopen_fetch(PyObject *libname, void *libhandle, char *symbol);
 
 static void lib_dealloc(LibObject *lib)
 {
+    PyObject_GC_UnTrack(lib);
     cdlopen_close_ignore_errors(lib->l_libhandle);
     Py_DECREF(lib->l_dict);
     Py_DECREF(lib->l_libname);
