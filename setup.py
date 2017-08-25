@@ -44,11 +44,14 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
 
 def no_working_compiler_found():
     sys.stderr.write("""
-    No working compiler found, or bogus compiler options
-    passed to the compiler from Python's distutils module.
-    See the error messages above.
-    (If they are about -mno-fused-madd and you are on OS/X 10.8,
-    see http://stackoverflow.com/questions/22313407/ .)\n""")
+    No working compiler found, or bogus compiler options passed to
+    the compiler from Python's standard "distutils" module.  See
+    the error messages above.  Likely, the problem is not related
+    to CFFI but generic to the setup.py of any Python package that
+    tries to compile C code.  (Hints: on OS/X 10.8, for errors about
+    -mno-fused-madd see http://stackoverflow.com/questions/22313407/
+    Otherwise, see https://wiki.python.org/moin/CompLangPython or
+    the IRC channel #python on irc.freenode.net.)\n""")
     sys.exit(1)
 
 def get_config():
