@@ -206,6 +206,9 @@ Similarly, arrays of wchar_t or char16_t or char32_t can be initialized
 from a unicode string,
 and calling ``ffi.string()`` on the cdata object returns the current unicode
 string stored in the source array (adding surrogates if necessary).
+See the `Unicode character types`__ section for more details.
+
+__: ref.html#unichar
 
 Note that unlike Python lists or tuples, but like C, you *cannot* index in
 a C array from the end using negative numbers.

@@ -796,20 +796,8 @@ allowed.
 
 `[8]` ``wchar_t``, ``char16_t`` and ``char32_t``
 
-   The ``wchar_t`` type has the same signedness as the underlying
-   platform's.  For example, on Linux, it is a signed 32-bit integer.
-   However, the types ``char16_t`` and ``char32_t`` (*new in version
-   1.11*) are always unsigned.  **Warning:** for now, if you use
-   ``char16_t`` and ``char32_t`` with ``cdef()`` and ``set_source()``,
-   you have to make sure yourself that the types are declared by the C
-   source you provide to ``set_source()``.  They would be declared if
-   you ``#include`` a library that explicitly uses them, for example,
-   or when using C++11.  Otherwise, you need ``#include <uchar.h>`` on
-   Linux, or more generally something like ``typedef uint_least16_t
-   char16_t;``.  This is not done automatically by CFFI because
-   ``uchar.h`` is not standard across platforms, and writing a
-   ``typedef`` like above would crash if the type happens to be
-   already defined.
+   See `Unicode character types`_ below.
+
 
 .. _file:
 
@@ -842,3 +830,66 @@ explicitly make using fdopen(), like this:
 The special support for ``FILE *`` is anyway implemented in a similar manner
 on CPython 3.x and on PyPy, because these Python implementations' files are
 not natively based on ``FILE *``.  Doing it explicity offers more control.
+
+
+.. _unichar:
+
+Unicode character types
++++++++++++++++++++++++
+
+The ``wchar_t`` type has the same signedness as the underlying
+platform's.  For example, on Linux, it is a signed 32-bit integer.
+However, the types ``char16_t`` and ``char32_t`` (*new in version 1.11*)
+are always unsigned.
+
+Note that CFFI assumes that these types are meant to contain UTF-16 or
+UTF-32 characters in the native endianness.  More precisely:
+
+* ``char32_t`` is assumed to contain UTF-32, or UCS4, which is just the
+  unicode codepoint;
+
+* ``char16_t`` is assumed to contain UTF-16, i.e. UCS2 plus surrogates;
+
+* ``wchar_t`` is assumed to contain either UTF-32 or UTF-16 based on its
+  actual platform-defined size of 4 or 2 bytes.
+
+Whether this assumption is true or not is unspecified by the C language.
+In theory, the C library you are interfacing with could use one of these
+types with a different meaning.  You would then need to handle it
+yourself---for example, by using ``uint32_t`` instead of ``char32_t`` in
+the ``cdef()``, and building the expected arrays of ``uint32_t``
+manually.
+
+Python itself can be compiled with ``sys.maxunicode == 65535`` or
+``sys.maxunicode == 1114111`` (Python >= 3.3 is always 1114111).  This
+changes the handling of surrogates (which are pairs of 16-bit
+"characters" which actually stand for a single codepoint whose value is
+greater than 65535).  If your Python is ``sys.maxunicode == 1114111``,
+then it can store arbitrary unicode codepoints; surrogates are
+automatically inserted when converting from Python unicodes to UTF-16,
+and automatically removed when converting back.   On the other hand, if
+your Python is ``sys.maxunicode == 65535``, then it is the other way
+around: surrogates are removed when converting from Python unicodes
+to UTF-32, and added when converting back.  In other words, surrogate
+conversion is done only when there is a size mismatch.
+
+Note that Python's internal representations is not specified.  For
+example, on CPython >= 3.3, it will use 1- or 2- or 4-bytes arrays
+depending on what the string actually contains.  With CFFI, when you
+pass a Python byte string to a C function expecting a ``char*``, then
+we pass directly a pointer to the existing data without needing a
+temporary buffer; however, the same cannot cleanly be done with
+*unicode* string arguments and the ``wchar_t*`` / ``char16_t*`` /
+``char32_t*`` types, because of the changing internal
+representation.  As a result, and for consistency, CFFI always allocates
+a temporary buffer for unicode strings.
+
+**Warning:** for now, if you use ``char16_t`` and ``char32_t`` with
+``set_source()``, you have to make sure yourself that the types are
+declared by the C source you provide to ``set_source()``.  They would be
+declared if you ``#include`` a library that explicitly uses them, for
+example, or when using C++11.  Otherwise, you need ``#include
+<uchar.h>`` on Linux, or more generally something like ``typedef
+uint16_t char16_t;``.  This is not done automatically by CFFI because
+``uchar.h`` is not standard across platforms, and writing a ``typedef``
+like above would crash if the type happens to be already defined.
