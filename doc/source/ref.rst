@@ -51,6 +51,9 @@ the value of type ``cdecl`` that it points to.  This means that the raw
 data can be used as long as this object is kept alive, but must not be
 used for a longer time.  Be careful about that when copying the
 pointer to the memory somewhere else, e.g. into another structure.
+Also, this means that a line like ``x = ffi.new(...)[0]`` is *always
+wrong:* the newly allocated object goes out of scope instantly, and so
+is freed immediately, and ``x`` is garbage.
 
 The returned memory is initially cleared (filled with zeroes), before
 the optional initializer is applied.  For performance, see
