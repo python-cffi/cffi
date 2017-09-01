@@ -668,6 +668,10 @@ extensions:
   supported at all (declare and use it as if it were an array of two
   ``long double``, and write wrapper functions in C with set_source()).
 
+* ``__restrict__`` or ``__restrict`` are extensions of, respectively,
+   GCC and MSVC.  They are not recognized.  But ``restrict`` is a C
+   keyword and is accepted (and ignored).
+
 Note that declarations like ``int field[];`` in
 structures are interpreted as variable-length structures.  Declarations
 like ``int field[...];`` on the other hand are arrays whose length is
