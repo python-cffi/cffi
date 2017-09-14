@@ -234,9 +234,10 @@ static void cffi_call_python(struct _cffi_externpy_s *externpy, char *args)
     save_errno();
 
     /* We need the infotuple here.  We could always go through
-       interp->modules['..'][externpy], but to avoid the extra dict
+       _update_cache_to_call_python(), but to avoid the extra dict
        lookups, we cache in (reserved1, reserved2) the last seen pair
-       (interp->modules, infotuple).
+       (interp->modules, infotuple).  The first item in this tuple is
+       a random PyObject that identifies the subinterpreter.
     */
     if (externpy->reserved1 == NULL) {
         /* Not initialized!  We didn't call @ffi.def_extern() on this
