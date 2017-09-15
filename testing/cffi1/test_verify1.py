@@ -1,5 +1,6 @@
 import os, sys, math, py
 from cffi import FFI, FFIError, VerificationError, VerificationMissing, model
+from cffi import CDefError
 from cffi import recompiler
 from testing.support import *
 import _cffi_backend
@@ -2222,7 +2223,9 @@ def test_some_integer_type_for_issue73():
 
 def test_unsupported_some_primitive_types():
     ffi = FFI()
-    py.test.raises(FFIError, ffi.cdef, """typedef void... foo_t;""")
+    py.test.raises((FFIError,      # with pycparser <= 2.17
+                    CDefError),    # with pycparser >= 2.18
+                   ffi.cdef, """typedef void... foo_t;""")
     #
     ffi.cdef("typedef int... foo_t;")
     py.test.raises(VerificationError, ffi.verify, "typedef float foo_t;")
