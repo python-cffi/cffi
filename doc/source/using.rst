@@ -128,9 +128,36 @@ NULL>``, which you can check for e.g. by comparing it with
 
 There is no general equivalent to the ``&`` operator in C (because it
 would not fit nicely in the model, and it does not seem to be needed
-here).  But see `ffi.addressof()`__.
+here).  There is `ffi.addressof()`__, but only for some cases.  You
+cannot take the "address" of a number in Python, for example; similarly,
+you cannot take the address of a CFFI pointer.  If you have this kind
+of C code::
+
+    int x, y;
+    fetch_size(&x, &y);
+
+    opaque_t *handle;      // some opaque pointer
+    init_stuff(&handle);   // initializes the variable 'handle'
+    more_stuff(handle);    // pass the handle around to more functions
+
+then you need to rewrite it like this, replacing the variables in C
+with what is logically pointers to the variables:
+
+.. code-block:: python
+
+    px = ffi.new("int *")
+    py = ffi.new("int *")              arr = ffi.new("int[2]")
+    lib.fetch_size(px, py)    -OR-     lib.fetch_size(arr, arr + 1)
+    x = px[0]                          x = arr[0]
+    y = py[0]                          y = arr[1]
+
+    p_handle = ffi.new("opaque_t **")
+    lib.init_stuff(p_handle)   # pass the pointer to the 'handle' pointer
+    handle = p_handle[0]       # now we can read 'handle' out of 'p_handle'
+    lib.more_stuff(handle)
 
 .. __: ref.html#ffi-addressof
+
 
 Any operation that would in C return a pointer or array or struct type
 gives you a fresh cdata object.  Unlike the "original" one, these fresh
@@ -208,7 +235,7 @@ and calling ``ffi.string()`` on the cdata object returns the current unicode
 string stored in the source array (adding surrogates if necessary).
 See the `Unicode character types`__ section for more details.
 
-__: ref.html#unichar
+.. __: ref.html#unichar
 
 Note that unlike Python lists or tuples, but like C, you *cannot* index in
 a C array from the end using negative numbers.
