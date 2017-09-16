@@ -2303,8 +2303,8 @@ def test_gc_pypy_size_arg():
     for i in range(2000):
         p = lib.malloc(20*1024*1024)    # 20 MB
         p1 = ffi.cast("char *", p)
-        for j in xrange(0, 20*1024*1024, 4096):
-            p1[j] = '!'
+        for j in range(0, 20*1024*1024, 4096):
+            p1[j] = b'!'
         p = ffi.gc(p, lib.free, 20*1024*1024)
         del p
         # with PyPy's GC, the above would rapidly consume 40 GB of RAM
