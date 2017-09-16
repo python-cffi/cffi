@@ -11,7 +11,7 @@ v1.11
   when used as ``charN_t *`` or ``charN_t[]`` they represent a unicode
   string.  The difference with ``wchar_t`` is that they have a known,
   fixed size.  They should work at all places that used to work with
-  ``wchar_t`` (please report an issue if I missing something).  Note
+  ``wchar_t`` (please report an issue if I missed something).  Note
   that with ``set_source()``, you need to make sure that these types are
   actually defined by the C source you provide (if used in ``cdef()``).
 
