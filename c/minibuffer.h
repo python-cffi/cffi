@@ -56,14 +56,17 @@ static int mb_ass_item(MiniBufferObj *self, Py_ssize_t idx, PyObject *other)
     }
 }
 
+/* forward: from _cffi_backend.c */
+static int _fetch_as_buffer(PyObject *x, Py_buffer *view, int writable_only);
+
 static int mb_ass_slice(MiniBufferObj *self,
                         Py_ssize_t left, Py_ssize_t right, PyObject *other)
 {
-    const void *buffer;
-    Py_ssize_t buffer_len, count;
+    Py_ssize_t count;
     Py_ssize_t size = self->mb_size;
+    Py_buffer src_view;
 
-    if (PyObject_AsReadBuffer(other, &buffer, &buffer_len) < 0)
+    if (_fetch_as_buffer(other, &src_view, 0) < 0)
         return -1;
 
     if (left < 0)     left = 0;
@@ -71,12 +74,14 @@ static int mb_ass_slice(MiniBufferObj *self,
     if (left > right) left = right;
 
     count = right - left;
-    if (count != buffer_len) {
+    if (count != src_view.len) {
+        PyBuffer_Release(&src_view);
         PyErr_SetString(PyExc_ValueError,
                         "right operand length must match slice length");
         return -1;
     }
-    memcpy(self->mb_data + left, buffer, count);
+    memcpy(self->mb_data + left, src_view.buf, count);
+    PyBuffer_Release(&src_view);
     return 0;
 }
 

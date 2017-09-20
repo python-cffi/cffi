@@ -101,7 +101,11 @@
 # define PyText_FromFormat PyUnicode_FromFormat
 # define PyText_AsUTF8 _PyUnicode_AsString   /* PyUnicode_AsUTF8 in Py3.3 */
 # define PyText_AS_UTF8 _PyUnicode_AsString
-# define PyText_GetSize PyUnicode_GetSize
+# if PY_VERSION_HEX >= 0x03030000
+#  define PyText_GetSize PyUnicode_GetLength
+# else
+#  define PyText_GetSize PyUnicode_GetSize
+# endif
 # define PyText_FromString PyUnicode_FromString
 # define PyText_FromStringAndSize PyUnicode_FromStringAndSize
 # define PyText_InternInPlace PyUnicode_InternInPlace
