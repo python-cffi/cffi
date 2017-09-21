@@ -3,6 +3,12 @@ What's New
 ======================
 
 
+v1.11.1
+=======
+
+* Fix tests, remove deprecated C API usage
+
+
 v1.11
 =====
 
