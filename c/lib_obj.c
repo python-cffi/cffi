@@ -530,6 +530,13 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
         PyErr_Clear();
         return PyText_FromFormat("%s.lib", PyText_AS_UTF8(lib->l_libname));
     }
+#if PY_MAJOR_VERSION >= 3
+    if (strcmp(p, "__loader__") == 0 || strcmp(p, "__spec__") == 0) {
+        /* some more module-like behavior hacks */
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+#endif
     return NULL;
 }
 
