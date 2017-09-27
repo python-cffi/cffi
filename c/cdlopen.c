@@ -1,6 +1,7 @@
 /* ffi.dlopen() interface with dlopen()/dlsym()/dlclose() */
 
-static void *cdlopen_fetch(PyObject *libname, void *libhandle, char *symbol)
+static void *cdlopen_fetch(PyObject *libname, void *libhandle,
+                           const char *symbol)
 {
     void *address;
 

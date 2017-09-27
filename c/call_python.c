@@ -51,7 +51,7 @@ static PyObject *_get_interpstate_dict(void)
 
 static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
 {
-    char *s;
+    const char *s;
     PyObject *error, *onerror, *infotuple, *old1;
     int index, err;
     const struct _cffi_global_s *g;

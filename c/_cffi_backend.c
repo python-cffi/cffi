@@ -2,7 +2,7 @@
 #include <Python.h>
 #include "structmember.h"
 
-#define CFFI_VERSION  "1.11.0"
+#define CFFI_VERSION  "1.11.1"
 
 #ifdef MS_WIN32
 #include <windows.h>
@@ -101,7 +101,11 @@
 # define PyText_FromFormat PyUnicode_FromFormat
 # define PyText_AsUTF8 _PyUnicode_AsString   /* PyUnicode_AsUTF8 in Py3.3 */
 # define PyText_AS_UTF8 _PyUnicode_AsString
-# define PyText_GetSize PyUnicode_GetSize
+# if PY_VERSION_HEX >= 0x03030000
+#  define PyText_GetSize PyUnicode_GetLength
+# else
+#  define PyText_GetSize PyUnicode_GetSize
+# endif
 # define PyText_FromString PyUnicode_FromString
 # define PyText_FromStringAndSize PyUnicode_FromStringAndSize
 # define PyText_InternInPlace PyUnicode_InternInPlace
@@ -2671,7 +2675,7 @@ cdata_sub(PyObject *v, PyObject *w)
 static void
 _cdata_attr_errmsg(char *errmsg, CDataObject *cd, PyObject *attr)
 {
-    char *text;
+    const char *text;
     if (!PyErr_ExceptionMatches(PyExc_AttributeError))
         return;
     PyErr_Clear();
@@ -5896,7 +5900,7 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
         if (!PyText_Check(tmpkey)) {
 #if PY_MAJOR_VERSION < 3
             if (PyUnicode_Check(tmpkey)) {
-                char *text = PyText_AsUTF8(tmpkey);
+                const char *text = PyText_AsUTF8(tmpkey);
                 if (text == NULL)
                     goto error;
                 Py_DECREF(tmpkey);

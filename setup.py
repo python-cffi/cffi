@@ -186,7 +186,7 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='1.11.0',
+        version='1.11.1',
         packages=['cffi'] if cpython else [],
         package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h', 
                                '_embedding.h', '_cffi_errors.h']}
@@ -231,6 +231,7 @@ Contact
             'Programming Language :: Python :: 3.3',
             'Programming Language :: Python :: 3.4',
             'Programming Language :: Python :: 3.5',
+            'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: Implementation :: CPython',
             'Programming Language :: Python :: Implementation :: PyPy',
         ],

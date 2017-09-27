@@ -56,14 +56,17 @@ static int mb_ass_item(MiniBufferObj *self, Py_ssize_t idx, PyObject *other)
     }
 }
 
+/* forward: from _cffi_backend.c */
+static int _fetch_as_buffer(PyObject *x, Py_buffer *view, int writable_only);
+
 static int mb_ass_slice(MiniBufferObj *self,
                         Py_ssize_t left, Py_ssize_t right, PyObject *other)
 {
-    const void *buffer;
-    Py_ssize_t buffer_len, count;
+    Py_ssize_t count;
     Py_ssize_t size = self->mb_size;
+    Py_buffer src_view;
 
-    if (PyObject_AsReadBuffer(other, &buffer, &buffer_len) < 0)
+    if (_fetch_as_buffer(other, &src_view, 0) < 0)
         return -1;
 
     if (left < 0)     left = 0;
@@ -71,12 +74,14 @@ static int mb_ass_slice(MiniBufferObj *self,
     if (left > right) left = right;
 
     count = right - left;
-    if (count != buffer_len) {
+    if (count != src_view.len) {
+        PyBuffer_Release(&src_view);
         PyErr_SetString(PyExc_ValueError,
                         "right operand length must match slice length");
         return -1;
     }
-    memcpy(self->mb_data + left, buffer, count);
+    memcpy(self->mb_data + left, src_view.buf, count);
+    PyBuffer_Release(&src_view);
     return 0;
 }
 
@@ -232,6 +237,14 @@ mb_richcompare(PyObject *self, PyObject *other, int op)
 
 #if PY_MAJOR_VERSION >= 3
 /* pfffffffffffff pages of copy-paste from listobject.c */
+
+/* pfffffffffffff#2: the PySlice_GetIndicesEx() *macro* should not
+   be called, because C extension modules compiled with it differ
+   on ABI between 3.6.0, 3.6.1 and 3.6.2. */
+#if PY_VERSION_HEX < 0x03070000 && defined(PySlice_GetIndicesEx) && !defined(PYPY_VERSION)
+#undef PySlice_GetIndicesEx
+#endif
+
 static PyObject *mb_subscript(MiniBufferObj *self, PyObject *item)
 {
     if (PyIndex_Check(item)) {

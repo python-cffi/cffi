@@ -92,7 +92,7 @@ static PyObject *ffiobj_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 /* forward, declared in cdlopen.c because it's mostly useful for this case */
 static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds);
 
-static PyObject *ffi_fetch_int_constant(FFIObject *ffi, char *name,
+static PyObject *ffi_fetch_int_constant(FFIObject *ffi, const char *name,
                                         int recursion)
 {
     int index;
@@ -145,7 +145,7 @@ static PyObject *ffi_fetch_int_constant(FFIObject *ffi, char *name,
 #define ACCEPT_ALL      (ACCEPT_STRING | ACCEPT_CTYPE | ACCEPT_CDATA)
 #define CONSIDER_FN_AS_FNPTR  8
 
-static CTypeDescrObject *_ffi_bad_type(FFIObject *ffi, char *input_text)
+static CTypeDescrObject *_ffi_bad_type(FFIObject *ffi, const char *input_text)
 {
     size_t length = strlen(input_text);
     char *extra;
@@ -188,7 +188,7 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
         PyObject *x = PyDict_GetItem(types_dict, arg);
 
         if (x == NULL) {
-            char *input_text = PyText_AS_UTF8(arg);
+            const char *input_text = PyText_AS_UTF8(arg);
             int err, index = parse_c_type(&ffi->info, input_text);
             if (index < 0)
                 return _ffi_bad_type(ffi, input_text);
