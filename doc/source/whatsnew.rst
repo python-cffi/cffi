@@ -10,6 +10,8 @@ v1.11.1
 
 * Fix for 3.6.0/3.6.1 being incompatible with each other unless we hack
   (cpython issue `#29943`_)
+
+* Fix for 3.7.0a1+ (it didn't run successfully in CPython's 3.7 branch)
   
 .. _`#29943`: https://bugs.python.org/issue29943
 
