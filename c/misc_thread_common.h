@@ -65,22 +65,30 @@ static void restore_errno_only(void)
 /* Seems that CPython 3.5.1 made our job harder.  Did not find out how
    to do that without these hacks.  We can't use PyThreadState_GET(),
    because that calls PyThreadState_Get() which fails an assert if the
-   result is NULL. */
-#if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
-                             /* this was abruptly un-defined in 3.5.1 */
-void *volatile _PyThreadState_Current;
-   /* XXX simple volatile access is assumed atomic */
-#  define _Py_atomic_load_relaxed(pp)  (*(pp))
-#endif
-
+   result is NULL.  We can use _PyThreadState_UncheckedGet() from 3.6,
+   though.  It was added in 3.5.2 but should never be used in 3.5.x
+   because it is not available in 3.5.0 or 3.5.1. */
+#if PY_VERSION_HEX >= 0x03060000
 static PyThreadState *get_current_ts(void)
 {
-#if defined(_Py_atomic_load_relaxed)
-    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
-#else
-    return _PyThreadState_Current;
-#endif
+    return _PyThreadState_UncheckedGet();
 }
+#else
+#  if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
+                             /* this was abruptly un-defined in 3.5.1 */
+extern void *volatile _PyThreadState_Current;
+   /* XXX simple volatile access is assumed atomic */
+#    define _Py_atomic_load_relaxed(pp)  (*(pp))
+#  endif
+static PyThreadState *get_current_ts(void)
+{
+#  if defined(_Py_atomic_load_relaxed)
+    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+#  else
+    return _PyThreadState_Current;
+#  endif
+}
+#endif
 
 static PyGILState_STATE gil_ensure(void)
 {
