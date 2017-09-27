@@ -85,7 +85,8 @@ static PyObject *_cpyextfunc_type_index(PyObject *x)
 }
 
 static void cdlopen_close_ignore_errors(void *libhandle);  /* forward */
-static void *cdlopen_fetch(PyObject *libname, void *libhandle, char *symbol);
+static void *cdlopen_fetch(PyObject *libname, void *libhandle,
+                           const char *symbol);
 
 static void lib_dealloc(LibObject *lib)
 {
@@ -127,7 +128,7 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
     int i, type_index = _CFFI_GETARG(g->type_op);
     _cffi_opcode_t *opcodes = lib->l_types_builder->ctx.types;
     static const char *const format = ";\n\nCFFI C function from %s.lib";
-    char *libname = PyText_AS_UTF8(lib->l_libname);
+    const char *libname = PyText_AS_UTF8(lib->l_libname);
     struct funcbuilder_s funcbuilder;
 
     /* return type: */
@@ -206,7 +207,7 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
     const struct _cffi_global_s *g;
     CTypeDescrObject *ct;
     builder_c_t *types_builder = lib->l_types_builder;
-    char *s = PyText_AsUTF8(name);
+    const char *s = PyText_AsUTF8(name);
     if (s == NULL)
         return NULL;
 
@@ -493,7 +494,7 @@ static PyObject *_lib_dict(LibObject *lib)
 
 static PyObject *lib_getattr(LibObject *lib, PyObject *name)
 {
-    char *p;
+    const char *p;
     PyObject *x;
     LIB_GET_OR_CACHE_ADDR(x, lib, name, goto missing);
 

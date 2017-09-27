@@ -2675,7 +2675,7 @@ cdata_sub(PyObject *v, PyObject *w)
 static void
 _cdata_attr_errmsg(char *errmsg, CDataObject *cd, PyObject *attr)
 {
-    char *text;
+    const char *text;
     if (!PyErr_ExceptionMatches(PyExc_AttributeError))
         return;
     PyErr_Clear();
@@ -5900,7 +5900,7 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
         if (!PyText_Check(tmpkey)) {
 #if PY_MAJOR_VERSION < 3
             if (PyUnicode_Check(tmpkey)) {
-                char *text = PyText_AsUTF8(tmpkey);
+                const char *text = PyText_AsUTF8(tmpkey);
                 if (text == NULL)
                     goto error;
                 Py_DECREF(tmpkey);
