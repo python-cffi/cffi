@@ -8,6 +8,11 @@ v1.11.1
 
 * Fix tests, remove deprecated C API usage
 
+* Fix for 3.6.0/3.6.1 being incompatible with each other unless we hack
+  (cpython issue `#29943`_)
+  
+.. _`#29943`: https://bugs.python.org/issue29943
+
 
 v1.11
 =====
