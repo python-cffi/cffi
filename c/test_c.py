@@ -2110,6 +2110,7 @@ def test_wchar():
     if sys.platform.startswith("linux"):
         BWChar = new_primitive_type("wchar_t")
         assert sizeof(BWChar) == 4
+        import platform
         if platform.machine().startswith(('arm', 'aarch64')):
             assert int(cast(BWChar, -1)) == 4294967295 # unsigned, on ARM
         else:
