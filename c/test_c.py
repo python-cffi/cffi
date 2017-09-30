@@ -2110,7 +2110,10 @@ def test_wchar():
     if sys.platform.startswith("linux"):
         BWChar = new_primitive_type("wchar_t")
         assert sizeof(BWChar) == 4
-        assert int(cast(BWChar, -1)) == -1        # signed, on linux
+        if platform.machine().startswith(('arm', 'aarch64')):
+            assert int(cast(BWChar, -1)) == 4294967295 # unsigned, on ARM
+        else:
+            assert int(cast(BWChar, -1)) == -1     # "often" signed...
 
 def test_char16():
     BChar16 = new_primitive_type("char16_t")
