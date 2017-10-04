@@ -55,11 +55,11 @@ Download and Installation:
 
 * Checksums of the "source" package version 1.11.1:
 
-   - MD5: ...
+   - MD5: 89dfa1bb3b3e28eafb5da3e345a19f56
 
-   - SHA: ...
+   - SHA: f3a61a3b53b482a7d05704344e0f055d4672fa01
 
-   - SHA256: ...
+   - SHA256: 4c40817cc0f71b5351eb0bdd0b585db4a285c2bcc03fbcb961b79bb8086b7576
 
 * Or grab the most current version from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
