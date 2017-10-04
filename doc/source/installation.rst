@@ -53,6 +53,8 @@ Download and Installation:
 
 * https://pypi.python.org/pypi/cffi
 
+* Checksums of the "source" package version 1.11.1:
+
    - MD5: ...
 
    - SHA: ...
