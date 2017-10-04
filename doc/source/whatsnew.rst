@@ -8,11 +8,11 @@ v1.11.1
 
 * Fix tests, remove deprecated C API usage
 
-* Fix for 3.6.0/3.6.1 being incompatible with each other unless we hack
+* Fix (hack) for 3.6.0/3.6.1/3.6.2 giving incompatible binary extensions
   (cpython issue `#29943`_)
 
-* Fix for 3.7.0a1+ (it didn't run successfully in CPython's 3.7 branch)
-  
+* Fix for 3.7.0a1+
+
 .. _`#29943`: https://bugs.python.org/issue29943
 
 
