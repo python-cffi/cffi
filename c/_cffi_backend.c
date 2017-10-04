@@ -1550,7 +1550,8 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                 /* for backward compatibility, accept "char *" as either
                    source of target.  This is not what C does, though,
                    so emit a warning that will eventually turn into an
-                   error. */
+                   error.  The warning is turned off if both types are
+                   pointers to single bytes. */
                 char *msg = (ct->ct_flags & CT_IS_VOIDCHAR_PTR ?
                     "implicit cast to 'char *' from a different pointer type: "
                     "will be forbidden in the future (check that the types "
@@ -1560,7 +1561,12 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                     "will be forbidden in the future (check that the types "
                     "are as you expect; use an explicit ffi.cast() if they "
                     "are correct)");
-                if (PyErr_WarnEx(PyExc_UserWarning, msg, 1))
+                if ((ct->ct_flags & ctinit->ct_flags & CT_POINTER) &&
+                    ct->ct_itemdescr->ct_size == 1 &&
+                    ctinit->ct_itemdescr->ct_size == 1) {
+                    /* no warning */
+                }
+                else if (PyErr_WarnEx(PyExc_UserWarning, msg, 1))
                     return -1;
             }
             else {
