@@ -3,6 +3,12 @@ What's New
 ======================
 
 
+v1.11.2
+=======
+
+* Fix Windows issue with managing the thread-state on CPython 3.0 to 3.5
+
+
 v1.11.1
 =======
 
