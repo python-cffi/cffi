@@ -401,7 +401,12 @@ The form ``ffi.gc(ptr, None, size=0)`` can be called with a negative
 nothing gets out of sync if the size estimates do not match.  It only
 makes the next GC start more or less early.
 
+Note that if you have several ``ffi.gc()`` objects, the corresponding
+destructors will be called in a random order.  If you need a particular
+order, see the discussion in `issue 340`__.
+
 .. __: http://bugs.python.org/issue31105
+.. __: https://bitbucket.org/cffi/cffi/issues/340/resources-release-issues
 
 
 .. _ffi-new-handle:
