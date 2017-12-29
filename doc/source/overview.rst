@@ -76,20 +76,25 @@ Real example (API level, out-of-line)
     ffibuilder = FFI()
 
     ffibuilder.set_source("_example",
-       r""" // passed to the real C compiler
+       r""" // passed to the real C compiler,
+            // contains implementation of things declared in cdef()
             #include <sys/types.h>
             #include <pwd.h>
+            struct passwd *mygetpwuid(int uid) {
+                return getpwuid(uid);
+            }
         """,
         libraries=[])   # or a list of libraries to link with
         # (more arguments like setup.py's Extension class:
         # include_dirs=[..], extra_objects=[..], and so on)
 
-    ffibuilder.cdef("""     // some declarations from the man page
+    ffibuilder.cdef("""
+        // declarations that are shared between python and C
         struct passwd {
             char *pw_name;
             ...;     // literally dot-dot-dot
         };
-        struct passwd *getpwuid(int uid);
+        struct passwd *mygetpwuid(int uid);
     """)
 
     if __name__ == "__main__":
@@ -111,14 +116,14 @@ Then, in your main program, you use:
 
     from _example import ffi, lib
 
-    p = lib.getpwuid(0)
+    p = lib.mygetpwuid(0)
     assert ffi.string(p.pw_name) == b'root'
 
 Note that this works independently of the exact C layout of ``struct
 passwd`` (it is "API level", as opposed to "ABI level").  It requires
 a C compiler in order to run ``example_build.py``, but it is much more
 portable than trying to get the details of the fields of ``struct
-passwd`` exactly right.  Similarly, we declared ``getpwuid()`` as
+passwd`` exactly right.  Similarly, we declared ``mygetpwuid()`` as
 taking an ``int`` argument.  On some platforms this might be slightly
 incorrect---but it does not matter.  It is also faster than the ABI
 mode.
