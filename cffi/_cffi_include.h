@@ -8,13 +8,13 @@
    the same works for the other two macros.  Py_DEBUG implies them,
    but not the other way around.
 
-   Issue #350: more mess: on Windows, we have to define Py_LIMITED_API
-   even before including pyconfig.h.  In that case, we guess what
-   pyconfig.h will do to the macros above, and check our guess after
-   the #include.
+   Issue #350: more mess: on Windows, with _MSC_VER, we have to define
+   Py_LIMITED_API even before including pyconfig.h.  In that case, we
+   guess what pyconfig.h will do to the macros above, and check our
+   guess after the #include.
 */
 #if !defined(_CFFI_USE_EMBEDDING) && !defined(Py_LIMITED_API)
-#  ifdef _WIN32
+#  ifdef _MSC_VER
 #    if !defined(_DEBUG) && !defined(Py_DEBUG) && !defined(Py_TRACE_REFS) && !defined(Py_REF_DEBUG)
 #      define Py_LIMITED_API
 #    endif
