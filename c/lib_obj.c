@@ -505,6 +505,7 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
     return x;
 
  missing:
+    /*** ATTRIBUTEERROR IS SET HERE ***/
     p = PyText_AsUTF8(name);
     if (p == NULL)
         return NULL;
@@ -534,6 +535,7 @@ static PyObject *lib_getattr(LibObject *lib, PyObject *name)
 #if PY_MAJOR_VERSION >= 3
     if (strcmp(p, "__loader__") == 0 || strcmp(p, "__spec__") == 0) {
         /* some more module-like behavior hacks */
+        PyErr_Clear();
         Py_INCREF(Py_None);
         return Py_None;
     }
