@@ -28,7 +28,7 @@ unicode string to an integer, ``ord(x)`` does not work; use instead
 *New in version 1.11:* in addition to ``wchar_t``, the C types
 ``char16_t`` and ``char32_t`` work the same but with a known fixed size.
 In previous versions, this could be achieved using ``uint16_t`` and
-``int32_t`` but without automatic convertion to Python unicodes.
+``int32_t`` but without automatic conversion to Python unicodes.
 
 Pointers, structures and arrays are more complex: they don't have an
 obvious Python equivalent.  Thus, they correspond to objects of type
