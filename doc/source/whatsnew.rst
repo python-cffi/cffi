@@ -3,6 +3,16 @@ What's New
 ======================
 
 
+v1.11.3
+=======
+
+* More Windows fixes: MSVC does not support large literal strings in C
+  code (from ``ffi.embedding_init_code(large_string)``); and a MSVC-only
+  issue with ``Py_LIMITED_API`` on CPython 3.x.
+
+* Other misc. issues and documentation improvements
+
+
 v1.11.2
 =======
 
