@@ -45,8 +45,9 @@ arguments.  In the above example it would be ``b"world"`` and ``b"hi
 there, %s!\n"``.  In general it is ``somestring.encode(myencoding)``.
 
 *Python 3 on Windows:* ``ffi.dlopen(None)`` does not work.  This problem
-is messy and not really fixable.  The example above could be fixed by
-calling another function from a specific DLL that exists on your system.
+is messy and not really fixable.  The problem does not occur if you try
+to call a fucntion from a specific DLL that exists on your system: then
+you use ``ffi.dlopen("path.dll")``.
 
 *This example does not call any C compiler.  It works in the so-called
 ABI mode, which means that it will crash if you call some function or
@@ -76,20 +77,27 @@ Real example (API level, out-of-line)
     ffibuilder = FFI()
 
     ffibuilder.set_source("_example",
-       r""" // passed to the real C compiler
+       r""" // passed to the real C compiler,
+            // contains implementation of things declared in cdef()
             #include <sys/types.h>
             #include <pwd.h>
+
+            struct passwd *get_pw_for_root(void) {
+                return getpwuid(0);
+            }
         """,
         libraries=[])   # or a list of libraries to link with
         # (more arguments like setup.py's Extension class:
         # include_dirs=[..], extra_objects=[..], and so on)
 
-    ffibuilder.cdef("""     // some declarations from the man page
+    ffibuilder.cdef("""
+        // declarations that are shared between Python and C
         struct passwd {
             char *pw_name;
             ...;     // literally dot-dot-dot
         };
-        struct passwd *getpwuid(int uid);
+        struct passwd *getpwuid(int uid);     // defined in <pwd.h>
+        struct passwd *get_pw_for_root(void); // defined in set_source()
     """)
 
     if __name__ == "__main__":
@@ -113,15 +121,18 @@ Then, in your main program, you use:
 
     p = lib.getpwuid(0)
     assert ffi.string(p.pw_name) == b'root'
+    p = lib.get_pw_for_root()
+    assert ffi.string(p.pw_name) == b'root'
 
 Note that this works independently of the exact C layout of ``struct
 passwd`` (it is "API level", as opposed to "ABI level").  It requires
 a C compiler in order to run ``example_build.py``, but it is much more
 portable than trying to get the details of the fields of ``struct
-passwd`` exactly right.  Similarly, we declared ``getpwuid()`` as
-taking an ``int`` argument.  On some platforms this might be slightly
-incorrect---but it does not matter.  It is also faster than the ABI
-mode.
+passwd`` exactly right.  Similarly, in the ``cdef()`` we declared
+``getpwuid()`` as taking an ``int`` argument; on some platforms this
+might be slightly incorrect---but it does not matter.
+
+Note also that at runtime, the API mode is faster than the ABI mode.
 
 To integrate it inside a ``setup.py`` distribution with Setuptools:
 
