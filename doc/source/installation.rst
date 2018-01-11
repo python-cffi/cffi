@@ -114,7 +114,7 @@ MacOS X
     PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig pip install cffi
 
 
-Aternatively, **on OS/X 10.6** (Thanks Juraj Sukop for this)
+Alternatively, **on OS/X 10.6** (Thanks Juraj Sukop for this)
 
 For building libffi you can use the default install path, but then, in
 ``setup.py`` you need to change::

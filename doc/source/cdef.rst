@@ -701,7 +701,7 @@ Debugging dlopen'ed C libraries
 -------------------------------
 
 A few C libraries are actually hard to use correctly in a ``dlopen()``
-setting.  This is because most C libraries are intented for, and tested
+setting.  This is because most C libraries are intended for, and tested
 with, a situation where they are *linked* with another program, using
 either static linking or dynamic linking --- but from a program written
 in C, at start-up, using the linker's capabilities instead of
