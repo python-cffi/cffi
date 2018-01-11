@@ -38,7 +38,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'CFFI'
-copyright = u'2012-2015, Armin Rigo, Maciej Fijalkowski'
+copyright = u'2012-2018, Armin Rigo, Maciej Fijalkowski'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
