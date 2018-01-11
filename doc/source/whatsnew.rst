@@ -6,11 +6,18 @@ What's New
 v1.11.3
 =======
 
-* More Windows fixes: MSVC does not support large literal strings in C
-  code (from ``ffi.embedding_init_code(large_string)``); and a MSVC-only
-  issue with ``Py_LIMITED_API`` on CPython 3.x.
+* Fix on CPython 3.x: reading the attributes ``__loader__`` or
+  ``__spec__`` from the cffi-generated lib modules gave a buggy
+  SystemError.  (These attributes are always None, and provided only to
+  help compatibility with tools that expect them in all modules.)
 
-* Other misc. issues and documentation improvements
+* More Windows fixes: workaround for MSVC not supporting large
+  literal strings in C code (from
+  ``ffi.embedding_init_code(large_string)``); and an issue with
+  ``Py_LIMITED_API`` linking with ``python35.dll/python36.dll`` instead
+  of ``python3.dll``.
+
+* Small documentation improvements.
 
 
 v1.11.2
