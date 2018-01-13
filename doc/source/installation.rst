@@ -53,13 +53,13 @@ Download and Installation:
 
 * https://pypi.python.org/pypi/cffi
 
-* Checksums of the "source" package version 1.11.3:
+* Checksums of the "source" package version 1.11.4:
 
-   - MD5: 3d263ec84bb9ad08e0edf2d21312fa1e
+   - MD5: ...
 
-   - SHA: 26a73cc075064cc7cd59ec6c58ca0684d16c4ece
+   - SHA: ...
 
-   - SHA256: 150708ce9e417858f9a4056b5f364d8c7077fd979b9e35307c2d8a4a8e991fd2
+   - SHA256: ...
 
 * Or grab the most current version from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
