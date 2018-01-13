@@ -2,6 +2,15 @@
 What's New
 ======================
 
+v1.11.4
+=======
+
+* Windows: reverted linking with ``python3.dll``, because
+  virtualenv does not make this DLL available to virtual environments
+  for now.  See `Issue #355`_.
+
+.. _`Issue #355`: https://bitbucket.org/cffi/cffi/issues/355/
+
 
 v1.11.3
 =======
