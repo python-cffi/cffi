@@ -15,7 +15,8 @@
    version would not run inside a virtualenv.  We will re-apply the fix
    after virtualenv has been fixed for some time.  For explanation, see
    issue #355.  For a workaround if you want PYTHON3.DLL and don't worry
-   about virtualenv, see issue #350.
+   about virtualenv, see issue #350.  See also 'py_limited_api' in
+   setuptools_ext.py.
 */
 #if !defined(_CFFI_USE_EMBEDDING) && !defined(Py_LIMITED_API)
 #  include <pyconfig.h>
