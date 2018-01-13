@@ -2,6 +2,15 @@
 What's New
 ======================
 
+v1.11.4
+=======
+
+* Windows: reverted linking with ``python3.dll``, because
+  virtualenv does not make this DLL available to virtual environments
+  for now.  See `Issue #355`_.
+
+.. _`Issue #355`: https://bitbucket.org/cffi/cffi/issues/355/
+
 
 v1.11.3
 =======
@@ -95,8 +104,11 @@ v1.11
 .. __: http://bugs.python.org/issue31105
 
 
+Older Versions
+==============
+
 v1.10.1
-=======
+-------
 
 (only released inside PyPy 5.8.0)
 
@@ -107,7 +119,7 @@ v1.10.1
 
 
 v1.10
-=====
+-----
 
 * Issue #295: use calloc() directly instead of
   PyObject_Malloc()+memset() to handle ffi.new() with a default
@@ -169,7 +181,7 @@ v1.10
 
 
 v1.9
-====
+----
 
 * Structs with variable-sized arrays as their last field: now we track
   the length of the array after ``ffi.new()`` is called, just like we
@@ -204,7 +216,7 @@ v1.9
 
 
 v1.8.3
-======
+------
 
 * When passing a ``void *`` argument to a function with a different
   pointer type, or vice-versa, the cast occurs automatically, like in C.
@@ -217,7 +229,7 @@ v1.8.3
 
 
 v1.8.2
-======
+------
 
 * Issue #283: fixed ``ffi.new()`` on structures/unions with nested
   anonymous structures/unions, when there is at least one union in
@@ -226,7 +238,7 @@ v1.8.2
 
 
 v1.8.1
-======
+------
 
 * CPython 3.x: experimental: the generated C extension modules now use
   the "limited API", which means that, as a compiled .so/.dll, it should
@@ -241,7 +253,7 @@ v1.8.1
 
 
 v1.8
-====
+----
 
 * Removed the restriction that ``ffi.from_buffer()`` cannot be used on
   byte strings.  Now you can get a ``char *`` out of a byte string,
@@ -255,7 +267,7 @@ v1.8
 
 
 v1.7
-====
+----
 
 * ``ffi.gc(p, None)`` removes the destructor on an object previously
   created by another call to ``ffi.gc()``
@@ -284,7 +296,7 @@ v1.7
 
 
 v1.6
-====
+----
 
 * `ffi.list_types()`_
 
@@ -307,13 +319,13 @@ v1.6
 
 
 v1.5.2
-======
+------
 
 * Fix 1.5.1 for Python 2.6.
 
 
 v1.5.1
-======
+------
 
 * A few installation-time tweaks (thanks Stefano!)
 
@@ -325,7 +337,7 @@ v1.5.1
 
 
 v1.5.0
-======
+------
 
 * Support for `using CFFI for embedding`__.
 
@@ -333,13 +345,13 @@ v1.5.0
 
 
 v1.4.2
-======
+------
 
 Nothing changed from v1.4.1.
 
 
 v1.4.1
-======
+------
 
 * Fix the compilation failure of cffi on CPython 3.5.0.  (3.5.1 works;
   some detail changed that makes some underscore-starting macros
@@ -349,7 +361,7 @@ v1.4.1
 
 
 v1.4.0
-======
+------
 
 * A `better way to do callbacks`__ has been added (faster and more
   portable, and usually cleaner).  It is a mechanism for the
@@ -390,7 +402,7 @@ v1.4.0
 
 
 v1.3.1
-======
+------
 
 * The optional typedefs (``bool``, ``FILE`` and all Windows types) were
   not always available from out-of-line FFI objects.
@@ -406,7 +418,7 @@ v1.3.1
 
 
 v1.3.0
-======
+------
 
 * Added `ffi.memmove()`_.
 
@@ -441,13 +453,13 @@ v1.3.0
 
 
 v1.2.1
-======
+------
 
 Nothing changed from v1.2.0.
 
 
 v1.2.0
-======
+------
 
 * Out-of-line mode: ``int a[][...];`` can be used to declare a structure
   field or global variable which is, simultaneously, of total length
@@ -500,14 +512,14 @@ v1.2.0
 
 
 v1.1.2
-======
+------
 
 * ``ffi.gc()``: fixed a race condition in multithreaded programs
   introduced in 1.1.1
 
 
 v1.1.1
-======
+------
 
 * Out-of-line mode: ``ffi.string()``, ``ffi.buffer()`` and
   ``ffi.getwinerror()`` didn't accept their arguments as keyword
@@ -525,7 +537,7 @@ v1.1.1
 
 
 v1.1.0
-======
+------
 
 * Out-of-line API mode: we can now declare integer types with
   ``typedef int... foo_t;``.  The exact size and signedness of ``foo_t``
@@ -558,13 +570,13 @@ v1.1.0
 
 
 v1.0.3
-======
+------
 
 * Same as 1.0.2, apart from doc and test fixes on some platforms.
 
 
 v1.0.2
-======
+------
 
 * Variadic C functions (ending in a "..." argument) were not supported
   in the out-of-line ABI mode.  This was a bug---there was even a
@@ -574,7 +586,7 @@ v1.0.2
 
 
 v1.0.1
-======
+------
 
 * ``ffi.set_source()`` crashed if passed a ``sources=[..]`` argument.
   Fixed by chrippa on pull request #60.
@@ -587,7 +599,7 @@ v1.0.1
 
 
 v1.0.0
-======
+------
 
 * The main news item is out-of-line module generation:
 

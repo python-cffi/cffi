@@ -279,12 +279,24 @@ next:
 Troubleshooting
 ---------------
 
-The error message
+* The error message
 
     cffi extension module 'c_module_name' has unknown version 0x2701
 
-means that the running Python interpreter located a CFFI version older
-than 1.5.  CFFI 1.5 or newer must be installed in the running Python.
+  means that the running Python interpreter located a CFFI version older
+  than 1.5.  CFFI 1.5 or newer must be installed in the running Python.
+
+* On PyPy, the error message
+
+    debug: pypy_setup_home: directories 'lib-python' and 'lib_pypy' not
+    found in pypy's shared library location or in any parent directory
+
+  means that the ``libpypy-c.so`` file was found, but the standard library
+  was not found from this location.  This occurs at least on some Linux
+  distributions, because they put ``libpypy-c.so`` inside ``/usr/lib/``,
+  instead of the way we recommend, which is: keep that file inside
+  ``/opt/pypy/bin/`` and put a symlink to there from ``/usr/lib/``.
+  The quickest fix is to do that change manually.
 
 
 Issues about using the .so
