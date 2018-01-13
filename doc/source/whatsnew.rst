@@ -7,7 +7,10 @@ v1.11.4
 
 * Windows: reverted linking with ``python3.dll``, because
   virtualenv does not make this DLL available to virtual environments
-  for now.  See `Issue #355`_.
+  for now.  See `Issue #355`_.  On Windows only, the C extension
+  modules created by cffi follow for now the standard naming scheme
+  ``foo.cp36-win32.pyd``, to make it clear that they are regular
+  CPython modules depending on ``python36.dll``.
 
 .. _`Issue #355`: https://bitbucket.org/cffi/cffi/issues/355/
 
