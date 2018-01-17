@@ -2297,3 +2297,11 @@ def test_loader_spec():
     else:
         assert lib.__loader__ is None
         assert lib.__spec__ is None
+
+def test_realize_struct_error():
+    ffi = FFI()
+    ffi.cdef("""typedef ... foo_t; struct foo_s { void (*x)(foo_t); };""")
+    lib = verify(ffi, "test_realize_struct_error", """
+        typedef int foo_t; struct foo_s { void (*x)(foo_t); };
+    """)
+    py.test.raises(TypeError, ffi.new, "struct foo_s *")
