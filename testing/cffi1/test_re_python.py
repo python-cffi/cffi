@@ -57,6 +57,7 @@ def setup_module(mod):
     int strlen(const char *);
     struct with_union { union { int a; char b; }; };
     union with_struct { struct { int a; char b; }; };
+    struct NVGcolor { union { float rgba[4]; struct { float r,g,b,a; }; }; };
     """)
     ffi.set_source('re_python_pysrc', None)
     ffi.emit_python_code(str(tmpdir.join('re_python_pysrc.py')))
@@ -218,10 +219,19 @@ def test_partial_enum():
 def test_anonymous_union_inside_struct():
     # based on issue #357
     from re_python_pysrc import ffi
+    INT = ffi.sizeof("int")
     assert ffi.offsetof("struct with_union", "a") == 0
     assert ffi.offsetof("struct with_union", "b") == 0
-    assert ffi.sizeof("struct with_union") == ffi.sizeof("int")
+    assert ffi.sizeof("struct with_union") == INT
     #
     assert ffi.offsetof("union with_struct", "a") == 0
-    assert ffi.offsetof("union with_struct", "b") == 4
-    assert ffi.sizeof("union with_struct") >= ffi.sizeof("int") + 1
+    assert ffi.offsetof("union with_struct", "b") == INT
+    assert ffi.sizeof("union with_struct") >= INT + 1
+    #
+    FLOAT = ffi.sizeof("float")
+    assert ffi.sizeof("struct NVGcolor") == FLOAT * 4
+    assert ffi.offsetof("struct NVGcolor", "rgba") == 0
+    assert ffi.offsetof("struct NVGcolor", "r") == 0
+    assert ffi.offsetof("struct NVGcolor", "g") == FLOAT
+    assert ffi.offsetof("struct NVGcolor", "b") == FLOAT * 2
+    assert ffi.offsetof("struct NVGcolor", "a") == FLOAT * 3
