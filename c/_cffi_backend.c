@@ -4796,7 +4796,6 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             if (PyText_GetSize(fname) == 0 &&
                     ftype->ct_flags & (CT_STRUCT|CT_UNION)) {
                 /* a nested anonymous struct or union */
-                /* note: it seems we only get here with ffi.verify() */
                 CFieldObject *cfsrc = (CFieldObject *)ftype->ct_extra;
                 for (; cfsrc != NULL; cfsrc = cfsrc->cf_next) {
                     /* broken complexity in the call to get_field_name(),

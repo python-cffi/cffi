@@ -55,6 +55,8 @@ def setup_module(mod):
     typedef struct bar_s { int x; signed char a[]; } bar_t;
     enum foo_e { AA, BB, CC };
     int strlen(const char *);
+    struct with_union { union { int a; char b; }; };
+    union with_struct { struct { int a; char b; }; };
     """)
     ffi.set_source('re_python_pysrc', None)
     ffi.emit_python_code(str(tmpdir.join('re_python_pysrc.py')))
@@ -212,3 +214,14 @@ def test_partial_enum():
     ffi.set_source('test_partial_enum', None)
     py.test.raises(VerificationMissing, ffi.emit_python_code,
                    str(tmpdir.join('test_partial_enum.py')))
+
+def test_anonymous_union_inside_struct():
+    # based on issue #357
+    from re_python_pysrc import ffi
+    assert ffi.offsetof("struct with_union", "a") == 0
+    assert ffi.offsetof("struct with_union", "b") == 0
+    assert ffi.sizeof("struct with_union") == ffi.sizeof("int")
+    #
+    assert ffi.offsetof("union with_struct", "a") == 0
+    assert ffi.offsetof("union with_struct", "b") == 4
+    assert ffi.sizeof("union with_struct") >= ffi.sizeof("int") + 1
