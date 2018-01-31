@@ -2,6 +2,17 @@
 What's New
 ======================
 
+
+v1.11.5
+=======
+
+* `Issue #357`_: fix ``ffi.emit_python_code()`` which generated a buggy
+  Python file if you are using a ``struct`` with an anonymous ``union``
+  field or vice-versa.
+
+.. _`Issue #357`: https://bitbucket.org/cffi/cffi/issues/357/
+
+
 v1.11.4
 =======
 
