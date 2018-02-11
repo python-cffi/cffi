@@ -169,6 +169,10 @@ def _add_py_module(dist, ffi, module_name):
             generate_mod(os.path.join(self.build_lib, *module_path))
     dist.cmdclass['build_py'] = build_py_make_mod
 
+    if dist.py_modules is None:
+        dist.py_modules = []
+    dist.py_modules.append(module_name)
+
     # the following is only for "build_ext -i"
     base_class_2 = dist.cmdclass.get('build_ext', build_ext)
     class build_ext_make_mod(base_class_2):
