@@ -169,6 +169,13 @@ def _add_py_module(dist, ffi, module_name):
             generate_mod(os.path.join(self.build_lib, *module_path))
     dist.cmdclass['build_py'] = build_py_make_mod
 
+    # distutils and setuptools have no notion I could find of a
+    # generated python module.  If we don't add module_name to
+    # dist.py_modules, then things mostly work but there are some
+    # combination of options (--root and --record) that will miss
+    # the module.  So we add it here, which gives a few apparently
+    # harmless warnings about not finding the file outside the
+    # build directory.
     if dist.py_modules is None:
         dist.py_modules = []
     dist.py_modules.append(module_name)
