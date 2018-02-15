@@ -3989,7 +3989,7 @@ static void dl_dealloc(DynLibObject *dlobj)
 
 static PyObject *dl_repr(DynLibObject *dlobj)
 {
-    return PyText_FromFormat("<clibrary '%s'>", dlobj->dl_name);
+    return PyText_FromFormat("<clibrary %s>", dlobj->dl_name);
 }
 
 static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
@@ -4013,7 +4013,7 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
     if (funcptr == NULL) {
         const char *error = dlerror();
         PyErr_Format(PyExc_AttributeError,
-                     "function/symbol '%s' not found in library '%s': %s",
+                     "function/symbol '%s' not found in library %s: %s",
                      funcname, dlobj->dl_name, error);
         return NULL;
     }
@@ -4040,7 +4040,7 @@ static PyObject *dl_read_variable(DynLibObject *dlobj, PyObject *args)
         const char *error = dlerror();
         if (error != NULL) {
             PyErr_Format(PyExc_KeyError,
-                         "variable '%s' not found in library '%s': %s",
+                         "variable '%s' not found in library %s: %s",
                          varname, dlobj->dl_name, error);
             return NULL;
         }
@@ -4064,7 +4064,7 @@ static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
     if (data == NULL) {
         const char *error = dlerror();
         PyErr_Format(PyExc_KeyError,
-                     "variable '%s' not found in library '%s': %s",
+                     "variable '%s' not found in library %s: %s",
                      varname, dlobj->dl_name, error);
         return NULL;
     }
@@ -4116,8 +4116,9 @@ static PyTypeObject dl_type = {
 static PyObject *b_load_library(PyObject *self, PyObject *args)
 {
     char *filename_or_null, *printable_filename;
+    PyObject *s = NULL;
     void *handle;
-    DynLibObject *dlobj;
+    DynLibObject *dlobj = NULL;
     int flags = 0;
 
     if (PyTuple_GET_SIZE(args) == 0 || PyTuple_GET_ITEM(args, 0) == Py_None) {
@@ -4126,31 +4127,61 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
                               &dummy, &flags))
             return NULL;
         filename_or_null = NULL;
+        printable_filename = "<None>";
     }
-    else if (!PyArg_ParseTuple(args, "et|i:load_library",
-                          Py_FileSystemDefaultEncoding, &filename_or_null,
-                          &flags))
-        return NULL;
+    else
+    {
+        printable_filename = NULL;
+        s = PyObject_Repr(PyTuple_GET_ITEM(args, 0));
+        if (s != NULL) {
+            printable_filename = PyText_AsUTF8(s);
+        }
+        if (printable_filename == NULL) {
+            PyErr_Clear();
+            printable_filename = "?";
+        }
 
+#ifdef MS_WIN32
+        {
+            Py_UNICODE *filenameW;
+            if (PyArg_ParseTuple(args, "u|i:load_library", &filenameW, &flags))
+            {
+                handle = dlopenW(filenameW);
+                goto got_handle;
+            }
+            PyErr_Clear();
+        }
+#endif
+        if (!PyArg_ParseTuple(args, "et|i:load_library",
+            Py_FileSystemDefaultEncoding, &filename_or_null,
+            &flags))
+            goto error;
+    }
     if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
         flags |= RTLD_NOW;
 
-    printable_filename = filename_or_null ? filename_or_null : "<None>";
     handle = dlopen(filename_or_null, flags);
+
+#ifdef MS_WIN32
+  got_handle:
+#endif
     if (handle == NULL) {
         const char *error = dlerror();
         PyErr_Format(PyExc_OSError, "cannot load library %s: %s",
                      printable_filename, error);
-        return NULL;
+        goto error;
     }
 
     dlobj = PyObject_New(DynLibObject, &dl_type);
     if (dlobj == NULL) {
         dlclose(handle);
-        return NULL;
+        goto error;
     }
     dlobj->dl_handle = handle;
     dlobj->dl_name = strdup(printable_filename);
+
+ error:
+    Py_XDECREF(s);
     return (PyObject *)dlobj;
 }
 
