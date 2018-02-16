@@ -1,8 +1,9 @@
-import sys
+import sys, os
 import py
 from cffi import FFI
 from cffi import recompiler, ffiplatform, VerificationMissing
 from testing.udir import udir
+from testing.support import u
 
 
 def setup_module(mod):
@@ -35,6 +36,13 @@ def setup_module(mod):
                         'globalconst42', 'globalconsthello']
     )
     outputfilename = ffiplatform.compile(str(tmpdir), ext)
+    if sys.platform == "win32":
+        # test with a non-ascii char
+        outputfn1 = outputfilename
+        ofn, oext = os.path.splitext(outputfn1)
+        outputfilename = ofn + (u+'\u03be') + oext
+        #print(repr(outputfn1) + ' ==> ' + repr(outputfilename))
+        os.rename(outputfn1, outputfilename)
     mod.extmod = outputfilename
     mod.tmpdir = tmpdir
     #
@@ -107,12 +115,16 @@ def test_dlclose():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
     ffi.dlclose(lib)
+    if type(extmod) is not str:   # unicode, on python 2
+        str_extmod = extmod.encode('utf-8')
+    else:
+        str_extmod = extmod
     e = py.test.raises(ffi.error, ffi.dlclose, lib)
     assert str(e.value).startswith(
-        "library '%s' is already closed" % (extmod,))
+        "library '%s' is already closed" % (str_extmod,))
     e = py.test.raises(ffi.error, getattr, lib, 'add42')
     assert str(e.value) == (
-        "library '%s' has been closed" % (extmod,))
+        "library '%s' has been closed" % (str_extmod,))
 
 def test_constant_via_lib():
     from re_python_pysrc import ffi

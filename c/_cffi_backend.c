@@ -4145,49 +4145,56 @@ static PyTypeObject dl_type = {
     dl_methods,                         /* tp_methods */
 };
 
-static PyObject *b_load_library(PyObject *self, PyObject *args)
+static void *b_do_dlopen(PyObject *args, char **p_printable_filename,
+                         PyObject **p_temp)
 {
-    char *filename_or_null, *printable_filename;
-    PyObject *s = NULL;
+    /* Logic to call the correct version of dlopen().  Returns NULL in case of error.
+       Otherwise, '*p_printable_filename' will point to a printable char version of
+       the filename (maybe utf-8-encoded).  '*p_temp' will be set either to NULL or
+       to a temporary object that must be freed after looking at printable_filename.
+    */
     void *handle;
-    DynLibObject *dlobj = NULL;
+    char *filename_or_null;
     int flags = 0;
-
+    *p_temp = NULL;
+    
     if (PyTuple_GET_SIZE(args) == 0 || PyTuple_GET_ITEM(args, 0) == Py_None) {
         PyObject *dummy;
         if (!PyArg_ParseTuple(args, "|Oi:load_library",
                               &dummy, &flags))
             return NULL;
         filename_or_null = NULL;
-        printable_filename = "<None>";
+        *p_printable_filename = "<None>";
     }
     else
     {
-        printable_filename = NULL;
-        s = PyObject_Repr(PyTuple_GET_ITEM(args, 0));
-        if (s != NULL) {
-            printable_filename = PyText_AsUTF8(s);
-        }
-        if (printable_filename == NULL) {
-            PyErr_Clear();
-            printable_filename = "?";
-        }
-
+        PyObject *s = PyTuple_GET_ITEM(args, 0);
 #ifdef MS_WIN32
+        Py_UNICODE *filenameW;
+        if (PyArg_ParseTuple(args, "u|i:load_library", &filenameW, &flags))
         {
-            Py_UNICODE *filenameW;
-            if (PyArg_ParseTuple(args, "u|i:load_library", &filenameW, &flags))
-            {
-                handle = dlopenW(filenameW);
-                goto got_handle;
-            }
-            PyErr_Clear();
+#if PY_MAJOR_VERSION < 3
+            s = PyUnicode_AsUTF8String(s);
+            if (s == NULL)
+                return NULL;
+            *p_temp = s;
+#endif
+            *p_printable_filename = PyText_AsUTF8(s);
+            if (*p_printable_filename == NULL)
+                return NULL;
+
+            handle = dlopenW(filenameW);
+            goto got_handle;
         }
+        PyErr_Clear();
 #endif
         if (!PyArg_ParseTuple(args, "et|i:load_library",
-            Py_FileSystemDefaultEncoding, &filename_or_null,
-            &flags))
-            goto error;
+                     Py_FileSystemDefaultEncoding, &filename_or_null, &flags))
+            return NULL;
+
+        *p_printable_filename = PyText_AsUTF8(s);
+        if (*p_printable_filename == NULL)
+            return NULL;
     }
     if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
         flags |= RTLD_NOW;
@@ -4199,10 +4206,23 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
 #endif
     if (handle == NULL) {
         const char *error = dlerror();
-        PyErr_Format(PyExc_OSError, "cannot load library %s: %s",
-                     printable_filename, error);
-        goto error;
+        PyErr_Format(PyExc_OSError, "cannot load library '%s': %s",
+                     *p_printable_filename, error);
+        return NULL;
     }
+    return handle;
+}
+
+static PyObject *b_load_library(PyObject *self, PyObject *args)
+{
+    char *printable_filename;
+    PyObject *temp;
+    void *handle;
+    DynLibObject *dlobj = NULL;
+
+    handle = b_do_dlopen(args, &printable_filename, &temp);
+    if (handle == NULL)
+        goto error;
 
     dlobj = PyObject_New(DynLibObject, &dl_type);
     if (dlobj == NULL) {
@@ -4211,9 +4231,9 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
     }
     dlobj->dl_handle = handle;
     dlobj->dl_name = strdup(printable_filename);
-
+ 
  error:
-    Py_XDECREF(s);
+    Py_XDECREF(temp);
     return (PyObject *)dlobj;
 }
 
