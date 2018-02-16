@@ -3982,7 +3982,8 @@ typedef struct {
 
 static void dl_dealloc(DynLibObject *dlobj)
 {
-    dlclose(dlobj->dl_handle);
+    if (dlobj->dl_handle != NULL)
+        dlclose(dlobj->dl_handle);
     free(dlobj->dl_name);
     PyObject_Del(dlobj);
 }
@@ -3990,6 +3991,17 @@ static void dl_dealloc(DynLibObject *dlobj)
 static PyObject *dl_repr(DynLibObject *dlobj)
 {
     return PyText_FromFormat("<clibrary %s>", dlobj->dl_name);
+}
+
+static int dl_check_closed(DynLibObject *dlobj)
+{
+    if (dlobj->dl_handle == NULL)
+    {
+        PyErr_Format(PyExc_ValueError, "library '%s' has already been closed",
+                     dlobj->dl_name);
+        return -1;
+    }
+    return 0;
 }
 
 static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
@@ -4000,6 +4012,9 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "O!s:load_function",
                           &CTypeDescr_Type, &ct, &funcname))
+        return NULL;
+
+    if (dl_check_closed(dlobj) < 0)
         return NULL;
 
     if (!(ct->ct_flags & (CT_FUNCTIONPTR | CT_POINTER | CT_ARRAY))) {
@@ -4034,6 +4049,9 @@ static PyObject *dl_read_variable(DynLibObject *dlobj, PyObject *args)
                           &CTypeDescr_Type, &ct, &varname))
         return NULL;
 
+    if (dl_check_closed(dlobj) < 0)
+        return NULL;
+
     dlerror();   /* clear error condition */
     data = dlsym(dlobj->dl_handle, varname);
     if (data == NULL) {
@@ -4059,6 +4077,9 @@ static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
                           &CTypeDescr_Type, &ct, &varname, &value))
         return NULL;
 
+    if (dl_check_closed(dlobj) < 0)
+        return NULL;
+
     dlerror();   /* clear error condition */
     data = dlsym(dlobj->dl_handle, varname);
     if (data == NULL) {
@@ -4074,10 +4095,21 @@ static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
     return Py_None;
 }
 
+static PyObject *dl_close_lib(DynLibObject *dlobj, PyObject *no_args)
+{
+    if (dl_check_closed(dlobj) < 0)
+        return NULL;
+    dlclose(dlobj->dl_handle);
+    dlobj->dl_handle = NULL;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef dl_methods[] = {
     {"load_function",   (PyCFunction)dl_load_function,  METH_VARARGS},
     {"read_variable",   (PyCFunction)dl_read_variable,  METH_VARARGS},
     {"write_variable",  (PyCFunction)dl_write_variable, METH_VARARGS},
+    {"close_lib",       (PyCFunction)dl_close_lib,      METH_NOARGS},
     {NULL,              NULL}           /* sentinel */
 };
 
