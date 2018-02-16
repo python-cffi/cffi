@@ -3990,7 +3990,7 @@ static void dl_dealloc(DynLibObject *dlobj)
 
 static PyObject *dl_repr(DynLibObject *dlobj)
 {
-    return PyText_FromFormat("<clibrary %s>", dlobj->dl_name);
+    return PyText_FromFormat("<clibrary '%s'>", dlobj->dl_name);
 }
 
 static int dl_check_closed(DynLibObject *dlobj)
@@ -4028,7 +4028,7 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
     if (funcptr == NULL) {
         const char *error = dlerror();
         PyErr_Format(PyExc_AttributeError,
-                     "function/symbol '%s' not found in library %s: %s",
+                     "function/symbol '%s' not found in library '%s': %s",
                      funcname, dlobj->dl_name, error);
         return NULL;
     }
@@ -4058,7 +4058,7 @@ static PyObject *dl_read_variable(DynLibObject *dlobj, PyObject *args)
         const char *error = dlerror();
         if (error != NULL) {
             PyErr_Format(PyExc_KeyError,
-                         "variable '%s' not found in library %s: %s",
+                         "variable '%s' not found in library '%s': %s",
                          varname, dlobj->dl_name, error);
             return NULL;
         }
@@ -4085,7 +4085,7 @@ static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
     if (data == NULL) {
         const char *error = dlerror();
         PyErr_Format(PyExc_KeyError,
-                     "variable '%s' not found in library %s: %s",
+                     "variable '%s' not found in library '%s': %s",
                      varname, dlobj->dl_name, error);
         return NULL;
     }
