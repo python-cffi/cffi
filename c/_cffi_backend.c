@@ -3794,27 +3794,29 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
 static int check_bytes_for_float_compatible(PyObject *io, double *out_value)
 {
     if (PyBytes_Check(io)) {
-        if (PyBytes_GET_SIZE(io) != 1) {
-            Py_DECREF(io);
-            return -1;
-        }
+        if (PyBytes_GET_SIZE(io) != 1)
+            goto error;
         *out_value = (unsigned char)PyBytes_AS_STRING(io)[0];
         return 1;
     }
     else if (PyUnicode_Check(io)) {
         char ignored[80];
         cffi_char32_t ordinal;
-        if (_my_PyUnicode_AsSingleChar32(io, &ordinal, ignored) < 0) {
-            Py_DECREF(io);
-            return -1;
-        }
+        if (_my_PyUnicode_AsSingleChar32(io, &ordinal, ignored) < 0)
+            goto error;
         /* the signness of the 32-bit version of wide chars should not
          * matter here, because 'ordinal' comes from a normal Python
          * unicode string */
         *out_value = ordinal;
         return 1;
     }
+    *out_value = 0;   /* silence a gcc warning if this function is inlined */
     return 0;
+
+ error:
+    Py_DECREF(io);
+    *out_value = 0;   /* silence a gcc warning if this function is inlined */
+    return -1;
 }
 
 static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
