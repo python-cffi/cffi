@@ -3,13 +3,30 @@ What's New
 ======================
 
 
-v1.11.5
+v1.11.6
 =======
 
 * `Issue #357`_: fix ``ffi.emit_python_code()`` which generated a buggy
   Python file if you are using a ``struct`` with an anonymous ``union``
   field or vice-versa.
 
+* Windows: ``ffi.dlopen()`` should now handle unicode filenames.
+
+* Implemented ``ffi.dlclose()`` for the in-line case (it used to be
+  present only in the out-of-line case).
+
+* Fixed a corner case for ``setup.py install --record=xx --root=yy``
+  with an out-of-line ABI module.
+
+* More hacks on Windows for running CFFI's own ``setup.py``.
+
+* `Issue #358`_: in embedding, to protect against Python initialization
+  from several threads in parallel, we have to use a spin-lock.  On
+  CPython 3 it is worse because it might spin-lock for a long time
+  (execution of ``Py_InitializeEx()``).  Sadly, recent changes to
+  CPython make that solution needed on CPython 2 too.
+
+.. _`Issue #358`: https://bitbucket.org/cffi/cffi/issues/358/
 .. _`Issue #357`: https://bitbucket.org/cffi/cffi/issues/357/
 
 
