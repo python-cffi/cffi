@@ -3,7 +3,7 @@ What's New
 ======================
 
 
-v1.11.6
+v1.11.5
 =======
 
 * `Issue #357`_: fix ``ffi.emit_python_code()`` which generated a buggy
