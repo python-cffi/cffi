@@ -560,7 +560,13 @@ package will still produce a file called e.g.
 ``NAME.cpython-35m-x86_64-linux-gnu.so``.  You can manually rename it to
 ``NAME.abi3.so``, or use setuptools version 26 or later.  Also, note
 that compiling with a debug version of Python will not actually define
-``Py_LIMITED_API``, as doing so makes ``Python.h`` unhappy.
+``Py_LIMITED_API``, as doing so makes ``Python.h`` unhappy.  Finally,
+``Py_LIMITED_API`` is not defined on Windows, because this makes
+modules which cannot be used with ``virtualenv`` (issues `#355`__ and
+`#350`__).
+
+.. __: https://bitbucket.org/cffi/cffi/issues/355/importerror-dll-load-failed-on-windows
+.. __: https://bitbucket.org/cffi/cffi/issues/350/issue-with-py_limited_api-on-windows
 
 **ffibuilder.compile(tmpdir='.', verbose=False, debug=None):**
 explicitly generate the .py or .c file,
