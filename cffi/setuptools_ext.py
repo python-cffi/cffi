@@ -148,8 +148,8 @@ def _add_c_module(dist, ffi, module_name, source, source_extension, kwds):
 
 def _add_py_module(dist, ffi, module_name):
     from distutils.dir_util import mkpath
-    from distutils.command.build_py import build_py
-    from distutils.command.build_ext import build_ext
+    from setuptools.command.build_py import build_py
+    from setuptools.command.build_ext import build_ext
     from distutils import log
     from cffi import recompiler
 
