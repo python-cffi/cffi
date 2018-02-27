@@ -3794,27 +3794,29 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
 static int check_bytes_for_float_compatible(PyObject *io, double *out_value)
 {
     if (PyBytes_Check(io)) {
-        if (PyBytes_GET_SIZE(io) != 1) {
-            Py_DECREF(io);
-            return -1;
-        }
+        if (PyBytes_GET_SIZE(io) != 1)
+            goto error;
         *out_value = (unsigned char)PyBytes_AS_STRING(io)[0];
         return 1;
     }
     else if (PyUnicode_Check(io)) {
         char ignored[80];
         cffi_char32_t ordinal;
-        if (_my_PyUnicode_AsSingleChar32(io, &ordinal, ignored) < 0) {
-            Py_DECREF(io);
-            return -1;
-        }
+        if (_my_PyUnicode_AsSingleChar32(io, &ordinal, ignored) < 0)
+            goto error;
         /* the signness of the 32-bit version of wide chars should not
          * matter here, because 'ordinal' comes from a normal Python
          * unicode string */
         *out_value = ordinal;
         return 1;
     }
+    *out_value = 0;   /* silence a gcc warning if this function is inlined */
     return 0;
+
+ error:
+    Py_DECREF(io);
+    *out_value = 0;   /* silence a gcc warning if this function is inlined */
+    return -1;
 }
 
 static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
@@ -3982,7 +3984,8 @@ typedef struct {
 
 static void dl_dealloc(DynLibObject *dlobj)
 {
-    dlclose(dlobj->dl_handle);
+    if (dlobj->dl_handle != NULL)
+        dlclose(dlobj->dl_handle);
     free(dlobj->dl_name);
     PyObject_Del(dlobj);
 }
@@ -3990,6 +3993,17 @@ static void dl_dealloc(DynLibObject *dlobj)
 static PyObject *dl_repr(DynLibObject *dlobj)
 {
     return PyText_FromFormat("<clibrary '%s'>", dlobj->dl_name);
+}
+
+static int dl_check_closed(DynLibObject *dlobj)
+{
+    if (dlobj->dl_handle == NULL)
+    {
+        PyErr_Format(PyExc_ValueError, "library '%s' has already been closed",
+                     dlobj->dl_name);
+        return -1;
+    }
+    return 0;
 }
 
 static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
@@ -4000,6 +4014,9 @@ static PyObject *dl_load_function(DynLibObject *dlobj, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "O!s:load_function",
                           &CTypeDescr_Type, &ct, &funcname))
+        return NULL;
+
+    if (dl_check_closed(dlobj) < 0)
         return NULL;
 
     if (!(ct->ct_flags & (CT_FUNCTIONPTR | CT_POINTER | CT_ARRAY))) {
@@ -4034,6 +4051,9 @@ static PyObject *dl_read_variable(DynLibObject *dlobj, PyObject *args)
                           &CTypeDescr_Type, &ct, &varname))
         return NULL;
 
+    if (dl_check_closed(dlobj) < 0)
+        return NULL;
+
     dlerror();   /* clear error condition */
     data = dlsym(dlobj->dl_handle, varname);
     if (data == NULL) {
@@ -4059,6 +4079,9 @@ static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
                           &CTypeDescr_Type, &ct, &varname, &value))
         return NULL;
 
+    if (dl_check_closed(dlobj) < 0)
+        return NULL;
+
     dlerror();   /* clear error condition */
     data = dlsym(dlobj->dl_handle, varname);
     if (data == NULL) {
@@ -4074,10 +4097,21 @@ static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
     return Py_None;
 }
 
+static PyObject *dl_close_lib(DynLibObject *dlobj, PyObject *no_args)
+{
+    if (dl_check_closed(dlobj) < 0)
+        return NULL;
+    dlclose(dlobj->dl_handle);
+    dlobj->dl_handle = NULL;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef dl_methods[] = {
     {"load_function",   (PyCFunction)dl_load_function,  METH_VARARGS},
     {"read_variable",   (PyCFunction)dl_read_variable,  METH_VARARGS},
     {"write_variable",  (PyCFunction)dl_write_variable, METH_VARARGS},
+    {"close_lib",       (PyCFunction)dl_close_lib,      METH_NOARGS},
     {NULL,              NULL}           /* sentinel */
 };
 
@@ -4113,44 +4147,95 @@ static PyTypeObject dl_type = {
     dl_methods,                         /* tp_methods */
 };
 
-static PyObject *b_load_library(PyObject *self, PyObject *args)
+static void *b_do_dlopen(PyObject *args, char **p_printable_filename,
+                         PyObject **p_temp)
 {
-    char *filename_or_null, *printable_filename;
+    /* Logic to call the correct version of dlopen().  Returns NULL in case of error.
+       Otherwise, '*p_printable_filename' will point to a printable char version of
+       the filename (maybe utf-8-encoded).  '*p_temp' will be set either to NULL or
+       to a temporary object that must be freed after looking at printable_filename.
+    */
     void *handle;
-    DynLibObject *dlobj;
+    char *filename_or_null;
     int flags = 0;
-
+    *p_temp = NULL;
+    
     if (PyTuple_GET_SIZE(args) == 0 || PyTuple_GET_ITEM(args, 0) == Py_None) {
         PyObject *dummy;
         if (!PyArg_ParseTuple(args, "|Oi:load_library",
                               &dummy, &flags))
             return NULL;
         filename_or_null = NULL;
+        *p_printable_filename = "<None>";
     }
-    else if (!PyArg_ParseTuple(args, "et|i:load_library",
-                          Py_FileSystemDefaultEncoding, &filename_or_null,
-                          &flags))
-        return NULL;
+    else
+    {
+        PyObject *s = PyTuple_GET_ITEM(args, 0);
+#ifdef MS_WIN32
+        Py_UNICODE *filenameW;
+        if (PyArg_ParseTuple(args, "u|i:load_library", &filenameW, &flags))
+        {
+#if PY_MAJOR_VERSION < 3
+            s = PyUnicode_AsUTF8String(s);
+            if (s == NULL)
+                return NULL;
+            *p_temp = s;
+#endif
+            *p_printable_filename = PyText_AsUTF8(s);
+            if (*p_printable_filename == NULL)
+                return NULL;
 
+            handle = dlopenW(filenameW);
+            goto got_handle;
+        }
+        PyErr_Clear();
+#endif
+        if (!PyArg_ParseTuple(args, "et|i:load_library",
+                     Py_FileSystemDefaultEncoding, &filename_or_null, &flags))
+            return NULL;
+
+        *p_printable_filename = PyText_AsUTF8(s);
+        if (*p_printable_filename == NULL)
+            return NULL;
+    }
     if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
         flags |= RTLD_NOW;
 
-    printable_filename = filename_or_null ? filename_or_null : "<None>";
     handle = dlopen(filename_or_null, flags);
+
+#ifdef MS_WIN32
+  got_handle:
+#endif
     if (handle == NULL) {
         const char *error = dlerror();
-        PyErr_Format(PyExc_OSError, "cannot load library %s: %s",
-                     printable_filename, error);
+        PyErr_Format(PyExc_OSError, "cannot load library '%s': %s",
+                     *p_printable_filename, error);
         return NULL;
     }
+    return handle;
+}
+
+static PyObject *b_load_library(PyObject *self, PyObject *args)
+{
+    char *printable_filename;
+    PyObject *temp;
+    void *handle;
+    DynLibObject *dlobj = NULL;
+
+    handle = b_do_dlopen(args, &printable_filename, &temp);
+    if (handle == NULL)
+        goto error;
 
     dlobj = PyObject_New(DynLibObject, &dl_type);
     if (dlobj == NULL) {
         dlclose(handle);
-        return NULL;
+        goto error;
     }
     dlobj->dl_handle = handle;
     dlobj->dl_name = strdup(printable_filename);
+ 
+ error:
+    Py_XDECREF(temp);
     return (PyObject *)dlobj;
 }
 
@@ -4796,7 +4881,6 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             if (PyText_GetSize(fname) == 0 &&
                     ftype->ct_flags & (CT_STRUCT|CT_UNION)) {
                 /* a nested anonymous struct or union */
-                /* note: it seems we only get here with ffi.verify() */
                 CFieldObject *cfsrc = (CFieldObject *)ftype->ct_extra;
                 for (; cfsrc != NULL; cfsrc = cfsrc->cf_next) {
                     /* broken complexity in the call to get_field_name(),

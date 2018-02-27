@@ -2,6 +2,10 @@ import sys, os
 import subprocess
 import errno
 
+# on Windows we give up and always import setuptools early to fix things for us
+if sys.platform == "win32":
+    import setuptools
+
 
 sources = ['c/_cffi_backend.c']
 libraries = ['ffi']

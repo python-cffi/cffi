@@ -192,7 +192,12 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
 
 static void *dlopen(const char *filename, int flag)
 {
-    return (void *)LoadLibrary(filename);
+    return (void *)LoadLibraryA(filename);
+}
+
+static void *dlopenW(const wchar_t *filename)
+{
+    return (void *)LoadLibraryW(filename);
 }
 
 static void *dlsym(void *handle, const char *symbol)

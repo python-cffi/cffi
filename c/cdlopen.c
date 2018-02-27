@@ -40,35 +40,18 @@ static int cdlopen_close(PyObject *libname, void *libhandle)
 
 static PyObject *ffi_dlopen(PyObject *self, PyObject *args)
 {
-    char *filename_or_null, *printable_filename;
+    char *modname;
+    PyObject *temp, *result = NULL;
     void *handle;
-    int flags = 0;
 
-    if (PyTuple_GET_SIZE(args) == 0 || PyTuple_GET_ITEM(args, 0) == Py_None) {
-        PyObject *dummy;
-        if (!PyArg_ParseTuple(args, "|Oi:load_library",
-                              &dummy, &flags))
-            return NULL;
-        filename_or_null = NULL;
+    handle = b_do_dlopen(args, &modname, &temp);
+    if (handle != NULL)
+    {
+        result = (PyObject *)lib_internal_new((FFIObject *)self,
+                                              modname, handle);
     }
-    else if (!PyArg_ParseTuple(args, "et|i:load_library",
-                          Py_FileSystemDefaultEncoding, &filename_or_null,
-                          &flags))
-        return NULL;
-
-    if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
-        flags |= RTLD_NOW;
-    printable_filename = filename_or_null ? filename_or_null : "<None>";
-
-    handle = dlopen(filename_or_null, flags);
-    if (handle == NULL) {
-        const char *error = dlerror();
-        PyErr_Format(PyExc_OSError, "cannot load library '%s': %s",
-                     printable_filename, error);
-        return NULL;
-    }
-    return (PyObject *)lib_internal_new((FFIObject *)self,
-                                        printable_filename, handle);
+    Py_XDECREF(temp);
+    return result;
 }
 
 static PyObject *ffi_dlclose(PyObject *self, PyObject *args)

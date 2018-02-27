@@ -737,13 +737,13 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
                 return -1;
             }
 
-            if (fld->field_offset == (size_t)-1) {
+            if (ctf != NULL && fld->field_offset == (size_t)-1) {
                 /* unnamed struct, with field positions and sizes entirely
                    determined by complete_struct_or_union() and not checked.
                    Or, bitfields (field_size >= 0), similarly not checked. */
                 assert(fld->field_size == (size_t)-1 || fbitsize >= 0);
             }
-            else if (detect_custom_layout(ct, SF_STD_FIELD_POS,
+            else if (ctf == NULL || detect_custom_layout(ct, SF_STD_FIELD_POS,
                                      ctf->ct_size, fld->field_size,
                                      "wrong size for field '",
                                      fld->name, "'") < 0) {

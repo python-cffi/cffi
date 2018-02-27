@@ -148,8 +148,8 @@ def _add_c_module(dist, ffi, module_name, source, source_extension, kwds):
 
 def _add_py_module(dist, ffi, module_name):
     from distutils.dir_util import mkpath
-    from distutils.command.build_py import build_py
-    from distutils.command.build_ext import build_ext
+    from setuptools.command.build_py import build_py
+    from setuptools.command.build_ext import build_ext
     from distutils import log
     from cffi import recompiler
 
@@ -168,6 +168,17 @@ def _add_py_module(dist, ffi, module_name):
             module_path[-1] += '.py'
             generate_mod(os.path.join(self.build_lib, *module_path))
     dist.cmdclass['build_py'] = build_py_make_mod
+
+    # distutils and setuptools have no notion I could find of a
+    # generated python module.  If we don't add module_name to
+    # dist.py_modules, then things mostly work but there are some
+    # combination of options (--root and --record) that will miss
+    # the module.  So we add it here, which gives a few apparently
+    # harmless warnings about not finding the file outside the
+    # build directory.
+    if dist.py_modules is None:
+        dist.py_modules = []
+    dist.py_modules.append(module_name)
 
     # the following is only for "build_ext -i"
     base_class_2 = dist.cmdclass.get('build_ext', build_ext)
