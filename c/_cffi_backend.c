@@ -4099,10 +4099,11 @@ static PyObject *dl_write_variable(DynLibObject *dlobj, PyObject *args)
 
 static PyObject *dl_close_lib(DynLibObject *dlobj, PyObject *no_args)
 {
-    if (dl_check_closed(dlobj) < 0)
-        return NULL;
-    dlclose(dlobj->dl_handle);
-    dlobj->dl_handle = NULL;
+    if (dlobj->dl_handle != NULL)
+    {
+        dlclose(dlobj->dl_handle);
+        dlobj->dl_handle = NULL;
+    }
     Py_INCREF(Py_None);
     return Py_None;
 }

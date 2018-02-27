@@ -62,22 +62,17 @@ static PyObject *ffi_dlclose(PyObject *self, PyObject *args)
         return NULL;
 
     libhandle = lib->l_libhandle;
-    lib->l_libhandle = NULL;
+    if (libhandle != NULL)
+    {
+        lib->l_libhandle = NULL;
 
-    if (libhandle == NULL) {
-        PyErr_Format(FFIError, "library '%s' is already closed "
-                     "or was not created with ffi.dlopen()",
-                     PyText_AS_UTF8(lib->l_libname));
-        return NULL;
+        /* Clear the dict to force further accesses to do cdlopen_fetch()
+           again, and fail because the library was closed. */
+        PyDict_Clear(lib->l_dict);
+
+        if (cdlopen_close(lib->l_libname, libhandle) < 0)
+            return NULL;
     }
-
-    /* Clear the dict to force further accesses to do cdlopen_fetch()
-       again, and fail because the library was closed. */
-    PyDict_Clear(lib->l_dict);
-
-    if (cdlopen_close(lib->l_libname, libhandle) < 0)
-        return NULL;
-
     Py_INCREF(Py_None);
     return Py_None;
 }
