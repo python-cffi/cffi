@@ -12,20 +12,28 @@ v1.11.5
 
 * Windows: ``ffi.dlopen()`` should now handle unicode filenames.
 
-* Implemented ``ffi.dlclose()`` for the in-line case (it used to be
-  present only in the out-of-line case).
+* ABI mode: implemented ``ffi.dlclose()`` for the in-line case (it used
+  to be present only in the out-of-line case).
 
 * Fixed a corner case for ``setup.py install --record=xx --root=yy``
-  with an out-of-line ABI module.
+  with an out-of-line ABI module.  Also fixed `Issue #345`_.
 
 * More hacks on Windows for running CFFI's own ``setup.py``.
 
-* `Issue #358`_: in embedding, to protect against Python initialization
-  from several threads in parallel, we have to use a spin-lock.  On
-  CPython 3 it is worse because it might spin-lock for a long time
-  (execution of ``Py_InitializeEx()``).  Sadly, recent changes to
-  CPython make that solution needed on CPython 2 too.
+* `Issue #358`_: in embedding, to protect against (the rare case of)
+  Python initialization from several threads in parallel, we have to use
+  a spin-lock.  On CPython 3 it is worse because it might spin-lock for
+  a long time (execution of ``Py_InitializeEx()``).  Sadly, recent
+  changes to CPython make that solution needed on CPython 2 too.
 
+* CPython 3 on Windows: we no longer compile with ``Py_LIMITED_API``
+  by default because such modules cannot be used with virtualenv.
+  `Issue #350`_ mentions a workaround if you still want that and are not
+  concerned about virtualenv: pass a ``define_macros=[("Py_LIMITED_API",
+  None)]`` to the ``ffibuilder.set_source()`` call.
+
+.. _`Issue #345`: https://bitbucket.org/cffi/cffi/issues/345/
+.. _`Issue #350`: https://bitbucket.org/cffi/cffi/issues/350/
 .. _`Issue #358`: https://bitbucket.org/cffi/cffi/issues/358/
 .. _`Issue #357`: https://bitbucket.org/cffi/cffi/issues/357/
 
