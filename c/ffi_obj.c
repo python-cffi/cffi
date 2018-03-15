@@ -941,16 +941,6 @@ PyDoc_STRVAR(ffi_memmove_doc,
 #define ffi_memmove  b_memmove     /* ffi_memmove() => b_memmove()
                                       from _cffi_backend.c */
 
-#ifdef WITH_THREAD
-# include "pythread.h"
-#else
-typedef void *PyThread_type_lock;
-# define PyThread_allocate_lock()        ((void *)-1)
-# define PyThread_free_lock(lock)        ((void)(lock))
-# define PyThread_acquire_lock(lock, _)  ((void)(lock))
-# define PyThread_release_lock(lock)     ((void)(lock))
-#endif
-
 PyDoc_STRVAR(ffi_init_once_doc,
 "init_once(function, tag): run function() once.  More precisely,\n"
 "'function()' is called the first time we see a given 'tag'.\n"

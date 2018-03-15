@@ -1,6 +1,7 @@
 #ifndef WITH_THREAD
 # error "xxx no-thread configuration not tested, please report if you need that"
 #endif
+#include "pythread.h"
 
 
 struct cffi_tls_s {
@@ -24,12 +25,79 @@ struct cffi_tls_s {
 static struct cffi_tls_s *get_cffi_tls(void);   /* in misc_thread_posix.h 
                                                    or misc_win32.h */
 
+
+/* issue #362: Py_Finalize() will free any threadstate around, so in
+ * that case we must not call PyThreadState_Delete() any more on them
+ * from cffi_thread_shutdown().  The following mess is to give a
+ * thread-safe way to know that Py_Finalize() started.
+ */
+#define TLS_DEL_LOCK() PyThread_acquire_lock(cffi_tls_delete_lock, WAIT_LOCK)
+#define TLS_DEL_UNLOCK() PyThread_release_lock(cffi_tls_delete_lock)
+static PyThread_type_lock cffi_tls_delete_lock = NULL;
+static int cffi_tls_delete;
+static PyObject *old_exitfunc;
+
+static PyObject *cffi_tls_shutdown(PyObject *self, PyObject *args)
+{
+    /* the lock here will wait until any parallel cffi_thread_shutdown()
+       is done.  Future cffi_thread_shutdown() won't touch their
+       PyThreadState any more, which are all supposed to be freed anyway
+       very soon after the present cffi_tls_shutdown() function is called.
+     */
+    TLS_DEL_LOCK();
+    cffi_tls_delete = 0;   /* Py_Finalize() called */
+    TLS_DEL_UNLOCK();
+
+    PyObject *ofn = old_exitfunc;
+    if (ofn == NULL)
+    {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    else
+    {
+        old_exitfunc = NULL;
+        return PyObject_CallFunction(ofn, "");
+    }
+}
+
+static void init_cffi_tls_delete(void)
+{
+    static PyMethodDef mdef = {
+        "cffi_tls_shutdown", cffi_tls_shutdown, METH_NOARGS,
+    };
+    PyObject *shutdown_fn;
+
+    cffi_tls_delete_lock = PyThread_allocate_lock();
+    if (cffi_tls_delete_lock == NULL)
+    {
+        PyErr_SetString(PyExc_SystemError,
+                        "can't allocate cffi_tls_delete_lock");
+        return;
+    }
+
+    shutdown_fn = PyCFunction_New(&mdef, NULL);
+    if (shutdown_fn == NULL)
+        return;
+
+    old_exitfunc = PySys_GetObject("exitfunc");
+    if (PySys_SetObject("exitfunc", shutdown_fn) == 0)
+        cffi_tls_delete = 1;    /* all ready */
+    Py_DECREF(shutdown_fn);
+}
+
 static void cffi_thread_shutdown(void *p)
 {
     struct cffi_tls_s *tls = (struct cffi_tls_s *)p;
 
     if (tls->local_thread_state != NULL) {
-        PyThreadState_Delete(tls->local_thread_state);
+        /*
+         *  issue #362: see comments above
+         */
+        TLS_DEL_LOCK();
+        if (cffi_tls_delete)
+            PyThreadState_Delete(tls->local_thread_state);
+        TLS_DEL_UNLOCK();
     }
     free(tls);
 }

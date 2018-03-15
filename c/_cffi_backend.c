@@ -7490,6 +7490,9 @@ init_cffi_backend(void)
     init_cffi_tls();
     if (PyErr_Occurred())
         INITERROR;
+    init_cffi_tls_delete();
+    if (PyErr_Occurred())
+        INITERROR;
 
     if (init_ffi_lib(m) < 0)
         INITERROR;
