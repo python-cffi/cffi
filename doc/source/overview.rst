@@ -3,6 +3,131 @@ Overview
 =======================================================
 
 .. contents::
+   
+
+This document starts, in the first section, with a simple working
+example of using CFFI to call a C function from Python. CFFI is
+flexible and covers several use cases presented in the second
+section. Then, the next section shows how to export Python functions
+to a Python interpreter embedded in a C or C++ application. The last
+two sections delve deeper in the CFFI library.
+
+Make sure you have `cffi installed`__.
+
+.. __: installation.html
+
+.. _out-of-line-api-level:
+.. _real-example:
+
+
+Example: calling a C function from Python
+-----------------------------------------
+
+This example is about the use case when the library sources are
+available, the next section shows how use a compiled, installed
+library.
+
+1. Make sure the sources of the library defining the useful C function
+   is available. For this example, create the file ``pi.c`` and ``pi.h``:
+
+   .. code-block:: C
+
+      /* filename: pi.c*/
+      # include <stdlib.h>
+      # include <math.h>
+       
+      /* Returns a very crude approximation of Pi
+         given a int: a number of iteration */
+      float pi_approx(int n){
+      
+        double i,x,y,sum=0;
+      
+        for(i=0;i<n;i++){
+      
+          x=rand();
+          y=rand();
+      
+          if (sqrt(x*x+y*y) < sqrt((double)RAND_MAX*RAND_MAX))
+            sum++; }
+      
+        return 4*(float)sum/(float)n; }
+
+   .. code-block:: C
+
+      /* filename: pi.h*/
+      float pi_approx(int n);
+      
+2. Create a script named ``pi_extension_build.py``, building
+   the C extension:
+   
+   .. code-block:: python
+
+      from cffi import FFI
+      ffibuilder = FFI()
+      
+      # cdef() expects a string listing the C types, functions and 
+      # globals needed from Python. The string is in the C syntax,
+      # which saves us from learning a Python descriptive dialect.
+      ffibuilder.cdef("float pi_approx(int n);")
+   
+      ffibuilder.set_source(       
+          "_pi",  # name of the output C extension
+      	   '# include "pi.h"',
+      	   sources=['pi.c'],
+      	   libraries=['m'])
+   
+      if __name__ == "__main__":
+          ffibuilder.compile(verbose=True)
+
+       
+3. Build the extension:
+   
+   .. code-block:: shell
+
+      python pi_extension_build.py
+
+   Observe, in the working directory, the generated output files:
+   ``_pi.c``, ``_pi.o`` and the C extension ``_pi.so``.
+
+
+4. Call the C function from Python:
+
+   .. code-block:: python
+   
+       from _pi.lib import pi_approx
+   
+       approx = pi_approx(10)
+       assert str(pi_approximation).startswith("3.")
+   
+       approx = pi_approx(10000)
+       assert str(approx).startswith("3.1")  
+
+For more information, see the ``cdef()`` and ``set_source()`` methods
+of the ``FFI`` class covered in `Preparing and Distributing modules`__.
+
+.. __: cdef.html
+
+
+A common alternative for the step 3. and running the build script is
+to write a ``setup.py`` Setuptools distribution:
+
+.. code-block:: python
+
+    from setuptools import setup
+
+    setup(
+        ...
+        setup_requires=["cffi>=1.0.0"],
+        cffi_modules=["pi_extension_build:ffibuilder"],
+        install_requires=["cffi>=1.0.0"],
+    )
+
+``cffi_modules`` is a list of ``<extension builder script>:<FFI
+instance>`` describing the modules to build.
+
+
+Other CFFI modes
+----------------
 
 CFFI can be used in one of four modes: "ABI" versus "API" level,
 each with "in-line" or "out-of-line" preparation (or compilation).
@@ -18,13 +143,9 @@ your Python code.  In the **out-of-line mode,** you have a separate
 step of preparation (and possibly C compilation) that produces a
 module which your main program can then import.
 
-(The examples below assume that you have `installed CFFI`__.)
-
-.. __: installation.html
-
 
 Simple example (ABI level, in-line)
------------------------------------
++++++++++++++++++++++++++++++++++++
 
 .. code-block:: python
 
@@ -59,96 +180,9 @@ recommended to use the API mode described in the next paragraph.  (It is
 also faster.)
 
 
-.. _out-of-line-api-level:
-.. _real-example:
-
-Real example (API level, out-of-line)
--------------------------------------
-
-.. code-block:: python
-
-    # file "example_build.py"
-
-    # Note: we instantiate the same 'cffi.FFI' class as in the previous
-    # example, but call the result 'ffibuilder' now instead of 'ffi';
-    # this is to avoid confusion with the other 'ffi' object you get below
-
-    from cffi import FFI
-    ffibuilder = FFI()
-
-    ffibuilder.set_source("_example",
-       r""" // passed to the real C compiler,
-            // contains implementation of things declared in cdef()
-            #include <sys/types.h>
-            #include <pwd.h>
-
-            struct passwd *get_pw_for_root(void) {
-                return getpwuid(0);
-            }
-        """,
-        libraries=[])   # or a list of libraries to link with
-        # (more arguments like setup.py's Extension class:
-        # include_dirs=[..], extra_objects=[..], and so on)
-
-    ffibuilder.cdef("""
-        // declarations that are shared between Python and C
-        struct passwd {
-            char *pw_name;
-            ...;     // literally dot-dot-dot
-        };
-        struct passwd *getpwuid(int uid);     // defined in <pwd.h>
-        struct passwd *get_pw_for_root(void); // defined in set_source()
-    """)
-
-    if __name__ == "__main__":
-        ffibuilder.compile(verbose=True)
-
-You need to run the ``example_build.py`` script once to generate
-"source code" into the file ``_example.c`` and compile this to a
-regular C extension module.  (CFFI selects either Python or C for the
-module to generate based on whether the second argument to
-``set_source()`` is ``None`` or not.)
-
-*You need a C compiler for this single step.  It produces a file called
-e.g. _example.so or _example.pyd.  If needed, it can be distributed in
-precompiled form like any other extension module.*
-
-Then, in your main program, you use:
-
-.. code-block:: python
-
-    from _example import ffi, lib
-
-    p = lib.getpwuid(0)
-    assert ffi.string(p.pw_name) == b'root'
-    p = lib.get_pw_for_root()
-    assert ffi.string(p.pw_name) == b'root'
-
-Note that this works independently of the exact C layout of ``struct
-passwd`` (it is "API level", as opposed to "ABI level").  It requires
-a C compiler in order to run ``example_build.py``, but it is much more
-portable than trying to get the details of the fields of ``struct
-passwd`` exactly right.  Similarly, in the ``cdef()`` we declared
-``getpwuid()`` as taking an ``int`` argument; on some platforms this
-might be slightly incorrect---but it does not matter.
-
-Note also that at runtime, the API mode is faster than the ABI mode.
-
-To integrate it inside a ``setup.py`` distribution with Setuptools:
-
-.. code-block:: python
-
-    from setuptools import setup
-
-    setup(
-        ...
-        setup_requires=["cffi>=1.0.0"],
-        cffi_modules=["example_build.py:ffibuilder"],
-        install_requires=["cffi>=1.0.0"],
-    )
 
 Struct/Array Example (minimal, in-line)
----------------------------------------
++++++++++++++++++++++++++++++++++++++++
 
 .. code-block:: python
 
@@ -183,17 +217,18 @@ and get a two-dimensional array.
 *This example does not call any C compiler.*
 
 This example also admits an out-of-line equivalent.  It is similar to
-`Real example (API level, out-of-line)`_ above, but passing ``None`` as
-the second argument to ``ffibuilder.set_source()``.  Then in the main
-program you write ``from _simple_example import ffi`` and then the same
-content as the in-line example above starting from the line ``image =
+the first example `Example: calling a C function from Python`_ above,
+but passing ``None`` as the second argument to
+``ffibuilder.set_source()``.  Then in the main program you write
+``from _simple_example import ffi`` and then the same content as the
+in-line example above starting from the line ``image =
 ffi.new("pixel_t[]", 800*600)``.
 
 
 .. _performance:
 
 Purely for performance (API level, out-of-line)
------------------------------------------------
++++++++++++++++++++++++++++++++++++++++++++++++
 
 A variant of the `section above`__ where the goal is not to call an
 existing C library, but to compile and call some C function written
@@ -244,7 +279,7 @@ distributed in precompiled form like any other extension module.*
 .. _out-of-line-abi-level:
 
 Out-of-line, ABI level
-----------------------
+++++++++++++++++++++++
 
 The out-of-line ABI mode is a mixture of the regular (API) out-of-line
 mode and the in-line ABI mode.  It lets you use the ABI mode, with its
