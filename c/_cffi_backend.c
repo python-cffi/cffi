@@ -1288,7 +1288,13 @@ get_new_array_length(CTypeDescrObject *ctitem, PyObject **pvalue)
         Py_ssize_t explicitlength;
         explicitlength = PyNumber_AsSsize_t(value, PyExc_OverflowError);
         if (explicitlength < 0) {
-            if (!PyErr_Occurred())
+            if (PyErr_Occurred()) {
+                if (PyErr_ExceptionMatches(PyExc_TypeError))
+                    PyErr_Format(PyExc_TypeError,
+                        "expected new array length or list/tuple/str, "
+                        "not %.200s", Py_TYPE(value)->tp_name);
+            }
+            else
                 PyErr_SetString(PyExc_ValueError, "negative array length");
             return -1;
         }
