@@ -31,6 +31,12 @@ The interface is based on `LuaJIT's FFI`_, and follows a few principles:
   Python, unlike `Weave`_.  This is about calling existing C libraries
   from Python.
 
+* There is no C++ support.  Sometimes, it is reasonable to write a C
+  wrapper around the C++ code and then call this C API with CFFI.
+  Otherwise, look at other projects.  I would recommend cppyy_, which
+  has got some similarities (and also works efficiently on both CPython
+  and PyPy).
+
 .. _`LuaJIT's FFI`: http://luajit.org/ext_ffi.html
 .. _`Cython`: http://www.cython.org
 .. _`SWIG`: http://www.swig.org/
@@ -38,6 +44,7 @@ The interface is based on `LuaJIT's FFI`_, and follows a few principles:
 .. _`native C extensions`: http://docs.python.org/extending/extending.html
 .. _`ctypes`: http://docs.python.org/library/ctypes.html
 .. _`Weave`: http://wiki.scipy.org/Weave
+.. _`cppyy`: http://cppyy.readthedocs.io/en/latest/
 .. _`manually wrap`: overview.html#abi-versus-api
 
 Get started by reading `the overview`__.
