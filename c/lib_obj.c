@@ -611,7 +611,7 @@ static PyTypeObject Lib_Type = {
     offsetof(LibObject, l_dict),                /* tp_dictoffset */
 };
 
-static LibObject *lib_internal_new(FFIObject *ffi, char *module_name,
+static LibObject *lib_internal_new(FFIObject *ffi, const char *module_name,
                                    void *dlopen_libhandle)
 {
     LibObject *lib;

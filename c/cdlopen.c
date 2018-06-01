@@ -40,7 +40,7 @@ static int cdlopen_close(PyObject *libname, void *libhandle)
 
 static PyObject *ffi_dlopen(PyObject *self, PyObject *args)
 {
-    char *modname;
+    const char *modname;
     PyObject *temp, *result = NULL;
     void *handle;
 

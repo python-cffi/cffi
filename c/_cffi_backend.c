@@ -4154,7 +4154,7 @@ static PyTypeObject dl_type = {
     dl_methods,                         /* tp_methods */
 };
 
-static void *b_do_dlopen(PyObject *args, char **p_printable_filename,
+static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
                          PyObject **p_temp)
 {
     /* Logic to call the correct version of dlopen().  Returns NULL in case of error.
@@ -4224,7 +4224,7 @@ static void *b_do_dlopen(PyObject *args, char **p_printable_filename,
 
 static PyObject *b_load_library(PyObject *self, PyObject *args)
 {
-    char *printable_filename;
+    const char *printable_filename;
     PyObject *temp;
     void *handle;
     DynLibObject *dlobj = NULL;
