@@ -3,6 +3,18 @@ What's New
 ======================
 
 
+v1.12
+=====
+
+* Support for ``ffi.cdef(..., pack=N)`` where N is a power of two.
+  Means to emulate ``#pragma pack(N)`` on MSVC.  Also, the default on
+  Windows is now ``pack=8``, like on MSVC.  This might make a difference
+  in corner cases, although I can't think of one in the context of CFFI.
+  The old way ``ffi.cdef(..., packed=True)`` remains and is equivalent
+  to ``pack=1`` (saying e.g. that fields like ``int`` should be aligned
+  to 1 byte instead of 4).
+
+
 v1.11.5
 =======
 

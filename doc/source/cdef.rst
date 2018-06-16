@@ -214,8 +214,9 @@ Multiple calls to ``ffi.cdef()`` are possible.  Beware that it can be
 slow to call ``ffi.cdef()`` a lot of times, a consideration that is
 important mainly in in-line mode.
 
-The ``ffi.cdef()`` call takes an optional
-argument ``packed``: if True, then all structs declared within
+The ``ffi.cdef()`` call optionally takes an extra argument: either
+``packed`` or ``pack``.  If you pass ``packed=True``,
+then all structs declared within
 this cdef are "packed".  (If you need both packed and non-packed
 structs, use several cdefs in sequence.)  This
 has a meaning similar to ``__attribute__((packed))`` in GCC.  It
@@ -224,6 +225,13 @@ byte.  (Note that the packed attribute has no effect on bit fields so
 far, which mean that they may be packed differently than on GCC.
 Also, this has no effect on structs declared with ``"...;"``---more
 about it later in `Letting the C compiler fill the gaps`_.)
+*New in version 1.12:*  In ABI mode, you can also pass ``pack=n``,
+with an integer ``n`` which must be a power of two.  Then the
+alignment of any field is limited to ``n`` if it would otherwise be
+greater than ``n``.  Passing ``pack=1`` is equivalent to passing
+``packed=True``.  This is meant to emulate ``#pragma pack(n)`` from
+the MSVC compiler.  On Windows, the default is ``pack=8`` (from cffi
+1.12 onwards); on other platforms, the default is ``pack=None``.
 
 Note that you can use the type-qualifiers ``const`` and ``restrict``
 (but not ``__restrict`` or ``__restrict__``) in the ``cdef()``, but

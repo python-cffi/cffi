@@ -4712,6 +4712,12 @@ _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
 #define SF_PACKED             0x08
 #define SF_STD_FIELD_POS      0x80
 
+#ifdef MS_WIN32
+#  define SF_DEFAULT_PACKING     8
+#else
+#  define SF_DEFAULT_PACKING   0x40000000   /* a huge power of two */
+#endif
+
 static int complete_sflags(int sflags)
 {
     /* add one of the SF_xxx_BITFIELDS flags if none is specified */
@@ -4771,14 +4777,22 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     CFieldObject **previous;
     int prev_bitfield_size, prev_bitfield_free;
     int sflags = 0, fflags;
+    int pack = 0;
 
-    if (!PyArg_ParseTuple(args, "O!O!|Onii:complete_struct_or_union",
+    if (!PyArg_ParseTuple(args, "O!O!|Oniii:complete_struct_or_union",
                           &CTypeDescr_Type, &ct,
                           &PyList_Type, &fields,
-                          &ignored, &totalsize, &totalalignment, &sflags))
+                          &ignored, &totalsize, &totalalignment, &sflags,
+                          &pack))
         return NULL;
 
     sflags = complete_sflags(sflags);
+    if (sflags & SF_PACKED)
+        pack = 1;
+    else if (pack <= 0)
+        pack = SF_DEFAULT_PACKING;
+    else
+        sflags |= SF_PACKED;
 
     if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) ==
                         (CT_STRUCT|CT_IS_OPAQUE)) {
@@ -4841,7 +4855,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         falignorg = get_alignment(ftype);
         if (falignorg < 0)
             goto error;
-        falign = (sflags & SF_PACKED) ? 1 : falignorg;
+        falign = (pack < falignorg) ? pack : falignorg;
 
         do_align = 1;
         if (!(sflags & SF_GCC_ARM_BITFIELDS) && fbitsize >= 0) {
