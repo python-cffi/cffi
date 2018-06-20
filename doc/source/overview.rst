@@ -167,7 +167,7 @@ there, %s!\n"``.  In general it is ``somestring.encode(myencoding)``.
 
 *Python 3 on Windows:* ``ffi.dlopen(None)`` does not work.  This problem
 is messy and not really fixable.  The problem does not occur if you try
-to call a fucntion from a specific DLL that exists on your system: then
+to call a function from a specific DLL that exists on your system: then
 you use ``ffi.dlopen("path.dll")``.
 
 *This example does not call any C compiler.  It works in the so-called
