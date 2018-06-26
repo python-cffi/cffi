@@ -159,10 +159,14 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
     if (fb_build_name(&funcbuilder, g->name, pfargs, nargs, fresult, 0) < 0)
         goto error;
 
-    /* xxx the few bytes of memory we allocate here leak, but it's a
-       minor concern because it should only occur for CPYTHON_BLTN.
-       There is one per real C function in a CFFI C extension module.
-       CPython never unloads its C extension modules anyway.
+    /* The few bytes of memory we allocate here appear to leak, but
+       this is not a real leak.  Indeed, CPython never unloads its C
+       extension modules.  There is only one PyMem_Malloc() per real
+       C function in a CFFI C extension module.  That means that this
+       PyMem_Malloc() could also have been written with a static
+       global variable generated for each CPYTHON_BLTN defined in the
+       C extension, and the effect would be the same (but a bit more
+       complicated).
     */
     xfunc = PyMem_Malloc(sizeof(struct CPyExtFunc_s) +
                          funcbuilder.nb_bytes +
@@ -314,12 +318,20 @@ static PyObject *lib_build_and_cache_attr(LibObject *lib, PyObject *name,
                 return NULL;
         }
         else {
-            /* xxx the few bytes of memory we allocate here leak, but it's
-               a minor concern because it should only occur for
-               OP_CONSTANT.  There is one per real non-integer C constant
-               in a CFFI C extension module.  CPython never unloads its C
-               extension modules anyway.  Note that we used to do alloca(),
-               but see issue #198. */
+            /* The few bytes of memory we allocate here appear to leak, but
+               this is not a real leak.  Indeed, CPython never unloads its C
+               extension modules.  There is only one PyMem_Malloc() per real
+               non-integer C constant in a CFFI C extension module.  That
+               means that this PyMem_Malloc() could also have been written
+               with a static global variable generated for each OP_CONSTANT
+               defined in the C extension, and the effect would be the same
+               (but a bit more complicated).
+
+               Note that we used to do alloca(), but see issue #198.  We
+               could still do alloca(), or explicit PyMem_Free(), in some
+               cases; but there is no point and it only makes the remaining
+               less-common cases more suspicious.
+            */
             assert(_CFFI_GETOP(g->type_op) == _CFFI_OP_CONSTANT);
             data = PyMem_Malloc(ct->ct_size);
             if (data == NULL) {
