@@ -2,7 +2,7 @@
 #include <Python.h>
 #include "structmember.h"
 
-#define CFFI_VERSION  "1.11.5"
+#define CFFI_VERSION  "1.12.0"
 
 #ifdef MS_WIN32
 #include <windows.h>
