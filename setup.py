@@ -46,6 +46,7 @@ def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
             #
             resultlist[:] = res
 
+no_compiler_found = False
 def no_working_compiler_found():
     sys.stderr.write("""
     No working compiler found, or bogus compiler options passed to
@@ -55,8 +56,13 @@ def no_working_compiler_found():
     tries to compile C code.  (Hints: on OS/X 10.8, for errors about
     -mno-fused-madd see http://stackoverflow.com/questions/22313407/
     Otherwise, see https://wiki.python.org/moin/CompLangPython or
-    the IRC channel #python on irc.freenode.net.)\n""")
-    sys.exit(1)
+    the IRC channel #python on irc.freenode.net.)
+
+    Trying to continue anyway.  If you are trying to install CFFI from
+    a build done in a different context, you can ignore this warning.
+    \n""")
+    global no_compiler_found
+    no_compiler_found = True
 
 def get_config():
     from distutils.core import Distribution
@@ -75,11 +81,12 @@ def ask_supports_thread():
         ok1 = config.try_compile('int some_regular_variable_42;')
         if not ok1:
             no_working_compiler_found()
-        sys.stderr.write("Note: will not use '__thread' in the C code\n")
-        _safe_to_ignore()
+        else:
+            sys.stderr.write("Note: will not use '__thread' in the C code\n")
+            _safe_to_ignore()
 
 def ask_supports_sync_synchronize():
-    if sys.platform == 'win32':
+    if sys.platform == 'win32' or no_compiler_found:
         return
     config = get_config()
     ok = config.try_link('int main(void) { __sync_synchronize(); return 0; }')
