@@ -230,7 +230,7 @@ Contact
             "distutils.setup_keywords": [
                 "cffi_modules = cffi.setuptools_ext:cffi_modules",
             ],
-        } if cpython else {},
+        },
 
         classifiers=[
             'Programming Language :: Python',
