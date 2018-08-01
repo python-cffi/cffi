@@ -5657,9 +5657,14 @@ static int convert_from_object_fficallback(char *result,
             return 0;
         }
         else if (ctype->ct_flags & (CT_PRIMITIVE_CHAR | CT_PRIMITIVE_SIGNED |
-                                    CT_PRIMITIVE_UNSIGNED)) {
+                                    CT_PRIMITIVE_UNSIGNED |
+                                    CT_POINTER | CT_FUNCTIONPTR)) {
             /* zero extension: fill the '*result' with zeros, and (on big-
-               endian machines) correct the 'result' pointer to write to */
+               endian machines) correct the 'result' pointer to write to.
+               We also do that for pointers, even though we're normally not
+               in this branch because ctype->ct_size == sizeof(ffi_arg) for
+               pointers---except on some architectures like x32 (issue #372).
+             */
             memset(result, 0, sizeof(ffi_arg));
 #ifdef WORDS_BIGENDIAN
             result += (sizeof(ffi_arg) - ctype->ct_size);
