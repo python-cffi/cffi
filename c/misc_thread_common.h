@@ -44,11 +44,13 @@ static PyObject *cffi_tls_shutdown(PyObject *self, PyObject *args)
        PyThreadState any more, which are all supposed to be freed anyway
        very soon after the present cffi_tls_shutdown() function is called.
      */
+    PyObject *ofn;
+
     TLS_DEL_LOCK();
     cffi_tls_delete = 0;   /* Py_Finalize() called */
     TLS_DEL_UNLOCK();
 
-    PyObject *ofn = old_exitfunc;
+    ofn = old_exitfunc;
     if (ofn == NULL)
     {
         Py_INCREF(Py_None);
