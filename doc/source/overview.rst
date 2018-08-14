@@ -6,8 +6,8 @@ Overview
    
 
 The first section presents a simple working
-example of using CFFI to call a C function in a compiled shared objecti
-from Python. CFFI is
+example of using CFFI to call a C function in a compiled shared object
+(DLL) from Python. CFFI is
 flexible and covers several other use cases presented in the second
 section. The third section shows how to export Python functions
 to a Python interpreter embedded in a C or C++ application. The last
@@ -30,8 +30,8 @@ system-installed shared object called ``piapprox.dll`` (Windows) or
 ``libpiapprox.so`` (Linux and others) or ``libpiapprox.dylib`` (OS X),
 exporting a function ``float pi_approx(int n);`` that computes some
 approximation of pi given a number of iterations. You want to call
-this function from Python. Note this method works equally as well with a
-library ``piapprox.lib`` (Windows) or ``libpiapprox.a``.
+this function from Python. Note this method works equally well with a
+static library ``piapprox.lib`` (Windows) or ``libpiapprox.a``.
 
 Create the file ``piapprox_build.py``:
 
@@ -40,15 +40,16 @@ Create the file ``piapprox_build.py``:
       from cffi import FFI
       ffibuilder = FFI()
 
-      # cdef() expects a string declaring the C types, functions and
+      # cdef() expects a single string declaring the C types, functions and
       # globals needed to use the shared object. It must be in valid C syntax.
       ffibuilder.cdef("""
           float pi_approx(int n);
       """)
 
-      # set_source() names the python extension module "_pi_cffi" to produce
-      # and the C source code as a string that once compiled will call the
-      # function.
+      # set_source() gives the name of the python extension module to
+      # produce, and some C source code as a string.  This C code needs
+      # to make the declarated functions, types and globals available,
+      # so it is often just the "#include".
       ffibuilder.set_source("_pi_cffi",
       """
       	   #include "pi.h"   // the C header of the library
@@ -61,8 +62,8 @@ Create the file ``piapprox_build.py``:
 Execute this script.  If everything is OK, it should produce
 ``_pi_cffi.c``, and then invoke the compiler on it.  The produced
 ``_pi_cffi.c`` contains a copy of the string given in ``set_source()``,
-in this example the ``#include "pi.h"``. It also contains some glue code
-for all the functions declared in the ``cdef()`` above.
+in this example the ``#include "pi.h"``. Afterwards, it contains glue code
+for all the functions, types and globals declared in the ``cdef()`` above.
 
 At runtime, you use the extension module like this:
 
@@ -127,14 +128,15 @@ May look familiar to those who have used ctypes_.
     ...     int printf(const char *format, ...);   // copy-pasted from the man page
     ... """)                                  
     >>> C = ffi.dlopen(None)                     # loads the entire C namespace
-    >>> arg = ffi.new("char[]", b"world")         # equivalent to C code: char arg[] = "world";
-    >>> C.printf(b"hi there, %s.\n", arg)         # call printf
+    >>> arg = ffi.new("char[]", b"world")        # equivalent to C code: char arg[] = "world";
+    >>> C.printf(b"hi there, %s.\n", arg)        # call printf
     hi there, world.
     17                                           # this is the return value
     >>>
 
-In general you would encode python ``str`` to ``bytes`` with
-``somestring.encode(myencoding)`` on Python3.
+Note that ``char *`` arguments expect a ``bytes`` object.  If you have a
+``str`` (or a ``unicode`` on Python 2) you need to encode it explicitly
+with ``somestring.encode(myencoding)``.
 
 *Python 3 on Windows:* ``ffi.dlopen(None)`` does not work.  This problem
 is messy and not really fixable.  The problem does not occur if you try
@@ -484,10 +486,10 @@ you can say in the ``setup.py``:
         install_requires=["cffi>=1.0.0"],
     )
 
-
 In summary, this mode is useful when you wish to declare many C structures but
 do not need fast interaction with a shared object. It is useful for parsing
 binary files, for instance.
+
 
 In-line, API level
 ++++++++++++++++++
