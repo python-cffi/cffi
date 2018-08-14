@@ -5,10 +5,11 @@ Overview
 .. contents::
    
 
-This document starts, in the first section, with a simple working
-example of using CFFI to call a C function from Python. CFFI is
+The first section presents a simple working
+example of using CFFI to call a C function in a compiled shared object
+(DLL) from Python. CFFI is
 flexible and covers several other use cases presented in the second
-section. Then, the next section shows how to export Python functions
+section. The third section shows how to export Python functions
 to a Python interpreter embedded in a C or C++ application. The last
 two sections delve deeper in the CFFI library.
 
@@ -24,12 +25,13 @@ Main mode of usage
 ------------------
 
 The main way to use CFFI is as an interface to some already-compiled
-library which is provided by other means.  Imagine that you have a
-system-installed library called ``piapprox.dll`` (Windows) or
+shared object which is provided by other means.  Imagine that you have a
+system-installed shared object called ``piapprox.dll`` (Windows) or
 ``libpiapprox.so`` (Linux and others) or ``libpiapprox.dylib`` (OS X),
-containing a function ``float pi_approx(int n);`` that computes some
-approximation of pi given a number of iterations.  You want to call
-this function from Python.
+exporting a function ``float pi_approx(int n);`` that computes some
+approximation of pi given a number of iterations. You want to call
+this function from Python. Note this method works equally well with a
+static library ``piapprox.lib`` (Windows) or ``libpiapprox.a``.
 
 Create the file ``piapprox_build.py``:
 
@@ -38,13 +40,16 @@ Create the file ``piapprox_build.py``:
       from cffi import FFI
       ffibuilder = FFI()
 
-      # cdef() expects a string listing the C types, functions and
-      # globals needed from Python. The string follows the C syntax.
+      # cdef() expects a single string declaring the C types, functions and
+      # globals needed to use the shared object. It must be in valid C syntax.
       ffibuilder.cdef("""
           float pi_approx(int n);
       """)
 
-      # This describes the extension module "_pi_cffi" to produce.
+      # set_source() gives the name of the python extension module to
+      # produce, and some C source code as a string.  This C code needs
+      # to make the declarated functions, types and globals available,
+      # so it is often just the "#include".
       ffibuilder.set_source("_pi_cffi",
       """
       	   #include "pi.h"   // the C header of the library
@@ -57,8 +62,8 @@ Create the file ``piapprox_build.py``:
 Execute this script.  If everything is OK, it should produce
 ``_pi_cffi.c``, and then invoke the compiler on it.  The produced
 ``_pi_cffi.c`` contains a copy of the string given in ``set_source()``,
-in this example the ``#include "pi.h"``; then it contains some glue code
-for all the functions declared in the ``cdef()`` above.
+in this example the ``#include "pi.h"``. Afterwards, it contains glue code
+for all the functions, types and globals declared in the ``cdef()`` above.
 
 At runtime, you use the extension module like this:
 
@@ -113,6 +118,8 @@ module which your main program can then import.
 Simple example (ABI level, in-line)
 +++++++++++++++++++++++++++++++++++
 
+May look familiar to those who have used ctypes_.
+
 .. code-block:: python
 
     >>> from cffi import FFI
@@ -121,15 +128,15 @@ Simple example (ABI level, in-line)
     ...     int printf(const char *format, ...);   // copy-pasted from the man page
     ... """)                                  
     >>> C = ffi.dlopen(None)                     # loads the entire C namespace
-    >>> arg = ffi.new("char[]", "world")         # equivalent to C code: char arg[] = "world";
-    >>> C.printf("hi there, %s.\n", arg)         # call printf
+    >>> arg = ffi.new("char[]", b"world")        # equivalent to C code: char arg[] = "world";
+    >>> C.printf(b"hi there, %s.\n", arg)        # call printf
     hi there, world.
     17                                           # this is the return value
     >>>
 
-Note that on Python 3 you need to pass byte strings to ``char *``
-arguments.  In the above example it would be ``b"world"`` and ``b"hi
-there, %s!\n"``.  In general it is ``somestring.encode(myencoding)``.
+Note that ``char *`` arguments expect a ``bytes`` object.  If you have a
+``str`` (or a ``unicode`` on Python 2) you need to encode it explicitly
+with ``somestring.encode(myencoding)``.
 
 *Python 3 on Windows:* ``ffi.dlopen(None)`` does not work.  This problem
 is messy and not really fixable.  The problem does not occur if you try
@@ -172,11 +179,12 @@ Struct/Array Example (minimal, in-line)
     f.close()
 
 This can be used as a more flexible replacement of the struct_ and
-array_ modules.  You could also call ``ffi.new("pixel_t[600][800]")``
+array_ modules, and replaces ctypes_.  You could also call ``ffi.new("pixel_t[600][800]")``
 and get a two-dimensional array.
 
 .. _struct: http://docs.python.org/library/struct.html
 .. _array: http://docs.python.org/library/array.html
+.. _ctypes: http://docs.python.org/library/ctypes.html
 
 *This example does not call any C compiler.*
 
@@ -430,6 +438,7 @@ based on the version of libraries detected on the system).
     from cffi import FFI
 
     ffibuilder = FFI()
+    # Note that the actual source is None
     ffibuilder.set_source("_simple_example", None)
     ffibuilder.cdef("""
         int printf(const char *format, ...);
@@ -477,6 +486,10 @@ you can say in the ``setup.py``:
         install_requires=["cffi>=1.0.0"],
     )
 
+In summary, this mode is useful when you wish to declare many C structures but
+do not need fast interaction with a shared object. It is useful for parsing
+binary files, for instance.
+
 
 In-line, API level
 ++++++++++++++++++
@@ -484,7 +497,7 @@ In-line, API level
 The "API level + in-line" mode combination exists but is long
 deprecated.  It used to be done with ``lib = ffi.verify("C header")``.
 The out-of-line variant with ``set_source("modname", "C header")`` is
-preferred.  It avoids a number of problems when the project grows in
+preferred and avoids a number of problems when the project grows in
 size.
 
 
@@ -589,8 +602,8 @@ The most immediate drawback of the ABI level is that calling functions
 needs to go through the very general *libffi* library, which is slow
 (and not always perfectly tested on non-standard platforms).  The API
 mode instead compiles a CPython C wrapper that directly invokes the
-target function.  It is, comparatively, massively faster (and works
-better than libffi ever can).
+target function.  It can be massively faster (and works
+better than libffi ever will).
 
 The more fundamental reason to prefer the API mode is that *the C
 libraries are typically meant to be used with a C compiler.* You are not
