@@ -34,10 +34,9 @@ Requirements:
 * CPython 2.6 or 2.7 or 3.x, or PyPy (PyPy 2.0 for the earliest
   versions of CFFI; or PyPy 2.6 for CFFI 1.0).
 
-* in some cases you need to be able to compile C extension modules;
-  refer to the appropriate docs for your OS.  This includes installing
-  CFFI from sources; or developing code based on ``ffi.set_source()`` or
-  ``ffi.verify()``; or installing such 3rd-party modules from sources.
+* in some cases you need to be able to compile C extension modules.
+  On non-Windows platforms, this usually means installing the package
+  ``python-dev``.  Refer to the appropriate docs for your OS.
 
 * on CPython, on non-Windows platforms, you also need to install
   ``libffi-dev`` in order to compile CFFI itself.
