@@ -109,6 +109,17 @@ In order of complexity:
         install_requires=["cffi>=1.0.0"],
     )
 
+  Note again that the ``foo_build.py`` example contains the following
+  lines, which mean that the ``ffibuilder`` is not actually compiled
+  when ``package.foo_build`` is merely imported---it will be compiled
+  independently by the Setuptools logic, using compilation parameters
+  provided by Setuptools:
+
+  .. code-block:: python
+
+    if __name__ == "__main__":    # not when running with setuptools
+        ffibuilder.compile(verbose=True)
+
 * Note that some bundler tools that try to find all modules used by a
   project, like PyInstaller, will miss ``_cffi_backend`` in the
   out-of-line mode because your program contains no explicit ``import
