@@ -14,6 +14,10 @@ v1.12
   to ``pack=1`` (saying e.g. that fields like ``int`` should be aligned
   to 1 byte instead of 4).
 
+* Windows, CPython 3.x: link cffi modules with ``python3.dll``
+  again.  This makes them independant on the exact CPython version,
+  like they are on other platforms.  **It requires virtualenv 16.0.0.**
+
 
 v1.11.5
 =======
