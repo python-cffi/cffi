@@ -1475,7 +1475,7 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         if (cd->c_type == ct)
         {
             Py_ssize_t n = get_array_length(cd);
-            memmove(data, cd->c_data, n * ctitem->ct_size);
+            memcpy(data, cd->c_data, n * ctitem->ct_size);
             return 0;
         }
     }
