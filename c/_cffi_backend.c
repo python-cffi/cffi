@@ -1469,7 +1469,7 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     }
 
  cannot_convert:
-    if (CData_Check(init))
+    if ((ct->ct_flags & CT_ARRAY) && CData_Check(init))
     {
         CDataObject *cd = (CDataObject *)init;
         if (cd->c_type == ct)
