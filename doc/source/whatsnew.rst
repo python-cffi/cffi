@@ -18,6 +18,9 @@ v1.12
   again.  This makes them independant on the exact CPython version,
   like they are on other platforms.  **It requires virtualenv 16.0.0.**
 
+* Accept an expression like ``ffi.new("int[4]", p)`` if ``p`` is itself
+  another cdata ``int[4]``.
+
 
 v1.11.5
 =======
