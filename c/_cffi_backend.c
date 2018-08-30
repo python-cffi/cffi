@@ -1228,17 +1228,17 @@ static cffi_char32_t _convert_to_char32_t(PyObject *init)
     return (cffi_char32_t)-1;
 }
 
-static int _convert_error(PyObject *init, const char *ct_name,
+static int _convert_error(PyObject *init, CTypeDescrObject *ct,
                           const char *expected)
 {
     if (CData_Check(init)) {
-        const char *ct_name_2 = ((CDataObject *)init)->c_type->ct_name;
-        if (strcmp(ct_name, ct_name_2) != 0)
+        CTypeDescrObject *ct2 = ((CDataObject *)init)->c_type;
+        if (strcmp(ct->ct_name, ct2->ct_name) != 0)
             PyErr_Format(PyExc_TypeError,
                          "initializer for ctype '%s' must be a %s, "
                          "not cdata '%s'",
-                         ct_name, expected, ct_name_2);
-        else {
+                         ct->ct_name, expected, ct2->ct_name);
+        else if (ct != ct2) {
             /* in case we'd give the error message "initializer for
                ctype 'A' must be a pointer to same type, not cdata
                'B'", but with A=B, then give instead a different error
@@ -1247,14 +1247,21 @@ static int _convert_error(PyObject *init, const char *ct_name,
                          "initializer for ctype '%s' appears indeed to be '%s',"
                          " but the types are different (check that you are not"
                          " e.g. mixing up different ffi instances)",
-                         ct_name, ct_name_2);
+                         ct->ct_name, ct2->ct_name);
+        }
+        else
+        {
+            PyErr_Format(PyExc_SystemError,
+                         "initializer for ctype '%s' is correct, but we get "
+                         "an internal mismatch--please report a bug",
+                         ct->ct_name);
         }
     }
     else
         PyErr_Format(PyExc_TypeError,
                      "initializer for ctype '%s' must be a %s, "
                      "not %.200s",
-                     ct_name, expected, Py_TYPE(init)->tp_name);
+                     ct->ct_name, expected, Py_TYPE(init)->tp_name);
     return -1;
 }
 
@@ -1368,6 +1375,15 @@ must_be_array_of_zero_or_one(const char *data, Py_ssize_t n)
     return 0;
 }
 
+static Py_ssize_t
+get_array_length(CDataObject *cd)
+{
+    if (cd->c_type->ct_length < 0)
+        return ((CDataObject_own_length *)cd)->length;
+    else
+        return cd->c_type->ct_length;
+}
+
 static int
 convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
 {
@@ -1453,13 +1469,24 @@ convert_array_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     }
 
  cannot_convert:
-    return _convert_error(init, ct->ct_name, expected);
+    if (CData_Check(init))
+    {
+        CDataObject *cd = (CDataObject *)init;
+        if (cd->c_type == ct)
+        {
+            Py_ssize_t n = get_array_length(cd);
+            memmove(data, cd->c_data, n * ctitem->ct_size);
+            return 0;
+        }
+    }
+    return _convert_error(init, ct, expected);
 }
 
 static int
 convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
                            Py_ssize_t *optvarsize)
 {
+    /* does not accept 'init' being already a CData */
     const char *expected;
 
     if (force_lazy_struct(ct) <= 0) {
@@ -1506,7 +1533,7 @@ convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
     }
     expected = optvarsize == NULL ? "list or tuple or dict or struct-cdata"
                                   : "list or tuple or dict";
-    return _convert_error(init, ct->ct_name, expected);
+    return _convert_error(init, ct, expected);
 }
 
 #ifdef __GNUC__
@@ -1682,7 +1709,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
     return _convert_overflow(init, ct->ct_name);
 
  cannot_convert:
-    return _convert_error(init, ct->ct_name, expected);
+    return _convert_error(init, ct, expected);
 }
 
 static int
@@ -1740,15 +1767,6 @@ convert_from_object_bitfield(char *data, CFieldObject *cf, PyObject *init)
     rawfielddata = (rawfielddata & ~rawmask) | (rawvalue & rawmask);
     write_raw_integer_data(data, rawfielddata, ct->ct_size);
     return 0;
-}
-
-static Py_ssize_t
-get_array_length(CDataObject *cd)
-{
-    if (cd->c_type->ct_length < 0)
-        return ((CDataObject_own_length *)cd)->length;
-    else
-        return cd->c_type->ct_length;
 }
 
 static int
