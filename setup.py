@@ -151,6 +151,7 @@ else:
 
 if 'freebsd' in sys.platform:
     include_dirs.append('/usr/local/include')
+    library_dirs.append('/usr/local/lib')
 
 if 'darwin' in sys.platform:
     try:
