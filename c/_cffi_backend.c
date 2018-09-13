@@ -892,11 +892,21 @@ read_raw_unsigned_data(char *target, int size)
     return 0;
 }
 
+#ifdef __GNUC__
+/* This is a workaround for what I think is a GCC bug on several
+   platforms.  See issue #378. */
+__attribute__((noinline))
+#endif
+void _cffi_memcpy(char *target, const void *src, size_t size)
+{
+    memcpy(target, src, size);
+}
+
 #define _write_raw_data(type)                           \
     do {                                                \
         if (size == sizeof(type)) {                     \
             type r = (type)source;                      \
-            memcpy(target, &r, sizeof(type));           \
+            _cffi_memcpy(target, &r, sizeof(type));           \
             return;                                     \
         }                                               \
     } while(0)
@@ -970,8 +980,8 @@ write_raw_longdouble_data(char *target, long double source)
         if (size == 2*sizeof(type)) {                      \
             type r = (type)source.real;                    \
             type i = (type)source.imag;                    \
-            memcpy(target, &r, sizeof(type));              \
-            memcpy(target+sizeof(type), &i, sizeof(type)); \
+            _cffi_memcpy(target, &r, sizeof(type));              \
+            _cffi_memcpy(target+sizeof(type), &i, sizeof(type)); \
             return;                                        \
         }                                                  \
     } while(0)
