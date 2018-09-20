@@ -224,7 +224,7 @@ Contact
         )] if cpython else [],
 
         install_requires=[
-            'pycparser',
+            'pycparser' if sys.version_info >= (2, 7) else 'pycparser<2.19',
         ] if cpython else [],
 
         entry_points = {
