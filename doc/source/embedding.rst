@@ -377,7 +377,7 @@ inaccuracies in this paragraph or better ways to do things.)
   unsuitable for embedding if the embedder uses ``dlopen(...,
   RTLD_LOCAL)``.  You get an ``undefined symbol`` error.  See
   `issue #264`__.  A workaround is to first call
-  ``dlopen("/path/to/libpythonX.Y.so", RTLD_GLOBAL)``, which will
+  ``dlopen("libpythonX.Y.so", RTLD_LAZY|RTLD_GLOBAL)``, which will
   force ``libpythonX.Y.so`` to be loaded first.
 
 .. __: https://bitbucket.org/cffi/cffi/issues/264/
