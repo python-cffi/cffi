@@ -375,8 +375,10 @@ inaccuracies in this paragraph or better ways to do things.)
   CPython C extension modules may be compiled without saying that they
   depend on ``libpythonX.Y.so``.  This makes such Python systems
   unsuitable for embedding if the embedder uses ``dlopen(...,
-  RTLD_LOCAL)``.  You get the error ``undefined symbol:
-  PyExc_SystemError``.  See `issue #264`__.
+  RTLD_LOCAL)``.  You get an ``undefined symbol`` error.  See
+  `issue #264`__.  A workaround is to first call
+  ``dlopen("/path/to/libpythonX.Y.so", RTLD_GLOBAL)``, which will
+  force ``libpythonX.Y.so`` to be loaded first.
 
 .. __: https://bitbucket.org/cffi/cffi/issues/264/
 
