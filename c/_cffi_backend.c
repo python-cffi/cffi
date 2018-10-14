@@ -4228,7 +4228,15 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
         if (!PyArg_ParseTuple(args, "et|i:load_library",
                      Py_FileSystemDefaultEncoding, &filename_or_null, &flags))
             return NULL;
-
+#if PY_MAJOR_VERSION < 3
+        if (PyUnicode_Check(s))
+        {
+            s = PyUnicode_AsUTF8String(s);
+            if (s == NULL)
+                return NULL;
+            *p_temp = s;
+        }
+#endif
         *p_printable_filename = PyText_AsUTF8(s);
         if (*p_printable_filename == NULL)
             return NULL;

@@ -1,4 +1,4 @@
-import py, sys
+import py, sys, os
 import subprocess, weakref
 from cffi import FFI
 from cffi.backend_ctypes import CTypesBackend
@@ -117,7 +117,6 @@ class TestOwnLib(object):
         from testing.udir import udir
         udir.join('testownlib.c').write(SOURCE)
         if sys.platform == 'win32':
-            import os
             # did we already build it?
             if cls.Backend is CTypesBackend:
                 dll_path = str(udir) + '\\testownlib1.dll'   # only ascii for the ctypes backend
@@ -148,10 +147,23 @@ class TestOwnLib(object):
                 os.rename(str(udir) + '\\testownlib.dll', dll_path)
                 cls.module = dll_path
         else:
+            encoded = None
+            if cls.Backend is not CTypesBackend:
+                try:
+                    unicode_name = u+'testownlibcaf\xe9'
+                    encoded = unicode_name.encode(sys.getfilesystemencoding())
+                    if sys.version_info >= (3,):
+                        encoded = str(unicode_name)
+                except UnicodeEncodeError:
+                    pass
+            if encoded is None:
+                unicode_name = u+'testownlib'
+                encoded = str(unicode_name)
             subprocess.check_call(
-                'cc testownlib.c -shared -fPIC -o testownlib.so',
+                "cc testownlib.c -shared -fPIC -o '%s.so'" % (encoded,),
                 cwd=str(udir), shell=True)
-            cls.module = str(udir.join('testownlib.so'))
+            cls.module = os.path.join(str(udir), unicode_name + (u+'.so'))
+        print(repr(cls.module))
 
     def test_getting_errno(self):
         if self.module is None:

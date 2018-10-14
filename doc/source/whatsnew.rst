@@ -21,6 +21,8 @@ v1.12
 * Accept an expression like ``ffi.new("int[4]", p)`` if ``p`` is itself
   another cdata ``int[4]``.
 
+* CPython 2.x: ``ffi.dlopen()`` failed with non-ascii file names on Posix
+
 
 v1.11.5
 =======
