@@ -1538,15 +1538,18 @@ def test_win32_calling_convention_3():
     assert (pt.x, pt.y) == (99*500*999, -99*500*999)
 
 def test_extern_python_1():
+    import warnings
     ffi = FFI()
-    ffi.cdef("""
+    with warnings.catch_warnings(record=True) as log:
+        ffi.cdef("""
         extern "Python" {
             int bar(int, int);
             void baz(int, int);
             int bok(void);
             void boz(void);
         }
-    """)
+        """)
+    assert len(log) == 0, "got a warning: %r" % (log,)
     lib = verify(ffi, 'test_extern_python_1', """
         static void baz(int, int);   /* forward */
     """)
