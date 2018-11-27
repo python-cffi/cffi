@@ -3,6 +3,7 @@ from cffi import FFI, FFIError, VerificationError, VerificationMissing, model
 from cffi import CDefError
 from cffi import recompiler
 from testing.support import *
+from testing.support import _verify
 import _cffi_backend
 
 lib_m = ['m']
@@ -37,9 +38,8 @@ class FFI(FFI):
         except AttributeError:
             pass
         self.set_source(module_name, preamble)
-        return recompiler._verify(self, module_name, preamble, *args,
-                                  extra_compile_args=self._extra_compile_args,
-                                  **kwds)
+        return _verify(self, module_name, preamble, *args,
+                       extra_compile_args=self._extra_compile_args, **kwds)
 
 class FFI_warnings_not_error(FFI):
     _extra_compile_args = []
