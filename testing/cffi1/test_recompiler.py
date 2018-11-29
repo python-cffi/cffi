@@ -4,7 +4,7 @@ from cffi import FFI, VerificationError, FFIError, CDefError
 from cffi import recompiler
 from testing.udir import udir
 from testing.support import u, long
-from testing.support import FdWriteCapture, StdErrCapture
+from testing.support import FdWriteCapture, StdErrCapture, _verify
 
 try:
     import importlib
@@ -35,7 +35,7 @@ def verify(ffi, module_name, source, *args, **kwds):
         # add '-Werror' to the existing 'extra_compile_args' flags
         kwds['extra_compile_args'] = (kwds.get('extra_compile_args', []) +
                                       ['-Werror'])
-    return recompiler._verify(ffi, module_name, source, *args, **kwds)
+    return _verify(ffi, module_name, source, *args, **kwds)
 
 def test_set_source_no_slashes():
     ffi = FFI()
