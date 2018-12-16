@@ -697,9 +697,16 @@ PyDoc_STRVAR(ffi_from_buffer_doc,
 "containing large quantities of raw data in some other format, like\n"
 "'array.array' or numpy arrays.");
 
-static PyObject *ffi_from_buffer(PyObject *self, PyObject *arg)
+static PyObject *ffi_from_buffer(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    return direct_from_buffer(g_ct_chararray, arg);
+    PyObject *arg;
+    int require_writable = 0;
+    static char *keywords[] = {"python_buffer", "require_writable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|i:from_buffer", keywords,
+                                     &arg, &require_writable))
+        return NULL;
+    return direct_from_buffer(g_ct_chararray, arg, require_writable);
 }
 
 PyDoc_STRVAR(ffi_gc_doc,
@@ -1072,7 +1079,7 @@ static PyMethodDef ffi_methods[] = {
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
  {"dlclose",    (PyCFunction)ffi_dlclose,    METH_VARARGS, ffi_dlclose_doc},
  {"dlopen",     (PyCFunction)ffi_dlopen,     METH_VARARGS, ffi_dlopen_doc},
- {"from_buffer",(PyCFunction)ffi_from_buffer,METH_O,       ffi_from_buffer_doc},
+ {"from_buffer",(PyCFunction)ffi_from_buffer,METH_VKW,     ffi_from_buffer_doc},
  {"from_handle",(PyCFunction)ffi_from_handle,METH_O,       ffi_from_handle_doc},
  {"gc",         (PyCFunction)ffi_gc,         METH_VKW,     ffi_gc_doc},
  {"getctype",   (PyCFunction)ffi_getctype,   METH_VKW,     ffi_getctype_doc},

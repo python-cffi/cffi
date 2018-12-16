@@ -6741,7 +6741,8 @@ static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view,
     return 0;
 }
 
-static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x)
+static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x,
+                                    int require_writable)
 {
     CDataObject *cd;
     Py_buffer *view;
@@ -6761,7 +6762,7 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x)
         PyErr_NoMemory();
         return NULL;
     }
-    if (_my_PyObject_GetContiguousBuffer(x, view, 0) < 0)
+    if (_my_PyObject_GetContiguousBuffer(x, view, require_writable) < 0)
         goto error1;
 
     cd = (CDataObject *)PyObject_GC_New(CDataObject_owngc_frombuf,
@@ -6789,15 +6790,17 @@ static PyObject *b_from_buffer(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
     PyObject *x;
+    int require_writable = 0;
 
-    if (!PyArg_ParseTuple(args, "O!O", &CTypeDescr_Type, &ct, &x))
+    if (!PyArg_ParseTuple(args, "O!O|i", &CTypeDescr_Type, &ct, &x,
+                          &require_writable))
         return NULL;
 
     if (!(ct->ct_flags & CT_IS_UNSIZED_CHAR_A)) {
         PyErr_Format(PyExc_TypeError, "needs 'char[]', got '%s'", ct->ct_name);
         return NULL;
     }
-    return direct_from_buffer(ct, x);
+    return direct_from_buffer(ct, x, require_writable);
 }
 
 static int _fetch_as_buffer(PyObject *x, Py_buffer *view, int writable_only)

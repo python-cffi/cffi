@@ -23,6 +23,10 @@ v1.12
 
 * CPython 2.x: ``ffi.dlopen()`` failed with non-ascii file names on Posix
 
+* ``ffi.from_buffer()`` takes a new keyword argument ``require_writable``.
+  When set to True, it asks the object passed in to raise an exception if
+  it is read-only.
+
 
 v1.11.5
 =======

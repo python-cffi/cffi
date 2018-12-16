@@ -188,7 +188,8 @@ byte strings).  Use ``buf[:]`` instead.
 *New in version 1.10:* ``ffi.buffer`` is now the type of the returned
 buffer objects; ``ffi.buffer()`` actually calls the constructor.
 
-**ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
+**ffi.from_buffer(python_buffer, require_writable=False)**:
+return a ``<cdata 'char[]'>`` that
 points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
 a reference to the existing data, not a copy.
@@ -215,6 +216,18 @@ the buffer/memoryview interface (except unicode strings).  Previously,
 bytearray objects were supported in version 1.7 onwards (careful, if you
 resize the bytearray, the ``<cdata>`` object will point to freed
 memory); and byte strings were supported in version 1.8 onwards.
+
+*New in version 1.12:* added the ``require_writable`` argument.  If set to
+True, the function fails if the buffer obtained from ``python_buffer`` is
+read-only (e.g. if ``python_buffer`` is a byte string).  The exact exception is
+raised by the object itself, and for things like bytes it varies with the
+Python version, so don't rely on it.  (Before version 1.12, the same effect can
+be achieved with a hack: call ``ffi.memmove(python_buffer, b"", 0)``.  This has
+no effect if the object is writable, but fails if it is read-only.)
+
+Please keep in mind that CFFI does not implement the C keyword ``const``: even
+if you set ``require_writable`` to False explicitly, you still get a regular
+read-write cdata pointer.
 
 
 ffi.memmove()
