@@ -3489,6 +3489,7 @@ convert_struct_to_owning_object(char *data, CTypeDescrObject *ct)
     if (ct->ct_flags & CT_WITH_VAR_ARRAY) {
         PyErr_SetString(PyExc_TypeError,
                   "return type is a struct/union with a varsize array member");
+        return NULL;
     }
     cd = allocate_owning_object(dataoffset + datasize, ct, /*dont_clear=*/1);
     if (cd == NULL)
