@@ -502,7 +502,7 @@ notably in these cases:
 
 * If you use a ``__del__()`` method to call the freeing function.
 
-* If you use ``ffi.gc()``.
+* If you use ``ffi.gc()`` without also using ``ffi.release()``.
 
 * This does not occur if you call the freeing function at a
   deterministic time, like in a regular ``try: finally:`` block.  It

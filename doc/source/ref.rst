@@ -60,6 +60,8 @@ the optional initializer is applied.  For performance, see
 `ffi.new_allocator()`_ for a way to allocate non-zero-initialized
 memory.
 
+*New in version 1.12:* see ``ffi.release()``.
+
 
 ffi.cast()
 ++++++++++
@@ -229,6 +231,8 @@ Please keep in mind that CFFI does not implement the C keyword ``const``: even
 if you set ``require_writable`` to False explicitly, you still get a regular
 read-write cdata pointer.
 
+*New in version 1.12:* see ``ffi.release()``.
+
 
 ffi.memmove()
 +++++++++++++
@@ -383,6 +387,8 @@ returned by ``ffi.new()``, the returned pointer objects have *ownership*,
 which means the destructor is called as soon as *this* exact returned
 object is garbage-collected.
 
+*New in version 1.12:* see ``ffi.release()``.
+
 **ffi.gc(ptr, None, size=0)**:
 removes the ownership on a object returned by a
 regular call to ``ffi.gc``, and no destructor will be called when it
@@ -399,7 +405,7 @@ whatever thread PyPy is at that moment, which might be a problem for
 some C libraries.  In these cases, consider writing a wrapper class with
 custom ``__enter__()`` and ``__exit__()`` methods, allocating and
 freeing the C data at known points in time, and using it in a ``with``
-statement.
+statement.  In cffi 1.12, see also ``ffi.release()``.
 
 *New in version 1.11:* the ``size`` argument.  If given, this should be
 an estimate of the size (in bytes) that ``ptr`` keeps alive.  This
@@ -569,6 +575,45 @@ and then call these two functions manually::
         ...
     finally:
         lib.free(p)
+
+
+ffi.release()
++++++++++++++
+
+**ffi.release(cdata)**: release now the resources held by a cdata object from
+  ``ffi.new()``, ``ffi.gc()``, ``ffi.from_buffer()`` or
+  ``ffi.new_allocator()()``.  The cdata object must not be used afterwards.
+  *New in version 1.12.*
+
+``ffi.release(cdata)`` is equivalent to ``cdata.__exit__()``, which means that
+you can use the ``with`` statement to ensure that the cdata is released at the
+end of a block (in version 1.12 and above)::
+
+    with ffi.from_buffer(...) as p:
+        do something with p
+
+* on an object returned from ``ffi.gc(destructor)``, ``ffi.release()`` will
+  cause the ``destructor`` to be called immediately.
+
+* on an object returned from a custom allocator, the custom free function
+  is called immediately.
+
+* on CPython, ``ffi.from_buffer(buf)`` locks the buffer, so ``ffi.release()``
+  unlocks it at a deterministic point.  On PyPy, there is no locking (so far)
+  so this has no effect.
+
+* on CPython this method has no effect (so far) on objects returned by
+  ``ffi.new()``, because the memory is allocated inline with the cdata object
+  and cannot be freed independently.  It might be fixed in future releases of
+  cffi.
+
+* on PyPy, ``ffi.release()`` frees the ``ffi.new()`` memory immediately.  It is
+  useful because otherwise the memory is kept alive until the next GC occurs.
+  If you allocate large amounts of memory with ``ffi.new()`` and don't free
+  them with ``ffi.release()``, PyPy (>= 5.7) runs its GC more often to
+  compensate, so the total memory allocated should be kept within bounds
+  anyway; but calling ``ffi.release()`` explicitly should improve performance
+  by reducing the frequency of GC runs.
 
 
 ffi.init_once()

@@ -1069,6 +1069,21 @@ static PyObject *ffi_init_once(FFIObject *self, PyObject *args, PyObject *kwds)
     return res;
 }
 
+PyDoc_STRVAR(ffi_release_doc,
+"Release now the resources held by a 'cdata' object from ffi.new(),\n"
+"ffi.gc() or ffi.from_buffer().  The cdata object must not be used\n"
+"afterwards.\n"
+"\n"
+"'ffi.release(cdata)' is equivalent to 'cdata.__exit__()'.\n"
+"\n"
+"Note that on CPython this method has no effect (so far) on objects\n"
+"returned by ffi.new(), because the memory is allocated inline with the\n"
+"cdata object and cannot be freed independently.  It might be fixed in\n"
+"future releases of cffi.");
+
+#define ffi_release  b_release     /* ffi_release() => b_release()
+                                      from _cffi_backend.c */
+
 
 #define METH_VKW  (METH_VARARGS | METH_KEYWORDS)
 static PyMethodDef ffi_methods[] = {
@@ -1094,6 +1109,7 @@ static PyMethodDef ffi_methods[] = {
 {"new_allocator",(PyCFunction)ffi_new_allocator,METH_VKW,ffi_new_allocator_doc},
  {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
+ {"release",    (PyCFunction)ffi_release,    METH_O,       ffi_release_doc},
  {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
  {"string",     (PyCFunction)ffi_string,     METH_VKW,     ffi_string_doc},
  {"typeof",     (PyCFunction)ffi_typeof,     METH_O,       ffi_typeof_doc},

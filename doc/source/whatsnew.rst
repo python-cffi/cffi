@@ -27,6 +27,10 @@ v1.12
   When set to True, it asks the object passed in to raise an exception if
   it is read-only.
 
+* ``ffi.new()``, ``ffi.gc()`` or ``ffi.from_buffer()`` cdata objects
+  can now be released at known times, either by using the ``with``
+  keyword or be calling the new ``ffi.release()``.
+
 
 v1.11.5
 =======

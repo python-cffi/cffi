@@ -1958,7 +1958,6 @@ static void gcp_finalize(PyObject *destructor, PyObject *origobj)
     Py_XDECREF(origobj);
 }
 
-#ifdef Py_TPFLAGS_HAVE_FINALIZE     /* CPython >= 3.4 */
 static void cdatagcp_finalize(CDataObject_gcp *cd)
 {
     PyObject *destructor = cd->destructor;
@@ -1967,7 +1966,6 @@ static void cdatagcp_finalize(CDataObject_gcp *cd)
     cd->origobj = NULL;
     gcp_finalize(destructor, origobj);
 }
-#endif
 
 static void cdatagcp_dealloc(CDataObject_gcp *cd)
 {
@@ -3134,6 +3132,74 @@ static PyObject *cdata_complex(PyObject *cd_, PyObject *noarg)
     return NULL;
 }
 
+static int explicit_release_case(PyObject *cd)
+{
+    CTypeDescrObject *ct = ((CDataObject *)cd)->c_type;
+    if (Py_TYPE(cd) == &CDataOwning_Type) {
+        if ((ct->ct_flags & (CT_POINTER | CT_ARRAY)) != 0)   /* ffi.new() */
+            return 0;
+    }
+    else if (Py_TYPE(cd) == &CDataOwningGC_Type) {
+        if (ct->ct_flags & CT_IS_UNSIZED_CHAR_A)   /* ffi.from_buffer() */
+            return 1;
+    }
+    else if (Py_TYPE(cd) == &CDataGCP_Type) {
+        return 2;    /* ffi.gc() */
+    }
+    PyErr_SetString(PyExc_ValueError,
+        "only 'cdata' object from ffi.new(), ffi.gc() or ffi.from_buffer() "
+        "can be used with the 'with' keyword or ffi.release()");
+    return -1;
+}
+
+static PyObject *cdata_enter(PyObject *cd, PyObject *noarg)
+{
+    if (explicit_release_case(cd) < 0)   /* only to check the ctype */
+        return NULL;
+    Py_INCREF(cd);
+    return cd;
+}
+
+static PyObject *cdata_exit(PyObject *cd, PyObject *args)
+{
+    /* 'args' ignored */
+    CTypeDescrObject *ct;
+    Py_buffer *view;
+    switch (explicit_release_case(cd))
+    {
+        case 0:    /* ffi.new() */
+            /* no effect on CPython: raw memory is allocated with the
+               same malloc() as the object itself, so it can't be
+               released independently.  If we use a custom allocator,
+               then it's implemented with ffi.gc(). */
+            ct = ((CDataObject *)cd)->c_type;
+            if (ct->ct_flags & CT_IS_PTR_TO_OWNED) {
+                PyObject *x = ((CDataObject_own_structptr *)cd)->structobj;
+                if (Py_TYPE(x) == &CDataGCP_Type) {
+                    /* this is a special case for
+                       ffi.new_allocator()("struct-or-union") */
+                    cdatagcp_finalize((CDataObject_gcp *)x);
+                }
+            }
+            break;
+
+        case 1:    /* ffi.from_buffer() */
+            view = ((CDataObject_owngc_frombuf *)cd)->bufferview;
+            PyBuffer_Release(view);
+            break;
+
+        case 2:    /* ffi.gc() or ffi.new_allocator()("not-struct-nor-union") */
+            /* call the destructor immediately */
+            cdatagcp_finalize((CDataObject_gcp *)cd);
+            break;
+
+        default:
+            return NULL;
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyObject *cdata_iter(CDataObject *);
 
 static PyNumberMethods CData_as_number = {
@@ -3185,6 +3251,8 @@ static PyMappingMethods CDataOwn_as_mapping = {
 static PyMethodDef cdata_methods[] = {
     {"__dir__",     cdata_dir,      METH_NOARGS},
     {"__complex__", cdata_complex,  METH_NOARGS},
+    {"__enter__",   cdata_enter,    METH_NOARGS},
+    {"__exit__",    cdata_exit,     METH_VARARGS},
     {NULL,          NULL}           /* sentinel */
 };
 
@@ -6891,6 +6959,15 @@ static PyObject *b_gcp(PyObject *self, PyObject *args, PyObject *kwds)
     return (PyObject *)cd;
 }
 
+static PyObject *b_release(PyObject *self, PyObject *arg)
+{
+    if (!CData_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "expected a 'cdata' object");
+        return NULL;
+    }
+    return cdata_exit(arg, NULL);
+}
+
 /************************************************************/
 
 static char _testfunc0(char a, char b)
@@ -7216,6 +7293,7 @@ static PyMethodDef FFIBackendMethods[] = {
     {"from_buffer", b_from_buffer, METH_VARARGS},
     {"memmove", (PyCFunction)b_memmove, METH_VARARGS | METH_KEYWORDS},
     {"gcp", (PyCFunction)b_gcp, METH_VARARGS | METH_KEYWORDS},
+    {"release", b_release, METH_O},
 #ifdef MS_WIN32
     {"getwinerror", (PyCFunction)b_getwinerror, METH_VARARGS | METH_KEYWORDS},
 #endif
