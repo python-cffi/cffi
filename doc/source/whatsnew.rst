@@ -23,8 +23,9 @@ v1.12
 
 * CPython 2.x: ``ffi.dlopen()`` failed with non-ascii file names on Posix
 
-* ``ffi.from_buffer()`` takes a new keyword argument ``require_writable``.
-  When set to True, it asks the object passed in to raise an exception if
+* ``ffi.from_buffer()`` takes two new arguments: an optional *first* argument
+  gives the array type of the result; and the keyword argument
+  ``require_writable`` can ask the object passed in to raise an exception if
   it is read-only.
 
 * ``ffi.new()``, ``ffi.gc()`` or ``ffi.from_buffer()`` cdata objects

@@ -697,16 +697,29 @@ PyDoc_STRVAR(ffi_from_buffer_doc,
 "containing large quantities of raw data in some other format, like\n"
 "'array.array' or numpy arrays.");
 
-static PyObject *ffi_from_buffer(PyObject *self, PyObject *args, PyObject *kwds)
+static PyObject *ffi_from_buffer(FFIObject *self, PyObject *args,
+                                 PyObject *kwds)
 {
-    PyObject *arg;
+    PyObject *cdecl, *python_buf = NULL;
+    CTypeDescrObject *ct;
     int require_writable = 0;
-    static char *keywords[] = {"python_buffer", "require_writable", NULL};
+    static char *keywords[] = {"cdecl", "python_buffer",
+                               "require_writable", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|i:from_buffer", keywords,
-                                     &arg, &require_writable))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Oi:from_buffer", keywords,
+                                     &cdecl, &python_buf, &require_writable))
         return NULL;
-    return direct_from_buffer(g_ct_chararray, arg, require_writable);
+
+    if (python_buf == NULL) {
+        python_buf = cdecl;
+        ct = g_ct_chararray;
+    }
+    else {
+        ct = _ffi_type(self, cdecl, ACCEPT_STRING|ACCEPT_CTYPE);
+        if (ct == NULL)
+            return NULL;
+    }
+    return direct_from_buffer(ct, python_buf, require_writable);
 }
 
 PyDoc_STRVAR(ffi_gc_doc,

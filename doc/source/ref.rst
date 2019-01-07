@@ -60,7 +60,7 @@ the optional initializer is applied.  For performance, see
 `ffi.new_allocator()`_ for a way to allocate non-zero-initialized
 memory.
 
-*New in version 1.12:* see ``ffi.release()``.
+*New in version 1.12:* see also ``ffi.release()``.
 
 
 ffi.cast()
@@ -190,8 +190,8 @@ byte strings).  Use ``buf[:]`` instead.
 *New in version 1.10:* ``ffi.buffer`` is now the type of the returned
 buffer objects; ``ffi.buffer()`` actually calls the constructor.
 
-**ffi.from_buffer(python_buffer, require_writable=False)**:
-return a ``<cdata 'char[]'>`` that
+**ffi.from_buffer([cdecl,] python_buffer, require_writable=False)**:
+return an array cdata (by default a ``<cdata 'char[]'>``) that
 points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
 a reference to the existing data, not a copy.
@@ -219,19 +219,33 @@ bytearray objects were supported in version 1.7 onwards (careful, if you
 resize the bytearray, the ``<cdata>`` object will point to freed
 memory); and byte strings were supported in version 1.8 onwards.
 
-*New in version 1.12:* added the ``require_writable`` argument.  If set to
-True, the function fails if the buffer obtained from ``python_buffer`` is
-read-only (e.g. if ``python_buffer`` is a byte string).  The exact exception is
-raised by the object itself, and for things like bytes it varies with the
-Python version, so don't rely on it.  (Before version 1.12, the same effect can
-be achieved with a hack: call ``ffi.memmove(python_buffer, b"", 0)``.  This has
-no effect if the object is writable, but fails if it is read-only.)
+*New in version 1.12:* added the optional *first* argument ``cdecl``, and
+the keyword argument ``require_writable``:
 
-Please keep in mind that CFFI does not implement the C keyword ``const``: even
-if you set ``require_writable`` to False explicitly, you still get a regular
-read-write cdata pointer.
+* ``cdecl`` defaults to ``"char[]"``, but a different array type can be
+  specified for the result.  A value like ``"int[]"`` will return an array of
+  ints instead of chars, and its length will be set to the number of ints
+  that fit in the buffer (rounded down if the division is not exact).  Values
+  like ``"int[42]"`` or ``"int[2][3]"`` will return an array of exactly 42
+  (resp. 2-by-3) ints, raising a ValueError if the buffer is too small.  The
+  difference between specifying ``"int[]"`` and using the older code ``p1 =
+  ffi.from_buffer(x); p2 = ffi.cast("int *", p1)`` is that the older code
+  needs to keep ``p1`` alive as long as ``p2`` is in use, because only ``p1``
+  keeps the underlying Python object alive and locked.  (In addition,
+  ``ffi.from_buffer("int[]", x)`` gives better array bound checking.)
 
-*New in version 1.12:* see ``ffi.release()``.
+* if ``require_writable`` is set to True, the function fails if the buffer
+  obtained from ``python_buffer`` is read-only (e.g. if ``python_buffer`` is
+  a byte string).  The exact exception is raised by the object itself, and
+  for things like bytes it varies with the Python version, so don't rely on
+  it.  (Before version 1.12, the same effect can be achieved with a hack:
+  call ``ffi.memmove(python_buffer, b"", 0)``.  This has no effect if the
+  object is writable, but fails if it is read-only.)  Please keep in mind
+  that CFFI does not implement the C keyword ``const``: even if you set
+  ``require_writable`` to False explicitly, you still get a regular
+  read-write cdata pointer.
+
+*New in version 1.12:* see also ``ffi.release()``.
 
 
 ffi.memmove()
@@ -387,7 +401,7 @@ returned by ``ffi.new()``, the returned pointer objects have *ownership*,
 which means the destructor is called as soon as *this* exact returned
 object is garbage-collected.
 
-*New in version 1.12:* see ``ffi.release()``.
+*New in version 1.12:* see also ``ffi.release()``.
 
 **ffi.gc(ptr, None, size=0)**:
 removes the ownership on a object returned by a
@@ -569,21 +583,34 @@ add these two lines to your existing ``ffibuilder.cdef()``::
 
 and then call these two functions manually::
 
-    p = lib.malloc(bigsize)
+    p = lib.malloc(n * ffi.sizeof("int"))
     try:
-        my_array = ffi.cast("some_other_type_than_void*", p)
+        my_array = ffi.cast("int *", p)
         ...
     finally:
         lib.free(p)
 
+In cffi version 1.12 you can indeed use ``ffi.new_allocator()`` but use the
+``with`` statement (see ``ffi.release()``) to force the free function to be
+called at a known point.  The above is equivalent to this code::
 
-ffi.release()
-+++++++++++++
+    my_new = ffi.new_allocator(lib.malloc, lib.free)  # at global level
+    ...
+    with my_new("int[]", n) as my_array:
+        ...
 
-**ffi.release(cdata)**: release now the resources held by a cdata object from
-  ``ffi.new()``, ``ffi.gc()``, ``ffi.from_buffer()`` or
-  ``ffi.new_allocator()()``.  The cdata object must not be used afterwards.
-  *New in version 1.12.*
+
+.. _ffi-release:
+
+ffi.release() and the context manager
++++++++++++++++++++++++++++++++++++++
+
+**ffi.release(cdata)**: release the resources held by a cdata object from
+``ffi.new()``, ``ffi.gc()``, ``ffi.from_buffer()`` or
+``ffi.new_allocator()()``.  The cdata object must not be used afterwards.
+The regular destructor of the cdata object releases the same resources,
+but this allows the operation to occur at a known time.
+*New in version 1.12.*
 
 ``ffi.release(cdata)`` is equivalent to ``cdata.__exit__()``, which means that
 you can use the ``with`` statement to ensure that the cdata is released at the
@@ -592,6 +619,8 @@ end of a block (in version 1.12 and above)::
     with ffi.from_buffer(...) as p:
         do something with p
 
+The effect is more precisely as follows:
+
 * on an object returned from ``ffi.gc(destructor)``, ``ffi.release()`` will
   cause the ``destructor`` to be called immediately.
 
@@ -599,8 +628,8 @@ end of a block (in version 1.12 and above)::
   is called immediately.
 
 * on CPython, ``ffi.from_buffer(buf)`` locks the buffer, so ``ffi.release()``
-  unlocks it at a deterministic point.  On PyPy, there is no locking (so far)
-  so this has no effect.
+  can be used to unlock it at a known time.  On PyPy, there is no locking
+  (so far) so this has no effect.
 
 * on CPython this method has no effect (so far) on objects returned by
   ``ffi.new()``, because the memory is allocated inline with the cdata object
@@ -614,6 +643,11 @@ end of a block (in version 1.12 and above)::
   compensate, so the total memory allocated should be kept within bounds
   anyway; but calling ``ffi.release()`` explicitly should improve performance
   by reducing the frequency of GC runs.
+
+After ``ffi.release(x)``, do not use anything pointed to by ``x`` any longer.
+As an exception to this rule, you can call ``ffi.release(x)`` several times
+for the exact same cdata object ``x``; the calls after the first one are
+ignored.
 
 
 ffi.init_once()

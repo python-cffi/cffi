@@ -175,7 +175,7 @@
 #define CT_IS_FILE             0x00100000
 #define CT_IS_VOID_PTR         0x00200000
 #define CT_WITH_VAR_ARRAY      0x00400000
-#define CT_IS_UNSIZED_CHAR_A   0x00800000
+/* unused                      0x00800000 */
 #define CT_LAZY_FIELD_LIST     0x01000000
 #define CT_WITH_PACKED_CHANGE  0x02000000
 #define CT_IS_SIGNED_WCHAR     0x04000000
@@ -1870,7 +1870,7 @@ static void cdataowninggc_dealloc(CDataObject *cd)
         cffi_closure_free(closure);
 #endif
     }
-    else if (cd->c_type->ct_flags & CT_IS_UNSIZED_CHAR_A) {  /* from_buffer */
+    else if (cd->c_type->ct_flags & CT_ARRAY) {         /* from_buffer */
         Py_buffer *view = ((CDataObject_owngc_frombuf *)cd)->bufferview;
         PyBuffer_Release(view);
         PyObject_Free(view);
@@ -1889,7 +1889,7 @@ static int cdataowninggc_traverse(CDataObject *cd, visitproc visit, void *arg)
         PyObject *args = (PyObject *)(closure->user_data);
         Py_VISIT(args);
     }
-    else if (cd->c_type->ct_flags & CT_IS_UNSIZED_CHAR_A) {  /* from_buffer */
+    else if (cd->c_type->ct_flags & CT_ARRAY) {         /* from_buffer */
         Py_buffer *view = ((CDataObject_owngc_frombuf *)cd)->bufferview;
         Py_VISIT(view->obj);
     }
@@ -1911,7 +1911,7 @@ static int cdataowninggc_clear(CDataObject *cd)
         closure->user_data = NULL;
         Py_XDECREF(args);
     }
-    else if (cd->c_type->ct_flags & CT_IS_UNSIZED_CHAR_A) {  /* from_buffer */
+    else if (cd->c_type->ct_flags & CT_ARRAY) {         /* from_buffer */
         Py_buffer *view = ((CDataObject_owngc_frombuf *)cd)->bufferview;
         PyBuffer_Release(view);
     }
@@ -2125,7 +2125,7 @@ static PyObject *cdataowninggc_repr(CDataObject *cd)
         else
             return _cdata_repr2(cd, "calling", PyTuple_GET_ITEM(args, 1));
     }
-    else if (cd->c_type->ct_flags & CT_IS_UNSIZED_CHAR_A) {  /* from_buffer */
+    else if (cd->c_type->ct_flags & CT_ARRAY) {         /* from_buffer */
         Py_buffer *view = ((CDataObject_owngc_frombuf *)cd)->bufferview;
         Py_ssize_t buflen = get_array_length(cd);
         return PyText_FromFormat(
@@ -2369,7 +2369,7 @@ _cdata_get_indexed_ptr(CDataObject *cd, PyObject *key)
     else if (cd->c_type->ct_flags & CT_ARRAY) {
         if (i < 0) {
             PyErr_SetString(PyExc_IndexError,
-                            "negative index not supported");
+                            "negative index");
             return NULL;
         }
         if (i >= get_array_length(cd)) {
@@ -2422,7 +2422,7 @@ _cdata_getslicearg(CDataObject *cd, PySliceObject *slice, Py_ssize_t bounds[])
     if (ct->ct_flags & CT_ARRAY) {
         if (start < 0) {
             PyErr_SetString(PyExc_IndexError,
-                            "negative index not supported");
+                            "negative index");
             return NULL;
         }
         if (stop > get_array_length(cd)) {
@@ -3140,7 +3140,7 @@ static int explicit_release_case(PyObject *cd)
             return 0;
     }
     else if (Py_TYPE(cd) == &CDataOwningGC_Type) {
-        if (ct->ct_flags & CT_IS_UNSIZED_CHAR_A)   /* ffi.from_buffer() */
+        if (ct->ct_flags & CT_ARRAY)      /* ffi.from_buffer() */
             return 1;
     }
     else if (Py_TYPE(cd) == &CDataGCP_Type) {
@@ -3309,24 +3309,24 @@ static PyTypeObject CDataOwning_Type = {
     0,                                          /* tp_setattr */
     0,                                          /* tp_compare */
     (reprfunc)cdataowning_repr,                 /* tp_repr */
-    0,                                          /* tp_as_number */
+    0,  /* inherited */                         /* tp_as_number */
     0,                                          /* tp_as_sequence */
     &CDataOwn_as_mapping,                       /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
+    0,  /* inherited */                         /* tp_hash */
+    0,  /* inherited */                         /* tp_call */
     0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
+    0,  /* inherited */                         /* tp_getattro */
+    0,  /* inherited */                         /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
     0,                                          /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
-    0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
+    0,  /* inherited */                         /* tp_richcompare */
+    0,  /* inherited */                         /* tp_weaklistoffset */
+    0,  /* inherited */                         /* tp_iter */
     0,                                          /* tp_iternext */
-    0,                                          /* tp_methods */
+    0,  /* inherited */                         /* tp_methods */
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
     &CData_Type,                                /* tp_base */
@@ -3351,25 +3351,25 @@ static PyTypeObject CDataOwningGC_Type = {
     0,                                          /* tp_setattr */
     0,                                          /* tp_compare */
     (reprfunc)cdataowninggc_repr,               /* tp_repr */
-    0,                                          /* tp_as_number */
+    0,  /* inherited */                         /* tp_as_number */
     0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
+    0,  /* inherited */                         /* tp_as_mapping */
+    0,  /* inherited */                         /* tp_hash */
+    0,  /* inherited */                         /* tp_call */
     0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
+    0,  /* inherited */                         /* tp_getattro */
+    0,  /* inherited */                         /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
                        | Py_TPFLAGS_HAVE_GC,
     0,                                          /* tp_doc */
     (traverseproc)cdataowninggc_traverse,       /* tp_traverse */
     (inquiry)cdataowninggc_clear,               /* tp_clear */
-    0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
+    0,  /* inherited */                         /* tp_richcompare */
+    0,  /* inherited */                         /* tp_weaklistoffset */
+    0,  /* inherited */                         /* tp_iter */
     0,                                          /* tp_iternext */
-    0,                                          /* tp_methods */
+    0,  /* inherited */                         /* tp_methods */
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
     &CDataOwning_Type,                          /* tp_base */
@@ -3393,15 +3393,15 @@ static PyTypeObject CDataGCP_Type = {
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
     0,                                          /* tp_compare */
-    0,                                          /* tp_repr */
-    0,                                          /* tp_as_number */
+    0,  /* inherited */                         /* tp_repr */
+    0,  /* inherited */                         /* tp_as_number */
     0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
+    0,  /* inherited */                         /* tp_as_mapping */
+    0,  /* inherited */                         /* tp_hash */
+    0,  /* inherited */                         /* tp_call */
     0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
+    0,  /* inherited */                         /* tp_getattro */
+    0,  /* inherited */                         /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
 #ifdef Py_TPFLAGS_HAVE_FINALIZE
@@ -3411,11 +3411,11 @@ static PyTypeObject CDataGCP_Type = {
     0,                                          /* tp_doc */
     (traverseproc)cdatagcp_traverse,            /* tp_traverse */
     0,                                          /* tp_clear */
-    0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
+    0,  /* inherited */                         /* tp_richcompare */
+    0,  /* inherited */                         /* tp_weaklistoffset */
+    0,  /* inherited */                         /* tp_iter */
     0,                                          /* tp_iternext */
-    0,                                          /* tp_methods */
+    0,  /* inherited */                         /* tp_methods */
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
     &CData_Type,                                /* tp_base */
@@ -3427,7 +3427,7 @@ static PyTypeObject CDataGCP_Type = {
     0,                                          /* tp_init */
     0,                                          /* tp_alloc */
     0,                                          /* tp_new */
-    0,                                          /* tp_free */
+    0,  /* inherited */                         /* tp_free */
     0,                                          /* tp_is_gc */
     0,                                          /* tp_bases */
     0,                                          /* tp_mro */
@@ -3527,6 +3527,8 @@ static CDataObject *allocate_owning_object(Py_ssize_t size,
                                            CTypeDescrObject *ct,
                                            int dont_clear)
 {
+    /* note: objects with &CDataOwning_Type are always allocated with
+       either a plain malloc() or calloc(), and freed with free(). */
     CDataObject *cd;
     if (dont_clear)
         cd = malloc(size);
@@ -4688,9 +4690,6 @@ new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length)
         sprintf(extra_text, "[]");
         length = -1;
         arraysize = -1;
-        if ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
-                ctitem->ct_size == sizeof(char))
-            flags |= CT_IS_UNSIZED_CHAR_A;
     }
     else {
         sprintf(extra_text, "[%llu]", (unsigned PY_LONG_LONG)length);
@@ -6815,6 +6814,13 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x,
 {
     CDataObject *cd;
     Py_buffer *view;
+    Py_ssize_t arraylength;
+
+    if (!(ct->ct_flags & CT_ARRAY)) {
+        PyErr_Format(PyExc_TypeError, "expected an array ctype, got '%s'",
+                     ct->ct_name);
+        return NULL;
+    }
 
     /* PyPy 5.7 can obtain buffers for string (python 2)
        or bytes (python 3). from_buffer(u"foo") is disallowed.
@@ -6834,6 +6840,41 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x,
     if (_my_PyObject_GetContiguousBuffer(x, view, require_writable) < 0)
         goto error1;
 
+    if (ct->ct_length >= 0) {
+        /* it's an array with a fixed length; make sure that the
+           buffer contains enough bytes. */
+        if (view->len < ct->ct_size) {
+            PyErr_Format(PyExc_ValueError,
+                "buffer is too small (%zd bytes) for '%s' (%zd bytes)",
+                view->len, ct->ct_name, ct->ct_size);
+            goto error1;
+        }
+        arraylength = ct->ct_length;
+    }
+    else {
+        /* it's an open 'array[]' */
+        if (ct->ct_itemdescr->ct_size == 1) {
+            /* fast path, performance only */
+            arraylength = view->len;
+        }
+        else if (ct->ct_itemdescr->ct_size > 0) {
+            /* give it as many items as fit the buffer.  Ignore a
+               partial last element. */
+            arraylength = view->len / ct->ct_itemdescr->ct_size;
+        }
+        else {
+            /* it's an array 'empty[]'.  Unsupported obscure case:
+               the problem is that setting the length of the result
+               to anything large (like SSIZE_T_MAX) is dangerous,
+               because if someone tries to loop over it, it will
+               turn effectively into an infinite loop. */
+            PyErr_Format(PyExc_ZeroDivisionError,
+                "from_buffer('%s', ..): the actual length of the array "
+                "cannot be computed", ct->ct_name);
+            goto error1;
+        }
+    }
+
     cd = (CDataObject *)PyObject_GC_New(CDataObject_owngc_frombuf,
                                         &CDataOwningGC_Type);
     if (cd == NULL)
@@ -6843,7 +6884,7 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x,
     cd->c_type = ct;
     cd->c_data = view->buf;
     cd->c_weakreflist = NULL;
-    ((CDataObject_owngc_frombuf *)cd)->length = view->len;
+    ((CDataObject_owngc_frombuf *)cd)->length = arraylength;
     ((CDataObject_owngc_frombuf *)cd)->bufferview = view;
     PyObject_GC_Track(cd);
     return (PyObject *)cd;
@@ -6865,10 +6906,6 @@ static PyObject *b_from_buffer(PyObject *self, PyObject *args)
                           &require_writable))
         return NULL;
 
-    if (!(ct->ct_flags & CT_IS_UNSIZED_CHAR_A)) {
-        PyErr_Format(PyExc_TypeError, "needs 'char[]', got '%s'", ct->ct_name);
-        return NULL;
-    }
     return direct_from_buffer(ct, x, require_writable);
 }
 
