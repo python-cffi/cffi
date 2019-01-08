@@ -6848,7 +6848,7 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x,
             PyErr_Format(PyExc_ValueError,
                 "buffer is too small (%zd bytes) for '%s' (%zd bytes)",
                 view->len, ct->ct_name, ct->ct_size);
-            goto error1;
+            goto error2;
         }
         arraylength = ct->ct_length;
     }
@@ -6872,7 +6872,7 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x,
             PyErr_Format(PyExc_ZeroDivisionError,
                 "from_buffer('%s', ..): the actual length of the array "
                 "cannot be computed", ct->ct_name);
-            goto error1;
+            goto error2;
         }
     }
 
