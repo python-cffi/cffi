@@ -629,7 +629,9 @@ The effect is more precisely as follows:
 
 * on CPython, ``ffi.from_buffer(buf)`` locks the buffer, so ``ffi.release()``
   can be used to unlock it at a known time.  On PyPy, there is no locking
-  (so far) so this has no effect.
+  (so far); the effect of ``ffi.release()`` is limited to removing the link,
+  allowing the original buffer object to be garbage-collected even if the
+  cdata object stays alive.
 
 * on CPython this method has no effect (so far) on objects returned by
   ``ffi.new()``, because the memory is allocated inline with the cdata object
