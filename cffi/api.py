@@ -17,6 +17,8 @@ except NameError:
     # Python 3.x
     basestring = str
 
+_unspecified = object()
+
 
 
 class FFI(object):
@@ -76,9 +78,10 @@ class FFI(object):
         self._init_once_cache = {}
         self._cdef_version = None
         self._embedding = None
+        self._typecache = model.get_typecache(backend)
         if hasattr(backend, 'set_ffi'):
             backend.set_ffi(self)
-        for name in backend.__dict__:
+        for name in list(backend.__dict__):
             if name.startswith('RTLD_'):
                 setattr(self, name, getattr(backend, name))
         #
@@ -96,18 +99,21 @@ class FFI(object):
             self.CData, self.CType = backend._get_types()
         self.buffer = backend.buffer
 
-    def cdef(self, csource, override=False, packed=False):
+    def cdef(self, csource, override=False, packed=False, pack=None):
         """Parse the given C source.  This registers all declared functions,
         types, and global variables.  The functions and global variables can
         then be accessed via either 'ffi.dlopen()' or 'ffi.verify()'.
         The types can be used in 'ffi.new()' and other functions.
         If 'packed' is specified as True, all structs declared inside this
         cdef are packed, i.e. laid out without any field alignment at all.
+        Alternatively, 'pack' can be a small integer, and requests for
+        alignment greater than that are ignored (pack=1 is equivalent to
+        packed=True).
         """
-        self._cdef(csource, override=override, packed=packed)
+        self._cdef(csource, override=override, packed=packed, pack=pack)
 
-    def embedding_api(self, csource, packed=False):
-        self._cdef(csource, packed=packed, dllexport=True)
+    def embedding_api(self, csource, packed=False, pack=None):
+        self._cdef(csource, packed=packed, pack=pack, dllexport=True)
         if self._embedding is None:
             self._embedding = ''
 
@@ -142,6 +148,13 @@ class FFI(object):
             self._function_caches.append(function_cache)
             self._libraries.append(lib)
         return lib
+
+    def dlclose(self, lib):
+        """Close a library obtained with ffi.dlopen().  After this call,
+        access to functions or variables from the library will fail
+        (possibly with a segmentation fault).
+        """
+        type(lib).__cffi_close__(lib)
 
     def _typeof_locked(self, cdecl):
         # call me with the lock!
@@ -331,15 +344,23 @@ class FFI(object):
    #    """
    #    note that 'buffer' is a type, set on this instance by __init__
 
-    def from_buffer(self, python_buffer):
-        """Return a <cdata 'char[]'> that points to the data of the
+    def from_buffer(self, cdecl, python_buffer=_unspecified,
+                    require_writable=False):
+        """Return a cdata of the given type pointing to the data of the
         given Python object, which must support the buffer interface.
         Note that this is not meant to be used on the built-in types
         str or unicode (you can build 'char[]' arrays explicitly)
         but only on objects containing large quantities of raw data
         in some other format, like 'array.array' or numpy arrays.
+
+        The first argument is optional and default to 'char[]'.
         """
-        return self._backend.from_buffer(self.BCharA, python_buffer)
+        if python_buffer is _unspecified:
+            cdecl, python_buffer = self.BCharA, cdecl
+        elif isinstance(cdecl, basestring):
+            cdecl = self._typeof(cdecl)
+        return self._backend.from_buffer(cdecl, python_buffer,
+                                         require_writable)
 
     def memmove(self, dest, src, n):
         """ffi.memmove(dest, src, n) copies n bytes of memory from src to dest.
@@ -394,12 +415,17 @@ class FFI(object):
             replace_with = ' ' + replace_with
         return self._backend.getcname(cdecl, replace_with)
 
-    def gc(self, cdata, destructor):
+    def gc(self, cdata, destructor, size=0):
         """Return a new cdata object that points to the same
         data.  Later, when this new cdata object is garbage-collected,
         'destructor(old_cdata_object)' will be called.
+
+        The optional 'size' gives an estimate of the size, used to
+        trigger the garbage collection more eagerly.  So far only used
+        on PyPy.  It tells the GC that the returned object keeps alive
+        roughly 'size' bytes of external memory.
         """
-        return self._backend.gcp(cdata, destructor)
+        return self._backend.gcp(cdata, destructor, size)
 
     def _get_cached_btype(self, type):
         assert self._lock.acquire(False) is False
@@ -513,6 +539,9 @@ class FFI(object):
 
     def from_handle(self, x):
         return self._backend.from_handle(x)
+
+    def release(self, x):
+        self._backend.release(x)
 
     def set_unicode(self, enabled_flag):
         """Windows: if 'enabled_flag' is True, enable the UNICODE and
@@ -771,7 +800,7 @@ def _load_backend_lib(backend, name, flags):
         if sys.platform != "win32":
             return backend.load_library(None, flags)
         name = "c"    # Windows: load_library(None) fails, but this works
-                      # (backward compatibility hack only)
+                      # on Python 2 (backward compatibility hack only)
     first_error = None
     if '.' in name or '/' in name or os.sep in name:
         try:
@@ -781,6 +810,9 @@ def _load_backend_lib(backend, name, flags):
     import ctypes.util
     path = ctypes.util.find_library(name)
     if path is None:
+        if name == "c" and sys.platform == "win32" and sys.version_info >= (3,):
+            raise OSError("dlopen(None) cannot work on Windows for Python 3 "
+                          "(see http://bugs.python.org/issue23606)")
         msg = ("ctypes.util.find_library() did not manage "
                "to locate a library called %r" % (name,))
         if first_error is not None:
@@ -896,6 +928,9 @@ def _make_ffi_library(ffi, libname, flags):
                 return addressof_var(name)
             raise AttributeError("cffi library has no function or "
                                  "global variable named '%s'" % (name,))
+        def __cffi_close__(self):
+            backendlib.close_lib()
+            self.__dict__.clear()
     #
     if libname is not None:
         try:

@@ -1,8 +1,9 @@
-import sys
+import sys, os
 import py
 from cffi import FFI
 from cffi import recompiler, ffiplatform, VerificationMissing
 from testing.udir import udir
+from testing.support import u
 
 
 def setup_module(mod):
@@ -35,6 +36,22 @@ def setup_module(mod):
                         'globalconst42', 'globalconsthello']
     )
     outputfilename = ffiplatform.compile(str(tmpdir), ext)
+
+    # test with a non-ascii char
+    ofn, oext = os.path.splitext(outputfilename)
+    if sys.platform == "win32":
+        unicode_name = ofn + (u+'\u03be') + oext
+    else:
+        unicode_name = ofn + (u+'\xe9') + oext
+        try:
+            unicode_name.encode(sys.getfilesystemencoding())
+        except UnicodeEncodeError:
+            unicode_name = None
+    if unicode_name is not None:
+        print(repr(outputfilename) + ' ==> ' + repr(unicode_name))
+        os.rename(outputfilename, unicode_name)
+        outputfilename = unicode_name
+
     mod.extmod = outputfilename
     mod.tmpdir = tmpdir
     #
@@ -55,6 +72,9 @@ def setup_module(mod):
     typedef struct bar_s { int x; signed char a[]; } bar_t;
     enum foo_e { AA, BB, CC };
     int strlen(const char *);
+    struct with_union { union { int a; char b; }; };
+    union with_struct { struct { int a; char b; }; };
+    struct NVGcolor { union { float rgba[4]; struct { float r,g,b,a; }; }; };
     """)
     ffi.set_source('re_python_pysrc', None)
     ffi.emit_python_code(str(tmpdir.join('re_python_pysrc.py')))
@@ -94,6 +114,8 @@ def test_dlopen_none():
     if sys.platform == 'win32':
         import ctypes.util
         name = ctypes.util.find_msvcrt()
+        if name is None:
+            py.test.skip("dlopen(None) cannot work on Windows with Python 3")
     lib = ffi.dlopen(name)
     assert lib.strlen(b"hello") == 5
 
@@ -102,12 +124,14 @@ def test_dlclose():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
     ffi.dlclose(lib)
-    e = py.test.raises(ffi.error, ffi.dlclose, lib)
-    assert str(e.value).startswith(
-        "library '%s' is already closed" % (extmod,))
+    if type(extmod) is not str:   # unicode, on python 2
+        str_extmod = extmod.encode('utf-8')
+    else:
+        str_extmod = extmod
     e = py.test.raises(ffi.error, getattr, lib, 'add42')
     assert str(e.value) == (
-        "library '%s' has been closed" % (extmod,))
+        "library '%s' has been closed" % (str_extmod,))
+    ffi.dlclose(lib)   # does not raise
 
 def test_constant_via_lib():
     from re_python_pysrc import ffi
@@ -210,3 +234,23 @@ def test_partial_enum():
     ffi.set_source('test_partial_enum', None)
     py.test.raises(VerificationMissing, ffi.emit_python_code,
                    str(tmpdir.join('test_partial_enum.py')))
+
+def test_anonymous_union_inside_struct():
+    # based on issue #357
+    from re_python_pysrc import ffi
+    INT = ffi.sizeof("int")
+    assert ffi.offsetof("struct with_union", "a") == 0
+    assert ffi.offsetof("struct with_union", "b") == 0
+    assert ffi.sizeof("struct with_union") == INT
+    #
+    assert ffi.offsetof("union with_struct", "a") == 0
+    assert ffi.offsetof("union with_struct", "b") == INT
+    assert ffi.sizeof("union with_struct") >= INT + 1
+    #
+    FLOAT = ffi.sizeof("float")
+    assert ffi.sizeof("struct NVGcolor") == FLOAT * 4
+    assert ffi.offsetof("struct NVGcolor", "rgba") == 0
+    assert ffi.offsetof("struct NVGcolor", "r") == 0
+    assert ffi.offsetof("struct NVGcolor", "g") == FLOAT
+    assert ffi.offsetof("struct NVGcolor", "b") == FLOAT * 2
+    assert ffi.offsetof("struct NVGcolor", "a") == FLOAT * 3

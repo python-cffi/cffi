@@ -418,7 +418,6 @@ class TestNewFFI1:
         #
         p = ffi.new("wchar_t[]", u+'\U00023456')
         if SIZE_OF_WCHAR == 2:
-            assert sys.maxunicode == 0xffff
             assert len(p) == 3
             assert p[0] == u+'\ud84d'
             assert p[1] == u+'\udc56'
@@ -1457,6 +1456,35 @@ class TestNewFFI1:
         import gc; gc.collect(); gc.collect(); gc.collect()
         assert seen == [3]
 
+    def test_release(self):
+        p = ffi.new("int[]", 123)
+        ffi.release(p)
+        # here, reading p[0] might give garbage or segfault...
+        ffi.release(p)   # no effect
+
+    def test_release_new_allocator(self):
+        seen = []
+        def myalloc(size):
+            seen.append(size)
+            return ffi.new("char[]", b"X" * size)
+        def myfree(raw):
+            seen.append(raw)
+        alloc2 = ffi.new_allocator(alloc=myalloc, free=myfree)
+        p = alloc2("int[]", 15)
+        assert seen == [15 * 4]
+        ffi.release(p)
+        assert seen == [15 * 4, p]
+        ffi.release(p)    # no effect
+        assert seen == [15 * 4, p]
+        #
+        del seen[:]
+        p = alloc2("struct ab *")
+        assert seen == [2 * 4]
+        ffi.release(p)
+        assert seen == [2 * 4, p]
+        ffi.release(p)    # no effect
+        assert seen == [2 * 4, p]
+
     def test_CData_CType(self):
         assert isinstance(ffi.cast("int", 0), ffi.CData)
         assert isinstance(ffi.new("int *"), ffi.CData)
@@ -1647,14 +1675,6 @@ class TestNewFFI1:
         py.test.raises(TypeError, len, q.a)
         py.test.raises(TypeError, list, q.a)
 
-    def test_from_buffer(self):
-        import array
-        a = array.array('H', [10000, 20000, 30000])
-        c = ffi.from_buffer(a)
-        assert ffi.typeof(c) is ffi.typeof("char[]")
-        ffi.cast("unsigned short *", c)[1] += 500
-        assert list(a) == [10000, 20500, 30000]
-
     def test_all_primitives(self):
         assert set(PRIMITIVE_TO_INDEX) == set([
             "char",
@@ -1672,6 +1692,8 @@ class TestNewFFI1:
             "double",
             "long double",
             "wchar_t",
+            "char16_t",
+            "char32_t",
             "_Bool",
             "int8_t",
             "uint8_t",
@@ -1704,6 +1726,8 @@ class TestNewFFI1:
             "ptrdiff_t",
             "size_t",
             "ssize_t",
+            'float _Complex',
+            'double _Complex',
             ])
         for name in PRIMITIVE_TO_INDEX:
             x = ffi.sizeof(name)
@@ -1740,3 +1764,30 @@ class TestNewFFI1:
         exec("from _test_import_from_lib import *", d)
         assert (sorted([x for x in d.keys() if not x.startswith('__')]) ==
                 ['ffi', 'lib'])
+
+    def test_char16_t(self):
+        x = ffi.new("char16_t[]", 5)
+        assert len(x) == 5 and ffi.sizeof(x) == 10
+        x[2] = u+'\u1324'
+        assert x[2] == u+'\u1324'
+        y = ffi.new("char16_t[]", u+'\u1234\u5678')
+        assert len(y) == 3
+        assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
+        assert ffi.string(y) == u+'\u1234\u5678'
+        z = ffi.new("char16_t[]", u+'\U00012345')
+        assert len(z) == 3
+        assert list(z) == [u+'\ud808', u+'\udf45', u+'\x00']
+        assert ffi.string(z) == u+'\U00012345'
+
+    def test_char32_t(self):
+        x = ffi.new("char32_t[]", 5)
+        assert len(x) == 5 and ffi.sizeof(x) == 20
+        x[3] = u+'\U00013245'
+        assert x[3] == u+'\U00013245'
+        y = ffi.new("char32_t[]", u+'\u1234\u5678')
+        assert len(y) == 3
+        assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
+        z = ffi.new("char32_t[]", u+'\U00012345')
+        assert len(z) == 2
+        assert list(z) == [u+'\U00012345', u+'\x00'] # maybe a 2-unichars strin
+        assert ffi.string(z) == u+'\U00012345'

@@ -1,6 +1,7 @@
 /* ffi.dlopen() interface with dlopen()/dlsym()/dlclose() */
 
-static void *cdlopen_fetch(PyObject *libname, void *libhandle, char *symbol)
+static void *cdlopen_fetch(PyObject *libname, void *libhandle,
+                           const char *symbol)
 {
     void *address;
 
@@ -39,35 +40,18 @@ static int cdlopen_close(PyObject *libname, void *libhandle)
 
 static PyObject *ffi_dlopen(PyObject *self, PyObject *args)
 {
-    char *filename_or_null, *printable_filename;
+    const char *modname;
+    PyObject *temp, *result = NULL;
     void *handle;
-    int flags = 0;
 
-    if (PyTuple_GET_SIZE(args) == 0 || PyTuple_GET_ITEM(args, 0) == Py_None) {
-        PyObject *dummy;
-        if (!PyArg_ParseTuple(args, "|Oi:load_library",
-                              &dummy, &flags))
-            return NULL;
-        filename_or_null = NULL;
+    handle = b_do_dlopen(args, &modname, &temp);
+    if (handle != NULL)
+    {
+        result = (PyObject *)lib_internal_new((FFIObject *)self,
+                                              modname, handle);
     }
-    else if (!PyArg_ParseTuple(args, "et|i:load_library",
-                          Py_FileSystemDefaultEncoding, &filename_or_null,
-                          &flags))
-        return NULL;
-
-    if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
-        flags |= RTLD_NOW;
-    printable_filename = filename_or_null ? filename_or_null : "<None>";
-
-    handle = dlopen(filename_or_null, flags);
-    if (handle == NULL) {
-        const char *error = dlerror();
-        PyErr_Format(PyExc_OSError, "cannot load library '%s': %s",
-                     printable_filename, error);
-        return NULL;
-    }
-    return (PyObject *)lib_internal_new((FFIObject *)self,
-                                        printable_filename, handle);
+    Py_XDECREF(temp);
+    return result;
 }
 
 static PyObject *ffi_dlclose(PyObject *self, PyObject *args)
@@ -78,22 +62,17 @@ static PyObject *ffi_dlclose(PyObject *self, PyObject *args)
         return NULL;
 
     libhandle = lib->l_libhandle;
-    lib->l_libhandle = NULL;
+    if (libhandle != NULL)
+    {
+        lib->l_libhandle = NULL;
 
-    if (libhandle == NULL) {
-        PyErr_Format(FFIError, "library '%s' is already closed "
-                     "or was not created with ffi.dlopen()",
-                     PyText_AS_UTF8(lib->l_libname));
-        return NULL;
+        /* Clear the dict to force further accesses to do cdlopen_fetch()
+           again, and fail because the library was closed. */
+        PyDict_Clear(lib->l_dict);
+
+        if (cdlopen_close(lib->l_libname, libhandle) < 0)
+            return NULL;
     }
-
-    /* Clear the dict to force further accesses to do cdlopen_fetch()
-       again, and fail because the library was closed. */
-    PyDict_Clear(lib->l_dict);
-
-    if (cdlopen_close(lib->l_libname, libhandle) < 0)
-        return NULL;
-
     Py_INCREF(Py_None);
     return Py_None;
 }

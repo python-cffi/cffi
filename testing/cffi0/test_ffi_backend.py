@@ -1,6 +1,7 @@
 import py, sys, platform
 import pytest
 from testing.cffi0 import backend_tests, test_function, test_ownlib
+from testing.support import u
 from cffi import FFI
 import _cffi_backend
 
@@ -323,8 +324,31 @@ class TestBitfield:
         a = array.array('H', [10000, 20000, 30000])
         c = ffi.from_buffer(a)
         assert ffi.typeof(c) is ffi.typeof("char[]")
+        assert len(c) == 6
         ffi.cast("unsigned short *", c)[1] += 500
         assert list(a) == [10000, 20500, 30000]
+        assert c == ffi.from_buffer("char[]", a, True)
+        assert c == ffi.from_buffer(a, require_writable=True)
+        #
+        c = ffi.from_buffer("unsigned short[]", a)
+        assert len(c) == 3
+        assert c[1] == 20500
+        #
+        p = ffi.from_buffer(b"abcd")
+        assert p[2] == b"c"
+        #
+        assert p == ffi.from_buffer(b"abcd", require_writable=False)
+        py.test.raises((TypeError, BufferError), ffi.from_buffer,
+                                                 "char[]", b"abcd", True)
+        py.test.raises((TypeError, BufferError), ffi.from_buffer, b"abcd",
+                                                 require_writable=True)
+
+    def test_release(self):
+        ffi = FFI()
+        p = ffi.new("int[]", 123)
+        ffi.release(p)
+        # here, reading p[0] might give garbage or segfault...
+        ffi.release(p)   # no effect
 
     def test_memmove(self):
         ffi = FFI()
@@ -397,6 +421,8 @@ class TestBitfield:
             "double",
             "long double",
             "wchar_t",
+            "char16_t",
+            "char32_t",
             "_Bool",
             "int8_t",
             "uint8_t",
@@ -508,3 +534,43 @@ class TestBitfield:
             py.test.raises(TypeError, cd)
             py.test.raises(TypeError, cd, ffi.NULL)
             py.test.raises(TypeError, cd, ffi.typeof("void *"))
+
+    def test_explicitly_defined_char16_t(self):
+        ffi = FFI()
+        ffi.cdef("typedef uint16_t char16_t;")
+        x = ffi.cast("char16_t", 1234)
+        assert ffi.typeof(x) is ffi.typeof("uint16_t")
+
+    def test_char16_t(self):
+        ffi = FFI()
+        x = ffi.new("char16_t[]", 5)
+        assert len(x) == 5 and ffi.sizeof(x) == 10
+        x[2] = u+'\u1324'
+        assert x[2] == u+'\u1324'
+        y = ffi.new("char16_t[]", u+'\u1234\u5678')
+        assert len(y) == 3
+        assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
+        assert ffi.string(y) == u+'\u1234\u5678'
+        z = ffi.new("char16_t[]", u+'\U00012345')
+        assert len(z) == 3
+        assert list(z) == [u+'\ud808', u+'\udf45', u+'\x00']
+        assert ffi.string(z) == u+'\U00012345'
+
+    def test_char32_t(self):
+        ffi = FFI()
+        x = ffi.new("char32_t[]", 5)
+        assert len(x) == 5 and ffi.sizeof(x) == 20
+        x[3] = u+'\U00013245'
+        assert x[3] == u+'\U00013245'
+        y = ffi.new("char32_t[]", u+'\u1234\u5678')
+        assert len(y) == 3
+        assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
+        py_uni = u+'\U00012345'
+        z = ffi.new("char32_t[]", py_uni)
+        assert len(z) == 2
+        assert list(z) == [py_uni, u+'\x00']    # maybe a 2-unichars string
+        assert ffi.string(z) == py_uni
+        if len(py_uni) == 1:    # 4-bytes unicodes in Python
+            s = ffi.new("char32_t[]", u+'\ud808\udf00')
+            assert len(s) == 3
+            assert list(s) == [u+'\ud808', u+'\udf00', u+'\x00']

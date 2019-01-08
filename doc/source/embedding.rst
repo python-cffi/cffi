@@ -279,12 +279,24 @@ next:
 Troubleshooting
 ---------------
 
-The error message
+* The error message
 
     cffi extension module 'c_module_name' has unknown version 0x2701
 
-means that the running Python interpreter located a CFFI version older
-than 1.5.  CFFI 1.5 or newer must be installed in the running Python.
+  means that the running Python interpreter located a CFFI version older
+  than 1.5.  CFFI 1.5 or newer must be installed in the running Python.
+
+* On PyPy, the error message
+
+    debug: pypy_setup_home: directories 'lib-python' and 'lib_pypy' not
+    found in pypy's shared library location or in any parent directory
+
+  means that the ``libpypy-c.so`` file was found, but the standard library
+  was not found from this location.  This occurs at least on some Linux
+  distributions, because they put ``libpypy-c.so`` inside ``/usr/lib/``,
+  instead of the way we recommend, which is: keep that file inside
+  ``/opt/pypy/bin/`` and put a symlink to there from ``/usr/lib/``.
+  The quickest fix is to do that change manually.
 
 
 Issues about using the .so
@@ -358,6 +370,17 @@ inaccuracies in this paragraph or better ways to do things.)
   using a common shell you need to say ``gcc
   -Wl,-rpath=\$ORIGIN``.  From a Makefile, you need to say
   something like ``gcc -Wl,-rpath=\$$ORIGIN``.
+
+* On some Linux distributions, notably Debian, the ``.so`` files of
+  CPython C extension modules may be compiled without saying that they
+  depend on ``libpythonX.Y.so``.  This makes such Python systems
+  unsuitable for embedding if the embedder uses ``dlopen(...,
+  RTLD_LOCAL)``.  You get an ``undefined symbol`` error.  See
+  `issue #264`__.  A workaround is to first call
+  ``dlopen("libpythonX.Y.so", RTLD_LAZY|RTLD_GLOBAL)``, which will
+  force ``libpythonX.Y.so`` to be loaded first.
+
+.. __: https://bitbucket.org/cffi/cffi/issues/264/
 
 
 Using multiple CFFI-made DLLs

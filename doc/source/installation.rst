@@ -34,10 +34,9 @@ Requirements:
 * CPython 2.6 or 2.7 or 3.x, or PyPy (PyPy 2.0 for the earliest
   versions of CFFI; or PyPy 2.6 for CFFI 1.0).
 
-* in some cases you need to be able to compile C extension modules;
-  refer to the appropriate docs for your OS.  This includes installing
-  CFFI from sources; or developing code based on ``ffi.set_source()`` or
-  ``ffi.verify()``; or installing such 3rd-party modules from sources.
+* in some cases you need to be able to compile C extension modules.
+  On non-Windows platforms, this usually means installing the package
+  ``python-dev``.  Refer to the appropriate docs for your OS.
 
 * on CPython, on non-Windows platforms, you also need to install
   ``libffi-dev`` in order to compile CFFI itself.
@@ -51,13 +50,15 @@ Requirements:
 
 Download and Installation:
 
-* http://pypi.python.org/packages/source/c/cffi/cffi-1.10.0.tar.gz
+* https://pypi.python.org/pypi/cffi
 
-   - MD5: 2b5fa41182ed0edaf929a789e602a070
+* Checksums of the "source" package version 1.12.0:
 
-   - SHA: 8484aba03d1e64367d3110c0e36c1ed052b43f12
+   - MD5: ...
 
-   - SHA256: b3b02911eb1f6ada203b0763ba924234629b51586f72a21faacc638269f4ced5
+   - SHA: ...
+
+   - SHA256: ...
 
 * Or grab the most current version from the `Bitbucket page`_:
   ``hg clone https://bitbucket.org/cffi/cffi``
@@ -112,7 +113,7 @@ MacOS X
     PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig pip install cffi
 
 
-Aternatively, **on OS/X 10.6** (Thanks Juraj Sukop for this)
+Alternatively, **on OS/X 10.6** (Thanks Juraj Sukop for this)
 
 For building libffi you can use the default install path, but then, in
 ``setup.py`` you need to change::
@@ -196,3 +197,10 @@ For example, with virtualenv:
 
 This will compile and install CFFI in this virtualenv, using the
 Python from this virtualenv.
+
+
+NetBSD
+++++++
+
+You need to make sure you have an up-to-date version of libffi, which
+fixes some bugs.

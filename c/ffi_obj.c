@@ -92,7 +92,7 @@ static PyObject *ffiobj_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 /* forward, declared in cdlopen.c because it's mostly useful for this case */
 static int ffiobj_init(PyObject *self, PyObject *args, PyObject *kwds);
 
-static PyObject *ffi_fetch_int_constant(FFIObject *ffi, char *name,
+static PyObject *ffi_fetch_int_constant(FFIObject *ffi, const char *name,
                                         int recursion)
 {
     int index;
@@ -145,7 +145,7 @@ static PyObject *ffi_fetch_int_constant(FFIObject *ffi, char *name,
 #define ACCEPT_ALL      (ACCEPT_STRING | ACCEPT_CTYPE | ACCEPT_CDATA)
 #define CONSIDER_FN_AS_FNPTR  8
 
-static CTypeDescrObject *_ffi_bad_type(FFIObject *ffi, char *input_text)
+static CTypeDescrObject *_ffi_bad_type(FFIObject *ffi, const char *input_text)
 {
     size_t length = strlen(input_text);
     char *extra;
@@ -188,7 +188,7 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
         PyObject *x = PyDict_GetItem(types_dict, arg);
 
         if (x == NULL) {
-            char *input_text = PyText_AS_UTF8(arg);
+            const char *input_text = PyText_AS_UTF8(arg);
             int err, index = parse_c_type(&ffi->info, input_text);
             if (index < 0)
                 return _ffi_bad_type(ffi, input_text);
@@ -697,15 +697,40 @@ PyDoc_STRVAR(ffi_from_buffer_doc,
 "containing large quantities of raw data in some other format, like\n"
 "'array.array' or numpy arrays.");
 
-static PyObject *ffi_from_buffer(PyObject *self, PyObject *arg)
+static PyObject *ffi_from_buffer(FFIObject *self, PyObject *args,
+                                 PyObject *kwds)
 {
-    return direct_from_buffer(g_ct_chararray, arg);
+    PyObject *cdecl, *python_buf = NULL;
+    CTypeDescrObject *ct;
+    int require_writable = 0;
+    static char *keywords[] = {"cdecl", "python_buffer",
+                               "require_writable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Oi:from_buffer", keywords,
+                                     &cdecl, &python_buf, &require_writable))
+        return NULL;
+
+    if (python_buf == NULL) {
+        python_buf = cdecl;
+        ct = g_ct_chararray;
+    }
+    else {
+        ct = _ffi_type(self, cdecl, ACCEPT_STRING|ACCEPT_CTYPE);
+        if (ct == NULL)
+            return NULL;
+    }
+    return direct_from_buffer(ct, python_buf, require_writable);
 }
 
 PyDoc_STRVAR(ffi_gc_doc,
 "Return a new cdata object that points to the same data.\n"
 "Later, when this new cdata object is garbage-collected,\n"
-"'destructor(old_cdata_object)' will be called.");
+"'destructor(old_cdata_object)' will be called.\n"
+"\n"
+"The optional 'size' gives an estimate of the size, used to\n"
+"trigger the garbage collection more eagerly.  So far only used\n"
+"on PyPy.  It tells the GC that the returned object keeps alive\n"
+"roughly 'size' bytes of external memory.");
 
 #define ffi_gc  b_gcp     /* ffi_gc() => b_gcp()
                              from _cffi_backend.c */
@@ -936,16 +961,6 @@ PyDoc_STRVAR(ffi_memmove_doc,
 #define ffi_memmove  b_memmove     /* ffi_memmove() => b_memmove()
                                       from _cffi_backend.c */
 
-#ifdef WITH_THREAD
-# include "pythread.h"
-#else
-typedef void *PyThread_type_lock;
-# define PyThread_allocate_lock()        ((void *)-1)
-# define PyThread_free_lock(lock)        ((void)(lock))
-# define PyThread_acquire_lock(lock, _)  ((void)(lock))
-# define PyThread_release_lock(lock)     ((void)(lock))
-#endif
-
 PyDoc_STRVAR(ffi_init_once_doc,
 "init_once(function, tag): run function() once.  More precisely,\n"
 "'function()' is called the first time we see a given 'tag'.\n"
@@ -1067,6 +1082,21 @@ static PyObject *ffi_init_once(FFIObject *self, PyObject *args, PyObject *kwds)
     return res;
 }
 
+PyDoc_STRVAR(ffi_release_doc,
+"Release now the resources held by a 'cdata' object from ffi.new(),\n"
+"ffi.gc() or ffi.from_buffer().  The cdata object must not be used\n"
+"afterwards.\n"
+"\n"
+"'ffi.release(cdata)' is equivalent to 'cdata.__exit__()'.\n"
+"\n"
+"Note that on CPython this method has no effect (so far) on objects\n"
+"returned by ffi.new(), because the memory is allocated inline with the\n"
+"cdata object and cannot be freed independently.  It might be fixed in\n"
+"future releases of cffi.");
+
+#define ffi_release  b_release     /* ffi_release() => b_release()
+                                      from _cffi_backend.c */
+
 
 #define METH_VKW  (METH_VARARGS | METH_KEYWORDS)
 static PyMethodDef ffi_methods[] = {
@@ -1077,7 +1107,7 @@ static PyMethodDef ffi_methods[] = {
  {"cast",       (PyCFunction)ffi_cast,       METH_VARARGS, ffi_cast_doc},
  {"dlclose",    (PyCFunction)ffi_dlclose,    METH_VARARGS, ffi_dlclose_doc},
  {"dlopen",     (PyCFunction)ffi_dlopen,     METH_VARARGS, ffi_dlopen_doc},
- {"from_buffer",(PyCFunction)ffi_from_buffer,METH_O,       ffi_from_buffer_doc},
+ {"from_buffer",(PyCFunction)ffi_from_buffer,METH_VKW,     ffi_from_buffer_doc},
  {"from_handle",(PyCFunction)ffi_from_handle,METH_O,       ffi_from_handle_doc},
  {"gc",         (PyCFunction)ffi_gc,         METH_VKW,     ffi_gc_doc},
  {"getctype",   (PyCFunction)ffi_getctype,   METH_VKW,     ffi_getctype_doc},
@@ -1092,6 +1122,7 @@ static PyMethodDef ffi_methods[] = {
 {"new_allocator",(PyCFunction)ffi_new_allocator,METH_VKW,ffi_new_allocator_doc},
  {"new_handle", (PyCFunction)ffi_new_handle, METH_O,       ffi_new_handle_doc},
  {"offsetof",   (PyCFunction)ffi_offsetof,   METH_VARARGS, ffi_offsetof_doc},
+ {"release",    (PyCFunction)ffi_release,    METH_O,       ffi_release_doc},
  {"sizeof",     (PyCFunction)ffi_sizeof,     METH_O,       ffi_sizeof_doc},
  {"string",     (PyCFunction)ffi_string,     METH_VKW,     ffi_string_doc},
  {"typeof",     (PyCFunction)ffi_typeof,     METH_O,       ffi_typeof_doc},

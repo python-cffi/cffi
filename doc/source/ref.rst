@@ -51,11 +51,16 @@ the value of type ``cdecl`` that it points to.  This means that the raw
 data can be used as long as this object is kept alive, but must not be
 used for a longer time.  Be careful about that when copying the
 pointer to the memory somewhere else, e.g. into another structure.
+Also, this means that a line like ``x = ffi.new(...)[0]`` is *always
+wrong:* the newly allocated object goes out of scope instantly, and so
+is freed immediately, and ``x`` is garbage.
 
 The returned memory is initially cleared (filled with zeroes), before
 the optional initializer is applied.  For performance, see
 `ffi.new_allocator()`_ for a way to allocate non-zero-initialized
 memory.
+
+*New in version 1.12:* see also ``ffi.release()``.
 
 
 ffi.cast()
@@ -73,8 +78,8 @@ ffi.errno, ffi.getwinerror()
 ++++++++++++++++++++++++++++
 
 **ffi.errno**: the value of ``errno`` received from the most recent C call
-in this thread, and passed to the following C call.  (This is a read-write
-property.)
+in this thread, and passed to the following C call.  (This is a thread-local
+read-write property.)
 
 **ffi.getwinerror(code=-1)**: on Windows, in addition to ``errno`` we
 also save and restore the ``GetLastError()`` value across function
@@ -104,11 +109,13 @@ string) from the 'cdata'.
   returns a ``bytes``, not a ``str``.
 
 - If 'cdata' is a pointer or array of wchar_t, returns a unicode string
-  following the same rules.
+  following the same rules.  *New in version 1.11:* can also be
+  char16_t or char32_t.
 
-- If 'cdata' is a single character or byte or a wchar_t, returns it as a
-  byte string or unicode string.  (Note that in some situation a single
-  wchar_t may require a Python unicode string of length 2.)
+- If 'cdata' is a single character or byte or a wchar_t or charN_t,
+  returns it as a byte string or unicode string.  (Note that in some
+  situation a single wchar_t or char32_t may require a Python unicode
+  string of length 2.)
 
 - If 'cdata' is an enum, returns the value of the enumerator as a string.
   If the value is out of range, it is simply returned as the stringified
@@ -125,7 +132,7 @@ type.  *New in version 1.6.*
 
 - If 'cdata' is a pointer to 'wchar_t', returns a unicode string.
   ('length' is measured in number of wchar_t; it is not the size in
-  bytes.)
+  bytes.)  *New in version 1.11:* can also be char16_t or char32_t.
 
 - If 'cdata' is a pointer to anything else, returns a list, of the
   given 'length'.  (A slower way to do that is ``[cdata[i] for i in
@@ -183,7 +190,8 @@ byte strings).  Use ``buf[:]`` instead.
 *New in version 1.10:* ``ffi.buffer`` is now the type of the returned
 buffer objects; ``ffi.buffer()`` actually calls the constructor.
 
-**ffi.from_buffer(python_buffer)**: return a ``<cdata 'char[]'>`` that
+**ffi.from_buffer([cdecl,] python_buffer, require_writable=False)**:
+return an array cdata (by default a ``<cdata 'char[]'>``) that
 points to the data of the given Python object, which must support the
 buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
 a reference to the existing data, not a copy.
@@ -210,6 +218,34 @@ the buffer/memoryview interface (except unicode strings).  Previously,
 bytearray objects were supported in version 1.7 onwards (careful, if you
 resize the bytearray, the ``<cdata>`` object will point to freed
 memory); and byte strings were supported in version 1.8 onwards.
+
+*New in version 1.12:* added the optional *first* argument ``cdecl``, and
+the keyword argument ``require_writable``:
+
+* ``cdecl`` defaults to ``"char[]"``, but a different array type can be
+  specified for the result.  A value like ``"int[]"`` will return an array of
+  ints instead of chars, and its length will be set to the number of ints
+  that fit in the buffer (rounded down if the division is not exact).  Values
+  like ``"int[42]"`` or ``"int[2][3]"`` will return an array of exactly 42
+  (resp. 2-by-3) ints, raising a ValueError if the buffer is too small.  The
+  difference between specifying ``"int[]"`` and using the older code ``p1 =
+  ffi.from_buffer(x); p2 = ffi.cast("int *", p1)`` is that the older code
+  needs to keep ``p1`` alive as long as ``p2`` is in use, because only ``p1``
+  keeps the underlying Python object alive and locked.  (In addition,
+  ``ffi.from_buffer("int[]", x)`` gives better array bound checking.)
+
+* if ``require_writable`` is set to True, the function fails if the buffer
+  obtained from ``python_buffer`` is read-only (e.g. if ``python_buffer`` is
+  a byte string).  The exact exception is raised by the object itself, and
+  for things like bytes it varies with the Python version, so don't rely on
+  it.  (Before version 1.12, the same effect can be achieved with a hack:
+  call ``ffi.memmove(python_buffer, b"", 0)``.  This has no effect if the
+  object is writable, but fails if it is read-only.)  Please keep in mind
+  that CFFI does not implement the C keyword ``const``: even if you set
+  ``require_writable`` to False explicitly, you still get a regular
+  read-write cdata pointer.
+
+*New in version 1.12:* see also ``ffi.release()``.
 
 
 ffi.memmove()
@@ -350,10 +386,13 @@ always present, and depending on the kind they may also have
 .. __: #ffi-buffer
 
 
+.. _ffi-gc:
+
 ffi.gc()
 ++++++++
 
-**ffi.gc(cdata, destructor)**: return a new cdata object that points to the
+**ffi.gc(cdata, destructor, size=0)**:
+return a new cdata object that points to the
 same data.  Later, when this new cdata object is garbage-collected,
 ``destructor(old_cdata_object)`` will be called.  Example of usage:
 ``ptr = ffi.gc(lib.custom_malloc(42), lib.custom_free)``.
@@ -362,21 +401,45 @@ returned by ``ffi.new()``, the returned pointer objects have *ownership*,
 which means the destructor is called as soon as *this* exact returned
 object is garbage-collected.
 
-**ffi.gc(ptr, None)**: removes the ownership on a object returned by a
+*New in version 1.12:* see also ``ffi.release()``.
+
+**ffi.gc(ptr, None, size=0)**:
+removes the ownership on a object returned by a
 regular call to ``ffi.gc``, and no destructor will be called when it
 is garbage-collected.  The object is modified in-place, and the
 function returns ``None``.  *New in version 1.7: ffi.gc(ptr, None)*
 
-Note that ``ffi.gc()`` should be avoided for large memory allocations or
-for limited resources.  This is particularly true on PyPy: its GC does
-not know how much memory or how many resources the returned ``ptr``
-holds.  It will only run its GC when enough memory it knows about has
-been allocated (and thus run the destructor possibly later than you
-would expect).  Moreover, the destructor is called in whatever thread
-PyPy is at that moment, which might be a problem for some C libraries.
-In these cases, consider writing a wrapper class with custom ``__enter__()``
-and ``__exit__()`` methods, allocating and freeing the C data at known
-points in time, and using it in a ``with`` statement.
+Note that ``ffi.gc()`` should be avoided for limited resources, or (with
+cffi below 1.11) for large memory allocations.  This is particularly
+true on PyPy: its GC does not know how much memory or how many resources
+the returned ``ptr`` holds.  It will only run its GC when enough memory
+it knows about has been allocated (and thus run the destructor possibly
+later than you would expect).  Moreover, the destructor is called in
+whatever thread PyPy is at that moment, which might be a problem for
+some C libraries.  In these cases, consider writing a wrapper class with
+custom ``__enter__()`` and ``__exit__()`` methods, allocating and
+freeing the C data at known points in time, and using it in a ``with``
+statement.  In cffi 1.12, see also ``ffi.release()``.
+
+*New in version 1.11:* the ``size`` argument.  If given, this should be
+an estimate of the size (in bytes) that ``ptr`` keeps alive.  This
+information is passed on to the garbage collector, fixing part of the
+problem described above.  The ``size`` argument is most important on
+PyPy; on CPython, it is ignored so far, but in the future it could be
+used to trigger more eagerly the cyclic reference GC, too (see CPython
+`issue 31105`__).
+
+The form ``ffi.gc(ptr, None, size=0)`` can be called with a negative
+``size``, to cancel the estimate.  It is not mandatory, though:
+nothing gets out of sync if the size estimates do not match.  It only
+makes the next GC start more or less early.
+
+Note that if you have several ``ffi.gc()`` objects, the corresponding
+destructors will be called in a random order.  If you need a particular
+order, see the discussion in `issue 340`__.
+
+.. __: http://bugs.python.org/issue31105
+.. __: https://bitbucket.org/cffi/cffi/issues/340/resources-release-issues
 
 
 .. _ffi-new-handle:
@@ -520,12 +583,73 @@ add these two lines to your existing ``ffibuilder.cdef()``::
 
 and then call these two functions manually::
 
-    p = lib.malloc(bigsize)
+    p = lib.malloc(n * ffi.sizeof("int"))
     try:
-        my_array = ffi.cast("some_other_type_than_void*", p)
+        my_array = ffi.cast("int *", p)
         ...
     finally:
         lib.free(p)
+
+In cffi version 1.12 you can indeed use ``ffi.new_allocator()`` but use the
+``with`` statement (see ``ffi.release()``) to force the free function to be
+called at a known point.  The above is equivalent to this code::
+
+    my_new = ffi.new_allocator(lib.malloc, lib.free)  # at global level
+    ...
+    with my_new("int[]", n) as my_array:
+        ...
+
+
+.. _ffi-release:
+
+ffi.release() and the context manager
++++++++++++++++++++++++++++++++++++++
+
+**ffi.release(cdata)**: release the resources held by a cdata object from
+``ffi.new()``, ``ffi.gc()``, ``ffi.from_buffer()`` or
+``ffi.new_allocator()()``.  The cdata object must not be used afterwards.
+The regular destructor of the cdata object releases the same resources,
+but this allows the operation to occur at a known time.
+*New in version 1.12.*
+
+``ffi.release(cdata)`` is equivalent to ``cdata.__exit__()``, which means that
+you can use the ``with`` statement to ensure that the cdata is released at the
+end of a block (in version 1.12 and above)::
+
+    with ffi.from_buffer(...) as p:
+        do something with p
+
+The effect is more precisely as follows:
+
+* on an object returned from ``ffi.gc(destructor)``, ``ffi.release()`` will
+  cause the ``destructor`` to be called immediately.
+
+* on an object returned from a custom allocator, the custom free function
+  is called immediately.
+
+* on CPython, ``ffi.from_buffer(buf)`` locks the buffer, so ``ffi.release()``
+  can be used to unlock it at a known time.  On PyPy, there is no locking
+  (so far); the effect of ``ffi.release()`` is limited to removing the link,
+  allowing the original buffer object to be garbage-collected even if the
+  cdata object stays alive.
+
+* on CPython this method has no effect (so far) on objects returned by
+  ``ffi.new()``, because the memory is allocated inline with the cdata object
+  and cannot be freed independently.  It might be fixed in future releases of
+  cffi.
+
+* on PyPy, ``ffi.release()`` frees the ``ffi.new()`` memory immediately.  It is
+  useful because otherwise the memory is kept alive until the next GC occurs.
+  If you allocate large amounts of memory with ``ffi.new()`` and don't free
+  them with ``ffi.release()``, PyPy (>= 5.7) runs its GC more often to
+  compensate, so the total memory allocated should be kept within bounds
+  anyway; but calling ``ffi.release()`` explicitly should improve performance
+  by reducing the frequency of GC runs.
+
+After ``ffi.release(x)``, do not use anything pointed to by ``x`` any longer.
+As an exception to this rule, you can call ``ffi.release(x)`` several times
+for the exact same cdata object ``x``; the calls after the first one are
+ignored.
 
 
 ffi.init_once()
@@ -618,32 +742,37 @@ allowed.
 |    C type     |   writing into         | reading from     |other operations|
 +===============+========================+==================+================+
 |   integers    | an integer or anything | a Python int or  | int(), bool()  |
-|   and enums   | on which int() works   | long, depending  | `(******)`,    |
-|   `(*****)`   | (but not a float!).    | on the type      | ``<``          |
+|   and enums   | on which int() works   | long, depending  | `[6]`,         |
+|   `[5]`       | (but not a float!).    | on the type      | ``<``          |
 |               | Must be within range.  | (ver. 1.10: or a |                |
 |               |                        | bool)            |                |
 +---------------+------------------------+------------------+----------------+
 |   ``char``    | a string of length 1   | a string of      | int(), bool(), |
 |               | or another <cdata char>| length 1         | ``<``          |
 +---------------+------------------------+------------------+----------------+
-|  ``wchar_t``  | a unicode of length 1  | a unicode of     |                |
-|               | (or maybe 2 if         | length 1         | int(), bool(), |
-|               | surrogates) or         | (or maybe 2 if   | ``<``          |
-|               | another <cdata wchar_t>| surrogates)      |                |
+| ``wchar_t``,  | a unicode of length 1  | a unicode of     |                |
+| ``char16_t``, | (or maybe 2 if         | length 1         | int(),         |
+| ``char32_t``  | surrogates) or         | (or maybe 2 if   | bool(), ``<``  |
+| `[8]`         | another similar <cdata>| surrogates)      |                |
 +---------------+------------------------+------------------+----------------+
 |  ``float``,   | a float or anything on | a Python float   | float(), int(),|
 |  ``double``   | which float() works    |                  | bool(), ``<``  |
 +---------------+------------------------+------------------+----------------+
 |``long double``| another <cdata> with   | a <cdata>, to    | float(), int(),|
 |               | a ``long double``, or  | avoid loosing    | bool()         |
-|               | anything on which      | precision `(***)`|                |
+|               | anything on which      | precision `[3]`  |                |
 |               | float() works          |                  |                |
 +---------------+------------------------+------------------+----------------+
-|  pointers     | another <cdata> with   | a <cdata>        |``[]`` `(****)`,|
+| ``float``     | a complex number       | a Python complex | complex(),     |
+| ``_Complex``, | or anything on which   | number           | bool()         |
+| ``double``    | complex() works        |                  | `[7]`          |
+| ``_Complex``  |                        |                  |                |
++---------------+------------------------+------------------+----------------+
+|  pointers     | another <cdata> with   | a <cdata>        |``[]`` `[4]`,   |
 |               | a compatible type (i.e.|                  |``+``, ``-``,   |
 |               | same type              |                  |bool()          |
 |               | or ``void*``, or as an |                  |                |
-|               | array instead) `(*)`   |                  |                |
+|               | array instead) `[1]`   |                  |                |
 +---------------+------------------------+                  |                |
 |  ``void *``   | another <cdata> with   |                  |                |
 |               | any pointer or array   |                  |                |
@@ -655,10 +784,10 @@ allowed.
 |               |                        |                  | struct fields  |
 +---------------+------------------------+                  +----------------+
 | function      | same as pointers       |                  | bool(),        |
-| pointers      |                        |                  | call `(**)`    |
+| pointers      |                        |                  | call `[2]`     |
 +---------------+------------------------+------------------+----------------+
 |  arrays       | a list or tuple of     | a <cdata>        |len(), iter(),  |
-|               | items                  |                  |``[]`` `(****)`,|
+|               | items                  |                  |``[]`` `[4]`,   |
 |               |                        |                  |``+``, ``-``    |
 +---------------+------------------------+                  +----------------+
 | ``char[]``,   | same as arrays, or a   |                  | len(), iter(), |
@@ -666,9 +795,9 @@ allowed.
 | ``char[]``,   |                        |                  | ``-``          |
 | ``_Bool[]``   |                        |                  |                |
 +---------------+------------------------+                  +----------------+
-| ``wchar_t[]`` | same as arrays, or a   |                  | len(), iter(), |
-|               | Python unicode string  |                  | ``[]``,        |
-|               |                        |                  | ``+``, ``-``   |
+|``wchar_t[]``, | same as arrays, or a   |                  | len(), iter(), |
+|``char16_t[]``,| Python unicode string  |                  | ``[]``,        |
+|``char32_t[]`` |                        |                  | ``+``, ``-``   |
 |               |                        |                  |                |
 +---------------+------------------------+------------------+----------------+
 | structure     | a list or tuple or     | a <cdata>        | read/write     |
@@ -680,7 +809,7 @@ allowed.
 |               | with at most one field |                  | fields         |
 +---------------+------------------------+------------------+----------------+
 
-`(*)` ``item *`` is ``item[]`` in function arguments:
+`[1]` ``item *`` is ``item[]`` in function arguments:
 
    In a function declaration, as per the C standard, a ``item *``
    argument is identical to a ``item[]`` argument (and ``ffi.cdef()``
@@ -701,7 +830,7 @@ allowed.
    (On PyPy, this optimization is only available since PyPy 5.4
    with CFFI 1.8.)
 
-`(**)` C function calls are done with the GIL released.
+`[2]` C function calls are done with the GIL released.
 
    Note that we assume that the called functions are *not* using the
    Python API from Python.h.  For example, we don't check afterwards
@@ -713,7 +842,7 @@ allowed.
    ``libpypy-c.dll`` on their own.  But really, don't do that in the
    first place.)
 
-`(***)` ``long double`` support:
+`[3]` ``long double`` support:
 
    We keep ``long double`` values inside a cdata object to avoid
    loosing precision.  Normal Python floating-point numbers only
@@ -724,7 +853,7 @@ allowed.
    and use a family of C functions like ``long double add(long double
    a, long double b);``.
 
-`(****)` Slicing with ``x[start:stop]``:
+`[4]` Slicing with ``x[start:stop]``:
 
    Slicing is allowed, as long as you specify explicitly both ``start``
    and ``stop`` (and don't give any ``step``).  It gives a cdata
@@ -738,7 +867,7 @@ allowed.
    say ``chararray[10:15] = "hello"``, but the assigned string must be of
    exactly the correct length; no implicit null character is added.)
 
-`(*****)` Enums are handled like ints:
+`[5]` Enums are handled like ints:
 
    Like C, enum types are mostly int types (unsigned or signed, int or
    long; note that GCC's first choice is unsigned).  Reading an enum
@@ -747,7 +876,7 @@ allowed.
    lib.FOO``.  If you really want to get their value as a string, use
    ``ffi.string(ffi.cast("the_enum_type", x.field))``.
 
-`(******)` bool() on a primitive cdata:
+`[6]` bool() on a primitive cdata:
 
    *New in version 1.7.*  In previous versions, it only worked on
    pointers; for primitives it always returned True.
@@ -759,6 +888,18 @@ allowed.
    library relying on this, don't use ``_Bool`` in the CFFI side).
    Also, when converting from a byte string to a ``_Bool[]``, only the
    bytes ``\x00`` and ``\x01`` are accepted.
+
+`[7]` libffi does not support complex numbers:
+
+   *New in version 1.11:* CFFI now supports complex numbers directly.
+   Note however that libffi does not.  This means that C functions that
+   take directly as argument types or return type a complex type cannot
+   be called by CFFI, unless they are directly using the API mode.
+
+`[8]` ``wchar_t``, ``char16_t`` and ``char32_t``
+
+   See `Unicode character types`_ below.
+
 
 .. _file:
 
@@ -791,3 +932,66 @@ explicitly make using fdopen(), like this:
 The special support for ``FILE *`` is anyway implemented in a similar manner
 on CPython 3.x and on PyPy, because these Python implementations' files are
 not natively based on ``FILE *``.  Doing it explicity offers more control.
+
+
+.. _unichar:
+
+Unicode character types
++++++++++++++++++++++++
+
+The ``wchar_t`` type has the same signedness as the underlying
+platform's.  For example, on Linux, it is a signed 32-bit integer.
+However, the types ``char16_t`` and ``char32_t`` (*new in version 1.11*)
+are always unsigned.
+
+Note that CFFI assumes that these types are meant to contain UTF-16 or
+UTF-32 characters in the native endianness.  More precisely:
+
+* ``char32_t`` is assumed to contain UTF-32, or UCS4, which is just the
+  unicode codepoint;
+
+* ``char16_t`` is assumed to contain UTF-16, i.e. UCS2 plus surrogates;
+
+* ``wchar_t`` is assumed to contain either UTF-32 or UTF-16 based on its
+  actual platform-defined size of 4 or 2 bytes.
+
+Whether this assumption is true or not is unspecified by the C language.
+In theory, the C library you are interfacing with could use one of these
+types with a different meaning.  You would then need to handle it
+yourself---for example, by using ``uint32_t`` instead of ``char32_t`` in
+the ``cdef()``, and building the expected arrays of ``uint32_t``
+manually.
+
+Python itself can be compiled with ``sys.maxunicode == 65535`` or
+``sys.maxunicode == 1114111`` (Python >= 3.3 is always 1114111).  This
+changes the handling of surrogates (which are pairs of 16-bit
+"characters" which actually stand for a single codepoint whose value is
+greater than 65535).  If your Python is ``sys.maxunicode == 1114111``,
+then it can store arbitrary unicode codepoints; surrogates are
+automatically inserted when converting from Python unicodes to UTF-16,
+and automatically removed when converting back.   On the other hand, if
+your Python is ``sys.maxunicode == 65535``, then it is the other way
+around: surrogates are removed when converting from Python unicodes
+to UTF-32, and added when converting back.  In other words, surrogate
+conversion is done only when there is a size mismatch.
+
+Note that Python's internal representations is not specified.  For
+example, on CPython >= 3.3, it will use 1- or 2- or 4-bytes arrays
+depending on what the string actually contains.  With CFFI, when you
+pass a Python byte string to a C function expecting a ``char*``, then
+we pass directly a pointer to the existing data without needing a
+temporary buffer; however, the same cannot cleanly be done with
+*unicode* string arguments and the ``wchar_t*`` / ``char16_t*`` /
+``char32_t*`` types, because of the changing internal
+representation.  As a result, and for consistency, CFFI always allocates
+a temporary buffer for unicode strings.
+
+**Warning:** for now, if you use ``char16_t`` and ``char32_t`` with
+``set_source()``, you have to make sure yourself that the types are
+declared by the C source you provide to ``set_source()``.  They would be
+declared if you ``#include`` a library that explicitly uses them, for
+example, or when using C++11.  Otherwise, you need ``#include
+<uchar.h>`` on Linux, or more generally something like ``typedef
+uint16_t char16_t;``.  This is not done automatically by CFFI because
+``uchar.h`` is not standard across platforms, and writing a ``typedef``
+like above would crash if the type happens to be already defined.

@@ -1,10 +1,10 @@
 
 import sys, os, py
-from cffi import FFI, VerificationError, FFIError
+from cffi import FFI, VerificationError, FFIError, CDefError
 from cffi import recompiler
 from testing.udir import udir
 from testing.support import u, long
-from testing.support import FdWriteCapture, StdErrCapture
+from testing.support import FdWriteCapture, StdErrCapture, _verify
 
 try:
     import importlib
@@ -24,17 +24,18 @@ def check_type_table(input, expected_output, included=None):
     assert ''.join(map(str, recomp.cffi_types)) == expected_output
 
 def verify(ffi, module_name, source, *args, **kwds):
+    no_cpp = kwds.pop('no_cpp', False)
     kwds.setdefault('undef_macros', ['NDEBUG'])
     module_name = '_CFFI_' + module_name
     ffi.set_source(module_name, source)
-    if not os.environ.get('NO_CPP'):     # test the .cpp mode too
+    if not os.environ.get('NO_CPP') and not no_cpp:   # test the .cpp mode too
         kwds.setdefault('source_extension', '.cpp')
         source = 'extern "C" {\n%s\n}' % (source,)
-    else:
+    elif sys.platform != 'win32':
         # add '-Werror' to the existing 'extra_compile_args' flags
         kwds['extra_compile_args'] = (kwds.get('extra_compile_args', []) +
                                       ['-Werror'])
-    return recompiler._verify(ffi, module_name, source, *args, **kwds)
+    return _verify(ffi, module_name, source, *args, **kwds)
 
 def test_set_source_no_slashes():
     ffi = FFI()
@@ -1125,7 +1126,9 @@ def test_some_float_type():
 
 def test_some_float_invalid_1():
     ffi = FFI()
-    py.test.raises(FFIError, ffi.cdef, "typedef long double... foo_t;")
+    py.test.raises((FFIError,      # with pycparser <= 2.17
+                    CDefError),    # with pycparser >= 2.18
+                   ffi.cdef, "typedef long double... foo_t;")
 
 def test_some_float_invalid_2():
     ffi = FFI()
@@ -1535,15 +1538,18 @@ def test_win32_calling_convention_3():
     assert (pt.x, pt.y) == (99*500*999, -99*500*999)
 
 def test_extern_python_1():
+    import warnings
     ffi = FFI()
-    ffi.cdef("""
+    with warnings.catch_warnings(record=True) as log:
+        ffi.cdef("""
         extern "Python" {
             int bar(int, int);
             void baz(int, int);
             int bok(void);
             void boz(void);
         }
-    """)
+        """)
+    assert len(log) == 0, "got a warning: %r" % (log,)
     lib = verify(ffi, 'test_extern_python_1', """
         static void baz(int, int);   /* forward */
     """)
@@ -1937,7 +1943,7 @@ def test_bool_in_cpp():
     ffi = FFI()
     ffi.cdef("bool f(void);")
     lib = verify(ffi, "test_bool_in_cpp", "char f(void) { return 2; }")
-    assert lib.f() == 1
+    assert lib.f() is True
 
 def test_bool_in_cpp_2():
     ffi = FFI()
@@ -2000,6 +2006,60 @@ def test_function_returns_partial_struct():
         static struct aaa f1(int x) { struct aaa s = {0}; s.a = x; return s; }
     """)
     assert lib.f1(52).a == 52
+
+def test_function_returns_float_complex():
+    if sys.platform == 'win32':
+        py.test.skip("MSVC may not support _Complex")
+    ffi = FFI()
+    ffi.cdef("float _Complex f1(float a, float b);");
+    lib = verify(ffi, "test_function_returns_float_complex", """
+        #include <complex.h>
+        static float _Complex f1(float a, float b) { return a + I*2.0*b; }
+    """, no_cpp=True)    # <complex.h> fails on some systems with C++
+    result = lib.f1(1.25, 5.1)
+    assert type(result) == complex
+    assert result.real == 1.25   # exact
+    assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-5) # inexact
+
+def test_function_returns_double_complex():
+    if sys.platform == 'win32':
+        py.test.skip("MSVC may not support _Complex")
+    ffi = FFI()
+    ffi.cdef("double _Complex f1(double a, double b);");
+    lib = verify(ffi, "test_function_returns_double_complex", """
+        #include <complex.h>
+        static double _Complex f1(double a, double b) { return a + I*2.0*b; }
+    """, no_cpp=True)    # <complex.h> fails on some systems with C++
+    result = lib.f1(1.25, 5.1)
+    assert type(result) == complex
+    assert result.real == 1.25   # exact
+    assert result.imag == 2*5.1  # exact
+
+def test_function_argument_float_complex():
+    if sys.platform == 'win32':
+        py.test.skip("MSVC may not support _Complex")
+    ffi = FFI()
+    ffi.cdef("float f1(float _Complex x);");
+    lib = verify(ffi, "test_function_argument_float_complex", """
+        #include <complex.h>
+        static float f1(float _Complex x) { return cabsf(x); }
+    """, no_cpp=True)    # <complex.h> fails on some systems with C++
+    x = complex(12.34, 56.78)
+    result = lib.f1(x)
+    assert abs(result - abs(x)) < 1e-5
+
+def test_function_argument_double_complex():
+    if sys.platform == 'win32':
+        py.test.skip("MSVC may not support _Complex")
+    ffi = FFI()
+    ffi.cdef("double f1(double _Complex);");
+    lib = verify(ffi, "test_function_argument_double_complex", """
+        #include <complex.h>
+        static double f1(double _Complex x) { return cabs(x); }
+    """, no_cpp=True)    # <complex.h> fails on some systems with C++
+    x = complex(12.34, 56.78)
+    result = lib.f1(x)
+    assert abs(result - abs(x)) < 1e-11
 
 def test_typedef_array_dotdotdot():
     ffi = FFI()
@@ -2185,6 +2245,12 @@ def test_call_with_packed_struct():
         "'API mode' and non-variadic (i.e. declared inside ffibuilder.cdef()"
         "+ffibuilder.set_source() and not taking a final '...' argument)")
 
+def test_pack_not_supported():
+    ffi = FFI()
+    ffi.cdef("""struct foo { char y; int x; };""", pack=2)
+    py.test.raises(NotImplementedError, verify,
+                   ffi, "test_pack_not_supported", "")
+
 def test_gcc_visibility_hidden():
     if sys.platform == 'win32':
         py.test.skip("test for gcc/clang")
@@ -2196,3 +2262,55 @@ def test_gcc_visibility_hidden():
     int f(int a) { return a + 40; }
     """, extra_compile_args=['-fvisibility=hidden'])
     assert lib.f(2) == 42
+
+def test_override_default_definition():
+    ffi = FFI()
+    ffi.cdef("typedef long int16_t, char16_t;")
+    lib = verify(ffi, "test_override_default_definition", "")
+    assert ffi.typeof("int16_t") is ffi.typeof("char16_t") is ffi.typeof("long")
+
+def test_char16_char32_type(no_cpp=False):
+    if no_cpp is False and sys.platform == "win32":
+        py.test.skip("aaaaaaa why do modern MSVC compilers still define "
+                     "a very old __cplusplus value")
+    ffi = FFI()
+    ffi.cdef("""
+        char16_t foo_2bytes(char16_t);
+        char32_t foo_4bytes(char32_t);
+    """)
+    lib = verify(ffi, "test_char16_char32_type" + no_cpp * "_nocpp", """
+    #if !defined(__cplusplus) || (!defined(_LIBCPP_VERSION) && __cplusplus < 201103L)
+    typedef uint_least16_t char16_t;
+    typedef uint_least32_t char32_t;
+    #endif
+
+    char16_t foo_2bytes(char16_t a) { return (char16_t)(a + 42); }
+    char32_t foo_4bytes(char32_t a) { return (char32_t)(a + 42); }
+    """, no_cpp=no_cpp)
+    assert lib.foo_2bytes(u+'\u1234') == u+'\u125e'
+    assert lib.foo_4bytes(u+'\u1234') == u+'\u125e'
+    assert lib.foo_4bytes(u+'\U00012345') == u+'\U0001236f'
+    py.test.raises(TypeError, lib.foo_2bytes, u+'\U00012345')
+    py.test.raises(TypeError, lib.foo_2bytes, 1234)
+    py.test.raises(TypeError, lib.foo_4bytes, 1234)
+
+def test_char16_char32_plain_c():
+    test_char16_char32_type(no_cpp=True)
+
+def test_loader_spec():
+    ffi = FFI()
+    lib = verify(ffi, "test_loader_spec", "")
+    if sys.version_info < (3,):
+        assert not hasattr(lib, '__loader__')
+        assert not hasattr(lib, '__spec__')
+    else:
+        assert lib.__loader__ is None
+        assert lib.__spec__ is None
+
+def test_realize_struct_error():
+    ffi = FFI()
+    ffi.cdef("""typedef ... foo_t; struct foo_s { void (*x)(foo_t); };""")
+    lib = verify(ffi, "test_realize_struct_error", """
+        typedef int foo_t; struct foo_s { void (*x)(foo_t); };
+    """)
+    py.test.raises(TypeError, ffi.new, "struct foo_s *")

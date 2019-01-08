@@ -109,6 +109,17 @@ In order of complexity:
         install_requires=["cffi>=1.0.0"],
     )
 
+  Note again that the ``foo_build.py`` example contains the following
+  lines, which mean that the ``ffibuilder`` is not actually compiled
+  when ``package.foo_build`` is merely imported---it will be compiled
+  independently by the Setuptools logic, using compilation parameters
+  provided by Setuptools:
+
+  .. code-block:: python
+
+    if __name__ == "__main__":    # not when running with setuptools
+        ffibuilder.compile(verbose=True)
+
 * Note that some bundler tools that try to find all modules used by a
   project, like PyInstaller, will miss ``_cffi_backend`` in the
   out-of-line mode because your program contains no explicit ``import
@@ -178,7 +189,8 @@ can assume to exist are the standard types:
 * intN_t, uintN_t (for N=8,16,32,64), intptr_t, uintptr_t, ptrdiff_t,
   size_t, ssize_t
 
-* wchar_t (if supported by the backend)
+* wchar_t (if supported by the backend).  *New in version 1.11:*
+  char16_t and char32_t.
 
 * _Bool and bool (equivalent).  If not directly supported by the C
   compiler, this is declared with the size of ``unsigned char``.
@@ -213,8 +225,9 @@ Multiple calls to ``ffi.cdef()`` are possible.  Beware that it can be
 slow to call ``ffi.cdef()`` a lot of times, a consideration that is
 important mainly in in-line mode.
 
-The ``ffi.cdef()`` call takes an optional
-argument ``packed``: if True, then all structs declared within
+The ``ffi.cdef()`` call optionally takes an extra argument: either
+``packed`` or ``pack``.  If you pass ``packed=True``,
+then all structs declared within
 this cdef are "packed".  (If you need both packed and non-packed
 structs, use several cdefs in sequence.)  This
 has a meaning similar to ``__attribute__((packed))`` in GCC.  It
@@ -223,6 +236,13 @@ byte.  (Note that the packed attribute has no effect on bit fields so
 far, which mean that they may be packed differently than on GCC.
 Also, this has no effect on structs declared with ``"...;"``---more
 about it later in `Letting the C compiler fill the gaps`_.)
+*New in version 1.12:*  In ABI mode, you can also pass ``pack=n``,
+with an integer ``n`` which must be a power of two.  Then the
+alignment of any field is limited to ``n`` if it would otherwise be
+greater than ``n``.  Passing ``pack=1`` is equivalent to passing
+``packed=True``.  This is meant to emulate ``#pragma pack(n)`` from
+the MSVC compiler.  On Windows, the default is ``pack=8`` (from cffi
+1.12 onwards); on other platforms, the default is ``pack=None``.
 
 Note that you can use the type-qualifiers ``const`` and ``restrict``
 (but not ``__restrict`` or ``__restrict__``) in the ``cdef()``, but
@@ -305,12 +325,17 @@ The ``libpath`` is the file name of the shared library, which can
 contain a full path or not (in which case it is searched in standard
 locations, as described in ``man dlopen``), with extensions or not.
 Alternatively, if ``libpath`` is None, it returns the standard C library
-(which can be used to access the functions of glibc, on Linux).
+(which can be used to access the functions of glibc, on Linux).  Note
+that ``libpath`` `cannot be None`__ on Windows with Python 3.
+
+.. __: http://bugs.python.org/issue23606
 
 Let me state it again: this gives ABI-level access to the library, so
 you need to have all types declared manually exactly as they were
 while the library was made.  No checking is done.  Mismatches can
-cause random crashes.
+cause random crashes.  API-level access, on the other hand, is safer.
+Speed-wise, API-level access is much faster (it is common to have
+the opposite misconception about performance).
 
 Note that only functions and global variables live in library objects;
 the types exist in the ``ffi`` instance independently of library objects.
@@ -506,16 +531,26 @@ in the details.  These places are:
    ``static char *const FOO;``).
 
 Currently, it is not supported to find automatically which of the
-various integer or float types you need at which place.
-If a type is named, and an integer type, then use ``typedef
-int... the_type_name;``.  In the case of
-function arguments or return type, when it is a simple integer/float
-type, it may be misdeclared (if you misdeclare a function ``void
-f(long)`` as ``void f(int)``, it still works, but you have to call it
-with arguments that fit an int).  But it doesn't work any longer for
-more complex types (e.g. you cannot misdeclare a ``int *`` argument as
-``long *``) or in other locations (e.g. a global array ``int a[5];``
-must not be misdeclared ``long a[5];``).  CFFI considers `all types listed
+various integer or float types you need at which place---except in the
+following case: if such a type is explicitly named.  For an integer
+type, use ``typedef int... the_type_name;``, or another type like
+``typedef unsigned long... the_type_name;``.  Both are equivalent and
+replaced by the real C type, which must be an integer type.
+Similarly, for floating-point types, use ``typedef float...
+the_type_name;`` or equivalently ``typedef double...  the_type_name;``.
+Note that ``long double`` cannot be detected this way.
+
+In the case of function arguments or return types, when it is a simple
+integer/float type, you can simply misdeclare it.  If you misdeclare a
+function ``void f(long)`` as ``void f(int)``, it still works (but you
+have to call it with arguments that fit an int).  It works because the C
+compiler will do the casting for us.  This C-level casting of arguments
+and return types only works for regular function, and not for function
+pointer types; currently, it also does not work for variadic functions.
+
+For more complex types, you have no choice but be precise.  For example,
+you cannot misdeclare a ``int *`` argument as ``long *``, or a global
+array ``int a[5];`` as ``long a[5];``.  CFFI considers `all types listed
 above`_ as primitive (so ``long long a[5];`` and ``int64_t a[5]`` are
 different declarations).  The reason for that is detailed in `a comment
 about an issue.`__
@@ -545,6 +580,13 @@ package will still produce a file called e.g.
 ``NAME.abi3.so``, or use setuptools version 26 or later.  Also, note
 that compiling with a debug version of Python will not actually define
 ``Py_LIMITED_API``, as doing so makes ``Python.h`` unhappy.
+
+*New in version 1.12:* ``Py_LIMITED_API`` is now defined on Windows too.
+If you use ``virtualenv``, you need a recent version of it: versions
+older than 16.0.0 forgot to copy ``python3.dll`` into the virtual
+environment.  In case upgrading ``virtualenv`` is a real problem, you
+can manually edit the C code to remove the first line ``# define
+Py_LIMITED_API``.
 
 **ffibuilder.compile(tmpdir='.', verbose=False, debug=None):**
 explicitly generate the .py or .c file,
@@ -642,16 +684,19 @@ extensions:
 
 * Any ``__attribute__`` or ``#pragma pack(n)``
 
-* Additional types: complex numbers, special-size floating and fixed
-  point types, vector types, and so on.  You might be able to access an
-  array of complex numbers by declaring it as an array of ``struct
-  my_complex { double real, imag; }``, but in general you should declare
-  them as ``struct { ...; }`` and cannot access them directly.  This
-  means that you cannot call any function which has an argument or
-  return value of this type (this would need added support in libffi).
-  You need to write wrapper functions in C, e.g. ``void
-  foo_wrapper(struct my_complex c) { foo(c.real + c.imag*1j); }``, and
-  call ``foo_wrapper`` rather than ``foo`` directly.
+* Additional types: special-size floating and fixed
+  point types, vector types, and so on.
+
+* The C99 types ``float _Complex`` and ``double _Complex`` are supported
+  by cffi since version 1.11, but not libffi: you cannot call C
+  functions with complex arguments or return value, except if they are
+  directly API-mode functions.  The type ``long double _Complex`` is not
+  supported at all (declare and use it as if it were an array of two
+  ``long double``, and write wrapper functions in C with set_source()).
+
+* ``__restrict__`` or ``__restrict`` are extensions of, respectively,
+   GCC and MSVC.  They are not recognized.  But ``restrict`` is a C
+   keyword and is accepted (and ignored).
 
 Note that declarations like ``int field[];`` in
 structures are interpreted as variable-length structures.  Declarations
@@ -682,7 +727,7 @@ Debugging dlopen'ed C libraries
 -------------------------------
 
 A few C libraries are actually hard to use correctly in a ``dlopen()``
-setting.  This is because most C libraries are intented for, and tested
+setting.  This is because most C libraries are intended for, and tested
 with, a situation where they are *linked* with another program, using
 either static linking or dynamic linking --- but from a program written
 in C, at start-up, using the linker's capabilities instead of

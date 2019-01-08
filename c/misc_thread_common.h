@@ -1,6 +1,7 @@
 #ifndef WITH_THREAD
 # error "xxx no-thread configuration not tested, please report if you need that"
 #endif
+#include "pythread.h"
 
 
 struct cffi_tls_s {
@@ -24,12 +25,81 @@ struct cffi_tls_s {
 static struct cffi_tls_s *get_cffi_tls(void);   /* in misc_thread_posix.h 
                                                    or misc_win32.h */
 
+
+/* issue #362: Py_Finalize() will free any threadstate around, so in
+ * that case we must not call PyThreadState_Delete() any more on them
+ * from cffi_thread_shutdown().  The following mess is to give a
+ * thread-safe way to know that Py_Finalize() started.
+ */
+#define TLS_DEL_LOCK() PyThread_acquire_lock(cffi_tls_delete_lock, WAIT_LOCK)
+#define TLS_DEL_UNLOCK() PyThread_release_lock(cffi_tls_delete_lock)
+static PyThread_type_lock cffi_tls_delete_lock = NULL;
+static int cffi_tls_delete;
+static PyObject *old_exitfunc;
+
+static PyObject *cffi_tls_shutdown(PyObject *self, PyObject *args)
+{
+    /* the lock here will wait until any parallel cffi_thread_shutdown()
+       is done.  Future cffi_thread_shutdown() won't touch their
+       PyThreadState any more, which are all supposed to be freed anyway
+       very soon after the present cffi_tls_shutdown() function is called.
+     */
+    PyObject *ofn;
+
+    TLS_DEL_LOCK();
+    cffi_tls_delete = 0;   /* Py_Finalize() called */
+    TLS_DEL_UNLOCK();
+
+    ofn = old_exitfunc;
+    if (ofn == NULL)
+    {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    else
+    {
+        old_exitfunc = NULL;
+        return PyObject_CallFunction(ofn, "");
+    }
+}
+
+static void init_cffi_tls_delete(void)
+{
+    static PyMethodDef mdef = {
+        "cffi_tls_shutdown", cffi_tls_shutdown, METH_NOARGS,
+    };
+    PyObject *shutdown_fn;
+
+    cffi_tls_delete_lock = PyThread_allocate_lock();
+    if (cffi_tls_delete_lock == NULL)
+    {
+        PyErr_SetString(PyExc_SystemError,
+                        "can't allocate cffi_tls_delete_lock");
+        return;
+    }
+
+    shutdown_fn = PyCFunction_New(&mdef, NULL);
+    if (shutdown_fn == NULL)
+        return;
+
+    old_exitfunc = PySys_GetObject("exitfunc");
+    if (PySys_SetObject("exitfunc", shutdown_fn) == 0)
+        cffi_tls_delete = 1;    /* all ready */
+    Py_DECREF(shutdown_fn);
+}
+
 static void cffi_thread_shutdown(void *p)
 {
     struct cffi_tls_s *tls = (struct cffi_tls_s *)p;
 
     if (tls->local_thread_state != NULL) {
-        PyThreadState_Delete(tls->local_thread_state);
+        /*
+         *  issue #362: see comments above
+         */
+        TLS_DEL_LOCK();
+        if (cffi_tls_delete)
+            PyThreadState_Delete(tls->local_thread_state);
+        TLS_DEL_UNLOCK();
     }
     free(tls);
 }
@@ -62,23 +132,33 @@ static void restore_errno_only(void)
 #endif
 
 
-/* Seems that CPython 3.5.1 made our job harder.  Did not find out how
-   to do that without these hacks.  We can't use PyThreadState_GET(),
-   because that calls PyThreadState_Get() which fails an assert if the
-   result is NULL. */
-#if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
-                             /* this was abruptly un-defined in 3.5.1 */
-void *volatile _PyThreadState_Current;
-   /* XXX simple volatile access is assumed atomic */
-#  define _Py_atomic_load_relaxed(pp)  (*(pp))
+/* MESS.  We can't use PyThreadState_GET(), because that calls
+   PyThreadState_Get() which fails an assert if the result is NULL.
+   
+   * in Python 2.7 and <= 3.4, the variable _PyThreadState_Current
+     is directly available, so use that.
+
+   * in Python 3.5, the variable is available too, but it might be
+     the case that the headers don't define it (this changed in 3.5.1).
+     In case we're compiling with 3.5.x with x >= 1, we need to
+     manually define this variable.
+
+   * in Python >= 3.6 there is _PyThreadState_UncheckedGet().
+     It was added in 3.5.2 but should never be used in 3.5.x
+     because it is not available in 3.5.0 or 3.5.1.
+*/
+#if PY_VERSION_HEX >= 0x03050100 && PY_VERSION_HEX < 0x03060000
+PyAPI_DATA(void *volatile) _PyThreadState_Current;
 #endif
 
 static PyThreadState *get_current_ts(void)
 {
-#if defined(_Py_atomic_load_relaxed)
+#if PY_VERSION_HEX >= 0x03060000
+    return _PyThreadState_UncheckedGet();
+#elif defined(_Py_atomic_load_relaxed)
     return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
 #else
-    return _PyThreadState_Current;
+    return (PyThreadState*)_PyThreadState_Current;  /* assume atomic read */
 #endif
 }
 
