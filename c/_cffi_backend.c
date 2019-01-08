@@ -3147,8 +3147,9 @@ static int explicit_release_case(PyObject *cd)
         return 2;    /* ffi.gc() */
     }
     PyErr_SetString(PyExc_ValueError,
-        "only 'cdata' object from ffi.new(), ffi.gc() or ffi.from_buffer() "
-        "can be used with the 'with' keyword or ffi.release()");
+        "only 'cdata' object from ffi.new(), ffi.gc(), ffi.from_buffer() "
+        "or ffi.new_allocator()() can be used with the 'with' keyword or "
+        "ffi.release()");
     return -1;
 }
 
