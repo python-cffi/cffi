@@ -1,30 +1,43 @@
 import sys
 import subprocess
 import py
-from cffi.pkgconfig import pkgconfig_installed, merge_dicts, pkgconfig_kwargs
+import cffi.pkgconfig as pkgconfig
 
-def test_merge_dicts ():
+def mock_call(libname, flag):
+    assert libname=="python-3.6", "mocked pc function supports python-3.6 input ONLY"
+
+    flags = {
+        "--cflags-only-I": b"-I/usr/include/python3.6m\n",
+        "--libs-only-L": b"-L/usr/lib64\n",
+        "--libs-only-l": b"-lpython3.6\n",
+        "--cflags-only-other": b"-DCFFI_TEST=1 -O42\n",
+        "--libs-only-other": b"-lm\n",
+    }
+    return flags[flag]
+
+pkgconfig.call = mock_call
+
+
+def test_merge_flags():
 
     d1 = {"ham": [1, 2, 3], "spam" : ["a", "b", "c"], "foo" : []}
     d2 = {"spam" : ["spam", "spam", "spam"], "bar" : ["b", "a", "z"]}
 
-    merge_dicts (d1, d2)
+    pkgconfig.merge_flags(d1, d2)
     assert d1 == {
         "ham": [1, 2, 3],
         "spam" : ["a", "b", "c", "spam", "spam", "spam"],
         "bar" : ["b", "a", "z"],
         "foo" : []}
 
-def test_pkgconfig ():
-    if not pkgconfig_installed:
-        py.test.skip ("pkg-config is not installed on the system")
 
-    version = sys.version_info.major
-    kwargs = {}
-    try:
-        kwargs = pkgconfig_kwargs ("python%s" % version)
-    except subprocess.CalledProcessError as e:
-        py.test.skip ("No python%s pkg-config file installed" % version)
-    
-    assert any (b"python" in lib for lib in kwargs ["libraries"]) == True
-    assert any (b"python" in dir for dir in kwargs ["include_dirs"]) == True
+def test_pkgconfig():
+    kwargs = pkgconfig.flags("python-3.6")
+    assert kwargs == {
+        'include_dirs': [b'/usr/include/python3.6m'],
+        'library_dirs': [b'/usr/lib64'],
+        'libraries': [b'python3.6'],
+        'define_macros': [(b'CFFI_TEST', b'1')],
+        'extra_compile_args': [b'-O42'],
+        'extra_link_args': [b'-lm']
+    }
