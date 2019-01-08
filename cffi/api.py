@@ -645,7 +645,7 @@ class FFI(object):
             if "libraries" in kwds:
                 del kwds["libraries"]  # real library names are going to be
                                         # provided by pkg-config
-            pkgconfig.merge_flags(kwds, pkgconfig.kwargs(kwds["pkgconfig"]))
+            pkgconfig.merge_flags(kwds, pkgconfig.flags(kwds["pkgconfig"]))
             del kwds["pkgconfig"]
         self._assigned_source = (str(module_name), source,
                                  source_extension, kwds)

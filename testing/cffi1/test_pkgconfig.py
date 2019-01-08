@@ -34,10 +34,10 @@ def test_merge_flags():
 def test_pkgconfig():
     kwargs = pkgconfig.flags("python-3.6")
     assert kwargs == {
-        'include_dirs': [b'/usr/include/python3.6m'],
-        'library_dirs': [b'/usr/lib64'],
-        'libraries': [b'python3.6'],
-        'define_macros': [(b'CFFI_TEST', b'1')],
-        'extra_compile_args': [b'-O42'],
-        'extra_link_args': [b'-lm']
+        'include_dirs': [u'/usr/include/python3.6m'],
+        'library_dirs': [u'/usr/lib64'],
+        'libraries': [u'python3.6'],
+        'define_macros': [(u'CFFI_TEST', u'1')],
+        'extra_compile_args': [u'-O42'],
+        'extra_link_args': [u'-lm']
     }

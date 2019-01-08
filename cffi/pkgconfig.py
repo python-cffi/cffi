@@ -1,5 +1,6 @@
 # pkg-config, https://www.freedesktop.org/wiki/Software/pkg-config/ integration for cffi
 import subprocess
+import sys
 
 def is_installed():
     """Check if pkg-config is installed or not"""
@@ -53,28 +54,29 @@ def flags(libs):
     # drop starting -I -L -l from cflags
     def dropILl(string):
         def _dropILl(string):
-            if string.startswith(b"-I") or string.startswith(b"-L") or string.startswith(b"-l"):
+            if string.startswith(u"-I") or string.startswith(u"-L") or string.startswith(u"-l"):
                 return string [2:]
         return [_dropILl(x) for x in string.split()]
 
     # convert -Dfoo=bar to list of tuples [("foo", "bar")] expected by cffi
     def macros(string):
         def _macros(string):
-            return tuple(string [2:].split(b"=", 2))
-        return [_macros(x) for x in string.split() if x.startswith(b"-D")]
+            return tuple(string [2:].split(u"=", 2))
+        return [_macros(x) for x in string.split() if x.startswith(u"-D")]
 
     def drop_macros(string):
-        return [x for x in string.split() if not x.startswith(b"-D")]
+        return [x for x in string.split() if not x.startswith(u"-D")]
 
     # return kwargs for given libname
     def kwargs(libname):
+        fse = sys.getfilesystemencoding()
         return {
-                "include_dirs" : dropILl(call(libname, "--cflags-only-I")),
-                "library_dirs" : dropILl(call(libname, "--libs-only-L")),
-                "libraries" : dropILl(call(libname, "--libs-only-l")),
-                "define_macros" : macros(call(libname, "--cflags-only-other")),
-                "extra_compile_args" : drop_macros(call(libname, "--cflags-only-other")),
-                "extra_link_args" : call(libname, "--libs-only-other").split()
+                "include_dirs" : dropILl(call(libname, "--cflags-only-I").decode(fse)),
+                "library_dirs" : dropILl(call(libname, "--libs-only-L").decode(fse)),
+                "libraries" : dropILl(call(libname, "--libs-only-l").decode('ascii')),
+                "define_macros" : macros(call(libname, "--cflags-only-other").decode('ascii')),
+                "extra_compile_args" : drop_macros(call(libname, "--cflags-only-other").decode('ascii')),
+                "extra_link_args" : call(libname, "--libs-only-other").decode('ascii').split()
                 }
 
     # merge all arguments together
