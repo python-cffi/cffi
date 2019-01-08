@@ -73,7 +73,7 @@ def flags(libs):
         return {
                 "include_dirs" : dropILl(call(libname, "--cflags-only-I").decode(fse)),
                 "library_dirs" : dropILl(call(libname, "--libs-only-L").decode(fse)),
-                "libraries" : dropILl(call(libname, "--libs-only-l").decode('ascii')),
+                "libraries" : dropILl(call(libname, "--libs-only-l").decode(fse)),
                 "define_macros" : macros(call(libname, "--cflags-only-other").decode('ascii')),
                 "extra_compile_args" : drop_macros(call(libname, "--cflags-only-other").decode('ascii')),
                 "extra_link_args" : call(libname, "--libs-only-other").decode('ascii').split()
