@@ -2,14 +2,6 @@
 import subprocess
 import sys
 
-def is_installed():
-    """Check if pkg-config is installed or not"""
-    try:
-        subprocess.check_output(["pkg-config", "--version"])
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
 
 def merge_flags(cfg1, cfg2):
     """Merge values from cffi config flags cfg2 to cf1
@@ -39,13 +31,18 @@ def flags(libs):
 
     Usage
         ...
-        ffibuilder.set_source("_foo", libraries = ["foo", "bar"], pkgconfig = ["libfoo", "libbar"])
+        ffibuilder.set_source("_foo", pkgconfig = ["libfoo", "libbar"])
 
-    If `pkg-config` is installed on build machine, then arguments
-    `include_dirs`, `library_dirs`, `libraries`, `define_macros`,
-    `extra_compile_args` and `extra_link_args` are extended with an output of
-    `pkg-config` for `libfoo` and `libbar`.
+    If pkg-config is installed on build machine, then arguments include_dirs,
+    library_dirs, libraries, define_macros, extra_compile_args and
+    extra_link_args are extended with an output of pkg-config for libfoo and
+    libbar.
+
+    Raise `FileNotFoundError` if pkg-config is not installed or
+    `subprocess.CalledProcessError` if pkg-config fails.
     """
+
+    subprocess.check_output(["pkg-config", "--version"])
 
     # make API great again!
     if isinstance(libs, (str, bytes)):

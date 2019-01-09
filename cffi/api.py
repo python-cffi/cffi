@@ -641,10 +641,7 @@ class FFI(object):
         if os.sep in module_name or (os.altsep and os.altsep in module_name):
             raise ValueError("'module_name' must not contain '/': use a dotted "
                              "name to make a 'package.module' location")
-        if "pkgconfig" in kwds and pkgconfig.is_installed():
-            if "libraries" in kwds:
-                del kwds["libraries"]  # real library names are going to be
-                                        # provided by pkg-config
+        if "pkgconfig" in kwds:
             pkgconfig.merge_flags(kwds, pkgconfig.flags(kwds["pkgconfig"]))
             del kwds["pkgconfig"]
         self._assigned_source = (str(module_name), source,

@@ -32,8 +32,8 @@ def test_merge_flags():
 
 
 def test_pkgconfig():
-    kwargs = pkgconfig.flags("python-3.6")
-    assert kwargs == {
+    flags = pkgconfig.flags("python-3.6")
+    assert flags == {
         'include_dirs': [u'/usr/include/python3.6m'],
         'library_dirs': [u'/usr/lib64'],
         'libraries': [u'python3.6'],
