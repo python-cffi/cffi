@@ -31,7 +31,7 @@ def flags(libs):
 
     Usage
         ...
-        ffibuilder.set_source("_foo", pkgconfig = ["libfoo", "libbar"])
+        ffibuilder.set_source("_foo", pkgconfig = ["libfoo", "libbar >= 1.8.3"])
 
     If pkg-config is installed on build machine, then arguments include_dirs,
     library_dirs, libraries, define_macros, extra_compile_args and
