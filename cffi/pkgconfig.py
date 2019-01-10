@@ -62,7 +62,7 @@ def flags(libs):
 
     Raises
     * PkgConfigNotFound if pkg-config is not installed
-    * PkgConfigModuleNotFound if requested module not found
+    * PkgConfigModuleNotFoun if requested module not found
     * PkgConfigModuleVersionNotFound if requested version does not match
     * PkgConfigError for all other errors
     """
@@ -76,18 +76,18 @@ def flags(libs):
     # drop starting -I -L -l from cflags
     def dropILl(string):
         def _dropILl(string):
-            if string.startswith(u"-I") or string.startswith(u"-L") or string.startswith(u"-l"):
+            if string.startswith("-I") or string.startswith("-L") or string.startswith("-l"):
                 return string [2:]
         return [_dropILl(x) for x in string.split()]
 
     # convert -Dfoo=bar to list of tuples [("foo", "bar")] expected by cffi
     def macros(string):
         def _macros(string):
-            return tuple(string [2:].split(u"=", 2))
-        return [_macros(x) for x in string.split() if x.startswith(u"-D")]
+            return tuple(string [2:].split("=", 2))
+        return [_macros(x) for x in string.split() if x.startswith("-D")]
 
     def drop_macros(string):
-        return [x for x in string.split() if not x.startswith(u"-D")]
+        return [x for x in string.split() if not x.startswith("-D")]
 
     # return kwargs for given libname
     def kwargs(libname):
