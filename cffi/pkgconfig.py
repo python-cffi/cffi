@@ -1,7 +1,11 @@
 # pkg-config, https://www.freedesktop.org/wiki/Software/pkg-config/ integration for cffi
 import subprocess
 import sys
+import re
 
+from .error import PkgConfigNotFound
+from .error import PkgConfigModuleVersionNotFound
+from .error import PkgConfigError
 
 def merge_flags(cfg1, cfg2):
     """Merge values from cffi config flags cfg2 to cf1
@@ -19,11 +23,29 @@ def merge_flags(cfg1, cfg2):
 
 
 def call(libname, flag):
-    """Calls pkg-config and returing the output"""
+    """Calls pkg-config and returing the output if found
+    """
     a = ["pkg-config", "--print-errors"]
     a.append(flag)
     a.append(libname)
-    return subprocess.check_output(a)
+    pc = None
+    try:
+        pc = subprocess.Popen(a, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except FileNotFoundError:
+        pass
+    if pc is None:
+        raise PkgConfigNotFound("pkg-config was not found on this system")
+    
+    bout, berr = pc.communicate()
+    if berr is not None:
+        err = berr.decode(sys.getfilesystemencoding())
+        if re.search("Package .* was not found in the pkg-config search path", err, re.MULTILINE) is not None:
+            raise PkgConfigNotFoundError(err)
+        elif re.search("Requested '.*' but version of ", err, re.MULTILINE):
+            raise PkgConfigModuleVersionNotFound(err)
+        else:
+            PkgConfigError(err)
+    return bout
 
 
 def flags(libs):
@@ -38,8 +60,11 @@ def flags(libs):
     extra_link_args are extended with an output of pkg-config for libfoo and
     libbar.
 
-    Raise `FileNotFoundError` if pkg-config is not installed or
-    `subprocess.CalledProcessError` if pkg-config fails.
+    Raises
+    * PkgConfigNotFound if pkg-config is not installed
+    * PkgConfigModuleNotFound if requested module not found
+    * PkgConfigModuleVersionNotFound if requested version does not match
+    * PkgConfigError for all other errors
     """
 
     subprocess.check_output(["pkg-config", "--version"])
