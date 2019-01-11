@@ -22,14 +22,9 @@ class VerificationMissing(Exception):
     cdef, but no verification has been done
     """
 
-class PkgConfigNotFound(Exception):
-    """ An error raised when pkgconfig was not found"""
-
 class PkgConfigError(Exception):
-    """ Generic super class for pkg-config related errors"""
+    """ An error raised for all pkg-config related errors
+    except version mismatch"""
 
-class PkgConfigModuleNotFound(PkgConfigError):
-    """ Module or it's pkg-config file was not found on a system"""
-
-class PkgConfigModuleVersionNotFound(PkgConfigError):
-    """ Requested version of module was not found"""
+class PkgConfigModuleVersionNotFound(Exception):
+    """ An error raised when requested version was not found"""

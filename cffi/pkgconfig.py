@@ -3,7 +3,6 @@ import subprocess
 import sys
 import re
 
-from .error import PkgConfigNotFound
 from .error import PkgConfigModuleVersionNotFound
 from .error import PkgConfigError
 
@@ -34,14 +33,12 @@ def call(libname, flag):
     except FileNotFoundError:
         pass
     if pc is None:
-        raise PkgConfigNotFound("pkg-config was not found on this system")
+        raise PkgConfigError("pkg-config was not found on this system")
     
     bout, berr = pc.communicate()
     if berr is not None:
         err = berr.decode(sys.getfilesystemencoding())
-        if re.search("Package .* was not found in the pkg-config search path", err, re.MULTILINE) is not None:
-            raise PkgConfigNotFoundError(err)
-        elif re.search("Requested '.*' but version of ", err, re.MULTILINE):
+        if re.search("Requested '.*' but version of ", err, re.MULTILINE) is not None:
             raise PkgConfigModuleVersionNotFound(err)
         else:
             PkgConfigError(err)
@@ -61,8 +58,6 @@ def flags(libs):
     libbar.
 
     Raises
-    * PkgConfigNotFound if pkg-config is not installed
-    * PkgConfigModuleNotFoun if requested module not found
     * PkgConfigModuleVersionNotFound if requested version does not match
     * PkgConfigError for all other errors
     """
