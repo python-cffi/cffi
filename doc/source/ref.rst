@@ -608,8 +608,9 @@ ffi.release() and the context manager
 **ffi.release(cdata)**: release the resources held by a cdata object from
 ``ffi.new()``, ``ffi.gc()``, ``ffi.from_buffer()`` or
 ``ffi.new_allocator()()``.  The cdata object must not be used afterwards.
-The regular destructor of the cdata object releases the same resources,
-but this allows the operation to occur at a known time.
+The normal Python destructor of the cdata object releases the same resources,
+but this allows the releasing to occur at a known time, as opposed as at an
+unspecified point in the future.
 *New in version 1.12.*
 
 ``ffi.release(cdata)`` is equivalent to ``cdata.__exit__()``, which means that

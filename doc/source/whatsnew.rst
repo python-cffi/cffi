@@ -23,14 +23,13 @@ v1.12
 
 * CPython 2.x: ``ffi.dlopen()`` failed with non-ascii file names on Posix
 
-* ``ffi.from_buffer()`` takes two new arguments: an optional *first* argument
-  gives the array type of the result; and the keyword argument
-  ``require_writable`` can ask the object passed in to raise an exception if
-  it is read-only.
+* ``ffi.from_buffer()`` takes a new optional *first* argument that gives
+  the array type of the result.  It also takes an optional keyword argument
+  ``require_writable`` to refuse read-only Python buffers.
 
 * ``ffi.new()``, ``ffi.gc()`` or ``ffi.from_buffer()`` cdata objects
   can now be released at known times, either by using the ``with``
-  keyword or be calling the new ``ffi.release()``.
+  keyword or by calling the new ``ffi.release()``.
 
 
 v1.11.5
