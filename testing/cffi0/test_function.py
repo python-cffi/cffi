@@ -53,7 +53,7 @@ class TestFunction(object):
         """)
         needs_dlopen_none()
         m = ffi.dlopen(None)
-        x = m.getenv("FOO")
+        x = m.getenv(b"FOO")
         assert x is None
 
     def test_dlopen_filename(self):
