@@ -7671,7 +7671,7 @@ init_cffi_backend(void)
     init_cffi_tls();
     if (PyErr_Occurred())
         INITERROR;
-    init_cffi_tls_delete();
+    init_cffi_tls_zombie();
     if (PyErr_Occurred())
         INITERROR;
 

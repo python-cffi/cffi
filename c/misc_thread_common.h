@@ -5,10 +5,10 @@
 
 
 struct cffi_tls_s {
-    /* The locally-made thread state.  This is only non-null in case
-       we build the thread state here.  It remains null if this thread
-       had already a thread state provided by CPython. */
-    PyThreadState *local_thread_state;
+    /* The current thread's ThreadCanaryObj.  This is only non-null in
+       case cffi builds the thread state here.  It remains null if this
+       thread had already a thread state provided by CPython. */
+    struct thread_canary_s *local_thread_canary;
 
 #ifndef USE__THREAD
     /* The saved errno.  If the C compiler supports '__thread', then
@@ -26,81 +26,245 @@ static struct cffi_tls_s *get_cffi_tls(void);   /* in misc_thread_posix.h
                                                    or misc_win32.h */
 
 
-/* issue #362: Py_Finalize() will free any threadstate around, so in
- * that case we must not call PyThreadState_Delete() any more on them
- * from cffi_thread_shutdown().  The following mess is to give a
- * thread-safe way to know that Py_Finalize() started.
+/* We try to keep the PyThreadState around in a thread not started by
+ * Python but where cffi callbacks occur.  If we didn't do that, then
+ * the standard logic in PyGILState_Ensure() and PyGILState_Release()
+ * would create a new PyThreadState and completely free it for every
+ * single call.  For some applications, this is a huge slow-down.
+ *
+ * As shown by issue #362, it is quite messy to do.  The current
+ * solution is to keep the PyThreadState alive by incrementing its
+ * 'gilstate_counter'.  We detect thread shut-down, and we put the
+ * PyThreadState inside a list of zombies (we can't free it
+ * immediately because we don't have the GIL at that point in time).
+ * We also detect other pieces of code (notably Py_Finalize()) which
+ * clear and free PyThreadStates under our feet, using ThreadCanaryObj.
  */
-#define TLS_DEL_LOCK() PyThread_acquire_lock(cffi_tls_delete_lock, WAIT_LOCK)
-#define TLS_DEL_UNLOCK() PyThread_release_lock(cffi_tls_delete_lock)
-static PyThread_type_lock cffi_tls_delete_lock = NULL;
-static int cffi_tls_delete;
-static PyObject *old_exitfunc;
 
-static PyObject *cffi_tls_shutdown(PyObject *self, PyObject *args)
+#define TLS_ZOM_LOCK() PyThread_acquire_lock(cffi_zombie_lock, WAIT_LOCK)
+#define TLS_ZOM_UNLOCK() PyThread_release_lock(cffi_zombie_lock)
+static PyThread_type_lock cffi_zombie_lock = NULL;
+
+
+/* A 'canary' object is created in a thread when there is a callback
+   invoked, and that thread has no PyThreadState so far.  It is an
+   object of reference count equal to 1, which is stored in the
+   PyThreadState->dict.  Two things can occur then:
+
+   1. The PyThreadState can be forcefully cleared by Py_Finalize().
+      Then thread_canary_dealloc() is called, and we have to cancel
+      the hacks we did to keep the PyThreadState alive.
+
+   2. The thread finishes.  In that case, we put the canary in a list
+      of zombies, and at some convenient time later when we have the
+      GIL, we free all PyThreadStates in the zombie list.
+
+   Some more fun comes from the fact that thread_canary_dealloc() can
+   be called at a point where the canary is in the zombie list already.
+   Also, the various pieces are freed at specific points in time, and
+   we must make sure not to access already-freed structures:
+
+    - the struct cffi_tls_s is valid until the thread shuts down, and
+      then it is freed by cffi_thread_shutdown().
+
+    - the canary is a normal Python object, but we have a borrowed
+      reference to it from cffi_tls_s.local_thread_canary.
+ */
+
+typedef struct thread_canary_s {
+    PyObject_HEAD
+    struct thread_canary_s *zombie_prev, *zombie_next;
+    PyThreadState *tstate;
+    struct cffi_tls_s *tls;
+} ThreadCanaryObj;
+
+static PyTypeObject ThreadCanary_Type;    /* forward */
+static ThreadCanaryObj cffi_zombie_head;
+
+static void
+_thread_canary_detach_with_lock(ThreadCanaryObj *ob)
 {
-    /* the lock here will wait until any parallel cffi_thread_shutdown()
-       is done.  Future cffi_thread_shutdown() won't touch their
-       PyThreadState any more, which are all supposed to be freed anyway
-       very soon after the present cffi_tls_shutdown() function is called.
-     */
-    PyObject *ofn;
-
-    TLS_DEL_LOCK();
-    cffi_tls_delete = 0;   /* Py_Finalize() called */
-    TLS_DEL_UNLOCK();
-
-    ofn = old_exitfunc;
-    if (ofn == NULL)
-    {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-    else
-    {
-        old_exitfunc = NULL;
-        return PyObject_CallFunction(ofn, "");
-    }
+    /* must be called with both the GIL and TLS_ZOM_LOCK. */
+    ThreadCanaryObj *p, *n;
+    p = ob->zombie_prev;
+    n = ob->zombie_next;
+    p->zombie_next = n;
+    n->zombie_prev = p;
+    ob->zombie_prev = NULL;
+    ob->zombie_next = NULL;
 }
 
-static void init_cffi_tls_delete(void)
+static void
+thread_canary_dealloc(ThreadCanaryObj *ob)
 {
-    static PyMethodDef mdef = {
-        "cffi_tls_shutdown", cffi_tls_shutdown, METH_NOARGS,
-    };
-    PyObject *shutdown_fn;
-
-    cffi_tls_delete_lock = PyThread_allocate_lock();
-    if (cffi_tls_delete_lock == NULL)
-    {
-        PyErr_SetString(PyExc_SystemError,
-                        "can't allocate cffi_tls_delete_lock");
-        return;
+    /* this ThreadCanaryObj is being freed: if it is in the zombie
+       chained list, remove it.  Thread-safety: 'zombie_next' amd
+       'local_thread_canary' accesses need to be protected with
+       the TLS_ZOM_LOCK.
+     */
+    TLS_ZOM_LOCK();
+    if (ob->zombie_next != NULL) {
+        //fprintf(stderr, "thread_canary_dealloc(%p): ZOMBIE\n", ob);
+        _thread_canary_detach_with_lock(ob);
     }
+    else
+        //fprintf(stderr, "thread_canary_dealloc(%p): not a zombie\n", ob);
 
-    shutdown_fn = PyCFunction_New(&mdef, NULL);
-    if (shutdown_fn == NULL)
-        return;
+    if (ob->tls != NULL) {
+        //fprintf(stderr, "thread_canary_dealloc(%p): was local_thread_canary\n", ob);
+        assert(ob->tls->local_thread_canary == ob);
+        ob->tls->local_thread_canary = NULL;
+    }
+    TLS_ZOM_UNLOCK();
 
-    old_exitfunc = PySys_GetObject("exitfunc");
-    if (PySys_SetObject("exitfunc", shutdown_fn) == 0)
-        cffi_tls_delete = 1;    /* all ready */
-    Py_DECREF(shutdown_fn);
+    PyObject_Del((PyObject *)ob);
+}
+
+static void
+thread_canary_make_zombie(ThreadCanaryObj *ob)
+{
+    /* This must be called without the GIL, but with the TLS_ZOM_LOCK.
+       It must be called at most once for a given ThreadCanaryObj. */
+    ThreadCanaryObj *last;
+
+    //fprintf(stderr, "thread_canary_make_zombie(%p)\n", ob);
+    if (ob->zombie_next)
+        Py_FatalError("cffi: ThreadCanaryObj is already a zombie");
+    last = cffi_zombie_head.zombie_prev;
+    ob->zombie_next = &cffi_zombie_head;
+    ob->zombie_prev = last;
+    last->zombie_next = ob;
+    cffi_zombie_head.zombie_prev = ob;
+}
+
+static void
+thread_canary_free_zombies(void)
+{
+    /* This must be called with the GIL. */
+    if (cffi_zombie_head.zombie_next == &cffi_zombie_head)
+        return;    /* fast path */
+
+    while (1) {
+        ThreadCanaryObj *ob;
+        PyThreadState *tstate = NULL;
+
+        TLS_ZOM_LOCK();
+        ob = cffi_zombie_head.zombie_next;
+        if (ob != &cffi_zombie_head) {
+            tstate = ob->tstate;
+            //fprintf(stderr, "thread_canary_free_zombie(%p) tstate=%p\n", ob, tstate);
+            _thread_canary_detach_with_lock(ob);
+            if (tstate == NULL)
+                Py_FatalError("cffi: invalid ThreadCanaryObj->tstate");
+        }
+        TLS_ZOM_UNLOCK();
+
+        if (tstate == NULL)
+            break;
+        PyThreadState_Clear(tstate);  /* calls thread_canary_dealloc on 'ob',
+                                         but now ob->zombie_next == NULL. */
+        PyThreadState_Delete(tstate);
+        //fprintf(stderr, "thread_canary_free_zombie: cleared and deleted tstate=%p\n", tstate);
+    }
+    //fprintf(stderr, "thread_canary_free_zombie: end\n");
+}
+
+static void
+thread_canary_register(PyThreadState *tstate)
+{
+    /* called with the GIL; 'tstate' is the current PyThreadState. */
+    ThreadCanaryObj *canary;
+    PyObject *tdict;
+    struct cffi_tls_s *tls;
+    int err;
+
+    /* first free the zombies, if any */
+    thread_canary_free_zombies();
+
+    tls = get_cffi_tls();
+    if (tls == NULL)
+        goto ignore_error;
+
+    tdict = PyThreadState_GetDict();
+    if (tdict == NULL)
+        goto ignore_error;
+
+    canary = PyObject_New(ThreadCanaryObj, &ThreadCanary_Type);
+    //fprintf(stderr, "thread_canary_register(%p): tstate=%p tls=%p\n", canary, tstate, tls);
+    if (canary == NULL)
+        goto ignore_error;
+    canary->zombie_prev = NULL;
+    canary->zombie_next = NULL;
+    canary->tstate = tstate;
+    canary->tls = tls;
+
+    err = PyDict_SetItemString(tdict, "cffi.thread.canary", (PyObject *)canary);
+    Py_DECREF(canary);
+    if (err < 0)
+        goto ignore_error;
+
+    /* thread-safety: we have the GIL here, and 'tstate' is the one that
+       corresponds to our own thread.  We are allocating a new 'canary'
+       and setting it up for our own thread, both in 'tdict' (which owns
+       the reference) and in 'tls->local_thread_canary' (which doesn't). */
+    assert(Py_REFCNT(canary) == 1);
+    tls->local_thread_canary = canary;
+    tstate->gilstate_counter++;
+    /* ^^^ this means 'tstate' will never be automatically freed by
+           PyGILState_Release() */
+    return;
+
+ ignore_error:
+    PyErr_Clear();
+}
+
+static PyTypeObject ThreadCanary_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_cffi_backend.thread_canary",
+    sizeof(ThreadCanaryObj),
+    0,
+    (destructor)thread_canary_dealloc,          /* tp_dealloc */
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+    0,                                          /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    0,                                          /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+};
+
+static void init_cffi_tls_zombie(void)
+{
+    cffi_zombie_head.zombie_next = &cffi_zombie_head;
+    cffi_zombie_head.zombie_prev = &cffi_zombie_head;
+    cffi_zombie_lock = PyThread_allocate_lock();
+    if (cffi_zombie_lock == NULL)
+        PyErr_SetString(PyExc_SystemError, "can't allocate cffi_zombie_lock");
 }
 
 static void cffi_thread_shutdown(void *p)
 {
+    /* this function is called from misc_thread_posix or misc_win32
+       when a thread is about to end. */
     struct cffi_tls_s *tls = (struct cffi_tls_s *)p;
 
-    if (tls->local_thread_state != NULL) {
-        /*
-         *  issue #362: see comments above
-         */
-        TLS_DEL_LOCK();
-        if (cffi_tls_delete)
-            PyThreadState_Delete(tls->local_thread_state);
-        TLS_DEL_UNLOCK();
+    /* thread-safety: this field 'local_thread_canary' can be reset
+       to NULL in parallel, protected by TLS_ZOM_LOCK. */
+    TLS_ZOM_LOCK();
+    if (tls->local_thread_canary != NULL) {
+        tls->local_thread_canary->tls = NULL;
+        thread_canary_make_zombie(tls->local_thread_canary);
     }
+    TLS_ZOM_UNLOCK();
+    //fprintf(stderr, "thread_shutdown(%p)\n", tls);
     free(tls);
 }
 
@@ -168,7 +332,6 @@ static PyGILState_STATE gil_ensure(void)
        PyGILState_Ensure().
     */
     PyGILState_STATE result;
-    struct cffi_tls_s *tls;
     PyThreadState *ts = PyGILState_GetThisThreadState();
 
     if (ts != NULL) {
@@ -193,13 +356,9 @@ static PyGILState_STATE gil_ensure(void)
         assert(ts == get_current_ts());
         assert(ts->gilstate_counter >= 1);
 
-        /* Save the now-current thread state inside our 'local_thread_state'
-           field, to be removed at thread shutdown */
-        tls = get_cffi_tls();
-        if (tls != NULL) {
-            tls->local_thread_state = ts;
-            ts->gilstate_counter++;
-        }
+        /* Use the ThreadCanary mechanism to keep 'ts' alive until the
+           thread really shuts down */
+        thread_canary_register(ts);
 
         return result;
     }
