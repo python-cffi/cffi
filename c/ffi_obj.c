@@ -700,22 +700,22 @@ PyDoc_STRVAR(ffi_from_buffer_doc,
 static PyObject *ffi_from_buffer(FFIObject *self, PyObject *args,
                                  PyObject *kwds)
 {
-    PyObject *cdecl, *python_buf = NULL;
+    PyObject *cdecl1, *python_buf = NULL;
     CTypeDescrObject *ct;
     int require_writable = 0;
     static char *keywords[] = {"cdecl", "python_buffer",
                                "require_writable", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Oi:from_buffer", keywords,
-                                     &cdecl, &python_buf, &require_writable))
+                                     &cdecl1, &python_buf, &require_writable))
         return NULL;
 
     if (python_buf == NULL) {
-        python_buf = cdecl;
+        python_buf = cdecl1;
         ct = g_ct_chararray;
     }
     else {
-        ct = _ffi_type(self, cdecl, ACCEPT_STRING|ACCEPT_CTYPE);
+        ct = _ffi_type(self, cdecl1, ACCEPT_STRING|ACCEPT_CTYPE);
         if (ct == NULL)
             return NULL;
     }
