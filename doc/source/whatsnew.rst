@@ -14,7 +14,7 @@ v1.12
   to ``pack=1`` (saying e.g. that fields like ``int`` should be aligned
   to 1 byte instead of 4).
 
-* Windows, CPython 3.x: link cffi modules with ``python3.dll``
+* Windows, CPython 3.x: cffi modules are linked with ``python3.dll``
   again.  This makes them independant on the exact CPython version,
   like they are on other platforms.  **It requires virtualenv 16.0.0.**
 
@@ -30,6 +30,13 @@ v1.12
 * ``ffi.new()``, ``ffi.gc()`` or ``ffi.from_buffer()`` cdata objects
   can now be released at known times, either by using the ``with``
   keyword or by calling the new ``ffi.release()``.
+
+* CPython: if a thread is started from C and then runs Python code (with
+  callbacks or with the embedding solution), then previous versions of
+  cffi would contain possible crashes and/or memory leaks.  Hopefully,
+  this has been fixed (see `issue #362`_).
+
+.. _`issue #362`: https://bitbucket.org/cffi/cffi/issues/362/
 
 
 v1.11.5
