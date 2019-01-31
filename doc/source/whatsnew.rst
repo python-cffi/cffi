@@ -36,7 +36,10 @@ v1.12
   cffi would contain possible crashes and/or memory leaks.  Hopefully,
   this has been fixed (see `issue #362`_).
 
+* `Direct support for pkg-config`__.
+
 .. _`issue #362`: https://bitbucket.org/cffi/cffi/issues/362/
+.. __: cdef.html#pkgconfig
 
 
 v1.11.5

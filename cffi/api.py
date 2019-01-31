@@ -640,14 +640,18 @@ class FFI(object):
         if os.sep in module_name or (os.altsep and os.altsep in module_name):
             raise ValueError("'module_name' must not contain '/': use a dotted "
                              "name to make a 'package.module' location")
-        if "pkgconfig" in kwds:
-            from . import pkgconfig
-            libs = kwds.pop("pkgconfig")
-            if not isinstance(libs, (list, tuple)):
-                libs = [libs]
-            pkgconfig.merge_flags(kwds, pkgconfig.flags_from_pkgconfig(libs))
         self._assigned_source = (str(module_name), source,
                                  source_extension, kwds)
+
+    def set_source_pkgconfig(self, module_name, pkgconfig_libs, source,
+                             source_extension='.c', **kwds):
+        from . import pkgconfig
+        if not isinstance(pkgconfig_libs, list):
+            raise TypeError("the pkgconfig_libs argument must be a list "
+                            "of package names")
+        kwds2 = pkgconfig.flags_from_pkgconfig(pkgconfig_libs)
+        pkgconfig.merge_flags(kwds, kwds2)
+        self.set_source(module_name, source, source_extension, **kwds)
 
     def distutils_extension(self, tmpdir='build', verbose=True):
         from distutils.dir_util import mkpath

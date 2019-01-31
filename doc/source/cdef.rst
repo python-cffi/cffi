@@ -431,6 +431,23 @@ compatibility):
     }
     ''', source_extension='.cpp')
 
+.. _pkgconfig:
+
+**ffibuilder.set_source_pkgconfig(module_name, pkgconfig_libs,
+c_header_source, [\*\*keywords...])**:
+
+*New in version 1.12.*  This is equivalent to ``set_source()`` but it
+first calls the system utility ``pkg-config`` with the package names
+given in the list ``pkgconfig_libs``.  It collects the information
+obtained in this way and adds it to the explicitly-provided
+``**keywords`` (if any).  This should probably not be used on Windows.
+
+If the ``pkg-config`` program is not installed or does not know about
+the requested library, the call fails with ``cffi.PkgConfigError``.  If
+necessary, you can catch this error and try to call ``set_source()``
+directly (or, equivalently, call ``set_source_pkgconfig()`` with an
+empty list as the ``pkgconfig_libs`` argument).
+
 
 Letting the C compiler fill the gaps
 ------------------------------------
