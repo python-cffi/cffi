@@ -21,3 +21,10 @@ class VerificationMissing(Exception):
     """ An error raised when incomplete structures are passed into
     cdef, but no verification has been done
     """
+
+class PkgConfigError(Exception):
+    """ An error raised for all pkg-config related errors
+    except version mismatch"""
+
+class PkgConfigModuleVersionNotFound(Exception):
+    """ An error raised when requested version was not found"""
