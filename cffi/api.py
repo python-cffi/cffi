@@ -2,7 +2,6 @@ import sys, types
 from .lock import allocate_lock
 from .error import CDefError
 from . import model
-from . import pkgconfig
 
 try:
     callable
@@ -642,8 +641,11 @@ class FFI(object):
             raise ValueError("'module_name' must not contain '/': use a dotted "
                              "name to make a 'package.module' location")
         if "pkgconfig" in kwds:
-            pkgconfig.merge_flags(kwds, pkgconfig.flags(kwds["pkgconfig"]))
-            del kwds["pkgconfig"]
+            from . import pkgconfig
+            libs = kwds.pop("pkgconfig")
+            if not isinstance(libs, (list, tuple)):
+                libs = [libs]
+            pkgconfig.merge_flags(kwds, pkgconfig.flags_from_pkgconfig(libs))
         self._assigned_source = (str(module_name), source,
                                  source_extension, kwds)
 
