@@ -107,8 +107,9 @@ thread_canary_dealloc(ThreadCanaryObj *ob)
         //fprintf(stderr, "thread_canary_dealloc(%p): ZOMBIE\n", ob);
         _thread_canary_detach_with_lock(ob);
     }
-    else
+    else {
         //fprintf(stderr, "thread_canary_dealloc(%p): not a zombie\n", ob);
+    }
 
     if (ob->tls != NULL) {
         //fprintf(stderr, "thread_canary_dealloc(%p): was local_thread_canary\n", ob);
