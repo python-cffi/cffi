@@ -6,13 +6,15 @@ What's New
 v1.12
 =====
 
-* Support for ``ffi.cdef(..., pack=N)`` where N is a power of two.
-  Means to emulate ``#pragma pack(N)`` on MSVC.  Also, the default on
-  Windows is now ``pack=8``, like on MSVC.  This might make a difference
-  in corner cases, although I can't think of one in the context of CFFI.
-  The old way ``ffi.cdef(..., packed=True)`` remains and is equivalent
-  to ``pack=1`` (saying e.g. that fields like ``int`` should be aligned
-  to 1 byte instead of 4).
+* `Direct support for pkg-config`__.
+
+* ``ffi.from_buffer()`` takes a new optional *first* argument that gives
+  the array type of the result.  It also takes an optional keyword argument
+  ``require_writable`` to refuse read-only Python buffers.
+
+* ``ffi.new()``, ``ffi.gc()`` or ``ffi.from_buffer()`` cdata objects
+  can now be released at known times, either by using the ``with``
+  keyword or by calling the new ``ffi.release()``.
 
 * Windows, CPython 3.x: cffi modules are linked with ``python3.dll``
   again.  This makes them independant on the exact CPython version,
@@ -23,27 +25,28 @@ v1.12
 
 * CPython 2.x: ``ffi.dlopen()`` failed with non-ascii file names on Posix
 
-* ``ffi.from_buffer()`` takes a new optional *first* argument that gives
-  the array type of the result.  It also takes an optional keyword argument
-  ``require_writable`` to refuse read-only Python buffers.
-
-* ``ffi.new()``, ``ffi.gc()`` or ``ffi.from_buffer()`` cdata objects
-  can now be released at known times, either by using the ``with``
-  keyword or by calling the new ``ffi.release()``.
-
 * CPython: if a thread is started from C and then runs Python code (with
   callbacks or with the embedding solution), then previous versions of
   cffi would contain possible crashes and/or memory leaks.  Hopefully,
   this has been fixed (see `issue #362`_).
 
-* `Direct support for pkg-config`__.
+* Support for ``ffi.cdef(..., pack=N)`` where N is a power of two.
+  Means to emulate ``#pragma pack(N)`` on MSVC.  Also, the default on
+  Windows is now ``pack=8``, like on MSVC.  This might make a difference
+  in corner cases, although I can't think of one in the context of CFFI.
+  The old way ``ffi.cdef(..., packed=True)`` remains and is equivalent
+  to ``pack=1`` (saying e.g. that fields like ``int`` should be aligned
+  to 1 byte instead of 4).
 
-.. _`issue #362`: https://bitbucket.org/cffi/cffi/issues/362/
 .. __: cdef.html#pkgconfig
+.. _`issue #362`: https://bitbucket.org/cffi/cffi/issues/362/
 
+
+Older Versions
+==============
 
 v1.11.5
-=======
+-------
 
 * `Issue #357`_: fix ``ffi.emit_python_code()`` which generated a buggy
   Python file if you are using a ``struct`` with an anonymous ``union``
@@ -78,7 +81,7 @@ v1.11.5
 
 
 v1.11.4
-=======
+-------
 
 * Windows: reverted linking with ``python3.dll``, because
   virtualenv does not make this DLL available to virtual environments
@@ -91,7 +94,7 @@ v1.11.4
 
 
 v1.11.3
-=======
+-------
 
 * Fix on CPython 3.x: reading the attributes ``__loader__`` or
   ``__spec__`` from the cffi-generated lib modules gave a buggy
@@ -108,13 +111,13 @@ v1.11.3
 
 
 v1.11.2
-=======
+-------
 
 * Fix Windows issue with managing the thread-state on CPython 3.0 to 3.5
 
 
 v1.11.1
-=======
+-------
 
 * Fix tests, remove deprecated C API usage
 
@@ -127,7 +130,7 @@ v1.11.1
 
 
 v1.11
-=====
+-----
 
 * Support the modern standard types ``char16_t`` and ``char32_t``.
   These work like ``wchar_t``: they represent one unicode character, or
@@ -181,9 +184,6 @@ v1.11
 .. __: https://bitbucket.org/cffi/cffi/issues/320/improve-memory_pressure-management
 .. __: http://bugs.python.org/issue31105
 
-
-Older Versions
-==============
 
 v1.10.1
 -------
