@@ -445,8 +445,9 @@ obtained in this way and adds it to the explicitly-provided
 If the ``pkg-config`` program is not installed or does not know about
 the requested library, the call fails with ``cffi.PkgConfigError``.  If
 necessary, you can catch this error and try to call ``set_source()``
-directly (or, equivalently, call ``set_source_pkgconfig()`` with an
-empty list as the ``pkgconfig_libs`` argument).
+directly.  (Ideally, you should also do that if the ``ffibuilder``
+instance has no method ``set_source_pkgconfig()``, to support older
+versions of cffi.)
 
 
 Letting the C compiler fill the gaps
