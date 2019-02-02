@@ -409,7 +409,17 @@ def test_const_pointer_to_pointer():
 def test_enum():
     ffi = FFI()
     ffi.cdef("""
-        enum Enum { POS = +1, TWO = 2, NIL = 0, NEG = -1, OP = (POS+TWO)-1};
+        enum Enum {
+            POS = +1,
+            TWO = 2,
+            NIL = 0,
+            NEG = -1,
+            ADDSUB = (POS+TWO)-1,
+            DIVMULINT = (3 * 3) / 2,
+            SHIFT = (1 << 3) >> 1,
+            BINOPS = (0x7 & 0x1) | 0x8,
+            XOR = 0xf ^ 0xa
+        };
         """)
     needs_dlopen_none()
     C = ffi.dlopen(None)
@@ -417,7 +427,11 @@ def test_enum():
     assert C.TWO == 2
     assert C.NIL == 0
     assert C.NEG == -1
-    assert C.OP == 2
+    assert C.ADDSUB == 2
+    assert C.DIVMULINT == 4
+    assert C.SHIFT == 4
+    assert C.BINOPS == 0b1001
+    assert C.XOR == 0b0101
 
 def test_stdcall():
     ffi = FFI()
@@ -466,3 +480,4 @@ def test_error_invalid_syntax_for_cdef():
     e = py.test.raises(CDefError, ffi.cdef, 'void foo(void) {}')
     assert str(e.value) == ('<cdef source string>:1: unexpected <FuncDef>: '
                             'this construct is valid C but not valid in cdef()')
+
