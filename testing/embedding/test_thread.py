@@ -56,6 +56,11 @@ class TestThread(EmbeddingTests):
             for j in range(10):
                 output = self._take_out(output, "adding 40 and 2 and 100\n")
                 output = self._take_out(output, "adding 1000, 200, 30, 4\n")
+            # Windows note: fails occasionally, but it looks like a Windows
+            # bug somehow.  If I add fprintf(stderr, "foo\n") after the
+            # final printf("done\n") in thread3-test.c, then it gets printed,
+            # even though the "done\n" part is very occasionally missing
+            # from the output.
             assert output == ("starting\n"
                               "prepADD2\n"
                               "done\n")
