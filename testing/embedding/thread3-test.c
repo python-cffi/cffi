@@ -51,5 +51,6 @@ int main(void)
         assert(status == 0);
     }
     printf("done\n");
+    fflush(stdout);   /* this is occasionally needed on Windows */
     return 0;
 }
