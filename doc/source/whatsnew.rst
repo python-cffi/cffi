@@ -3,6 +3,22 @@ What's New
 ======================
 
 
+v1.12.1
+=======
+
+* CPython 3 on Windows: we again no longer compile with ``Py_LIMITED_API``
+  by default because such modules *still* cannot be used with virtualenv.
+  The problem is that it doesn't work in CPython <= 3.4, and for
+  technical reason we can't enable this flag automatically based on the
+  version of Python.
+
+  Like before, `Issue #350`_ mentions a workaround if you still want
+  the ``Py_LIMITED_API`` flag and *either* you are not concerned about
+  virtualenv *or* you are sure your module will not be used on CPython
+  <= 3.4: pass ``define_macros=[("Py_LIMITED_API", None)]`` to the
+  ``ffibuilder.set_source()`` call.
+
+
 v1.12
 =====
 
