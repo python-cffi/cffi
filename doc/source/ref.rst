@@ -157,8 +157,9 @@ Here are a few examples of where buffer() would be useful:
 -  use ``file.write()`` and ``file.readinto()`` with
    such a buffer (for files opened in binary mode)
 
--  use ``ffi.buffer(mystruct[0])[:] = socket.recv(len(buffer))`` to read
-   into a struct over a socket, rewriting the contents of mystruct[0]
+-  overwrite the content of a struct: if ``p`` is a cdata pointing to
+   it, use ``ffi.buffer(p)[:] = newcontent``, where ``newcontent`` is
+   a bytes object (``str`` in Python 2).
 
 Remember that like in C, you can use ``array + index`` to get the pointer
 to the index'th item of an array.  (In C you might more naturally write
@@ -175,7 +176,7 @@ Instead it has the following Python API (a subset of Python 2's
 - ``buf[:] = newstr``: change the original content (or ``buf[start:end]
   = newstr``)
 
-- ``len(buf), buf[index], buf[index] = newchar``: access as a sequence
+- ``len(buf)``, ``buf[index]``, ``buf[index] = newchar``: access as a sequence
   of characters.
 
 The buffer object returned by ``ffi.buffer(cdata)`` keeps alive the
