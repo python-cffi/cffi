@@ -177,7 +177,7 @@ Instead it has the following Python API (a subset of Python 2's ``buffer``)
 in addition to supporting the buffer interface:
 
 - ``buf[:]`` or ``bytes(buf)``: copy data out of the buffer, returning a
-   regular byte string (or ``buf[start:end]`` for a part)
+  regular byte string (or ``buf[start:end]`` for a part)
 
 - ``buf[:] = newstr``: copy data into the buffer (or ``buf[start:end]
   = newstr``)
