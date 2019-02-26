@@ -3,6 +3,12 @@ What's New
 ======================
 
 
+v1.12.2
+=======
+
+* Added temporary workaround to compile on CPython 3.8.0a2.
+
+
 v1.12.1
 =======
 
