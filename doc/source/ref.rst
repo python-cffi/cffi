@@ -146,36 +146,43 @@ ffi.buffer(), ffi.from_buffer()
 +++++++++++++++++++++++++++++++
 
 **ffi.buffer(cdata, [size])**: return a buffer object that references
-the raw C data pointed to by the given 'cdata', of 'size' bytes.  The
-'cdata' must be a pointer or an array.  If unspecified, the size of the
+the raw C data pointed to by the given 'cdata', of 'size' bytes.  What
+Python calls "a buffer", or more precisely "an object supporting the
+buffer interface", is an object that represents some raw memory and
+that can be passed around to various built-in or extension functions;
+these built-in functions read from or write to the raw memory directly,
+without needing an extra copy.
+
+The 'cdata' argument
+must be a pointer or an array.  If unspecified, the size of the
 buffer is either the size of what ``cdata`` points to, or the whole size
-of the array.  Getting a buffer is useful because you can read from it
-without an extra copy, or write into it to change the original value.
+of the array.
 
 Here are a few examples of where buffer() would be useful:
 
 -  use ``file.write()`` and ``file.readinto()`` with
    such a buffer (for files opened in binary mode)
 
--  use ``ffi.buffer(mystruct[0])[:] = socket.recv(len(buffer))`` to read
-   into a struct over a socket, rewriting the contents of mystruct[0]
+-  overwrite the content of a struct: if ``p`` is a cdata pointing to
+   it, use ``ffi.buffer(p)[:] = newcontent``, where ``newcontent`` is
+   a bytes object (``str`` in Python 2).
 
 Remember that like in C, you can use ``array + index`` to get the pointer
 to the index'th item of an array.  (In C you might more naturally write
 ``&array[index]``, but that is equivalent.)
 
-The returned object is not a built-in buffer nor memoryview object,
-because these objects' API changes too much across Python versions.
-Instead it has the following Python API (a subset of Python 2's
-``buffer``):
+The returned object's type is not the builtin ``buffer`` nor ``memoryview``
+types, because these types' API changes too much across Python versions.
+Instead it has the following Python API (a subset of Python 2's ``buffer``)
+in addition to supporting the buffer interface:
 
-- ``buf[:]`` or ``bytes(buf)``: fetch a copy as a regular byte string (or
-  ``buf[start:end]`` for a part)
+- ``buf[:]`` or ``bytes(buf)``: copy data out of the buffer, returning a
+  regular byte string (or ``buf[start:end]`` for a part)
 
-- ``buf[:] = newstr``: change the original content (or ``buf[start:end]
+- ``buf[:] = newstr``: copy data into the buffer (or ``buf[start:end]
   = newstr``)
 
-- ``len(buf), buf[index], buf[index] = newchar``: access as a sequence
+- ``len(buf)``, ``buf[index]``, ``buf[index] = newchar``: access as a sequence
   of characters.
 
 The buffer object returned by ``ffi.buffer(cdata)`` keeps alive the
@@ -193,9 +200,11 @@ buffer objects; ``ffi.buffer()`` actually calls the constructor.
 **ffi.from_buffer([cdecl,] python_buffer, require_writable=False)**:
 return an array cdata (by default a ``<cdata 'char[]'>``) that
 points to the data of the given Python object, which must support the
-buffer interface.  This is the opposite of ``ffi.buffer()``.  It gives
-a reference to the existing data, not a copy.
-It is meant to be used on objects
+buffer interface.  Note that ``ffi.from_buffer()`` turns a generic
+Python buffer object into a cdata object, whereas ``ffi.buffer()`` does
+the opposite conversion.  Both calls don't actually copy any data.
+
+``ffi.from_buffer()`` is meant to be used on objects
 containing large quantities of raw data, like bytearrays
 or ``array.array`` or numpy
 arrays.  It supports both the old *buffer* API (in Python 2.x) and the
