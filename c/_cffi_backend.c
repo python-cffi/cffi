@@ -6019,8 +6019,8 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         PyErr_SetString(PyExc_MemoryError,
             "Cannot allocate write+execute memory for ffi.callback(). "
             "You might be running on a system that prevents this. "
-            "For more information, see https://cffi.readthedocs.io/en/latest"
-            "/using.html#callbacks-old-style");
+            "For more information, see "
+            "https://cffi.readthedocs.io/en/latest/using.html#callbacks");
         return NULL;
     }
     cd = PyObject_GC_New(CDataObject_closure, &CDataOwningGC_Type);
