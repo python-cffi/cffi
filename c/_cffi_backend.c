@@ -4973,14 +4973,18 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                 goto error;
             }
         }
-        else if (ftype->ct_flags & CT_WITH_VAR_ARRAY) {
+        else if (ftype->ct_flags & (CT_STRUCT|CT_UNION)) {
+            if (force_lazy_struct(ftype) < 0)   /* for CT_WITH_VAR_ARRAY */
+                return NULL;
+
             /* GCC (or maybe C99) accepts var-sized struct fields that are not
                the last field of a larger struct.  That's why there is no
                check here for "last field": we propagate the flag
                CT_WITH_VAR_ARRAY to any struct that contains either an open-
                ended array or another struct that recursively contains an
                open-ended array. */
-            ct->ct_flags |= CT_WITH_VAR_ARRAY;
+            if (ftype->ct_flags & CT_WITH_VAR_ARRAY)
+                ct->ct_flags |= CT_WITH_VAR_ARRAY;
         }
 
         if (is_union)
