@@ -174,7 +174,7 @@
 #define CT_IS_BOOL             0x00080000
 #define CT_IS_FILE             0x00100000
 #define CT_IS_VOID_PTR         0x00200000
-#define CT_WITH_VAR_ARRAY      0x00400000
+#define CT_WITH_VAR_ARRAY      0x00400000 /* with open-ended array, anywhere */
 /* unused                      0x00800000 */
 #define CT_LAZY_FIELD_LIST     0x01000000
 #define CT_WITH_PACKED_CHANGE  0x02000000
@@ -1331,6 +1331,29 @@ convert_field_from_object(char *data, CFieldObject *cf, PyObject *value)
 }
 
 static int
+add_varsize_length(Py_ssize_t offset, Py_ssize_t itemsize,
+                   Py_ssize_t varsizelength, Py_ssize_t *optvarsize)
+{
+    /* update '*optvarsize' to account for an array of 'varsizelength'
+       elements, each of size 'itemsize', that starts at 'offset'. */
+    Py_ssize_t size = ADD_WRAPAROUND(offset,
+                              MUL_WRAPAROUND(itemsize, varsizelength));
+    if (size < 0 ||
+        ((size - offset) / itemsize) != varsizelength) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "array size would overflow a Py_ssize_t");
+        return -1;
+    }
+    if (size > *optvarsize)
+        *optvarsize = size;
+    return 0;
+}
+
+static int
+convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
+                           Py_ssize_t *optvarsize);  /* forward */
+
+static int
 convert_vfield_from_object(char *data, CFieldObject *cf, PyObject *value,
                            Py_ssize_t *optvarsize)
 {
@@ -1343,20 +1366,11 @@ convert_vfield_from_object(char *data, CFieldObject *cf, PyObject *value,
         if (optvarsize != NULL) {
             /* in this mode, the only purpose of this function is to compute
                the real size of the structure from a var-sized C99 array */
-            Py_ssize_t size, itemsize;
             assert(data == NULL);
-            itemsize = cf->cf_type->ct_itemdescr->ct_size;
-            size = ADD_WRAPAROUND(cf->cf_offset,
-                                  MUL_WRAPAROUND(itemsize, varsizelength));
-            if (size < 0 ||
-                ((size - cf->cf_offset) / itemsize) != varsizelength) {
-                PyErr_SetString(PyExc_OverflowError,
-                                "array size would overflow a Py_ssize_t");
-                return -1;
-            }
-            if (size > *optvarsize)
-                *optvarsize = size;
-            return 0;
+            return add_varsize_length(cf->cf_offset,
+                cf->cf_type->ct_itemdescr->ct_size,
+                varsizelength,
+                optvarsize);
         }
         /* if 'value' was only an integer, get_new_array_length() returns
            it and convert 'value' to be None.  Detect if this was the case,
@@ -1365,8 +1379,16 @@ convert_vfield_from_object(char *data, CFieldObject *cf, PyObject *value,
         if (value == Py_None)
             return 0;
     }
-    if (optvarsize == NULL)
+    if (optvarsize == NULL) {
         return convert_field_from_object(data, cf, value);
+    }
+    else if ((cf->cf_type->ct_flags & CT_WITH_VAR_ARRAY) != 0 &&
+             !CData_Check(value)) {
+        Py_ssize_t subsize = cf->cf_type->ct_size;
+        if (convert_struct_from_object(NULL, cf->cf_type, value, &subsize) < 0)
+            return -1;
+        return add_varsize_length(cf->cf_offset, 1, subsize, optvarsize);
+    }
     else
         return 0;
 }
@@ -4950,6 +4972,15 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                              ftype->ct_name);
                 goto error;
             }
+        }
+        else if (ftype->ct_flags & CT_WITH_VAR_ARRAY) {
+            /* GCC (or maybe C99) accepts var-sized struct fields that are not
+               the last field of a larger struct.  That's why there is no
+               check here for "last field": we propagate the flag
+               CT_WITH_VAR_ARRAY to any struct that contains either an open-
+               ended array or another struct that recursively contains an
+               open-ended array. */
+            ct->ct_flags |= CT_WITH_VAR_ARRAY;
         }
 
         if (is_union)

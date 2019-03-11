@@ -129,6 +129,36 @@ class TestFFI(backend_tests.BackendTests,
         alloc5 = ffi.new_allocator(myalloc5)
         py.test.raises(MemoryError, alloc5, "int[5]")
 
+    def test_new_struct_containing_struct_containing_array_varsize(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            struct foo_s { int len[100]; short data[]; };
+            struct bar_s { int abc[100]; struct foo_s tail; };
+        """)
+        # loop to try to detect heap overwrites, if the size allocated
+        # is too small
+        for i in range(1, 501, 100):
+            p = ffi.new("struct bar_s *", [[10], [[20], [3,4,5,6,7,8,9] * i]])
+            assert p.abc[0] == 10
+            assert p.tail.len[0] == 20
+            assert p.tail.data[0] == 3
+            assert p.tail.data[6] == 9
+            assert p.tail.data[7 * i - 1] == 9
+
+    def test_bogus_struct_containing_struct_containing_array_varsize(self):
+        ffi = FFI(backend=self.Backend())
+        ffi.cdef("""
+            struct foo_s { signed char len; signed char data[]; };
+            struct bar_s { struct foo_s foo; int bcd; };
+        """)
+        p = ffi.new("struct bar_s *", [[123, [45, 56, 67, 78]], 9999999])
+        assert p.foo.len == 123
+        assert p.foo.data[0] == 45
+        assert p.foo.data[1] == 56
+        assert p.foo.data[2] == 67
+        assert p.bcd == 9999999
+        assert p.foo.data[3] != 78   # has been overwritten with 9999999
+
 
 class TestBitfield:
     def check(self, source, expected_ofs_y, expected_align, expected_size):
