@@ -1,4 +1,5 @@
 import os, sys, math, py
+import pytest
 from cffi import FFI, FFIError, VerificationError, VerificationMissing, model
 from cffi import CDefError
 from cffi import recompiler
@@ -571,7 +572,8 @@ def test_struct_array_guess_length():
     assert ffi.sizeof('struct foo_s') == 19 * ffi.sizeof('int')
     s = ffi.new("struct foo_s *")
     assert ffi.sizeof(s.a) == 17 * ffi.sizeof('int')
-    py.test.raises(IndexError, 's.a[17]')
+    with pytest.raises(IndexError):
+        s.a[17]
 
 def test_struct_array_c99_1():
     if sys.platform == 'win32':
@@ -629,7 +631,8 @@ def test_struct_with_bitfield_exact():
     ffi.verify("struct foo_s { int a:2, b:3; };")
     s = ffi.new("struct foo_s *")
     s.b = 3
-    py.test.raises(OverflowError, "s.b = 4")
+    with pytest.raises(OverflowError):
+        s.b = 4
     assert s.b == 3
 
 def test_struct_with_bitfield_enum():
@@ -1433,8 +1436,10 @@ def test_bool():
     p = ffi.new("struct foo_s *")
     p.x = 1
     assert p.x is True
-    py.test.raises(OverflowError, "p.x = -1")
-    py.test.raises(TypeError, "p.x = 0.0")
+    with pytest.raises(OverflowError):
+        p.x = -1
+    with pytest.raises(TypeError):
+        p.x = 0.0
     assert lib.foop(1) is False
     assert lib.foop(True) is False
     assert lib.foop(0) is True
@@ -1502,7 +1507,8 @@ def test_cannot_pass_float():
                 }
             """ % (type, type))
             p = ffi.new("struct foo_s *")
-            py.test.raises(TypeError, "p.x = 0.0")
+            with pytest.raises(TypeError):
+                p.x = 0.0
             assert lib.foo(42) == 0
             assert lib.foo(0) == 1
             py.test.raises(TypeError, lib.foo, 0.0)
@@ -2193,7 +2199,8 @@ def test_define_wrong_value():
     ffi = FFI()
     ffi.cdef("#define FOO 123")
     lib = ffi.verify("#define FOO 124")     # used to complain
-    e = py.test.raises(ffi.error, "lib.FOO")
+    with pytest.raises(ffi.error) as e:
+        lib.FOO
     assert str(e.value) == ("the C compiler says 'FOO' is equal to 124 (0x7c),"
                             " but the cdef disagrees")
 
