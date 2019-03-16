@@ -22,7 +22,8 @@ else:
         extra_compile_args.append('-Qunused-arguments')
     else:
         # assume a standard gcc
-        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
+        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion',
+                              '-Wno-unused-parameter']
 
 class FFI(FFI):
     error = _cffi_backend.FFI.error
