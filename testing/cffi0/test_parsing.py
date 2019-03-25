@@ -466,3 +466,10 @@ def test_error_invalid_syntax_for_cdef():
     e = py.test.raises(CDefError, ffi.cdef, 'void foo(void) {}')
     assert str(e.value) == ('<cdef source string>:1: unexpected <FuncDef>: '
                             'this construct is valid C but not valid in cdef()')
+
+def test_unsigned_int_suffix_for_constant():
+    ffi = FFI()
+    ffi.cdef("""enum e {
+                    enumerator_0=0x00,
+                    enumerator_1=0x01u,
+                    enumerator_1=0x01U};""")

@@ -819,6 +819,8 @@ class Parser(object):
             s = exprnode.value
             if s.startswith('0'):
                 if s.startswith('0x') or s.startswith('0X'):
+                    if s.endswith('u') or s.endswith('U'):
+                        s = s[:-1]
                     return int(s, 16)
                 return int(s, 8)
             elif '1' <= s[0] <= '9':
