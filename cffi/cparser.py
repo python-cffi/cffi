@@ -817,12 +817,22 @@ class Parser(object):
         # or positive/negative number
         if isinstance(exprnode, pycparser.c_ast.Constant):
             s = exprnode.value
-            if s.startswith('0'):
-                if s.startswith('0x') or s.startswith('0X'):
-                    if s.endswith('u') or s.endswith('U'):
-                        s = s[:-1]
-                    return int(s, 16)
-                return int(s, 8)
+            if '0' <= s[0] <= '9':
+                s = s.rstrip('uUlL')  # remove integer constant suffix if any. this will remove pattern such as lL, but
+                # it is the responsibility of the C parser to perform this check.
+                try:  # first we try to convert to base 8/10, as it will fail if the string contains base 2/16 C prefix.
+                    if s.startswith('0'):
+                        return int(s, 8)
+                    else:
+                        return int(s, 10)
+                except ValueError:  # then it should be a base 2 or a base 16. it is necessary to explicitly check the
+                    # prefix, as python's int() function will be able to convert both (0b01 and 0x0b01) into base 16.
+                    if len(s) > 1:
+                        if s.lower()[0:2] == '0x':
+                            return int(s, 16)
+                        elif s.lower()[0:2] == '0b':
+                            return int(s, 2)
+                raise CDefError("invalid constant %r" % (s,))
             elif '1' <= s[0] <= '9':
                 return int(s, 10)
             elif s[0] == "'" and s[-1] == "'" and (
