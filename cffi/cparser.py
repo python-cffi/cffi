@@ -833,8 +833,6 @@ class Parser(object):
                         elif s.lower()[0:2] == '0b':
                             return int(s, 2)
                 raise CDefError("invalid constant %r" % (s,))
-            elif '1' <= s[0] <= '9':
-                return int(s, 10)
             elif s[0] == "'" and s[-1] == "'" and (
                     len(s) == 3 or (len(s) == 4 and s[1] == "\\")):
                 return ord(s[-2])
