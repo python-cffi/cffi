@@ -298,12 +298,15 @@ class TestBitfield:
 
     def test_error_cases(self):
         ffi = FFI()
-        py.test.raises(TypeError,
-            'ffi.cdef("struct s1 { float x:1; };"); ffi.new("struct s1 *")')
-        py.test.raises(TypeError,
-            'ffi.cdef("struct s2 { char x:0; };"); ffi.new("struct s2 *")')
-        py.test.raises(TypeError,
-            'ffi.cdef("struct s3 { char x:9; };"); ffi.new("struct s3 *")')
+        ffi.cdef("struct s1 { float x:1; };")
+        with pytest.raises(TypeError):
+            ffi.new("struct s1 *")
+        ffi.cdef("struct s2 { char x:0; };")
+        with pytest.raises(TypeError):
+            ffi.new("struct s2 *")
+        ffi.cdef("struct s3 { char x:9; };")
+        with pytest.raises(TypeError):
+            ffi.new("struct s3 *")
 
     def test_struct_with_typedef(self):
         ffi = FFI()
