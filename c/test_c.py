@@ -4361,3 +4361,5 @@ def test_int_doesnt_give_bool():
     BBool = new_primitive_type("_Bool")
     x = int(cast(BBool, 42))
     assert type(x) is int and x == 1
+    x = long(cast(BBool, 42))
+    assert type(x) is long and x == 1
