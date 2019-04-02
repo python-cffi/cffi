@@ -2193,7 +2193,10 @@ static PyObject *cdata_int(CDataObject *cd)
         return PyInt_FromLong(value);
     }
     if (cd->c_type->ct_flags & (CT_PRIMITIVE_SIGNED|CT_PRIMITIVE_UNSIGNED)) {
-        return convert_to_object(cd->c_data, cd->c_type);
+        PyObject *result = convert_to_object(cd->c_data, cd->c_type);
+        if (result != NULL && PyBool_Check(result))
+            result = PyInt_FromLong(PyInt_AsLong(result));
+        return result;
     }
     else if (cd->c_type->ct_flags & CT_PRIMITIVE_CHAR) {
         /*READ(cd->c_data, cd->c_type->ct_size)*/

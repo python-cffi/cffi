@@ -4356,3 +4356,8 @@ def test_explicit_release_bytearray_on_cpython():
     release(p)   # no effect
     a += b'w' * 1000
     assert a == bytearray(b"xyz" + b't' * 10 + b'v' * 100 + b'w' * 1000)
+
+def test_int_doesnt_give_bool():
+    BBool = new_primitive_type("_Bool")
+    x = int(cast(BBool, 42))
+    assert type(x) is int and x == 1
