@@ -21,7 +21,8 @@ else:
         extra_compile_args.append('-Qunused-arguments')
     else:
         # assume a standard gcc
-        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
+        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion',
+                              '-Wno-unused-parameter']
 
     class FFI(FFI):
         def verify(self, *args, **kwds):
@@ -2104,6 +2105,11 @@ def _run_in_multiple_threads(test1):
             raise errors[0][1]
 
 def test_errno_working_even_with_pypys_jit():
+    # NOTE: on some platforms, to work correctly, this test needs to be
+    # compiled with -pthread.  Otherwise, the accesses to errno done from f()
+    # are compiled by assuming this small library won't be used from multiple
+    # threads, which is wrong.  If you see failures _and_ if you pass your
+    # own CFLAGS environment variable, please make sure "-pthread" is in it.
     ffi = FFI()
     ffi.cdef("int f(int);")
     lib = ffi.verify("""
