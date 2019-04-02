@@ -4363,3 +4363,7 @@ def test_int_doesnt_give_bool():
     assert type(x) is int and x == 1
     x = long(cast(BBool, 42))
     assert type(x) is long and x == 1
+    with pytest.raises(TypeError):
+        float(cast(BBool, 42))
+    with pytest.raises(TypeError):
+        complex(cast(BBool, 42))
