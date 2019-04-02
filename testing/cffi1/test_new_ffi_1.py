@@ -574,7 +574,7 @@ class TestNewFFI1:
         #
         u = ffi.new("union simple_u*", [-2])
         assert u.a == -2
-        with py.test.raises((AttributeError, TypeError)):
+        with pytest.raises((AttributeError, TypeError)):
             del u.a
         assert repr(u) == "<cdata 'union simple_u *' owning %d bytes>" % (
             SIZE_OF_INT,)
