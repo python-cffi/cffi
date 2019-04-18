@@ -1,4 +1,5 @@
 import py
+import pytest
 from cffi import FFI, CDefError
 import math, os, sys
 import ctypes.util
@@ -90,7 +91,8 @@ class TestFunction(object):
         """)
         m = ffi.dlopen(lib_m)
         assert m.FOOBAR == 42
-        py.test.raises(NotImplementedError, "m.baz")
+        with pytest.raises(NotImplementedError):
+            m.baz
 
     def test_tlsalloc(self):
         if sys.platform != 'win32':

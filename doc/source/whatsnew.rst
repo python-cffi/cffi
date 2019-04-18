@@ -3,6 +3,17 @@ What's New
 ======================
 
 
+v1.12.3
+=======
+
+* Fix for nested struct types that end in a var-sized array (#405).
+
+* Add support for using ``U`` and ``L`` characters at the end of integer
+  constants in ``ffi.cdef()`` (thanks Guillaume).
+
+* More 3.8 fixes.
+
+
 v1.12.2
 =======
 

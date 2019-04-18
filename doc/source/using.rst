@@ -876,11 +876,27 @@ ffi.callback() and the result is the same.
       protections can interfere (for example, on SELinux you need to
       run with ``deny_execmem`` set to ``off``).
 
-    Note also that a cffi fix for the latter issue was attempted---see
+    - `On Mac OS X,`__ you need to give your application the entitlement
+      ``com.apple.security.cs.allow-unsigned-executable-memory``.
+
+    Note also that a cffi fix for this issue was attempted---see
     the ``ffi_closure_alloc`` branch---but was not merged because it
     creates potential `memory corruption`__ with ``fork()``.
 
+    In other words: yes, it is dangerous to allow write+execute memory in your
+    program; that's why the various "hardening" options above exist.  But at
+    the same time, these options open wide the door to another attack: if the
+    program forks and then attempts to call any of the ``ffi.callback()``, then
+    this immediately results in a crash---or, with a minimal amount of work
+    from an attacker, arbitrary code execution.  To me it sounds even more
+    dangerous than the original problem, and that's why cffi is not playing
+    along.
+
+    To fix the issue once and for all on the affected platforms, you need
+    to refactor the involved code so that it no longer uses ``ffi.callback()``.
+
 .. __: https://github.com/pyca/pyopenssl/issues/596
+.. __: https://bitbucket.org/cffi/cffi/issues/391/
 .. __: https://bugzilla.redhat.com/show_bug.cgi?id=1249685
 
 Warning: like ffi.new(), ffi.callback() returns a cdata that has

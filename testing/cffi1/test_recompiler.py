@@ -1,5 +1,6 @@
 
 import sys, os, py
+import pytest
 from cffi import FFI, VerificationError, FFIError, CDefError
 from cffi import recompiler
 from testing.udir import udir
@@ -188,20 +189,26 @@ def test_global_var_int():
     assert lib.a == -2
     lib.a = -2147483648
     assert lib.a == -2147483648
-    py.test.raises(OverflowError, "lib.a = 2147483648")
-    py.test.raises(OverflowError, "lib.a = -2147483649")
+    with pytest.raises(OverflowError):
+        lib.a = 2147483648
+    with pytest.raises(OverflowError):
+        lib.a = -2147483649
     lib.b = 525      # try with the first access being in setattr, too
     assert lib.b == 525
-    py.test.raises(AttributeError, "del lib.a")
-    py.test.raises(AttributeError, "del lib.c")
-    py.test.raises(AttributeError, "del lib.foobarbaz")
+    with pytest.raises(AttributeError):
+        del lib.a
+    with pytest.raises(AttributeError):
+        del lib.c
+    with pytest.raises(AttributeError):
+        del lib.foobarbaz
 
 def test_macro():
     ffi = FFI()
     ffi.cdef("#define FOOBAR ...")
     lib = verify(ffi, 'test_macro', "#define FOOBAR (-6912)")
     assert lib.FOOBAR == -6912
-    py.test.raises(AttributeError, "lib.FOOBAR = 2")
+    with pytest.raises(AttributeError):
+        lib.FOOBAR = 2
 
 def test_macro_check_value():
     # the value '-0x80000000' in C sources does not have a clear meaning
@@ -247,7 +254,8 @@ def test_constant():
     ffi.cdef("static const int FOOBAR;")
     lib = verify(ffi, 'test_constant', "#define FOOBAR (-6912)")
     assert lib.FOOBAR == -6912
-    py.test.raises(AttributeError, "lib.FOOBAR = 2")
+    with pytest.raises(AttributeError):
+        lib.FOOBAR = 2
 
 def test_check_value_of_static_const():
     ffi = FFI()
@@ -263,7 +271,8 @@ def test_constant_nonint():
     ffi.cdef("static const double FOOBAR;")
     lib = verify(ffi, 'test_constant_nonint', "#define FOOBAR (-6912.5)")
     assert lib.FOOBAR == -6912.5
-    py.test.raises(AttributeError, "lib.FOOBAR = 2")
+    with pytest.raises(AttributeError):
+        lib.FOOBAR = 2
 
 def test_constant_ptr():
     ffi = FFI()
@@ -315,8 +324,10 @@ def test_verify_struct():
     p = ffi.new("struct foo_s *", {'a': -32768, 'b': -2147483648})
     assert p.a == -32768
     assert p.b == -2147483648
-    py.test.raises(OverflowError, "p.a -= 1")
-    py.test.raises(OverflowError, "p.b -= 1")
+    with pytest.raises(OverflowError):
+        p.a -= 1
+    with pytest.raises(OverflowError):
+        p.b -= 1
     q = ffi.new("struct bar_s *", {'f': p})
     assert q.f == p
     #
@@ -387,8 +398,10 @@ def test_dotdotdot_length_of_array_field():
     assert ffi.sizeof("struct foo_s") == (42 + 11) * 4
     p = ffi.new("struct foo_s *")
     assert p.a[41] == p.b[10] == 0
-    py.test.raises(IndexError, "p.a[42]")
-    py.test.raises(IndexError, "p.b[11]")
+    with pytest.raises(IndexError):
+        p.a[42]
+    with pytest.raises(IndexError):
+        p.b[11]
 
 def test_dotdotdot_global_array():
     ffi = FFI()
@@ -398,8 +411,10 @@ def test_dotdotdot_global_array():
     assert ffi.sizeof(lib.aa) == 41 * 4
     assert ffi.sizeof(lib.bb) == 12 * 4
     assert lib.aa[40] == lib.bb[11] == 0
-    py.test.raises(IndexError, "lib.aa[41]")
-    py.test.raises(IndexError, "lib.bb[12]")
+    with pytest.raises(IndexError):
+        lib.aa[41]
+    with pytest.raises(IndexError):
+        lib.bb[12]
 
 def test_misdeclared_field_1():
     ffi = FFI()
@@ -1020,8 +1035,10 @@ def test_struct_array_guess_length_2():
     assert ffi.typeof(s.a) == ffi.typeof("int[5][8]")
     assert ffi.sizeof(s.a) == 40 * ffi.sizeof('int')
     assert s.a[4][7] == 0
-    py.test.raises(IndexError, 's.a[4][8]')
-    py.test.raises(IndexError, 's.a[5][0]')
+    with pytest.raises(IndexError):
+        s.a[4][8]
+    with pytest.raises(IndexError):
+        s.a[5][0]
     assert ffi.typeof(s.a) == ffi.typeof("int[5][8]")
     assert ffi.typeof(s.a[0]) == ffi.typeof("int[8]")
 
@@ -1034,7 +1051,8 @@ def test_struct_array_guess_length_3():
     s = ffi.new("struct foo_s *")
     assert ffi.typeof(s.a) == ffi.typeof("int[][7]")
     assert s.a[4][6] == 0
-    py.test.raises(IndexError, 's.a[4][7]')
+    with pytest.raises(IndexError):
+        s.a[4][7]
     assert ffi.typeof(s.a[0]) == ffi.typeof("int[7]")
 
 def test_global_var_array_2():
@@ -1043,8 +1061,10 @@ def test_global_var_array_2():
     lib = verify(ffi, 'test_global_var_array_2', 'int a[10][8];')
     lib.a[9][7] = 123456
     assert lib.a[9][7] == 123456
-    py.test.raises(IndexError, 'lib.a[0][8]')
-    py.test.raises(IndexError, 'lib.a[10][0]')
+    with pytest.raises(IndexError):
+        lib.a[0][8]
+    with pytest.raises(IndexError):
+        lib.a[10][0]
     assert ffi.typeof(lib.a) == ffi.typeof("int[10][8]")
     assert ffi.typeof(lib.a[0]) == ffi.typeof("int[8]")
 
@@ -1054,7 +1074,8 @@ def test_global_var_array_3():
     lib = verify(ffi, 'test_global_var_array_3', 'int a[10][8];')
     lib.a[9][7] = 123456
     assert lib.a[9][7] == 123456
-    py.test.raises(IndexError, 'lib.a[0][8]')
+    with pytest.raises(IndexError):
+        lib.a[0][8]
     assert ffi.typeof(lib.a) == ffi.typeof("int(*)[8]")
     assert ffi.typeof(lib.a[0]) == ffi.typeof("int[8]")
 
@@ -1064,8 +1085,10 @@ def test_global_var_array_4():
     lib = verify(ffi, 'test_global_var_array_4', 'int a[10][8];')
     lib.a[9][7] = 123456
     assert lib.a[9][7] == 123456
-    py.test.raises(IndexError, 'lib.a[0][8]')
-    py.test.raises(IndexError, 'lib.a[10][8]')
+    with pytest.raises(IndexError):
+        lib.a[0][8]
+    with pytest.raises(IndexError):
+        lib.a[10][8]
     assert ffi.typeof(lib.a) == ffi.typeof("int[10][8]")
     assert ffi.typeof(lib.a[0]) == ffi.typeof("int[8]")
 
@@ -1338,7 +1361,8 @@ def test_const_via_typedef():
         #define aaa 42
     """)
     assert lib.aaa == 42
-    py.test.raises(AttributeError, "lib.aaa = 43")
+    with pytest.raises(AttributeError):
+        lib.aaa = 43
 
 def test_win32_calling_convention_0():
     ffi = FFI()
