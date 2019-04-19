@@ -2338,7 +2338,11 @@ static PyObject *cdata_richcompare(PyObject *v, PyObject *w, int op)
     return pyres;
 }
 
-static long cdata_hash(CDataObject *v)
+#if PY_MAJOR_VERSION < 3
+typedef long Py_hash_t;
+#endif
+
+static Py_hash_t cdata_hash(PyObject *v)
 {
     if (((CDataObject *)v)->c_type->ct_flags & CT_PRIMITIVE_ANY) {
         PyObject *vv = convert_to_object(((CDataObject *)v)->c_data,
@@ -2346,13 +2350,13 @@ static long cdata_hash(CDataObject *v)
         if (vv == NULL)
             return -1;
         if (!CData_Check(vv)) {
-            long hash = PyObject_Hash(vv);
+            Py_hash_t hash = PyObject_Hash(vv);
             Py_DECREF(vv);
             return hash;
         }
         Py_DECREF(vv);
     }
-    return _Py_HashPointer(v->c_data);
+    return _Py_HashPointer(((CDataObject *)v)->c_data);
 }
 
 static Py_ssize_t
@@ -3296,7 +3300,7 @@ static PyTypeObject CData_Type = {
     &CData_as_number,                           /* tp_as_number */
     0,                                          /* tp_as_sequence */
     &CData_as_mapping,                          /* tp_as_mapping */
-    (hashfunc)cdata_hash,                       /* tp_hash */
+    cdata_hash,                                 /* tp_hash */
     (ternaryfunc)cdata_call,                    /* tp_call */
     0,                                          /* tp_str */
     (getattrofunc)cdata_getattro,               /* tp_getattro */
