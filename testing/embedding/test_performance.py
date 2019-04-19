@@ -2,8 +2,8 @@ import sys
 from testing.embedding.test_basic import EmbeddingTests
 
 if sys.platform == 'win32':
-    import py
-    py.test.skip("written with POSIX functions")
+    import pytest
+    pytestmark = pytest.mark.skip("written with POSIX functions")
 
 
 class TestPerformance(EmbeddingTests):
