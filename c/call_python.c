@@ -24,6 +24,7 @@ static PyObject *_get_interpstate_dict(void)
     PyThreadState *tstate;
     PyObject *d, *interpdict;
     int err;
+    PyInterpreterState *interp;
 
     tstate = PyThreadState_GET();
     if (tstate == NULL) {
@@ -31,7 +32,7 @@ static PyObject *_get_interpstate_dict(void)
         return NULL;
     }
 
-    PyInterpreterState *interp = tstate->interp;
+    interp = tstate->interp;
 #ifdef HAVE_PYINTERPSTATE_GETDICT
     interpdict = PyInterpreterState_GetDict(interp);   /* shared reference */
 #else
