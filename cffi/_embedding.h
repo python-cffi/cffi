@@ -145,6 +145,7 @@ static int _cffi_initialize_python(void)
     int result;
     PyGILState_STATE state;
     PyObject *pycode=NULL, *global_dict=NULL, *x;
+    PyObject *builtins;
 
     state = PyGILState_Ensure();
 
@@ -169,7 +170,7 @@ static int _cffi_initialize_python(void)
     global_dict = PyDict_New();
     if (global_dict == NULL)
         goto error;
-    PyObject *builtins = PyEval_GetBuiltins();
+    builtins = PyEval_GetBuiltins();
     if (builtins == NULL)
         goto error;
     if (PyDict_SetItemString(global_dict, "__builtins__", builtins) < 0)
