@@ -858,15 +858,28 @@ class Parser(object):
                            "the actual array length in this context"
                            % exprnode.coord.line)
         #
-        if (isinstance(exprnode, pycparser.c_ast.BinaryOp) and
-                exprnode.op == '+'):
-            return (self._parse_constant(exprnode.left) +
-                    self._parse_constant(exprnode.right))
-        #
-        if (isinstance(exprnode, pycparser.c_ast.BinaryOp) and
-                exprnode.op == '-'):
-            return (self._parse_constant(exprnode.left) -
-                    self._parse_constant(exprnode.right))
+        if isinstance(exprnode, pycparser.c_ast.BinaryOp):
+            left = self._parse_constant(exprnode.left)
+            right = self._parse_constant(exprnode.right)
+            if exprnode.op == '+':
+                return left + right
+            elif exprnode.op == '-':
+                return left - right
+            elif exprnode.op == '*':
+                return left * right
+            elif exprnode.op == '/':
+                # do integer division!
+                return left // right
+            elif exprnode.op == '<<':
+                return left << right
+            elif exprnode.op == '>>':
+                return left >> right
+            elif exprnode.op == '&':
+                return left & right
+            elif exprnode.op == '|':
+                return left | right
+            elif exprnode.op == '^':
+                return left ^ right
         #
         raise FFIError(":%d: unsupported expression: expected a "
                        "simple numeric constant" % exprnode.coord.line)
