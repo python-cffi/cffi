@@ -868,8 +868,9 @@ class Parser(object):
             elif exprnode.op == '*':
                 return left * right
             elif exprnode.op == '/':
-                # do integer division!
-                return left // right
+                return self._c_div(left, right)
+            elif exprnode.op == '%':
+                return left - self._c_div(left, right) * right
             elif exprnode.op == '<<':
                 return left << right
             elif exprnode.op == '>>':
@@ -883,6 +884,12 @@ class Parser(object):
         #
         raise FFIError(":%d: unsupported expression: expected a "
                        "simple numeric constant" % exprnode.coord.line)
+
+    def _c_div(self, a, b):
+        result = a // b
+        if ((a < 0) ^ (b < 0)) and (a % b) != 0:
+            result += 1
+        return result
 
     def _build_enum_type(self, explicit_name, decls):
         if decls is not None:
