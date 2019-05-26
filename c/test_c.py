@@ -3843,7 +3843,9 @@ def test_from_buffer_types():
     BIntP = new_pointer_type(BInt)
     BIntA = new_array_type(BIntP, None)
     lst = [-12345678, 87654321, 489148]
-    bytestring = buffer(newp(BIntA, lst))[:] + b'XYZ'
+    bytestring = bytearray(buffer(newp(BIntA, lst))[:] + b'XYZ')
+    lst2 = lst + [42, -999999999]
+    bytestring2 = bytearray(buffer(newp(BIntA, lst2))[:] + b'XYZ')
     #
     p1 = from_buffer(BIntA, bytestring)      # int[]
     assert typeof(p1) is BIntA
@@ -3857,7 +3859,17 @@ def test_from_buffer_types():
         p1[-1]
     #
     py.test.raises(TypeError, from_buffer, BInt, bytestring)
-    py.test.raises(TypeError, from_buffer, BIntP, bytestring)
+    #
+    p2 = from_buffer(BIntP, bytestring)      # int *
+    assert p2 == p1
+    assert typeof(p2) is BIntP
+    assert p2[0] == lst[0]
+    with pytest.raises(IndexError):
+        p2[1]
+    with pytest.raises(IndexError):
+        p2[-1]
+    with pytest.raises(ValueError):
+        from_buffer(BIntP, b"abc")      # not enough data
     #
     BIntA2 = new_array_type(BIntP, 2)
     p2 = from_buffer(BIntA2, bytestring)     # int[2]
@@ -3879,13 +3891,45 @@ def test_from_buffer_types():
                                        ('a2', BInt, -1)])
     BStructP = new_pointer_type(BStruct)
     BStructA = new_array_type(BStructP, None)
-    p1 = from_buffer(BStructA, bytestring)   # struct[]
-    assert len(p1) == 1
+    p1 = from_buffer(BStructA, bytestring2)   # struct[]
+    assert len(p1) == 2
     assert typeof(p1) is BStructA
-    assert p1[0].a1 == lst[0]
-    assert p1[0].a2 == lst[1]
+    assert p1[0].a1 == lst2[0]
+    assert p1[0].a2 == lst2[1]
+    assert p1[1].a1 == lst2[2]
+    assert p1[1].a2 == lst2[3]
     with pytest.raises(IndexError):
-        p1[1]
+        p1[2]
+    with pytest.raises(IndexError):
+        p1[-1]
+    assert repr(p1) == "<cdata 'foo[]' buffer len 2 from 'bytearray' object>"
+    #
+    p2 = from_buffer(BStructP, bytestring2)    # 'struct *'
+    assert p2 == p1
+    assert typeof(p2) is BStructP
+    assert p2.a1 == lst2[0]
+    assert p2.a2 == lst2[1]
+    assert p2[0].a1 == lst2[0]
+    assert p2[0].a2 == lst2[1]
+    with pytest.raises(IndexError):
+        p2[1]
+    with pytest.raises(IndexError):
+        p2[-1]
+    with pytest.raises(ValueError):
+        from_buffer(BStructP, b"1234567")     # not enough data
+    #
+    release(p1)
+    assert repr(p1) == "<cdata 'foo[]' buffer RELEASED>"
+    #
+    # keepalive behaviour similar to newp()
+    plst = []
+    for i in range(100):
+        plst.append(from_buffer(BStructP, buffer(newp(BStructP, [i, -i])))[0])
+        if i % 10 == 5:
+            import gc; gc.collect()
+    for i in range(len(plst)):
+        assert plst[i].a1 == i
+        assert plst[i].a2 == -i
     #
     BEmptyStruct = new_struct_type("empty")
     complete_struct_or_union(BEmptyStruct, [], Ellipsis, 0)
@@ -3900,6 +3944,36 @@ def test_from_buffer_types():
     assert typeof(p1) is BEmptyStructA5
     assert len(p1) == 5
     assert cast(BIntP, p1) == from_buffer(BIntA, bytestring)
+    #
+    BVarStruct = new_struct_type("varfoo")
+    BVarStructP = new_pointer_type(BVarStruct)
+    complete_struct_or_union(BVarStruct, [('a1', BInt, -1),
+                                          ('va', BIntA, -1)])
+    with pytest.raises(TypeError):
+        from_buffer(BVarStruct, bytestring)
+    pv = from_buffer(BVarStructP, bytestring)    # varfoo *
+    assert pv.a1 == lst[0]
+    assert pv.va[0] == lst[1]
+    assert pv.va[1] == lst[2]
+    assert sizeof(pv[0]) == 3 * size_of_int()
+    assert len(pv.va) == 2
+    with pytest.raises(IndexError):
+        pv.va[2]
+    with pytest.raises(IndexError):
+        pv.va[-1]
+    with pytest.raises(ValueError):
+        from_buffer(BVarStructP, b"123")     # not enough data
+    assert repr(pv) == "<cdata 'varfoo *' buffer from 'bytearray' object>"
+    assert repr(pv[0]) == "<cdata 'varfoo' buffer from 'bytearray' object>"
+    #
+    release(pv)
+    assert repr(pv) == "<cdata 'varfoo *' buffer RELEASED>"
+    assert repr(pv[0]) == "<cdata 'varfoo' buffer RELEASED>"
+    #
+    pv = from_buffer(BVarStructP, bytestring)    # make a fresh one
+    release(pv[0])
+    assert repr(pv) == "<cdata 'varfoo *' buffer RELEASED>"
+    assert repr(pv[0]) == "<cdata 'varfoo' buffer RELEASED>"
 
 def test_memmove():
     Short = new_primitive_type("short")
@@ -4325,8 +4399,10 @@ def test_explicit_release_from_buffer():
     BCharA = new_array_type(BCharP, None)
     p = from_buffer(BCharA, a)
     assert p[2] == b"z"
+    assert repr(p) == "<cdata 'char[]' buffer len 3 from 'bytearray' object>"
     release(p)
     assert p[2] == b"z"  # true so far, but might change to raise RuntimeError
+    assert repr(p) == "<cdata 'char[]' buffer RELEASED>"
     release(p)   # no effect
 
 def test_explicit_release_from_buffer_contextmgr():
@@ -4338,6 +4414,7 @@ def test_explicit_release_from_buffer_contextmgr():
     with p:
         assert p[2] == b"z"
     assert p[2] == b"z"  # true so far, but might change to raise RuntimeError
+    assert repr(p) == "<cdata 'char[]' buffer RELEASED>"
     release(p)   # no effect
 
 def test_explicit_release_bytearray_on_cpython():
