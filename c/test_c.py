@@ -3861,7 +3861,8 @@ def test_from_buffer_types():
     py.test.raises(TypeError, from_buffer, BInt, bytestring)
     #
     p2 = from_buffer(BIntP, bytestring)      # int *
-    assert p2 == p1
+    assert p2 == p1 or 'PY_DOT_PY' in globals()
+    # note: on py.py ^^^, bytearray buffers are not emulated well enough
     assert typeof(p2) is BIntP
     assert p2[0] == lst[0]
     assert p2[1] == lst[1]
@@ -3882,7 +3883,7 @@ def test_from_buffer_types():
         p2[2]
     with pytest.raises(IndexError):
         p2[-1]
-    assert p2 == p1
+    assert p2 == p1 or 'PY_DOT_PY' in globals()
     #
     BIntA4 = new_array_type(BIntP, 4)        # int[4]: too big
     py.test.raises(ValueError, from_buffer, BIntA4, bytestring)
@@ -3906,7 +3907,7 @@ def test_from_buffer_types():
     assert repr(p1) == "<cdata 'foo[]' buffer len 2 from 'bytearray' object>"
     #
     p2 = from_buffer(BStructP, bytestring2)    # 'struct *'
-    assert p2 == p1
+    assert p2 == p1 or 'PY_DOT_PY' in globals()
     assert typeof(p2) is BStructP
     assert p2.a1 == lst2[0]
     assert p2.a2 == lst2[1]
@@ -3936,7 +3937,8 @@ def test_from_buffer_types():
     p1 = from_buffer(BEmptyStructA5, bytestring)   # struct empty[5]
     assert typeof(p1) is BEmptyStructA5
     assert len(p1) == 5
-    assert cast(BIntP, p1) == from_buffer(BIntA, bytestring)
+    assert (cast(BIntP, p1) == from_buffer(BIntA, bytestring)
+            or 'PY_DOT_PY' in globals())
     #
     BVarStruct = new_struct_type("varfoo")
     BVarStructP = new_pointer_type(BVarStruct)
