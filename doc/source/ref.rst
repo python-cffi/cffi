@@ -248,15 +248,11 @@ the keyword argument ``require_writable``:
   keeps the underlying Python object alive and locked.  (In addition,
   ``ffi.from_buffer("int[]", x)`` gives better array bound checking.)
 
-  *New in version 1.13:* ``cdecl`` can be a pointer type.  Then
-  ``from_buffer()`` raises a ValueError only if the type pointed to is of
-  known size and the buffer is smaller than that; but note that the result
-  ``p`` can only be indexed with ``p[0]`` even if the buffer is large enough
-  to contain several copies of the type.  If the type is a struct or union,
-  this allows you to write ``p.field`` instead of the required ``p[0].field``
-  if you had called ``from_buffer("struct s[1]")``; and also, in this case
-  either ``p`` or ``p[0]`` can be used to keep the buffer alive, similarly
-  to ``ffi.new()``.
+  *New in version 1.13:* ``cdecl`` can be a pointer type.  If it points
+  to a struct or union, you can, as usual, write ``p.field`` instead of
+  ``p[0].field``.  You can also access ``p[n]``; note that CFFI does not
+  perform any bounds checking in this case.  Note also that ``p[0]`` cannot
+  be used to keep the buffer alive (unlike what occurs with ``ffi.new()``).
 
 * if ``require_writable`` is set to True, the function fails if the buffer
   obtained from ``python_buffer`` is read-only (e.g. if ``python_buffer`` is

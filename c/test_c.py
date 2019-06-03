@@ -3864,12 +3864,13 @@ def test_from_buffer_types():
     assert p2 == p1
     assert typeof(p2) is BIntP
     assert p2[0] == lst[0]
-    with pytest.raises(IndexError):
-        p2[1]
-    with pytest.raises(IndexError):
-        p2[-1]
-    with pytest.raises(ValueError):
-        from_buffer(BIntP, b"abc")      # not enough data
+    assert p2[1] == lst[1]
+    assert p2[2] == lst[2]
+    # hopefully does not crash, but doesn't raise an exception:
+    p2[3]
+    p2[-1]
+    # not enough data even for one, but this is not enforced:
+    from_buffer(BIntP, b"")
     #
     BIntA2 = new_array_type(BIntP, 2)
     p2 = from_buffer(BIntA2, bytestring)     # int[2]
@@ -3911,25 +3912,17 @@ def test_from_buffer_types():
     assert p2.a2 == lst2[1]
     assert p2[0].a1 == lst2[0]
     assert p2[0].a2 == lst2[1]
-    with pytest.raises(IndexError):
-        p2[1]
-    with pytest.raises(IndexError):
-        p2[-1]
-    with pytest.raises(ValueError):
-        from_buffer(BStructP, b"1234567")     # not enough data
+    assert p2[1].a1 == lst2[2]
+    assert p2[1].a2 == lst2[3]
+    # does not crash:
+    p2[2]
+    p2[-1]
+    # not enough data even for one, but this is not enforced:
+    from_buffer(BStructP, b"")
+    from_buffer(BStructP, b"1234567")
     #
     release(p1)
     assert repr(p1) == "<cdata 'foo[]' buffer RELEASED>"
-    #
-    # keepalive behaviour similar to newp()
-    plst = []
-    for i in range(100):
-        plst.append(from_buffer(BStructP, buffer(newp(BStructP, [i, -i])))[0])
-        if i % 10 == 5:
-            import gc; gc.collect()
-    for i in range(len(plst)):
-        assert plst[i].a1 == i
-        assert plst[i].a2 == -i
     #
     BEmptyStruct = new_struct_type("empty")
     complete_struct_or_union(BEmptyStruct, [], Ellipsis, 0)
@@ -3955,25 +3948,24 @@ def test_from_buffer_types():
     assert pv.a1 == lst[0]
     assert pv.va[0] == lst[1]
     assert pv.va[1] == lst[2]
-    assert sizeof(pv[0]) == 3 * size_of_int()
-    assert len(pv.va) == 2
-    with pytest.raises(IndexError):
-        pv.va[2]
-    with pytest.raises(IndexError):
-        pv.va[-1]
-    with pytest.raises(ValueError):
-        from_buffer(BVarStructP, b"123")     # not enough data
+    assert sizeof(pv[0]) == 1 * size_of_int()
+    with pytest.raises(TypeError):
+        len(pv.va)
+    # hopefully does not crash, but doesn't raise an exception:
+    pv.va[2]
+    pv.va[-1]
+    # not enough data even for one, but this is not enforced:
+    from_buffer(BVarStructP, b"")
     assert repr(pv) == "<cdata 'varfoo *' buffer from 'bytearray' object>"
-    assert repr(pv[0]) == "<cdata 'varfoo' buffer from 'bytearray' object>"
+    assert repr(pv[0]).startswith("<cdata 'varfoo &' ")
     #
     release(pv)
     assert repr(pv) == "<cdata 'varfoo *' buffer RELEASED>"
-    assert repr(pv[0]) == "<cdata 'varfoo' buffer RELEASED>"
+    assert repr(pv[0]).startswith("<cdata 'varfoo &' ")
     #
     pv = from_buffer(BVarStructP, bytestring)    # make a fresh one
-    release(pv[0])
-    assert repr(pv) == "<cdata 'varfoo *' buffer RELEASED>"
-    assert repr(pv[0]) == "<cdata 'varfoo' buffer RELEASED>"
+    with pytest.raises(ValueError):
+        release(pv[0])
 
 def test_memmove():
     Short = new_primitive_type("short")

@@ -248,8 +248,7 @@ static PyTypeObject CDataGCP_Type;
                                Py_TYPE(ob) == &CDataFromBuf_Type ||     \
                                Py_TYPE(ob) == &CDataGCP_Type)
 #define CDataOwn_Check(ob)    (Py_TYPE(ob) == &CDataOwning_Type ||      \
-                               Py_TYPE(ob) == &CDataOwningGC_Type ||    \
-                               Py_TYPE(ob) == &CDataFromBuf_Type)
+                               Py_TYPE(ob) == &CDataOwningGC_Type)
 
 typedef union {
     unsigned char m_char;
@@ -280,8 +279,7 @@ typedef struct {
 
 typedef struct {
     CDataObject head;
-    PyObject *structobj;   /* for ffi.new_handle(), ffi.new("struct *"),
-                              or ffi.from_buffer("struct *") */
+    PyObject *structobj;   /* for ffi.new_handle() or ffi.new("struct *") */
 } CDataObject_own_structptr;
 
 typedef struct {
@@ -1857,7 +1855,7 @@ static void cdataowning_dealloc(CDataObject *cd)
     assert(!(cd->c_type->ct_flags & (CT_IS_VOID_PTR | CT_FUNCTIONPTR)));
 
     if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
-        /* for ffi.new("struct *") or ffi.from_buffer("struct *") */
+        /* for ffi.new("struct *") */
         Py_DECREF(((CDataObject_own_structptr *)cd)->structobj);
     }
 #if defined(CFFI_MEM_DEBUG) || defined(CFFI_MEM_LEAK)
@@ -2164,15 +2162,7 @@ static PyObject *_frombuf_repr(CDataObject *cd, const char *cd_type_name)
 
 static PyObject *cdataowning_repr(CDataObject *cd)
 {
-    Py_ssize_t size;
-
-    if (cd->c_type->ct_flags & CT_IS_PTR_TO_OWNED) {
-        PyObject *x = ((CDataObject_own_structptr *)cd)->structobj;
-        if (Py_TYPE(x) == &CDataFromBuf_Type)
-            return _frombuf_repr((CDataObject *)x, cd->c_type->ct_name);
-    }
-
-    size = _cdata_var_byte_size(cd);
+    Py_ssize_t size = _cdata_var_byte_size(cd);
     if (size < 0) {
         if (cd->c_type->ct_flags & CT_POINTER)
             size = cd->c_type->ct_itemdescr->ct_size;
@@ -3214,7 +3204,7 @@ static int explicit_release_case(PyObject *cd)
     CTypeDescrObject *ct = ((CDataObject *)cd)->c_type;
     if (Py_TYPE(cd) == &CDataOwning_Type) {
         if ((ct->ct_flags & (CT_POINTER | CT_ARRAY)) != 0)   /* ffi.new() */
-            return 0;                             /* or ffi.from_buffer() */
+            return 0;
     }
     else if (Py_TYPE(cd) == &CDataFromBuf_Type) {
         return 1;    /* ffi.from_buffer() */
@@ -3256,11 +3246,6 @@ static PyObject *cdata_exit(PyObject *cd, PyObject *args)
                     /* this is a special case for
                        ffi.new_allocator()("struct-or-union *") */
                     cdatagcp_finalize((CDataObject_gcp *)x);
-                }
-                else if (Py_TYPE(x) == &CDataFromBuf_Type) {
-                    /* special case for ffi.from_buffer("struct *") */
-                    view = ((CDataObject_frombuf *)x)->bufferview;
-                    PyBuffer_Release(view);
                 }
             }
             break;
@@ -3497,7 +3482,7 @@ static PyTypeObject CDataFromBuf_Type = {
     0,  /* inherited */                         /* tp_methods */
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
-    &CDataOwning_Type,                          /* tp_base */
+    &CData_Type,                                /* tp_base */
     0,                                          /* tp_dict */
     0,                                          /* tp_descr_get */
     0,                                          /* tp_descr_set */
@@ -6952,13 +6937,12 @@ static int _my_PyObject_GetContiguousBuffer(PyObject *x, Py_buffer *view,
     return 0;
 }
 
-static PyObject *direct_from_buffer(CTypeDescrObject *ct1, PyObject *x,
+static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x,
                                     int require_writable)
 {
     CDataObject *cd;
-    CTypeDescrObject *ct = ct1;
     Py_buffer *view;
-    Py_ssize_t arraylength, minimumlength = -1;
+    Py_ssize_t arraylength, minimumlength = 0;
 
     if (!(ct->ct_flags & (CT_ARRAY | CT_POINTER))) {
         PyErr_Format(PyExc_TypeError,
@@ -6987,25 +6971,7 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct1, PyObject *x,
 
     if (ct->ct_flags & CT_POINTER)
     {
-        /* from_buffer("T*"): return a cdata pointer.  Complain if the
-           size of the buffer is known to be smaller than sizeof(T),
-           i.e. never complain if sizeof(T) is not known at all. */
-        CTypeDescrObject *ctitem = ct->ct_itemdescr;
-        minimumlength = ctitem->ct_size;   /* maybe -1 */
-        arraylength = -1;
-
-        if (ct->ct_flags & CT_IS_PTR_TO_OWNED) {
-            ct = ctitem;
-            if (force_lazy_struct(ct) < 0)   /* for CT_WITH_VAR_ARRAY */
-                return NULL;
-
-            if (ct->ct_flags & CT_WITH_VAR_ARRAY) {
-                assert(ct1->ct_flags & CT_IS_PTR_TO_OWNED);
-                arraylength = view->len;
-                if (ct->ct_size > 1)
-                    arraylength = (arraylength / ct->ct_size) * ct->ct_size;
-            }
-        }
+        arraylength = view->len;   /* number of bytes, not used so far */
     }
     else {
         /* ct->ct_flags & CT_ARRAY */
@@ -7058,21 +7024,6 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct1, PyObject *x,
     ((CDataObject_frombuf *)cd)->length = arraylength;
     ((CDataObject_frombuf *)cd)->bufferview = view;
     PyObject_GC_Track(cd);
-
-    if (ct1->ct_flags & CT_IS_PTR_TO_OWNED)     /* ptr-to-struct/union */
-    {
-        CDataObject *cds = cd;
-        cd = allocate_owning_object(sizeof(CDataObject_own_structptr), ct1,
-                                    /*dont_clear=*/1);
-        if (cd == NULL) {
-            Py_DECREF(cds);
-            goto error2;
-        }
-        /* store the only reference to cds into cd */
-        ((CDataObject_own_structptr *)cd)->structobj = (PyObject *)cds;
-
-        cd->c_data = cds->c_data;
-    }
     return (PyObject *)cd;
 
  error2:

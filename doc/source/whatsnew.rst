@@ -7,13 +7,9 @@ v1.13
 =====
 
 * ``ffi.from_buffer("type *", ..)`` is now supported, in addition to
-  ``"type[]"``.  This is useful for buffers that contain only one ``type``.
-  (The ``type`` can also be a structure with an open-ended array as the last
-  item.)  You can then write ``p.field`` to access the items, instead of
-  ``p[0].field``.  The expression ``p[0]`` by itself behaves like it does
-  for ``p = ffi.new("struct-or-union *")``: you get a cdata object whose
-  type is the structure or union, but which keeps alive the original buffer
-  object even if ``p`` goes out of scope.
+  ``"type[]"``.  You can then write ``p.field`` to access the items, instead
+  of ``p[0].field``.  Be careful that no bounds checking is performed, so
+  ``p[n]`` might access data out of bounds.
 
 
 v1.12.3
