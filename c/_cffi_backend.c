@@ -5275,16 +5275,18 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     prev_bitfield_free -= fbitsize;
                     field_offset_bytes = boffset / 8 - ftype->ct_size;
                 }
-
                 if (sflags & SF_GCC_BIG_ENDIAN)
                     bitshift = 8 * ftype->ct_size - fbitsize - bitshift;
 
-                *previous = _add_field(interned_fields, fname, ftype,
+                if (PyText_GetSize(fname) > 0) {
+
+                    *previous = _add_field(interned_fields, fname, ftype,
                                        field_offset_bytes, bitshift, fbitsize,
                                        fflags);
-                if (*previous == NULL)
-                    goto error;
-                previous = &(*previous)->cf_next;
+                    if (*previous == NULL)
+                        goto error;
+                    previous = &(*previous)->cf_next;
+                }
             }
         }
 
