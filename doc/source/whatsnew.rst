@@ -11,6 +11,8 @@ v1.13
   of ``p[0].field``.  Be careful that no bounds checking is performed, so
   ``p[n]`` might access data out of bounds.
 
+* fix for structs containing unnamed bitfields like ``int : 1;``.
+
 
 v1.12.3
 =======
