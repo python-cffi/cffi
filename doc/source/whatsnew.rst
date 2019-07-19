@@ -8,7 +8,7 @@ v1.13
 
 * ``ffi.from_buffer("type *", ..)`` is now supported, in addition to
   ``"type[]"``.  You can then write ``p.field`` to access the items, instead
-  of ``p[0].field``.  Be careful that no bounds checking is performed, so
+  of only ``p[0].field``.  Be careful that no bounds checking is performed, so
   ``p[n]`` might access data out of bounds.
 
 * fix for structs containing unnamed bitfields like ``int : 1;``.
