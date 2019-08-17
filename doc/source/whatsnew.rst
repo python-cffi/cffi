@@ -13,6 +13,9 @@ v1.13
 
 * fix for structs containing unnamed bitfields like ``int : 1;``.
 
+* when calling cdata of "function pointer" type, give a RuntimeError instead
+  of a crash if the pointer happens to be NULL
+
 
 v1.12.3
 =======
