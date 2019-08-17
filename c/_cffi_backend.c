@@ -2997,6 +2997,12 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
                      cd->c_type->ct_name);
         return NULL;
     }
+    if (cd->c_data == NULL) {
+        PyErr_Format(PyExc_RuntimeError,
+                     "cannot call null pointer pointer from cdata '%s'",
+                     cd->c_type->ct_name);
+        return NULL;
+    }
     if (kwds != NULL && PyDict_Size(kwds) != 0) {
         PyErr_SetString(PyExc_TypeError,
                 "a cdata function cannot be called with keyword arguments");
