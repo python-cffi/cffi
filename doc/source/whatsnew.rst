@@ -16,6 +16,15 @@ v1.13
 * when calling cdata of "function pointer" type, give a RuntimeError instead
   of a crash if the pointer happens to be NULL
 
+* support some more binary operations between constants in enum definitions
+  (PR #96)
+
+* silence a warning incorrectly emitted if you use a quote in a preprocessor
+  line
+
+* detect a corner case that would throw the C code into an infinite
+  recursion, with ``ffi.cdef("""struct X { void(*fnptr)(struct X); };""")``
+
 
 v1.12.3
 =======
