@@ -17,7 +17,7 @@ def setup_module(mod):
     int add43(int x, ...) { return x; }
     int globalvar42 = 1234;
     const int globalconst42 = 4321;
-    const char *const globalconsthello;
+    const char *const globalconsthello = "hello";
     struct foo_s;
     typedef struct bar_s { int x; signed char a[]; } bar_t;
     enum foo_e { AA, BB, CC };
@@ -65,7 +65,7 @@ def setup_module(mod):
     int add43(int, ...);
     int globalvar42;
     const int globalconst42;
-    const char *const globalconsthello = "hello";
+    const char *const globalconsthello;
     int no_such_function(int);
     int no_such_globalvar;
     struct foo_s;
