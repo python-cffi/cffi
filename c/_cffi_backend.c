@@ -4986,12 +4986,16 @@ static int detect_custom_layout(CTypeDescrObject *ct, int sflags,
     return 0;
 }
 
+#define ROUNDUP_BYTES(bytes, bits)    ((bytes) + ((bits) > 0))
+
 static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
     PyObject *fields, *interned_fields, *ignored;
     int is_union, alignment;
-    Py_ssize_t boffset, i, nb_fields, boffsetmax, alignedsize, boffsetorg;
+    Py_ssize_t byteoffset, i, nb_fields, byteoffsetmax, alignedsize;
+    int bitoffset;
+    Py_ssize_t byteoffsetorg;
     Py_ssize_t totalsize = -1;
     int totalalignment = -1;
     CFieldObject **previous;
@@ -5030,8 +5034,9 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     ct->ct_flags &= ~(CT_CUSTOM_FIELD_POS | CT_WITH_PACKED_CHANGE);
 
     alignment = 1;
-    boffset = 0;         /* this number is in *bits*, not bytes! */
-    boffsetmax = 0;      /* the maximum value of boffset, in bits too */
+    byteoffset = 0;     /* the real value is 'byteoffset+bitoffset*8', which */
+    bitoffset = 0;      /* counts the offset in bits */
+    byteoffsetmax = 0; /* the maximum value of byteoffset-rounded-up-to-byte */
     prev_bitfield_size = 0;
     prev_bitfield_free = 0;
     nb_fields = PyList_GET_SIZE(fields);
@@ -5081,7 +5086,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         }
 
         if (is_union)
-            boffset = 0;   /* reset each field at offset 0 */
+            byteoffset = bitoffset = 0;   /* reset each field at offset 0 */
 
         /* update the total alignment requirement, but skip it if the
            field is an anonymous bitfield or if SF_PACKED */
@@ -5116,20 +5121,26 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                 bs_flag = BS_REGULAR;
 
             /* align this field to its own 'falign' by inserting padding */
-            boffsetorg = (boffset + falignorg*8-1) & ~(falignorg*8-1); /*bits!*/
-            boffset = (boffset + falign*8-1) & ~(falign*8-1); /* bits! */
-            if (boffsetorg != boffset) {
+
+            /* first, pad to the next byte,
+             * then pad to 'falign' or 'falignorg' bytes */
+            byteoffset = ROUNDUP_BYTES(byteoffset, bitoffset);
+            bitoffset = 0;
+            byteoffsetorg = (byteoffset + falignorg-1) & ~(falignorg-1);
+            byteoffset = (byteoffset + falign-1) & ~(falign-1);
+
+            if (byteoffsetorg != byteoffset) {
                 ct->ct_flags |= CT_WITH_PACKED_CHANGE;
             }
 
             if (foffset >= 0) {
                 /* a forced field position: ignore the offset just computed,
                    except to know if we must set CT_CUSTOM_FIELD_POS */
-                if (detect_custom_layout(ct, sflags, boffset / 8, foffset,
+                if (detect_custom_layout(ct, sflags, byteoffset, foffset,
                                          "wrong offset for field '",
                                          PyText_AS_UTF8(fname), "'") < 0)
                     goto error;
-                boffset = foffset * 8;
+                byteoffset = foffset;
             }
 
             if (PyText_GetSize(fname) == 0 &&
@@ -5143,7 +5154,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     *previous = _add_field(interned_fields,
                                            get_field_name(ftype, cfsrc),
                                            cfsrc->cf_type,
-                                           boffset / 8 + cfsrc->cf_offset,
+                                           byteoffset + cfsrc->cf_offset,
                                            cfsrc->cf_bitshift,
                                            cfsrc->cf_bitsize,
                                            cfsrc->cf_flags | fflags);
@@ -5156,13 +5167,13 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             }
             else {
                 *previous = _add_field(interned_fields, fname, ftype,
-                                        boffset / 8, bs_flag, -1, fflags);
+                                       byteoffset, bs_flag, -1, fflags);
                 if (*previous == NULL)
                     goto error;
                 previous = &(*previous)->cf_next;
             }
             if (ftype->ct_size >= 0)
-                boffset += ftype->ct_size * 8;
+                byteoffset += ftype->ct_size;
             prev_bitfield_size = 0;
         }
         else {
@@ -5199,7 +5210,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             /* compute the starting position of the theoretical field
                that covers a complete 'ftype', inside of which we will
                locate the real bitfield */
-            field_offset_bytes = boffset / 8;
+            field_offset_bytes = byteoffset;
             field_offset_bytes &= ~(falign - 1);
 
             if (fbitsize == 0) {
@@ -5212,12 +5223,13 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                 if (!(sflags & SF_MSVC_BITFIELDS)) {
                     /* GCC's notion of "ftype :0;" */
 
-                    /* pad boffset to a value aligned for "ftype" */
-                    if (boffset > field_offset_bytes * 8) {
+                    /* pad byteoffset to a value aligned for "ftype" */
+                    if (ROUNDUP_BYTES(byteoffset, bitoffset) > field_offset_bytes) {
                         field_offset_bytes += falign;
-                        assert(boffset < field_offset_bytes * 8);
+                        assert(byteoffset < field_offset_bytes);
                     }
-                    boffset = field_offset_bytes * 8;
+                    byteoffset = field_offset_bytes;
+                    bitoffset = 0;
                 }
                 else {
                     /* MSVC's notion of "ftype :0;" */
@@ -5234,7 +5246,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 
                     /* Can the field start at the offset given by 'boffset'?  It
                        can if it would entirely fit into an aligned ftype field. */
-                    bits_already_occupied = boffset - (field_offset_bytes * 8);
+                    bits_already_occupied = (byteoffset-field_offset_bytes) * 8
+                        + bitoffset;
 
                     if (bits_already_occupied + fbitsize > 8 * ftype->ct_size) {
                         /* it would not fit, we need to start at the next
@@ -5248,15 +5261,18 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                             goto error;
                         }
                         field_offset_bytes += falign;
-                        assert(boffset < field_offset_bytes * 8);
-                        boffset = field_offset_bytes * 8;
+                        assert(byteoffset < field_offset_bytes);
+                        byteoffset = field_offset_bytes;
+                        bitoffset = 0;
                         bitshift = 0;
                     }
                     else {
                         bitshift = bits_already_occupied;
                         assert(bitshift >= 0);
                     }
-                    boffset += fbitsize;
+                    bitoffset += fbitsize;
+                    byteoffset += (bitoffset >> 3);
+                    bitoffset &= 7;
                 }
                 else {
                     /* MSVC's algorithm */
@@ -5272,14 +5288,17 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     }
                     else {
                         /* no: start a new full field */
-                        boffset = (boffset + falign*8-1) & ~(falign*8-1); /*align*/
-                        boffset += ftype->ct_size * 8;
+                        byteoffset = ROUNDUP_BYTES(byteoffset, bitoffset);
+                        bitoffset = 0;
+                        /* align */
+                        byteoffset = (byteoffset + falign-1) & ~(falign-1);
+                        byteoffset += ftype->ct_size;
                         bitshift = 0;
                         prev_bitfield_size = ftype->ct_size;
                         prev_bitfield_free = 8 * prev_bitfield_size;
                     }
                     prev_bitfield_free -= fbitsize;
-                    field_offset_bytes = boffset / 8 - ftype->ct_size;
+                    field_offset_bytes = byteoffset - ftype->ct_size;
                 }
                 if (sflags & SF_GCC_BIG_ENDIAN)
                     bitshift = 8 * ftype->ct_size - fbitsize - bitshift;
@@ -5296,16 +5315,16 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             }
         }
 
-        if (boffset > boffsetmax)
-            boffsetmax = boffset;
+        assert(bitoffset == (bitoffset & 7));
+        if (ROUNDUP_BYTES(byteoffset, bitoffset) > byteoffsetmax)
+            byteoffsetmax = ROUNDUP_BYTES(byteoffset, bitoffset);
     }
     *previous = NULL;
 
     /* Like C, if the size of this structure would be zero, we compute it
        as 1 instead.  But for ctypes support, we allow the manually-
        specified totalsize to be zero in this case. */
-    boffsetmax = (boffsetmax + 7) / 8;        /* bits -> bytes */
-    alignedsize = (boffsetmax + alignment - 1) & ~(alignment-1);
+    alignedsize = (byteoffsetmax + alignment - 1) & ~(alignment-1);
     if (alignedsize == 0)
         alignedsize = 1;
 
@@ -5316,10 +5335,10 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         if (detect_custom_layout(ct, sflags, alignedsize,
                                  totalsize, "wrong total size", "", "") < 0)
             goto error;
-        if (totalsize < boffsetmax) {
+        if (totalsize < byteoffsetmax) {
             PyErr_Format(PyExc_TypeError,
                          "%s cannot be of size %zd: there are fields at least "
-                         "up to %zd", ct->ct_name, totalsize, boffsetmax);
+                         "up to %zd", ct->ct_name, totalsize, byteoffsetmax);
             goto error;
         }
     }
