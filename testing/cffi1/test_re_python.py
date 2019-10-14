@@ -63,11 +63,11 @@ def setup_module(mod):
     #define BIGNEG -420000000000L
     int add42(int);
     int add43(int, ...);
-    int globalvar42;
+    extern int globalvar42;
     const int globalconst42;
     const char *const globalconsthello;
     int no_such_function(int);
-    int no_such_globalvar;
+    extern int no_such_globalvar;
     struct foo_s;
     typedef struct bar_s { int x; signed char a[]; } bar_t;
     enum foo_e { AA, BB, CC };
