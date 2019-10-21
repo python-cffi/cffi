@@ -512,14 +512,14 @@ in the details.  These places are:
    field; then you would use "``typedef struct { ...; } foo_t;``".
 
 *  array lengths: when used as structure fields or in global variables,
-   arrays can have an unspecified length, as in "``int n[...];``".  The
+   arrays can have an unspecified length, as in "``extern int n[...];``".  The
    length is completed by the C compiler.
-   This is slightly different from "``int n[];``", because the latter
+   This is slightly different from "``extern int n[];``", because the latter
    means that the length is not known even to the C compiler, and thus
    no attempt is made to complete it.  This supports
-   multidimensional arrays: "``int n[...][...];``".
+   multidimensional arrays: "``extern int n[...][...];``".
 
-   *New in version 1.2:* "``int m[][...];``", i.e. ``...`` can be used
+   *New in version 1.2:* "``extern int m[][...];``", i.e. ``...`` can be used
    in the innermost dimensions without being also used in the outermost
    dimension.  In the example given, the length of the ``m`` array is
    assumed not to be known to the C compiler, but the length of every
@@ -568,8 +568,8 @@ pointer types; currently, it also does not work for variadic functions.
 
 For more complex types, you have no choice but be precise.  For example,
 you cannot misdeclare a ``int *`` argument as ``long *``, or a global
-array ``int a[5];`` as ``long a[5];``.  CFFI considers `all types listed
-above`_ as primitive (so ``long long a[5];`` and ``int64_t a[5]`` are
+array ``extern int a[5];`` as ``extern long a[5];``.  CFFI considers `all types listed
+above`_ as primitive (so ``extern long long a[5];`` and ``extern int64_t a[5]`` are
 different declarations).  The reason for that is detailed in `a comment
 about an issue.`__
 

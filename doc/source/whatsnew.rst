@@ -3,6 +3,25 @@ What's New
 ======================
 
 
+v1.13.1
+=======
+
+* deprecate the way to declare in ``cdef()`` a global variable with only
+  ``void *foo;``.  You should always use a storage class, like ``extern void
+  *foo;`` or maybe ``static void *foo;``.  These are all equivalent for
+  the purposes of ``cdef()``, but the reason for deprecating the bare version
+  is that (as far as I know) it would always be mistake in a real C header.
+
+* fix the regression ``RuntimeError: found a situation in which we try
+  to build a type recursively`` (`issue #429`_).
+
+* fixed `issue #427`_ where a multithreading mistake in the embedding logic
+  initialization code would cause deadlocks on CPython 3.7.
+
+.. _`issue #429`: https://bitbucket.org/cffi/cffi/issues/429/
+.. _`issue #427`: https://bitbucket.org/cffi/cffi/issues/427/
+
+
 v1.13
 =====
 

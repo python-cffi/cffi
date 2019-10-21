@@ -113,7 +113,7 @@ class TestFunction(object):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int fputs(const char *, void *);
-            void *stderr;
+            extern void *stderr;
         """)
         needs_dlopen_none()
         ffi.C = ffi.dlopen(None)
@@ -130,7 +130,7 @@ class TestFunction(object):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int fputs(char *, void *);
-            void *stderr;
+            extern void *stderr;
         """)
         needs_dlopen_none()
         ffi.C = ffi.dlopen(None)
@@ -147,7 +147,7 @@ class TestFunction(object):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
            int fprintf(void *, const char *format, ...);
-           void *stderr;
+           extern void *stderr;
         """)
         needs_dlopen_none()
         ffi.C = ffi.dlopen(None)
@@ -209,7 +209,7 @@ class TestFunction(object):
             py.test.skip("probably no symbol 'stderr' in the lib")
         ffi.cdef("""
             int fputs(const char *, void *);
-            void *stderr;
+            extern void *stderr;
         """)
         needs_dlopen_none()
         ffi.C = ffi.dlopen(None)
@@ -256,7 +256,7 @@ class TestFunction(object):
             py.test.skip("probably no symbol 'stdout' in the lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
-            void *stdout;
+            extern void *stdout;
         """)
         needs_dlopen_none()
         C = ffi.dlopen(None)
@@ -496,7 +496,7 @@ class TestFunction(object):
         ffi.cdef("""
             typedef enum { MYE1, MYE2 } myenum_t;
             double myfunc(double);
-            double myvar;
+            extern double myvar;
             const double myconst;
             #define MYFOO 42
         """)
@@ -507,7 +507,7 @@ class TestFunction(object):
         if self.Backend is CTypesBackend:
             py.test.skip("not with the ctypes backend")
         ffi = FFI(backend=self.Backend())
-        ffi.cdef("int foobar(void); int foobaz;")
+        ffi.cdef("int foobar(void); extern int foobaz;")
         lib = ffi.dlopen(lib_m)
         ffi.dlclose(lib)
         e = py.test.raises(ValueError, getattr, lib, 'foobar')

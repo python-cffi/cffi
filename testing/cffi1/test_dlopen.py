@@ -6,7 +6,7 @@ from testing.udir import udir
 
 def test_simple():
     ffi = FFI()
-    ffi.cdef("int close(int); static const int BB = 42; int somevar;")
+    ffi.cdef("int close(int); static const int BB = 42; extern int somevar;")
     target = udir.join('test_simple.py')
     make_py_source(ffi, 'test_simple', str(target))
     assert target.read() == r"""# auto-generated file
@@ -196,7 +196,7 @@ def test_array_overflow():
 
 def test_global_var():
     ffi = FFI()
-    ffi.cdef("int myglob;")
+    ffi.cdef("extern int myglob;")
     target = udir.join('test_global_var.py')
     make_py_source(ffi, 'test_global_var', str(target))
     assert target.read() == r"""# auto-generated file
