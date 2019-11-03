@@ -2,6 +2,15 @@
 What's New
 ======================
 
+v1.13.2
+=======
+
+* re-release because the Linux wheels came with an attached version of libffi
+  that was very old and buggy (`issue #432`_).
+
+.. _`issue #432`: https://bitbucket.org/cffi/cffi/issues/432/
+
+
 
 v1.13.1
 =======
