@@ -3,6 +3,7 @@ import pytest
 import sys, os, math, weakref
 from cffi import FFI, VerificationError, VerificationMissing, model, FFIError
 from testing.support import *
+from testing.support import extra_compile_args
 
 
 lib_m = ['m']
@@ -13,17 +14,6 @@ if sys.platform == 'win32':
         lib_m = ['msvcrt']
     pass      # no obvious -Werror equivalent on MSVC
 else:
-    if (sys.platform == 'darwin' and
-          [int(x) for x in os.uname()[2].split('.')] >= [11, 0, 0]):
-        # assume a standard clang or gcc
-        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion']
-        # special things for clang
-        extra_compile_args.append('-Qunused-arguments')
-    else:
-        # assume a standard gcc
-        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion',
-                              '-Wno-unused-parameter']
-
     class FFI(FFI):
         def verify(self, *args, **kwds):
             return super(FFI, self).verify(
