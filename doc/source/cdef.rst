@@ -235,7 +235,12 @@ specifies that all structure fields should have an alignment of one
 byte.  (Note that the packed attribute has no effect on bit fields so
 far, which mean that they may be packed differently than on GCC.
 Also, this has no effect on structs declared with ``"...;"``---more
-about it later in `Letting the C compiler fill the gaps`_.)
+about it later in `Letting the C compiler fill the gaps`_.  In
+particular, if your C source uses other attributes like
+``__attribute__((aligned(16)))``, there is no way to declare this fact
+in the ``cdef()``, but you can generally just declare the struct with
+``"...;"`` as the last field.)
+
 *New in version 1.12:*  In ABI mode, you can also pass ``pack=n``,
 with an integer ``n`` which must be a power of two.  Then the
 alignment of any field is limited to ``n`` if it would otherwise be
@@ -471,10 +476,12 @@ Moreover, you can use "``...``" (literally, dot-dot-dot) in the
 ``cdef()`` at various places, in order to ask the C compiler to fill
 in the details.  These places are:
 
-*  structure declarations: any ``struct { }`` that ends with "``...;``" as
-   the last "field" is
-   partial: it may be missing fields and/or have them declared out of order.
-   This declaration will be corrected by the compiler.  (But note that you
+*  structure declarations: any ``struct { }`` or ``union { }`` that ends
+   with "``...;``" as the last "field" is partial: it may be missing
+   fields, have them declared out of order, use non-standard alignment,
+   etc.  Precisely, the field offsets, total struct size, and total
+   struct alignment deduced by looking at the ``cdef`` are not relied
+   upon and will instead be corrected by the compiler.  (But note that you
    can only access fields that you declared, not others.)  Any ``struct``
    declaration which doesn't use "``...``" is assumed to be exact, but this is
    checked: you get an error if it is not correct.

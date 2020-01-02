@@ -4974,8 +4974,8 @@ static int detect_custom_layout(CTypeDescrObject *ct, int sflags,
         if (sflags & SF_STD_FIELD_POS) {
             PyErr_Format(FFIError,
                          "%s: %s%s%s (cdef says %zd, but C compiler says %zd)."
-                         " fix it or use \"...;\" in the cdef for %s to "
-                         "make it flexible",
+                         " fix it or use \"...;\" as the last field in the "
+                         "cdef for %s to make it flexible",
                          ct->ct_name, msg1, txt, msg2,
                          cdef_value, compiler_value,
                          ct->ct_name);
