@@ -369,6 +369,16 @@ look for the library's filename.  This also means that
 ``ffi.dlopen(None)`` no longer work on Windows; try instead
 ``ffi.dlopen(ctypes.util.find_library('c'))``.
 
+*New in version 1.14:* ``ffi.dlopen(handle)``: instead of a file path,
+you can give an already-opened library handle, as a cdata of type
+``void *``.  Such a call converts this handle into a regular FFI object
+with the functions and global variables declared by ``ffi.cdef()``.
+Useful if you have special needs (e.g. you need the GNU extension
+``dlmopen()``, which you can itself declare and call using a different
+``ffi`` object).  Note that in this variant, ``dlclose()`` is not called
+automatically if the FFI object is garbage-collected (but you can still
+call ``ffi.dlclose()`` explicitly if needed).
+
 
 ffibuilder.set_source(): preparing out-of-line modules
 ------------------------------------------------------

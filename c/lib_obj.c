@@ -29,6 +29,7 @@ struct LibObject_s {
     PyObject *l_libname;        /* some string that gives the name of the lib */
     FFIObject *l_ffi;           /* reference back to the ffi object */
     void *l_libhandle;          /* the dlopen()ed handle, if any */
+    int l_auto_close;           /* if we must dlclose() this handle */
 };
 
 static struct CPyExtFunc_s *_cpyextfunc_get(PyObject *x)
@@ -91,7 +92,8 @@ static void *cdlopen_fetch(PyObject *libname, void *libhandle,
 static void lib_dealloc(LibObject *lib)
 {
     PyObject_GC_UnTrack(lib);
-    cdlopen_close_ignore_errors(lib->l_libhandle);
+    if (lib->l_auto_close)
+        cdlopen_close_ignore_errors(lib->l_libhandle);
     Py_DECREF(lib->l_dict);
     Py_DECREF(lib->l_libname);
     Py_DECREF(lib->l_ffi);
@@ -624,7 +626,7 @@ static PyTypeObject Lib_Type = {
 };
 
 static LibObject *lib_internal_new(FFIObject *ffi, const char *module_name,
-                                   void *dlopen_libhandle)
+                                   void *dlopen_libhandle, int auto_close)
 {
     LibObject *lib;
     PyObject *libname, *dict;
@@ -647,6 +649,7 @@ static LibObject *lib_internal_new(FFIObject *ffi, const char *module_name,
     Py_INCREF(ffi);
     lib->l_ffi = ffi;
     lib->l_libhandle = dlopen_libhandle;
+    lib->l_auto_close = auto_close;
     return lib;
 
  err3:
@@ -654,7 +657,8 @@ static LibObject *lib_internal_new(FFIObject *ffi, const char *module_name,
  err2:
     Py_DECREF(libname);
  err1:
-    cdlopen_close_ignore_errors(dlopen_libhandle);
+    if (auto_close)
+        cdlopen_close_ignore_errors(dlopen_libhandle);
     return NULL;
 }
 

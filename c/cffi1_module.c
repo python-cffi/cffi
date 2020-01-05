@@ -199,7 +199,7 @@ static PyObject *b_init_cffi_1_0_external_module(PyObject *self, PyObject *arg)
     if (ffi == NULL || PyModule_AddObject(m, "ffi", (PyObject *)ffi) < 0)
         return NULL;
 
-    lib = lib_internal_new(ffi, module_name, NULL);
+    lib = lib_internal_new(ffi, module_name, NULL, 0);
     if (lib == NULL || PyModule_AddObject(m, "lib", (PyObject *)lib) < 0)
         return NULL;
 
