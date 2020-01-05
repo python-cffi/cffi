@@ -26,13 +26,14 @@ def check_type_table(input, expected_output, included=None):
 
 def verify(ffi, module_name, source, *args, **kwds):
     no_cpp = kwds.pop('no_cpp', False)
+    ignore_warnings = kwds.pop('ignore_warnings', False)
     kwds.setdefault('undef_macros', ['NDEBUG'])
     module_name = '_CFFI_' + module_name
     ffi.set_source(module_name, source)
     if not os.environ.get('NO_CPP') and not no_cpp:   # test the .cpp mode too
         kwds.setdefault('source_extension', '.cpp')
         source = 'extern "C" {\n%s\n}' % (source,)
-    elif sys.platform != 'win32':
+    elif sys.platform != 'win32' and not ignore_warnings:
         # add '-Werror' to the existing 'extra_compile_args' flags
         from testing.support import extra_compile_args
         kwds['extra_compile_args'] = (kwds.get('extra_compile_args', []) +
@@ -136,7 +137,8 @@ def test_math_sin():
     import math
     ffi = FFI()
     ffi.cdef("float sin(double); double cos(double);")
-    lib = verify(ffi, 'test_math_sin', '#include <math.h>')
+    lib = verify(ffi, 'test_math_sin', '#include <math.h>',
+                 ignore_warnings=True)
     assert lib.cos(1.43) == math.cos(1.43)
 
 def test_repr_lib():
@@ -645,7 +647,7 @@ def test_include_3():
     ffi.cdef("sshort_t ff3(sshort_t);")
     lib = verify(ffi, "test_include_3",
                  "typedef short sshort_t; //usually from a #include\n"
-                 "sshort_t ff3(sshort_t x) { return x + 42; }")
+                 "sshort_t ff3(sshort_t x) { return (sshort_t)(x + 42); }")
     assert lib.ff3(10) == 52
     assert ffi.typeof(ffi.cast("sshort_t", 42)) is ffi.typeof("short")
     assert ffi1.typeof("sshort_t") is ffi.typeof("sshort_t")
@@ -754,7 +756,7 @@ def test_unicode_libraries():
     ffi = FFI()
     ffi.cdef(unicode("float sin(double); double cos(double);"))
     lib = verify(ffi, 'test_math_sin_unicode', unicode('#include <math.h>'),
-                 libraries=[unicode(lib_m)])
+                 libraries=[unicode(lib_m)], ignore_warnings=True)
     assert lib.cos(1.43) == math.cos(1.43)
 
 def test_incomplete_struct_as_arg():
@@ -898,7 +900,7 @@ def test_address_of_function():
     ffi.cdef("long myfunc(long x);")
     lib = verify(ffi, "test_addressof_function", """
         char myfunc(char x) { return (char)(x + 42); }
-    """)
+    """, ignore_warnings=True)
     assert lib.myfunc(5) == 47
     assert lib.myfunc(0xABC05) == 47
     assert not isinstance(lib.myfunc, ffi.CData)
@@ -1171,7 +1173,7 @@ def test_some_float_invalid_3():
     lib = verify(ffi, 'test_some_float_invalid_3', """
         typedef long double foo_t;
         foo_t neg(foo_t x) { return -x; }
-    """)
+    """, ignore_warnings=True)
     if ffi.sizeof("long double") == ffi.sizeof("double"):
         assert lib.neg(12.3) == -12.3
     else:
@@ -1845,7 +1847,7 @@ def test_introspect_function():
     ffi = FFI()
     ffi.cdef("float f1(double);")
     lib = verify(ffi, 'test_introspect_function', """
-        float f1(double x) { return x; }
+        float f1(double x) { return (float)x; }
     """)
     assert dir(lib) == ['f1']
     FUNC = ffi.typeof(lib.f1)
@@ -2150,7 +2152,8 @@ def test_call_with_nested_anonymous_struct():
     lib = verify(ffi, "test_call_with_nested_anonymous_struct", """
         struct foo { int a; union { int b, c; }; };
         struct foo f(void) {
-            struct foo s = { 40 };
+            struct foo s;
+            s.a = 40;
             s.b = 200;
             return s;
         }
