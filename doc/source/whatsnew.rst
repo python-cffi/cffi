@@ -2,6 +2,14 @@
 What's New
 ======================
 
+
+v1.14
+=====
+
+* ``ffi.dlopen()`` can now be called with a handle (as a ``void *``) to an
+  already-opened C library.
+
+
 v1.13.2
 =======
 
