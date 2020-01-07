@@ -884,15 +884,20 @@ def test_unpack_args():
     e5 = py.test.raises(TypeError, lib.foo2)
     e6 = py.test.raises(TypeError, lib.foo2, 42)
     e7 = py.test.raises(TypeError, lib.foo2, 45, 46, 47)
-    assert str(e1.value) == "foo0() takes no arguments (1 given)"
-    assert str(e2.value) == "foo0() takes no arguments (2 given)"
-    assert str(e3.value) == "foo1() takes exactly one argument (0 given)"
-    assert str(e4.value) == "foo1() takes exactly one argument (2 given)"
-    assert str(e5.value) in ["foo2 expected 2 arguments, got 0",
+    def st1(s):
+        s = str(s)
+        if s.startswith("_CFFI_test_unpack_args.CompiledLib."):
+            s = s[len("_CFFI_test_unpack_args.CompiledLib."):]
+        return s
+    assert st1(e1.value) == "foo0() takes no arguments (1 given)"
+    assert st1(e2.value) == "foo0() takes no arguments (2 given)"
+    assert st1(e3.value) == "foo1() takes exactly one argument (0 given)"
+    assert st1(e4.value) == "foo1() takes exactly one argument (2 given)"
+    assert st1(e5.value) in ["foo2 expected 2 arguments, got 0",
                              "foo2() takes exactly 2 arguments (0 given)"]
-    assert str(e6.value) in ["foo2 expected 2 arguments, got 1",
+    assert st1(e6.value) in ["foo2 expected 2 arguments, got 1",
                              "foo2() takes exactly 2 arguments (1 given)"]
-    assert str(e7.value) in ["foo2 expected 2 arguments, got 3",
+    assert st1(e7.value) in ["foo2 expected 2 arguments, got 3",
                              "foo2() takes exactly 2 arguments (3 given)"]
 
 def test_address_of_function():
