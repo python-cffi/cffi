@@ -335,7 +335,7 @@ the C extension:
    
       ffibuilder.set_source("_pi",  # name of the output C extension
       """
-          #include "pi.h"',
+          #include "pi.h"
       """,
           sources=['pi.c'],   # includes pi.c as additional sources
           libraries=['m'])    # on Unix, link with the math library
