@@ -2991,6 +2991,10 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     CTypeDescrObject *fresult;
     char *resultdata;
     char *errormsg;
+    struct freeme_s {
+        struct freeme_s *next;
+        union_alignment alignment;
+    } *freeme = NULL;
 
     if (!(cd->c_type->ct_flags & CT_FUNCTIONPTR)) {
         PyErr_Format(PyExc_TypeError, "cdata '%s' is not callable",
@@ -3111,7 +3115,21 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             else if (datasize < 0)
                 goto error;
             else {
-                tmpbuf = alloca(datasize);
+                if (datasize <= 512) {
+                    tmpbuf = alloca(datasize);
+                }
+                else {
+                    struct freeme_s *fp = (struct freeme_s *)PyObject_Malloc(
+                        offsetof(struct freeme_s, alignment) +
+                        (size_t)datasize);
+                    if (fp == NULL) {
+                        PyErr_NoMemory();
+                        goto error;
+                    }
+                    fp->next = freeme;
+                    freeme = fp;
+                    tmpbuf = (char *)&fp->alignment;
+                }
                 memset(tmpbuf, 0, datasize);
                 *(char **)data = tmpbuf;
                 if (convert_array_from_object(tmpbuf, argtype, obj) < 0)
@@ -3156,6 +3174,11 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     /* fall-through */
 
  error:
+    while (freeme != NULL) {
+        void *p = (void *)freeme;
+        freeme = freeme->next;
+        PyObject_Free(p);
+    }
     if (buffer)
         PyObject_Free(buffer);
     if (fvarargs != NULL) {
