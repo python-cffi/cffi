@@ -9,6 +9,24 @@ v1.14
 * ``ffi.dlopen()`` can now be called with a handle (as a ``void *``) to an
   already-opened C library.
 
+* CPython only: fixed a stack overflow issue for calls like
+  ``lib.myfunc([large list])``.  If the function is declared as taking a
+  ``float *`` argument, for example, then the array is temporarily converted
+  into a C array of floats---however, the code used to use ``alloca()`` for
+  this temporary storage, no matter how large.  This is now fixed.
+
+  The fix concerns all modes: in-line/out-of-line API/ABI.  Also note that your
+  API-mode C extension modules need to be regenerated with cffi 1.14 in order
+  to get the fix; i.e. for API mode, the fix is in the generated C sources.
+  (The C sources generated from cffi 1.14 should also work when running in
+  a different environment in which we have an older version of cffi.  Also,
+  this change makes no difference on PyPy.)
+
+  As a workaround that works on all versions of cffi, you can write
+  ``lib.myfunc(ffi.new("float[]", [large list]))``, which is
+  equivalent but explicity builds the intermediate array as a regular
+  Python object on the heap.
+
 
 v1.13.2
 =======
