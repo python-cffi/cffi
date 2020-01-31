@@ -37,7 +37,7 @@ ffi.new()
 allocate an instance according to the specified C type and return a
 pointer to it.  The specified C type must be either a pointer or an
 array: ``new('X *')`` allocates an X and returns a pointer to it,
-whereas ``new('X[n]')`` allocates an array of n X'es and returns an
+whereas ``new('X[10]')`` allocates an array of 10 X'es and returns an
 array referencing it (which works mostly like a pointer, like in C).
 You can also use ``new('X[]', n)`` to allocate an array of a
 non-constant length n.  See the `detailed documentation`__ for other
