@@ -124,8 +124,10 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
             s_buf[--len] = L'\0';
         message = PyUnicode_FromWideChar(s_buf, len);
     }
-    if (message != NULL)
+    if (message != NULL) {
         v = Py_BuildValue("(iO)", err, message);
+        Py_DECREF(message);
+    }
     else
         v = NULL;
     LocalFree(s_buf);
@@ -168,7 +170,6 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
         /* Only seen this in out of mem situations */
         sprintf(s_small_buf, "Windows Error 0x%X", err);
         s = s_small_buf;
-        s_buf = NULL;
     } else {
         s = s_buf;
         /* remove trailing cr/lf and dots */
