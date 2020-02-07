@@ -27,6 +27,8 @@ v1.14
   equivalent but explicity builds the intermediate array as a regular
   Python object on the heap.
 
+* fixed a memory leak inside ``ffi.getwinerror()`` on CPython 3.x.
+
 
 v1.13.2
 =======
