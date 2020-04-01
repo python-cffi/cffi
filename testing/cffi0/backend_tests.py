@@ -1,7 +1,7 @@
 import py
 import pytest
 import platform
-import sys, ctypes
+import sys, ctypes, ctypes.util
 from cffi import FFI, CDefError, FFIError, VerificationMissing
 from testing.support import *
 
