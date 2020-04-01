@@ -12,8 +12,8 @@ SIZE_OF_PTR   = ctypes.sizeof(ctypes.c_void_p)
 SIZE_OF_WCHAR = ctypes.sizeof(ctypes.c_wchar)
 
 def needs_dlopen_none():
-    if sys.platform == 'win32' and sys.version_info >= (3,):
-        py.test.skip("dlopen(None) cannot work on Windows for Python 3")
+    if sys.platform == 'win32' and not ctypes.util.find_library('c'):
+        py.test.skip("dlopen(None) cannot work on Windows with this runtime")
 
 
 class BackendTests:
