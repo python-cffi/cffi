@@ -653,7 +653,7 @@ static PyMethodDef ctypedescr_methods[] = {
 
 static PyTypeObject CTypeDescr_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CTypeDescr",
+    "_cffi_backend.CType",
     offsetof(CTypeDescrObject, ct_name),
     sizeof(char),
     (destructor)ctypedescr_dealloc,             /* tp_dealloc */
@@ -3354,7 +3354,7 @@ static PyMethodDef cdata_methods[] = {
 
 static PyTypeObject CData_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CData",
+    "_cffi_backend.__CDataBase",
     sizeof(CDataObject),
     0,
     (destructor)cdata_dealloc,                  /* tp_dealloc */
@@ -3373,7 +3373,9 @@ static PyTypeObject CData_Type = {
     (setattrofunc)cdata_setattro,               /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
-    0,                                          /* tp_doc */
+    "The internal base type for CData objects.  Use FFI.CData to access "
+    "it.  Always check with isinstance(): subtypes are sometimes returned "
+    "on CPython, for performance reasons.",     /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     cdata_richcompare,                          /* tp_richcompare */
@@ -3396,7 +3398,7 @@ static PyTypeObject CData_Type = {
 
 static PyTypeObject CDataOwning_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CDataOwn",
+    "_cffi_backend.__CDataOwn",
     sizeof(CDataObject),
     0,
     (destructor)cdataowning_dealloc,            /* tp_dealloc */
@@ -3415,7 +3417,8 @@ static PyTypeObject CDataOwning_Type = {
     0,  /* inherited */                         /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
-    0,                                          /* tp_doc */
+    "This is an internal subtype of __CDataBase for performance only on "
+    "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,  /* inherited */                         /* tp_richcompare */
@@ -3438,7 +3441,7 @@ static PyTypeObject CDataOwning_Type = {
 
 static PyTypeObject CDataOwningGC_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CDataOwnGC",
+    "_cffi_backend.__CDataOwnGC",
     sizeof(CDataObject_own_structptr),
     0,
     (destructor)cdataowninggc_dealloc,          /* tp_dealloc */
@@ -3458,7 +3461,8 @@ static PyTypeObject CDataOwningGC_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
                        | Py_TPFLAGS_HAVE_GC,
-    0,                                          /* tp_doc */
+    "This is an internal subtype of __CDataBase for performance only on "
+    "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     (traverseproc)cdataowninggc_traverse,       /* tp_traverse */
     (inquiry)cdataowninggc_clear,               /* tp_clear */
     0,  /* inherited */                         /* tp_richcompare */
@@ -3481,7 +3485,7 @@ static PyTypeObject CDataOwningGC_Type = {
 
 static PyTypeObject CDataFromBuf_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CDataFromBuf",
+    "_cffi_backend.__CDataFromBuf",
     sizeof(CDataObject_frombuf),
     0,
     (destructor)cdatafrombuf_dealloc,           /* tp_dealloc */
@@ -3501,7 +3505,8 @@ static PyTypeObject CDataFromBuf_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
                        | Py_TPFLAGS_HAVE_GC,
-    0,                                          /* tp_doc */
+    "This is an internal subtype of __CDataBase for performance only on "
+    "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     (traverseproc)cdatafrombuf_traverse,        /* tp_traverse */
     (inquiry)cdatafrombuf_clear,                /* tp_clear */
     0,  /* inherited */                         /* tp_richcompare */
@@ -3524,7 +3529,7 @@ static PyTypeObject CDataFromBuf_Type = {
 
 static PyTypeObject CDataGCP_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CDataGCP",
+    "_cffi_backend.__CDataGCP",
     sizeof(CDataObject_gcp),
     0,
     (destructor)cdatagcp_dealloc,               /* tp_dealloc */
@@ -3547,7 +3552,8 @@ static PyTypeObject CDataGCP_Type = {
                        | Py_TPFLAGS_HAVE_FINALIZE
 #endif
                        | Py_TPFLAGS_HAVE_GC,
-    0,                                          /* tp_doc */
+    "This is an internal subtype of __CDataBase for performance only on "
+    "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     (traverseproc)cdatagcp_traverse,            /* tp_traverse */
     0,                                          /* tp_clear */
     0,  /* inherited */                         /* tp_richcompare */
@@ -3608,7 +3614,7 @@ cdataiter_dealloc(CDataIterObject *it)
 
 static PyTypeObject CDataIter_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CDataIter",              /* tp_name */
+    "_cffi_backend.__CData_iterator",       /* tp_name */
     sizeof(CDataIterObject),                /* tp_basicsize */
     0,                                      /* tp_itemsize */
     /* methods */
@@ -4363,7 +4369,7 @@ static PyMethodDef dl_methods[] = {
 
 static PyTypeObject dl_type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.Library",            /* tp_name */
+    "_cffi_backend.__Library",          /* tp_name */
     sizeof(DynLibObject),               /* tp_basicsize */
     0,                                  /* tp_itemsize */
     /* methods */
@@ -7880,6 +7886,14 @@ init_cffi_backend(void)
 
     Py_INCREF(&MiniBuffer_Type);
     if (PyModule_AddObject(m, "buffer", (PyObject *)&MiniBuffer_Type) < 0)
+        INITERROR;
+
+    Py_INCREF(&CTypeDescr_Type);
+    if (PyModule_AddObject(m, "CType", (PyObject *)&CTypeDescr_Type) < 0)
+        INITERROR;
+
+    Py_INCREF(&CField_Type);
+    if (PyModule_AddObject(m, "CField", (PyObject *)&CField_Type) < 0)
         INITERROR;
 
     init_cffi_tls();

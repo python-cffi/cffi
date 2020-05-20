@@ -109,7 +109,7 @@ def test_cast_to_signed_char():
     p = new_primitive_type("signed char")
     x = cast(p, -65 + 17*256)
     assert repr(x) == "<cdata 'signed char' -65>"
-    assert repr(type(x)) == "<%s '_cffi_backend.CData'>" % type_or_class
+    assert repr(type(x)) == "<%s '_cffi_backend.__CDataBase'>" % type_or_class
     assert int(x) == -65
     x = cast(p, -66 + (1<<199)*256)
     assert repr(x) == "<cdata 'signed char' -66>"
@@ -4453,3 +4453,10 @@ def test_huge_structure():
     BStruct = new_struct_type("struct foo")
     complete_struct_or_union(BStruct, [('a1', BArray, -1)])
     assert sizeof(BStruct) == sys.maxsize
+
+def test_type_names():
+    assert (CType.__module__, CType.__name__) == ('_cffi_backend', 'CType')
+    assert (CField.__module__, CField.__name__) == ('_cffi_backend', 'CField')
+    CData, CType1 = _get_types()
+    assert CType1 is CType
+    assert (CData.__module__, CData.__name__) == ('_cffi_backend','__CDataBase')
