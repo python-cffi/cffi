@@ -29,6 +29,7 @@ _r_comment = re.compile(r"/\*.*?\*/|//([^\n\\]|\\.)*?$",
 _r_define  = re.compile(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z_0-9]*)"
                         r"\b((?:[^\n\\]|\\.)*?)$",
                         re.DOTALL | re.MULTILINE)
+_r_line_directive = re.compile(r"^[ \t]*#[ \t]*line\b.*$", re.MULTILINE)
 _r_partial_enum = re.compile(r"=\s*\.\.\.\s*[,}]|\.\.\.\s*\}")
 _r_enum_dotdotdot = re.compile(r"__dotdotdot\d+__$")
 _r_partial_array = re.compile(r"\[\s*\.\.\.\s*\]")
@@ -163,10 +164,37 @@ def _warn_for_non_extern_non_static_global_variable(decl):
                       "with C it should have a storage class specifier "
                       "(usually 'extern')" % (decl.name,))
 
+def _remove_line_directives(csource):
+    # _r_line_directive matches whole lines, without the final \n, if they
+    # start with '#line' with some spacing allowed.  This function stores
+    # them away and replaces them with exactly the string '#line@N', where
+    # N is the index in the list 'line_directives'.
+    line_directives = []
+    def replace(m):
+        i = len(line_directives)
+        line_directives.append(m.group())
+        return '#line@%d' % i
+    csource = _r_line_directive.sub(replace, csource)
+    return csource, line_directives
+
+def _put_back_line_directives(csource, line_directives):
+    def replace(m):
+        s = m.group()
+        if not s.startswith('#line@'):
+            raise AssertionError("unexpected #line directive "
+                                 "(should have been processed and removed")
+        return line_directives[int(s[6:])]
+    return _r_line_directive.sub(replace, csource)
+
 def _preprocess(csource):
+    # First, remove the lines of the form '#line N "filename"' because
+    # the "filename" part could confuse the rest
+    csource, line_directives = _remove_line_directives(csource)
     # Remove comments.  NOTE: this only work because the cdef() section
-    # should not contain any string literal!
-    csource = _r_comment.sub(' ', csource)
+    # should not contain any string literals (except in line directives)!
+    def replace_keeping_newlines(m):
+        return ' ' + m.group().count('\n') * '\n'
+    csource = _r_comment.sub(replace_keeping_newlines, csource)
     # Remove the "#define FOO x" lines
     macros = {}
     for match in _r_define.finditer(csource):
@@ -219,7 +247,10 @@ def _preprocess(csource):
     csource = _r_float_dotdotdot.sub(' __dotdotdotfloat__ ', csource)
     # Replace all remaining "..." with the same name, "__dotdotdot__",
     # which is declared with a typedef for the purpose of C parsing.
-    return csource.replace('...', ' __dotdotdot__ '), macros
+    csource = csource.replace('...', ' __dotdotdot__ ')
+    # Finally, put back the line directives
+    csource = _put_back_line_directives(csource, line_directives)
+    return csource, macros
 
 def _common_type_names(csource):
     # Look in the source for what looks like usages of types from the
