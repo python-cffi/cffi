@@ -3354,7 +3354,7 @@ static PyMethodDef cdata_methods[] = {
 
 static PyTypeObject CData_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.__CDataBase",
+    "_cffi_backend._CDataBase",
     sizeof(CDataObject),
     0,
     (destructor)cdata_dealloc,                  /* tp_dealloc */
@@ -3417,7 +3417,7 @@ static PyTypeObject CDataOwning_Type = {
     0,  /* inherited */                         /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
-    "This is an internal subtype of __CDataBase for performance only on "
+    "This is an internal subtype of _CDataBase for performance only on "
     "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
@@ -3461,7 +3461,7 @@ static PyTypeObject CDataOwningGC_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
                        | Py_TPFLAGS_HAVE_GC,
-    "This is an internal subtype of __CDataBase for performance only on "
+    "This is an internal subtype of _CDataBase for performance only on "
     "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     (traverseproc)cdataowninggc_traverse,       /* tp_traverse */
     (inquiry)cdataowninggc_clear,               /* tp_clear */
@@ -3505,7 +3505,7 @@ static PyTypeObject CDataFromBuf_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
                        | Py_TPFLAGS_HAVE_GC,
-    "This is an internal subtype of __CDataBase for performance only on "
+    "This is an internal subtype of _CDataBase for performance only on "
     "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     (traverseproc)cdatafrombuf_traverse,        /* tp_traverse */
     (inquiry)cdatafrombuf_clear,                /* tp_clear */
@@ -3552,7 +3552,7 @@ static PyTypeObject CDataGCP_Type = {
                        | Py_TPFLAGS_HAVE_FINALIZE
 #endif
                        | Py_TPFLAGS_HAVE_GC,
-    "This is an internal subtype of __CDataBase for performance only on "
+    "This is an internal subtype of _CDataBase for performance only on "
     "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     (traverseproc)cdatagcp_traverse,            /* tp_traverse */
     0,                                          /* tp_clear */
@@ -4369,7 +4369,7 @@ static PyMethodDef dl_methods[] = {
 
 static PyTypeObject dl_type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.__Library",          /* tp_name */
+    "_cffi_backend.CLibrary",           /* tp_name */
     sizeof(DynLibObject),               /* tp_basicsize */
     0,                                  /* tp_itemsize */
     /* methods */
@@ -7794,6 +7794,22 @@ init_cffi_backend(void)
     PyObject *m, *v;
     int i;
     static char init_done = 0;
+    static PyTypeObject *all_types[] = {
+        &dl_type,
+        &CTypeDescr_Type,
+        &CField_Type,
+        &CData_Type,
+        &CDataOwning_Type,
+        &CDataOwningGC_Type,
+        &CDataFromBuf_Type,
+        &CDataGCP_Type,
+        &CDataIter_Type,
+        &MiniBuffer_Type,
+        &FFI_Type,
+        &Lib_Type,
+        &GlobSupport_Type,
+        NULL
+    };
 
     v = PySys_GetObject("version");
     if (v == NULL || !PyText_Check(v) ||
@@ -7819,26 +7835,22 @@ init_cffi_backend(void)
             INITERROR;
     }
 
-    if (PyType_Ready(&dl_type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CTypeDescr_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CField_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CData_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CDataOwning_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CDataOwningGC_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CDataFromBuf_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CDataGCP_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CDataIter_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&MiniBuffer_Type) < 0)
-        INITERROR;
+    /* readify all types and add them to the module */
+    for (i = 0; all_types[i] != NULL; i++) {
+        PyTypeObject *tp = all_types[i];
+        PyObject *tpo = (PyObject *)tp;
+        if (strncmp(tp->tp_name, "_cffi_backend.", 14) != 0) {
+            PyErr_Format(PyExc_ImportError,
+                         "'%s' is an ill-formed type name", tp->tp_name);
+            INITERROR;
+        }
+        if (PyType_Ready(tp) < 0)
+            INITERROR;
+
+        Py_INCREF(tpo);
+        if (PyModule_AddObject(m, tp->tp_name + 14, tpo) < 0)
+            INITERROR;
+    }
 
     if (!init_done) {
         v = PyText_FromString("_cffi_backend");
@@ -7883,18 +7895,6 @@ init_cffi_backend(void)
                                     all_dlopen_flags[i].value) < 0)
             INITERROR;
     }
-
-    Py_INCREF(&MiniBuffer_Type);
-    if (PyModule_AddObject(m, "buffer", (PyObject *)&MiniBuffer_Type) < 0)
-        INITERROR;
-
-    Py_INCREF(&CTypeDescr_Type);
-    if (PyModule_AddObject(m, "CType", (PyObject *)&CTypeDescr_Type) < 0)
-        INITERROR;
-
-    Py_INCREF(&CField_Type);
-    if (PyModule_AddObject(m, "CField", (PyObject *)&CField_Type) < 0)
-        INITERROR;
 
     init_cffi_tls();
     if (PyErr_Occurred())
