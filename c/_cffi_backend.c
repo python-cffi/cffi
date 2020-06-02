@@ -111,6 +111,9 @@
 # define PyText_InternInPlace PyUnicode_InternInPlace
 # define PyText_InternFromString PyUnicode_InternFromString
 # define PyIntOrLong_Check PyLong_Check
+# if PY_VERSION_HEX < 0x030900a4
+#  define Py_SET_REFCNT(obj, val) (Py_REFCNT(obj) = (val))
+# endif
 #else
 # define STR_OR_BYTES "str"
 # define PyText_Type PyString_Type
@@ -404,10 +407,10 @@ ctypedescr_dealloc(CTypeDescrObject *ct)
 
     if (ct->ct_unique_key != NULL) {
         /* revive dead object temporarily for DelItem */
-        Py_REFCNT(ct) = 43;
+        Py_SET_REFCNT(ct, 43);
         PyDict_DelItem(unique_cache, ct->ct_unique_key);
         assert(Py_REFCNT(ct) == 42);
-        Py_REFCNT(ct) = 0;
+        Py_SET_REFCNT(ct, 0);
         Py_DECREF(ct->ct_unique_key);
     }
     Py_XDECREF(ct->ct_itemdescr);
