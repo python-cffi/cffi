@@ -111,9 +111,6 @@
 # define PyText_InternInPlace PyUnicode_InternInPlace
 # define PyText_InternFromString PyUnicode_InternFromString
 # define PyIntOrLong_Check PyLong_Check
-# if PY_VERSION_HEX < 0x030900a4
-#  define Py_SET_REFCNT(obj, val) (Py_REFCNT(obj) = (val))
-# endif
 #else
 # define STR_OR_BYTES "str"
 # define PyText_Type PyString_Type
@@ -149,6 +146,10 @@
     (PyCObject_AsVoidPtr(capsule))
 # define PyCapsule_New(pointer, name, destructor) \
     (PyCObject_FromVoidPtr(pointer, destructor))
+#endif
+
+#if PY_VERSION_HEX < 0x030900a4
+# define Py_SET_REFCNT(obj, val) (Py_REFCNT(obj) = (val))
 #endif
 
 /************************************************************/
