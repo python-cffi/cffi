@@ -6255,13 +6255,17 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
                      "return type or with '...'", ct->ct_name);
         goto error;
     }
-#ifdef CFFI_TRUST_LIBFFI
+    /* NOTE: if we don't have CFFI_TRUST_LIBFFI, then this will invoke
+     * ffi_prep_closure_loc() with the last argument being equal to the
+     * first one.  With the current versions of libffi (June 2020), then
+     * this is just what occurs inside ffi anyway by calling
+     * ffi_prep_closure()---but this latter function is now deprecated.
+     * Please be aware that although this calls ffi_prep_closure_loc(),
+     * it is NOT always safe against read-write-execute memory attacks,
+     * as described in the lengthy comment before CFFI_TRUST_LIBFFI.
+     */
     if (ffi_prep_closure_loc(closure, &cif_descr->cif,
                          invoke_callback, infotuple, closure_exec) != FFI_OK) {
-#else
-    if (ffi_prep_closure(closure, &cif_descr->cif,
-                         invoke_callback, infotuple) != FFI_OK) {
-#endif
         PyErr_SetString(PyExc_SystemError,
                         "libffi failed to build this callback");
         goto error;
