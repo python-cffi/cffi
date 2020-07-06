@@ -4498,6 +4498,13 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
     if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
         flags |= RTLD_NOW;
 
+#ifdef MS_WIN32
+    if (filename_or_null == NULL) {
+        PyErr_SetString(PyExc_OSError, "dlopen(None) not supported on Windows");
+        return NULL;
+    }
+#endif
+
     handle = dlopen(filename_or_null, flags);
 
 #ifdef MS_WIN32
