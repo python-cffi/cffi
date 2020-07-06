@@ -4454,6 +4454,8 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
         PyObject *filename_unicode;
         if (PyArg_ParseTuple(args, "U|i:load_library", &filename_unicode, &flags))
         {
+            Py_ssize_t sz1;
+            wchar_t *w1;
 #if PY_MAJOR_VERSION < 3
             s = PyUnicode_AsUTF8String(s);
             if (s == NULL)
@@ -4464,10 +4466,11 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
             if (*p_printable_filename == NULL)
                 return NULL;
 
-            Py_ssize_t sz1 = PyUnicode_GetSize(filename_unicode) + 1;
+            sz1 = PyUnicode_GetSize(filename_unicode) + 1;
             sz1 *= 2;   /* should not be needed, but you never know */
-            wchar_t *w1 = alloca(sizeof(wchar_t) * sz1);
-            sz1 = PyUnicode_AsWideChar(filename_unicode, w1, sz1 - 1);
+            w1 = alloca(sizeof(wchar_t) * sz1);
+            sz1 = PyUnicode_AsWideChar((PyUnicodeObject *)filename_unicode,
+                                       w1, sz1 - 1);
             if (sz1 < 0)
                 return NULL;
             w1[sz1] = 0;
