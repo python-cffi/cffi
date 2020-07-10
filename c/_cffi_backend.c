@@ -2892,7 +2892,7 @@ static PyObject *
 convert_struct_to_owning_object(char *data, CTypeDescrObject *ct); /*forward*/
 
 static cif_description_t *
-fb_prepare_cif(PyObject *fargs, CTypeDescrObject *, ffi_abi);      /*forward*/
+fb_prepare_cif(PyObject *fargs, CTypeDescrObject *, Py_ssize_t, int, ffi_abi);      /*forward*/
 
 static PyObject *new_primitive_type(const char *name);             /*forward*/
 
@@ -3085,7 +3085,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 #else
         fabi = PyLong_AS_LONG(PyTuple_GET_ITEM(signature, 0));
 #endif
-        cif_descr = fb_prepare_cif(fvarargs, fresult, fabi);
+        cif_descr = fb_prepare_cif(fvarargs, fresult, nargs_declared, true, fabi);
         if (cif_descr == NULL)
             goto error;
     }
@@ -5810,7 +5810,10 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
 
 static cif_description_t *fb_prepare_cif(PyObject *fargs,
                                          CTypeDescrObject *fresult,
+                                         Py_ssize_t nargs_declared,
+                                         int ellipsis,
                                          ffi_abi fabi)
+
 {
     char *buffer;
     cif_description_t *cif_descr;
@@ -5837,8 +5840,22 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     assert(funcbuffer.bufferp == buffer + funcbuffer.nb_bytes);
 
     cif_descr = (cif_description_t *)buffer;
-    if (ffi_prep_cif(&cif_descr->cif, fabi, funcbuffer.nargs,
-                     funcbuffer.rtype, funcbuffer.atypes) != FFI_OK) {
+    ffi_status status;
+#if HAVE_FFI_PREP_CIF_VAR
+    if (ellipsis) {
+        status = ffi_prep_cif_var(&cif_descr->cif, fabi,
+                                  nargs_declared, funcbuffer.nargs,
+                                  funcbuffer.rtype, funcbuffer.atypes);
+    } else
+#endif
+#if !HAVE_FFI_PREP_CIF_VAR && defined(__arm64__) && defined(__APPLE__)
+#error Apple Arm64 ABI requires ffi_prep_cif_var
+#endif
+    {
+        status = ffi_prep_cif(&cif_descr->cif, fabi, funcbuffer.nargs,
+                              funcbuffer.rtype, funcbuffer.atypes);
+    }
+    if (status != FFI_OK) {
         PyErr_SetString(PyExc_SystemError,
                         "libffi failed to build this function type");
         goto error;
@@ -5882,7 +5899,7 @@ static PyObject *new_function_type(PyObject *fargs,   /* tuple */
            is computed here. */
         cif_description_t *cif_descr;
 
-        cif_descr = fb_prepare_cif(fargs, fresult, fabi);
+        cif_descr = fb_prepare_cif(fargs, fresult, 0, ellipsis, fabi);
         if (cif_descr == NULL) {
             if (PyErr_ExceptionMatches(PyExc_NotImplementedError)) {
                 PyErr_Clear();   /* will get the exception if we see an
