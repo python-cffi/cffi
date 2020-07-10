@@ -2892,7 +2892,8 @@ static PyObject *
 convert_struct_to_owning_object(char *data, CTypeDescrObject *ct); /*forward*/
 
 static cif_description_t *
-fb_prepare_cif(PyObject *fargs, CTypeDescrObject *, Py_ssize_t, int, ffi_abi);      /*forward*/
+fb_prepare_cif(PyObject *fargs, CTypeDescrObject *, Py_ssize_t, ffi_abi);
+                                                                   /*forward*/
 
 static PyObject *new_primitive_type(const char *name);             /*forward*/
 
@@ -3085,7 +3086,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 #else
         fabi = PyLong_AS_LONG(PyTuple_GET_ITEM(signature, 0));
 #endif
-        cif_descr = fb_prepare_cif(fvarargs, fresult, nargs_declared, true, fabi);
+        cif_descr = fb_prepare_cif(fvarargs, fresult, nargs_declared, fabi);
         if (cif_descr == NULL)
             goto error;
     }
@@ -5812,8 +5813,7 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
 
 static cif_description_t *fb_prepare_cif(PyObject *fargs,
                                          CTypeDescrObject *fresult,
-                                         Py_ssize_t nargs_declared,
-                                         int ellipsis,
+                                         Py_ssize_t variadic_nargs_declared,
                                          ffi_abi fabi)
 
 {
@@ -5844,9 +5844,9 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     cif_descr = (cif_description_t *)buffer;
     ffi_status status;
 #if HAVE_FFI_PREP_CIF_VAR
-    if (ellipsis) {
+    if (variadic_nargs_declared >= 0) {
         status = ffi_prep_cif_var(&cif_descr->cif, fabi,
-                                  nargs_declared, funcbuffer.nargs,
+                                  variadic_nargs_declared, funcbuffer.nargs,
                                   funcbuffer.rtype, funcbuffer.atypes);
     } else
 #endif
@@ -5901,7 +5901,7 @@ static PyObject *new_function_type(PyObject *fargs,   /* tuple */
            is computed here. */
         cif_description_t *cif_descr;
 
-        cif_descr = fb_prepare_cif(fargs, fresult, 0, ellipsis, fabi);
+        cif_descr = fb_prepare_cif(fargs, fresult, -1, fabi);
         if (cif_descr == NULL) {
             if (PyErr_ExceptionMatches(PyExc_NotImplementedError)) {
                 PyErr_Clear();   /* will get the exception if we see an
