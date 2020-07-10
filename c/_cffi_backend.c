@@ -84,7 +84,7 @@
  * known that on the NetBSD kernel, a different strategy is used which
  * should not be open to the fork() bug.
  */
-#if defined(__NetBSD__) || (CFFI_LIBFFI_FROM_MACOS && (defined(__arm__) || defined(__arm64__)))
+#ifdef __NetBSD__
 # define CFFI_TRUST_LIBFFI
 #endif
 
