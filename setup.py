@@ -152,7 +152,7 @@ else:
     if 'darwin' in sys.platform and macosx_deployment_target() >= (10, 15):
         # use libffi from Mac OS SDK
         extra_compile_args += ['-iwithsysroot/usr/include/ffi']
-        define_macros += [('CFFI_TRUST_LIBFFI', '1'),
+        define_macros += [('CFFI_LIBFFI_FROM_MACOS', '1'),
                           ('HAVE_FFI_PREP_CIF_VAR', '1')]
         libraries += ['ffi']
     else:
