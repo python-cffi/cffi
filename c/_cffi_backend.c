@@ -5022,7 +5022,9 @@ static int complete_sflags(int sflags)
 #ifdef MS_WIN32
         sflags |= SF_MSVC_BITFIELDS;
 #else
-# if defined(__arm__) || defined(__aarch64__)
+# if defined(__APPLE__) && defined(__arm64__)
+        sflags |= SF_GCC_X86_BITFIELDS;
+# elif defined(__arm__) || defined(__aarch64__)
         sflags |= SF_GCC_ARM_BITFIELDS;
 # else
         sflags |= SF_GCC_X86_BITFIELDS;
