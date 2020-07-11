@@ -71,6 +71,10 @@ def get_config():
     config = Distribution().get_command_obj('config')
     return config
 
+def macosx_deployment_target():
+    from distutils.sysconfig import get_config_var
+    return tuple(map(int, get_config_var("MACOSX_DEPLOYMENT_TARGET").split('.')))
+
 def ask_supports_thread():
     config = get_config()
     ok = (sys.platform != 'win32' and
@@ -145,7 +149,17 @@ if COMPILE_LIBFFI:
     sources.extend(os.path.join(COMPILE_LIBFFI, filename)
                    for filename in _filenames)
 else:
-    use_pkg_config()
+    if 'darwin' in sys.platform and macosx_deployment_target() >= (10, 15):
+        # use libffi from Mac OS SDK if we're targetting 10.15 (including
+        # on arm64).  This libffi is safe against the crash-after-fork
+        # issue described in _cffi_backend.c.  Also, arm64 uses a different
+        # ABI for calls to vararg functions as opposed to regular functions.
+        extra_compile_args += ['-iwithsysroot/usr/include/ffi']
+        define_macros += [('CFFI_TRUST_LIBFFI', '1'),
+                          ('HAVE_FFI_PREP_CIF_VAR', '1')]
+        libraries += ['ffi']
+    else:
+        use_pkg_config()
     ask_supports_thread()
     ask_supports_sync_synchronize()
 
