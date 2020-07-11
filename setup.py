@@ -150,7 +150,10 @@ if COMPILE_LIBFFI:
                    for filename in _filenames)
 else:
     if 'darwin' in sys.platform and macosx_deployment_target() >= (10, 15):
-        # use libffi from Mac OS SDK
+        # use libffi from Mac OS SDK if we're targetting 10.15 (including
+        # on arm64).  This libffi is safe against the crash-after-fork
+        # issue described in _cffi_backend.c.  Also, arm64 uses a different
+        # ABI for calls to vararg functions as opposed to regular functions.
         extra_compile_args += ['-iwithsysroot/usr/include/ffi']
         define_macros += [('CFFI_TRUST_LIBFFI', '1'),
                           ('HAVE_FFI_PREP_CIF_VAR', '1')]
