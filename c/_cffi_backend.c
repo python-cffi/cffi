@@ -5820,6 +5820,7 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     char *buffer;
     cif_description_t *cif_descr;
     struct funcbuilder_s funcbuffer;
+    ffi_status status;
 
     funcbuffer.nb_bytes = 0;
     funcbuffer.bufferp = NULL;
@@ -5842,7 +5843,6 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     assert(funcbuffer.bufferp == buffer + funcbuffer.nb_bytes);
 
     cif_descr = (cif_description_t *)buffer;
-    ffi_status status;
 #if HAVE_FFI_PREP_CIF_VAR
     if (variadic_nargs_declared >= 0) {
         status = ffi_prep_cif_var(&cif_descr->cif, fabi,
