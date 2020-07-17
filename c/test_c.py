@@ -4,12 +4,17 @@ import pytest
 def _setup_path():
     import os, sys
     if '__pypy__' in sys.builtin_module_names:
-        py.test.skip("_cffi_backend.c: not tested on top of pypy, "
-                     "use pypy/module/_cffi_backend/test/ instead.")
+        global pytestmark
+        pytestmark = pytest.mark.skip(
+            "_cffi_backend.c: not tested on top of pypy, "
+            "use pypy/module/_cffi_backend/test/ instead.")
+        return False
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-_setup_path()
+    return True
+if _setup_path():
+    from _cffi_backend import _testfunc, _get_types, _get_common_types
 from _cffi_backend import *
-from _cffi_backend import _testfunc, _get_types, _get_common_types, __version__
+from _cffi_backend import __version__
 
 # ____________________________________________________________
 
