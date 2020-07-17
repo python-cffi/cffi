@@ -6290,7 +6290,10 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
      * doesn't have ffi_prep_closure_loc() at all---notably, the OS X
      * machines on Azure are like that (June 2020).  I didn't find a way to
      * version-check the included ffi.h.  So you will have to live with the
-     * deprecation warning for now.
+     * deprecation warning for now.  (We could try to check for an unrelated
+     * macro like FFI_API which happens to be defined in libffi 3.3 and not
+     * before, but that sounds very obscure.  And I prefer a compile-time
+     * warning rather than a cross-version binary compatibility problem.)
      */
 #ifdef CFFI_TRUST_LIBFFI
     if (ffi_prep_closure_loc(closure, &cif_descr->cif,
