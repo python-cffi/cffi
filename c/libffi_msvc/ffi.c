@@ -103,7 +103,7 @@ void ffi_prep_args(char *stack, extended_cif *ecif)
 	    }
 	}
 #ifdef _WIN64
-      else if (z > 8)
+      else if (z != 1 && z != 2 && z != 4 && z != 8)
         {
           /* On Win64, if a single argument takes more than 8 bytes,
              then it is always passed by reference. */
@@ -144,9 +144,11 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
       /* MSVC returns small structures in registers.  Put in cif->flags
          the value FFI_TYPE_STRUCT only if the structure is big enough;
          otherwise, put the 4- or 8-bytes integer type. */
-      if (cif->rtype->size <= 4)
+      if (cif->rtype->size == 1 ||
+          cif->rtype->size == 2 ||
+          cif->rtype->size == 4)
         cif->flags = FFI_TYPE_INT;
-      else if (cif->rtype->size <= 8)
+      else if (cif->rtype->size == 8)
         cif->flags = FFI_TYPE_SINT64;
       else
         cif->flags = FFI_TYPE_STRUCT;
@@ -378,7 +380,7 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue,
       /* because we're little endian, this is what it turns into.   */
 
 #ifdef _WIN64
-      if (z > 8)
+      if (z != 1 && z != 2 && z != 4 && z != 8)
         {
           /* On Win64, if a single argument takes more than 8 bytes,
              then it is always passed by reference. */
