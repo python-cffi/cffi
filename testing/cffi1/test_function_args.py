@@ -23,7 +23,10 @@ else:
     ]
     def _make_struct(s):
         return st.lists(s, min_size=1)
-    types = st.recursive(st.sampled_from(ALL_PRIMITIVES), _make_struct)
+    types = st.one_of(st.sampled_from(ALL_PRIMITIVES),
+                      st.lists(st.sampled_from(ALL_PRIMITIVES), min_size=1))
+    # NB. 'types' could be st.recursive instead, but it doesn't
+    # really seem useful
 
     def draw_primitive(ffi, typename):
         value = random.random() * 2**40
@@ -36,7 +39,7 @@ else:
 
 
     @given(st.lists(types), types)
-    @settings(max_examples=10)
+    @settings(max_examples=20)
     def test_types(tp_args, tp_result):
         global TEST_RUN_COUNTER
         cdefs = []
@@ -102,8 +105,8 @@ else:
 
         write(ffi.addressof(lib, 'testfargs_result'), returned_value)
 
-        ## CALL
-        received_return = lib.testfargs(*passed_args)
+        ## CALL forcing libffi
+        received_return = ffi.addressof(lib, 'testfargs')(*passed_args)
         ##
 
         _tp_long_double = ffi.typeof("long double")
