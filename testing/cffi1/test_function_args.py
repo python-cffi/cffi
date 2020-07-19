@@ -8,7 +8,7 @@ except ImportError as e:
 else:
 
     from cffi import FFI
-    import random
+    import sys, random
     from .test_recompiler import verify
 
     ALL_PRIMITIVES = [
@@ -19,7 +19,7 @@ else:
         'long long',
         'float',
         'double',
-        'long double',
+        #'long double',   --- on x86 it can give libffi crashes
     ]
     def _make_struct(s):
         return st.lists(s, min_size=1)
@@ -87,6 +87,22 @@ else:
         lib = verify(ffi, 'test_function_args_%d' % TEST_RUN_COUNTER,
                      "\n".join(source), no_cpp=True)
 
+        # when getting segfaults, enable this:
+        if False:
+            from testing.udir import udir
+            import subprocess
+            f = open(str(udir.join('run1.py')), 'w')
+            f.write('from _CFFI_test_function_args_%d import ffi, lib\n' %
+                    TEST_RUN_COUNTER)
+            for i in range(len(args)):
+                f.write('a%d = ffi.new("%s *")\n' % (i, args[i]))
+            aliststr = ', '.join(['a%d[0]' % i for i in range(len(args))])
+            f.write('lib.testfargs(%s)\n' % aliststr)
+            f.write('ffi.addressof(lib, "testfargs")(%s)\n' % aliststr)
+            f.close()
+            rc = subprocess.call([sys.executable, 'run1.py'], cwd=str(udir))
+            assert rc == 0, rc
+
         def make_arg(tp):
             if tp in structs:
                 return [make_arg(tp1) for tp1 in structs[tp]]
@@ -122,6 +138,29 @@ else:
 
         for i, arg in enumerate(passed_args):
             check(ffi.addressof(lib, 'testfargs_arg%d' % i), arg)
+        ret = ffi.new(result + "*", received_return)
+        check(ret, returned_value)
 
+        ## CALLBACK tested assuming the CALL worked correctly
+        def expand(value):
+            if isinstance(value, ffi.CData):
+                t = ffi.typeof(value)
+                if t is _tp_long_double:
+                    return float(ffi.cast("double", value))
+                return [expand(getattr(value, 'f%d' % i))
+                        for i in range(len(t.fields))]
+            else:
+                return value
+
+        seen_args = []
+        def callback(*args):
+            seen_args.append([expand(arg) for arg in args])
+            return returned_value
+
+        fptr = ffi.callback("%s(%s)" % (result, ','.join(args)), callback)
+        received_return = fptr(*passed_args)
+
+        assert len(seen_args) == 1
+        assert passed_args == seen_args[0]
         ret = ffi.new(result + "*", received_return)
         check(ret, returned_value)
