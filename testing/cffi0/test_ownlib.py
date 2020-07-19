@@ -414,6 +414,8 @@ class TestOwnLib(object):
     def test_return_three_bytes(self):
         if self.module is None:
             py.test.skip("fix the auto-generation of the tiny test lib")
+        if self.__class__.Backend is CTypesBackend:
+            py.test.skip("not working on win32 on the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             typedef struct {
