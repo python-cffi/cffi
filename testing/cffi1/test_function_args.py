@@ -92,6 +92,7 @@ else:
             from testing.udir import udir
             import subprocess
             f = open(str(udir.join('run1.py')), 'w')
+            f.write('import sys; sys.path = %r\n' % (sys.path,))
             f.write('from _CFFI_test_function_args_%d import ffi, lib\n' %
                     TEST_RUN_COUNTER)
             for i in range(len(args)):
