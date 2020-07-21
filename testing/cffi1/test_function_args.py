@@ -1,5 +1,10 @@
 import pytest
 try:
+    # comment out the following line to run this test.
+    # the latest on x86-64 linux: https://github.com/libffi/libffi/issues/574
+    raise ImportError("this test is skipped because it keeps finding "
+                      "failures in libffi, instead of cffi")
+
     from hypothesis import given, settings, example
     from hypothesis import strategies as st
 except ImportError as e:
@@ -39,7 +44,7 @@ else:
 
 
     @given(st.lists(types), types)
-    @settings(max_examples=20, deadline=5000)   # 5000ms
+    @settings(max_examples=100, deadline=5000)   # 5000ms
     def test_types(tp_args, tp_result):
         global TEST_RUN_COUNTER
         print(tp_args, tp_result)
@@ -86,16 +91,14 @@ else:
         typedef_line = "typedef %s;" % (signature.replace('testfargs',
                                                           '(*mycallback_t)'),)
         assert signature.endswith(')')
-        sig_callback = "%s testfcallback(%s)" % (result,
-            ', '.join(['mycallback_t callback'] +
-                      ['%s a%d' % (arg, i) for (i, arg) in enumerate(args)]))
+        sig_callback = "%s testfcallback(mycallback_t callback)" % result
         cdefs.append(typedef_line)
         cdefs.append("%s;" % sig_callback)
         source.append(typedef_line)
         source.append(sig_callback)
         source.append("{")
         source.append("    return callback(%s);" %
-                ', '.join(["a%d" % i for i in range(len(args))]))
+                ', '.join(["testfargs_arg%d" % i for i in range(len(args))]))
         source.append("}")
 
         ffi = FFI()
@@ -194,7 +197,7 @@ else:
             return returned_value
 
         fptr = ffi.callback("%s(%s)" % (result, ','.join(args)), callback)
-        received_return = lib.testfcallback(fptr, *passed_args)
+        received_return = lib.testfcallback(fptr)
 
         assert len(seen_args) == 1
         assert passed_args == seen_args[0]
