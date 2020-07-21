@@ -1,9 +1,10 @@
-import pytest
+import pytest, sys
 try:
     # comment out the following line to run this test.
     # the latest on x86-64 linux: https://github.com/libffi/libffi/issues/574
-    raise ImportError("this test is skipped because it keeps finding "
-                      "failures in libffi, instead of cffi")
+    if sys.platform != 'win32':
+        raise ImportError("this test is skipped because it keeps finding "
+                          "failures in libffi, instead of cffi")
 
     from hypothesis import given, settings, example
     from hypothesis import strategies as st
@@ -120,6 +121,7 @@ else:
             f.write('lib.testfargs(%s)\n' % aliststr)
             f.write('ffi.addressof(lib, "testfargs")(%s)\n' % aliststr)
             f.close()
+            print("checking for segfault for direct call...")
             rc = subprocess.call([sys.executable, 'run1.py'], cwd=str(udir))
             assert rc == 0, rc
 
@@ -142,6 +144,7 @@ else:
         write(ffi.addressof(lib, 'testfargs_result'), returned_value)
 
         ## CALL forcing libffi
+        print("CALL forcing libffi")
         received_return = ffi.addressof(lib, 'testfargs')(*passed_args)
         ##
 
@@ -183,8 +186,9 @@ else:
             f.write('def callback(*args): return ffi.new("%s *")[0]\n' % result)
             f.write('fptr = ffi.callback("%s(%s)", callback)\n' % (result,
                                                                 ','.join(args)))
-            f.write('lib.testfcallback(fptr)\n')
+            f.write('print(lib.testfcallback(fptr))\n')
             f.close()
+            print("checking for segfault for callback...")
             rc = subprocess.call([sys.executable, 'run1.py'], cwd=str(udir))
             assert rc == 0, rc
 
@@ -194,6 +198,7 @@ else:
             return returned_value
 
         fptr = ffi.callback("%s(%s)" % (result, ','.join(args)), callback)
+        print("CALL with callback")
         received_return = lib.testfcallback(fptr)
 
         assert len(seen_args) == 1

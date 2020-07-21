@@ -451,6 +451,11 @@ ffi_prep_closure_loc (ffi_closure* closure,
        || cif->arg_types[3]->type == FFI_TYPE_DOUBLE))
     mask |= 8;
 
+  /* if we return a non-small struct, then the first argument is a pointer
+   * to the return area, and all real arguments are shifted by one */
+  if (cif->flags == FFI_TYPE_STRUCT)
+    mask = (mask & ~8) << 1;
+
   /* 41 BB ----         mov         r11d,mask */
   BYTES("\x41\xBB"); INT(mask);
 
