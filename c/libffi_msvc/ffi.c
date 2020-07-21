@@ -289,15 +289,11 @@ ffi_closure_SYSV (ffi_closure *closure, char *argp)
 	    _asm fld DWORD PTR [eax] ;
 //      asm ("flds (%0)" : : "r" (resp) : "st" );
     }
-  else if (rtype == FFI_TYPE_DOUBLE)
+  else if (rtype == FFI_TYPE_DOUBLE || rtype == FFI_TYPE_LONGDOUBLE)
     {
 	    _asm mov eax, resp ;
 	    _asm fld QWORD PTR [eax] ;
 //      asm ("fldl (%0)" : : "r" (resp) : "st", "st(1)" );
-    }
-  else if (rtype == FFI_TYPE_LONGDOUBLE)
-    {
-//      asm ("fldt (%0)" : : "r" (resp) : "st", "st(1)" );
     }
   else if (rtype == FFI_TYPE_SINT64)
     {
@@ -309,6 +305,10 @@ ffi_closure_SYSV (ffi_closure *closure, char *argp)
 //	   : : "r"(resp)
 //	   : "eax", "edx");
     }
+  else if (rtype == FFI_TYPE_STRUCT)
+    {
+	    _asm mov eax, resp ;
+    }
 #else
   /* now, do a generic return based on the value of rtype */
   if (rtype == FFI_TYPE_INT)
@@ -319,13 +319,9 @@ ffi_closure_SYSV (ffi_closure *closure, char *argp)
     {
       asm ("flds (%0)" : : "r" (resp) : "st" );
     }
-  else if (rtype == FFI_TYPE_DOUBLE)
+  else if (rtype == FFI_TYPE_DOUBLE || rtype == FFI_TYPE_LONGDOUBLE)
     {
       asm ("fldl (%0)" : : "r" (resp) : "st", "st(1)" );
-    }
-  else if (rtype == FFI_TYPE_LONGDOUBLE)
-    {
-      asm ("fldt (%0)" : : "r" (resp) : "st", "st(1)" );
     }
   else if (rtype == FFI_TYPE_SINT64)
     {
@@ -333,6 +329,10 @@ ffi_closure_SYSV (ffi_closure *closure, char *argp)
 	   "movl 4(%0),%%edx" 
 	   : : "r"(resp)
 	   : "eax", "edx");
+    }
+  else if (rtype == FFI_TYPE_STRUCT)
+    {
+      asm ("movl %0,%%eax" : : "r" (resp) : "eax");
     }
 #endif
 #endif
