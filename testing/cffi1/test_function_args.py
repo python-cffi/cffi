@@ -1,6 +1,6 @@
 import pytest
 try:
-    from hypothesis import given, settings
+    from hypothesis import given, settings, example
     from hypothesis import strategies as st
 except ImportError as e:
     def test_types():
@@ -39,7 +39,7 @@ else:
 
 
     @given(st.lists(types), types)
-    @settings(max_examples=20)
+    @settings(max_examples=20, deadline=5000)   # 5000ms
     def test_types(tp_args, tp_result):
         global TEST_RUN_COUNTER
         print(tp_args, tp_result)
