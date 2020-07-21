@@ -42,6 +42,7 @@ else:
     @settings(max_examples=20)
     def test_types(tp_args, tp_result):
         global TEST_RUN_COUNTER
+        print(tp_args, tp_result)
         cdefs = []
         structs = {}
 
@@ -80,6 +81,21 @@ else:
         for i, arg in enumerate(args):
             source.append("    testfargs_arg%d = a%d;" % (i, i))
         source.append("    return testfargs_result;")
+        source.append("}")
+
+        typedef_line = "typedef %s;" % (signature.replace('testfargs',
+                                                          '(*mycallback_t)'),)
+        assert signature.endswith(')')
+        sig_callback = "%s testfcallback(%s)" % (result,
+            ', '.join(['mycallback_t callback'] +
+                      ['%s a%d' % (arg, i) for (i, arg) in enumerate(args)]))
+        cdefs.append(typedef_line)
+        cdefs.append("%s;" % sig_callback)
+        source.append(typedef_line)
+        source.append(sig_callback)
+        source.append("{")
+        source.append("    return callback(%s);" %
+                ', '.join(["a%d" % i for i in range(len(args))]))
         source.append("}")
 
         ffi = FFI()
@@ -142,7 +158,7 @@ else:
         ret = ffi.new(result + "*", received_return)
         check(ret, returned_value)
 
-        ## CALLBACK tested assuming the CALL worked correctly
+        ## CALLBACK
         def expand(value):
             if isinstance(value, ffi.CData):
                 t = ffi.typeof(value)
@@ -153,13 +169,32 @@ else:
             else:
                 return value
 
+        # when getting segfaults, enable this:
+        if False:
+            from testing.udir import udir
+            import subprocess
+            f = open(str(udir.join('run1.py')), 'w')
+            f.write('import sys; sys.path = %r\n' % (sys.path,))
+            f.write('from _CFFI_test_function_args_%d import ffi, lib\n' %
+                    TEST_RUN_COUNTER)
+            for i in range(len(args)):
+                f.write('a%d = ffi.new("%s *")\n' % (i, args[i]))
+            aliststr = ', '.join(['a%d[0]' % i for i in range(len(args))])
+            f.write('def callback(*args): return ffi.new("%s *")[0]\n' % result)
+            f.write('fptr = ffi.callback("%s(%s)", callback)\n' % (result,
+                                                                ','.join(args)))
+            f.write('lib.testfcallback(fptr, %s)\n' % aliststr)
+            f.close()
+            rc = subprocess.call([sys.executable, 'run1.py'], cwd=str(udir))
+            assert rc == 0, rc
+
         seen_args = []
         def callback(*args):
             seen_args.append([expand(arg) for arg in args])
             return returned_value
 
         fptr = ffi.callback("%s(%s)" % (result, ','.join(args)), callback)
-        received_return = fptr(*passed_args)
+        received_return = lib.testfcallback(fptr, *passed_args)
 
         assert len(seen_args) == 1
         assert passed_args == seen_args[0]
