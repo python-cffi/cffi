@@ -3,6 +3,25 @@ What's New
 ======================
 
 
+v1.14.1
+=======
+
+* CFFI source code is now `hosted on Heptapod`_.
+
+* Improved support for ``typedef int my_array_t[...];`` with an explicit
+  dot-dot-dot in API mode (`issue #453`_)
+
+* Windows (32 and 64 bits): multiple fixes for ABI-mode call to functions
+  that return a structure.
+
+* Experimental support for MacOS 11 on aarch64.
+
+* and a few other minor changes and bug fixes.
+
+.. _`hosted on Heptapod`: https://foss.heptapod.net/pypy/cffi/
+.. _`issue #453`: https://foss.heptapod.net/pypy/cffi/issues/453
+
+
 v1.14
 =====
 
