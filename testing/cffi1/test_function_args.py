@@ -9,8 +9,9 @@ try:
     from hypothesis import given, settings, example
     from hypothesis import strategies as st
 except ImportError as e:
+    e1 = e
     def test_types():
-        pytest.skip(str(e))
+        pytest.skip(str(e1))
 else:
 
     from cffi import FFI
