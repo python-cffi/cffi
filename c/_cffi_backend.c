@@ -148,6 +148,10 @@
     (PyCObject_FromVoidPtr(pointer, destructor))
 #endif
 
+#if PY_VERSION_HEX < 0x030900a4
+# define Py_SET_REFCNT(obj, val) (Py_REFCNT(obj) = (val))
+#endif
+
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
@@ -404,10 +408,10 @@ ctypedescr_dealloc(CTypeDescrObject *ct)
 
     if (ct->ct_unique_key != NULL) {
         /* revive dead object temporarily for DelItem */
-        Py_REFCNT(ct) = 43;
+        Py_SET_REFCNT(ct, 43);
         PyDict_DelItem(unique_cache, ct->ct_unique_key);
         assert(Py_REFCNT(ct) == 42);
-        Py_REFCNT(ct) = 0;
+        Py_SET_REFCNT(ct, 0);
         Py_DECREF(ct->ct_unique_key);
     }
     Py_XDECREF(ct->ct_itemdescr);
@@ -653,7 +657,7 @@ static PyMethodDef ctypedescr_methods[] = {
 
 static PyTypeObject CTypeDescr_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CTypeDescr",
+    "_cffi_backend.CType",
     offsetof(CTypeDescrObject, ct_name),
     sizeof(char),
     (destructor)ctypedescr_dealloc,             /* tp_dealloc */
@@ -2888,7 +2892,8 @@ static PyObject *
 convert_struct_to_owning_object(char *data, CTypeDescrObject *ct); /*forward*/
 
 static cif_description_t *
-fb_prepare_cif(PyObject *fargs, CTypeDescrObject *, ffi_abi);      /*forward*/
+fb_prepare_cif(PyObject *fargs, CTypeDescrObject *, Py_ssize_t, ffi_abi);
+                                                                   /*forward*/
 
 static PyObject *new_primitive_type(const char *name);             /*forward*/
 
@@ -3081,7 +3086,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 #else
         fabi = PyLong_AS_LONG(PyTuple_GET_ITEM(signature, 0));
 #endif
-        cif_descr = fb_prepare_cif(fvarargs, fresult, fabi);
+        cif_descr = fb_prepare_cif(fvarargs, fresult, nargs_declared, fabi);
         if (cif_descr == NULL)
             goto error;
     }
@@ -3354,7 +3359,7 @@ static PyMethodDef cdata_methods[] = {
 
 static PyTypeObject CData_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CData",
+    "_cffi_backend._CDataBase",
     sizeof(CDataObject),
     0,
     (destructor)cdata_dealloc,                  /* tp_dealloc */
@@ -3373,7 +3378,9 @@ static PyTypeObject CData_Type = {
     (setattrofunc)cdata_setattro,               /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
-    0,                                          /* tp_doc */
+    "The internal base type for CData objects.  Use FFI.CData to access "
+    "it.  Always check with isinstance(): subtypes are sometimes returned "
+    "on CPython, for performance reasons.",     /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     cdata_richcompare,                          /* tp_richcompare */
@@ -3396,7 +3403,7 @@ static PyTypeObject CData_Type = {
 
 static PyTypeObject CDataOwning_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CDataOwn",
+    "_cffi_backend.__CDataOwn",
     sizeof(CDataObject),
     0,
     (destructor)cdataowning_dealloc,            /* tp_dealloc */
@@ -3415,7 +3422,8 @@ static PyTypeObject CDataOwning_Type = {
     0,  /* inherited */                         /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES, /* tp_flags */
-    0,                                          /* tp_doc */
+    "This is an internal subtype of _CDataBase for performance only on "
+    "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,  /* inherited */                         /* tp_richcompare */
@@ -3438,7 +3446,7 @@ static PyTypeObject CDataOwning_Type = {
 
 static PyTypeObject CDataOwningGC_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CDataOwnGC",
+    "_cffi_backend.__CDataOwnGC",
     sizeof(CDataObject_own_structptr),
     0,
     (destructor)cdataowninggc_dealloc,          /* tp_dealloc */
@@ -3458,7 +3466,8 @@ static PyTypeObject CDataOwningGC_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
                        | Py_TPFLAGS_HAVE_GC,
-    0,                                          /* tp_doc */
+    "This is an internal subtype of _CDataBase for performance only on "
+    "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     (traverseproc)cdataowninggc_traverse,       /* tp_traverse */
     (inquiry)cdataowninggc_clear,               /* tp_clear */
     0,  /* inherited */                         /* tp_richcompare */
@@ -3481,7 +3490,7 @@ static PyTypeObject CDataOwningGC_Type = {
 
 static PyTypeObject CDataFromBuf_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CDataFromBuf",
+    "_cffi_backend.__CDataFromBuf",
     sizeof(CDataObject_frombuf),
     0,
     (destructor)cdatafrombuf_dealloc,           /* tp_dealloc */
@@ -3501,7 +3510,8 @@ static PyTypeObject CDataFromBuf_Type = {
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES  /* tp_flags */
                        | Py_TPFLAGS_HAVE_GC,
-    0,                                          /* tp_doc */
+    "This is an internal subtype of _CDataBase for performance only on "
+    "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     (traverseproc)cdatafrombuf_traverse,        /* tp_traverse */
     (inquiry)cdatafrombuf_clear,                /* tp_clear */
     0,  /* inherited */                         /* tp_richcompare */
@@ -3524,7 +3534,7 @@ static PyTypeObject CDataFromBuf_Type = {
 
 static PyTypeObject CDataGCP_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CDataGCP",
+    "_cffi_backend.__CDataGCP",
     sizeof(CDataObject_gcp),
     0,
     (destructor)cdatagcp_dealloc,               /* tp_dealloc */
@@ -3547,7 +3557,8 @@ static PyTypeObject CDataGCP_Type = {
                        | Py_TPFLAGS_HAVE_FINALIZE
 #endif
                        | Py_TPFLAGS_HAVE_GC,
-    0,                                          /* tp_doc */
+    "This is an internal subtype of _CDataBase for performance only on "
+    "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
     (traverseproc)cdatagcp_traverse,            /* tp_traverse */
     0,                                          /* tp_clear */
     0,  /* inherited */                         /* tp_richcompare */
@@ -3608,7 +3619,7 @@ cdataiter_dealloc(CDataIterObject *it)
 
 static PyTypeObject CDataIter_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.CDataIter",              /* tp_name */
+    "_cffi_backend.__CData_iterator",       /* tp_name */
     sizeof(CDataIterObject),                /* tp_basicsize */
     0,                                      /* tp_itemsize */
     /* methods */
@@ -4363,7 +4374,7 @@ static PyMethodDef dl_methods[] = {
 
 static PyTypeObject dl_type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_cffi_backend.Library",            /* tp_name */
+    "_cffi_backend.CLibrary",           /* tp_name */
     sizeof(DynLibObject),               /* tp_basicsize */
     0,                                  /* tp_itemsize */
     /* methods */
@@ -4441,9 +4452,11 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
     {
         PyObject *s = PyTuple_GET_ITEM(args, 0);
 #ifdef MS_WIN32
-        Py_UNICODE *filenameW;
-        if (PyArg_ParseTuple(args, "u|i:load_library", &filenameW, &flags))
+        PyObject *filename_unicode;
+        if (PyArg_ParseTuple(args, "U|i:load_library", &filename_unicode, &flags))
         {
+            Py_ssize_t sz1;
+            wchar_t *w1;
 #if PY_MAJOR_VERSION < 3
             s = PyUnicode_AsUTF8String(s);
             if (s == NULL)
@@ -4454,7 +4467,15 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
             if (*p_printable_filename == NULL)
                 return NULL;
 
-            handle = dlopenW(filenameW);
+            sz1 = PyUnicode_GetSize(filename_unicode) + 1;
+            sz1 *= 2;   /* should not be needed, but you never know */
+            w1 = alloca(sizeof(wchar_t) * sz1);
+            sz1 = PyUnicode_AsWideChar((PyUnicodeObject *)filename_unicode,
+                                       w1, sz1 - 1);
+            if (sz1 < 0)
+                return NULL;
+            w1[sz1] = 0;
+            handle = dlopenW(w1);
             goto got_handle;
         }
         PyErr_Clear();
@@ -4477,6 +4498,13 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
     }
     if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
         flags |= RTLD_NOW;
+
+#ifdef MS_WIN32
+    if (filename_or_null == NULL) {
+        PyErr_SetString(PyExc_OSError, "dlopen(None) not supported on Windows");
+        return NULL;
+    }
+#endif
 
     handle = dlopen(filename_or_null, flags);
 
@@ -4995,7 +5023,9 @@ static int complete_sflags(int sflags)
 #ifdef MS_WIN32
         sflags |= SF_MSVC_BITFIELDS;
 #else
-# if defined(__arm__) || defined(__aarch64__)
+# if defined(__APPLE__) && defined(__arm64__)
+        sflags |= SF_GCC_X86_BITFIELDS;
+# elif defined(__arm__) || defined(__aarch64__)
         sflags |= SF_GCC_ARM_BITFIELDS;
 # else
         sflags |= SF_GCC_X86_BITFIELDS;
@@ -5783,11 +5813,14 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
 
 static cif_description_t *fb_prepare_cif(PyObject *fargs,
                                          CTypeDescrObject *fresult,
+                                         Py_ssize_t variadic_nargs_declared,
                                          ffi_abi fabi)
+
 {
     char *buffer;
     cif_description_t *cif_descr;
     struct funcbuilder_s funcbuffer;
+    ffi_status status;
 
     funcbuffer.nb_bytes = 0;
     funcbuffer.bufferp = NULL;
@@ -5810,8 +5843,21 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     assert(funcbuffer.bufferp == buffer + funcbuffer.nb_bytes);
 
     cif_descr = (cif_description_t *)buffer;
-    if (ffi_prep_cif(&cif_descr->cif, fabi, funcbuffer.nargs,
-                     funcbuffer.rtype, funcbuffer.atypes) != FFI_OK) {
+#if HAVE_FFI_PREP_CIF_VAR
+    if (variadic_nargs_declared >= 0) {
+        status = ffi_prep_cif_var(&cif_descr->cif, fabi,
+                                  variadic_nargs_declared, funcbuffer.nargs,
+                                  funcbuffer.rtype, funcbuffer.atypes);
+    } else
+#endif
+#if !HAVE_FFI_PREP_CIF_VAR && defined(__arm64__) && defined(__APPLE__)
+#error Apple Arm64 ABI requires ffi_prep_cif_var
+#endif
+    {
+        status = ffi_prep_cif(&cif_descr->cif, fabi, funcbuffer.nargs,
+                              funcbuffer.rtype, funcbuffer.atypes);
+    }
+    if (status != FFI_OK) {
         PyErr_SetString(PyExc_SystemError,
                         "libffi failed to build this function type");
         goto error;
@@ -5855,7 +5901,7 @@ static PyObject *new_function_type(PyObject *fargs,   /* tuple */
            is computed here. */
         cif_description_t *cif_descr;
 
-        cif_descr = fb_prepare_cif(fargs, fresult, fabi);
+        cif_descr = fb_prepare_cif(fargs, fresult, -1, fabi);
         if (cif_descr == NULL) {
             if (PyErr_ExceptionMatches(PyExc_NotImplementedError)) {
                 PyErr_Clear();   /* will get the exception if we see an
@@ -6238,6 +6284,17 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
                      "return type or with '...'", ct->ct_name);
         goto error;
     }
+    /* NOTE: ffi_prep_closure() is marked as deprecated.  We could just
+     * call ffi_prep_closure_loc() instead, which is what ffi_prep_closure()
+     * does.  However, cffi also runs on older systems with a libffi that
+     * doesn't have ffi_prep_closure_loc() at all---notably, the OS X
+     * machines on Azure are like that (June 2020).  I didn't find a way to
+     * version-check the included ffi.h.  So you will have to live with the
+     * deprecation warning for now.  (We could try to check for an unrelated
+     * macro like FFI_API which happens to be defined in libffi 3.3 and not
+     * before, but that sounds very obscure.  And I prefer a compile-time
+     * warning rather than a cross-version binary compatibility problem.)
+     */
 #ifdef CFFI_TRUST_LIBFFI
     if (ffi_prep_closure_loc(closure, &cif_descr->cif,
                          invoke_callback, infotuple, closure_exec) != FFI_OK) {
@@ -7788,6 +7845,22 @@ init_cffi_backend(void)
     PyObject *m, *v;
     int i;
     static char init_done = 0;
+    static PyTypeObject *all_types[] = {
+        &dl_type,
+        &CTypeDescr_Type,
+        &CField_Type,
+        &CData_Type,
+        &CDataOwning_Type,
+        &CDataOwningGC_Type,
+        &CDataFromBuf_Type,
+        &CDataGCP_Type,
+        &CDataIter_Type,
+        &MiniBuffer_Type,
+        &FFI_Type,
+        &Lib_Type,
+        &GlobSupport_Type,
+        NULL
+    };
 
     v = PySys_GetObject("version");
     if (v == NULL || !PyText_Check(v) ||
@@ -7813,26 +7886,22 @@ init_cffi_backend(void)
             INITERROR;
     }
 
-    if (PyType_Ready(&dl_type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CTypeDescr_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CField_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CData_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CDataOwning_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CDataOwningGC_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CDataFromBuf_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CDataGCP_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&CDataIter_Type) < 0)
-        INITERROR;
-    if (PyType_Ready(&MiniBuffer_Type) < 0)
-        INITERROR;
+    /* readify all types and add them to the module */
+    for (i = 0; all_types[i] != NULL; i++) {
+        PyTypeObject *tp = all_types[i];
+        PyObject *tpo = (PyObject *)tp;
+        if (strncmp(tp->tp_name, "_cffi_backend.", 14) != 0) {
+            PyErr_Format(PyExc_ImportError,
+                         "'%s' is an ill-formed type name", tp->tp_name);
+            INITERROR;
+        }
+        if (PyType_Ready(tp) < 0)
+            INITERROR;
+
+        Py_INCREF(tpo);
+        if (PyModule_AddObject(m, tp->tp_name + 14, tpo) < 0)
+            INITERROR;
+    }
 
     if (!init_done) {
         v = PyText_FromString("_cffi_backend");
@@ -7877,10 +7946,6 @@ init_cffi_backend(void)
                                     all_dlopen_flags[i].value) < 0)
             INITERROR;
     }
-
-    Py_INCREF(&MiniBuffer_Type);
-    if (PyModule_AddObject(m, "buffer", (PyObject *)&MiniBuffer_Type) < 0)
-        INITERROR;
 
     init_cffi_tls();
     if (PyErr_Occurred())

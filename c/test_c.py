@@ -4,12 +4,17 @@ import pytest
 def _setup_path():
     import os, sys
     if '__pypy__' in sys.builtin_module_names:
-        py.test.skip("_cffi_backend.c: not tested on top of pypy, "
-                     "use pypy/module/_cffi_backend/test/ instead.")
+        global pytestmark
+        pytestmark = pytest.mark.skip(
+            "_cffi_backend.c: not tested on top of pypy, "
+            "use pypy/module/_cffi_backend/test/ instead.")
+        return False
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-_setup_path()
+    return True
+if _setup_path():
+    from _cffi_backend import _testfunc, _get_types, _get_common_types
 from _cffi_backend import *
-from _cffi_backend import _testfunc, _get_types, _get_common_types, __version__
+from _cffi_backend import __version__
 
 # ____________________________________________________________
 
@@ -109,7 +114,7 @@ def test_cast_to_signed_char():
     p = new_primitive_type("signed char")
     x = cast(p, -65 + 17*256)
     assert repr(x) == "<cdata 'signed char' -65>"
-    assert repr(type(x)) == "<%s '_cffi_backend.CData'>" % type_or_class
+    assert repr(type(x)) == "<%s '_cffi_backend._CDataBase'>" % type_or_class
     assert int(x) == -65
     x = cast(p, -66 + (1<<199)*256)
     assert repr(x) == "<cdata 'signed char' -66>"
@@ -4453,3 +4458,41 @@ def test_huge_structure():
     BStruct = new_struct_type("struct foo")
     complete_struct_or_union(BStruct, [('a1', BArray, -1)])
     assert sizeof(BStruct) == sys.maxsize
+
+def test_get_types():
+    import _cffi_backend
+    CData, CType = _get_types()
+    assert CData is _cffi_backend._CDataBase
+    assert CType is _cffi_backend.CType
+
+def test_type_available_with_correct_names():
+    import _cffi_backend
+    check_names = [
+        'CType',
+        'CField',
+        'CLibrary',
+        '_CDataBase',
+        'FFI',
+        'Lib',
+        'buffer',
+    ]
+    if '__pypy__' in sys.builtin_module_names:
+        check_names += [
+            '__CData_iterator',
+            '__FFIGlobSupport',
+            '__FFIAllocator',
+            '__FFIFunctionWrapper',
+        ]
+    else:
+        check_names += [
+            '__CDataOwn',
+            '__CDataOwnGC',
+            '__CDataFromBuf',
+            '__CDataGCP',
+            '__CData_iterator',
+            '__FFIGlobSupport',
+        ]
+    for name in check_names:
+        tp = getattr(_cffi_backend, name)
+        assert isinstance(tp, type)
+        assert (tp.__module__, tp.__name__) == ('_cffi_backend', name)

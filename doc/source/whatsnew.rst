@@ -3,6 +3,25 @@ What's New
 ======================
 
 
+v1.14.1
+=======
+
+* CFFI source code is now `hosted on Heptapod`_.
+
+* Improved support for ``typedef int my_array_t[...];`` with an explicit
+  dot-dot-dot in API mode (`issue #453`_)
+
+* Windows (32 and 64 bits): multiple fixes for ABI-mode call to functions
+  that return a structure.
+
+* Experimental support for MacOS 11 on aarch64.
+
+* and a few other minor changes and bug fixes.
+
+.. _`hosted on Heptapod`: https://foss.heptapod.net/pypy/cffi/
+.. _`issue #453`: https://foss.heptapod.net/pypy/cffi/issues/453
+
+
 v1.14
 =====
 
@@ -82,8 +101,11 @@ v1.13
   recursion, with ``ffi.cdef("""struct X { void(*fnptr)(struct X); };""")``
 
 
+Older Versions
+==============
+
 v1.12.3
-=======
+-------
 
 * Fix for nested struct types that end in a var-sized array (#405).
 
@@ -94,13 +116,13 @@ v1.12.3
 
 
 v1.12.2
-=======
+-------
 
 * Added temporary workaround to compile on CPython 3.8.0a2.
 
 
 v1.12.1
-=======
+-------
 
 * CPython 3 on Windows: we again no longer compile with ``Py_LIMITED_API``
   by default because such modules *still* cannot be used with virtualenv.
@@ -116,7 +138,7 @@ v1.12.1
 
 
 v1.12
-=====
+-----
 
 * `Direct support for pkg-config`__.
 
@@ -153,9 +175,6 @@ v1.12
 .. __: cdef.html#pkgconfig
 .. _`issue #362`: https://bitbucket.org/cffi/cffi/issues/362/
 
-
-Older Versions
-==============
 
 v1.11.5
 -------
