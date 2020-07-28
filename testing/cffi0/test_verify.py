@@ -97,11 +97,6 @@ def _Wconversion(cdef, source, **kargs):
     return lib
 
 def test_Wconversion_unsigned():
-    if '-Wno-sign-conversion' in extra_compile_args:
-        # CPython 3.9 needs -Wno-sign-conversion, so we can't meaningfully
-        # run this test
-        py.test.skip("cannot test this on CPython >= 3.9")
-    #
     _Wconversion("unsigned foo(void);",
                  "int foo(void) { return -1;}")
 

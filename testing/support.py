@@ -112,7 +112,3 @@ else:
         extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion',
                               '-Wno-unused-parameter',
                               '-Wno-unreachable-code']
-    # CPython 3.9 added in its headers something that triggers this warning,
-    # so we need to disable it
-    if sys.version_info >= (3, 9):
-        extra_compile_args.append('-Wno-sign-conversion')
