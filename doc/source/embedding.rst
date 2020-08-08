@@ -380,7 +380,7 @@ inaccuracies in this paragraph or better ways to do things.)
   ``dlopen("libpythonX.Y.so", RTLD_LAZY|RTLD_GLOBAL)``, which will
   force ``libpythonX.Y.so`` to be loaded first.
 
-.. __: https://bitbucket.org/cffi/cffi/issues/264/
+.. __: https://foss.heptapod.net/pypy/cffi/-/issues/264
 
 
 Using multiple CFFI-made DLLs

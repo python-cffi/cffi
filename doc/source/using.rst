@@ -787,7 +787,7 @@ The ``extern "Python"`` functions cannot be variadic for now.  This
 may be implemented in the future.  (`This demo`__ shows how to do it
 anyway, but it is a bit lengthy.)
 
-.. __: https://bitbucket.org/cffi/cffi/src/default/demo/extern_python_varargs.py
+.. __: https://foss.heptapod.net/pypy/cffi/-/blob/branch/default/demo/extern_python_varargs.py
 
 Each corresponding Python callback function is defined with the
 ``@ffi.def_extern()`` decorator.  Be careful when writing this
@@ -896,7 +896,7 @@ ffi.callback() and the result is the same.
     to refactor the involved code so that it no longer uses ``ffi.callback()``.
 
 .. __: https://github.com/pyca/pyopenssl/issues/596
-.. __: https://bitbucket.org/cffi/cffi/issues/391/
+.. __: https://foss.heptapod.net/pypy/cffi/-/issues/391
 .. __: https://bugzilla.redhat.com/show_bug.cgi?id=1249685
 
 Warning: like ffi.new(), ffi.callback() returns a cdata that has
