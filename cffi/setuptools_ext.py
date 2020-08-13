@@ -87,8 +87,10 @@ def _set_py_limited_api(Extension, kwds):
     Recently (2020) we started shipping only >= 3.5 wheels, though.  So
     we'll give it another try and set py_limited_api on Windows >= 3.5.
     """
+    from cffi import recompiler
+
     if ('py_limited_api' not in kwds and not hasattr(sys, 'gettotalrefcount')
-            and (sys.platform != 'win32' or sys.version_info >= (3, 5))):
+            and recompiler.USE_LIMITED_API):
         import setuptools
         try:
             setuptools_major_version = int(setuptools.__version__.partition('.')[0])
