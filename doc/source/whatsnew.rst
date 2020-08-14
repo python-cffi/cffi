@@ -3,6 +3,24 @@ What's New
 ======================
 
 
+v1.14.2
+=======
+
+* CPython 3 on Windows: we again try to compile with ``Py_LIMITED_API``
+  by default.  This flag is not added if you run the compilation with
+  CPython 3.4, as it only works with CPython >= 3.5, but by now this
+  version of Python is quite old (and we no longer distribute cffi
+  wheels for it).
+
+  This may require that you upgrade ``virtualenv`` (requires version 16
+  or newer) or at least copy manually ``python3.dll`` into your existing
+  virtualenvs.  For distributing wheels with your cffi modules, you may
+  also need to upgrade ``wheel`` to the just-released version 0.35.
+
+  You can manually disable ``Py_LIMITED_API`` by calling
+  ``ffi.set_source(..., py_limited_api=False)``.
+
+
 v1.14.1
 =======
 
