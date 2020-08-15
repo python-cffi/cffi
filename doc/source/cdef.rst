@@ -590,7 +590,7 @@ above`_ as primitive (so ``extern long long a[5];`` and ``extern int64_t a[5]`` 
 different declarations).  The reason for that is detailed in `a comment
 about an issue.`__
 
-.. __: https://bitbucket.org/cffi/cffi/issues/265/cffi-doesnt-allow-creating-pointers-to#comment-28406958
+.. __: https://foss.heptapod.net/pypy/cffi/-/issues/265#note_50393
 
 
 ffibuilder.compile() etc.: compiling out-of-line modules

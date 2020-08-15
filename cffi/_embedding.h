@@ -246,7 +246,9 @@ static int _cffi_initialize_python(void)
     goto done;
 }
 
+#if PY_VERSION_HEX < 0x03080000
 PyAPI_DATA(char *) _PyParser_TokenNames[];  /* from CPython */
+#endif
 
 static int _cffi_carefully_make_gil(void)
 {

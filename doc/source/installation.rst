@@ -65,7 +65,7 @@ Download and Installation:
 
 * ``python setup.py install`` or ``python setup_base.py install``
   (should work out of the box on Linux or Windows; see below for
-  `MacOS X`_ or `Windows 64`_.)
+  `MacOS X`_.)
 
 * running the tests: ``py.test  c/  testing/`` (if you didn't
   install cffi yet, you need first ``python setup_base.py build_ext -f
@@ -82,9 +82,9 @@ Demos:
   ultimate reference is given by the tests, notably
   `testing/cffi1/test_verify1.py`_ and `testing/cffi0/backend_tests.py`_.
 
-.. _`demo`: https://bitbucket.org/cffi/cffi/src/default/demo
-.. _`testing/cffi1/test_verify1.py`: https://bitbucket.org/cffi/cffi/src/default/testing/cffi1/test_verify1.py
-.. _`testing/cffi0/backend_tests.py`: https://bitbucket.org/cffi/cffi/src/default/testing/cffi0/backend_tests.py
+.. _`demo`: https://foss.heptapod.net/pypy/cffi/-/tree/branch/default/demo
+.. _`testing/cffi1/test_verify1.py`: https://foss.heptapod.net/pypy/cffi/-/blob/branch/default/testing/cffi1/test_verify1.py
+.. _`testing/cffi0/backend_tests.py`: https://foss.heptapod.net/pypy/cffi/-/blob/branch/default/testing/cffi0/backend_tests.py
 
 
 Platform-specific instructions
@@ -133,10 +133,10 @@ as described here_.
 .. _here: http://superuser.com/questions/259278/python-2-6-1-pycrypto-2-3-pypi-package-broken-pipe-during-build
 
 
-Windows (regular 32-bit)
-++++++++++++++++++++++++
+Windows (32/64-bit)
++++++++++++++++++++
 
-Win32 works and is tested at least each official release.
+Win32 and Win64 work and are tested at least each official release.
 
 The recommended C compiler compatible with Python 2.7 is this one:
 http://www.microsoft.com/en-us/download/details.aspx?id=44266
@@ -148,22 +148,6 @@ this specific compiler suite download.
 
 For Python 3.4 and beyond:
 https://www.visualstudio.com/en-us/downloads/visual-studio-2015-ctp-vs
-
-
-Windows 64
-++++++++++
-
-Win64 received very basic testing and we applied a few essential
-fixes in cffi 0.7. The comment above applies for Python 2.7 on 
-Windows 64 as well. Please report any other issue.
-
-Note as usual that this is only about running the 64-bit version of
-Python on the 64-bit OS.  If you're running the 32-bit version (the
-common case apparently), then you're running Win32 as far as we're
-concerned.
-
-.. _`issue 9`: https://bitbucket.org/cffi/cffi/issue/9
-.. _`Python issue 7546`: http://bugs.python.org/issue7546
 
 
 Linux and OS/X: UCS2 versus UCS4

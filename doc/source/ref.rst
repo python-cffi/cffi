@@ -459,7 +459,7 @@ destructors will be called in a random order.  If you need a particular
 order, see the discussion in `issue 340`__.
 
 .. __: http://bugs.python.org/issue31105
-.. __: https://bitbucket.org/cffi/cffi/issues/340/resources-release-issues
+.. __: https://foss.heptapod.net/pypy/cffi/-/issues/340
 
 
 .. _ffi-new-handle:
@@ -731,7 +731,7 @@ example::
            raise IndexError("index too large!")
        ...
 
-.. __: https://bitbucket.org/cffi/cffi/issues/233/
+.. __: https://foss.heptapod.net/pypy/cffi/-/issues/233
 
 
 .. _ffi-getctype:

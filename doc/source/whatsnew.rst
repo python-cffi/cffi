@@ -3,6 +3,24 @@ What's New
 ======================
 
 
+v1.14.2
+=======
+
+* CPython 3 on Windows: we again try to compile with ``Py_LIMITED_API``
+  by default.  This flag is not added if you run the compilation with
+  CPython 3.4, as it only works with CPython >= 3.5, but by now this
+  version of Python is quite old (and we no longer distribute cffi
+  wheels for it).
+
+  This may require that you upgrade ``virtualenv`` (requires version 16
+  or newer) or at least copy manually ``python3.dll`` into your existing
+  virtualenvs.  For distributing wheels with your cffi modules, you may
+  also need to upgrade ``wheel`` to the just-released version 0.35.
+
+  You can manually disable ``Py_LIMITED_API`` by calling
+  ``ffi.set_source(..., py_limited_api=False)``.
+
+
 v1.14.1
 =======
 
@@ -55,7 +73,7 @@ v1.13.2
 * re-release because the Linux wheels came with an attached version of libffi
   that was very old and buggy (`issue #432`_).
 
-.. _`issue #432`: https://bitbucket.org/cffi/cffi/issues/432/
+.. _`issue #432`: https://foss.heptapod.net/pypy/cffi/-/issues/432
 
 
 
@@ -74,8 +92,8 @@ v1.13.1
 * fixed `issue #427`_ where a multithreading mistake in the embedding logic
   initialization code would cause deadlocks on CPython 3.7.
 
-.. _`issue #429`: https://bitbucket.org/cffi/cffi/issues/429/
-.. _`issue #427`: https://bitbucket.org/cffi/cffi/issues/427/
+.. _`issue #429`: https://foss.heptapod.net/pypy/cffi/-/issues/429
+.. _`issue #427`: https://foss.heptapod.net/pypy/cffi/-/issues/427
 
 
 v1.13
@@ -173,7 +191,7 @@ v1.12
   to 1 byte instead of 4).
 
 .. __: cdef.html#pkgconfig
-.. _`issue #362`: https://bitbucket.org/cffi/cffi/issues/362/
+.. _`issue #362`: https://foss.heptapod.net/pypy/cffi/-/issues/362
 
 
 v1.11.5
@@ -205,10 +223,10 @@ v1.11.5
   concerned about virtualenv: pass ``define_macros=[("Py_LIMITED_API",
   None)]`` as a keyword to the ``ffibuilder.set_source()`` call.
 
-.. _`Issue #345`: https://bitbucket.org/cffi/cffi/issues/345/
-.. _`Issue #350`: https://bitbucket.org/cffi/cffi/issues/350/
-.. _`Issue #358`: https://bitbucket.org/cffi/cffi/issues/358/
-.. _`Issue #357`: https://bitbucket.org/cffi/cffi/issues/357/
+.. _`Issue #345`: https://foss.heptapod.net/pypy/cffi/-/issues/345
+.. _`Issue #350`: https://foss.heptapod.net/pypy/cffi/-/issues/350
+.. _`Issue #358`: https://foss.heptapod.net/pypy/cffi/-/issues/358
+.. _`Issue #357`: https://foss.heptapod.net/pypy/cffi/-/issues/357
 
 
 v1.11.4
@@ -221,7 +239,7 @@ v1.11.4
   ``foo.cp36-win32.pyd``, to make it clear that they are regular
   CPython modules depending on ``python36.dll``.
 
-.. _`Issue #355`: https://bitbucket.org/cffi/cffi/issues/355/
+.. _`Issue #355`: https://foss.heptapod.net/pypy/cffi/-/issues/355
 
 
 v1.11.3
@@ -310,9 +328,9 @@ v1.11
   that are *slower* to call than the API mode does.  For some reason it
   is often thought to be faster.  It is not!
 
-.. __: https://bitbucket.org/cffi/cffi/issues/321/cffi-191-segmentation-fault-during-self
+.. __: https://foss.heptapod.net/pypy/cffi/-/issues/321
 .. __: ref.html#ffi-gc
-.. __: https://bitbucket.org/cffi/cffi/issues/320/improve-memory_pressure-management
+.. __: https://foss.heptapod.net/pypy/cffi/-/issues/320
 .. __: http://bugs.python.org/issue31105
 
 
