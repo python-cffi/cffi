@@ -6225,9 +6225,11 @@ static PyObject *prepare_callback_info_tuple(CTypeDescrObject *ct,
     infotuple = Py_BuildValue("OOOO", ct, ob, py_rawerr, onerror_ob);
     Py_DECREF(py_rawerr);
 
-#ifdef WITH_THREAD
+#if defined(WITH_THREAD) && PY_VERSION_HEX < 0x03070000
     /* We must setup the GIL here, in case the callback is invoked in
-       some other non-Pythonic thread.  This is the same as ctypes. */
+       some other non-Pythonic thread.  This is the same as ctypes.
+       But PyEval_InitThreads() is always a no-op from CPython 3.7
+       (the call from ctypes was removed some time later I think). */
     PyEval_InitThreads();
 #endif
 
