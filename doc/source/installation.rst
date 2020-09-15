@@ -54,11 +54,11 @@ Download and Installation:
 
 * Checksums of the "source" package version 1.14.3:
 
-   - MD5: ...
+   - MD5: c2a47ffd5d183b193ac8ed3414dcfd07
 
-   - SHA: ...
+   - SHA: 7199374653c1927e8d3c523b6498b149acdb6f7e
 
-   - SHA256: ...
+   - SHA256: f92f789e4f9241cd262ad7a555ca2c648a98178a953af117ef7fad46aa1d5591
 
 * Or grab the most current version from the `Heptapod page`_:
   ``hg clone https://foss.heptapod.net/pypy/cffi``
