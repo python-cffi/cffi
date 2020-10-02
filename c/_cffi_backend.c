@@ -80,18 +80,36 @@
  * That sounds like a horribly bad idea to me, and is the reason for why
  * I prefer CFFI crashing cleanly.
  *
- * Currently, we use libffi's ffi_closure_alloc() only on NetBSD.  It is
+ * Currently, we use libffi's ffi_closure_alloc() on NetBSD.  It is
  * known that on the NetBSD kernel, a different strategy is used which
  * should not be open to the fork() bug.
+ *
+ * This is also used on macOS, provided we are executing on macOS 10.15 or
+ * above.
  */
 #ifdef __NetBSD__
-# define CFFI_TRUST_LIBFFI
-#endif
 
-#ifndef CFFI_TRUST_LIBFFI
+# define CFFI_CHECK_FFI_CLOSURE_ALLOC 1
+# define CFFI_CHECK_FFI_PREP_CLOSURE_LOC 1
+# define CFFI_CHECK_FFI_PREP_CIF_VAR 0
+
+#elif defined(__APPLE__) && defined(FFI_AVAILABLE_APPLE)
+
+# define CFFI_CHECK_FFI_CLOSURE_ALLOC __builtin_available(macos 10.15, ios 13, watchos 6, tvos 13, *)
+# define CFFI_CHECK_FFI_PREP_CLOSURE_LOC __builtin_available(macos 10.15, ios 13, watchos 6, tvos 13, *)
+# define CFFI_CHECK_FFI_PREP_CIF_VAR __builtin_available(macos 10.15, ios 13, watchos 6, tvos 13, *)
+
 # include "malloc_closure.h"
-#endif
 
+#else
+
+# define CFFI_CHECK_FFI_CLOSURE_ALLOC 0
+# define CFFI_CHECK_FFI_PREP_CLOSURE_LOC 0
+# define CFFI_CHECK_FFI_PREP_CIF_VAR 0
+
+# include "malloc_closure.h"
+
+#endif
 
 #if PY_MAJOR_VERSION >= 3
 # define STR_OR_BYTES "bytes"
@@ -1890,11 +1908,11 @@ static void cdataowninggc_dealloc(CDataObject *cd)
         ffi_closure *closure = ((CDataObject_closure *)cd)->closure;
         PyObject *args = (PyObject *)(closure->user_data);
         Py_XDECREF(args);
-#ifdef CFFI_TRUST_LIBFFI
-        ffi_closure_free(closure);
-#else
-        cffi_closure_free(closure);
-#endif
+        if (CFFI_CHECK_FFI_CLOSURE_ALLOC) {
+            ffi_closure_free(closure);
+        } else {
+            cffi_closure_free(closure);
+        }
     }
     else {
         Py_FatalError("cdata CDataOwningGC_Type with unexpected type flags");
@@ -5821,6 +5839,7 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     cif_description_t *cif_descr;
     struct funcbuilder_s funcbuffer;
     ffi_status status;
+    char did_prep_cif_var = 0;
 
     funcbuffer.nb_bytes = 0;
     funcbuffer.bufferp = NULL;
@@ -5843,20 +5862,22 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     assert(funcbuffer.bufferp == buffer + funcbuffer.nb_bytes);
 
     cif_descr = (cif_description_t *)buffer;
-#if HAVE_FFI_PREP_CIF_VAR
+
+    /* use `ffi_prep_cif_var` if necessary and available */
     if (variadic_nargs_declared >= 0) {
-        status = ffi_prep_cif_var(&cif_descr->cif, fabi,
-                                  variadic_nargs_declared, funcbuffer.nargs,
-                                  funcbuffer.rtype, funcbuffer.atypes);
-    } else
-#endif
-#if !HAVE_FFI_PREP_CIF_VAR && defined(__arm64__) && defined(__APPLE__)
-#error Apple Arm64 ABI requires ffi_prep_cif_var
-#endif
-    {
+        if (CFFI_CHECK_FFI_PREP_CIF_VAR) {
+            status = ffi_prep_cif_var(&cif_descr->cif, fabi,
+                                      variadic_nargs_declared, funcbuffer.nargs,
+                                      funcbuffer.rtype, funcbuffer.atypes);
+            did_prep_cif_var = 1;
+        }
+    }
+
+    if (!did_prep_cif_var) {
         status = ffi_prep_cif(&cif_descr->cif, fabi, funcbuffer.nargs,
                               funcbuffer.rtype, funcbuffer.atypes);
     }
+
     if (status != FFI_OK) {
         PyErr_SetString(PyExc_SystemError,
                         "libffi failed to build this function type");
@@ -6244,6 +6265,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     PyObject *infotuple;
     cif_description_t *cif_descr;
     ffi_closure *closure;
+    ffi_status status;
     void *closure_exec;
 
     if (!PyArg_ParseTuple(args, "O!O|OO:callback", &CTypeDescr_Type, &ct, &ob,
@@ -6254,12 +6276,13 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     if (infotuple == NULL)
         return NULL;
 
-#ifdef CFFI_TRUST_LIBFFI
-    closure = ffi_closure_alloc(sizeof(ffi_closure), &closure_exec);
-#else
-    closure = cffi_closure_alloc();
-    closure_exec = closure;
-#endif
+    if (CFFI_CHECK_FFI_CLOSURE_ALLOC) {
+        closure = ffi_closure_alloc(sizeof(ffi_closure), &closure_exec);
+    } else {
+        closure = cffi_closure_alloc();
+        closure_exec = closure;
+    }
+
     if (closure == NULL) {
         Py_DECREF(infotuple);
         PyErr_SetString(PyExc_MemoryError,
@@ -6286,28 +6309,40 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
                      "return type or with '...'", ct->ct_name);
         goto error;
     }
-    /* NOTE: ffi_prep_closure() is marked as deprecated.  We could just
-     * call ffi_prep_closure_loc() instead, which is what ffi_prep_closure()
-     * does.  However, cffi also runs on older systems with a libffi that
-     * doesn't have ffi_prep_closure_loc() at all---notably, the OS X
-     * machines on Azure are like that (June 2020).  I didn't find a way to
-     * version-check the included ffi.h.  So you will have to live with the
-     * deprecation warning for now.  (We could try to check for an unrelated
-     * macro like FFI_API which happens to be defined in libffi 3.3 and not
-     * before, but that sounds very obscure.  And I prefer a compile-time
-     * warning rather than a cross-version binary compatibility problem.)
-     */
-#ifdef CFFI_TRUST_LIBFFI
-    if (ffi_prep_closure_loc(closure, &cif_descr->cif,
-                         invoke_callback, infotuple, closure_exec) != FFI_OK) {
+
+    if (CFFI_CHECK_FFI_PREP_CLOSURE_LOC) {
+        status = ffi_prep_closure_loc(closure, &cif_descr->cif,
+                                      invoke_callback, infotuple, closure_exec);
+    }
+    else {
+#if defined(__APPLE__) && defined(FFI_AVAILABLE_APPLE) && !FFI_LEGACY_CLOSURE_API
+        PyErr_Format(PyExc_SystemError, "ffi_prep_closure_loc() is missing");
+        goto error;
 #else
-    if (ffi_prep_closure(closure, &cif_descr->cif,
-                         invoke_callback, infotuple) != FFI_OK) {
+/* messily try to silence a gcc/clang deprecation warning here */
+# if defined(__clang__)
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
+# elif defined(__GNUC__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+# endif
+        status = ffi_prep_closure(closure, &cif_descr->cif,
+                                  invoke_callback, infotuple);
+# if defined(__clang__)
+#  pragma clang diagnostic pop
+# elif defined(__GNUC__)
+#  pragma GCC diagnostic pop
+# endif
 #endif
+    }
+
+    if (status != FFI_OK) {
         PyErr_SetString(PyExc_SystemError,
                         "libffi failed to build this callback");
         goto error;
     }
+
     if (closure->user_data != infotuple) {
         /* Issue #266.  Should not occur, but could, if we are using
            at runtime a version of libffi compiled with a different
@@ -6327,11 +6362,12 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
  error:
     closure->user_data = NULL;
     if (cd == NULL) {
-#ifdef CFFI_TRUST_LIBFFI
-        ffi_closure_free(closure);
-#else
-        cffi_closure_free(closure);
-#endif
+        if (CFFI_CHECK_FFI_CLOSURE_ALLOC) {
+            ffi_closure_free(closure);
+        }
+        else {
+            cffi_closure_free(closure);
+        }
     }
     else
         Py_DECREF(cd);
