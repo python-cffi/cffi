@@ -6299,8 +6299,8 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     cd->head.c_type = ct;
     cd->head.c_data = (char *)closure_exec;
     cd->head.c_weakreflist = NULL;
+    closure->user_data = NULL;
     cd->closure = closure;
-    PyObject_GC_Track(cd);
 
     cif_descr = (cif_description_t *)ct->ct_extra;
     if (cif_descr == NULL) {
@@ -6357,6 +6357,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
             "different from the 'ffi.h' file seen at compile-time)");
         goto error;
     }
+    PyObject_GC_Track(cd);
     return (PyObject *)cd;
 
  error:
