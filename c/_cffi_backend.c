@@ -85,31 +85,38 @@
  * should not be open to the fork() bug.
  *
  * This is also used on macOS, provided we are executing on macOS 10.15 or
- * above.
+ * above.  It's a mess because it needs runtime checks in that case.
  */
 #ifdef __NetBSD__
 
 # define CFFI_CHECK_FFI_CLOSURE_ALLOC 1
 # define CFFI_CHECK_FFI_PREP_CLOSURE_LOC 1
+# define CFFI_CHECK_FFI_PREP_CLOSURE_LOC_MAYBE 1
 # define CFFI_CHECK_FFI_PREP_CIF_VAR 0
+# define CFFI_CHECK_FFI_PREP_CIF_VAR_MAYBE 0
 
 #elif defined(__APPLE__) && defined(FFI_AVAILABLE_APPLE)
 
 # define CFFI_CHECK_FFI_CLOSURE_ALLOC __builtin_available(macos 10.15, ios 13, watchos 6, tvos 13, *)
 # define CFFI_CHECK_FFI_PREP_CLOSURE_LOC __builtin_available(macos 10.15, ios 13, watchos 6, tvos 13, *)
+# define CFFI_CHECK_FFI_PREP_CLOSURE_LOC_MAYBE 1
 # define CFFI_CHECK_FFI_PREP_CIF_VAR __builtin_available(macos 10.15, ios 13, watchos 6, tvos 13, *)
-
-# include "malloc_closure.h"
+# define CFFI_CHECK_FFI_PREP_CIF_VAR_MAYBE 1
 
 #else
 
 # define CFFI_CHECK_FFI_CLOSURE_ALLOC 0
 # define CFFI_CHECK_FFI_PREP_CLOSURE_LOC 0
+# define CFFI_CHECK_FFI_PREP_CLOSURE_LOC_MAYBE 0
 # define CFFI_CHECK_FFI_PREP_CIF_VAR 0
-
-# include "malloc_closure.h"
+# define CFFI_CHECK_FFI_PREP_CIF_VAR_MAYBE 0
 
 #endif
+
+/* always includes this, even if it turns out not to be used on NetBSD
+   because calls are behind "if (0)" */
+#include "malloc_closure.h"
+
 
 #if PY_MAJOR_VERSION >= 3
 # define STR_OR_BYTES "bytes"
@@ -5838,8 +5845,7 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     char *buffer;
     cif_description_t *cif_descr;
     struct funcbuilder_s funcbuffer;
-    ffi_status status;
-    char did_prep_cif_var = 0;
+    ffi_status status = -1;
 
     funcbuffer.nb_bytes = 0;
     funcbuffer.bufferp = NULL;
@@ -5864,16 +5870,17 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     cif_descr = (cif_description_t *)buffer;
 
     /* use `ffi_prep_cif_var` if necessary and available */
+#if CFFI_CHECK_FFI_PREP_CIF_VAR_MAYBE
     if (variadic_nargs_declared >= 0) {
         if (CFFI_CHECK_FFI_PREP_CIF_VAR) {
             status = ffi_prep_cif_var(&cif_descr->cif, fabi,
                                       variadic_nargs_declared, funcbuffer.nargs,
                                       funcbuffer.rtype, funcbuffer.atypes);
-            did_prep_cif_var = 1;
         }
     }
+#endif
 
-    if (!did_prep_cif_var) {
+    if (status == -1) {
         status = ffi_prep_cif(&cif_descr->cif, fabi, funcbuffer.nargs,
                               funcbuffer.rtype, funcbuffer.atypes);
     }
@@ -6310,11 +6317,14 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         goto error;
     }
 
+#if CFFI_CHECK_FFI_PREP_CLOSURE_LOC_MAYBE
     if (CFFI_CHECK_FFI_PREP_CLOSURE_LOC) {
         status = ffi_prep_closure_loc(closure, &cif_descr->cif,
                                       invoke_callback, infotuple, closure_exec);
     }
-    else {
+    else
+#endif
+    {
 #if defined(__APPLE__) && defined(FFI_AVAILABLE_APPLE) && !FFI_LEGACY_CLOSURE_API
         PyErr_Format(PyExc_SystemError, "ffi_prep_closure_loc() is missing");
         goto error;
