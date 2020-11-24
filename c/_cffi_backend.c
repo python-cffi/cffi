@@ -90,6 +90,7 @@
 #ifdef __NetBSD__
 
 # define CFFI_CHECK_FFI_CLOSURE_ALLOC 1
+# define CFFI_CHECK_FFI_CLOSURE_ALLOC_MAYBE 1
 # define CFFI_CHECK_FFI_PREP_CLOSURE_LOC 1
 # define CFFI_CHECK_FFI_PREP_CLOSURE_LOC_MAYBE 1
 # define CFFI_CHECK_FFI_PREP_CIF_VAR 0
@@ -98,6 +99,7 @@
 #elif defined(__APPLE__) && defined(FFI_AVAILABLE_APPLE)
 
 # define CFFI_CHECK_FFI_CLOSURE_ALLOC __builtin_available(macos 10.15, ios 13, watchos 6, tvos 13, *)
+# define CFFI_CHECK_FFI_CLOSURE_ALLOC_MAYBE 1
 # define CFFI_CHECK_FFI_PREP_CLOSURE_LOC __builtin_available(macos 10.15, ios 13, watchos 6, tvos 13, *)
 # define CFFI_CHECK_FFI_PREP_CLOSURE_LOC_MAYBE 1
 # define CFFI_CHECK_FFI_PREP_CIF_VAR __builtin_available(macos 10.15, ios 13, watchos 6, tvos 13, *)
@@ -106,6 +108,7 @@
 #else
 
 # define CFFI_CHECK_FFI_CLOSURE_ALLOC 0
+# define CFFI_CHECK_FFI_CLOSURE_ALLOC_MAYBE 0
 # define CFFI_CHECK_FFI_PREP_CLOSURE_LOC 0
 # define CFFI_CHECK_FFI_PREP_CLOSURE_LOC_MAYBE 0
 # define CFFI_CHECK_FFI_PREP_CIF_VAR 0
@@ -1915,11 +1918,12 @@ static void cdataowninggc_dealloc(CDataObject *cd)
         ffi_closure *closure = ((CDataObject_closure *)cd)->closure;
         PyObject *args = (PyObject *)(closure->user_data);
         Py_XDECREF(args);
+#if CFFI_CHECK_FFI_CLOSURE_ALLOC_MAYBE
         if (CFFI_CHECK_FFI_CLOSURE_ALLOC) {
             ffi_closure_free(closure);
-        } else {
+        } else
+#endif
             cffi_closure_free(closure);
-        }
     }
     else {
         Py_FatalError("cdata CDataOwningGC_Type with unexpected type flags");
@@ -6283,9 +6287,12 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     if (infotuple == NULL)
         return NULL;
 
+#if CFFI_CHECK_FFI_CLOSURE_ALLOC_MAYBE
     if (CFFI_CHECK_FFI_CLOSURE_ALLOC) {
         closure = ffi_closure_alloc(sizeof(ffi_closure), &closure_exec);
-    } else {
+    } else
+#endif
+    {
         closure = cffi_closure_alloc();
         closure_exec = closure;
     }
@@ -6373,12 +6380,13 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
  error:
     closure->user_data = NULL;
     if (cd == NULL) {
+#if CFFI_CHECK_FFI_CLOSURE_ALLOC_MAYBE
         if (CFFI_CHECK_FFI_CLOSURE_ALLOC) {
             ffi_closure_free(closure);
         }
-        else {
+        else
+#endif
             cffi_closure_free(closure);
-        }
     }
     else
         Py_DECREF(cd);
