@@ -6268,6 +6268,17 @@ static PyObject *prepare_callback_info_tuple(CTypeDescrObject *ct,
     return infotuple;
 }
 
+/* messily try to silence a gcc/clang deprecation warning for
+   ffi_prep_closure.  Don't miss the "pragma pop" after the function.
+   This is done around the whole function because very old GCCs don't
+   support it inside a function. */
+#if defined(__clang__)
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(__GNUC__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 static PyObject *b_callback(PyObject *self, PyObject *args)
 {
     CTypeDescrObject *ct;
@@ -6336,21 +6347,8 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         PyErr_Format(PyExc_SystemError, "ffi_prep_closure_loc() is missing");
         goto error;
 #else
-/* messily try to silence a gcc/clang deprecation warning here */
-# if defined(__clang__)
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
-# elif defined(__GNUC__)
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-# endif
         status = ffi_prep_closure(closure, &cif_descr->cif,
                                   invoke_callback, infotuple);
-# if defined(__clang__)
-#  pragma clang diagnostic pop
-# elif defined(__GNUC__)
-#  pragma GCC diagnostic pop
-# endif
 #endif
     }
 
@@ -6393,6 +6391,11 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     Py_XDECREF(infotuple);
     return NULL;
 }
+#if defined(__clang__)
+#  pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#  pragma GCC diagnostic pop
+#endif
 
 static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
 {
