@@ -3981,7 +3981,12 @@ def test_issue483():
     lst = list(range(25))
     bytestring = bytearray(buffer(newp(BIntA, lst))[:] + b'XYZ')
     p1 = from_buffer(BIntA, bytestring)      # int[]
+    assert len(buffer(p1)) == 25 * size_of_int()
     assert sizeof(p1) == 25 * size_of_int()
+    #
+    p2 = from_buffer(BIntP, bytestring)
+    assert sizeof(p2) == size_of_ptr()
+    assert len(buffer(p2)) == size_of_int()  # first element only, by default
 
 def test_memmove():
     Short = new_primitive_type("short")
