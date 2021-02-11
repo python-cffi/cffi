@@ -71,10 +71,6 @@ def get_config():
     config = Distribution().get_command_obj('config')
     return config
 
-def macosx_deployment_target():
-    from distutils.sysconfig import get_config_var
-    return tuple(map(int, get_config_var("MACOSX_DEPLOYMENT_TARGET").split('.')))
-
 def ask_supports_thread():
     config = get_config()
     ok = (sys.platform != 'win32' and

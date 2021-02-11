@@ -3,6 +3,16 @@ What's New
 ======================
 
 
+v1.14.4
+=======
+
+Release done for pip reasons.
+
+v1.14.3
+=======
+
+Release done for pip reasons.
+
 v1.14.2
 =======
 
