@@ -3,6 +3,14 @@ What's New
 ======================
 
 
+v1.14.5
+=======
+
+* Source fix for old gcc versions
+
+* This and future releases should include wheels on more platforms,
+  thanks to our new release managers Matt and Matt!
+
 v1.14.4
 =======
 
