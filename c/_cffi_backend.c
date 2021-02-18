@@ -4516,14 +4516,18 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
         if (PyUnicode_Check(s))
         {
             s = PyUnicode_AsUTF8String(s);
-            if (s == NULL)
+            if (s == NULL) {
+                PyMem_Free(filename_or_null);
                 return NULL;
+            }
             *p_temp = s;
         }
 #endif
         *p_printable_filename = PyText_AsUTF8(s);
-        if (*p_printable_filename == NULL)
+        if (*p_printable_filename == NULL) {
+            PyMem_Free(filename_or_null);
             return NULL;
+        }
     }
     if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
         flags |= RTLD_NOW;
@@ -4536,6 +4540,7 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
 #endif
 
     handle = dlopen(filename_or_null, flags);
+    PyMem_Free(filename_or_null);
 
 #ifdef MS_WIN32
   got_handle:
