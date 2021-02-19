@@ -5854,7 +5854,7 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     char *buffer;
     cif_description_t *cif_descr;
     struct funcbuilder_s funcbuffer;
-    ffi_status status = -1;
+    ffi_status status = (ffi_status)-1;
 
     funcbuffer.nb_bytes = 0;
     funcbuffer.bufferp = NULL;
@@ -5889,7 +5889,7 @@ static cif_description_t *fb_prepare_cif(PyObject *fargs,
     }
 #endif
 
-    if (status == -1) {
+    if (status == (ffi_status)-1) {
         status = ffi_prep_cif(&cif_descr->cif, fabi, funcbuffer.nargs,
                               funcbuffer.rtype, funcbuffer.atypes);
     }
