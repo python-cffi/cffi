@@ -180,6 +180,10 @@
 # define Py_SET_REFCNT(obj, val) (Py_REFCNT(obj) = (val))
 #endif
 
+#if PY_VERSION_HEX >= 0x03080000
+# define USE_WRITEUNRAISABLEMSG
+#endif
+
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
@@ -6066,6 +6070,43 @@ static void _my_PyErr_WriteUnraisable(PyObject *t, PyObject *v, PyObject *tb,
                                       char *extra_error_line)
 {
     /* like PyErr_WriteUnraisable(), but write a full traceback */
+#ifdef USE_WRITEUNRAISABLEMSG
+
+    /* PyErr_WriteUnraisable actually writes the full traceback anyway
+       from Python 3.4, but we can't really get the formatting of the
+       custom text to be what we want.  We can do better from Python
+       3.8 by calling the new _PyErr_WriteUnraisableMsg().
+       Luckily it's also Python 3.8 that adds new functionality that
+       people might want: the new sys.unraisablehook().
+    */
+    PyObject *s;
+    int first_char;
+    assert(objdescr != NULL && objdescr[0] != 0);   /* non-empty */
+    first_char = objdescr[0];
+    if (first_char >= 'A' && first_char <= 'Z')
+        first_char += 'a' - 'A';    /* lower() the very first character */
+    if (extra_error_line == NULL)
+        extra_error_line = "";
+
+    if (obj != NULL)
+        s = PyUnicode_FromFormat("%c%s%R%s",
+            first_char, objdescr + 1, obj, extra_error_line);
+    else
+        s = PyUnicode_FromFormat("%c%s%s",
+            first_char, objdescr + 1, extra_error_line);
+
+    PyErr_Restore(t, v, tb);
+    if (s != NULL) {
+        _PyErr_WriteUnraisableMsg(PyText_AS_UTF8(s), NULL);
+        Py_DECREF(s);
+    }
+    else
+        PyErr_WriteUnraisable(obj);   /* best effort */
+    PyErr_Clear();
+
+#else
+
+    /* version for Python 2.7 and < 3.8 */
     PyObject *f;
 #if PY_MAJOR_VERSION >= 3
     /* jump through hoops to ensure the tb is attached to v, on Python 3 */
@@ -6090,6 +6131,8 @@ static void _my_PyErr_WriteUnraisable(PyObject *t, PyObject *v, PyObject *tb,
     Py_XDECREF(t);
     Py_XDECREF(v);
     Py_XDECREF(tb);
+
+#endif
 }
 
 static void general_invoke_callback(int decode_args_from_libffi,
@@ -6139,7 +6182,11 @@ static void general_invoke_callback(int decode_args_from_libffi,
         goto error;
     if (convert_from_object_fficallback(result, SIGNATURE(1), py_res,
                                         decode_args_from_libffi) < 0) {
+#ifdef USE_WRITEUNRAISABLEMSG
+        extra_error_line = ", trying to convert the result back to C";
+#else
         extra_error_line = "Trying to convert the result back to C:\n";
+#endif
         goto error;
     }
  done:
@@ -6191,10 +6238,16 @@ static void general_invoke_callback(int decode_args_from_libffi,
             _my_PyErr_WriteUnraisable(exc1, val1, tb1,
                                       "From cffi callback ", py_ob,
                                       extra_error_line);
+#ifdef USE_WRITEUNRAISABLEMSG
+            _my_PyErr_WriteUnraisable(exc2, val2, tb2,
+                 "during handling of the above exception by 'onerror'",
+                 NULL, NULL);
+#else
             extra_error_line = ("\nDuring the call to 'onerror', "
                                 "another exception occurred:\n\n");
             _my_PyErr_WriteUnraisable(exc2, val2, tb2,
                                       NULL, NULL, extra_error_line);
+#endif
             _cffi_stop_error_capture(ecap);
         }
     }
