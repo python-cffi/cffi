@@ -2,6 +2,17 @@
 What's New
 ======================
 
+v1.14.6
+=======
+
+* Test fixes for CPython 3.10.0b3
+
+* Support for `sys.unraisablehook()` on Python >= 3.8
+
+* Fix two minor memory leaks (thanks Sebastian!)
+
+* Like many projects that had an IRC channel on freenode, we moved it to
+  ``irc.libera.chat``.
 
 v1.14.5
 =======
