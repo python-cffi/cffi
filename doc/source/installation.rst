@@ -17,7 +17,7 @@ platform as well as on Windows 32 and 64.  (It relies occasionally on
 libffi, so it depends on libffi being bug-free; this may not be fully
 the case on some of the more exotic platforms.)
 
-CFFI supports CPython 2.6, 2.7, 3.x (tested with 3.2 to 3.4); and is
+CFFI supports CPython 2.7, 3.x (tested with 3.6 to 3.9); and is
 distributed with PyPy (CFFI 1.0 is distributed with and requires
 PyPy 2.6).
 
@@ -31,7 +31,7 @@ libraries on PyPy.
 
 Requirements:
 
-* CPython 2.6 or 2.7 or 3.x, or PyPy (PyPy 2.0 for the earliest
+* CPython 2.7 or 3.x, or PyPy (PyPy 2.0 for the earliest
   versions of CFFI; or PyPy 2.6 for CFFI 1.0).
 
 * in some cases you need to be able to compile C extension modules.
@@ -54,11 +54,11 @@ Download and Installation:
 
 * Checksums of the "source" package version 1.14.6:
 
-   - MD5: ...
+   - MD5: 5c118a18ea897df164dbff67a32876fc
 
-   - SHA1: ...
+   - SHA1: 35bb24955834ecb5b7173e625fa95b02d638fcfd
 
-   - SHA256: ...
+   - SHA256: c9a875ce9d7fe32887784274dd533c57909b7b1dcadcc128a2ac21331a9765dd
 
 * Or grab the most current version from the `Heptapod page`_:
   ``hg clone https://foss.heptapod.net/pypy/cffi``
