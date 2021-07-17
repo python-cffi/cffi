@@ -30,6 +30,8 @@ ffi.error
 confuse it with ``ffi.errno``.)
 
 
+.. _new:
+
 ffi.new()
 +++++++++
 

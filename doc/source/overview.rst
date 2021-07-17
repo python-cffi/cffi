@@ -179,7 +179,7 @@ Struct/Array Example (minimal, in-line)
     f.close()
 
 This can be used as a more flexible replacement of the struct_ and
-array_ modules, and replaces ctypes_.  You could also call ``ffi.new("pixel_t[600][800]")``
+array_ modules, and replaces ctypes_.  You could also call :ref:`ffi.new("pixel_t[600][800]") <new>`
 and get a two-dimensional array.
 
 .. _struct: http://docs.python.org/library/struct.html
@@ -582,7 +582,7 @@ Other common arguments to :ref:`set_source() <set_source>` include ``library_dir
 ``include_dirs``; all these arguments are passed to the standard
 distutils/setuptools.
 
-The ``ffi.new()`` lines allocate C objects.  They are filled
+The :ref:`ffi.new() <new>` lines allocate C objects.  They are filled
 with zeroes initially, unless the optional second argument is used.
 If specified, this argument gives an "initializer", like you can use
 with C code to initialize global variables.
