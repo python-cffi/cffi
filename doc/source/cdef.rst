@@ -307,6 +307,7 @@ strings as arguments instead of byte strings.
 
 
 .. _loading-libraries:
+.. _dlopen:
 
 ffi.dlopen(): loading libraries in ABI mode
 -------------------------------------------

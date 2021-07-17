@@ -138,10 +138,10 @@ Note that ``char *`` arguments expect a ``bytes`` object.  If you have a
 ``str`` (or a ``unicode`` on Python 2) you need to encode it explicitly
 with ``somestring.encode(myencoding)``.
 
-*Python 3 on Windows:* ``ffi.dlopen(None)`` does not work.  This problem
+*Python 3 on Windows:* :ref:`ffi.dlopen(None) <dlopen>` does not work.  This problem
 is messy and not really fixable.  The problem does not occur if you try
 to call a function from a specific DLL that exists on your system: then
-you use ``ffi.dlopen("path.dll")``.
+you use :ref:`ffi.dlopen("path.dll") <dlopen>`.
 
 *This example does not call any C compiler.  It works in the so-called
 ABI mode, which means that it will crash if you call some function or
@@ -461,13 +461,13 @@ any more:
 
     lib.printf(b"hi there, number %d\n", ffi.cast("int", 2))
 
-Note that this ``ffi.dlopen()``, unlike the one from in-line mode,
+Note that this :ref:`ffi.dlopen() <dlopen>`, unlike the one from in-line mode,
 does not invoke any additional magic to locate the library: it must be
 a path name (with or without a directory), as required by the C
 ``dlopen()`` or ``LoadLibrary()`` functions.  This means that
-``ffi.dlopen("libfoo.so")`` is ok, but ``ffi.dlopen("foo")`` is not.
+:ref:`ffi.dlopen("libfoo.so") <dlopen>` is ok, but :ref:`ffi.dlopen("foo") <dlopen>` is not.
 In the latter case, you could replace it with
-``ffi.dlopen(ctypes.util.find_library("foo"))``.  Also, None is only
+:ref:`ffi.dlopen(ctypes.util.find_library("foo")) <dlopen>`.  Also, None is only
 recognized on Unix to open the standard C library.
 
 For distribution purposes, remember that there is a new
@@ -564,14 +564,14 @@ directives are not supported.  The cdef in the above examples are just
 that - they declared "there is a function in the C level with this
 given signature", or "there is a struct type with this shape".
 
-In the ABI examples, the ``dlopen()`` calls load libraries manually.
+In the ABI examples, the :ref:`dlopen() <dlopen>` calls load libraries manually.
 At the binary level, a program is split into multiple namespaces---a
 global one (on some platforms), plus one namespace per library.  So
-``dlopen()`` returns a ``<FFILibrary>`` object, and this object has
+:ref:`dlopen() <dlopen>` returns a ``<FFILibrary>`` object, and this object has
 got as attributes all function, constant and variable symbols that are
 coming from this library and that have been declared in the
 :ref:`cdef() <cdef>`.  If you have several interdependent libraries to load,
-you would call :ref:`cdef() <cdef>` only once but ``dlopen()`` several times.
+you would call :ref:`cdef() <cdef>` only once but :ref:`dlopen() <dlopen>` several times.
 
 By opposition, the API mode works more closely like a C program: the C
 linker (static or dynamic) is responsible for finding any symbol used.
@@ -610,7 +610,7 @@ libraries are typically meant to be used with a C compiler.* You are not
 supposed to do things like guess where fields are in the structures.
 The "real example" above shows how CFFI uses a C compiler under the
 hood: this example uses :ref:`set_source(..., "C source...") <set_source>` and never
-``dlopen()``.  When using this approach,
+:ref:`dlopen() <dlopen>`.  When using this approach,
 we have the advantage that we can use literally "``...``" at various places in
 the :ref:`cdef() <cdef>`, and the missing information will be completed with the
 help of the C compiler.  CFFI will turn this into a single C source file,
