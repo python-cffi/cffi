@@ -459,7 +459,7 @@ that you really meant the 42 to be passed as a C ``int``, and not a
 if necessary with ``ffi.cast()``:
 
 .. code-block:: python
-  
+
     lib.printf("hello, %d\n", ffi.cast("int", 42))
     lib.printf("hello, %ld\n", ffi.cast("long", 42))
     lib.printf("hello, %f\n", ffi.cast("double", 42))
@@ -966,7 +966,7 @@ arguments are passed:
     ffibuilder.compile(verbose=True)
 
 .. code-block:: python
-    
+
     # file "example.py"
 
     from _example import ffi, lib

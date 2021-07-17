@@ -3,7 +3,7 @@ Overview
 =======================================================
 
 .. contents::
-   
+
 
 The first section presents a simple working
 example of using CFFI to call a C function in a compiled shared object
@@ -126,7 +126,7 @@ May look familiar to those who have used ctypes_.
     >>> ffi = FFI()
     >>> ffi.cdef("""
     ...     int printf(const char *format, ...);   // copy-pasted from the man page
-    ... """)                                  
+    ... """)
     >>> C = ffi.dlopen(None)                     # loads the entire C namespace
     >>> arg = ffi.new("char[]", b"world")        # equivalent to C code: char arg[] = "world";
     >>> C.printf(b"hi there, %s.\n", arg)        # call printf
@@ -301,28 +301,28 @@ with the files ``pi.c`` and ``pi.h``:
       /* filename: pi.c*/
       # include <stdlib.h>
       # include <math.h>
-       
+
       /* Returns a very crude approximation of Pi
          given a int: a number of iteration */
       float pi_approx(int n){
-      
+
         double i,x,y,sum=0;
-      
+
         for(i=0;i<n;i++){
-      
+
           x=rand();
           y=rand();
-      
+
           if (sqrt(x*x+y*y) < sqrt((double)RAND_MAX*RAND_MAX))
             sum++; }
-      
+
         return 4*(float)sum/(float)n; }
 
    .. code-block:: C
 
       /* filename: pi.h*/
       float pi_approx(int n);
-      
+
 Create a script named ``pi_extension_build.py``, building
 the C extension:
 
@@ -330,21 +330,21 @@ the C extension:
 
       from cffi import FFI
       ffibuilder = FFI()
-      
+
       ffibuilder.cdef("float pi_approx(int n);")
-   
+
       ffibuilder.set_source("_pi",  # name of the output C extension
       """
           #include "pi.h"
       """,
           sources=['pi.c'],   # includes pi.c as additional sources
           libraries=['m'])    # on Unix, link with the math library
-   
+
       if __name__ == "__main__":
           ffibuilder.compile(verbose=True)
 
 Build the extension:
-   
+
    .. code-block:: shell
 
       python pi_extension_build.py
@@ -354,14 +354,14 @@ Observe, in the working directory, the generated output files:
 Linux for example).  It can be called from Python:
 
    .. code-block:: python
-   
+
        from _pi.lib import pi_approx
-   
+
        approx = pi_approx(10)
        assert str(approx).startswith("3.")
-   
+
        approx = pi_approx(10000)
-       assert str(approx).startswith("3.1")  
+       assert str(approx).startswith("3.1")
 
 
 .. _performance:

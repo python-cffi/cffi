@@ -823,7 +823,7 @@ write the rest of the build script):
     print lib.mysize
 
 Extra arguments to ``ffi.verify()``:
-    
+
 *  ``tmpdir`` controls where the C
    files are created and compiled. Unless the ``CFFI_TMPDIR`` environment
    variable is set, the default is

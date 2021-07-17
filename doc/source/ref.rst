@@ -308,7 +308,7 @@ performance difference).  It can still be useful in writing typechecks,
 e.g.:
 
 .. code-block:: python
-  
+
     def myfunction(ptr):
         assert ffi.typeof(ptr) is ffi.typeof("foo_t*")
         ...
