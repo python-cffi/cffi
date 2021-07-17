@@ -63,7 +63,7 @@ Execute this script.  If everything is OK, it should produce
 ``_pi_cffi.c``, and then invoke the compiler on it.  The produced
 ``_pi_cffi.c`` contains a copy of the string given in :ref:`set_source() <set_source>`,
 in this example the ``#include "pi.h"``. Afterwards, it contains glue code
-for all the functions, types and globals declared in the ``cdef()`` above.
+for all the functions, types and globals declared in the :ref:`cdef() <cdef>` above.
 
 At runtime, you use the extension module like this:
 
@@ -76,7 +76,7 @@ That's all!  In the rest of this page, we describe some more advanced
 examples and other CFFI modes.  In particular, there is a complete
 example `if you don't have an already-installed C library to call`_.
 
-For more information about the ``cdef()`` and :ref:`set_source() <set_source>` methods
+For more information about the :ref:`cdef() <cdef>` and :ref:`set_source() <set_source>` methods
 of the ``FFI`` class, see `Preparing and Distributing modules`__.
 
 .. __: cdef.html
@@ -265,7 +265,7 @@ Note that this works independently of the exact C layout of ``struct
 passwd`` (it is "API level", as opposed to "ABI level").  It requires
 a C compiler in order to run ``example_build.py``, but it is much more
 portable than trying to get the details of the fields of ``struct
-passwd`` exactly right.  Similarly, in the ``cdef()`` we declared
+passwd`` exactly right.  Similarly, in the :ref:`cdef() <cdef>` we declared
 ``getpwuid()`` as taking an ``int`` argument; on some platforms this
 might be slightly incorrect---but it does not matter.
 
@@ -428,7 +428,7 @@ easily).
 This mixture mode lets you massively reduces the import times, because
 it is slow to parse a large C header.  It also allows you to do more
 detailed checkings during build-time without worrying about performance
-(e.g. calling ``cdef()`` many times with small pieces of declarations,
+(e.g. calling :ref:`cdef() <cdef>` many times with small pieces of declarations,
 based on the version of libraries detected on the system).
 
 .. code-block:: python
@@ -558,7 +558,7 @@ means that most of the documentation or examples can be copied straight
 from the man pages.
 
 The declarations can contain **types, functions, constants**
-and **global variables.** What you pass to the ``cdef()`` must not
+and **global variables.** What you pass to the :ref:`cdef() <cdef>` must not
 contain more than that; in particular, ``#ifdef`` or ``#include``
 directives are not supported.  The cdef in the above examples are just
 that - they declared "there is a function in the C level with this
@@ -570,8 +570,8 @@ global one (on some platforms), plus one namespace per library.  So
 ``dlopen()`` returns a ``<FFILibrary>`` object, and this object has
 got as attributes all function, constant and variable symbols that are
 coming from this library and that have been declared in the
-``cdef()``.  If you have several interdependent libraries to load,
-you would call ``cdef()`` only once but ``dlopen()`` several times.
+:ref:`cdef() <cdef>`.  If you have several interdependent libraries to load,
+you would call :ref:`cdef() <cdef>` only once but ``dlopen()`` several times.
 
 By opposition, the API mode works more closely like a C program: the C
 linker (static or dynamic) is responsible for finding any symbol used.
@@ -612,10 +612,10 @@ The "real example" above shows how CFFI uses a C compiler under the
 hood: this example uses :ref:`set_source(..., "C source...") <set_source>` and never
 ``dlopen()``.  When using this approach,
 we have the advantage that we can use literally "``...``" at various places in
-the ``cdef()``, and the missing information will be completed with the
+the :ref:`cdef() <cdef>`, and the missing information will be completed with the
 help of the C compiler.  CFFI will turn this into a single C source file,
 which contains the "C source" part unmodified, followed by some
-"magic" C code and declarations derived from the ``cdef()``.  When
+"magic" C code and declarations derived from the :ref:`cdef() <cdef>`.  When
 this C file is compiled, the resulting C extension module will contain
 all the information we need---or the C compiler will give warnings or
 errors, as usual e.g. if we misdeclare some function's signature.
@@ -623,7 +623,7 @@ errors, as usual e.g. if we misdeclare some function's signature.
 Note that the "C source" part from :ref:`set_source() <set_source>` can contain
 arbitrary C code.  You can use this to declare some
 more helper functions written in C.  To export
-these helpers to Python, put their signature in the ``cdef()`` too.
+these helpers to Python, put their signature in the :ref:`cdef() <cdef>` too.
 (You can use the ``static`` C keyword in the "C source" part,
 as in ``static int myhelper(int x) { return x * 42; }``,
 because these helpers are only
@@ -635,7 +635,7 @@ C functions.  The extra layer of C can be useful for other reasons
 too, like calling functions that expect some complicated argument
 structures that you prefer to build in C rather than in Python.  (On
 the other hand, if all you need is to call "function-like" macros,
-then you can directly declare them in the ``cdef()`` as if they were
+then you can directly declare them in the :ref:`cdef() <cdef>` as if they were
 functions.)
 
 The generated piece of C code should be the same independently on the
