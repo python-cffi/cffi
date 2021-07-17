@@ -380,6 +380,8 @@ automatically if the FFI object is garbage-collected (but you can still
 call ``ffi.dlclose()`` explicitly if needed).
 
 
+.. _set_source:
+
 ffibuilder.set_source(): preparing out-of-line modules
 ------------------------------------------------------
 

@@ -61,7 +61,7 @@ Create the file ``piapprox_build.py``:
 
 Execute this script.  If everything is OK, it should produce
 ``_pi_cffi.c``, and then invoke the compiler on it.  The produced
-``_pi_cffi.c`` contains a copy of the string given in ``set_source()``,
+``_pi_cffi.c`` contains a copy of the string given in :ref:`set_source() <set_source>`,
 in this example the ``#include "pi.h"``. Afterwards, it contains glue code
 for all the functions, types and globals declared in the ``cdef()`` above.
 
@@ -76,7 +76,7 @@ That's all!  In the rest of this page, we describe some more advanced
 examples and other CFFI modes.  In particular, there is a complete
 example `if you don't have an already-installed C library to call`_.
 
-For more information about the ``cdef()`` and ``set_source()`` methods
+For more information about the ``cdef()`` and :ref:`set_source() <set_source>` methods
 of the ``FFI`` class, see `Preparing and Distributing modules`__.
 
 .. __: cdef.html
@@ -191,7 +191,7 @@ and get a two-dimensional array.
 This example also admits an out-of-line equivalent.  It is similar to
 the first example `Main mode of usage`_ above,
 but passing ``None`` as the second argument to
-``ffibuilder.set_source()``.  Then in the main program you write
+:ref:`ffibuilder.set_source() <set_source>`.  Then in the main program you write
 ``from _simple_example import ffi`` and then the same content as the
 in-line example above starting from the line ``image =
 ffi.new("pixel_t[]", 800*600)``.
@@ -244,7 +244,7 @@ You need to run the ``example_build.py`` script once to generate
 "source code" into the file ``_example.c`` and compile this to a
 regular C extension module.  (CFFI selects either Python or C for the
 module to generate based on whether the second argument to
-``set_source()`` is ``None`` or not.)
+:ref:`set_source() <set_source>` is ``None`` or not.)
 
 *You need a C compiler for this single step.  It produces a file called
 e.g. _example.so or _example.pyd.  If needed, it can be distributed in
@@ -496,7 +496,7 @@ In-line, API level
 
 The "API level + in-line" mode combination exists but is long
 deprecated.  It used to be done with ``lib = ffi.verify("C header")``.
-The out-of-line variant with ``set_source("modname", "C header")`` is
+The out-of-line variant with :ref:`set_source("modname", "C header") <set_source>` is
 preferred and avoids a number of problems when the project grows in
 size.
 
@@ -576,9 +576,9 @@ you would call ``cdef()`` only once but ``dlopen()`` several times.
 By opposition, the API mode works more closely like a C program: the C
 linker (static or dynamic) is responsible for finding any symbol used.
 You name the libraries in the ``libraries`` keyword argument to
-``set_source()``, but never need to say which symbol comes
+:ref:`set_source() <set_source>`, but never need to say which symbol comes
 from which library.
-Other common arguments to ``set_source()`` include ``library_dirs`` and
+Other common arguments to :ref:`set_source() <set_source>` include ``library_dirs`` and
 ``include_dirs``; all these arguments are passed to the standard
 distutils/setuptools.
 
@@ -609,7 +609,7 @@ The more fundamental reason to prefer the API mode is that *the C
 libraries are typically meant to be used with a C compiler.* You are not
 supposed to do things like guess where fields are in the structures.
 The "real example" above shows how CFFI uses a C compiler under the
-hood: this example uses ``set_source(..., "C source...")`` and never
+hood: this example uses :ref:`set_source(..., "C source...") <set_source>` and never
 ``dlopen()``.  When using this approach,
 we have the advantage that we can use literally "``...``" at various places in
 the ``cdef()``, and the missing information will be completed with the
@@ -620,7 +620,7 @@ this C file is compiled, the resulting C extension module will contain
 all the information we need---or the C compiler will give warnings or
 errors, as usual e.g. if we misdeclare some function's signature.
 
-Note that the "C source" part from ``set_source()`` can contain
+Note that the "C source" part from :ref:`set_source() <set_source>` can contain
 arbitrary C code.  You can use this to declare some
 more helper functions written in C.  To export
 these helpers to Python, put their signature in the ``cdef()`` too.
