@@ -76,7 +76,7 @@ That's all!  In the rest of this page, we describe some more advanced
 examples and other CFFI modes.  In particular, there is a complete
 example `if you don't have an already-installed C library to call`_.
 
-For more information about the :ref:`cdef() <cdef>` and :ref:`set_source() <set_source>` methods
+For more information about the ``cdef()`` and ``set_source()`` methods
 of the ``FFI`` class, see `Preparing and Distributing modules`__.
 
 .. __: cdef.html
@@ -141,7 +141,7 @@ with ``somestring.encode(myencoding)``.
 *Python 3 on Windows:* :ref:`ffi.dlopen(None) <dlopen>` does not work.  This problem
 is messy and not really fixable.  The problem does not occur if you try
 to call a function from a specific DLL that exists on your system: then
-you use :ref:`ffi.dlopen("path.dll") <dlopen>`.
+you use ``ffi.dlopen("path.dll")``.
 
 *This example does not call any C compiler.  It works in the so-called
 ABI mode, which means that it will crash if you call some function or
@@ -465,9 +465,9 @@ Note that this :ref:`ffi.dlopen() <dlopen>`, unlike the one from in-line mode,
 does not invoke any additional magic to locate the library: it must be
 a path name (with or without a directory), as required by the C
 ``dlopen()`` or ``LoadLibrary()`` functions.  This means that
-:ref:`ffi.dlopen("libfoo.so") <dlopen>` is ok, but :ref:`ffi.dlopen("foo") <dlopen>` is not.
+``ffi.dlopen("libfoo.so")`` is ok, but ``ffi.dlopen("foo")`` is not.
 In the latter case, you could replace it with
-:ref:`ffi.dlopen(ctypes.util.find_library("foo")) <dlopen>`.  Also, None is only
+``ffi.dlopen(ctypes.util.find_library("foo"))``.  Also, None is only
 recognized on Unix to open the standard C library.
 
 For distribution purposes, remember that there is a new
@@ -567,18 +567,18 @@ given signature", or "there is a struct type with this shape".
 In the ABI examples, the :ref:`dlopen() <dlopen>` calls load libraries manually.
 At the binary level, a program is split into multiple namespaces---a
 global one (on some platforms), plus one namespace per library.  So
-:ref:`dlopen() <dlopen>` returns a ``<FFILibrary>`` object, and this object has
+``dlopen()`` returns a ``<FFILibrary>`` object, and this object has
 got as attributes all function, constant and variable symbols that are
 coming from this library and that have been declared in the
-:ref:`cdef() <cdef>`.  If you have several interdependent libraries to load,
-you would call :ref:`cdef() <cdef>` only once but :ref:`dlopen() <dlopen>` several times.
+``cdef()``.  If you have several interdependent libraries to load,
+you would call ``cdef()`` only once but ``dlopen()`` several times.
 
 By opposition, the API mode works more closely like a C program: the C
 linker (static or dynamic) is responsible for finding any symbol used.
 You name the libraries in the ``libraries`` keyword argument to
 :ref:`set_source() <set_source>`, but never need to say which symbol comes
 from which library.
-Other common arguments to :ref:`set_source() <set_source>` include ``library_dirs`` and
+Other common arguments to ``set_source()`` include ``library_dirs`` and
 ``include_dirs``; all these arguments are passed to the standard
 distutils/setuptools.
 
@@ -615,15 +615,15 @@ we have the advantage that we can use literally "``...``" at various places in
 the :ref:`cdef() <cdef>`, and the missing information will be completed with the
 help of the C compiler.  CFFI will turn this into a single C source file,
 which contains the "C source" part unmodified, followed by some
-"magic" C code and declarations derived from the :ref:`cdef() <cdef>`.  When
+"magic" C code and declarations derived from the ``cdef()``.  When
 this C file is compiled, the resulting C extension module will contain
 all the information we need---or the C compiler will give warnings or
 errors, as usual e.g. if we misdeclare some function's signature.
 
-Note that the "C source" part from :ref:`set_source() <set_source>` can contain
+Note that the "C source" part from ``set_source()`` can contain
 arbitrary C code.  You can use this to declare some
 more helper functions written in C.  To export
-these helpers to Python, put their signature in the :ref:`cdef() <cdef>` too.
+these helpers to Python, put their signature in the ``cdef()`` too.
 (You can use the ``static`` C keyword in the "C source" part,
 as in ``static int myhelper(int x) { return x * 42; }``,
 because these helpers are only
@@ -635,7 +635,7 @@ C functions.  The extra layer of C can be useful for other reasons
 too, like calling functions that expect some complicated argument
 structures that you prefer to build in C rather than in Python.  (On
 the other hand, if all you need is to call "function-like" macros,
-then you can directly declare them in the :ref:`cdef() <cdef>` as if they were
+then you can directly declare them in the ``cdef()`` as if they were
 functions.)
 
 The generated piece of C code should be the same independently on the
