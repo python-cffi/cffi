@@ -522,3 +522,10 @@ calling the C function ``cffi_start_python()`` with no argument.  It
 returns an integer, 0 or -1, to tell if the initialization succeeded
 or not.  Currently there is no way to prevent a failing initialization
 from also dumping a traceback and more information to stderr.
+Note that the function ``cffi_start_python()`` is static: it must be
+called from C source written inside ``ffibuilder.set_source()``.  To
+call it from somewhere else, you need to make a function (with a
+different non-static name) in the ``ffibuilder.set_source()`` that just
+calls ``cffi_start_python()``.  The reason it is static is to avoid
+naming conflicts in case you are ultimately trying to link a large C
+program with more than one cffi embedded module in it.
