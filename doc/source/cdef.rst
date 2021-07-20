@@ -307,6 +307,7 @@ strings as arguments instead of byte strings.
 
 
 .. _loading-libraries:
+.. _dlopen:
 
 ffi.dlopen(): loading libraries in ABI mode
 -------------------------------------------
@@ -379,6 +380,8 @@ Useful if you have special needs (e.g. you need the GNU extension
 automatically if the FFI object is garbage-collected (but you can still
 call ``ffi.dlclose()`` explicitly if needed).
 
+
+.. _set_source:
 
 ffibuilder.set_source(): preparing out-of-line modules
 ------------------------------------------------------
@@ -823,7 +826,7 @@ write the rest of the build script):
     print lib.mysize
 
 Extra arguments to ``ffi.verify()``:
-    
+
 *  ``tmpdir`` controls where the C
    files are created and compiled. Unless the ``CFFI_TMPDIR`` environment
    variable is set, the default is

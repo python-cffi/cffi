@@ -3,7 +3,7 @@ Overview
 =======================================================
 
 .. contents::
-   
+
 
 The first section presents a simple working
 example of using CFFI to call a C function in a compiled shared object
@@ -61,9 +61,9 @@ Create the file ``piapprox_build.py``:
 
 Execute this script.  If everything is OK, it should produce
 ``_pi_cffi.c``, and then invoke the compiler on it.  The produced
-``_pi_cffi.c`` contains a copy of the string given in ``set_source()``,
+``_pi_cffi.c`` contains a copy of the string given in :ref:`set_source() <set_source>`,
 in this example the ``#include "pi.h"``. Afterwards, it contains glue code
-for all the functions, types and globals declared in the ``cdef()`` above.
+for all the functions, types and globals declared in the :ref:`cdef() <cdef>` above.
 
 At runtime, you use the extension module like this:
 
@@ -126,7 +126,7 @@ May look familiar to those who have used ctypes_.
     >>> ffi = FFI()
     >>> ffi.cdef("""
     ...     int printf(const char *format, ...);   // copy-pasted from the man page
-    ... """)                                  
+    ... """)
     >>> C = ffi.dlopen(None)                     # loads the entire C namespace
     >>> arg = ffi.new("char[]", b"world")        # equivalent to C code: char arg[] = "world";
     >>> C.printf(b"hi there, %s.\n", arg)        # call printf
@@ -138,7 +138,7 @@ Note that ``char *`` arguments expect a ``bytes`` object.  If you have a
 ``str`` (or a ``unicode`` on Python 2) you need to encode it explicitly
 with ``somestring.encode(myencoding)``.
 
-*Python 3 on Windows:* ``ffi.dlopen(None)`` does not work.  This problem
+*Python 3 on Windows:* :ref:`ffi.dlopen(None) <dlopen>` does not work.  This problem
 is messy and not really fixable.  The problem does not occur if you try
 to call a function from a specific DLL that exists on your system: then
 you use ``ffi.dlopen("path.dll")``.
@@ -179,7 +179,7 @@ Struct/Array Example (minimal, in-line)
     f.close()
 
 This can be used as a more flexible replacement of the struct_ and
-array_ modules, and replaces ctypes_.  You could also call ``ffi.new("pixel_t[600][800]")``
+array_ modules, and replaces ctypes_.  You could also call :ref:`ffi.new("pixel_t[600][800]") <new>`
 and get a two-dimensional array.
 
 .. _struct: http://docs.python.org/library/struct.html
@@ -191,7 +191,7 @@ and get a two-dimensional array.
 This example also admits an out-of-line equivalent.  It is similar to
 the first example `Main mode of usage`_ above,
 but passing ``None`` as the second argument to
-``ffibuilder.set_source()``.  Then in the main program you write
+:ref:`ffibuilder.set_source() <set_source>`.  Then in the main program you write
 ``from _simple_example import ffi`` and then the same content as the
 in-line example above starting from the line ``image =
 ffi.new("pixel_t[]", 800*600)``.
@@ -244,7 +244,7 @@ You need to run the ``example_build.py`` script once to generate
 "source code" into the file ``_example.c`` and compile this to a
 regular C extension module.  (CFFI selects either Python or C for the
 module to generate based on whether the second argument to
-``set_source()`` is ``None`` or not.)
+:ref:`set_source() <set_source>` is ``None`` or not.)
 
 *You need a C compiler for this single step.  It produces a file called
 e.g. _example.so or _example.pyd.  If needed, it can be distributed in
@@ -265,7 +265,7 @@ Note that this works independently of the exact C layout of ``struct
 passwd`` (it is "API level", as opposed to "ABI level").  It requires
 a C compiler in order to run ``example_build.py``, but it is much more
 portable than trying to get the details of the fields of ``struct
-passwd`` exactly right.  Similarly, in the ``cdef()`` we declared
+passwd`` exactly right.  Similarly, in the :ref:`cdef() <cdef>` we declared
 ``getpwuid()`` as taking an ``int`` argument; on some platforms this
 might be slightly incorrect---but it does not matter.
 
@@ -301,28 +301,28 @@ with the files ``pi.c`` and ``pi.h``:
       /* filename: pi.c*/
       # include <stdlib.h>
       # include <math.h>
-       
+
       /* Returns a very crude approximation of Pi
          given a int: a number of iteration */
       float pi_approx(int n){
-      
+
         double i,x,y,sum=0;
-      
+
         for(i=0;i<n;i++){
-      
+
           x=rand();
           y=rand();
-      
+
           if (sqrt(x*x+y*y) < sqrt((double)RAND_MAX*RAND_MAX))
             sum++; }
-      
+
         return 4*(float)sum/(float)n; }
 
    .. code-block:: C
 
       /* filename: pi.h*/
       float pi_approx(int n);
-      
+
 Create a script named ``pi_extension_build.py``, building
 the C extension:
 
@@ -330,21 +330,21 @@ the C extension:
 
       from cffi import FFI
       ffibuilder = FFI()
-      
+
       ffibuilder.cdef("float pi_approx(int n);")
-   
+
       ffibuilder.set_source("_pi",  # name of the output C extension
       """
           #include "pi.h"
       """,
           sources=['pi.c'],   # includes pi.c as additional sources
           libraries=['m'])    # on Unix, link with the math library
-   
+
       if __name__ == "__main__":
           ffibuilder.compile(verbose=True)
 
 Build the extension:
-   
+
    .. code-block:: shell
 
       python pi_extension_build.py
@@ -354,14 +354,14 @@ Observe, in the working directory, the generated output files:
 Linux for example).  It can be called from Python:
 
    .. code-block:: python
-   
+
        from _pi.lib import pi_approx
-   
+
        approx = pi_approx(10)
        assert str(approx).startswith("3.")
-   
+
        approx = pi_approx(10000)
-       assert str(approx).startswith("3.1")  
+       assert str(approx).startswith("3.1")
 
 
 .. _performance:
@@ -428,7 +428,7 @@ easily).
 This mixture mode lets you massively reduces the import times, because
 it is slow to parse a large C header.  It also allows you to do more
 detailed checkings during build-time without worrying about performance
-(e.g. calling ``cdef()`` many times with small pieces of declarations,
+(e.g. calling :ref:`cdef() <cdef>` many times with small pieces of declarations,
 based on the version of libraries detected on the system).
 
 .. code-block:: python
@@ -461,7 +461,7 @@ any more:
 
     lib.printf(b"hi there, number %d\n", ffi.cast("int", 2))
 
-Note that this ``ffi.dlopen()``, unlike the one from in-line mode,
+Note that this :ref:`ffi.dlopen() <dlopen>`, unlike the one from in-line mode,
 does not invoke any additional magic to locate the library: it must be
 a path name (with or without a directory), as required by the C
 ``dlopen()`` or ``LoadLibrary()`` functions.  This means that
@@ -496,7 +496,7 @@ In-line, API level
 
 The "API level + in-line" mode combination exists but is long
 deprecated.  It used to be done with ``lib = ffi.verify("C header")``.
-The out-of-line variant with ``set_source("modname", "C header")`` is
+The out-of-line variant with :ref:`set_source("modname", "C header") <set_source>` is
 preferred and avoids a number of problems when the project grows in
 size.
 
@@ -558,13 +558,13 @@ means that most of the documentation or examples can be copied straight
 from the man pages.
 
 The declarations can contain **types, functions, constants**
-and **global variables.** What you pass to the ``cdef()`` must not
+and **global variables.** What you pass to the :ref:`cdef() <cdef>` must not
 contain more than that; in particular, ``#ifdef`` or ``#include``
 directives are not supported.  The cdef in the above examples are just
 that - they declared "there is a function in the C level with this
 given signature", or "there is a struct type with this shape".
 
-In the ABI examples, the ``dlopen()`` calls load libraries manually.
+In the ABI examples, the :ref:`dlopen() <dlopen>` calls load libraries manually.
 At the binary level, a program is split into multiple namespaces---a
 global one (on some platforms), plus one namespace per library.  So
 ``dlopen()`` returns a ``<FFILibrary>`` object, and this object has
@@ -576,13 +576,13 @@ you would call ``cdef()`` only once but ``dlopen()`` several times.
 By opposition, the API mode works more closely like a C program: the C
 linker (static or dynamic) is responsible for finding any symbol used.
 You name the libraries in the ``libraries`` keyword argument to
-``set_source()``, but never need to say which symbol comes
+:ref:`set_source() <set_source>`, but never need to say which symbol comes
 from which library.
 Other common arguments to ``set_source()`` include ``library_dirs`` and
 ``include_dirs``; all these arguments are passed to the standard
 distutils/setuptools.
 
-The ``ffi.new()`` lines allocate C objects.  They are filled
+The :ref:`ffi.new() <new>` lines allocate C objects.  They are filled
 with zeroes initially, unless the optional second argument is used.
 If specified, this argument gives an "initializer", like you can use
 with C code to initialize global variables.
@@ -609,10 +609,10 @@ The more fundamental reason to prefer the API mode is that *the C
 libraries are typically meant to be used with a C compiler.* You are not
 supposed to do things like guess where fields are in the structures.
 The "real example" above shows how CFFI uses a C compiler under the
-hood: this example uses ``set_source(..., "C source...")`` and never
-``dlopen()``.  When using this approach,
+hood: this example uses :ref:`set_source(..., "C source...") <set_source>` and never
+:ref:`dlopen() <dlopen>`.  When using this approach,
 we have the advantage that we can use literally "``...``" at various places in
-the ``cdef()``, and the missing information will be completed with the
+the :ref:`cdef() <cdef>`, and the missing information will be completed with the
 help of the C compiler.  CFFI will turn this into a single C source file,
 which contains the "C source" part unmodified, followed by some
 "magic" C code and declarations derived from the ``cdef()``.  When

@@ -30,6 +30,8 @@ ffi.error
 confuse it with ``ffi.errno``.)
 
 
+.. _new:
+
 ffi.new()
 +++++++++
 
@@ -308,7 +310,7 @@ performance difference).  It can still be useful in writing typechecks,
 e.g.:
 
 .. code-block:: python
-  
+
     def myfunction(ptr):
         assert ffi.typeof(ptr) is ffi.typeof("foo_t*")
         ...
