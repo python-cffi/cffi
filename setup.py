@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, platform
 import subprocess
 import errno
 
@@ -123,27 +123,26 @@ def use_homebrew_for_libffi():
     os.environ['PKG_CONFIG_PATH'] = (
         os.environ.get('PKG_CONFIG_PATH', '') + ':' + pkgconfig)
 
-
-if sys.platform == 'win32' and uses_msvc():
-    COMPILE_LIBFFI = 'c/libffi_msvc'    # from the CPython distribution
-else:
-    COMPILE_LIBFFI = None
-
-if COMPILE_LIBFFI:
-    assert os.path.isdir(COMPILE_LIBFFI), "directory not found!"
-    include_dirs[:] = [COMPILE_LIBFFI]
-    libraries[:] = []
-    _filenames = [filename.lower() for filename in os.listdir(COMPILE_LIBFFI)]
-    _filenames = [filename for filename in _filenames
-                           if filename.endswith('.c')]
-    if sys.maxsize > 2**32:
-        # 64-bit: unlist win32.c, and add instead win64.obj.  If the obj
-        # happens to get outdated at some point in the future, you need to
-        # rebuild it manually from win64.asm.
-        _filenames.remove('win32.c')
-        extra_link_args.append(os.path.join(COMPILE_LIBFFI, 'win64.obj'))
-    sources.extend(os.path.join(COMPILE_LIBFFI, filename)
-                   for filename in _filenames)
+if sys.platform == "win32" and uses_msvc():
+    if platform.machine() == "ARM64":
+        include_dirs.append(os.path.join("c/libffi_arm64/include"))
+        library_dirs.append(os.path.join("c/libffi_arm64"))
+    else:
+        COMPILE_LIBFFI = 'c/libffi_x86_x64'    # from the CPython distribution
+        assert os.path.isdir(COMPILE_LIBFFI), "directory not found!"
+        include_dirs[:] = [COMPILE_LIBFFI]
+        libraries[:] = []
+        _filenames = [filename.lower() for filename in os.listdir(COMPILE_LIBFFI)]
+        _filenames = [filename for filename in _filenames
+                            if filename.endswith('.c')]
+        if sys.maxsize > 2**32:
+            # 64-bit: unlist win32.c, and add instead win64.obj.  If the obj
+            # happens to get outdated at some point in the future, you need to
+            # rebuild it manually from win64.asm.
+            _filenames.remove('win32.c')
+            extra_link_args.append(os.path.join(COMPILE_LIBFFI, 'win64.obj'))
+        sources.extend(os.path.join(COMPILE_LIBFFI, filename)
+                    for filename in _filenames)
 else:
     use_pkg_config()
     ask_supports_thread()
