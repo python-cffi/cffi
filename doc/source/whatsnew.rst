@@ -2,6 +2,17 @@
 What's New
 ======================
 
+v1.15.0rc1
+==========
+
+* CPython 3.10 support (including wheels)
+
+* MacOS arm64 support (including wheels)
+
+* Initial Windows arm64 support
+
+* Misc. doc and test updates
+
 v1.14.6
 =======
 
