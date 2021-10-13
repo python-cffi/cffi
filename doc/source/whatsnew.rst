@@ -2,6 +2,23 @@
 What's New
 ======================
 
+v1.15.0
+=======
+
+* Fixed MANIFEST.in to include missing file for Windows arm64 support
+
+* Fixed Linux wheel build to use gcc default ISA for libffi
+
+* Updated setup.py Python trove specifiers to currently-tested Python versions
+
+* CPython 3.10 support (including wheels)
+
+* MacOS arm64 support (including wheels)
+
+* Initial Windows arm64 support
+
+* Misc. doc and test updates
+
 v1.14.6
 =======
 
