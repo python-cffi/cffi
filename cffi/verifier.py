@@ -206,7 +206,10 @@ class Verifier(object):
             same = False
         if not same:
             _ensure_dir(self.modulefilename)
+            print("outputfilename", outputfilename)
+            print("self.modulefilename", self.modulefilename)
             shutil.move(outputfilename, self.modulefilename)
+            print("MOVE DONE")
         self._has_module = True
 
     def _load_library(self):
