@@ -846,20 +846,35 @@ allowed.
    argument is identical to a ``item[]`` argument (and ``ffi.cdef()``
    doesn't record the difference).  So when you call such a function,
    you can pass an argument that is accepted by either C type, like
-   for example passing a Python string to a ``char *`` argument
+   for example passing a Python byte string to a ``char *`` argument
    (because it works for ``char[]`` arguments) or a list of integers
    to a ``int *`` argument (it works for ``int[]`` arguments).  Note
    that even if you want to pass a single ``item``, you need to
    specify it in a list of length 1; for example, a ``struct point_s
    *`` argument might be passed as ``[[x, y]]`` or ``[{'x': 5, 'y':
-   10}]``.
+   10}]``.  In all these cases (including passing a byte string to
+   a ``char *`` argument), the required C data structure is created
+   just before the call is done, and freed afterwards.
 
    As an optimization, CFFI assumes that a
-   function with a ``char *`` argument to which you pass a Python
+   function with a ``char *`` argument to which you pass a Python byte
    string will not actually modify the array of characters passed in,
-   and so passes directly a pointer inside the Python string object.
+   and so it attempts to pass directly a pointer inside the Python
+   byte string object.  This still doesn't mean that the ``char *``
+   argument can be stored by the C function and inspected later.
+   The ``char *`` is only valid for the duration of the call, even if
+   the Python object is kept alive for longer.
    (On PyPy, this optimization is only available since PyPy 5.4
-   with CFFI 1.8.)
+   with CFFI 1.8.  It may fail in rare cases and fall back to making
+   a copy anyway, but only for short strings so it shouldn't be
+   noticeable.)
+
+   If you need to pass a ``char *`` that must be valid for longer than
+   just the call, you need to build it explicitly, either with ``p =
+   ffi.new("char[]", mystring)`` (which makes a copy) or by not using a
+   byte string in the first place but something else like a buffer object,
+   or a bytearray and ``ffi.from_buffer()``; or just use
+   ``ffi.new("char[]", length)`` directly if possible.
 
 `[2]` C function calls are done with the GIL released.
 

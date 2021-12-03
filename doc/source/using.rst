@@ -383,6 +383,15 @@ argument and may mutate it!):
 
     assert lib.strlen("hello") == 5
 
+(Note that there is no guarantee that the ``char *`` passed to the
+function remains valid after the call is done.  Similarly, if you write
+``lib.f(x); lib.f(x)`` where ``x`` is some byte string, the two calls to
+``f()`` could sometimes receive different ``char *`` arguments.  This is
+important notably for PyPy which uses many optimizations tweaking the data
+underlying a byte string object.  CFFI will not make and free a copy of
+the whole string at *every* call---it usually won't---but you *cannot*
+write code that relies on it: there are cases were that would break.)
+
 You can also pass unicode strings as ``wchar_t *`` or ``char16_t *`` or
 ``char32_t *`` arguments.  Note that
 the C language makes no difference between argument declarations that
