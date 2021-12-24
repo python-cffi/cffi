@@ -385,12 +385,15 @@ argument and may mutate it!):
 
 (Note that there is no guarantee that the ``char *`` passed to the
 function remains valid after the call is done.  Similarly, if you write
-``lib.f(x); lib.f(x)`` where ``x`` is some byte string, the two calls to
-``f()`` could sometimes receive different ``char *`` arguments.  This is
+``lib.f(x); lib.f(x)`` where ``x`` is a variable containing a byte string,
+the two calls to ``f()`` could sometimes receive different ``char *``
+pointers, with each of them only valid during the corresponding call.  This is
 important notably for PyPy which uses many optimizations tweaking the data
 underlying a byte string object.  CFFI will not make and free a copy of
 the whole string at *every* call---it usually won't---but you *cannot*
-write code that relies on it: there are cases were that would break.)
+write code that relies on it: there are cases were that would break.
+If you need a pointer to remain valid, you need to make one explicitly,
+for example with ``ptr = ffi.new("char[]", x)``.)
 
 You can also pass unicode strings as ``wchar_t *`` or ``char16_t *`` or
 ``char32_t *`` arguments.  Note that
