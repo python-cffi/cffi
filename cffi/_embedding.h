@@ -22,7 +22,8 @@ extern "C" {
 
    * _cffi_call_python_org, which on CPython is actually part of the
      _cffi_exports[] array, is the function pointer copied from
-     _cffi_backend.
+     _cffi_backend.  If _cffi_start_python() fails, then this is set
+     to NULL; otherwise, it should never be NULL.
 
    After initialization is complete, both are equal.  However, the
    first one remains equal to &_cffi_start_and_call_python until the

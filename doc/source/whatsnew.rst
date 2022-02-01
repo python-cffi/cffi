@@ -2,6 +2,12 @@
 What's New
 ======================
 
+v1.15.1
+=======
+
+* If you call `ffi.embedding_api()` but don't write any `extern "Python"`
+  function there, then the resulting C code would fail an assert.  Fixed.
+
 v1.15.0
 =======
 
