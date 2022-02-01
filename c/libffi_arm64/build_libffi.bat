@@ -54,9 +54,10 @@ set LIBFFI_OUT=%~dp0
 
 echo copying files to %LIBFFI_OUT%
 if not exist %LIBFFI_OUT%\include (md %LIBFFI_OUT%\include)
-copy %LIBFFI_SOURCE%\%HOST%\.libs\libffi.lib C:\Users\niysai01\Workspace\cffi\c\libffi_arm64\ffi.lib || exit /B 1
+copy %LIBFFI_SOURCE%\%HOST%\.libs\libffi.lib %LIBFFI_OUT%\ffi.lib || exit /B 1
 copy %LIBFFI_SOURCE%\%HOST%\fficonfig.h %LIBFFI_OUT%\include || exit /B 1
 copy %LIBFFI_SOURCE%\%HOST%\include\*.h %LIBFFI_OUT%\include || exit /B 1
+popd
 exit /B
  
 :InstallCygwin
