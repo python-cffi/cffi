@@ -1384,9 +1384,7 @@ Exception ignored from cffi callback <function$Zcb1 at 0x$>:
 Traceback (most recent call last):
   File "$", line $, in Zcb1
     $
-    $
   File "$", line $, in check_value
-    $
     $
 ValueError: 42
 """)
@@ -1401,7 +1399,6 @@ OverflowError: integer 60000 does not fit 'short'
 Exception ignored from cffi callback <function$Zcb1 at 0x$>, trying to convert the result back to C:
 Traceback (most recent call last):
   File "$", line $, in test_callback_exception
-    $
     $
 OverflowError: integer 60000 does not fit 'short'
 """)
@@ -1446,12 +1443,10 @@ Exception ignored from cffi callback <function$Zcb1 at 0x$>, trying to convert t
 Traceback (most recent call last):
   File "$", line $, in test_callback_exception
     $
-    $
 OverflowError: integer 60000 does not fit 'short'
 Exception ignored during handling of the above exception by 'onerror':
 Traceback (most recent call last):
   File "$", line $, in test_callback_exception
-    $
     $
 TypeError: $integer$
 """)
@@ -1477,12 +1472,10 @@ Exception ignored from cffi callback <function$Zcb1 at 0x$>, trying to convert t
 Traceback (most recent call last):
   File "$", line $, in test_callback_exception
     $
-    $
 OverflowError: integer 60000 does not fit 'short'
 Exception ignored during handling of the above exception by 'onerror':
 Traceback (most recent call last):
   File "$", line $, in oops
-    $
     $
 AttributeError: 'str' object has no attribute 'append$
 """)
