@@ -8,6 +8,9 @@ v1.15.1
 * If you call `ffi.embedding_api()` but don't write any `extern "Python"`
   function there, then the resulting C code would fail an assert.  Fixed.
 
+* Updated Windows/arm64 embedded libffi static lib to v3.4.2, and scripted
+  to ease future updates (thanks Niyas Sait!)
+
 v1.15.0
 =======
 
