@@ -11,7 +11,7 @@ sources = ['c/_cffi_backend.c']
 libraries = ['ffi']
 include_dirs = ['/usr/include/ffi',
                 '/usr/include/libffi']    # may be changed by pkg-config
-define_macros = []
+define_macros = [('FFI_BUILDING', '1')]   # for linking with libffi static library
 library_dirs = []
 extra_compile_args = []
 extra_link_args = []
