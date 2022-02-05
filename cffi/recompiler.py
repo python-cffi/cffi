@@ -406,8 +406,9 @@ class Recompiler:
         else:
             prnt('  NULL,  /* no includes */')
         prnt('  %d,  /* num_types */' % (len(self.cffi_types),))
-        # set 'flags' to 1 in embedding mode, 0 otherwise
-        flags = int(self.ffi._embedding is not None)
+        flags = 0
+        if self._num_externpy > 0 or self.ffi._embedding is not None:
+            flags |= 1     # set to mean that we use extern "Python"
         prnt('  %d,  /* flags */' % flags)
         prnt('};')
         prnt()
@@ -421,7 +422,7 @@ class Recompiler:
         prnt('PyMODINIT_FUNC')
         prnt('_cffi_pypyinit_%s(const void *p[])' % (base_module_name,))
         prnt('{')
-        if self._num_externpy:
+        if flags & 1:
             prnt('    if (((intptr_t)p[0]) >= 0x0A03) {')
             prnt('        _cffi_call_python_org = '
                  '(void(*)(struct _cffi_externpy_s *, char *))p[1];')
