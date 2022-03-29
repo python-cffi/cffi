@@ -5665,7 +5665,8 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
     }
 }
 
-#define ALIGN_ARG(n)  ((n) + 7) & ~7
+#define ALIGN_TO(n, a)  ((n) + ((a)-1)) & ~((a)-1)
+#define ALIGN_ARG(n)    ALIGN_TO(n, 8)
 
 static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
                     CTypeDescrObject *fresult)
@@ -5690,10 +5691,12 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
         /* exchange data size */
         /* first, enough room for an array of 'nargs' pointers */
         exchange_offset = nargs * sizeof(void*);
+        /* then enough room for the result --- which means at least
+           sizeof(ffi_arg), according to the ffi docs, but we also
+           align according to the result type, for issue #531 */
+        exchange_offset = ALIGN_TO(exchange_offset, fb->rtype->alignment);
         exchange_offset = ALIGN_ARG(exchange_offset);
         cif_descr->exchange_offset_arg[0] = exchange_offset;
-        /* then enough room for the result --- which means at least
-           sizeof(ffi_arg), according to the ffi docs */
         i = fb->rtype->size;
         if (i < (Py_ssize_t)sizeof(ffi_arg))
             i = sizeof(ffi_arg);
@@ -5721,6 +5724,7 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
         if (fb->atypes != NULL) {
             fb->atypes[i] = atype;
             /* exchange data size */
+            exchange_offset = ALIGN_TO(exchange_offset, atype->alignment);
             exchange_offset = ALIGN_ARG(exchange_offset);
             cif_descr->exchange_offset_arg[1 + i] = exchange_offset;
             exchange_offset += atype->size;
@@ -5737,6 +5741,7 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
 }
 
 #undef ALIGN_ARG
+#undef ALIGN_TO
 
 static void fb_cat_name(struct funcbuilder_s *fb, const char *piece,
                         int piecelen)
