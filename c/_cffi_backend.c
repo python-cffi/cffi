@@ -4603,7 +4603,7 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
            array      [ctype, length]
            funcptr    [ctresult, ellipsis+abi, num_args, ctargs...]
     */
-    PyObject *key, *y;
+    PyObject *key, *y, *res;
     void *pkey;
 
     key = PyBytes_FromStringAndSize(NULL, keylength * sizeof(void *));
@@ -4635,8 +4635,9 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
     /* the 'value' in unique_cache doesn't count as 1, but don't use
        Py_DECREF(x) here because it will confuse debug builds into thinking
        there was an extra DECREF in total. */
-    ((PyObject *)x)->ob_refcnt--;
-    return (PyObject *)x;
+    res = (PyObject *)x;
+    Py_SET_REFCNT(res, Py_REFCNT(res) - 1);
+    return res;
 
  error:
     Py_DECREF(x);
