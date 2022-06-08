@@ -3638,7 +3638,7 @@ def test_struct_array_no_length():
     assert not buffer_warning(cast(BIntP, p))
 
 def test_more_buffer_warning():
-    BChar = new_primitive_type("char")
+    BChar = new_primitive_type("unsigned char")
     BCharP = new_pointer_type(BChar)
     BArray = new_array_type(BCharP, 10)   # char[10]
     p = newp(BArray)
