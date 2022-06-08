@@ -2197,7 +2197,7 @@ static PyObject *_frombuf_repr(CDataObject *cd, const char *cd_type_name)
     }
 }
 
-static PyObject *cdataowning_repr(CDataObject *cd)
+static Py_ssize_t cdataowning_size_bytes(CDataObject *cd)
 {
     Py_ssize_t size = _cdata_var_byte_size(cd);
     if (size < 0) {
@@ -2208,6 +2208,12 @@ static PyObject *cdataowning_repr(CDataObject *cd)
         else
             size = cd->c_type->ct_size;
     }
+    return size;
+}
+
+static PyObject *cdataowning_repr(CDataObject *cd)
+{
+    Py_ssize_t size = cdataowning_size_bytes(cd);
     return PyText_FromFormat("<cdata '%s' owning %zd bytes>",
                              cd->c_type->ct_name, size);
 }
@@ -7016,12 +7022,14 @@ b_buffer_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     /* this is the constructor of the type implemented in minibuffer.h */
     CDataObject *cd;
     Py_ssize_t size = -1;
+    int explicit_size;
     static char *keywords[] = {"cdata", "size", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|n:buffer", keywords,
                                      &CData_Type, &cd, &size))
         return NULL;
 
+    explicit_size = size >= 0;
     if (size < 0)
         size = _cdata_var_byte_size(cd);
 
@@ -7044,6 +7052,20 @@ b_buffer_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
                      "don't know the size pointed to by '%s'",
                      cd->c_type->ct_name);
         return NULL;
+    }
+
+    if (explicit_size && CDataOwn_Check(cd)) {
+        Py_ssize_t size_max = cdataowning_size_bytes(cd);
+        if (size > size_max) {
+            char msg[256];
+            sprintf(msg, "ffi.buffer(cdata, bytes): creating a buffer of %llu "
+                         "bytes over a cdata that owns only %llu bytes.  This "
+                         "will crash if you access the extra memory",
+                         (unsigned PY_LONG_LONG)size,
+                         (unsigned PY_LONG_LONG)size_max);
+            if (PyErr_WarnEx(PyExc_UserWarning, msg, 1))
+                return NULL;
+        }
     }
     /*WRITE(cd->c_data, size)*/
     return minibuffer_new(cd->c_data, size, (PyObject *)cd);
