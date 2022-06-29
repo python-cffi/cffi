@@ -1,5 +1,5 @@
-Libffi package for ARM64 is copied from cpython binary dependencies
+Please run build_libffi.bat to generate the libffi static library and header files
 
-https://github.com/python/cpython-bin-deps/archive/libffi.zip
+Environment variable LIBFFI_SOURCE needs to be set to libffi source before invoking the script.
 
-The library file has been renamed from libffi-7.lib to ffi.lib to avoid special casing
+Libffi source can be downloaded from https://github.com/libffi/libffi

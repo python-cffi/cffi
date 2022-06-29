@@ -3,7 +3,7 @@ import py
 from cffi import FFI
 from cffi import recompiler, ffiplatform, VerificationMissing
 from testing.udir import udir
-from testing.support import u
+from testing.support import u, is_musl
 
 
 def setup_module(mod):
@@ -269,7 +269,7 @@ def test_selfref():
 def test_dlopen_handle():
     import _cffi_backend
     from re_python_pysrc import ffi
-    if sys.platform == 'win32':
+    if sys.platform == 'win32' or is_musl:
         py.test.skip("uses 'dl' explicitly")
     ffi1 = FFI()
     ffi1.cdef("""void *dlopen(const char *filename, int flags);

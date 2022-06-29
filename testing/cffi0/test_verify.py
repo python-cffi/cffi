@@ -3,7 +3,7 @@ import pytest
 import sys, os, math, weakref
 from cffi import FFI, VerificationError, VerificationMissing, model, FFIError
 from testing.support import *
-from testing.support import extra_compile_args
+from testing.support import extra_compile_args, is_musl
 
 
 lib_m = ['m']
@@ -1609,7 +1609,7 @@ def test_keepalive_ffi():
     assert func() == 42
 
 def test_FILE_stored_in_stdout():
-    if not sys.platform.startswith('linux'):
+    if not sys.platform.startswith('linux') or is_musl:
         py.test.skip("likely, we cannot assign to stdout")
     ffi = FFI()
     ffi.cdef("int printf(const char *, ...); FILE *setstdout(FILE *);")

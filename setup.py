@@ -11,7 +11,7 @@ sources = ['c/_cffi_backend.c']
 libraries = ['ffi']
 include_dirs = ['/usr/include/ffi',
                 '/usr/include/libffi']    # may be changed by pkg-config
-define_macros = []
+define_macros = [('FFI_BUILDING', '1')]   # for linking with libffi static library
 library_dirs = []
 extra_compile_args = []
 extra_link_args = []
@@ -156,6 +156,11 @@ if 'freebsd' in sys.platform:
     include_dirs.append('/usr/local/include')
     library_dirs.append('/usr/local/lib')
 
+forced_extra_objs = os.environ.get('CFFI_FORCE_STATIC', [])
+if forced_extra_objs:
+    forced_extra_objs = forced_extra_objs.split(';')
+
+
 if __name__ == '__main__':
     from setuptools import setup, Distribution, Extension
 
@@ -186,7 +191,7 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='1.15.0',
+        version='1.15.1',
         packages=['cffi'] if cpython else [],
         package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h', 
                                '_embedding.h', '_cffi_errors.h']}
@@ -209,6 +214,7 @@ Contact
             library_dirs=library_dirs,
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
+            extra_objects=forced_extra_objs,
         )] if cpython else [],
 
         install_requires=[

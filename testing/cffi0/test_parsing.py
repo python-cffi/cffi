@@ -1,6 +1,7 @@
 import py, sys, re
 from cffi import FFI, FFIError, CDefError, VerificationError
 from .backend_tests import needs_dlopen_none
+from testing.support import is_musl
 
 
 class FakeBackend(object):
@@ -80,6 +81,9 @@ if sys.platform == 'win32':
     import distutils.ccompiler
     if distutils.ccompiler.get_default_compiler() == 'msvc':
         lib_m = 'msvcrt'
+elif is_musl:
+    lib_m = 'c'
+
 
 def test_simple():
     ffi = FFI(backend=FakeBackend())

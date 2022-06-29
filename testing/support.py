@@ -117,3 +117,12 @@ else:
         extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion',
                               '-Wno-unused-parameter',
                               '-Wno-unreachable-code']
+
+is_musl = False
+if sys.platform == 'linux':
+    try:
+        from packaging.tags import platform_tags
+        is_musl = any(t.startswith('musllinux') for t in platform_tags())
+        del platform_tags
+    except ImportError:
+        pass
