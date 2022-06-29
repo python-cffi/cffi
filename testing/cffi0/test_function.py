@@ -5,7 +5,7 @@ import math, os, sys
 import ctypes.util
 from cffi.backend_ctypes import CTypesBackend
 from testing.udir import udir
-from testing.support import FdWriteCapture, StdErrCapture
+from testing.support import FdWriteCapture, StdErrCapture, is_musl
 from .backend_tests import needs_dlopen_none
 
 try:
@@ -13,6 +13,12 @@ try:
 except ImportError:
     from io import StringIO
 
+try:
+    from packaging.tags import platform_tags
+    _platform_tags_cached = set(platform_tags())
+    _is_musl = any(t.startswith('musllinux') for t in _platform_tags_cached)
+except ImportError:
+    _is_musl = False
 
 lib_m = 'm'
 if sys.platform == 'win32':
@@ -20,6 +26,8 @@ if sys.platform == 'win32':
     import distutils.ccompiler
     if distutils.ccompiler.get_default_compiler() == 'msvc':
         lib_m = 'msvcrt'
+elif is_musl:
+    lib_m = 'c'
 
 class TestFunction(object):
     Backend = CTypesBackend
@@ -165,11 +173,15 @@ class TestFunction(object):
                           ffi.cast("long long", 168))
             ffi.C.fprintf(ffi.C.stderr, b"hello %p\n", ffi.NULL)
         res = fd.getvalue()
+        if is_musl:
+            nil_repr = b'0'
+        else:
+            nil_repr = b'(nil)'
         assert res == (b"hello with no arguments\n"
                        b"hello, world!\n"
                        b"hello, world2!\n"
                        b"hello int 42 long 84 long long 168\n"
-                       b"hello (nil)\n")
+                       b"hello " + nil_repr + b"\n")
 
     def test_must_specify_type_of_vararg(self):
         ffi = FFI(backend=self.Backend())
@@ -265,7 +277,7 @@ class TestFunction(object):
         assert res == 5
 
     def test_write_variable(self):
-        if not sys.platform.startswith('linux'):
+        if not sys.platform.startswith('linux') or _is_musl:
             py.test.skip("probably no symbol 'stdout' in the lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""

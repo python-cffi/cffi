@@ -156,6 +156,11 @@ if 'freebsd' in sys.platform:
     include_dirs.append('/usr/local/include')
     library_dirs.append('/usr/local/lib')
 
+forced_extra_objs = os.environ.get('CFFI_FORCE_STATIC', [])
+if forced_extra_objs:
+    forced_extra_objs = forced_extra_objs.split(';')
+
+
 if __name__ == '__main__':
     from setuptools import setup, Distribution, Extension
 
@@ -209,6 +214,7 @@ Contact
             library_dirs=library_dirs,
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
+            extra_objects=forced_extra_objs,
         )] if cpython else [],
 
         install_requires=[

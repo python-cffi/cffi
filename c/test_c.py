@@ -1,5 +1,15 @@
 import py
 import pytest
+import sys
+
+is_musl = False
+if sys.platform == 'linux':
+    try:
+        from packaging.tags import platform_tags
+        is_musl = any(t.startswith('musllinux') for t in platform_tags())
+        del platform_tags
+    except ImportError:
+        pass
 
 def _setup_path():
     import os, sys
@@ -93,7 +103,8 @@ def test_all_rtld_symbols():
     if sys.platform.startswith("linux"):
         RTLD_NODELETE
         RTLD_NOLOAD
-        RTLD_DEEPBIND
+        if not is_musl:
+            RTLD_DEEPBIND
 
 def test_new_primitive_type():
     py.test.raises(KeyError, new_primitive_type, "foo")
@@ -1296,7 +1307,7 @@ def test_read_variable_as_unknown_length_array():
 def test_write_variable():
     ## FIXME: this test assumes glibc specific behavior, it's not compliant with C standard
     ## https://bugs.pypy.org/issue1643
-    if not sys.platform.startswith("linux"):
+    if not sys.platform.startswith("linux") or is_musl:
         py.test.skip("untested")
     BVoidP = new_pointer_type(new_void_type())
     ll = find_and_load_library('c')

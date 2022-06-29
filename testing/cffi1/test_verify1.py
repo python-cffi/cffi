@@ -4,7 +4,7 @@ from cffi import FFI, FFIError, VerificationError, VerificationMissing, model
 from cffi import CDefError
 from cffi import recompiler
 from testing.support import *
-from testing.support import _verify, extra_compile_args
+from testing.support import _verify, extra_compile_args, is_musl
 import _cffi_backend
 
 lib_m = ['m']
@@ -1571,7 +1571,7 @@ def test_keepalive_ffi():
     assert func() == 42
 
 def test_FILE_stored_in_stdout():
-    if not sys.platform.startswith('linux'):
+    if not sys.platform.startswith('linux') or is_musl:
         py.test.skip("likely, we cannot assign to stdout")
     ffi = FFI()
     ffi.cdef("int printf(const char *, ...); FILE *setstdout(FILE *);")

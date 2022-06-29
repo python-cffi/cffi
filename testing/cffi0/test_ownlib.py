@@ -2,7 +2,7 @@ import py, sys, os
 import subprocess, weakref
 from cffi import FFI
 from cffi.backend_ctypes import CTypesBackend
-from testing.support import u
+from testing.support import u, is_musl
 
 
 SOURCE = """\
@@ -388,7 +388,7 @@ class TestOwnLib(object):
     def test_dlopen_handle(self):
         if self.module is None:
             py.test.skip("fix the auto-generation of the tiny test lib")
-        if sys.platform == 'win32':
+        if sys.platform == 'win32' or is_musl:
             py.test.skip("uses 'dl' explicitly")
         if self.__class__.Backend is CTypesBackend:
             py.test.skip("not for the ctypes backend")
