@@ -10,6 +10,16 @@ Download
 
 [Download page](https://foss.heptapod.net/pypy/cffi/-/tags)
 
+Source Code
+-----------
+
+CFFI is developed using [Mercurial SCM](mercurial-scm.org/).
+The source code is publicly available on
+[heaptapod](https://foss.heptapod.net/pypy/cffi).
+
+You can read more about how to contribute to the project on
+[PyPy's documentation](https://doc.pypy.org/en/latest/contributing.html).
+
 Contact
 -------
 
