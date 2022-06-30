@@ -50,14 +50,36 @@ jobs:
         - spec: cp39-musllinux_i686
         - spec: cp310-musllinux_i686
         - spec: cp311-musllinux_i686
+        - spec: cp36-manylinux_ppc64le
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp37-manylinux_ppc64le
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp38-manylinux_ppc64le
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp39-manylinux_ppc64le
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp310-manylinux_ppc64le
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp311-manylinux_ppc64le
+          foreign_arch: true
+          test_args: '{project}/c'
     steps:
     - name: clone repo
       uses: actions/checkout@v2
 
+    - name: configure docker foreign arch support
+      uses: docker/setup-qemu-action@v1
+      if: ${{ matrix.foreign_arch || false }}
+
     - name: build/test wheels
       env:
         CFLAGS: -Dffi_call=cffistatic_ffi_call  # override name for ffi_call to break hard if we linked against someone else's libffi
-        CIBW_ARCHS_LINUX: auto
+        CIBW_ARCHS_LINUX: all
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_BEFORE_BUILD: |
           set -eux && \
@@ -73,7 +95,7 @@ jobs:
         CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_img || '' }}
         CIBW_PRERELEASE_PYTHONS: 'True'
         CIBW_TEST_REQUIRES: pytest
-        CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest {project}
+        CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest ${{ matrix.test_args || '{project}' }}  # default to test all
       run: |
         python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
 
