@@ -489,18 +489,19 @@ Moreover, you can use "``...``" (literally, dot-dot-dot) in the
 ``cdef()`` at various places, in order to ask the C compiler to fill
 in the details.  These places are:
 
-*  structure declarations: any ``struct { }`` or ``union { }`` that ends
-   with "``...;``" as the last "field" is partial: it may be missing
-   fields, have them declared out of order, use non-standard alignment,
-   etc.  Precisely, the field offsets, total struct size, and total
-   struct alignment deduced by looking at the ``cdef`` are not relied
-   upon and will instead be corrected by the compiler.  (But note that you
-   can only access fields that you declared, not others.)  Any ``struct``
+``struct { }`` or ``union { }``
+   Use "``...;``" as the last "field" to declare a partial structure.
+   This means fields can be left undeclared, declared out of order, or use
+   non-standard alignment.  Precisely, the field offsets, total struct size,
+   and total struct alignment aren't deduced by looking at the ``cdef``.
+   Instead they will be corrected by the compiler.  Note that you can only
+   access fields that you declared; and you must use the correct type for
+   those you declare, the compiler can't figure it out.  Any ``struct``
    declaration which doesn't use "``...``" is assumed to be exact, but this is
    checked: you get an error if it is not correct.
 
-*  integer types: the syntax "``typedef
-   int... foo_t;``" declares the type ``foo_t`` as an integer type
+``typedef int... foo_t;``
+   Declares the type ``foo_t`` as an integer type
    whose exact size and signedness is not specified.  The compiler will
    figure it out.  (Note that this requires ``set_source()``; it does
    not work with ``verify()``.)  The ``int...`` can be replaced with
@@ -509,17 +510,18 @@ in the details.  These places are:
    ``(u)int(8,16,32,64)_t`` in Python, but in the generated C code,
    only ``foo_t`` is used.
 
-* *New in version 1.3:* floating-point types: "``typedef
-  float... foo_t;``" (or equivalently "``typedef double... foo_t;``")
-  declares ``foo_t`` as a-float-or-a-double; the compiler will figure
-  out which it is.  Note that if the actual C type is even larger
+``typedef float... foo_t;``
+  *New in version 1.3:* Declares ``foo_t`` as a-float-or-a-double; the
+  compiler will figure out which it is.  ``typedef double... foo_t;`` has
+  the same effect. Note that if the actual C type is even larger
   (``long double`` on some platforms), then compilation will fail.
   The problem is that the Python "float" type cannot be used to store
   the extra precision.  (Use the non-dot-dot-dot syntax ``typedef long
   double foo_t;`` as usual, which returns values that are not Python
   floats at all but cdata "long double" objects.)
 
-*  unknown types: the syntax "``typedef ... foo_t;``" declares the type
+``typedef ... foo_t;``
+   Declares the type
    ``foo_t`` as opaque.  Useful mainly for when the API takes and returns
    ``foo_t *`` without you needing to look inside the ``foo_t``.  Also
    works with "``typedef ... *foo_p;``" which declares the pointer type
@@ -531,8 +533,9 @@ in the details.  These places are:
    ``foo_t`` is not opaque, but just a struct where you don't know any
    field; then you would use "``typedef struct { ...; } foo_t;``".
 
-*  array lengths: when used as structure fields or in global variables,
-   arrays can have an unspecified length, as in "``extern int n[...];``".  The
+``extern int n[...];``
+   When used as structure fields or in global variables,
+   arrays can have an unspecified length.  The
    length is completed by the C compiler.
    This is slightly different from "``extern int n[];``", because the latter
    means that the length is not known even to the C compiler, and thus
@@ -548,18 +551,19 @@ in the details.  These places are:
    ``[]``, both in C and in CFFI, but any dimension can be given as
    ``[...]`` in CFFI.
 
-*  enums: if you don't know the exact order (or values) of the declared
-   constants, then use this syntax: "``enum foo { A, B, C, ... };``"
-   (with a trailing "``...``").  The C compiler will be used to figure
+``enum foo { A, B, C, ... };``
+   If you don't know the exact order (or values) of the declared
+   constants, then declare them with a trailing "``...``".
+   The C compiler will be used to figure
    out the exact values of the constants.  An alternative syntax is
    "``enum foo { A=..., B, C };``" or even
    "``enum foo { A=..., B=..., C=... };``".  Like
    with structs, an ``enum`` without "``...``" is assumed to
    be exact, and this is checked.
 
-*  integer constants and macros: you can write in the ``cdef`` the line
-   "``#define FOO ...``", with any macro name FOO but with ``...`` as
-   a value.  Provided the macro
+``#define FOO ...``
+   For integer constants and macros you can write a line in the ``cdef``
+   with any macro name FOO but with ``...`` as a value.  Provided the macro
    is defined to be an integer value, this value will be available via
    an attribute of the library object.  The
    same effect can be achieved by writing a declaration
