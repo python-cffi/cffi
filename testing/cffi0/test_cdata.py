@@ -1,4 +1,3 @@
-import py
 from cffi import FFI
 
 class FakeBackend(object):

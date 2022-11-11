@@ -49,8 +49,8 @@ class FdWriteCapture(object):
 
     def __init__(self, capture_fd=2):    # stderr by default
         if sys.platform == 'win32':
-            import py
-            py.test.skip("seems not to work, too bad")
+            import pytest
+            pytest.skip("seems not to work, too bad")
         self.capture_fd = capture_fd
 
     def __enter__(self):
