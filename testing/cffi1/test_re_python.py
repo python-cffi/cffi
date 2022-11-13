@@ -1,5 +1,5 @@
 import sys, os
-import py
+import pytest
 from cffi import FFI
 from cffi import recompiler, ffiplatform, VerificationMissing
 from testing.udir import udir
@@ -117,7 +117,7 @@ def test_dlopen_none():
         import ctypes.util
         name = ctypes.util.find_msvcrt()
         if name is None:
-            py.test.skip("dlopen(None) cannot work on Windows with Python 3")
+            pytest.skip("dlopen(None) cannot work on Windows with Python 3")
     lib = ffi.dlopen(name)
     assert lib.strlen(b"hello") == 5
 
@@ -130,7 +130,7 @@ def test_dlclose():
         str_extmod = extmod.encode('utf-8')
     else:
         str_extmod = extmod
-    e = py.test.raises(ffi.error, getattr, lib, 'add42')
+    e = pytest.raises(ffi.error, getattr, lib, 'add42')
     assert str(e.value) == (
         "library '%s' has been closed" % (str_extmod,))
     ffi.dlclose(lib)   # does not raise
@@ -144,7 +144,7 @@ def test_constant_via_lib():
 def test_opaque_struct():
     from re_python_pysrc import ffi
     ffi.cast("struct foo_s *", 0)
-    py.test.raises(TypeError, ffi.new, "struct foo_s *")
+    pytest.raises(TypeError, ffi.new, "struct foo_s *")
 
 def test_nonopaque_struct():
     from re_python_pysrc import ffi
@@ -199,13 +199,13 @@ def test_global_const_int():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
     assert lib.globalconst42 == 4321
-    py.test.raises(AttributeError, ffi.addressof, lib, 'globalconst42')
+    pytest.raises(AttributeError, ffi.addressof, lib, 'globalconst42')
 
 def test_global_const_nonint():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
     assert ffi.string(lib.globalconsthello, 8) == b"hello"
-    py.test.raises(AttributeError, ffi.addressof, lib, 'globalconsthello')
+    pytest.raises(AttributeError, ffi.addressof, lib, 'globalconsthello')
 
 def test_rtld_constants():
     from re_python_pysrc import ffi
@@ -216,16 +216,16 @@ def test_rtld_constants():
 def test_no_such_function_or_global_var():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
-    e = py.test.raises(ffi.error, getattr, lib, 'no_such_function')
+    e = pytest.raises(ffi.error, getattr, lib, 'no_such_function')
     assert str(e.value).startswith(
         "symbol 'no_such_function' not found in library '")
-    e = py.test.raises(ffi.error, getattr, lib, 'no_such_globalvar')
+    e = pytest.raises(ffi.error, getattr, lib, 'no_such_globalvar')
     assert str(e.value).startswith(
         "symbol 'no_such_globalvar' not found in library '")
 
 def test_check_version():
     import _cffi_backend
-    e = py.test.raises(ImportError, _cffi_backend.FFI,
+    e = pytest.raises(ImportError, _cffi_backend.FFI,
                        "foobar", _version=0x2594)
     assert str(e.value).startswith(
         "cffi out-of-line Python module 'foobar' has unknown version")
@@ -234,7 +234,7 @@ def test_partial_enum():
     ffi = FFI()
     ffi.cdef("enum foo { A, B, ... };")
     ffi.set_source('test_partial_enum', None)
-    py.test.raises(VerificationMissing, ffi.emit_python_code,
+    pytest.raises(VerificationMissing, ffi.emit_python_code,
                    str(tmpdir.join('test_partial_enum.py')))
 
 def test_anonymous_union_inside_struct():
@@ -270,7 +270,7 @@ def test_dlopen_handle():
     import _cffi_backend
     from re_python_pysrc import ffi
     if sys.platform == 'win32' or is_musl:
-        py.test.skip("uses 'dl' explicitly")
+        pytest.skip("uses 'dl' explicitly")
     ffi1 = FFI()
     ffi1.cdef("""void *dlopen(const char *filename, int flags);
                  int dlclose(void *handle);""")

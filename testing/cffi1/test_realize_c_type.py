@@ -1,4 +1,5 @@
-import py, sys
+import sys
+import pytest
 from cffi import cffi_opcode
 
 
@@ -10,7 +11,7 @@ def check(input, expected_output=None, expected_ffi_error=False):
         assert isinstance(ct, ffi.CType)
         assert ct.cname == (expected_output or input)
     else:
-        e = py.test.raises(ffi.error, ffi.typeof, input)
+        e = pytest.raises(ffi.error, ffi.typeof, input)
         if isinstance(expected_ffi_error, str):
             assert str(e.value) == expected_ffi_error
 

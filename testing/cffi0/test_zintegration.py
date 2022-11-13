@@ -19,7 +19,7 @@ def create_venv(name):
                                '-p', os.path.abspath(sys.executable),
                                str(tmpdir)])
     except OSError as e:
-        py.test.skip("Cannot execute virtualenv: %s" % (e,))
+        pytest.skip("Cannot execute virtualenv: %s" % (e,))
 
     site_packages = None
     for dirpath, dirnames, filenames in os.walk(str(tmpdir)):
@@ -159,7 +159,7 @@ class TestZIntegration(object):
         try:
             import setuptools
         except ImportError as e:
-            py.test.skip(str(e))
+            pytest.skip(str(e))
         orig_version = setuptools.__version__
         expecting_limited_api = not hasattr(sys, 'gettotalrefcount')
         try:

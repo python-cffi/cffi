@@ -1,4 +1,3 @@
-import py
 import pytest
 from cffi import FFI, CDefError
 import math, os, sys
@@ -43,7 +42,7 @@ class TestFunction(object):
 
     def test_sinf(self):
         if sys.platform == 'win32':
-            py.test.skip("no sinf found in the Windows stdlib")
+            pytest.skip("no sinf found in the Windows stdlib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             float sinf(float x);
@@ -68,7 +67,7 @@ class TestFunction(object):
     def test_dlopen_filename(self):
         path = ctypes.util.find_library(lib_m)
         if not path:
-            py.test.skip("%s not found" % lib_m)
+            pytest.skip("%s not found" % lib_m)
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             double cos(double x);
@@ -104,9 +103,9 @@ class TestFunction(object):
 
     def test_tlsalloc(self):
         if sys.platform != 'win32':
-            py.test.skip("win32 only")
+            pytest.skip("win32 only")
         if self.Backend is CTypesBackend:
-            py.test.skip("ctypes complains on wrong calling conv")
+            pytest.skip("ctypes complains on wrong calling conv")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("long TlsAlloc(void); int TlsFree(long);")
         lib = ffi.dlopen('KERNEL32.DLL')
@@ -117,7 +116,7 @@ class TestFunction(object):
 
     def test_fputs(self):
         if not sys.platform.startswith('linux'):
-            py.test.skip("probably no symbol 'stderr' in the lib")
+            pytest.skip("probably no symbol 'stderr' in the lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int fputs(const char *, void *);
@@ -134,7 +133,7 @@ class TestFunction(object):
 
     def test_fputs_without_const(self):
         if not sys.platform.startswith('linux'):
-            py.test.skip("probably no symbol 'stderr' in the lib")
+            pytest.skip("probably no symbol 'stderr' in the lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int fputs(char *, void *);
@@ -151,7 +150,7 @@ class TestFunction(object):
 
     def test_vararg(self):
         if not sys.platform.startswith('linux'):
-            py.test.skip("probably no symbol 'stderr' in the lib")
+            pytest.skip("probably no symbol 'stderr' in the lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
            int fprintf(void *, const char *format, ...);
@@ -190,7 +189,7 @@ class TestFunction(object):
         """)
         needs_dlopen_none()
         ffi.C = ffi.dlopen(None)
-        e = py.test.raises(TypeError, ffi.C.printf, b"hello %d\n", 42)
+        e = pytest.raises(TypeError, ffi.C.printf, b"hello %d\n", 42)
         assert str(e.value) == ("argument 2 passed in the variadic part "
                                 "needs to be a cdata object (got int)")
 
@@ -218,7 +217,7 @@ class TestFunction(object):
         assert res == 42
         #
         if not sys.platform.startswith('linux'):
-            py.test.skip("probably no symbol 'stderr' in the lib")
+            pytest.skip("probably no symbol 'stderr' in the lib")
         ffi.cdef("""
             int fputs(const char *, void *);
             extern void *stderr;
@@ -250,7 +249,7 @@ class TestFunction(object):
 
     def test_callback_returning_struct_three_bytes(self):
         if self.Backend is CTypesBackend:
-            py.test.skip("not supported with the ctypes backend")
+            pytest.skip("not supported with the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             typedef struct {
@@ -278,7 +277,7 @@ class TestFunction(object):
 
     def test_write_variable(self):
         if not sys.platform.startswith('linux') or _is_musl:
-            py.test.skip("probably no symbol 'stdout' in the lib")
+            pytest.skip("probably no symbol 'stdout' in the lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             extern void *stdout;
@@ -304,10 +303,10 @@ class TestFunction(object):
 
     def test_function_with_struct_argument(self):
         if sys.platform == 'win32':
-            py.test.skip("no 'inet_ntoa'")
+            pytest.skip("no 'inet_ntoa'")
         if (self.Backend is CTypesBackend and
             '__pypy__' in sys.builtin_module_names):
-            py.test.skip("ctypes limitation on pypy")
+            pytest.skip("ctypes limitation on pypy")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             struct in_addr { unsigned int s_addr; };
@@ -331,7 +330,7 @@ class TestFunction(object):
 
     def test_fputs_custom_FILE(self):
         if self.Backend is CTypesBackend:
-            py.test.skip("FILE not supported with the ctypes backend")
+            pytest.skip("FILE not supported with the ctypes backend")
         filename = str(udir.join('fputs_custom_FILE'))
         ffi = FFI(backend=self.Backend())
         ffi.cdef("int fputs(const char *, FILE *);")
@@ -370,7 +369,7 @@ class TestFunction(object):
 
     def test_signed_char_star_accepts_string(self):
         if self.Backend is CTypesBackend:
-            py.test.skip("not supported by the ctypes backend")
+            pytest.skip("not supported by the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""int strlen(signed char *);""")
         needs_dlopen_none()
@@ -380,7 +379,7 @@ class TestFunction(object):
 
     def test_unsigned_char_star_accepts_string(self):
         if self.Backend is CTypesBackend:
-            py.test.skip("not supported by the ctypes backend")
+            pytest.skip("not supported by the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""int strlen(unsigned char *);""")
         needs_dlopen_none()
@@ -414,7 +413,7 @@ class TestFunction(object):
 
     def test_free_callback_cycle(self):
         if self.Backend is CTypesBackend:
-            py.test.skip("seems to fail with the ctypes backend on windows")
+            pytest.skip("seems to fail with the ctypes backend on windows")
         import weakref
         def make_callback(data):
             container = [data]
@@ -437,9 +436,9 @@ class TestFunction(object):
 
     def test_windows_stdcall(self):
         if sys.platform != 'win32':
-            py.test.skip("Windows-only test")
+            pytest.skip("Windows-only test")
         if self.Backend is CTypesBackend:
-            py.test.skip("not with the ctypes backend")
+            pytest.skip("not with the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             BOOL QueryPerformanceFrequency(LONGLONG *lpFrequency);
@@ -452,9 +451,9 @@ class TestFunction(object):
 
     def test_explicit_cdecl_stdcall(self):
         if sys.platform != 'win32':
-            py.test.skip("Windows-only test")
+            pytest.skip("Windows-only test")
         if self.Backend is CTypesBackend:
-            py.test.skip("not with the ctypes backend")
+            pytest.skip("not with the ctypes backend")
         win64 = (sys.maxsize > 2**32)
         #
         ffi = FFI(backend=self.Backend())
@@ -500,8 +499,8 @@ class TestFunction(object):
         fns = ffi.cast("fns_t", 0)
         ffi.new("fnc_t[]", [fnc])
         if not win64:
-            py.test.raises(TypeError, ffi.new, "fnc_t[]", [fns])
-            py.test.raises(TypeError, ffi.new, "fns_t[]", [fnc])
+            pytest.raises(TypeError, ffi.new, "fnc_t[]", [fns])
+            pytest.raises(TypeError, ffi.new, "fns_t[]", [fnc])
         ffi.new("fns_t[]", [fns])
 
     def test_stdcall_only_on_windows(self):
@@ -530,25 +529,25 @@ class TestFunction(object):
 
     def test_dlclose(self):
         if self.Backend is CTypesBackend:
-            py.test.skip("not with the ctypes backend")
+            pytest.skip("not with the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("int foobar(void); extern int foobaz;")
         lib = ffi.dlopen(lib_m)
         ffi.dlclose(lib)
-        e = py.test.raises(ValueError, getattr, lib, 'foobar')
+        e = pytest.raises(ValueError, getattr, lib, 'foobar')
         assert str(e.value).startswith("library '")
         assert str(e.value).endswith("' has already been closed")
-        e = py.test.raises(ValueError, getattr, lib, 'foobaz')
+        e = pytest.raises(ValueError, getattr, lib, 'foobaz')
         assert str(e.value).startswith("library '")
         assert str(e.value).endswith("' has already been closed")
-        e = py.test.raises(ValueError, setattr, lib, 'foobaz', 42)
+        e = pytest.raises(ValueError, setattr, lib, 'foobaz', 42)
         assert str(e.value).startswith("library '")
         assert str(e.value).endswith("' has already been closed")
         ffi.dlclose(lib)    # does not raise
 
     def test_passing_large_list(self):
         if self.Backend is CTypesBackend:
-            py.test.skip("the ctypes backend doesn't support this")
+            pytest.skip("the ctypes backend doesn't support this")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             void getenv(char *);
