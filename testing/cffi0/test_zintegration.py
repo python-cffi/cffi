@@ -1,5 +1,6 @@
 import py, os, sys, shutil
 import subprocess
+import textwrap
 from testing.udir import udir
 import pytest
 
@@ -66,7 +67,7 @@ def really_run_setup_and_program(dirname, venv_dir_and_paths, python_snippet):
         remove(os.path.join(basedir, '__pycache__'))
     olddir = os.getcwd()
     python_f = udir.join('x.py')
-    python_f.write(py.code.Source(python_snippet))
+    python_f.write(textwrap.dedent(python_snippet))
     try:
         os.chdir(str(SNIPPET_DIR.join(dirname)))
         if os.name == 'nt':

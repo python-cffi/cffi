@@ -30,7 +30,7 @@ Testing/development tips
 
 To run tests under CPython, run::
 
-    pip install pytest py  # if you don't have pytest and py already
+    pip install pytest     # if you don't have pytest already
     pip install pycparser
     python setup.py build_ext -f -i
     pytest c/ testing/
