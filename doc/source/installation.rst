@@ -101,7 +101,7 @@ Modern Linuxes work out of the box thanks to ``pkg-config``.  Here are some
 MacOS X
 +++++++
 
-**Homebrew** (Thanks David Griffin for this)
+**Homebrew** (Thanks David Griffin and Mark Keller for this)
 
 1) Install homebrew: http://brew.sh
 
@@ -110,7 +110,9 @@ MacOS X
 ::
 
     brew install pkg-config libffi
-    PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig pip install cffi
+    PKG_CONFIG_PATH=$(brew --prefix libffi)/lib/pkgconfig pip install --no-binary cffi cffi
+
+(the ``--no-binary cffi`` might be needed or not.)
 
 
 Alternatively, **on OS/X 10.6** (Thanks Juraj Sukop for this)
