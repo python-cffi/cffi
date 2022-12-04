@@ -1938,6 +1938,7 @@ static void cdataowninggc_dealloc(CDataObject *cd)
 static void cdatafrombuf_dealloc(CDataObject *cd)
 {
     Py_buffer *view = ((CDataObject_frombuf *)cd)->bufferview;
+    PyObject_GC_UnTrack(cd);
     cdata_dealloc(cd);
 
     PyBuffer_Release(view);
@@ -2043,6 +2044,7 @@ static void cdatagcp_dealloc(CDataObject_gcp *cd)
 {
     PyObject *destructor = cd->destructor;
     PyObject *origobj = cd->origobj;
+    PyObject_GC_UnTrack(cd);
     cdata_dealloc((CDataObject *)cd);
 
     gcp_finalize(destructor, origobj);
