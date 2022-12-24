@@ -62,9 +62,9 @@
 
 /* Convert from closure pointer to function pointer. */
 #if defined(__hppa__) && !defined(__LP64__)
-#define CFFI_FN(f) ((void (*)(void))((unsigned int)(f) | 2))
+#define CFFI_CLOSURE_TO_FNPTR(type, f)  ((type)((unsigned int)(f) | 2))
 #else
-#define CFFI_FN(f) ((void (*)(void))f)
+#define CFFI_CLOSURE_TO_FNPTR(type, f)  ((type)(f))
 #endif
 
 
@@ -3198,7 +3198,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 
     Py_BEGIN_ALLOW_THREADS
     restore_errno();
-    ffi_call(&cif_descr->cif, (void (*)(void)) CFFI_FN(cd->c_data),
+    ffi_call(&cif_descr->cif, CFFI_CLOSURE_TO_FNPTR(void (*)(void), cd->c_data),
              resultdata, buffer_array);
     save_errno();
     Py_END_ALLOW_THREADS
@@ -6401,7 +6401,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
         goto error;
     Py_INCREF(ct);
     cd->head.c_type = ct;
-    cd->head.c_data = (char *)CFFI_FN(closure_exec);
+    cd->head.c_data = CFFI_CLOSURE_TO_FNPTR(char *, closure_exec);
     cd->head.c_weakreflist = NULL;
     closure->user_data = NULL;
     cd->closure = closure;
