@@ -176,6 +176,17 @@ if __name__ == '__main__':
     # arguments mostly empty in this case.
     cpython = ('_cffi_backend' not in sys.builtin_module_names)
 
+    install_requires = []
+    if cpython:
+        if sys.version_info >= (2, 7):
+            install_requires.append('pycparser')
+        else:
+            install_requires.append('pycparser<2.19')
+        if sys.version_info >= (3, 12):
+            # this is to get the 'distutils' module.
+            # see https://foss.heptapod.net/pypy/cffi/-/issues/564
+            install_requires.append('setuptools')
+
     setup(
         name='cffi',
         description='Foreign Function Interface for Python calling C code.',
@@ -217,9 +228,7 @@ Contact
             extra_objects=forced_extra_objs,
         )] if cpython else [],
 
-        install_requires=[
-            'pycparser' if sys.version_info >= (2, 7) else 'pycparser<2.19',
-        ] if cpython else [],
+        install_requires=install_requires,
 
         entry_points = {
             "distutils.setup_keywords": [
