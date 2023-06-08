@@ -321,10 +321,11 @@ static int _cffi_carefully_make_gil(void)
     int old_value, locked_value = -42;
     assert(!(PyCapsule_Type.tp_flags & Py_TPFLAGS_HAVE_VERSION_TAG));
 #  else
-    static PyBufferProcs empty_buffer_procs;
+    static struct ebp_s { PyBufferProcs buf; int mark; } empty_buffer_procs;
+    empty_buffer_procs.mark = -42;
     PyBufferProcs *volatile *lock = (PyBufferProcs *volatile *)
         &PyCapsule_Type.tp_as_buffer;
-    PyBufferProcs *old_value, *locked_value = &empty_buffer_procs;
+    PyBufferProcs *old_value, *locked_value = &empty_buffer_procs.buf;
 #  endif
 
     while (1) {    /* spin loop */
@@ -334,7 +335,13 @@ static int _cffi_carefully_make_gil(void)
                 break;
         }
         else {
+#  if PY_VERSION_HEX < 0x030C0000
             assert(old_value == locked_value);
+#  else
+            /* The pointer should point to a possibly different
+               empty_buffer_procs from another C extension module */
+            assert(((struct ebp_s *)old_value)->mark == -42);
+#  endif
             /* should ideally do a spin loop instruction here, but
                hard to do it portably and doesn't really matter I
                think: PyEval_InitThreads() should be very fast, and
