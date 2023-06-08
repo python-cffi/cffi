@@ -283,6 +283,15 @@ static int _cffi_carefully_make_gil(void)
        Python < 3.8 because someone might use a mixture of cffi
        embedded modules, some of which were compiled before this file
        changed.
+
+       In Python >= 3.12, this stopped working because that particular
+       tp_version_tag gets modified during interpreter startup.  It's
+       arguably a bad idea before 3.12 too, but again we can't change
+       that because someone might use a mixture of cffi embedded
+       modules, and no-one reported a bug so far.  In Python >= 3.12
+       we go instead for PyCapsuleType.tp_as_buffer, which is supposed
+       to always be NULL.  We write to it temporarily a pointer to
+       a struct full of NULLs, which is semantically the same.
     */
 
 #ifdef WITH_THREAD
@@ -307,13 +316,19 @@ static int _cffi_carefully_make_gil(void)
         }
     }
 # else
+#  if PY_VERSION_HEX < 0x030C0000
     int volatile *lock = (int volatile *)&PyCapsule_Type.tp_version_tag;
-    int old_value, locked_value;
+    int old_value, locked_value = -42;
     assert(!(PyCapsule_Type.tp_flags & Py_TPFLAGS_HAVE_VERSION_TAG));
+#  else
+    static PyBufferProcs empty_buffer_procs;
+    PyBufferProcs *volatile *lock = (PyBufferProcs *volatile *)
+        &PyCapsule_Type.tp_as_buffer;
+    PyBufferProcs *old_value, *locked_value = &empty_buffer_procs;
+#  endif
 
     while (1) {    /* spin loop */
         old_value = *lock;
-        locked_value = -42;
         if (old_value == 0) {
             if (cffi_compare_and_swap(lock, old_value, locked_value))
                 break;
