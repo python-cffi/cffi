@@ -166,7 +166,7 @@ thread_canary_free_zombies(void)
             break;
         PyThreadState_Clear(tstate);  /* calls thread_canary_dealloc on 'ob',
                                          but now ob->zombie_next == NULL. */
-#if PY_HEX_VERSION >= 0x030C0000
+#if PY_VERSION_HEX >= 0x030C0000
         /* this might be a bug introduced in 3.12, or just me abusing the
            API around there.  The issue is that PyThreadState_Delete()
            called on a random old tstate will clear the *current* thread
