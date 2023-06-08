@@ -1,5 +1,5 @@
 import pytest
-import platform, imp
+import platform
 import sys, os, ctypes
 import cffi
 from testing.udir import udir
@@ -91,7 +91,7 @@ def setup_module():
 
     outputfilename = recompile(ffi1, "test_new_ffi_1", CCODE,
                                tmpdir=str(udir))
-    module = imp.load_dynamic("test_new_ffi_1", outputfilename)
+    module = load_dynamic("test_new_ffi_1", outputfilename)
     ffi = module.ffi
     construction_params = (ffi1, CCODE)
 
@@ -1619,7 +1619,7 @@ class TestNewFFI1:
         ffi2 = cffi.FFI(); ffi2.cdef(CDEF2)
         outputfilename = recompile(ffi2, "test_multiple_independent_structs",
                                    CDEF2, tmpdir=str(udir))
-        module = imp.load_dynamic("test_multiple_independent_structs",
+        module = load_dynamic("test_multiple_independent_structs",
                                   outputfilename)
         ffi1 = module.ffi
         foo1 = ffi1.new("struct ab *", [10])
@@ -1635,7 +1635,7 @@ class TestNewFFI1:
         outputfilename = recompile(ffi2,
                                    "test_include_struct_union_enum_typedef",
                                    CCODE, tmpdir=str(udir))
-        module = imp.load_dynamic("test_include_struct_union_enum_typedef",
+        module = load_dynamic("test_include_struct_union_enum_typedef",
                                   outputfilename)
         ffi2 = module.ffi
         #
@@ -1783,7 +1783,7 @@ class TestNewFFI1:
                                    "int myfunc(int x) { return x + 1; }\n"
                                    "int myvar = -5;\n"
                                    "#define MYFOO 42", tmpdir=str(udir))
-        imp.load_dynamic("_test_import_from_lib", outputfilename)
+        load_dynamic("_test_import_from_lib", outputfilename)
         from _test_import_from_lib.lib import myfunc, myvar, MYFOO
         assert MYFOO == 42
         assert myfunc(43) == 44

@@ -1,9 +1,10 @@
-import sys, os, imp, math, shutil
+import sys, os, math, shutil
 import pytest
 from cffi import FFI, FFIError
 from cffi.verifier import Verifier, _locate_engine_class, _get_so_suffixes
 from cffi.ffiplatform import maybe_relative_path
 from testing.udir import udir
+from testing.support import load_dynamic
 
 
 class DistUtilsTest(object):
@@ -80,7 +81,7 @@ class DistUtilsTest(object):
         v.compile_module()
         assert v.get_module_name().startswith('_cffi_')
         if v.generates_python_module():
-            mod = imp.load_dynamic(v.get_module_name(), v.modulefilename)
+            mod = load_dynamic(v.get_module_name(), v.modulefilename)
             assert hasattr(mod, '_cffi_setup')
 
     def test_compile_module_explicit_filename(self):
@@ -95,7 +96,7 @@ class DistUtilsTest(object):
         assert filename == v.modulefilename
         assert v.get_module_name() == basename
         if v.generates_python_module():
-            mod = imp.load_dynamic(v.get_module_name(), v.modulefilename)
+            mod = load_dynamic(v.get_module_name(), v.modulefilename)
             assert hasattr(mod, '_cffi_setup')
 
     def test_name_from_checksum_of_cdef(self):

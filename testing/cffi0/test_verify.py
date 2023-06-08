@@ -1575,7 +1575,8 @@ def test_addressof():
 def test_callback_in_thread():
     if sys.platform == 'win32':
         pytest.skip("pthread only")
-    import os, subprocess, imp
+    import os, subprocess
+    from cffi import _imp_emulation as imp
     arg = os.path.join(os.path.dirname(__file__), 'callback_in_thread.py')
     g = subprocess.Popen([sys.executable, arg,
                           os.path.dirname(imp.find_module('cffi')[1])])

@@ -65,6 +65,8 @@ def no_working_compiler_found():
     no_compiler_found = True
 
 def get_config():
+    if sys.version_info >= (3, 12):
+        import setuptools     # makes 'distutils' available
     from distutils.core import Distribution
     from distutils.sysconfig import get_config_vars
     get_config_vars()      # workaround for a bug of distutils, e.g. on OS/X
