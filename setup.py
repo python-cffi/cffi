@@ -2,9 +2,9 @@ import sys, os, platform
 import subprocess
 import errno
 
-# on Windows we give up and always import setuptools early to fix things for us
-if sys.platform == "win32":
-    import setuptools
+# the setuptools distutils shim should make distutils available, but this will definitely do
+# it, since setuptools is now required at build-time
+import setuptools
 
 
 sources = ['c/_cffi_backend.c']
@@ -65,8 +65,6 @@ def no_working_compiler_found():
     no_compiler_found = True
 
 def get_config():
-    if sys.version_info >= (3, 12):
-        import setuptools     # makes 'distutils' available
     from distutils.core import Distribution
     from distutils.sysconfig import get_config_vars
     get_config_vars()      # workaround for a bug of distutils, e.g. on OS/X
@@ -180,14 +178,7 @@ if __name__ == '__main__':
 
     install_requires = []
     if cpython:
-        if sys.version_info >= (2, 7):
-            install_requires.append('pycparser')
-        else:
-            install_requires.append('pycparser<2.19')
-        if sys.version_info >= (3, 12):
-            # this is to get the 'distutils' module.
-            # see https://foss.heptapod.net/pypy/cffi/-/issues/564
-            install_requires.append('setuptools')
+        install_requires.append('pycparser')
 
     setup(
         name='cffi',
@@ -205,6 +196,7 @@ Contact
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
         version='1.15.1',
+        python_requires='>=3.8',
         packages=['cffi'] if cpython else [],
         package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h', 
                                '_embedding.h', '_cffi_errors.h']}
@@ -240,15 +232,12 @@ Contact
 
         classifiers=[
             'Programming Language :: Python',
-            'Programming Language :: Python :: 2',
-            'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3',
-            'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7',
             'Programming Language :: Python :: 3.8',
             'Programming Language :: Python :: 3.9',
             'Programming Language :: Python :: 3.10',
             'Programming Language :: Python :: 3.11',
+            'Programming Language :: Python :: 3.12',
             'Programming Language :: Python :: Implementation :: CPython',
             'Programming Language :: Python :: Implementation :: PyPy',
             'License :: OSI Approved :: MIT License',

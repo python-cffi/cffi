@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: clone repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: build sdist
       run: |
@@ -14,7 +14,7 @@ jobs:
         python -m build --sdist
 
     - name: upload sdist artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         path: dist
         if-no-files-found: error
@@ -22,40 +22,47 @@ jobs:
   linux:
     runs-on: ubuntu-20.04
     strategy:
+      fail-fast: false
       matrix:
         include:
-        - spec: cp27-manylinux_x86_64
-          cibw_version: cibuildwheel<2.0  # py2.7 is not supported on CIBW 2.0+
-          manylinux_img: manylinux1  # build really old Pythons on manylinux1
-        - spec: cp36-manylinux_x86_64
-          manylinux_img: manylinux1  # build really old Pythons on manylinux1
-        - spec: cp37-manylinux_x86_64
         - spec: cp38-manylinux_x86_64
         - spec: cp39-manylinux_x86_64
         - spec: cp310-manylinux_x86_64
         - spec: cp311-manylinux_x86_64
-        - spec: cp27-manylinux_i686
-          cibw_version: cibuildwheel<2.0  # py2.7 is not supported on CIBW 2.0+
-          manylinux_img: manylinux1  # build really old Pythons on manylinux1
-        - spec: cp36-manylinux_i686
-          manylinux_img: manylinux1  # build really old Pythons on manylinux1
-        - spec: cp37-manylinux_i686
+        - spec: cp312-manylinux_x86_64
+
         - spec: cp38-manylinux_i686
         - spec: cp39-manylinux_i686
         - spec: cp310-manylinux_i686
         - spec: cp311-manylinux_i686
+        - spec: cp312-manylinux_i686
+
         - spec: cp39-musllinux_x86_64
         - spec: cp310-musllinux_x86_64
         - spec: cp311-musllinux_x86_64
+        - spec: cp312-musllinux_x86_64
+
         - spec: cp39-musllinux_i686
         - spec: cp310-musllinux_i686
         - spec: cp311-musllinux_i686
-        - spec: cp36-manylinux_ppc64le
+        #- spec: cp312-musllinux_i686  # busted as of 9/22/23
+
+        - spec: cp38-manylinux_aarch64
           foreign_arch: true
           test_args: '{project}/c'
-        - spec: cp37-manylinux_ppc64le
+        - spec: cp39-manylinux_aarch64
           foreign_arch: true
           test_args: '{project}/c'
+        - spec: cp310-manylinux_aarch64
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp311-manylinux_aarch64
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp312-manylinux_aarch64
+          foreign_arch: true
+          test_args: '{project}/c'
+
         - spec: cp38-manylinux_ppc64le
           foreign_arch: true
           test_args: '{project}/c'
@@ -68,9 +75,29 @@ jobs:
         - spec: cp311-manylinux_ppc64le
           foreign_arch: true
           test_args: '{project}/c'
+        - spec: cp312-manylinux_ppc64le
+          foreign_arch: true
+          test_args: '{project}/c'
+
+        - spec: cp38-manylinux_s390x
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp39-manylinux_s390x
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp310-manylinux_s390x
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp311-manylinux_s390x
+          foreign_arch: true
+          test_args: '{project}/c'
+        - spec: cp312-manylinux_s390x
+          foreign_arch: true
+          test_args: '{project}/c'
+
     steps:
     - name: clone repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: configure docker foreign arch support
       uses: docker/setup-qemu-action@v1
@@ -94,7 +121,7 @@ jobs:
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_img || '' }}
         CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_img || '' }}
         CIBW_PRERELEASE_PYTHONS: 'True'
-        CIBW_TEST_REQUIRES: pytest
+        CIBW_TEST_REQUIRES: pytest setuptools  # 3.12+ no longer includes distutils, just always ensure setuptools is present
         CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest ${{ matrix.test_args || '{project}' }}  # default to test all
       run: |
         python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
@@ -104,7 +131,7 @@ jobs:
 
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         path: dist
         if-no-files-found: error
@@ -114,21 +141,19 @@ jobs:
     defaults:
       run:
         shell: ${{ matrix.run_wrapper || 'bash --noprofile --norc -eo pipefail {0}' }}
-    runs-on: ${{ matrix.runs_on || 'macos-10.15' }}
+    runs-on: ${{ matrix.runs_on || 'macos-11' }}
     strategy:
+      fail-fast: false
       matrix:
         include:
         # build for x86_64 under the default hosted macOS 10.x x86_64 runner
-        - spec: cp27-macosx_x86_64
-          cibw_version: cibuildwheel<2.0  # py2.7 is not supported on CIBW 2.0+
-        - spec: cp36-macosx_x86_64
-        - spec: cp37-macosx_x86_64
         - spec: cp38-macosx_x86_64
         - spec: cp39-macosx_x86_64
         - spec: cp310-macosx_x86_64
         - spec: cp311-macosx_x86_64
-        # build for arm64 under a hacked macOS 12 self-hosted x86_64-on-arm64 runner until arm64 is fully supported
-        # FIXME: ? cp38-macosx_arm64 requires special handling and fails some test_zdist tests under cibw 2.1.2, skip it (so Apple's XCode python3 won't have a wheel)
+        - spec: cp312-macosx_x86_64
+#        # build for arm64 under a hacked macOS 12 self-hosted x86_64-on-arm64 runner until arm64 is fully supported
+#        # FIXME: ? cp38-macosx_arm64 requires special handling and fails some test_zdist tests under cibw 2.1.2, skip it (so Apple's XCode python3 won't have a wheel)
         - spec: cp39-macosx_arm64
           deployment_target: '11.0'
           runs_on: [self-hosted, macOS]
@@ -147,9 +172,16 @@ jobs:
           run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
           sdkroot: macosx11.3
 
+        - spec: cp312-macosx_arm64
+          deployment_target: '11.0'
+          runs_on: [self-hosted, macOS]
+          run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
+          sdkroot: macosx11.3
+
 
     steps:
     - name: clone repo
+      # need to use v2 until we can upgrade the runners on our private Apple Silicon build infra to one that supports node20
       uses: actions/checkout@v2
 
     - name: build wheel prereqs
@@ -161,7 +193,7 @@ jobs:
       env:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
-        CIBW_TEST_REQUIRES: pytest
+        CIBW_TEST_REQUIRES: pytest setuptools
         CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
       run: |
         if [[ -n "${{ matrix.deployment_target || '' }}" ]]
@@ -177,6 +209,7 @@ jobs:
         /usr/bin/python3 -m cibuildwheel --output-dir dist
 
     - name: upload artifacts
+      # need to use v2 until we can upgrade the runners on our private Apple Silicon build infra to one that supports node20
       uses: actions/upload-artifact@v2
       with:
         path: dist
@@ -185,56 +218,39 @@ jobs:
   windows:
     runs-on: windows-2019
     strategy:
+      fail-fast: false
       matrix:
         include:
-        - spec: cp27-win_amd64
-          cibw_version: cibuildwheel==1.10  # last release with proper py2.7 Windows support
-        - spec: cp36-win_amd64
-        - spec: cp37-win_amd64
         - spec: cp38-win_amd64
         - spec: cp39-win_amd64
         - spec: cp310-win_amd64
         - spec: cp311-win_amd64
-        - spec: cp27-win32
-          cibw_version: cibuildwheel==1.10  # last release with proper py2.7 Windows support
-        - spec: cp36-win32
-        - spec: cp37-win32
+        - spec: cp312-win_amd64
         - spec: cp38-win32
         - spec: cp39-win32
         - spec: cp310-win32
         - spec: cp311-win32
+        - spec: cp312-win32
+
     steps:
     - name: clone repo
-      uses: actions/checkout@v2
-
-    # HACK: MS killed this SDK support package and removed downloads, as did chocolatey, install from a private archive
-    - name: install Windows Python 2.7 SDK
-      run: |
-        $msiPath = Join-Path ([IO.Path]::GetTempPath()) 'VCForPython27.msi'
-        [Net.WebClient]::new().DownloadFile('https://raw.githubusercontent.com/nitzmahone/VCPython27/master/VCForPython27.msi', $msiPath)
-        Start-Process -FilePath msiexec.exe -Wait -ArgumentList @(
-            '/i',
-            $msiPath,
-            '/qn',
-            '/norestart'
-        )
-      shell: powershell
-      if: ${{ contains(matrix.spec, 'cp27') }}
-
+      uses: actions/checkout@v4
     - name: build/test wheels
       env:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
+        CIBW_TEST_REQUIRES: pytest setuptools
+        CIBW_TEST_COMMAND: 'python -m pytest {project}/c'
+        # FIXME: /testing takes ~45min on Windows and has some failures...
+        # CIBW_TEST_COMMAND='python -m pytest {project}/c {project}/testing'
       run: |
         python -m pip install --upgrade pip
         pip install "${{ matrix.cibw_version || 'cibuildwheel'}}"
-        # FIXME: /testing takes ~45min on Windows and has some failures...
-        # CIBW_TEST_REQUIRES=pytest CIBW_TEST_COMMAND='python -m pytest {project}/c {project}/testing' cibuildwheel --output-dir dist .
-        CIBW_TEST_REQUIRES=pytest CIBW_TEST_COMMAND='python -m pytest {project}/c' cibuildwheel --output-dir dist .
+        python -m cibuildwheel --output-dir dist .
       shell: bash
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         path: dist
         if-no-files-found: error

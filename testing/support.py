@@ -122,7 +122,16 @@ is_musl = False
 if sys.platform == 'linux':
     try:
         from packaging.tags import platform_tags
-        is_musl = any(t.startswith('musllinux') for t in platform_tags())
-        del platform_tags
     except ImportError:
         pass
+    else:
+        tagset = frozenset(platform_tags())
+        is_musl = any(t.startswith('musllinux') for t in tagset)
+        if is_musl and sys.version_info >= (3, 12):
+            if any(t.startswith('musllinux_1_1_') for t in tagset) and not any(t.startswith('musllinux_1_2_') for t in tagset):
+                # gcc 9.2.0 in the musllinux_1_1 build container has a bug in its sign-conversion warning detection that
+                # bombs on the definition of _PyLong_CompactValue under Python 3.12; disable warnings-as-errors for that
+                # specific error on musl 1.1
+                extra_compile_args.append('-Wno-error=sign-conversion')
+
+        del platform_tags

@@ -64,6 +64,8 @@ def test_simple_case():
 def _Wconversion(cdef, source, **kargs):
     if sys.platform in ('win32', 'darwin'):
         pytest.skip("needs GCC")
+    if '-Wno-error=sign-conversion' in extra_compile_args:
+        pytest.skip("gcc 9.2.0 compiler bug exposed by Python 3.12+ prevents compilation with sign-conversion warnings-as-errors")
     ffi = FFI()
     ffi.cdef(cdef)
     pytest.raises(VerificationError, ffi.verify, source, **kargs)
