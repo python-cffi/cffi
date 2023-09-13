@@ -4515,7 +4515,7 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
             if (*p_printable_filename == NULL)
                 return NULL;
 
-            sz1 = PyUnicode_GetSize(filename_unicode) + 1;
+            sz1 = PyText_GetSize(filename_unicode) + 1;
             sz1 *= 2;   /* should not be needed, but you never know */
             w1 = alloca(sizeof(wchar_t) * sz1);
             sz1 = PyUnicode_AsWideChar((PyUnicodeObject *)filename_unicode,
