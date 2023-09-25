@@ -1,4 +1,7 @@
-on: push
+on:
+  push:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
 
 jobs:
   sdist:
@@ -156,25 +159,37 @@ jobs:
 #        # FIXME: ? cp38-macosx_arm64 requires special handling and fails some test_zdist tests under cibw 2.1.2, skip it (so Apple's XCode python3 won't have a wheel)
         - spec: cp39-macosx_arm64
           deployment_target: '11.0'
-          runs_on: [self-hosted, macOS]
+          runs_on:
+            - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
+            - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
+          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
           run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
           sdkroot: macosx11.3
 
         - spec: cp310-macosx_arm64
           deployment_target: '11.0'
-          runs_on: [self-hosted, macOS]
+          runs_on:
+            - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
+            - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
+          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
           run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
           sdkroot: macosx11.3
 
         - spec: cp311-macosx_arm64
           deployment_target: '11.0'
-          runs_on: [self-hosted, macOS]
+          runs_on:
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
+          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
           run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
           sdkroot: macosx11.3
 
         - spec: cp312-macosx_arm64
           deployment_target: '11.0'
-          runs_on: [self-hosted, macOS]
+          runs_on:
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
+          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
           run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
           sdkroot: macosx11.3
 
@@ -183,11 +198,13 @@ jobs:
     - name: clone repo
       # need to use v2 until we can upgrade the runners on our private Apple Silicon build infra to one that supports node20
       uses: actions/checkout@v2
+      if: ${{ matrix.maybe_skip != 'skip' }}
 
     - name: build wheel prereqs
       run: |
         /usr/bin/pip3 install --user --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
         brew uninstall --ignore-dependencies libffi || true
+      if: ${{ matrix.maybe_skip != 'skip' }}
 
     - name: build/test wheels
       env:
@@ -207,6 +224,7 @@ jobs:
         fi
 
         /usr/bin/python3 -m cibuildwheel --output-dir dist
+      if: ${{ matrix.maybe_skip != 'skip' }}
 
     - name: upload artifacts
       # need to use v2 until we can upgrade the runners on our private Apple Silicon build infra to one that supports node20
@@ -214,6 +232,7 @@ jobs:
       with:
         path: dist
         if-no-files-found: error
+      if: ${{ matrix.maybe_skip != 'skip' }}
 
   windows:
     runs-on: windows-2019
