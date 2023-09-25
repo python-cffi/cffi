@@ -1,5 +1,6 @@
-import py, sys, os
+import sys, os
 import subprocess, weakref
+import pytest
 from cffi import FFI
 from cffi.backend_ctypes import CTypesBackend
 from testing.support import u, is_musl
@@ -180,9 +181,9 @@ class TestOwnLib(object):
 
     def test_getting_errno(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         if sys.platform == 'win32':
-            py.test.skip("fails, errno at multiple addresses")
+            pytest.skip("fails, errno at multiple addresses")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int test_getting_errno(void);
@@ -194,11 +195,11 @@ class TestOwnLib(object):
 
     def test_setting_errno(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         if sys.platform == 'win32':
-            py.test.skip("fails, errno at multiple addresses")
+            pytest.skip("fails, errno at multiple addresses")
         if self.Backend is CTypesBackend and '__pypy__' in sys.modules:
-            py.test.skip("XXX errno issue with ctypes on pypy?")
+            pytest.skip("XXX errno issue with ctypes on pypy?")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int test_setting_errno(void);
@@ -211,7 +212,7 @@ class TestOwnLib(object):
 
     def test_my_array_7(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             extern int my_array[7];
@@ -221,7 +222,7 @@ class TestOwnLib(object):
             assert ownlib.my_array[i] == i
         assert len(ownlib.my_array) == 7
         if self.Backend is CTypesBackend:
-            py.test.skip("not supported by the ctypes backend")
+            pytest.skip("not supported by the ctypes backend")
         ownlib.my_array = list(range(10, 17))
         for i in range(7):
             assert ownlib.my_array[i] == 10 + i
@@ -231,9 +232,9 @@ class TestOwnLib(object):
 
     def test_my_array_no_length(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         if self.Backend is CTypesBackend:
-            py.test.skip("not supported by the ctypes backend")
+            pytest.skip("not supported by the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             extern int my_array[];
@@ -241,7 +242,7 @@ class TestOwnLib(object):
         ownlib = ffi.dlopen(self.module)
         for i in range(7):
             assert ownlib.my_array[i] == i
-        py.test.raises(TypeError, len, ownlib.my_array)
+        pytest.raises(TypeError, len, ownlib.my_array)
         ownlib.my_array = list(range(10, 17))
         for i in range(7):
             assert ownlib.my_array[i] == 10 + i
@@ -251,7 +252,7 @@ class TestOwnLib(object):
 
     def test_keepalive_lib(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int test_getting_errno(void);
@@ -269,7 +270,7 @@ class TestOwnLib(object):
 
     def test_keepalive_ffi(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             int test_getting_errno(void);
@@ -289,7 +290,7 @@ class TestOwnLib(object):
 
     def test_struct_by_value(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             typedef struct {
@@ -330,9 +331,9 @@ class TestOwnLib(object):
 
     def test_addressof_lib(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         if self.Backend is CTypesBackend:
-            py.test.skip("not implemented with the ctypes backend")
+            pytest.skip("not implemented with the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("extern long left; int test_getting_errno(void);")
         lib = ffi.dlopen(self.module)
@@ -348,9 +349,9 @@ class TestOwnLib(object):
 
     def test_char16_char32_t(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         if self.Backend is CTypesBackend:
-            py.test.skip("not implemented with the ctypes backend")
+            pytest.skip("not implemented with the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             char16_t foo_2bytes(char16_t);
@@ -363,9 +364,9 @@ class TestOwnLib(object):
 
     def test_modify_struct_value(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         if self.Backend is CTypesBackend:
-            py.test.skip("fails with the ctypes backend on some architectures")
+            pytest.skip("fails with the ctypes backend on some architectures")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             typedef struct {
@@ -387,11 +388,11 @@ class TestOwnLib(object):
 
     def test_dlopen_handle(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         if sys.platform == 'win32' or is_musl:
-            py.test.skip("uses 'dl' explicitly")
+            pytest.skip("uses 'dl' explicitly")
         if self.__class__.Backend is CTypesBackend:
-            py.test.skip("not for the ctypes backend")
+            pytest.skip("not for the ctypes backend")
         backend = self.Backend()
         ffi1 = FFI(backend=backend)
         ffi1.cdef("""void *dlopen(const char *filename, int flags);
@@ -413,9 +414,9 @@ class TestOwnLib(object):
 
     def test_return_three_bytes(self):
         if self.module is None:
-            py.test.skip("fix the auto-generation of the tiny test lib")
+            pytest.skip("fix the auto-generation of the tiny test lib")
         if self.__class__.Backend is CTypesBackend:
-            py.test.skip("not working on win32 on the ctypes backend")
+            pytest.skip("not working on win32 on the ctypes backend")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             typedef struct {

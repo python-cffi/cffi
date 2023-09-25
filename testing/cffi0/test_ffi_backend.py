@@ -1,4 +1,4 @@
-import py, sys, platform
+import sys, platform
 import pytest
 from testing.cffi0 import backend_tests, test_function, test_ownlib
 from testing.support import u
@@ -18,7 +18,7 @@ class TestFFI(backend_tests.BackendTests,
     def test_not_supported_bitfield_in_result(self):
         ffi = FFI(backend=self.Backend())
         ffi.cdef("struct foo_s { int a,b,c,d,e; int x:1; };")
-        e = py.test.raises(NotImplementedError, ffi.callback,
+        e = pytest.raises(NotImplementedError, ffi.callback,
                            "struct foo_s foo(void)", lambda: 42)
         assert str(e.value) == ("struct foo_s(*)(): "
             "callback with unsupported argument or return type or with '...'")
@@ -37,7 +37,7 @@ class TestFFI(backend_tests.BackendTests,
         assert ffi.typeof(p) == ffi.typeof("void *")
         assert ffi.from_handle(p) is o
         assert ffi.from_handle(ffi.cast("char *", p)) is o
-        py.test.raises(RuntimeError, ffi.from_handle, ffi.NULL)
+        pytest.raises(RuntimeError, ffi.from_handle, ffi.NULL)
 
     def test_callback_onerror(self):
         ffi = FFI(backend=self.Backend())
@@ -105,29 +105,29 @@ class TestFFI(backend_tests.BackendTests,
 
     def test_ffi_new_allocator_4(self):
         ffi = FFI(backend=self.Backend())
-        py.test.raises(TypeError, ffi.new_allocator, free=lambda x: None)
+        pytest.raises(TypeError, ffi.new_allocator, free=lambda x: None)
         #
         def myalloc2(size):
             raise LookupError
         alloc2 = ffi.new_allocator(myalloc2)
-        py.test.raises(LookupError, alloc2, "int[5]")
+        pytest.raises(LookupError, alloc2, "int[5]")
         #
         def myalloc3(size):
             return 42
         alloc3 = ffi.new_allocator(myalloc3)
-        e = py.test.raises(TypeError, alloc3, "int[5]")
+        e = pytest.raises(TypeError, alloc3, "int[5]")
         assert str(e.value) == "alloc() must return a cdata object (got int)"
         #
         def myalloc4(size):
             return ffi.cast("int", 42)
         alloc4 = ffi.new_allocator(myalloc4)
-        e = py.test.raises(TypeError, alloc4, "int[5]")
+        e = pytest.raises(TypeError, alloc4, "int[5]")
         assert str(e.value) == "alloc() must return a cdata pointer, not 'int'"
         #
         def myalloc5(size):
             return ffi.NULL
         alloc5 = ffi.new_allocator(myalloc5)
-        py.test.raises(MemoryError, alloc5, "int[5]")
+        pytest.raises(MemoryError, alloc5, "int[5]")
 
     def test_new_struct_containing_struct_containing_array_varsize(self):
         ffi = FFI(backend=self.Backend())
@@ -339,11 +339,11 @@ class TestBitfield:
         q = ffi.cast("struct foo_s *", p)
         assert q.x == 100
         assert ffi.typeof(q.a) is ffi.typeof("int *")   # no length recorded
-        py.test.raises(TypeError, len, q.a)
+        pytest.raises(TypeError, len, q.a)
         assert q.a[0] == 200
         assert q.a[1] == 300
         assert q.a[2] == 400
-        py.test.raises(TypeError, list, q.a)
+        pytest.raises(TypeError, list, q.a)
 
     @pytest.mark.skipif("sys.platform != 'win32'")
     def test_getwinerror(self):
@@ -382,9 +382,9 @@ class TestBitfield:
         assert p[2] == b"c"
         #
         assert p == ffi.from_buffer(b"abcd", require_writable=False)
-        py.test.raises((TypeError, BufferError), ffi.from_buffer,
+        pytest.raises((TypeError, BufferError), ffi.from_buffer,
                                                  "char[]", b"abcd", True)
-        py.test.raises((TypeError, BufferError), ffi.from_buffer, b"abcd",
+        pytest.raises((TypeError, BufferError), ffi.from_buffer, b"abcd",
                                                  require_writable=True)
 
     def test_release(self):
@@ -442,7 +442,7 @@ class TestBitfield:
         assert list(p) == [ord("a"), ord("b"), ord("c"), 0, 0]
         ffi.memmove(p, bytearray(b"ABCDE"), 2)
         assert list(p) == [ord("A"), ord("B"), ord("c"), 0, 0]
-        py.test.raises((TypeError, BufferError), ffi.memmove, b"abcde", p, 3)
+        pytest.raises((TypeError, BufferError), ffi.memmove, b"abcde", p, 3)
         ba = bytearray(b"xxxxx")
         ffi.memmove(dest=ba, src=p, n=3)
         assert ba == bytearray(b"ABcxx")
@@ -505,7 +505,7 @@ class TestBitfield:
 
     def test_ffi_def_extern(self):
         ffi = FFI()
-        py.test.raises(ValueError, ffi.def_extern)
+        pytest.raises(ValueError, ffi.def_extern)
 
     def test_introspect_typedef(self):
         ffi = FFI()
@@ -565,19 +565,19 @@ class TestBitfield:
 
     def test_negative_array_size(self):
         ffi = FFI()
-        py.test.raises(ValueError, ffi.cast, "int[-5]", 0)
+        pytest.raises(ValueError, ffi.cast, "int[-5]", 0)
 
     def test_cannot_instantiate_manually(self):
         ffi = FFI()
         ct = type(ffi.typeof("void *"))
-        py.test.raises(TypeError, ct)
-        py.test.raises(TypeError, ct, ffi.NULL)
+        pytest.raises(TypeError, ct)
+        pytest.raises(TypeError, ct, ffi.NULL)
         for cd in [type(ffi.cast("void *", 0)),
                    type(ffi.new("char[]", 3)),
                    type(ffi.gc(ffi.NULL, lambda x: None))]:
-            py.test.raises(TypeError, cd)
-            py.test.raises(TypeError, cd, ffi.NULL)
-            py.test.raises(TypeError, cd, ffi.typeof("void *"))
+            pytest.raises(TypeError, cd)
+            pytest.raises(TypeError, cd, ffi.NULL)
+            pytest.raises(TypeError, cd, ffi.typeof("void *"))
 
     def test_explicitly_defined_char16_t(self):
         ffi = FFI()

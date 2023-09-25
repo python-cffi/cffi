@@ -1,6 +1,6 @@
-import py
 import sys, os, re
 import shutil, subprocess, time
+import pytest
 from testing.udir import udir
 import cffi
 
@@ -22,7 +22,7 @@ def check_lib_python_found(tmpdir):
         else:
             _link_error = None
     if _link_error:
-        py.test.skip(str(_link_error))
+        pytest.skip(str(_link_error))
 
 
 def prefix_pythonpath():

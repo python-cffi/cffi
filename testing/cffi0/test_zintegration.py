@@ -1,5 +1,6 @@
 import py, os, sys, shutil
 import subprocess
+import textwrap
 from testing.udir import udir
 import pytest
 
@@ -19,7 +20,7 @@ def create_venv(name):
                                '-p', os.path.abspath(sys.executable),
                                str(tmpdir)])
     except OSError as e:
-        py.test.skip("Cannot execute virtualenv: %s" % (e,))
+        pytest.skip("Cannot execute virtualenv: %s" % (e,))
 
     site_packages = None
     for dirpath, dirnames, filenames in os.walk(str(tmpdir)):
@@ -66,7 +67,7 @@ def really_run_setup_and_program(dirname, venv_dir_and_paths, python_snippet):
         remove(os.path.join(basedir, '__pycache__'))
     olddir = os.getcwd()
     python_f = udir.join('x.py')
-    python_f.write(py.code.Source(python_snippet))
+    python_f.write(textwrap.dedent(python_snippet))
     try:
         os.chdir(str(SNIPPET_DIR.join(dirname)))
         if os.name == 'nt':
@@ -159,7 +160,7 @@ class TestZIntegration(object):
         try:
             import setuptools
         except ImportError as e:
-            py.test.skip(str(e))
+            pytest.skip(str(e))
         orig_version = setuptools.__version__
         expecting_limited_api = not hasattr(sys, 'gettotalrefcount')
         try:

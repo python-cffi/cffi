@@ -1,11 +1,14 @@
-on: push
+on:
+  push:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
 
 jobs:
   sdist:
     runs-on: ubuntu-20.04
     steps:
     - name: clone repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: build sdist
       run: |
@@ -14,7 +17,7 @@ jobs:
         python -m build --sdist
 
     - name: upload sdist artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         path: dist
         if-no-files-found: error
@@ -22,6 +25,7 @@ jobs:
   linux:
     runs-on: ubuntu-20.04
     strategy:
+      fail-fast: false
       matrix:
         include:
         - spec: cp27-manylinux_x86_64
@@ -70,7 +74,7 @@ jobs:
           test_args: '{project}/c'
     steps:
     - name: clone repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: configure docker foreign arch support
       uses: docker/setup-qemu-action@v1
@@ -104,7 +108,7 @@ jobs:
 
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         path: dist
         if-no-files-found: error
@@ -114,8 +118,9 @@ jobs:
     defaults:
       run:
         shell: ${{ matrix.run_wrapper || 'bash --noprofile --norc -eo pipefail {0}' }}
-    runs-on: ${{ matrix.runs_on || 'macos-10.15' }}
+    runs-on: ${{ matrix.runs_on || 'macos-11' }}
     strategy:
+      fail-fast: false
       matrix:
         include:
         # build for x86_64 under the default hosted macOS 10.x x86_64 runner
@@ -131,19 +136,28 @@ jobs:
         # FIXME: ? cp38-macosx_arm64 requires special handling and fails some test_zdist tests under cibw 2.1.2, skip it (so Apple's XCode python3 won't have a wheel)
         - spec: cp39-macosx_arm64
           deployment_target: '11.0'
-          runs_on: [self-hosted, macOS]
+          runs_on:
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
+          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
           run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
           sdkroot: macosx11.3
 
         - spec: cp310-macosx_arm64
           deployment_target: '11.0'
-          runs_on: [self-hosted, macOS]
+          runs_on:
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
+          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
           run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
           sdkroot: macosx11.3
 
         - spec: cp311-macosx_arm64
           deployment_target: '11.0'
-          runs_on: [self-hosted, macOS]
+          runs_on:
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
+          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
           run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
           sdkroot: macosx11.3
 
@@ -151,11 +165,13 @@ jobs:
     steps:
     - name: clone repo
       uses: actions/checkout@v2
+      if: ${{ matrix.maybe_skip != 'skip' }}
 
     - name: build wheel prereqs
       run: |
         /usr/bin/pip3 install --user --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
         brew uninstall --ignore-dependencies libffi || true
+      if: ${{ matrix.maybe_skip != 'skip' }}
 
     - name: build/test wheels
       env:
@@ -175,16 +191,19 @@ jobs:
         fi
 
         /usr/bin/python3 -m cibuildwheel --output-dir dist
+      if: ${{ matrix.maybe_skip != 'skip' }}
 
     - name: upload artifacts
       uses: actions/upload-artifact@v2
       with:
         path: dist
         if-no-files-found: error
+      if: ${{ matrix.maybe_skip != 'skip' }}
 
   windows:
     runs-on: windows-2019
     strategy:
+      fail-fast: false
       matrix:
         include:
         - spec: cp27-win_amd64
@@ -205,7 +224,7 @@ jobs:
         - spec: cp311-win32
     steps:
     - name: clone repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     # HACK: MS killed this SDK support package and removed downloads, as did chocolatey, install from a private archive
     - name: install Windows Python 2.7 SDK
@@ -234,7 +253,7 @@ jobs:
       shell: bash
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         path: dist
         if-no-files-found: error
