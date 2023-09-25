@@ -65,5 +65,5 @@ everything you need to access C code and nothing more.
 
 --- the authors, Armin Rigo and Maciej Fijalkowski
 
-.. _`issue tracker`: https://foss.heptapod.net/pypy/cffi/issues
+.. _`issue tracker`: https://github.com/python-cffi/cffi/issues
 .. _`mailing list`: https://groups.google.com/forum/#!forum/python-cffi

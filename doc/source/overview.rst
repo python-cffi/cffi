@@ -19,8 +19,8 @@ You can find these and some other complete demos in the demo__ directory
 of the repository__.
 
 .. __: installation.html
-.. __: https://foss.heptapod.net/pypy/cffi/-/tree/branch/default/demo
-.. __: https://foss.heptapod.net/pypy/cffi
+.. __: https://github.com/python-cffi/cffi/blob/main/demo
+.. __: https://github.com/python-cffi/cffi
 
 .. _out-of-line-api-level:
 .. _real-example:

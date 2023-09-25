@@ -2,6 +2,18 @@
 What's New
 ======================
 
+v1.16.0rc1
+==========
+
+* Add support for Python 3.12. With the removal of ``distutils`` from Python 3.12, projects
+  using CFFI features that depend on ``distutils`` at runtime must add a dependency on
+  ``setuptools`` to function under Python 3.12+. CFFI does not declare a runtime ``setuptools``
+  requirement to avoid an unnecessary dependency for projects that do not require it.
+* Drop support for end-of-life Python versions (2.7, 3.6, 3.7).
+* Add support for PEP517 builds; ``setuptools`` is now a required build dependency.
+* Declare ``python_requires`` metadata for Python 3.8+. This allows unsupported Pythons
+  to continue using previously released sdists and wheels.
+
 v1.15.1
 =======
 
