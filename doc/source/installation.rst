@@ -44,9 +44,9 @@ Requirements:
 * pycparser >= 2.06: https://github.com/eliben/pycparser (automatically
   tracked by ``pip install cffi``).
 
-* `py.test`_ is needed to run the tests of CFFI itself.
+* `pytest`_ is needed to run the tests of CFFI itself.
 
-.. _`py.test`: http://pypi.python.org/pypi/pytest
+.. _`pytest`: http://pypi.python.org/pypi/pytest
 
 Download and Installation:
 
@@ -67,7 +67,7 @@ Download and Installation:
   (should work out of the box on Linux or Windows; see below for
   `MacOS X`_.)
 
-* running the tests: ``py.test  c/  testing/`` (if you didn't
+* running the tests: ``pytest  c/  testing/`` (if you didn't
   install cffi yet, you need first ``python setup_base.py build_ext -f
   -i``)
 

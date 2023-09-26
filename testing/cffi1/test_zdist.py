@@ -1,4 +1,5 @@
-import sys, os, py
+import sys, os
+import pytest
 import subprocess
 import cffi
 from testing.udir import udir
@@ -56,7 +57,7 @@ class TestDist(object):
         try:
             import setuptools
         except ImportError:
-            py.test.skip("setuptools not found")
+            pytest.skip("setuptools not found")
         if os.path.exists(os.path.join(self.rootdir, 'setup.py')):
             self.run(['setup.py', 'egg_info'], cwd=self.rootdir)
         TestDist._setuptools_ready = True
@@ -115,7 +116,7 @@ class TestDist(object):
     def test_abi_emit_python_code_2(self):
         ffi = cffi.FFI()
         ffi.set_source("package_name_1.mymod", None)
-        py.test.raises(IOError, ffi.emit_python_code, 'unexisting/xyz.py')
+        pytest.raises(IOError, ffi.emit_python_code, 'unexisting/xyz.py')
 
     @from_outside
     def test_abi_emit_python_code_3(self):
@@ -162,7 +163,7 @@ class TestDist(object):
     def test_api_emit_c_code_2(self):
         ffi = cffi.FFI()
         ffi.set_source("package_name_1.mymod", "/*code would be here*/")
-        py.test.raises(IOError, ffi.emit_c_code, 'unexisting/xyz.c')
+        pytest.raises(IOError, ffi.emit_c_code, 'unexisting/xyz.c')
 
     @from_outside
     def test_api_emit_c_code_3(self):
