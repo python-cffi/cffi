@@ -275,3 +275,17 @@ jobs:
       with:
         path: dist
         if-no-files-found: error
+
+  check:
+    if: always()
+    needs:
+    - sdist
+    - linux
+    - macos
+    - windows
+    runs-on: ubuntu-latest
+    steps:
+    - name: Verify all previous jobs succeeded (provides a single check to sample for gating purposes)
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
