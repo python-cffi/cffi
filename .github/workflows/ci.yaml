@@ -2,6 +2,8 @@ on:
   push:
   pull_request:
     types: [ opened, synchronize, reopened ]
+  schedule:
+  - cron: '0 13 * * 1'
 
 jobs:
   sdist:
