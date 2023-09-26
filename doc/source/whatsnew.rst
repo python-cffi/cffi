@@ -2,6 +2,12 @@
 What's New
 ======================
 
+v1.16.0rc2
+==========
+
+* Fix module packaging issue; move project source under ``src/`` so packaging tests can catch
+  similar failures in the future.
+
 v1.16.0rc1
 ==========
 

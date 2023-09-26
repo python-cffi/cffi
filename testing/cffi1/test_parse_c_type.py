@@ -2,6 +2,7 @@ import sys, re, os
 import pytest
 import cffi
 from cffi import cffi_opcode
+from pathlib import Path
 
 if '__pypy__' in sys.builtin_module_names:
     try:
@@ -11,7 +12,7 @@ if '__pypy__' in sys.builtin_module_names:
         # older pytest
         pytest.skip("not available on pypy")
 
-cffi_dir = os.path.dirname(cffi_opcode.__file__)
+cffi_dir = str(Path(os.path.dirname(__file__)).parent.parent / "src/cffi")
 
 r_macro = re.compile(r"#define \w+[(][^\n]*|#include [^\n]*")
 r_define = re.compile(r"(#define \w+) [^\n]*")

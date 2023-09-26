@@ -54,51 +54,51 @@ jobs:
 
         - spec: cp38-manylinux_aarch64
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp39-manylinux_aarch64
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp310-manylinux_aarch64
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp311-manylinux_aarch64
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp312-manylinux_aarch64
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
 
         - spec: cp38-manylinux_ppc64le
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp39-manylinux_ppc64le
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp310-manylinux_ppc64le
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp311-manylinux_ppc64le
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp312-manylinux_ppc64le
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
 
         - spec: cp38-manylinux_s390x
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp39-manylinux_s390x
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp310-manylinux_s390x
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp311-manylinux_s390x
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
         - spec: cp312-manylinux_s390x
           foreign_arch: true
-          test_args: '{project}/c'
+          test_args: '{project}/src/c'
 
     steps:
     - name: clone repo
@@ -261,9 +261,9 @@ jobs:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
         CIBW_TEST_REQUIRES: pytest setuptools
-        CIBW_TEST_COMMAND: 'python -m pytest {project}/c'
+        CIBW_TEST_COMMAND: 'python -m pytest {project}/src/c'
         # FIXME: /testing takes ~45min on Windows and has some failures...
-        # CIBW_TEST_COMMAND='python -m pytest {project}/c {project}/testing'
+        # CIBW_TEST_COMMAND='python -m pytest {project}/src/c {project}/testing'
       run: |
         python -m pip install --upgrade pip
         pip install "${{ matrix.cibw_version || 'cibuildwheel'}}"
