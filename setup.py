@@ -7,7 +7,7 @@ import errno
 import setuptools
 
 
-sources = ['c/_cffi_backend.c']
+sources = ['src/c/_cffi_backend.c']
 libraries = ['ffi']
 include_dirs = ['/usr/include/ffi',
                 '/usr/include/libffi']    # may be changed by pkg-config
@@ -125,10 +125,10 @@ def use_homebrew_for_libffi():
 
 if sys.platform == "win32" and uses_msvc():
     if platform.machine() == "ARM64":
-        include_dirs.append(os.path.join("c/libffi_arm64/include"))
-        library_dirs.append(os.path.join("c/libffi_arm64"))
+        include_dirs.append(os.path.join("src/c/libffi_arm64/include"))
+        library_dirs.append(os.path.join("src/c/libffi_arm64"))
     else:
-        COMPILE_LIBFFI = 'c/libffi_x86_x64'    # from the CPython distribution
+        COMPILE_LIBFFI = 'src/c/libffi_x86_x64'    # from the CPython distribution
         assert os.path.isdir(COMPILE_LIBFFI), "directory not found!"
         include_dirs[:] = [COMPILE_LIBFFI]
         libraries[:] = []
@@ -198,6 +198,7 @@ Contact
         version='1.16.0rc1',
         python_requires='>=3.8',
         packages=['cffi'] if cpython else [],
+        package_dir={"": "src"},
         package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h', 
                                '_embedding.h', '_cffi_errors.h']}
                      if cpython else {},
