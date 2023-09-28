@@ -2,14 +2,9 @@
 What's New
 ======================
 
-v1.16.0rc2
-==========
 
-* Fix module packaging issue; move project source under ``src/`` so packaging tests can catch
-  similar failures in the future.
-
-v1.16.0rc1
-==========
+v1.16.0
+=======
 
 * Add support for Python 3.12. With the removal of ``distutils`` from Python 3.12, projects
   using CFFI features that depend on ``distutils`` at runtime must add a dependency on
@@ -19,6 +14,8 @@ v1.16.0rc1
 * Add support for PEP517 builds; ``setuptools`` is now a required build dependency.
 * Declare ``python_requires`` metadata for Python 3.8+. This allows unsupported Pythons
   to continue using previously released sdists and wheels.
+* Move project source under ``src/``; a more standard layout that also enables CI to more easily
+  catch packaging errors.
 
 v1.15.1
 =======
