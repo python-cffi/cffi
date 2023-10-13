@@ -431,9 +431,9 @@ list of extra .c files compiled and linked together (the file
 first argument to ``sources``).  See the distutils documentations for
 `more information about the other arguments`__.
 
-.. __: http://docs.python.org/distutils/setupscript.html#library-options
-.. _distutils: http://docs.python.org/distutils/setupscript.html#describing-extension-modules
-.. _setuptools: https://pythonhosted.org/setuptools/setuptools.html
+.. __: https://setuptools.pypa.io/en/stable/userguide/ext_modules.html#extension-api-reference
+.. _distutils: https://setuptools.pypa.io/en/stable/userguide/ext_modules.html#building-extension-modules
+.. _setuptools: https://setuptools.pypa.io/
 
 An extra keyword argument processed internally is
 ``source_extension``, defaulting to ``".c"``.  The file generated will
