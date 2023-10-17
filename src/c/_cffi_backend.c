@@ -134,8 +134,8 @@
 # define PyText_Check PyUnicode_Check
 # define PyTextAny_Check PyUnicode_Check
 # define PyText_FromFormat PyUnicode_FromFormat
-# define PyText_AsUTF8 _PyUnicode_AsString   /* PyUnicode_AsUTF8 in Py3.3 */
-# define PyText_AS_UTF8 _PyUnicode_AsString
+# define PyText_AsUTF8 PyUnicode_AsUTF8
+# define PyText_AS_UTF8 PyUnicode_AsUTF8
 # if PY_VERSION_HEX >= 0x03030000
 #  define PyText_GetSize PyUnicode_GetLength
 # else
