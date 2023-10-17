@@ -432,7 +432,7 @@ list of extra .c files compiled and linked together (the file
 first argument to ``sources``).  See the distutils documentations for
 `more information about the other arguments`__.
 
-.. __: https://setuptools.pypa.io/en/stable/userguide/ext_modules.html#extension-api-reference
+.. __: https://setuptools.pypa.io/en/stable/userguide/ext_modules.html#building-extension-modules
 .. _distutils: http://docs.python.org/3.11/distutils/setupscript.html#describing-extension-modules
 .. _setuptools: https://setuptools.pypa.io/
 
