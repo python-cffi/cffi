@@ -80,7 +80,8 @@ In order of complexity:
 
 * Finally, you can (but don't have to) use CFFI's **Distutils** or
   **Setuptools integration** when writing a ``setup.py``.  For
-  Distutils (only in out-of-line API mode):
+  Distutils (only in out-of-line API mode; deprecated since
+  Python 3.10):
 
   .. code-block:: python
 
@@ -94,7 +95,7 @@ In order of complexity:
         ext_modules=[foo_build.ffibuilder.distutils_extension()],
     )
 
-  For Setuptools (out-of-line, but works in ABI or API mode;
+  For Setuptools (out-of-line only, but works in ABI or API mode;
   recommended):
 
   .. code-block:: python
@@ -431,9 +432,9 @@ list of extra .c files compiled and linked together (the file
 first argument to ``sources``).  See the distutils documentations for
 `more information about the other arguments`__.
 
-.. __: http://docs.python.org/distutils/setupscript.html#library-options
-.. _distutils: http://docs.python.org/distutils/setupscript.html#describing-extension-modules
-.. _setuptools: https://pythonhosted.org/setuptools/setuptools.html
+.. __: https://setuptools.pypa.io/en/stable/userguide/ext_modules.html#building-extension-modules
+.. _distutils: http://docs.python.org/3.11/distutils/setupscript.html#describing-extension-modules
+.. _setuptools: https://setuptools.pypa.io/
 
 An extra keyword argument processed internally is
 ``source_extension``, defaulting to ``".c"``.  The file generated will
