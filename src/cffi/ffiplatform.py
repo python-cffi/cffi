@@ -12,12 +12,12 @@ def get_extension(srcfilename, modname, sources=(), **kwds):
         allsources.append(os.path.normpath(src))
     return Extension(name=modname, sources=allsources, **kwds)
 
-def compile(tmpdir, ext, compiler_verbose=0, debug=None):
+def compile(tmpdir, ext, compiler_verbose=0, debug=None, parallel=None):
     """Compile a C extension module using distutils."""
 
     saved_environ = os.environ.copy()
     try:
-        outputfilename = _build(tmpdir, ext, compiler_verbose, debug)
+        outputfilename = _build(tmpdir, ext, compiler_verbose, debug, parallel)
         outputfilename = os.path.abspath(outputfilename)
     finally:
         # workaround for a distutils bugs where some env vars can
@@ -27,7 +27,7 @@ def compile(tmpdir, ext, compiler_verbose=0, debug=None):
                 os.environ[key] = value
     return outputfilename
 
-def _build(tmpdir, ext, compiler_verbose=0, debug=None):
+def _build(tmpdir, ext, compiler_verbose=0, debug=None, parallel=None):
     # XXX compact but horrible :-(
     from cffi._shimmed_dist_utils import Distribution, CompileError, LinkError, set_threshold, set_verbosity
 
@@ -40,6 +40,7 @@ def _build(tmpdir, ext, compiler_verbose=0, debug=None):
     options['force'] = ('ffiplatform', True)
     options['build_lib'] = ('ffiplatform', tmpdir)
     options['build_temp'] = ('ffiplatform', tmpdir)
+    options['parallel'] = ('ffiplatform', parallel)
     #
     try:
         old_level = set_threshold(0) or 0
