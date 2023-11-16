@@ -6118,7 +6118,11 @@ static void _my_PyErr_WriteUnraisable(PyObject *t, PyObject *v, PyObject *tb,
 
     PyErr_Restore(t, v, tb);
     if (s != NULL) {
+#if PY_VERSION_HEX >= 0x030D0000
+        PyErr_FormatUnraisable("Exception ignored %S", s);
+#else
         _PyErr_WriteUnraisableMsg(PyText_AS_UTF8(s), NULL);
+#endif
         Py_DECREF(s);
     }
     else
