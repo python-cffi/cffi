@@ -5,6 +5,10 @@ on:
   schedule:
   - cron: '0 12 * * 1'
 
+env:
+  dists-artifact-name: artifact
+  sdist-artifact-name-wildcard: cffi-*.tar.gz
+
 jobs:
   sdist:
     runs-on: ubuntu-20.04
@@ -25,6 +29,8 @@ jobs:
         if-no-files-found: error
 
   linux:
+    needs:
+    - sdist
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -101,8 +107,11 @@ jobs:
           test_args: '{project}/src/c'
 
     steps:
-    - name: clone repo
-      uses: actions/checkout@v4
+    - name: Retrieve the project source from an sdist inside the GHA artifact
+      uses: re-actors/checkout-python-sdist@release/v1
+      with:
+        source-tarball-name: ${{ env.sdist-artifact-name-wildcard }}
+        workflow-artifact-name: ${{ env.dists-artifact-name }}
 
     - name: configure docker foreign arch support
       uses: docker/setup-qemu-action@v3
@@ -143,6 +152,8 @@ jobs:
 
 
   macos:
+    needs:
+    - sdist
     defaults:
       run:
         shell: ${{ matrix.run_wrapper || 'bash --noprofile --norc -eo pipefail {0}' }}
@@ -197,10 +208,11 @@ jobs:
 
 
     steps:
-    - name: clone repo
-      # need to use v2 until we can upgrade the runners on our private Apple Silicon build infra to one that supports node20
-      uses: actions/checkout@v2
-      if: ${{ matrix.maybe_skip != 'skip' }}
+    - name: Retrieve the project source from an sdist inside the GHA artifact
+      uses: re-actors/checkout-python-sdist@release/v1
+      with:
+        source-tarball-name: ${{ env.sdist-artifact-name-wildcard }}
+        workflow-artifact-name: ${{ env.dists-artifact-name }}
 
     - name: build wheel prereqs
       run: |
@@ -237,6 +249,8 @@ jobs:
       if: ${{ matrix.maybe_skip != 'skip' }}
 
   windows:
+    needs:
+    - sdist
     runs-on: windows-2019
     strategy:
       fail-fast: false
@@ -254,8 +268,11 @@ jobs:
         - spec: cp312-win32
 
     steps:
-    - name: clone repo
-      uses: actions/checkout@v4
+    - name: Retrieve the project source from an sdist inside the GHA artifact
+      uses: re-actors/checkout-python-sdist@release/v1
+      with:
+        source-tarball-name: ${{ env.sdist-artifact-name-wildcard }}
+        workflow-artifact-name: ${{ env.dists-artifact-name }}
     - name: build/test wheels
       env:
         CIBW_BUILD: ${{ matrix.spec }}
@@ -279,7 +296,6 @@ jobs:
   check:
     if: always()
     needs:
-    - sdist
     - linux
     - macos
     - windows
