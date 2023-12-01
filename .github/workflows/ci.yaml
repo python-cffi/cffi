@@ -35,6 +35,11 @@ jobs:
         - spec: cp310-manylinux_x86_64
         - spec: cp311-manylinux_x86_64
         - spec: cp312-manylinux_x86_64
+        - spec: cp313-manylinux_x86_64
+          # HACK: private cibuildwheel with 3.13 prerelease support
+          cibw_version: https://github.com/nitzmahone/cibuildwheel/archive/refs/heads/py313_support.zip
+          # HACK: private manylinux_2_28 container build with 3.13 prerelease support
+          manylinux_img: quay.io/rolpdog/manylinux_2_28_x86_64:latest
 
         - spec: cp38-manylinux_i686
         - spec: cp39-manylinux_i686
@@ -51,6 +56,7 @@ jobs:
         - spec: cp310-musllinux_i686
         - spec: cp311-musllinux_i686
         #- spec: cp312-musllinux_i686  # busted as of 9/22/23
+        #- spec: cp313-musllinux_i686
 
         - spec: cp38-manylinux_aarch64
           foreign_arch: true
@@ -157,8 +163,11 @@ jobs:
         - spec: cp310-macosx_x86_64
         - spec: cp311-macosx_x86_64
         - spec: cp312-macosx_x86_64
-#        # build for arm64 under a hacked macOS 12 self-hosted x86_64-on-arm64 runner until arm64 is fully supported
-#        # FIXME: ? cp38-macosx_arm64 requires special handling and fails some test_zdist tests under cibw 2.1.2, skip it (so Apple's XCode python3 won't have a wheel)
+        - spec: cp313-macosx_x86_64
+          # HACK: private cibuildwheel with 3.13 prerelease support
+          cibw_version: https://github.com/nitzmahone/cibuildwheel/archive/refs/heads/py313_support.zip
+        # build for arm64 under a hacked macOS 12 self-hosted x86_64-on-arm64 runner until arm64 is fully supported
+        # FIXME: ? cp38-macosx_arm64 requires special handling and fails some test_zdist tests under cibw 2.1.2, skip it (so Apple's XCode python3 won't have a wheel)
         - spec: cp39-macosx_arm64
           deployment_target: '11.0'
           runs_on:
@@ -195,6 +204,16 @@ jobs:
           run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
           sdkroot: macosx11.3
 
+        - spec: cp313-macosx_arm64
+          deployment_target: '11.0'
+          runs_on:
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
+          - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
+          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
+          run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
+          sdkroot: macosx11.3
+          # HACK: private cibuildwheel with 3.13 prerelease support
+          cibw_version: https://github.com/nitzmahone/cibuildwheel/archive/refs/heads/py313_support.zip
 
     steps:
     - name: clone repo
@@ -247,23 +266,36 @@ jobs:
         - spec: cp310-win_amd64
         - spec: cp311-win_amd64
         - spec: cp312-win_amd64
+        - spec: cp313-win_amd64
+          # HACK: private cibuildwheel with 3.13 prerelease support
+          cibw_version: https://github.com/nitzmahone/cibuildwheel/archive/refs/heads/py313_support.zip
+          # test_command: python -m pytest {project}
         - spec: cp38-win32
         - spec: cp39-win32
         - spec: cp310-win32
         - spec: cp311-win32
         - spec: cp312-win32
+        - spec: cp313-win32
+          # HACK: private cibuildwheel with 3.13 prerelease support
+          cibw_version: https://github.com/nitzmahone/cibuildwheel/archive/refs/heads/py313_support.zip
+          # test_command: python -m pytest {project}
 
     steps:
     - name: clone repo
       uses: actions/checkout@v4
+
+    - name: install utility Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
     - name: build/test wheels
       env:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
         CIBW_TEST_REQUIRES: pytest setuptools
-        CIBW_TEST_COMMAND: 'python -m pytest {project}/src/c'
-        # FIXME: /testing takes ~45min on Windows and has some failures...
-        # CIBW_TEST_COMMAND='python -m pytest {project}/src/c {project}/testing'
+        # FIXME: /testing takes ~45min on Windows and has some failures, so we default to the tiny src/c subset
+        CIBW_TEST_COMMAND: ${{ matrix.test_command || 'python -m pytest {project}/src/c' }}
       run: |
         python -m pip install --upgrade pip
         pip install "${{ matrix.cibw_version || 'cibuildwheel'}}"
