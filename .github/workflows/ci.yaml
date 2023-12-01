@@ -5,6 +5,13 @@ on:
   schedule:
   - cron: '0 12 * * 1'
 
+env:
+  is_release_job: false
+  skip_ci_redundant_jobs: ${{ github.event_name == 'pull_request' }}
+  skip_slow_jobs: ${{ github.event_name == 'pull_request' }}
+  skip_self_hosted_runner_jobs: ${{ github.repository_owner != 'rolpdog' }}
+  skip_artifact_upload: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   sdist:
     runs-on: ubuntu-20.04
@@ -23,82 +30,148 @@ jobs:
       with:
         path: dist
         if-no-files-found: error
+      if: ${{ ! env.skip_artifact_upload }}
+
+  make_linux_matrix:
+    runs-on: ubuntu-20.04
+    outputs:
+      matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: make a matrix
+      id: make_matrix
+      uses: ./.github/actions/dynamatrix
+      with:
+        matrix_yaml: |
+          include:
+          - spec: cp38-manylinux_x86_64
+
+          - spec: cp39-manylinux_x86_64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+            
+          - spec: cp310-manylinux_x86_64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp311-manylinux_x86_64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp312-manylinux_x86_64
+  
+          - spec: cp38-manylinux_i686
+
+          - spec: cp39-manylinux_i686
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp310-manylinux_i686
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp311-manylinux_i686
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp312-manylinux_i686
+  
+          - spec: cp39-musllinux_x86_64
+          - spec: cp310-musllinux_x86_64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp311-musllinux_x86_64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp312-musllinux_x86_64
+  
+          - spec: cp39-musllinux_i686
+          
+          - spec: cp310-musllinux_i686
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp311-musllinux_i686
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          #- spec: cp312-musllinux_i686  # busted as of 9/22/23
+          #   omit: ${{ env.skip_ci_redundant_jobs }}
+  
+          - spec: cp38-manylinux_aarch64
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs }}
+
+          - spec: cp39-manylinux_aarch64
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
+
+          - spec: cp310-manylinux_aarch64
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
+
+          - spec: cp311-manylinux_aarch64
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
+
+          - spec: cp312-manylinux_aarch64
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs }}
+  
+          - spec: cp38-manylinux_ppc64le
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs }}
+
+          - spec: cp39-manylinux_ppc64le
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
+
+          - spec: cp310-manylinux_ppc64le
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
+
+          - spec: cp311-manylinux_ppc64le
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
+
+          - spec: cp312-manylinux_ppc64le
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs }}
+  
+          - spec: cp38-manylinux_s390x
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs }}
+
+          - spec: cp39-manylinux_s390x
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
+
+          - spec: cp310-manylinux_s390x
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
+
+          - spec: cp311-manylinux_s390x
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
+
+          - spec: cp312-manylinux_s390x
+            foreign_arch: true
+            test_args: '{project}/src/c'
+            omit: ${{ env.skip_slow_jobs }}
+
 
   linux:
+    needs: make_linux_matrix
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
-      matrix:
-        include:
-        - spec: cp38-manylinux_x86_64
-        - spec: cp39-manylinux_x86_64
-        - spec: cp310-manylinux_x86_64
-        - spec: cp311-manylinux_x86_64
-        - spec: cp312-manylinux_x86_64
-
-        - spec: cp38-manylinux_i686
-        - spec: cp39-manylinux_i686
-        - spec: cp310-manylinux_i686
-        - spec: cp311-manylinux_i686
-        - spec: cp312-manylinux_i686
-
-        - spec: cp39-musllinux_x86_64
-        - spec: cp310-musllinux_x86_64
-        - spec: cp311-musllinux_x86_64
-        - spec: cp312-musllinux_x86_64
-
-        - spec: cp39-musllinux_i686
-        - spec: cp310-musllinux_i686
-        - spec: cp311-musllinux_i686
-        #- spec: cp312-musllinux_i686  # busted as of 9/22/23
-
-        - spec: cp38-manylinux_aarch64
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp39-manylinux_aarch64
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp310-manylinux_aarch64
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp311-manylinux_aarch64
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp312-manylinux_aarch64
-          foreign_arch: true
-          test_args: '{project}/src/c'
-
-        - spec: cp38-manylinux_ppc64le
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp39-manylinux_ppc64le
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp310-manylinux_ppc64le
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp311-manylinux_ppc64le
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp312-manylinux_ppc64le
-          foreign_arch: true
-          test_args: '{project}/src/c'
-
-        - spec: cp38-manylinux_s390x
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp39-manylinux_s390x
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp310-manylinux_s390x
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp311-manylinux_s390x
-          foreign_arch: true
-          test_args: '{project}/src/c'
-        - spec: cp312-manylinux_s390x
-          foreign_arch: true
-          test_args: '{project}/src/c'
+      matrix: ${{ fromJSON(needs.make_linux_matrix.outputs.matrix_json) }}
 
     steps:
     - name: clone repo
@@ -140,73 +213,82 @@ jobs:
       with:
         path: dist
         if-no-files-found: error
+      if: ${{ ! env.skip_artifact_upload }}
 
+  make_macos_matrix:
+    runs-on: ubuntu-20.04
+    outputs:
+      matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: make a matrix
+      id: make_matrix
+      uses: ./.github/actions/dynamatrix
+      with:
+        matrix_yaml: |
+          include:
+          # build for x86_64 under the default hosted macOS 10.x x86_64 runner
+          - spec: cp38-macosx_x86_64
+  
+          - spec: cp39-macosx_x86_64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+  
+          - spec: cp310-macosx_x86_64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+            
+          - spec: cp311-macosx_x86_64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+  
+          - spec: cp312-macosx_x86_64
+           # build for arm64 under a hacked macOS 12 self-hosted x86_64-on-arm64 runner until arm64 is fully supported
+           # FIXME: ? cp38-macosx_arm64 requires special handling and fails some test_zdist tests under cibw 2.1.2, skip it (so Apple's XCode python3 won't have a wheel)
+          - spec: cp39-macosx_arm64
+            deployment_target: '11.0'
+            runs_on: [self-hosted, macOS]
+            run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
+            sdkroot: macosx11.3
+            omit: ${{ env.skip_self_hosted_runner_jobs || env.skip_ci_redundant_jobs }}
+  
+          - spec: cp310-macosx_arm64
+            deployment_target: '11.0'
+            runs_on: [self-hosted, macOS]
+            run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
+            sdkroot: macosx11.3
+            omit: ${{ env.skip_self_hosted_runner_jobs || env.skip_ci_redundant_jobs}}
+  
+          - spec: cp311-macosx_arm64
+            deployment_target: '11.0'
+            runs_on: [self-hosted, macOS]
+            run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
+            sdkroot: macosx11.3
+            omit: ${{ env.skip_self_hosted_runner_jobs || env.skip_ci_redundant_jobs }}
+  
+          - spec: cp312-macosx_arm64
+            deployment_target: '11.0'
+            runs_on: [self-hosted, macOS]
+            run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
+            sdkroot: macosx11.3
+            omit: ${{ env.skip_self_hosted_runner_jobs }}
 
   macos:
+    needs: make_macos_matrix
     defaults:
       run:
         shell: ${{ matrix.run_wrapper || 'bash --noprofile --norc -eo pipefail {0}' }}
     runs-on: ${{ matrix.runs_on || 'macos-11' }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-        # build for x86_64 under the default hosted macOS 10.x x86_64 runner
-        - spec: cp38-macosx_x86_64
-        - spec: cp39-macosx_x86_64
-        - spec: cp310-macosx_x86_64
-        - spec: cp311-macosx_x86_64
-        - spec: cp312-macosx_x86_64
-#        # build for arm64 under a hacked macOS 12 self-hosted x86_64-on-arm64 runner until arm64 is fully supported
-#        # FIXME: ? cp38-macosx_arm64 requires special handling and fails some test_zdist tests under cibw 2.1.2, skip it (so Apple's XCode python3 won't have a wheel)
-        - spec: cp39-macosx_arm64
-          deployment_target: '11.0'
-          runs_on:
-            - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
-            - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
-          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
-          run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
-          sdkroot: macosx11.3
-
-        - spec: cp310-macosx_arm64
-          deployment_target: '11.0'
-          runs_on:
-            - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
-            - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
-          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
-          run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
-          sdkroot: macosx11.3
-
-        - spec: cp311-macosx_arm64
-          deployment_target: '11.0'
-          runs_on:
-          - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
-          - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
-          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
-          run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
-          sdkroot: macosx11.3
-
-        - spec: cp312-macosx_arm64
-          deployment_target: '11.0'
-          runs_on:
-          - ${{ vars.run_macos_arm64_jobs == 'true' && 'self-hosted' || 'ubuntu-latest' }}
-          - ${{ vars.run_macos_arm64_jobs == 'true' && 'macOS' || 'ubuntu-latest' }}
-          maybe_skip: ${{ vars.run_macos_arm64_jobs != 'true' && 'skip' }}
-          run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
-          sdkroot: macosx11.3
-
+      matrix: ${{ fromJSON(needs.make_macos_matrix.outputs.matrix_json) }}
 
     steps:
     - name: clone repo
       # need to use v2 until we can upgrade the runners on our private Apple Silicon build infra to one that supports node20
       uses: actions/checkout@v2
-      if: ${{ matrix.maybe_skip != 'skip' }}
 
     - name: build wheel prereqs
       run: |
         /usr/bin/pip3 install --user --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
         brew uninstall --ignore-dependencies libffi || true
-      if: ${{ matrix.maybe_skip != 'skip' }}
 
     - name: build/test wheels
       env:
@@ -226,7 +308,6 @@ jobs:
         fi
 
         /usr/bin/python3 -m cibuildwheel --output-dir dist
-      if: ${{ matrix.maybe_skip != 'skip' }}
 
     - name: upload artifacts
       # need to use v2 until we can upgrade the runners on our private Apple Silicon build infra to one that supports node20
@@ -234,24 +315,53 @@ jobs:
       with:
         path: dist
         if-no-files-found: error
-      if: ${{ matrix.maybe_skip != 'skip' }}
+      if: ${{ ! env.skip_artifact_upload }}
+
+
+  make_windows_matrix:
+    runs-on: ubuntu-20.04
+    outputs:
+      matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: make a matrix
+      id: make_matrix
+      uses: ./.github/actions/dynamatrix
+      with:
+        matrix_yaml: |
+          include:
+          - spec: cp38-win_amd64
+
+          - spec: cp39-win_amd64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp310-win_amd64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp311-win_amd64
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp312-win_amd64
+
+          - spec: cp38-win32
+
+          - spec: cp39-win32
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp310-win32
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp311-win32
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp312-win32
 
   windows:
+    needs: make_windows_matrix
     runs-on: windows-2019
     strategy:
       fail-fast: false
-      matrix:
-        include:
-        - spec: cp38-win_amd64
-        - spec: cp39-win_amd64
-        - spec: cp310-win_amd64
-        - spec: cp311-win_amd64
-        - spec: cp312-win_amd64
-        - spec: cp38-win32
-        - spec: cp39-win32
-        - spec: cp310-win32
-        - spec: cp311-win32
-        - spec: cp312-win32
+      matrix: ${{ fromJSON(needs.make_windows_matrix.outputs.matrix_json) }}
 
     steps:
     - name: clone repo
@@ -275,6 +385,7 @@ jobs:
       with:
         path: dist
         if-no-files-found: error
+      if: ${{ ! env.skip_artifact_upload }}
 
   check:
     if: always()
