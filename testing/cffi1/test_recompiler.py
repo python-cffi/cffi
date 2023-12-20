@@ -2539,3 +2539,4 @@ def test_convert_api_mode_builtin_function_to_cdata():
     s.x = 300
     my_array_2 = ffi.new("void *[]", [lib.add1, lib.add2])
     assert ffi.cast("struct s(*)(struct s)", my_array_2[1])(s).x == 302
+    assert ffi.typeof(lib.add1) == ffi.typeof("struct s(*)(struct s)")
