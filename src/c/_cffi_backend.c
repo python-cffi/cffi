@@ -1642,8 +1642,11 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         CTypeDescrObject *ctinit;
 
         if (!CData_Check(init)) {
-            init = try_extract_directfnptr(init);
-            if (init == NULL || !CData_Check(init)) {
+            PyObject *func_cdata = try_extract_directfnptr(init);
+            if (func_cdata != NULL && CData_Check(func_cdata)) {
+                init = func_cdata;
+            }
+            else {
                 if (PyErr_Occurred())
                     return -1;
                 expected = "cdata pointer";
