@@ -377,7 +377,16 @@ and in C, where ``&array[index]`` is just ``array + index``.
 3. ``ffi.addressof(<library>, "name")`` returns the address of the
 named function or global variable from the given library object.
 For functions, it returns a regular cdata
-object containing a pointer to the function.
+object containing a pointer to the function.  Note that in API
+mode, this is not the same as just writing `lib.funcname`: the latter
+returns a special object that (before version 1.17) can
+mostly only be called.  *New in version 1.17:* you can now use
+`lib.funcname` in many places where a `<cdata>` object was required,
+so using `ffi.addressof(lib, "funcname")` is generally not needed any
+more.  For example, you can now pass `lib.funcname` as a callback to
+a C function call, or write it inside a C structure field of the
+correct pointer-to-function type, or use `ffi.cast()` or
+`ffi.typeof()` on it.
 
 Note that the case 1. cannot be used to take the address of a
 primitive or pointer, but only a struct or union.  It would be
@@ -807,15 +816,15 @@ allowed.
 +---------------+------------------------+                  |                |
 |  ``void *``   | another <cdata> with   |                  |                |
 |               | any pointer or array   |                  |                |
-|               | type                   |                  |                |
+|               | type, or `[9]`         |                  |                |
 +---------------+------------------------+                  +----------------+
 |  pointers to  | same as pointers       |                  | ``[]``, ``+``, |
 |  structure or |                        |                  | ``-``, bool(), |
 |  union        |                        |                  | and read/write |
 |               |                        |                  | struct fields  |
 +---------------+------------------------+                  +----------------+
-| function      | same as pointers       |                  | bool(),        |
-| pointers      |                        |                  | call `[2]`     |
+| function      | same as pointers,      |                  | bool(),        |
+| pointers      | or `[9]`               |                  | call `[2]`     |
 +---------------+------------------------+------------------+----------------+
 |  arrays       | a list or tuple of     | a <cdata>        |len(), iter(),  |
 |               | items                  |                  |``[]`` `[4]`,   |
@@ -946,6 +955,20 @@ allowed.
 
    See `Unicode character types`_ below.
 
+`[9]` API-mode function from `lib.myfunc`:
+
+   In API mode, when you get a function from a C library by writing
+   `fn = lib.myfunc`, you get an object of a special type for performance
+   reasons, instead of a `<cdata 'C-function-type'>`.  Before version 1.17
+   you could only call such objects.  You could write
+   `ffi.addressof(lib, "myfunc")` in order to get a real `<cdata>` object,
+   based on the idea that in these cases in C you'd usually write `&myfunc`
+   instead of `myfunc`.  *New in version 1.17:* the special object
+   `lib.myfunc` can now be passed in many places where CFFI expects
+   a regular `<cdata>` object.  For example, you can now pass
+   it as a callback to a C function call, or write it inside a C
+   structure field of the correct pointer-to-function type, or use
+   `ffi.cast()` or `ffi.typeof()` on it.
 
 .. _file:
 

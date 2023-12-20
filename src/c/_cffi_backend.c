@@ -1613,6 +1613,8 @@ convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
     return _convert_error(init, ct, expected);
 }
 
+static PyObject* try_extract_directfnptr(PyObject *x);   /* forward */
+
 #ifdef __GNUC__
 # if __GNUC__ >= 4
 /* Don't go inlining this huge function.  Needed because occasionally
@@ -1640,9 +1642,18 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         CTypeDescrObject *ctinit;
 
         if (!CData_Check(init)) {
-            expected = "cdata pointer";
-            goto cannot_convert;
+            PyObject *func_cdata = try_extract_directfnptr(init);
+            if (func_cdata != NULL && CData_Check(func_cdata)) {
+                init = func_cdata;
+            }
+            else {
+                if (PyErr_Occurred())
+                    return -1;
+                expected = "cdata pointer";
+                goto cannot_convert;
+            }
         }
+
         ctinit = ((CDataObject *)init)->c_type;
         if (!(ctinit->ct_flags & (CT_POINTER|CT_FUNCTIONPTR))) {
             if (ctinit->ct_flags & CT_ARRAY)
@@ -4081,10 +4092,20 @@ static CDataObject *cast_to_integer_or_char(CTypeDescrObject *ct, PyObject *ob)
         value = res;
     }
     else {
+        if (PyCFunction_Check(ob)) {
+            PyObject *func_cdata = try_extract_directfnptr(ob);
+            if (func_cdata != NULL && CData_Check(func_cdata)) {
+                value = (Py_intptr_t)((CDataObject *)func_cdata)->c_data;
+                goto got_value;
+            }
+            if (PyErr_Occurred())
+                return NULL;
+        }
         value = _my_PyLong_AsUnsignedLongLong(ob, 0);
         if (value == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
             return NULL;
     }
+  got_value:
     if (ct->ct_flags & CT_IS_BOOL)
         value = !!value;
     cd = _new_casted_primitive(ct);
@@ -4140,6 +4161,15 @@ static PyObject *do_cast(CTypeDescrObject *ct, PyObject *ob)
                     (CT_POINTER|CT_FUNCTIONPTR|CT_ARRAY)) {
                 return new_simple_cdata(cdsrc->c_data, ct);
             }
+        }
+        if (PyCFunction_Check(ob)) {
+            PyObject *func_cdata = try_extract_directfnptr(ob);
+            if (func_cdata != NULL && CData_Check(func_cdata)) {
+                char *ptr = ((CDataObject *)func_cdata)->c_data;
+                return new_simple_cdata(ptr, ct);
+            }
+            if (PyErr_Occurred())
+                return NULL;
         }
         if ((ct->ct_flags & CT_POINTER) &&
                 (ct->ct_itemdescr->ct_flags & CT_IS_FILE) &&
