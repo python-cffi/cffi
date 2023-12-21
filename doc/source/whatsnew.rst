@@ -2,6 +2,22 @@
 What's New
 ======================
 
+v1.17
+=====
+
+* In API mode, when you get a function from a C library by writing
+  `fn = lib.myfunc`, you get an object of a special type for performance
+  reasons, instead of a `<cdata 'C-function-type'>`.  Before version 1.17
+  you could only call such objects.  You could write
+  `ffi.addressof(lib, "myfunc")` in order to get a real `<cdata>` object,
+  based on the idea that in these cases in C you'd usually write `&myfunc`
+  instead of `myfunc`.  In version 1.17, the special object
+  `lib.myfunc` can now be passed in many places where CFFI expects
+  a regular `<cdata>` object.  For example, you can now pass
+  it as a callback to a C function call, or write it inside a C
+  structure field of the correct pointer-to-function type, or use
+  `ffi.cast()` or `ffi.typeof()` on it.
+
 v1.16.0rc1
 ==========
 
