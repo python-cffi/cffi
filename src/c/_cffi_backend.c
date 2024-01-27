@@ -2457,7 +2457,7 @@ static Py_hash_t cdata_hash(PyObject *v)
         }
         Py_DECREF(vv);
     }
-#if PY_VERSION_HEX >= 0x030D0000
+#if PY_VERSION_HEX < 0x030D0000
     return _Py_HashPointer(((CDataObject *)v)->c_data);
 #else
     return Py_HashPointer(((CDataObject *)v)->c_data);
