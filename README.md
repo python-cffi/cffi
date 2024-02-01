@@ -24,7 +24,7 @@ Contact
 Testing/development tips
 ------------------------
 
-To run tests under CPython, run the following in the source root directory::
+To run tests under CPython, run the following in the source root directory:
 
     pip install pytest
     pip install -e .  # editable install of CFFI for local development
