@@ -666,10 +666,14 @@ cffimod_header = r'''
     typedef unsigned char _Bool;
 #  endif
 # endif
+# define _cffi_float_Complex   _Fcomplex    /* include <complex.h> for it */
+# define _cffi_double_Complex  _Dcomplex    /* include <complex.h> for it */
 #else
 # include <stdint.h>
 # if (defined (__SVR4) && defined (__sun)) || defined(_AIX) || defined(__hpux)
 #  include <alloca.h>
 # endif
+# define _cffi_float_Complex   float _Complex
+# define _cffi_double_Complex  double _Complex
 #endif
 '''

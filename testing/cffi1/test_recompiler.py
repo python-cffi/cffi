@@ -2044,55 +2044,90 @@ def test_function_returns_partial_struct():
     assert lib.f1(52).a == 52
 
 def test_function_returns_float_complex():
-    if sys.platform == 'win32':
-        pytest.skip("MSVC may not support _Complex")
     ffi = FFI()
     ffi.cdef("float _Complex f1(float a, float b);");
-    lib = verify(ffi, "test_function_returns_float_complex", """
-        #include <complex.h>
-        static float _Complex f1(float a, float b) { return a + I*2.0f*b; }
-    """, no_cpp=True)    # <complex.h> fails on some systems with C++
+    if sys.platform == 'win32':
+        lib = verify(ffi, "test_function_returns_float_complex", """
+            #include <complex.h>
+            static _Fcomplex f1(float a, float b) { return _FCbuild(a, 2.0f*b); }
+        """)
+    else:
+        lib = verify(ffi, "test_function_returns_float_complex", """
+            #include <complex.h>
+            static float _Complex f1(float a, float b) { return a + I*2.0f*b; }
+        """, no_cpp=True)    # <complex.h> fails on some systems with C++
     result = lib.f1(1.25, 5.1)
     assert type(result) == complex
     assert result.real == 1.25   # exact
     assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-5) # inexact
 
 def test_function_returns_double_complex():
-    if sys.platform == 'win32':
-        pytest.skip("MSVC may not support _Complex")
     ffi = FFI()
     ffi.cdef("double _Complex f1(double a, double b);");
-    lib = verify(ffi, "test_function_returns_double_complex", """
-        #include <complex.h>
-        static double _Complex f1(double a, double b) { return a + I*2.0*b; }
-    """, no_cpp=True)    # <complex.h> fails on some systems with C++
+    if sys.platform == 'win32':
+        lib = verify(ffi, "test_function_returns_double_complex", """
+            #include <complex.h>
+            static _Dcomplex f1(double a, double b) { return _Cbuild(a, 2.0*b); }
+        """)
+    else:
+        lib = verify(ffi, "test_function_returns_double_complex", """
+            #include <complex.h>
+            static double _Complex f1(double a, double b) { return a + I*2.0*b; }
+        """, no_cpp=True)    # <complex.h> fails on some systems with C++
     result = lib.f1(1.25, 5.1)
     assert type(result) == complex
     assert result.real == 1.25   # exact
     assert result.imag == 2*5.1  # exact
 
+def test_cdef_using_windows_complex():
+    if sys.platform != 'win32':
+        pytest.skip("only for MSVC")
+    ffi = FFI()
+    ffi.cdef("_Fcomplex f1(float a, float b); _Dcomplex f2(double a, double b);");
+    lib = verify(ffi, "test_cdef_using_windows_complex", """
+        #include <complex.h>
+        static _Fcomplex f1(float a, float b) { return _FCbuild(a, 2.0f*b); }
+        static _Dcomplex f2(double a, double b) { return _Cbuild(a, 2.0*b); }
+    """)
+    result = lib.f1(1.25, 5.1)
+    assert type(result) == complex
+    assert result.real == 1.25   # exact
+    assert (result.imag != 2*5.1) and (abs(result.imag - 2*5.1) < 1e-5) # inexact
+    result = lib.f2(1.25, 5.1)
+    assert type(result) == complex
+    assert result.real == 1.25   # exact
+    assert result.imag == 2*5.1  # exact
+
 def test_function_argument_float_complex():
-    if sys.platform == 'win32':
-        pytest.skip("MSVC may not support _Complex")
     ffi = FFI()
     ffi.cdef("float f1(float _Complex x);");
-    lib = verify(ffi, "test_function_argument_float_complex", """
-        #include <complex.h>
-        static float f1(float _Complex x) { return cabsf(x); }
-    """, no_cpp=True)    # <complex.h> fails on some systems with C++
+    if sys.platform == 'win32':
+        lib = verify(ffi, "test_function_argument_float_complex", """
+            #include <complex.h>
+            static float f1(_Fcomplex x) { return cabsf(x); }
+        """)
+    else:
+        lib = verify(ffi, "test_function_argument_float_complex", """
+            #include <complex.h>
+            static float f1(float _Complex x) { return cabsf(x); }
+        """, no_cpp=True)    # <complex.h> fails on some systems with C++
     x = complex(12.34, 56.78)
     result = lib.f1(x)
     assert abs(result - abs(x)) < 1e-5
 
 def test_function_argument_double_complex():
-    if sys.platform == 'win32':
-        pytest.skip("MSVC may not support _Complex")
     ffi = FFI()
     ffi.cdef("double f1(double _Complex);");
-    lib = verify(ffi, "test_function_argument_double_complex", """
-        #include <complex.h>
-        static double f1(double _Complex x) { return cabs(x); }
-    """, no_cpp=True)    # <complex.h> fails on some systems with C++
+    if sys.platform == 'win32':
+        lib = verify(ffi, "test_function_argument_double_complex", """
+            #include <complex.h>
+            static double f1(_Dcomplex x) { return cabs(x); }
+        """)
+    else:
+        lib = verify(ffi, "test_function_argument_double_complex", """
+            #include <complex.h>
+            static double f1(double _Complex x) { return cabs(x); }
+        """, no_cpp=True)    # <complex.h> fails on some systems with C++
     x = complex(12.34, 56.78)
     result = lib.f1(x)
     assert abs(result - abs(x)) < 1e-11
