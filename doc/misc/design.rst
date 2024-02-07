@@ -2,7 +2,7 @@
 Design decisions
 ================
 
-* Generally follow LuaJIT's ffi: http://luajit.org/ext_ffi.html
+* Generally follow `LuaJIT's ffi`_.
 
 * Be explicit: almost no automatic conversions.  Here is the set
   of automatic conversions: the various C integer types are
@@ -49,3 +49,6 @@ Design decisions
 * LuaJIT uses ``int[?]`` which pycparser doesn't accept.  I propose
   instead to use ``int[]`` for the same purpose (its use is anyway quite
   close to the C standard's use of ``int[]``).
+
+
+.. _LuaJIT's ffi: https://luajit.org/ext_ffi.html
