@@ -14,11 +14,8 @@ except ImportError:
 
 COMMON_TYPES['FILE'] = model.unknown_type('FILE', '_IO_FILE')
 COMMON_TYPES['bool'] = '_Bool'    # in case we got ImportError above
-COMMON_TYPES['float _Complex'] = '_cffi_float_Complex'
-COMMON_TYPES['double _Complex'] = '_cffi_double_Complex'
-
-if '_Fcomplex' in COMMON_TYPES: COMMON_TYPES['_Fcomplex'] = COMMON_TYPES['float _Complex']
-if '_Dcomplex' in COMMON_TYPES: COMMON_TYPES['_Dcomplex'] = COMMON_TYPES['double _Complex']
+COMMON_TYPES['float _Complex'] = '_cffi_float_complex_t'
+COMMON_TYPES['double _Complex'] = '_cffi_double_complex_t'
 
 for _type in model.PrimitiveType.ALL_PRIMITIVE_TYPES:
     if _type.endswith('_t'):

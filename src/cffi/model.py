@@ -117,8 +117,8 @@ class PrimitiveType(BasePrimitiveType):
         'float':              'f',
         'double':             'f',
         'long double':        'f',
-        '_cffi_float_Complex': 'j',
-        '_cffi_double_Complex': 'j',
+        '_cffi_float_complex_t': 'j',
+        '_cffi_double_complex_t': 'j',
         '_Bool':              'i',
         # the following types are not primitive in the C sense
         'wchar_t':            'c',

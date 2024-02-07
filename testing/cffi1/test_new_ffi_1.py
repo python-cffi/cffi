@@ -1762,8 +1762,8 @@ class TestNewFFI1:
             "ptrdiff_t",
             "size_t",
             "ssize_t",
-            'float _Complex',
-            'double _Complex',
+            '_cffi_float_complex_t',
+            '_cffi_double_complex_t',
             ])
         for name in PRIMITIVE_TO_INDEX:
             x = ffi.sizeof(name)
