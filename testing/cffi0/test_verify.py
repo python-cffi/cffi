@@ -242,7 +242,7 @@ def test_primitive_category():
         I = tp.is_integer_type()
         assert C == (typename in ('char', 'wchar_t', 'char16_t', 'char32_t'))
         assert F == (typename in ('float', 'double', 'long double'))
-        assert X == (typename in ('float _Complex', 'double _Complex'))
+        assert X == (typename in ('_cffi_float_complex_t', '_cffi_double_complex_t'))
         assert I + F + C + X == 1      # one and only one of them is true
 
 def test_all_integer_and_float_types():
@@ -279,6 +279,23 @@ def test_all_integer_and_float_types():
                 pytest.raises(OverflowError, foo, value)
             else:
                 assert foo(value) == value + 1
+
+def test_all_complex_types():
+    pytest.skip("not implemented in verify(): complex types")
+    if sys.platform == 'win32':
+        typenames = ['_Fcomplex', '_Dcomplex']
+        header = '#include <complex.h>\n'
+    else:
+        typenames = ['float _Complex', 'double _Complex']
+        header = ''
+    #
+    ffi = FFI()
+    ffi.cdef('\n'.join(["%s foo_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
+                       for tp in typenames]))
+    e = pytest.raises(VerificationError, ffi.verify,
+            header + '\n'.join(["%s foo_%s(%s x) { return x; }" %
+                                (tp, tp.replace(' ', '_'), tp)
+                                for tp in typenames]))
 
 def test_var_signed_integer_types():
     ffi = FFI()
