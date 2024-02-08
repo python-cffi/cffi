@@ -951,6 +951,17 @@ allowed.
    take directly as argument types or return type a complex type cannot
    be called by CFFI, unless they are directly using the API mode.
 
+   *New in version 1.17:* CFFI now supports complex numbers with MSVC
+   on Windows.  The types are called ``_Fcomplex`` (with floats) and
+   ``_Dcomplex`` (with doubles).  You can use these types or still use
+   ``float _Complex`` and ``double _Complex`` for cross-platform convenience
+   in all places except ``set_source()``.  With MSVC, the C code you pass to
+   ``set_source()`` must use ``_Fcomplex`` and ``_Dcomplex`` and
+   it must contain directly or indirectly ``#include <complex.h>``, like
+   normal C code.  (CFFI also defines semi-internal macros
+   ``_cffi_float_complex_t`` and ``_cffi_double_complex_t`` which could
+   possibly be directly used.)
+
 `[8]` ``wchar_t``, ``char16_t`` and ``char32_t``
 
    See `Unicode character types`_ below.
