@@ -30,6 +30,36 @@ except ImportError:
         pytest.skip("_testunc() not available")
 from _cffi_backend import __version__
 
+
+@contextlib.contextmanager
+def _assert_unraisable(error_type: type[Exception] | None, message: str = '', traceback_tokens: list[str] | None = None):
+    """Assert that a given sys.unraisablehook interaction occurred (or did not occur, if error_type is None) while this context was active"""
+    raised_errors: list[Exception] = []
+    raised_traceback: str = ''
+
+    # sys.unraisablehook is called more than once for chained exceptions; accumulate the errors and tracebacks for inspection
+    def _capture_unraisable_hook(ur_args):
+        nonlocal raised_traceback
+        raised_errors.append(ur_args.exc_value)
+
+        # NB: need to use the old etype/value/tb form until 3.10 is the minimum
+        raised_traceback += (ur_args.err_msg or '' + '\n') + ''.join(traceback.format_exception(None, ur_args.exc_value, ur_args.exc_traceback))
+
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(sys, 'unraisablehook', _capture_unraisable_hook)
+        yield
+
+    if error_type is None:
+        assert not raised_errors
+        assert not raised_traceback
+        return
+
+    assert any(type(raised_error) is error_type for raised_error in raised_errors)
+    assert any(message in str(raised_error) for raised_error in raised_errors)
+    for t in traceback_tokens or []:
+        assert t in raised_traceback
+
 # ____________________________________________________________
 
 import sys
@@ -1329,6 +1359,7 @@ def test_write_variable():
     ll.close_lib()
     pytest.raises(ValueError, ll.write_variable, BVoidP, "stderr", stderr)
 
+
 def test_callback():
     BInt = new_primitive_type("int")
     def make_callback():
@@ -1343,35 +1374,6 @@ def test_callback():
     assert "cb at 0x" in repr(f)
     e = pytest.raises(TypeError, f)
     assert str(e.value) == "'int(*)(int)' expects 1 arguments, got 0"
-
-@contextlib.contextmanager
-def _assert_unraisable(error_type: type[Exception] | None, message: str = '', traceback_tokens: list[str] | None = None):
-    """Assert that a given sys.unraisablehook interaction occurred (or did not occur, if error_type is None) while this context was active"""
-    raised_errors: list[Exception] = []
-    raised_traceback: str = ''
-
-    # sys.unraisablehook is called more than once for chained exceptions; accumulate the errors and tracebacks for inspection
-    def _capture_unraisable_hook(ur_args):
-        nonlocal raised_traceback
-        raised_errors.append(ur_args.exc_value)
-
-        # NB: need to use the old etype/value/tb form until 3.10 is the minimum
-        raised_traceback += (ur_args.err_msg or '' + '\n') + ''.join(traceback.format_exception(None, ur_args.exc_value, ur_args.exc_traceback))
-
-
-    with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(sys, 'unraisablehook', _capture_unraisable_hook)
-        yield
-
-    if error_type is None:
-        assert not raised_errors
-        assert not raised_traceback
-        return
-
-    assert any(type(raised_error) is error_type for raised_error in raised_errors)
-    assert any(message in str(raised_error) for raised_error in raised_errors)
-    for t in traceback_tokens or []:
-        assert t in raised_traceback
 
 
 def test_callback_exception():
