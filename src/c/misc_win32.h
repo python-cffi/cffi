@@ -194,7 +194,7 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
 static void *dlopen(const char *filename, int flags)
 {
     if (flags == 0) {
-        for (char *p = filename; *p != 0; p++)
+        for (const char *p = filename; *p != 0; p++)
             if (*p == '\\' || *p == '/') {
                 flags = LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
                         LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR;
@@ -207,7 +207,7 @@ static void *dlopen(const char *filename, int flags)
 static void *dlopenWinW(const wchar_t *filename, int flags)
 {
     if (flags == 0) {
-        for (wchar_t *p = filename; *p != 0; p++)
+        for (const wchar_t *p = filename; *p != 0; p++)
             if (*p == '\\' || *p == '/') {
                 flags = LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
                         LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR;
