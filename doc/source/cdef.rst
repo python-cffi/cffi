@@ -381,6 +381,14 @@ Useful if you have special needs (e.g. you need the GNU extension
 automatically if the FFI object is garbage-collected (but you can still
 call ``ffi.dlclose()`` explicitly if needed).
 
+*New in version 1.17:* on Windows, ``ffi.dlopen(filename, flags=0)`` now
+passes the flags to ``LoadLibraryEx()``.  Moreover, if you use the
+default value of 0 but ``filename`` contains a slash or backslash
+character, it will instead use
+``LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR``.
+This ensures that dependent DLLs from the same path are also found.
+It is what ctypes does too.
+
 
 .. _set_source:
 

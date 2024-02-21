@@ -4570,7 +4570,7 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
             if (sz1 < 0)
                 return NULL;
             w1[sz1] = 0;
-            handle = dlopenW(w1);
+            handle = dlopenWinW(w1, flags);
             goto got_handle;
         }
         PyErr_Clear();
