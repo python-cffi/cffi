@@ -891,8 +891,9 @@ ffi.callback() and the result is the same.
     - `On Mac OS X,`__ you need to give your application the entitlement
       ``com.apple.security.cs.allow-unsigned-executable-memory``.
 
-    - On Linux, ``systemd`` can install syscall filtering rules on services
-      it supervises; see https://github.com/python-cffi/cffi/issues/73.
+    - On Linux, ``systemd`` installs syscall filtering rules on services
+      it supervises.   The `MemoryDenyWriteExecute=` setting in
+      `systemd.exec(5)` defaults to on, and can quietly block this.
 
     Note also that a cffi fix for this issue was attempted---see
     the ``ffi_closure_alloc`` branch---but was not merged because it
