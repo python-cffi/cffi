@@ -2,8 +2,8 @@
 What's New
 ======================
 
-v1.17
-=====
+v1.17.0rc1
+==========
 
 * In API mode, when you get a function from a C library by writing
   `fn = lib.myfunc`, you get an object of a special type for performance
@@ -18,8 +18,8 @@ v1.17
   structure field of the correct pointer-to-function type, or use
   `ffi.cast()` or `ffi.typeof()` on it.
 
-v1.16.0rc1
-==========
+v1.16.0
+=======
 
 * Add support for Python 3.12. With the removal of ``distutils`` from Python 3.12, projects
   using CFFI features that depend on ``distutils`` at runtime must add a dependency on

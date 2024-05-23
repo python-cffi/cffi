@@ -17,7 +17,7 @@ platform as well as on Windows 32 and 64.  (It relies occasionally on
 libffi, so it depends on libffi being bug-free; this may not be fully
 the case on some of the more exotic platforms.)
 
-CFFI is tested with CPython 3.8-3.12.
+CFFI is tested with CPython 3.8-3.13.
 
 The core speed of CFFI is better than ctypes, with import times being
 either lower if you use the post-1.0 features, or much higher if you
