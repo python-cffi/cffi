@@ -29,6 +29,8 @@ env:
 jobs:
   python_sdist:
     runs-on: ubuntu-22.04
+    outputs:
+      artifact_name: ${{ steps.build_sdist.outputs.artifact_name }}
     steps:
     - name: clone repo
       uses: actions/checkout@v4
@@ -258,7 +260,7 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.artifact_name }}
 
     - name: configure docker foreign arch support
       uses: docker/setup-qemu-action@v3
@@ -389,7 +391,7 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.artifact_name }}
 
     - name: install python
       uses: actions/setup-python@v5
@@ -492,7 +494,7 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.artifact_name }}
 
     - name: build/test wheels
       id: build
