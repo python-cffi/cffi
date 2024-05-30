@@ -31,9 +31,9 @@ Testing/development tips
 
 To run tests under CPython, run the following in the source root directory:
 
-    pip install pytest
+    pip install pytest pytest-xdist virtualenv
     pip install -e .  # editable install of CFFI for local development
-    pytest c/ testing/
+    pytest
 
 
 [Documentation]: http://cffi.readthedocs.org/
