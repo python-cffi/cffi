@@ -298,7 +298,7 @@ jobs:
         CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_1' }}
         CIBW_PRERELEASE_PYTHONS: 'True'
         CIBW_FREE_THREADED_SUPPORT: 'True'
-        CIBW_TEST_REQUIRES: pytest setuptools  # 3.12+ no longer includes distutils, just always ensure setuptools is present
+        CIBW_TEST_REQUIRES: pytest pytest-xdist setuptools  # 3.12+ no longer includes distutils, just always ensure setuptools is present
         CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest ${{ matrix.test_args || '{project}' }}  # default to test all
       run: |
         set -eux
@@ -417,7 +417,7 @@ jobs:
       env:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
-        CIBW_TEST_REQUIRES: pytest setuptools
+        CIBW_TEST_REQUIRES: pytest pytest-xdist setuptools
         CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
         MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '10.9' }}
         SDKROOT: ${{ matrix.sdkroot || 'macosx' }}
@@ -508,7 +508,7 @@ jobs:
       env:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
-        CIBW_TEST_REQUIRES: pytest setuptools
+        CIBW_TEST_REQUIRES: pytest pytest-xdist setuptools
         CIBW_TEST_COMMAND: 'python -m pytest {package}/src/c'
         # FIXME: /testing takes ~45min on Windows and has some failures...
         # CIBW_TEST_COMMAND='python -m pytest {package}/src/c {project}/testing'
