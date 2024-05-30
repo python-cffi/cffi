@@ -190,15 +190,15 @@ def test_set_py_limited_api():
         from setuptools import Extension
 
         kwds = _set_py_limited_api(Extension, {})
-        assert kwds.get('py_limited_api', False) == expecting_limited_api
+        assert kwds.get('py_limited_api', False) is expecting_limited_api
 
         setuptools.__version__ = '25.0'
         kwds = _set_py_limited_api(Extension, {})
-        assert kwds.get('py_limited_api', False) == False
+        assert kwds.get('py_limited_api', False) is False
 
         setuptools.__version__ = 'development'
         kwds = _set_py_limited_api(Extension, {})
-        assert kwds.get('py_limited_api', False) == expecting_limited_api
+        assert kwds.get('py_limited_api', False) is expecting_limited_api
 
     finally:
         setuptools.__version__ = orig_version
