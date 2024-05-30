@@ -48,3 +48,20 @@ Downloads = "https://github.com/python-cffi/cffi/releases"
 Contact = "https://groups.google.com/forum/#!forum/python-cffi"
 "Source Code" = "https://github.com/python-cffi/cffi"
 "Issue Tracker" = "https://github.com/python-cffi/cffi/issues"
+
+[tool.pytest.ini_options]
+addopts ="""
+    -r a
+    --verbose
+    --strict-markers
+    --durations-min 1
+    --durations 10
+    --color yes
+    --showlocals
+    -n auto
+    --maxprocesses 7
+"""
+testpaths = [
+    "src/c",
+    "testing/",
+]
