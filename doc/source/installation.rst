@@ -57,7 +57,7 @@ Download and Installation:
   install cffi yet, you need first ``python setup_base.py build_ext -f
   -i``)
 
-.. _`GitHub project home`: https://github.com/python-cffi/cffi
+.. _`GitHub`: https://github.com/python-cffi/cffi
 
 Demos:
 
