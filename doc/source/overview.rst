@@ -53,7 +53,7 @@ Create the file ``piapprox_build.py``:
 
       # set_source() gives the name of the python extension module to
       # produce, and some C source code as a string.  This C code needs
-      # to make the declarated functions, types and globals available,
+      # to make the declared functions, types and globals available,
       # so it is often just the "#include".
       ffibuilder.set_source("_pi_cffi",
       """

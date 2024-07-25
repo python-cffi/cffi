@@ -799,7 +799,7 @@ allowed.
 |  ``double``   | which float() works    |                  | bool(), ``<``  |
 +---------------+------------------------+------------------+----------------+
 |``long double``| another <cdata> with   | a <cdata>, to    | float(), int(),|
-|               | a ``long double``, or  | avoid loosing    | bool()         |
+|               | a ``long double``, or  | avoid losing    | bool()         |
 |               | anything on which      | precision `[3]`  |                |
 |               | float() works          |                  |                |
 +---------------+------------------------+------------------+----------------+
@@ -900,7 +900,7 @@ allowed.
 `[3]` ``long double`` support:
 
    We keep ``long double`` values inside a cdata object to avoid
-   loosing precision.  Normal Python floating-point numbers only
+   losing precision.  Normal Python floating-point numbers only
    contain enough precision for a ``double``.  If you really want to
    convert such an object to a regular Python float (i.e. a C
    ``double``), call ``float()``.  If you need to do arithmetic on
@@ -1011,7 +1011,7 @@ explicitly make using fdopen(), like this:
 
 The special support for ``FILE *`` is anyway implemented in a similar manner
 on CPython 3.x and on PyPy, because these Python implementations' files are
-not natively based on ``FILE *``.  Doing it explicity offers more control.
+not natively based on ``FILE *``.  Doing it explicitly offers more control.
 
 
 .. _unichar:

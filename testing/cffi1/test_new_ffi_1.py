@@ -1826,5 +1826,5 @@ class TestNewFFI1:
         assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
         z = ffi.new("char32_t[]", u+'\U00012345')
         assert len(z) == 2
-        assert list(z) == [u+'\U00012345', u+'\x00'] # maybe a 2-unichars strin
+        assert list(z) == [u+'\U00012345', u+'\x00'] # maybe a 2-unichars string
         assert ffi.string(z) == u+'\U00012345'

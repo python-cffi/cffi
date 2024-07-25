@@ -1,6 +1,6 @@
 
 /* Implementation of a C object with the 'buffer' or 'memoryview'
- * interface at C-level (as approriate for the version of Python we're
+ * interface at C-level (as appropriate for the version of Python we're
  * compiling for), but only a minimal but *consistent* part of the
  * 'buffer' interface at application level.
  */

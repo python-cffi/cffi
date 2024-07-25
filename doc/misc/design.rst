@@ -8,7 +8,7 @@ Design decisions
   of automatic conversions: the various C integer types are
   automatically wrapped and unwrapped to regular applevel integers.  The
   type ``char`` might correspond to single-character strings instead;
-  for integer correspondance you would use ``signed char`` or ``unsigned
+  for integer correspondence you would use ``signed char`` or ``unsigned
   char``.  We might also decide that ``const char *`` automatically maps
   to strings; for cases where you don't want that, use ``char *``.
 

@@ -822,7 +822,7 @@ _my_PyLong_AsLongLong(PyObject *ob)
 {
     /* (possibly) convert and cast a Python object to a long long.
        Like PyLong_AsLongLong(), this version accepts a Python int too, and
-       does convertions from other types of objects.  The difference is that
+       does conversions from other types of objects.  The difference is that
        this version refuses floats. */
 #if PY_MAJOR_VERSION < 3
     if (PyInt_Check(ob)) {
@@ -864,7 +864,7 @@ _my_PyLong_AsUnsignedLongLong(PyObject *ob, int strict)
 {
     /* (possibly) convert and cast a Python object to an unsigned long long.
        Like PyLong_AsLongLong(), this version accepts a Python int too, and
-       does convertions from other types of objects.  If 'strict', complains
+       does conversions from other types of objects.  If 'strict', complains
        with OverflowError and refuses floats.  If '!strict', rounds floats
        and masks the result. */
 #if PY_MAJOR_VERSION < 3
@@ -1105,7 +1105,7 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         else if (ct->ct_flags & CT_ARRAY) {
             if (ct->ct_length < 0) {
                 /* we can't return a <cdata 'int[]'> here, because we don't
-                   know the length to give it.  As a compromize, returns
+                   know the length to give it.  As a compromise, returns
                    <cdata 'int *'> in this case. */
                 ct = (CTypeDescrObject *)ct->ct_stuff;
             }

@@ -882,7 +882,7 @@ Extra arguments to ``ffi.verify()``:
      ext = ffi.verify(..., sources=['/path/to/this/file/foo.c'])
 
    except that the default name of the produced library is built from
-   the CRC checkum of the argument ``sources``, as well as most other
+   the CRC checksum of the argument ``sources``, as well as most other
    arguments you give to ``ffi.verify()`` -- but not ``relative_to``.
    So if you used the second line, it would stop finding the
    already-compiled library after your project is installed, because
