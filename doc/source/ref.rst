@@ -799,7 +799,7 @@ allowed.
 |  ``double``   | which float() works    |                  | bool(), ``<``  |
 +---------------+------------------------+------------------+----------------+
 |``long double``| another <cdata> with   | a <cdata>, to    | float(), int(),|
-|               | a ``long double``, or  | avoid losing    | bool()         |
+|               | a ``long double``, or  | avoid losing     | bool()         |
 |               | anything on which      | precision `[3]`  |                |
 |               | float() works          |                  |                |
 +---------------+------------------------+------------------+----------------+
