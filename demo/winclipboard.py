@@ -1,3 +1,4 @@
+from __future__ import print_function
 __author__ = "Israel Fruchter <israel.fruchter@gmail.com>"
 
 import sys, os
@@ -8,7 +9,7 @@ if not sys.platform == 'win32':
 try:
     from _winclipboard_cffi import ffi, lib
 except ImportError:
-    print 'run winclipboard_build first, then make sure the shared object is on sys.path'
+    print('run winclipboard_build first, then make sure the shared object is on sys.path')
     sys.exit(1)
 
 # ffi "knows" about the declared variables and functions from the

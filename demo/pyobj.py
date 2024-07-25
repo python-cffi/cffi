@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 referents = []     # list "object descriptor -> python object"
 freelist = None
@@ -116,9 +117,9 @@ if __name__ == '__main__':
     """)
 
     with Ref([10, 20, 30, 40]) as p_list:
-        print lib.sum_integers(p_list)
+        print(lib.sum_integers(p_list))
         with Ref(5) as p_initial:
             result = discard(lib.sum_objects(p_list, p_initial))
-            print result
+            print(result)
 
     assert count_pyobj_alive() == 0

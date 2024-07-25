@@ -1,3 +1,4 @@
+from __future__ import print_function
 import csv
 import cffi
 
@@ -263,4 +264,4 @@ if __name__ == '__main__':
     with open('/etc/passwd', 'rb') as f:
         reader = fastcsv_reader(f, 'unixpwd')
         for row in reader:
-            print row
+            print(row)

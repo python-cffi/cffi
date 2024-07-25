@@ -1,3 +1,4 @@
+from __future__ import print_function
 import _cffi_backend
 
 ffi = _cffi_backend.FFI(b"manual2",
@@ -19,16 +20,16 @@ assert lib.FOO == 0x9999999999999999
 x = lib.close(-42)
 assert x == -1
 
-print lib.stdout
+print(lib.stdout)
 
-print ffi.new("struct point_s *")
-print ffi.offsetof("struct point_s", "x")
-print ffi.offsetof("struct point_s", "y")
-print ffi.new("struct point_s[CC]")
+print(ffi.new("struct point_s *"))
+print(ffi.offsetof("struct point_s", "x"))
+print(ffi.offsetof("struct point_s", "y"))
+print(ffi.new("struct point_s[CC]"))
 assert ffi.sizeof("struct point_s[CC]") == 2 * ffi.sizeof("struct point_s")
 
-print ffi.cast("enum myenum_e", 2)
-print ffi.cast("myint_t", -2)
+print(ffi.cast("enum myenum_e", 2))
+print(ffi.cast("myint_t", -2))
 assert ffi.typeof("myint_t") == ffi.typeof("int")
 
 del ffi, lib
