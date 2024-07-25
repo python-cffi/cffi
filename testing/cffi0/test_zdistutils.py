@@ -242,7 +242,7 @@ class DistUtilsTest(object):
         prev_compile = ffiplatform.compile
         try:
             if targetpackage == ext_package:
-                ffiplatform.compile = lambda *args: dont_call_me_any_more
+                ffiplatform.compile = lambda *args: dont_call_me_any_more  # noqa: F821
             # won't find it in tmpdir, but should find it correctly
             # installed in udir
             ffi, lib = make_ffi()

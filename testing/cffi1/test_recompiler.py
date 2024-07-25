@@ -745,7 +745,7 @@ def test_include_8():
 
 def test_unicode_libraries():
     try:
-        unicode
+        unicode  # noqa: F821
     except NameError:
         pytest.skip("for python 2.x")
     #
@@ -757,9 +757,10 @@ def test_unicode_libraries():
         if distutils.ccompiler.get_default_compiler() == 'msvc':
             lib_m = 'msvcrt'
     ffi = FFI()
-    ffi.cdef(unicode("float sin(double); double cos(double);"))
-    lib = verify(ffi, 'test_math_sin_unicode', unicode('#include <math.h>'),
-                 libraries=[unicode(lib_m)], ignore_warnings=True)
+    ffi.cdef(unicode("float sin(double); double cos(double);"))  # noqa: F821
+    lib = verify(ffi, 'test_math_sin_unicode',
+                 unicode('#include <math.h>'),  # noqa: F821
+                 libraries=[unicode(lib_m)], ignore_warnings=True)  # noqa: F821
     assert lib.cos(1.43) == math.cos(1.43)
 
 def test_incomplete_struct_as_arg():
