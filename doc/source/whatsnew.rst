@@ -144,7 +144,7 @@ v1.14
 
   As a workaround that works on all versions of cffi, you can write
   ``lib.myfunc(ffi.new("float[]", [large list]))``, which is
-  equivalent but explicity builds the intermediate array as a regular
+  equivalent but explicitly builds the intermediate array as a regular
   Python object on the heap.
 
 * fixed a memory leak inside ``ffi.getwinerror()`` on CPython 3.x.
@@ -252,7 +252,7 @@ v1.12
   keyword or by calling the new ``ffi.release()``.
 
 * Windows, CPython 3.x: cffi modules are linked with ``python3.dll``
-  again.  This makes them independant on the exact CPython version,
+  again.  This makes them independent on the exact CPython version,
   like they are on other platforms.  **It requires virtualenv 16.0.0.**
 
 * Accept an expression like ``ffi.new("int[4]", p)`` if ``p`` is itself
@@ -520,7 +520,7 @@ v1.9
   the new file descriptor is only closed when the GC reclaims the Python
   file object---and not at the earlier time when you call ``close()``,
   which only closes the original file descriptor.  If this is an issue,
-  you should avoid this automatic convertion of Python file objects:
+  you should avoid this automatic conversion of Python file objects:
   instead, explicitly manipulate file descriptors and call ``fdopen()``
   from C (...via cffi).
 
