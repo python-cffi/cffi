@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     @ffi.pyexport("int(int)")
     def add1(n):
-        print n
+        print(n)
         return n + 1
 
     ffi.cdef("""
