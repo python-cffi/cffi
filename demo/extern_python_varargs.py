@@ -1,3 +1,4 @@
+from __future__ import print_function
 import cffi
 
 ffi = cffi.FFI()
@@ -46,16 +47,16 @@ def f(n, va):
         x = lib.fetch_int(va)
         y = lib.fetch_int(va)
         z = lib.fetch_int(va)
-        print (x, y, z)
+        print(x, y, z)
     elif n == 1:
         ptr = lib.fetch_ptr(va)
-        print 'ptr to:', ffi.cast("int *", ptr)[0]
+        print('ptr to:', ffi.cast("int *", ptr)[0])
     elif n == 2:
         x = lib.fetch_double(va)
         y = lib.fetch_double(va)
-        print (x, y)
+        print(x, y)
     else:
         raise AssertionError(n)
     return 14
 
-print lib.my_algo(10)
+print(lib.my_algo(10))

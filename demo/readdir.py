@@ -1,3 +1,4 @@
+from __future__ import print_function
 # A Linux-only demo
 #
 import sys
@@ -10,7 +11,7 @@ lib = ffi.dlopen(None)
 
 
 def walk(basefd, path):
-    print '{', path
+    print('{', path)
     dirfd = lib.openat(basefd, path, 0)
     if dirfd < 0:
         # error in openat()
@@ -25,11 +26,11 @@ def walk(basefd, path):
         if result[0] == ffi.NULL:
             break
         name = ffi.string(dirent.d_name)
-        print '%3d %s' % (dirent.d_type, name)
+        print('%3d %s' % (dirent.d_type, name))
         if dirent.d_type == 4 and name != '.' and name != '..':
             walk(dirfd, name)
     lib.closedir(dir)
-    print '}'
+    print('}')
 
 
 walk(-1, "/tmp")
