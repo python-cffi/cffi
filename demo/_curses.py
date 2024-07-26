@@ -5,6 +5,11 @@ from functools import wraps
 
 from _curses_cffi import ffi, lib
 
+try:
+    unicode
+except NameError:
+    unicode = str
+
 
 def _copy_to_globals(name):
     globals()[name] = getattr(lib, name)
