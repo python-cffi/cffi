@@ -33,7 +33,8 @@ def test_ffi_cache_type():
     assert ffi.typeof("int(*)()") is ffi.typeof("int(*)()")
 
 def test_ffi_type_not_immortal():
-    import weakref, gc
+    import weakref
+    import gc
     ffi = _cffi1_backend.FFI()
     t1 = ffi.typeof("int **")
     t2 = ffi.typeof("int *")

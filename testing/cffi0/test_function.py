@@ -1,6 +1,8 @@
 import pytest
 from cffi import FFI, CDefError
-import math, os, sys
+import math
+import os
+import sys
 import ctypes.util
 from cffi.backend_ctypes import CTypesBackend
 from testing.udir import udir

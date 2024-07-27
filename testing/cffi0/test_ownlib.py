@@ -1,5 +1,7 @@
-import sys, os
-import subprocess, weakref
+import sys
+import os
+import subprocess
+import weakref
 import pytest
 from cffi import FFI
 from cffi.backend_ctypes import CTypesBackend

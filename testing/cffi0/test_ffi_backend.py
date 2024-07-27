@@ -1,4 +1,5 @@
-import sys, platform
+import sys
+import platform
 import pytest
 from testing.cffi0 import backend_tests, test_function, test_ownlib
 from testing.support import u
@@ -160,7 +161,8 @@ class TestFFI(backend_tests.BackendTests,
         assert p.foo.data[3] != 78   # has been overwritten with 9999999
 
     def test_issue553(self):
-        import gc, warnings
+        import gc
+        import warnings
         ffi = FFI(backend=self.Backend())
         p = ffi.new("int *", 123)
         with warnings.catch_warnings(record=True) as w:
@@ -169,7 +171,8 @@ class TestFFI(backend_tests.BackendTests,
         assert w == []
 
     def test_issue553_from_buffer(self):
-        import gc, warnings
+        import gc
+        import warnings
         ffi = FFI(backend=self.Backend())
         buf = b"123"
         with warnings.catch_warnings(record=True) as w:

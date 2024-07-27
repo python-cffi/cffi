@@ -18,7 +18,8 @@ if sys.platform == 'linux':
         pass
 
 def _setup_path():
-    import os, sys
+    import os
+    import sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 _setup_path()
 from _cffi_backend import *
@@ -71,7 +72,8 @@ if sys.version_info < (3,):
     mandatory_b_prefix = ''
     mandatory_u_prefix = 'u'
     bytechr = chr
-    bitem2bchr = lambda x: x
+    def bitem2bchr(x):
+        return x
     class U(object):
         def __add__(self, other):
             return eval('u'+repr(other).replace(r'\\u', r'\u')
@@ -86,10 +88,12 @@ else:
     unichr = chr
     mandatory_b_prefix = 'b'
     mandatory_u_prefix = ''
-    bytechr = lambda n: bytes([n])
+    def bytechr(n):
+        return bytes([n])
     bitem2bchr = bytechr
     u = ""
-    str2bytes = lambda s: bytes(s, "ascii")
+    def str2bytes(s):
+        return bytes(s, 'ascii')
     strict_compare = True
 
 def size_of_int():
@@ -457,7 +461,7 @@ def test_reading_pointer_to_pointer():
     assert p[0] is not None
     assert p[0] == cast(BVoidP, 0)
     assert p[0] == cast(BCharP, 0)
-    assert p[0] != None
+    assert p[0] is not None
     assert repr(p[0]) == "<cdata 'int *' NULL>"
     p[0] = q
     assert p[0] != cast(BVoidP, 0)
@@ -492,12 +496,12 @@ def test_no_len_on_nonarray():
 def test_cmp_none():
     p = new_primitive_type("int")
     x = cast(p, 42)
-    assert (x == None) is False
-    assert (x != None) is True
+    assert (x is None) is False
+    assert (x is not None) is True
     assert (x == ["hello"]) is False
     assert (x != ["hello"]) is True
     y = cast(p, 0)
-    assert (y == None) is False
+    assert (y is None) is False
 
 def test_invalid_indexing():
     p = new_primitive_type("int")
@@ -2988,7 +2992,8 @@ def test_string_assignment_to_byte_array():
 # XXX hack
 if sys.version_info >= (3,):
     try:
-        import posix, io
+        import posix
+        import io
         posix.fdopen = io.open
     except ImportError:
         pass   # win32

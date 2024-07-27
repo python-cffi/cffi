@@ -1,6 +1,8 @@
 import pytest
 import platform
-import sys, os, ctypes
+import sys
+import os
+import ctypes
 import cffi
 from testing.udir import udir
 from testing.support import *
@@ -265,7 +267,7 @@ class TestNewFFI1:
         assert p is not None
         assert bool(p) is False
         assert p == ffi.cast("int*", 0)
-        assert p != None
+        assert p is not None
         assert repr(p) == "<cdata 'int *' NULL>"
         a = ffi.new("int[]", [123, 456])
         p = ffi.cast("int*", a)
@@ -446,7 +448,7 @@ class TestNewFFI1:
     def test_none_as_null_doesnt_work(self):
         p = ffi.new("int*[1]")
         assert p[0] is not None
-        assert p[0] != None
+        assert p[0] is not None
         assert p[0] == ffi.NULL
         assert repr(p[0]) == "<cdata 'int *' NULL>"
         #
@@ -1130,14 +1132,14 @@ class TestNewFFI1:
         assert (p >  q) is False
         assert (p >= q) is False
         #
-        assert (None == s) is False
-        assert (None != s) is True
-        assert (s == None) is False
-        assert (s != None) is True
-        assert (None == q) is False
-        assert (None != q) is True
-        assert (q == None) is False
-        assert (q != None) is True
+        assert (None is s) is False
+        assert (None is not s) is True
+        assert (s is None) is False
+        assert (s is not None) is True
+        assert (None is q) is False
+        assert (None is not q) is True
+        assert (q is None) is False
+        assert (q is not None) is True
 
     def test_integer_comparison(self):
         x = ffi.cast("int", 123)
@@ -1209,7 +1211,9 @@ class TestNewFFI1:
         assert ffi.buffer(a1)[:] == ffi.buffer(a2, 4*10)[:]
 
     def test_ffi_buffer_with_file(self):
-        import tempfile, os, array
+        import tempfile
+        import os
+        import array
         fd, filename = tempfile.mkstemp()
         f = os.fdopen(fd, 'r+b')
         a = ffi.new("int[]", list(range(1005)))
@@ -1228,7 +1232,8 @@ class TestNewFFI1:
         os.unlink(filename)
 
     def test_ffi_buffer_with_io(self):
-        import io, array
+        import io
+        import array
         f = io.BytesIO()
         a = ffi.new("int[]", list(range(1005)))
         try:

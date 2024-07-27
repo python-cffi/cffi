@@ -1,4 +1,6 @@
-import sys, re, os
+import sys
+import re
+import os
 import pytest
 import cffi
 from cffi import cffi_opcode

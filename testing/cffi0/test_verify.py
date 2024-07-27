@@ -1,6 +1,9 @@
 import re
 import pytest
-import sys, os, math, weakref
+import sys
+import os
+import math
+import weakref
 from cffi import FFI, VerificationError, VerificationMissing, model, FFIError
 from testing.support import *
 from testing.support import extra_compile_args, is_musl
@@ -1424,7 +1427,8 @@ def test_ffi_struct_packed():
     """)
 
 def test_tmpdir():
-    import tempfile, os
+    import tempfile
+    import os
     from testing.udir import udir
     tmpdir = tempfile.mkdtemp(dir=str(udir))
     ffi = FFI()
@@ -1434,7 +1438,8 @@ def test_tmpdir():
     assert lib.foo(100) == 142
 
 def test_relative_to():
-    import tempfile, os
+    import tempfile
+    import os
     from testing.udir import udir
     tmpdir = tempfile.mkdtemp(dir=str(udir))
     ffi = FFI()
@@ -1599,7 +1604,8 @@ def test_addressof():
 def test_callback_in_thread():
     if sys.platform == 'win32':
         pytest.skip("pthread only")
-    import os, subprocess
+    import os
+    import subprocess
     from cffi import _imp_emulation as imp
     arg = os.path.join(os.path.dirname(__file__), 'callback_in_thread.py')
     g = subprocess.Popen([sys.executable, arg,

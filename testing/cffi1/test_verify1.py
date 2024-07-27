@@ -1,4 +1,6 @@
-import os, sys, math
+import os
+import sys
+import math
 import pytest
 from cffi import FFI, FFIError, VerificationError, VerificationMissing, model
 from cffi import CDefError
@@ -1390,7 +1392,8 @@ def test_ffi_struct_packed():
     """)
 
 def test_tmpdir():
-    import tempfile, os
+    import tempfile
+    import os
     from testing.udir import udir
     tmpdir = tempfile.mkdtemp(dir=str(udir))
     ffi = FFI()
@@ -1401,7 +1404,8 @@ def test_tmpdir():
 
 def test_relative_to():
     pytest.skip("not available")
-    import tempfile, os
+    import tempfile
+    import os
     from testing.udir import udir
     tmpdir = tempfile.mkdtemp(dir=str(udir))
     ffi = FFI()
@@ -1558,7 +1562,8 @@ def test_callback_in_thread():
     pytest.xfail("adapt or remove")
     if sys.platform == 'win32':
         pytest.skip("pthread only")
-    import os, subprocess
+    import os
+    import subprocess
     from cffi import _imp_emulation as imp
     arg = os.path.join(os.path.dirname(__file__), 'callback_in_thread.py')
     g = subprocess.Popen([sys.executable, arg,

@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 from cffi._imp_emulation import load_dynamic
 
 if sys.version_info < (3,):

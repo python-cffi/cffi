@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 
 # run xclient_build first, then make sure the shared object is on sys.path
 from _xclient_cffi import ffi, lib

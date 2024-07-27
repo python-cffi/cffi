@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 import pytest
 from cffi import FFI
 from cffi import recompiler, ffiplatform, VerificationMissing

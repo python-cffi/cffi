@@ -1,4 +1,5 @@
-import sys, types
+import sys
+import types
 from .lock import allocate_lock
 from .error import CDefError
 from . import model
@@ -8,7 +9,8 @@ try:
 except NameError:
     # Python 3.1
     from collections import Callable
-    callable = lambda x: isinstance(x, Callable)
+    def callable(x):
+        return isinstance(x, Callable)
 
 try:
     basestring
@@ -414,7 +416,7 @@ class FFI(object):
         if (replace_with.startswith('*')
                 and '&[' in self._backend.getcname(cdecl, '&')):
             replace_with = '(%s)' % replace_with
-        elif replace_with and not replace_with[0] in '[(':
+        elif replace_with and replace_with[0] not in '[(':
             replace_with = ' ' + replace_with
         return self._backend.getcname(cdecl, replace_with)
 

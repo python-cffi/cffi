@@ -5,7 +5,9 @@ try:
     from . import _pycparser as pycparser
 except ImportError:
     import pycparser
-import weakref, re, sys
+import weakref
+import re
+import sys
 
 try:
     if sys.version_info < (3,):
@@ -370,7 +372,7 @@ class Parser(object):
     def parse(self, csource, override=False, packed=False, pack=None,
                     dllexport=False):
         if packed:
-            if packed != True:
+            if packed is not True:
                 raise ValueError("'packed' should be False or True; use "
                                  "'pack' to give another value")
             if pack:

@@ -7,7 +7,8 @@ from __future__ import unicode_literals
 #
 #
 #
-import sys, math
+import sys
+import math
 from cffi import FFI
 from testing.support import is_musl
 

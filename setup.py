@@ -1,4 +1,6 @@
-import sys, os, platform
+import sys
+import os
+import platform
 import subprocess
 import errno
 

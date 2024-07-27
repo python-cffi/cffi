@@ -1,5 +1,7 @@
 import py
-import sys, os, atexit
+import sys
+import os
+import atexit
 
 
 # This is copied from PyPy's vendored py lib.  The latest py lib release

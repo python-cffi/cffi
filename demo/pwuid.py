@@ -1,5 +1,6 @@
 from __future__ import print_function
-import sys, os
+import sys
+import os
 
 # run pwuid_build first, then make sure the shared object is on sys.path
 from _pwuid_cffi import ffi, lib

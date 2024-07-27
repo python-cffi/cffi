@@ -1,4 +1,5 @@
-import sys, re
+import sys
+import re
 import pytest
 from cffi import FFI, FFIError, CDefError, VerificationError
 from .backend_tests import needs_dlopen_none

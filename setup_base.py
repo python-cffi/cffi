@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 
 
 from setup import include_dirs, sources, libraries, define_macros

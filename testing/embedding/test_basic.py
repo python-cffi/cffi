@@ -1,5 +1,9 @@
-import sys, os, re
-import shutil, subprocess, time
+import sys
+import os
+import re
+import shutil
+import subprocess
+import time
 import pytest
 from testing.udir import udir
 import cffi

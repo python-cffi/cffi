@@ -1,4 +1,6 @@
-import os, cffi, re
+import os
+import cffi
+import re
 import pytest
 import _cffi_backend
 

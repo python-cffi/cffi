@@ -1,7 +1,8 @@
 from __future__ import print_function
 __author__ = "Israel Fruchter <israel.fruchter@gmail.com>"
 
-import sys, os
+import sys
+import os
 
 if not sys.platform == 'win32':
     raise Exception("Windows-only demo")

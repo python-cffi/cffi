@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 import pytest
 import _cffi_backend
 from testing.support import is_musl

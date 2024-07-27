@@ -1,4 +1,7 @@
-import sys, os, math, shutil
+import sys
+import os
+import math
+import shutil
 import pytest
 from cffi import FFI, FFIError
 from cffi.verifier import Verifier, _locate_engine_class, _get_so_suffixes

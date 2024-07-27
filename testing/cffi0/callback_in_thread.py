@@ -1,4 +1,5 @@
-import sys, time
+import sys
+import time
 sys.path.insert(0, sys.argv[1])
 from cffi import FFI
 

@@ -1,4 +1,5 @@
-import pytest, sys
+import pytest
+import sys
 try:
     # comment out the following line to run this test.
     # the latest on x86-64 linux: https://github.com/libffi/libffi/issues/574
@@ -15,7 +16,8 @@ except ImportError as e:
 else:
 
     from cffi import FFI
-    import sys, random
+    import sys
+    import random
     from .test_recompiler import verify
 
     ALL_PRIMITIVES = [

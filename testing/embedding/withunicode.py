@@ -1,4 +1,5 @@
-import sys, cffi
+import sys
+import cffi
 if sys.version_info < (3,):
     u_prefix = "u"
 else:

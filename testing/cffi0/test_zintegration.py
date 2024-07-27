@@ -1,4 +1,7 @@
-import py, os, sys, shutil
+import py
+import os
+import sys
+import shutil
 import subprocess
 import textwrap
 from testing.udir import udir
@@ -189,7 +192,7 @@ class TestZIntegration(object):
 
             setuptools.__version__ = '25.0'
             kwds = _set_py_limited_api(Extension, {})
-            assert kwds.get('py_limited_api', False) == False
+            assert kwds.get('py_limited_api', False) is False
 
             setuptools.__version__ = 'development'
             kwds = _set_py_limited_api(Extension, {})
