@@ -1,4 +1,5 @@
 import os, sys, io
+import sysconfig
 from . import ffiplatform, model
 from .error import VerificationError
 from .cffi_opcode import *
@@ -8,7 +9,8 @@ VERSION_EMBEDDED = 0x2701
 VERSION_CHAR16CHAR32 = 0x2801
 
 USE_LIMITED_API = (sys.platform != 'win32' or sys.version_info < (3, 0) or
-                   sys.version_info >= (3, 5))
+                   sys.version_info >= (3, 5)) \
+                  and not sysconfig.get_config_var("Py_GIL_DISABLED")
 
 
 class GlobalExpr:
