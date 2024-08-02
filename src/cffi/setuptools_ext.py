@@ -102,7 +102,7 @@ def _set_py_limited_api(Extension, kwds):
             # warning.
             kwds['py_limited_api'] = True
 
-    if not kwds.get('py_limited_api'):
+    if kwds.get('py_limited_api') is False:
         # avoid setting Py_LIMITED_API if py_limited_api=False
         # which _cffi_include.h does unless _CFFI_NO_LIMITED_API is defined
         kwds.setdefault("define_macros", []).append(("_CFFI_NO_LIMITED_API", None))
