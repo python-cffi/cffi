@@ -204,6 +204,10 @@
 # define USE_WRITEUNRAISABLEMSG
 #endif
 
+#if PY_VERSION_HEX >= 0x030c0000
+# define Py_FileSystemDefaultEncoding PyConfig.filesystem_encoding
+#endif
+
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
