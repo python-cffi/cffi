@@ -277,7 +277,9 @@ jobs:
           ((command -v apk && apk add libtool) || true) && \
           ./autogen.sh && \
           ./configure --without-gcc-arch --disable-docs --with-pic --enable-shared=no && \
-          make install
+          make install && \
+          cd .. && \
+          rm -rf libffi-3.4.6
         CIBW_ENVIRONMENT_PASS_LINUX: CFLAGS  # ensure that the build container can see our overridden build config
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_img || '' }}
         CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_img || '' }}
