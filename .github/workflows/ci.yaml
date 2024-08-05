@@ -272,8 +272,8 @@ jobs:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_BEFORE_BUILD: |
           set -eux && \
-          curl -L -O https://github.com/libffi/libffi/archive/v3.4.2.tar.gz && \
-          tar zxf v3.4.2.tar.gz && cd libffi-3.4.2 && \
+          curl -L -O https://github.com/libffi/libffi/archive/v3.4.6.tar.gz && \
+          tar zxf v3.4.6.tar.gz && cd libffi-3.4.6 && \
           ((command -v apk && apk add libtool) || true) && \
           ./autogen.sh && \
           ./configure --without-gcc-arch --disable-docs --with-pic --enable-shared=no && \
