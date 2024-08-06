@@ -2,9 +2,10 @@
 What's New
 ======================
 
-v1.17.0rc1
-==========
+v1.17.0
+=======
 
+* Add support for Python 3.13.
 * In API mode, when you get a function from a C library by writing
   `fn = lib.myfunc`, you get an object of a special type for performance
   reasons, instead of a `<cdata 'C-function-type'>`.  Before version 1.17
