@@ -29,6 +29,8 @@ env:
 jobs:
   python_sdist:
     runs-on: ubuntu-22.04
+    outputs:
+      artifact_name: ${{ steps.build_sdist.outputs.artifact_name }}
     steps:
     - name: clone repo
       uses: actions/checkout@v4
@@ -258,14 +260,14 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.artifact_name }}
 
     - name: configure docker foreign arch support
       uses: docker/setup-qemu-action@v3
       if: ${{ ! contains(matrix.spec, 'x86_64') }}
 
     - name: build/test wheels
-      id: build
+      uses: pypa/cibuildwheel@v2.18.1
       env:
         CFLAGS: -Dffi_call=cffistatic_ffi_call  # override name for ffi_call to break hard if we linked against someone else's libffi
         CIBW_ARCHS_LINUX: all
@@ -292,24 +294,21 @@ jobs:
         CIBW_PRERELEASE_PYTHONS: 'True'
         CIBW_TEST_REQUIRES: pytest setuptools  # 3.12+ no longer includes distutils, just always ensure setuptools is present
         CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest ${{ matrix.test_args || '{project}' }}  # default to test all
-      run: |
-        set -eux
-        
-        mkdir cffi
-        
-        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz/cffi*.tar.gz --strip-components=1 -C cffi
-        python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
+      with:
+        package-dir: >-
+          ${{ steps.fetch_sdist.outputs.download-path
+          }}/${{ needs.python_sdist.outputs.artifact_name }}
 
-        # actually build libffi + wheel (using env tweaks above)
-        python -m cibuildwheel --output-dir dist ./cffi
-
-        echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
+    - name: determine built wheel filename
+      id: built-artifact-lookup
+      run: echo "artifact_name=$(ls ./wheelhouse/)" >> "${GITHUB_OUTPUT}"
+      shell: bash -eEuxo pipefail {0}
 
     - name: upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.build.outputs.artifact_name }}
-        path: dist/*.whl
+        name: ${{ steps.built-artifact-lookup.outputs.artifact_name }}
+        path: wheelhouse/${{ steps.built-artifact-lookup.outputs.artifact_name }}
         if-no-files-found: error
       if: ${{ env.skip_artifact_upload != 'true' }}
 
@@ -390,7 +389,7 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.artifact_name }}
 
     - name: install python
       uses: actions/setup-python@v5
@@ -399,13 +398,11 @@ jobs:
                                 # built-in virtualenv/pip are pinned to busted versions that fail on newer Pythons
 
     - name: build wheel prereqs
-      run: |
-        set -eux
-        python3 -m pip install --user --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
-        brew uninstall --ignore-dependencies libffi 2>&1 || true
+      run: brew uninstall --ignore-dependencies libffi 2>&1 || true
+      shell: bash -eux {0}
 
     - name: build/test wheels
-      id: build
+      uses: pypa/cibuildwheel@v2.18.1
       env:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
@@ -413,22 +410,21 @@ jobs:
         CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
         MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '10.9' }}
         SDKROOT: ${{ matrix.sdkroot || 'macosx' }}
-      run: |
-        set -eux
-        
-        mkdir cffi
-        
-        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz/cffi*.tar.gz --strip-components=1 -C cffi
+      with:
+        package-dir: >-
+          ${{ steps.fetch_sdist.outputs.download-path
+          }}/${{ needs.python_sdist.outputs.artifact_name }}
 
-        python3 -m cibuildwheel --output-dir dist cffi
-        
-        echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
+    - name: determine built wheel filename
+      id: built-artifact-lookup
+      run: echo "artifact_name=$(ls ./wheelhouse/)" >> "${GITHUB_OUTPUT}"
+      shell: bash -eEuxo pipefail {0}
 
     - name: upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.build.outputs.artifact_name }}
-        path: dist/*.whl
+        name: ${{ steps.built-artifact-lookup.outputs.artifact_name }}
+        path: wheelhouse/${{ steps.built-artifact-lookup.outputs.artifact_name }}
         if-no-files-found: error
       if: ${{ env.skip_artifact_upload != 'true' }}
 
@@ -493,10 +489,10 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.artifact_name }}
 
     - name: build/test wheels
-      id: build
+      uses: pypa/cibuildwheel@v2.18.1
       env:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
@@ -504,26 +500,21 @@ jobs:
         CIBW_TEST_COMMAND: 'python -m pytest {package}/src/c'
         # FIXME: /testing takes ~45min on Windows and has some failures...
         # CIBW_TEST_COMMAND='python -m pytest {package}/src/c {project}/testing'
-      run: |
-        set -eux
-        
-        mkdir cffi
-        
-        tar zxf cffi*.tar.gz/cffi*.tar.gz --strip-components=1 -C cffi
-        
-        python -m pip install --upgrade pip
-        pip install "${{ matrix.cibw_version || 'cibuildwheel'}}"
-        python -m cibuildwheel --output-dir dist cffi
-        
-        echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
+      with:
+        package-dir: >-
+          ${{ steps.fetch_sdist.outputs.download-path
+          }}/${{ needs.python_sdist.outputs.artifact_name }}
 
-      shell: bash
+    - name: determine built wheel filename
+      id: built-artifact-lookup
+      run: echo "artifact_name=$(ls ./wheelhouse/)" >> "${GITHUB_OUTPUT}"
+      shell: bash -eEuxo pipefail {0}
 
     - name: upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.build.outputs.artifact_name }}
-        path: dist/*.whl
+        name: ${{ steps.built-artifact-lookup.outputs.artifact_name }}
+        path: wheelhouse/${{ steps.built-artifact-lookup.outputs.artifact_name }}
         if-no-files-found: error
       if: ${{ env.skip_artifact_upload != 'true' }}
 
