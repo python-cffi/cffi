@@ -5,3 +5,18 @@ requires = [
     "setuptools >= 66.1"
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.codespell]
+ignore-words-list = "alltime,blong,ccompiler,fo,hel"
+skip = "*.bak"
+
+[tool.ruff.lint]
+select = [
+  "E9",
+  "F63",
+  "F7",
+  "F82",
+]
+[tool.ruff.lint.per-file-ignores]
+"src/cffi/verifier.py" = ["F821"]
+"testing/*" = ["F821"]
