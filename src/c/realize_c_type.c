@@ -151,8 +151,8 @@ static PyObject *build_primitive_type(int num)
         "uint_fast64_t",
         "intmax_t",
         "uintmax_t",
-        "_cffi_float_complex_t",
-        "_cffi_double_complex_t",
+        "float _Complex",
+        "double _Complex",
         "char16_t",
         "char32_t",
     };
