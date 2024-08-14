@@ -5,3 +5,21 @@ requires = [
     "setuptools >= 66.1"
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+addopts ="""
+    -r a
+    --verbose
+    --strict-markers
+    --durations-min 1
+    --durations 10
+    --color yes
+    --showlocals
+    -n auto
+    --maxprocesses 7
+"""
+testpaths = [
+    "src/c",
+    "testing/",
+]
+
