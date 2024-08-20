@@ -1410,15 +1410,6 @@ class Recompiler:
         self.cffi_types[index] = CffiOp(OP_ENUM, enum_index)
 
 
-if sys.version_info >= (3,):
-    NativeIO = io.StringIO
-else:
-    class NativeIO(io.BytesIO):
-        def write(self, s):
-            if isinstance(s, unicode):
-                s = s.encode('ascii')
-            super(NativeIO, self).write(s)
-
 def _make_c_or_py_source(ffi, module_name, preamble, target_file, verbose):
     if verbose:
         print("generating %s" % (target_file,))
@@ -1426,7 +1417,7 @@ def _make_c_or_py_source(ffi, module_name, preamble, target_file, verbose):
                             target_is_python=(preamble is None))
     recompiler.collect_type_table()
     recompiler.collect_step_tables()
-    f = NativeIO()
+    f = io.StringIO()
     recompiler.write_source_to_f(f, preamble)
     output = f.getvalue()
     try:

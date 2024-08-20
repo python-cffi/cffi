@@ -17,16 +17,6 @@ else:
                 if type == imp.C_EXTENSION]
 
 
-if sys.version_info >= (3,):
-    NativeIO = io.StringIO
-else:
-    class NativeIO(io.BytesIO):
-        def write(self, s):
-            if isinstance(s, unicode):
-                s = s.encode('ascii')
-            super(NativeIO, self).write(s)
-
-
 class Verifier(object):
 
     def __init__(self, ffi, preamble, tmpdir=None, modulename=None,
@@ -175,7 +165,7 @@ class Verifier(object):
             self._write_source_to(file)
         else:
             # Write our source file to an in memory file.
-            f = NativeIO()
+            f = io.StringIO()
             self._write_source_to(f)
             source_data = f.getvalue()
 
