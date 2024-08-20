@@ -1529,7 +1529,8 @@ def _patch_for_target(patchlist, target):
 
 def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
               c_file=None, source_extension='.c', extradir=None,
-              compiler_verbose=1, target=None, debug=None, **kwds):
+              compiler_verbose=1, target=None, debug=None,
+              uses_ffiplatform=True, **kwds):
     if not isinstance(module_name, str):
         module_name = module_name.encode('ascii')
     if ffi._windows_unicode:
@@ -1556,7 +1557,10 @@ def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
             else:
                 target = '*'
         #
-        ext = ffiplatform.get_extension(ext_c_file, module_name, **kwds)
+        if uses_ffiplatform:
+            ext = ffiplatform.get_extension(ext_c_file, module_name, **kwds)
+        else:
+            ext = None
         updated = make_c_source(ffi, module_name, preamble, c_file,
                                 verbose=compiler_verbose)
         if call_c_compiler:
