@@ -30,7 +30,10 @@ try:
     from distutils.log import set_threshold, set_verbosity
 
     if sys.platform == 'win32':
-        from distutils.msvc9compiler import MSVCCompiler
+        try:
+            from distutils.msvc9compiler import MSVCCompiler
+        except ImportError:
+            MSVCCompiler = None
 except Exception as ex:
     if sys.version_info >= (3, 12):
         raise Exception("This CFFI feature requires setuptools on Python >= 3.12. Please install the setuptools package.") from ex
