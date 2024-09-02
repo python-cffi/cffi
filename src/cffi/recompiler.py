@@ -1419,6 +1419,10 @@ else:
                 s = s.encode('ascii')
             super(NativeIO, self).write(s)
 
+def _is_file_like(maybefile):
+    # compare to xml.etree.ElementTree._get_writer
+    return hasattr(maybefile, 'write')
+
 def _make_c_or_py_source(ffi, module_name, preamble, target_file, verbose):
     if verbose:
         print("generating %s" % (target_file,))
@@ -1426,6 +1430,9 @@ def _make_c_or_py_source(ffi, module_name, preamble, target_file, verbose):
                             target_is_python=(preamble is None))
     recompiler.collect_type_table()
     recompiler.collect_step_tables()
+    if _is_file_like(target_file):
+        recompiler.write_source_to_f(target_file, preamble)
+        return True
     f = NativeIO()
     recompiler.write_source_to_f(f, preamble)
     output = f.getvalue()
@@ -1525,6 +1532,9 @@ def recompile(ffi, module_name, preamble, tmpdir='.', call_c_compiler=True,
     if ffi._windows_unicode:
         ffi._apply_windows_unicode(kwds)
     if preamble is not None:
+        if call_c_compiler and _is_file_like(c_file):
+            raise TypeError("Writing to file-like objects is not supported "
+                            "with call_c_compiler=True")
         embedding = (ffi._embedding is not None)
         if embedding:
             ffi._apply_embedding_fix(kwds)
