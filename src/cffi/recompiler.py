@@ -1481,12 +1481,6 @@ def _unpatch_meths(patchlist):
         setattr(cls, name, old_meth)
 
 def _patch_for_embedding(patchlist):
-    if sys.platform == 'win32':
-        # we must not remove the manifest when building for embedding!
-        from cffi._shimmed_dist_utils import MSVCCompiler
-        _patch_meth(patchlist, MSVCCompiler, '_remove_visual_c_ref',
-                    lambda self, manifest_file: manifest_file)
-
     if sys.platform == 'darwin':
         # we must not make a '-bundle', but a '-dynamiclib' instead
         from cffi._shimmed_dist_utils import CCompiler

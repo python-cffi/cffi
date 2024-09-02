@@ -141,25 +141,13 @@ class TestOwnLib(object):
                 return
             # try (not too hard) to find the version used to compile this python
             # no mingw
-            from distutils.msvc9compiler import get_build_version
-            version = get_build_version()
-            toolskey = "VS%0.f0COMNTOOLS" % version
-            toolsdir = os.environ.get(toolskey, None)
-            if toolsdir is None:
-                return
-            productdir = os.path.join(toolsdir, os.pardir, os.pardir, "VC")
-            productdir = os.path.abspath(productdir)
-            vcvarsall = os.path.join(productdir, "vcvarsall.bat")
-            # 64?
-            arch = 'x86'
-            if sys.maxsize > 2**32:
-                arch = 'amd64'
-            if os.path.isfile(vcvarsall):
-                cmd = '"%s" %s' % (vcvarsall, arch) + ' & cl.exe testownlib.c ' \
-                        ' /LD /Fetestownlib.dll'
-                subprocess.check_call(cmd, cwd = str(udir), shell=True)
-                os.rename(str(udir) + '\\testownlib.dll', dll_path)
-                cls.module = dll_path
+            from setuptools.command.build_ext import new_compiler
+            compiler = new_compiler()
+            objs = compiler.compile([str(udir) + "\\testownlib.c"], output_dir=str(udir))
+            compiler.link_shared_lib(objs, str(udir) + "\\testownlib", extra_preargs = ["/DLL"])
+                
+            os.rename(str(udir) + '\\testownlib.dll', dll_path)
+            cls.module = dll_path
         else:
             encoded = None
             if cls.Backend is not CTypesBackend:
