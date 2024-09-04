@@ -31,6 +31,7 @@ try:
 
     if sys.platform == 'win32':
         try:
+            # FUTURE: msvc9compiler module was removed in setuptools 74; consider removing, as it's only used by an ancient patch in `recompiler`
             from distutils.msvc9compiler import MSVCCompiler
         except ImportError:
             MSVCCompiler = None
