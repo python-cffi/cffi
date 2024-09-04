@@ -2,6 +2,17 @@
 What's New
 ======================
 
+v1.17.1
+=======
+
+* Fix failing ``distutils.msvc9compiler`` imports under Windows (`#118`_).
+* ``ffibuilder.emit_python_code()`` and ``ffibuiler.emit_c_code()`` accept file-like objects (`#115`_).
+* ``ffiplatform`` calls are bypassed by ``ffibuilder.emit_python_code()`` and ``ffibuilder.emit_c_code()`` (`#81`_).
+
+.. _`#118`: https://github.com/python-cffi/cffi/pull/118
+.. _`#115`: https://github.com/python-cffi/cffi/pull/115
+.. _`#81`: https://github.com/python-cffi/cffi/pull/81
+
 v1.17.0
 =======
 
@@ -30,6 +41,9 @@ v1.16.0
 * Add support for PEP517 builds; ``setuptools`` is now a required build dependency.
 * Declare ``python_requires`` metadata for Python 3.8+. This allows unsupported Pythons
   to continue using previously released sdists and wheels.
+* Upstream project hosting moved from Heptapod to `GitHub`_.
+
+.. _`GitHub`: https://github.com/python-cffi/cffi
 
 v1.15.1
 =======
@@ -145,7 +159,7 @@ v1.14
 
   As a workaround that works on all versions of cffi, you can write
   ``lib.myfunc(ffi.new("float[]", [large list]))``, which is
-  equivalent but explicity builds the intermediate array as a regular
+  equivalent but explicitly builds the intermediate array as a regular
   Python object on the heap.
 
 * fixed a memory leak inside ``ffi.getwinerror()`` on CPython 3.x.
@@ -253,7 +267,7 @@ v1.12
   keyword or by calling the new ``ffi.release()``.
 
 * Windows, CPython 3.x: cffi modules are linked with ``python3.dll``
-  again.  This makes them independant on the exact CPython version,
+  again.  This makes them independent on the exact CPython version,
   like they are on other platforms.  **It requires virtualenv 16.0.0.**
 
 * Accept an expression like ``ffi.new("int[4]", p)`` if ``p`` is itself
@@ -521,7 +535,7 @@ v1.9
   the new file descriptor is only closed when the GC reclaims the Python
   file object---and not at the earlier time when you call ``close()``,
   which only closes the original file descriptor.  If this is an issue,
-  you should avoid this automatic convertion of Python file objects:
+  you should avoid this automatic conversion of Python file objects:
   instead, explicitly manipulate file descriptors and call ``fdopen()``
   from C (...via cffi).
 
