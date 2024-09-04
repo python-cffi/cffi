@@ -195,7 +195,7 @@ Contact
 
 `Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
 """,
-        version='1.17.1.dev0',
+        version='1.18.0.dev0',
         python_requires='>=3.8',
         packages=['cffi'] if cpython else [],
         package_dir={"": "src"},
