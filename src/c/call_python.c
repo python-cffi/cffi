@@ -47,7 +47,7 @@ static PyObject *_get_interpstate_dict(void)
     /* from there on, we know the (sub-)interpreter is still valid */
 
     if (attr_name == NULL) {
-        attr_name = PyText_InternFromString("__cffi_backend_extern_py");
+        attr_name = PyUnicode_InternFromString("__cffi_backend_extern_py");
         if (attr_name == NULL)
             goto error;
     }
@@ -90,7 +90,7 @@ static PyObject *_ffi_def_extern_decorator(PyObject *outer_args, PyObject *fn)
         name = PyObject_GetAttrString(fn, "__name__");
         if (name == NULL)
             return NULL;
-        s = PyText_AsUTF8(name);
+        s = PyUnicode_AsUTF8(name);
         if (s == NULL) {
             Py_DECREF(name);
             return NULL;
