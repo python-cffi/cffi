@@ -141,18 +141,8 @@
 #include "malloc_closure.h"
 
 
-#if PY_VERSION_HEX >= 0x03030000
-# define PyText_GetSize PyUnicode_GetLength
-#else
-# define PyText_GetSize PyUnicode_GetSize
-#endif
-
 #if PY_VERSION_HEX < 0x030900a4
 # define Py_SET_REFCNT(obj, val) (Py_REFCNT(obj) = (val))
-#endif
-
-#if PY_VERSION_HEX >= 0x03080000
-# define USE_WRITEUNRAISABLEMSG
 #endif
 
 /************************************************************/
@@ -4431,7 +4421,7 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
             if (*p_printable_filename == NULL)
                 return NULL;
 
-            sz1 = PyText_GetSize(filename_unicode) + 1;
+            sz1 = PyUnicode_GetLength(filename_unicode) + 1;
             sz1 *= 2;   /* should not be needed, but you never know */
             w1 = alloca(sizeof(wchar_t) * sz1);
             sz1 = PyUnicode_AsWideChar(filename_unicode,
@@ -5141,7 +5131,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         if (!(sflags & SF_GCC_ARM_BITFIELDS) && fbitsize >= 0) {
             if (!(sflags & SF_MSVC_BITFIELDS)) {
                 /* GCC: anonymous bitfields (of any size) don't cause alignment */
-                do_align = PyText_GetSize(fname) > 0;
+                do_align = PyUnicode_GetLength(fname) > 0;
             }
             else {
                 /* MSVC: zero-sized bitfields don't cause alignment */
@@ -5185,7 +5175,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                 byteoffset = foffset;
             }
 
-            if (PyText_GetSize(fname) == 0 &&
+            if (PyUnicode_GetLength(fname) == 0 &&
                     ftype->ct_flags & (CT_STRUCT|CT_UNION)) {
                 /* a nested anonymous struct or union */
                 CFieldObject *cfsrc = (CFieldObject *)ftype->ct_extra;
@@ -5256,7 +5246,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             field_offset_bytes &= ~(falign - 1);
 
             if (fbitsize == 0) {
-                if (PyText_GetSize(fname) > 0) {
+                if (PyUnicode_GetLength(fname) > 0) {
                     PyErr_Format(PyExc_TypeError,
                                  "field '%s.%s' is declared with :0",
                                  ct->ct_name, PyUnicode_AsUTF8(fname));
@@ -5345,7 +5335,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                 if (sflags & SF_GCC_BIG_ENDIAN)
                     bitshift = 8 * ftype->ct_size - fbitsize - bitshift;
 
-                if (PyText_GetSize(fname) > 0) {
+                if (PyUnicode_GetLength(fname) > 0) {
 
                     *previous = _add_field(interned_fields, fname, ftype,
                                        field_offset_bytes, bitshift, fbitsize,
@@ -6000,7 +5990,6 @@ static void _my_PyErr_WriteUnraisable(PyObject *t, PyObject *v, PyObject *tb,
                                       char *extra_error_line)
 {
     /* like PyErr_WriteUnraisable(), but write a full traceback */
-#ifdef USE_WRITEUNRAISABLEMSG
 
     /* PyErr_WriteUnraisable actually writes the full traceback anyway
        from Python 3.4, but we can't really get the formatting of the
@@ -6037,34 +6026,6 @@ static void _my_PyErr_WriteUnraisable(PyObject *t, PyObject *v, PyObject *tb,
     else
         PyErr_WriteUnraisable(obj);   /* best effort */
     PyErr_Clear();
-
-#else
-
-    /* version for Python 2.7 and < 3.8 */
-    PyObject *f;
-    /* jump through hoops to ensure the tb is attached to v, on Python 3 */
-    PyErr_NormalizeException(&t, &v, &tb);
-    if (tb == NULL) {
-        tb = Py_None;
-        Py_INCREF(tb);
-    }
-    PyException_SetTraceback(v, tb);
-    f = PySys_GetObject("stderr");
-    if (f != NULL) {
-        if (obj != NULL) {
-            PyFile_WriteString(objdescr, f);
-            PyFile_WriteObject(obj, f, 0);
-            PyFile_WriteString(":\n", f);
-        }
-        if (extra_error_line != NULL)
-            PyFile_WriteString(extra_error_line, f);
-        PyErr_Display(t, v, tb);
-    }
-    Py_XDECREF(t);
-    Py_XDECREF(v);
-    Py_XDECREF(tb);
-
-#endif
 }
 
 static void general_invoke_callback(int decode_args_from_libffi,
@@ -6114,11 +6075,7 @@ static void general_invoke_callback(int decode_args_from_libffi,
         goto error;
     if (convert_from_object_fficallback(result, SIGNATURE(1), py_res,
                                         decode_args_from_libffi) < 0) {
-#ifdef USE_WRITEUNRAISABLEMSG
         extra_error_line = ", trying to convert the result back to C";
-#else
-        extra_error_line = "Trying to convert the result back to C:\n";
-#endif
         goto error;
     }
  done:
@@ -6170,16 +6127,9 @@ static void general_invoke_callback(int decode_args_from_libffi,
             _my_PyErr_WriteUnraisable(exc1, val1, tb1,
                                       "From cffi callback ", py_ob,
                                       extra_error_line);
-#ifdef USE_WRITEUNRAISABLEMSG
             _my_PyErr_WriteUnraisable(exc2, val2, tb2,
                  "during handling of the above exception by 'onerror'",
                  NULL, NULL);
-#else
-            extra_error_line = ("\nDuring the call to 'onerror', "
-                                "another exception occurred:\n\n");
-            _my_PyErr_WriteUnraisable(exc2, val2, tb2,
-                                      NULL, NULL, extra_error_line);
-#endif
             _cffi_stop_error_capture(ecap);
         }
     }
@@ -6246,14 +6196,6 @@ static PyObject *prepare_callback_info_tuple(CTypeDescrObject *ct,
     }
     infotuple = Py_BuildValue("OOOO", ct, ob, py_rawerr, onerror_ob);
     Py_DECREF(py_rawerr);
-
-#if defined(WITH_THREAD) && PY_VERSION_HEX < 0x03070000
-    /* We must setup the GIL here, in case the callback is invoked in
-       some other non-Pythonic thread.  This is the same as ctypes.
-       But PyEval_InitThreads() is always a no-op from CPython 3.7
-       (the call from ctypes was removed some time later I think). */
-    PyEval_InitThreads();
-#endif
 
     return infotuple;
 }

@@ -208,13 +208,6 @@ mb_richcompare(PyObject *self, PyObject *other, int op)
 
 /* pfffffffffffff pages of copy-paste from listobject.c */
 
-/* pfffffffffffff#2: the PySlice_GetIndicesEx() *macro* should not
-   be called, because C extension modules compiled with it differ
-   on ABI between 3.6.0, 3.6.1 and 3.6.2. */
-#if PY_VERSION_HEX < 0x03070000 && defined(PySlice_GetIndicesEx) && !defined(PYPY_VERSION)
-#undef PySlice_GetIndicesEx
-#endif
-
 static PyObject *mb_subscript(MiniBufferObj *self, PyObject *item)
 {
     if (PyIndex_Check(item)) {
