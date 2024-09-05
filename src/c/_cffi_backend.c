@@ -4364,6 +4364,17 @@ static PyTypeObject dl_type = {
     dl_methods,                         /* tp_methods */
 };
 
+static void *b_handle_or_error(void *handle, const char *printable_filename)
+{
+    if (handle == NULL) {
+        const char *error = dlerror();
+        PyErr_Format(PyExc_OSError, "cannot load library '%s': %s",
+                     printable_filename, error);
+        return NULL;
+    }
+    return handle;
+}
+
 static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
                          PyObject **p_temp, int *auto_close)
 {
@@ -4435,7 +4446,7 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
                 return NULL;
             w1[sz1] = 0;
             handle = dlopenWinW(w1, flags);
-            goto got_handle;
+            return b_handle_or_error(handle, p_printable_filename);
         }
         PyErr_Clear();
 #endif
@@ -4454,16 +4465,7 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
     handle = dlopen(filename_or_null, flags);
     PyMem_Free(filename_or_null);
 
-#ifdef MS_WIN32
-  got_handle:
-#endif
-    if (handle == NULL) {
-        const char *error = dlerror();
-        PyErr_Format(PyExc_OSError, "cannot load library '%s': %s",
-                     *p_printable_filename, error);
-        return NULL;
-    }
-    return handle;
+    return b_handle_or_error(handle, *p_printable_filename);
 }
 
 static PyObject *b_load_library(PyObject *self, PyObject *args)
