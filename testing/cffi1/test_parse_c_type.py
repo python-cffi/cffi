@@ -164,6 +164,8 @@ def test_simple():
             ("long double", lib._CFFI_PRIM_LONGDOUBLE),
             (" float  _Complex", lib._CFFI_PRIM_FLOATCOMPLEX),
             ("double _Complex ", lib._CFFI_PRIM_DOUBLECOMPLEX),
+            ("_cffi_float_complex_t", lib._CFFI_PRIM_FLOATCOMPLEX),
+            (" _cffi_double_complex_t", lib._CFFI_PRIM_DOUBLECOMPLEX),
             ]:
         assert parse(simple_type) == ['->', Prim(expected)]
 
