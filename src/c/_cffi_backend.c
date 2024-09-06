@@ -4375,12 +4375,21 @@ static void *b_handle_or_error(void *handle, const char *printable_filename)
     return handle;
 }
 
-static void *b_do_dlopen_posix(const char *filename_or_null, int flags, const char *printable_filename)
+static void *b_do_dlopen_posix(PyObject *filename_unicode, int flags, const char *printable_filename)
 {
+    char *filename_or_null = NULL;
+    PyObject *filename_bytes = NULL;
+    if (filename_unicode) {
+        filename_bytes = PyUnicode_EncodeFSDefault(filename_unicode);
+        if (filename_bytes == NULL)
+            return NULL;
+        filename_or_null = PyBytes_AsString(filename_bytes);
+    }
     if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
         flags |= RTLD_NOW;
 
     void *handle = dlopen(filename_or_null, flags);
+    Py_XDECREF(filename_bytes);
     return b_handle_or_error(handle, printable_filename);
 }
 
@@ -4412,7 +4421,6 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
        to a temporary object that must be freed after looking at printable_filename.
     */
     void *handle;
-    char *filename_or_null;
     int flags = 0;
     *p_temp = NULL;
     *auto_close = 1;
@@ -4454,30 +4462,25 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
     }
     else
     {
-        PyObject *s = PyTuple_GET_ITEM(args, 0);
-#ifdef MS_WIN32
         PyObject *filename_unicode;
+#ifdef MS_WIN32
         if (PyArg_ParseTuple(args, "U|i:load_library", &filename_unicode, &flags))
         {
-            *p_printable_filename = PyUnicode_AsUTF8(s);
+            *p_printable_filename = PyUnicode_AsUTF8(filename_unicode);
             if (*p_printable_filename == NULL)
                 return NULL;
             return b_do_dlopen_win32(filename_unicode, flags, *p_printable_filename);
         }
         PyErr_Clear();
 #endif
-        if (!PyArg_ParseTuple(args, "et|i:load_library",
-                     Py_FileSystemDefaultEncoding, &filename_or_null, &flags))
+        if (!PyArg_ParseTuple(args, "U|i:load_library", &filename_unicode, &flags))
             return NULL;
-        *p_printable_filename = PyUnicode_AsUTF8(s);
+        *p_printable_filename = PyUnicode_AsUTF8(filename_unicode);
         if (*p_printable_filename == NULL) {
-            PyMem_Free(filename_or_null);
             return NULL;
         }
+        return b_do_dlopen_posix(filename_unicode, flags, *p_printable_filename);
     }
-    handle = b_do_dlopen_posix(filename_or_null, flags, *p_printable_filename);
-    PyMem_Free(filename_or_null);
-    return handle;
 }
 
 static PyObject *b_load_library(PyObject *self, PyObject *args)
