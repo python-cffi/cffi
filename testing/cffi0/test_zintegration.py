@@ -1,5 +1,6 @@
 import py, os, sys, shutil
 import subprocess
+import sysconfig
 import textwrap
 from testing.udir import udir
 import pytest
@@ -179,7 +180,8 @@ class TestZIntegration(object):
         except ImportError as e:
             pytest.skip(str(e))
         orig_version = setuptools.__version__
-        expecting_limited_api = not hasattr(sys, 'gettotalrefcount')
+        # free-threaded Python does not yet support limited API
+        expecting_limited_api = not hasattr(sys, 'gettotalrefcount') and not sysconfig.get_config_var("Py_GIL_DISABLED")
         try:
             setuptools.__version__ = '26.0.0'
             from setuptools import Extension

@@ -83,6 +83,9 @@ jobs:
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp313-manylinux_x86_64
+            
+          - spec: cp313t-manylinux_x86_64
+            skip_artifact_upload: 'true'
   
           - spec: cp38-manylinux_i686
             omit: ${{ env.skip_ci_redundant_jobs }}
@@ -290,6 +293,7 @@ jobs:
         CIBW_MUSLLINUX_I686_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_1' }}
         CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_1' }}
         CIBW_PRERELEASE_PYTHONS: 'True'
+        CIBW_FREE_THREADED_SUPPORT: 'True'
         CIBW_TEST_REQUIRES: pytest setuptools  # 3.12+ no longer includes distutils, just always ensure setuptools is present
         CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest ${{ matrix.test_args || '{project}' }}  # default to test all
       run: |
@@ -311,7 +315,7 @@ jobs:
         name: ${{ steps.build.outputs.artifact_name }}
         path: dist/*.whl
         if-no-files-found: error
-      if: ${{ env.skip_artifact_upload != 'true' }}
+      if: ${{ (matrix.skip_artifact_upload != 'true') && (env.skip_artifact_upload != 'true') }}
 
   make_macos_matrix:
     runs-on: ubuntu-22.04
