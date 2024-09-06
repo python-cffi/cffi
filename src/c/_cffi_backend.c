@@ -4416,6 +4416,15 @@ static void *b_do_dlopen_win32(PyObject *filename_unicode, int flags, const char
 }
 #endif
 
+static void *b_do_dlopen_dispatch(PyObject *filename_unicode, int flags, const char *printable_filename)
+{
+#ifdef MS_WIN32
+        return b_do_dlopen_win32(filename_unicode, flags, printable_filename);
+#else
+        return b_do_dlopen_posix(filename_unicode, flags, printable_filename);
+#endif
+}
+
 static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
                          PyObject **p_temp, int *auto_close)
 {
@@ -4435,11 +4444,7 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
                               &dummy, &flags))
             return NULL;
         *p_printable_filename = "<None>";
-#ifdef MS_WIN32
-        return b_do_dlopen_win32(NULL, flags, *p_printable_filename);
-#else
-        return b_do_dlopen_posix(NULL, flags, *p_printable_filename);
-#endif
+        return b_do_dlopen_dispatch(NULL, flags, *p_printable_filename);
     }
     else if (CData_Check(PyTuple_GET_ITEM(args, 0)))
     {
@@ -4472,11 +4477,7 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
         if (*p_printable_filename == NULL) {
             return NULL;
         }
-#ifdef MS_WIN32
-        return b_do_dlopen_win32(filename_unicode, flags, *p_printable_filename);
-#else
-        return b_do_dlopen_posix(filename_unicode, flags, *p_printable_filename);
-#endif
+        return b_do_dlopen_dispatch(filename_unicode, flags, *p_printable_filename);
     }
 }
 
