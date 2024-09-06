@@ -29,6 +29,9 @@ env:
 jobs:
   python_sdist:
     runs-on: ubuntu-22.04
+    outputs:
+      sdist_artifact_name: ${{ steps.build_sdist.outputs.sdist_artifact_name }}
+      package_version: ${{ steps.build_sdist.outputs.package_version }}
     steps:
     - name: clone repo
       uses: actions/checkout@v4
@@ -45,13 +48,14 @@ jobs:
         python -m pip install build
         python -m build --sdist
         
-        echo "artifact_name=$(ls ./dist)" >> "$GITHUB_OUTPUT"
+        echo "sdist_artifact_name=$(ls ./dist)" >> "$GITHUB_OUTPUT"
+        echo "package_version=$(ls ./dist | sed -En 's/cffi-(.+)\.tar\.gz/\1/p')" >> "$GITHUB_OUTPUT"
 
     - name: upload sdist artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.build_sdist.outputs.artifact_name }}
-        path: dist/${{ steps.build_sdist.outputs.artifact_name }}
+        name: ${{ steps.build_sdist.outputs.sdist_artifact_name }}
+        path: dist/${{ steps.build_sdist.outputs.sdist_artifact_name }}
         if-no-files-found: error
       # always upload the sdist artifact- all the wheel build jobs require it
 
@@ -258,7 +262,7 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: configure docker foreign arch support
       uses: docker/setup-qemu-action@v3
@@ -295,7 +299,7 @@ jobs:
         
         mkdir cffi
         
-        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz/cffi*.tar.gz --strip-components=1 -C cffi
+        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
         python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
 
         # actually build libffi + wheel (using env tweaks above)
@@ -388,7 +392,7 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: install python
       uses: actions/setup-python@v5
@@ -416,7 +420,7 @@ jobs:
         
         mkdir cffi
         
-        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz/cffi*.tar.gz --strip-components=1 -C cffi
+        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
 
         python3 -m cibuildwheel --output-dir dist cffi
         
@@ -491,7 +495,7 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: build/test wheels
       id: build
@@ -507,7 +511,7 @@ jobs:
         
         mkdir cffi
         
-        tar zxf cffi*.tar.gz/cffi*.tar.gz --strip-components=1 -C cffi
+        tar zxf cffi*.tar.gz --strip-components=1 -C cffi
         
         python -m pip install --upgrade pip
         pip install "${{ matrix.cibw_version || 'cibuildwheel'}}"
@@ -532,7 +536,7 @@ jobs:
     - name: merge all artifacts
       uses: actions/upload-artifact/merge@v4
       with:
-        name: dist
+        name: dist-cffi-${{ needs.python_sdist.outputs.package_version }}
         delete-merged: true
       if: ${{ env.skip_artifact_upload != 'true' }}
 
