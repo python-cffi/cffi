@@ -4433,24 +4433,22 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
        the filename (utf-8-encoded). '*p_temp' will be set either to NULL or
        to a temporary object that must be freed after looking at printable_filename.
     */
-    void *handle;
+    PyObject *filename = NULL;
     int flags = 0;
     *p_temp = NULL;
     *auto_close = 1;
-    
-    if (PyTuple_GET_SIZE(args) == 0 || PyTuple_GET_ITEM(args, 0) == Py_None) {
-        PyObject *dummy;
-        if (!PyArg_ParseTuple(args, "|Oi:load_library",
-                              &dummy, &flags))
-            return NULL;
+
+    if (!PyArg_ParseTuple(args, "|Oi:load_library", &filename, &flags))
+        return NULL;
+
+    if (filename == NULL || filename == Py_None) {
         *p_printable_filename = "<None>";
         return b_do_dlopen_dispatch(NULL, flags, *p_printable_filename);
     }
-    else if (CData_Check(PyTuple_GET_ITEM(args, 0)))
+
+    if (CData_Check(filename))
     {
-        CDataObject *cd;
-        if (!PyArg_ParseTuple(args, "O|i:load_library", &cd, &flags))
-            return NULL;
+        CDataObject *cd = (CDataObject *)filename;
         /* 'flags' is accepted but ignored in this case */
         if ((cd->c_type->ct_flags & CT_IS_VOID_PTR) == 0) {
             PyErr_Format(PyExc_TypeError,
@@ -4458,7 +4456,7 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
                 cd->c_type->ct_name);
             return NULL;
         }
-        handle = cd->c_data;
+        void *handle = cd->c_data;
         if (handle == NULL) {
             PyErr_Format(PyExc_RuntimeError, "cannot call dlopen(NULL)");
             return NULL;
@@ -4468,17 +4466,13 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
         *auto_close = 0;
         return handle;
     }
-    else
-    {
-        PyObject *filename_unicode;
-        if (!PyArg_ParseTuple(args, "U|i:load_library", &filename_unicode, &flags))
-            return NULL;
-        *p_printable_filename = PyUnicode_AsUTF8(filename_unicode);
-        if (*p_printable_filename == NULL) {
-            return NULL;
-        }
-        return b_do_dlopen_dispatch(filename_unicode, flags, *p_printable_filename);
+
+    assert(PyUnicode_Check(filename));
+    *p_printable_filename = PyUnicode_AsUTF8(filename);
+    if (*p_printable_filename == NULL) {
+        return NULL;
     }
+    return b_do_dlopen_dispatch(filename, flags, *p_printable_filename);
 }
 
 static PyObject *b_load_library(PyObject *self, PyObject *args)
