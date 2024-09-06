@@ -4396,6 +4396,10 @@ static void *b_do_dlopen_posix(PyObject *filename_unicode, int flags, const char
 #ifdef MS_WIN32
 static void *b_do_dlopen_win32(PyObject *filename_unicode, int flags, const char *printable_filename)
 {
+    if (filename_unicode == NULL) {
+        PyErr_SetString(PyExc_OSError, "dlopen(None) not supported on Windows");
+        return NULL;
+    }
     Py_ssize_t sz1;
     wchar_t *w1;
 
@@ -4426,15 +4430,14 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
     *auto_close = 1;
     
     if (PyTuple_GET_SIZE(args) == 0 || PyTuple_GET_ITEM(args, 0) == Py_None) {
-#ifdef MS_WIN32
-        PyErr_SetString(PyExc_OSError, "dlopen(None) not supported on Windows");
-        return NULL;
-#else
         PyObject *dummy;
         if (!PyArg_ParseTuple(args, "|Oi:load_library",
                               &dummy, &flags))
             return NULL;
         *p_printable_filename = "<None>";
+#ifdef MS_WIN32
+        return b_do_dlopen_win32(NULL, flags, *p_printable_filename);
+#else
         return b_do_dlopen_posix(NULL, flags, *p_printable_filename);
 #endif
     }
