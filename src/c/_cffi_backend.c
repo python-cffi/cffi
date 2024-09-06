@@ -4375,6 +4375,15 @@ static void *b_handle_or_error(void *handle, const char *printable_filename)
     return handle;
 }
 
+static void *b_do_dlopen_posix(const char *filename_or_null, int flags, const char *printable_filename)
+{
+    if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
+        flags |= RTLD_NOW;
+
+    void *handle = dlopen(filename_or_null, flags);
+    return b_handle_or_error(handle, printable_filename);
+}
+
 #ifdef MS_WIN32
 static void *b_do_dlopen_win32(PyObject *filename_unicode, int flags, const char *printable_filename)
 {
@@ -4417,8 +4426,8 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
         if (!PyArg_ParseTuple(args, "|Oi:load_library",
                               &dummy, &flags))
             return NULL;
-        filename_or_null = NULL;
         *p_printable_filename = "<None>";
+        return b_do_dlopen_posix(NULL, flags, *p_printable_filename);
 #endif
     }
     else if (CData_Check(PyTuple_GET_ITEM(args, 0)))
@@ -4466,13 +4475,9 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
             return NULL;
         }
     }
-    if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
-        flags |= RTLD_NOW;
-
-    handle = dlopen(filename_or_null, flags);
+    handle = b_do_dlopen_posix(filename_or_null, flags, *p_printable_filename);
     PyMem_Free(filename_or_null);
-
-    return b_handle_or_error(handle, *p_printable_filename);
+    return handle;
 }
 
 static PyObject *b_load_library(PyObject *self, PyObject *args)
