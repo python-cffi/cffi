@@ -4375,6 +4375,25 @@ static void *b_handle_or_error(void *handle, const char *printable_filename)
     return handle;
 }
 
+#ifdef MS_WIN32
+static void *b_do_dlopen_win32(PyObject *filename_unicode, int flags, const char *printable_filename)
+{
+    Py_ssize_t sz1;
+    wchar_t *w1;
+
+    sz1 = PyUnicode_GetLength(filename_unicode) + 1;
+    sz1 *= 2;   /* should not be needed, but you never know */
+    w1 = alloca(sizeof(wchar_t) * sz1);
+    sz1 = PyUnicode_AsWideChar(filename_unicode,
+                               w1, sz1 - 1);
+    if (sz1 < 0)
+        return NULL;
+    w1[sz1] = 0;
+    void *handle = dlopenWinW(w1, flags);
+    return b_handle_or_error(handle, printable_filename);
+}
+#endif
+
 static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
                          PyObject **p_temp, int *auto_close)
 {
@@ -4431,22 +4450,10 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
         PyObject *filename_unicode;
         if (PyArg_ParseTuple(args, "U|i:load_library", &filename_unicode, &flags))
         {
-            Py_ssize_t sz1;
-            wchar_t *w1;
             *p_printable_filename = PyUnicode_AsUTF8(s);
             if (*p_printable_filename == NULL)
                 return NULL;
-
-            sz1 = PyUnicode_GetLength(filename_unicode) + 1;
-            sz1 *= 2;   /* should not be needed, but you never know */
-            w1 = alloca(sizeof(wchar_t) * sz1);
-            sz1 = PyUnicode_AsWideChar(filename_unicode,
-                                       w1, sz1 - 1);
-            if (sz1 < 0)
-                return NULL;
-            w1[sz1] = 0;
-            handle = dlopenWinW(w1, flags);
-            return b_handle_or_error(handle, p_printable_filename);
+            return b_do_dlopen_win32(filename_unicode, flags, *p_printable_filename);
         }
         PyErr_Clear();
 #endif
