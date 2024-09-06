@@ -4463,23 +4463,17 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
     else
     {
         PyObject *filename_unicode;
-#ifdef MS_WIN32
-        if (PyArg_ParseTuple(args, "U|i:load_library", &filename_unicode, &flags))
-        {
-            *p_printable_filename = PyUnicode_AsUTF8(filename_unicode);
-            if (*p_printable_filename == NULL)
-                return NULL;
-            return b_do_dlopen_win32(filename_unicode, flags, *p_printable_filename);
-        }
-        PyErr_Clear();
-#endif
         if (!PyArg_ParseTuple(args, "U|i:load_library", &filename_unicode, &flags))
             return NULL;
         *p_printable_filename = PyUnicode_AsUTF8(filename_unicode);
         if (*p_printable_filename == NULL) {
             return NULL;
         }
+#ifdef MS_WIN32
+        return b_do_dlopen_win32(filename_unicode, flags, *p_printable_filename);
+#else
         return b_do_dlopen_posix(filename_unicode, flags, *p_printable_filename);
+#endif
     }
 }
 
