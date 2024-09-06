@@ -4380,7 +4380,7 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
 {
     /* Logic to call the correct version of dlopen().  Returns NULL in case of error.
        Otherwise, '*p_printable_filename' will point to a printable char version of
-       the filename (maybe utf-8-encoded).  '*p_temp' will be set either to NULL or
+       the filename (utf-8-encoded). '*p_temp' will be set either to NULL or
        to a temporary object that must be freed after looking at printable_filename.
     */
     void *handle;
