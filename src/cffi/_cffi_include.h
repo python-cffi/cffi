@@ -128,13 +128,9 @@ extern "C" {
 #ifndef PYPY_VERSION
 
 
-#if PY_MAJOR_VERSION >= 3
-# define PyInt_FromLong PyLong_FromLong
-#endif
-
 #define _cffi_from_c_double PyFloat_FromDouble
 #define _cffi_from_c_float PyFloat_FromDouble
-#define _cffi_from_c_long PyInt_FromLong
+#define _cffi_from_c_long PyLong_FromLong
 #define _cffi_from_c_ulong PyLong_FromUnsignedLong
 #define _cffi_from_c_longlong PyLong_FromLongLong
 #define _cffi_from_c_ulonglong PyLong_FromUnsignedLongLong
@@ -146,12 +142,12 @@ extern "C" {
 #define _cffi_from_c_int(x, type)                                        \
     (((type)-1) > 0 ? /* unsigned */                                     \
         (sizeof(type) < sizeof(long) ?                                   \
-            PyInt_FromLong((long)x) :                                    \
+            PyLong_FromLong((long)x) :                                   \
          sizeof(type) == sizeof(long) ?                                  \
             PyLong_FromUnsignedLong((unsigned long)x) :                  \
             PyLong_FromUnsignedLongLong((unsigned long long)x)) :        \
         (sizeof(type) <= sizeof(long) ?                                  \
-            PyInt_FromLong((long)x) :                                    \
+            PyLong_FromLong((long)x) :                                   \
             PyLong_FromLongLong((long long)x)))
 
 #define _cffi_to_c_int(o, type)                                          \
