@@ -3,7 +3,8 @@ from .test_vgen import *
 
 # This test file runs normally after test_vgen.  We only clean up the .c
 # sources, to check that it also works when we have only the .so.  The
-# tests should run much faster than test_vgen.
+# tests used to run much faster than test_vgen, but since we randomize
+# the module names, it needs to recompile everything.
 
 def setup_module():
     cffi.verifier.cleanup_tmpdir(keep_so=True)
