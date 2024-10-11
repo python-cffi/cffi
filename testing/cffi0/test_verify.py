@@ -21,7 +21,7 @@ if sys.platform == 'win32':
     class FFI(FFI):
         def verify(self, *args, **kwds):
             modulename = kwds.get("modulename", "_cffi_test%d_%d" % (
-                random.randint(0,32000), random.randint(0,32000)))
+                random.randint(0,1000000000), random.randint(0,1000000000)))
             kwds["modulename"] = modulename
             return super(FFI, self).verify(*args, **kwds)
 
@@ -29,7 +29,7 @@ else:
     class FFI(FFI):
         def verify(self, *args, **kwds):
             modulename = kwds.get("modulename", "_cffi_test%d_%d" % (
-                random.randint(0,32000), random.randint(0,32000)))
+                random.randint(0,1000000000), random.randint(0,1000000000)))
             kwds["modulename"] = modulename
             return super(FFI, self).verify(
                 *args, extra_compile_args=extra_compile_args, **kwds)
@@ -2175,7 +2175,8 @@ def test_verify_dlopen_flags():
     ffi1.cdef("extern int foo_verify_dlopen_flags;")
 
     lib1 = ffi1.verify("int foo_verify_dlopen_flags;",
-                       flags=ffi1.RTLD_GLOBAL | ffi1.RTLD_LAZY)
+                       flags=ffi1.RTLD_GLOBAL | ffi1.RTLD_LAZY,
+                       modulename="test_verify_dlopen_flags")
     lib2 = get_second_lib()
 
     lib1.foo_verify_dlopen_flags = 42
@@ -2188,7 +2189,8 @@ def get_second_lib():
     ffi2 = FFI()
     ffi2.cdef("extern int foo_verify_dlopen_flags;")
     lib2 = ffi2.verify("int foo_verify_dlopen_flags;",
-                       flags=ffi2.RTLD_GLOBAL | ffi2.RTLD_LAZY)
+                       flags=ffi2.RTLD_GLOBAL | ffi2.RTLD_LAZY,
+                       modulename="test_verify_dlopen_flags")
     return lib2
 
 def test_consider_not_implemented_function_type():
