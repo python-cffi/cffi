@@ -2176,7 +2176,7 @@ def test_verify_dlopen_flags():
 
     lib1 = ffi1.verify("int foo_verify_dlopen_flags;",
                        flags=ffi1.RTLD_GLOBAL | ffi1.RTLD_LAZY,
-                       modulename="test_verify_dlopen_flags")
+                       modulename="_cffi_test_verify_dlopen_flags")
     lib2 = get_second_lib()
 
     lib1.foo_verify_dlopen_flags = 42
@@ -2189,7 +2189,7 @@ def get_second_lib():
     ffi2.cdef("extern int foo_verify_dlopen_flags;")
     lib2 = ffi2.verify("int foo_verify_dlopen_flags;",
                        flags=ffi2.RTLD_GLOBAL | ffi2.RTLD_LAZY,
-                       modulename="test_verify_dlopen_flags")
+                       modulename="_cffi_test_verify_dlopen_flags")
     return lib2
 
 def test_consider_not_implemented_function_type():
