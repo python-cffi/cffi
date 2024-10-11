@@ -1,6 +1,6 @@
 import re
 import pytest
-import sys, os, math, weakref
+import sys, os, math, weakref, random
 from cffi import FFI, VerificationError, VerificationMissing, model, FFIError
 from testing.support import *
 from testing.support import extra_compile_args, is_musl
@@ -18,9 +18,19 @@ if sys.platform == 'win32':
     if distutils.ccompiler.get_default_compiler() == 'msvc':
         lib_m = ['msvcrt']
     pass      # no obvious -Werror equivalent on MSVC
+    class FFI(FFI):
+        def verify(self, *args, **kwds):
+            modulename = kwds.get("modulename", "_cffi_test%d_%d" % (
+                random.randint(0,32000), random.randint(0,32000)))
+            kwds["modulename"] = modulename
+            return super(FFI, self).verify(*args, **kwds)
+
 else:
     class FFI(FFI):
         def verify(self, *args, **kwds):
+            modulename = kwds.get("modulename", "_cffi_test%d_%d" % (
+                random.randint(0,32000), random.randint(0,32000)))
+            kwds["modulename"] = modulename
             return super(FFI, self).verify(
                 *args, extra_compile_args=extra_compile_args, **kwds)
 
