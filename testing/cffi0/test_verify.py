@@ -2185,7 +2185,6 @@ def test_verify_dlopen_flags():
     assert lib1.foo_verify_dlopen_flags == 43
 
 def get_second_lib():
-    # Hack, using modulename makes the test fail
     ffi2 = FFI()
     ffi2.cdef("extern int foo_verify_dlopen_flags;")
     lib2 = ffi2.verify("int foo_verify_dlopen_flags;",
