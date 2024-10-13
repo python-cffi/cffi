@@ -36,7 +36,6 @@ else:
 
 def setup_module():
     import cffi.verifier
-    cffi.verifier.cleanup_tmpdir()
     #
     # check that no $ sign is produced in the C file; it used to be the
     # case that anonymous enums would produce '$enum_$1', which was
@@ -62,10 +61,12 @@ def test_module_type():
     ffi = FFI()
     lib = ffi.verify()
     if hasattr(lib, '_cffi_python_module'):
-        print('verify got a PYTHON module')
+        pass
+        # print('verify got a PYTHON module')
     if hasattr(lib, '_cffi_generic_module'):
-        print('verify got a GENERIC module')
-    expected_generic = (cffi.verifier._FORCE_GENERIC_ENGINE or
+        pass
+        # print('verify got a GENERIC module')
+    expected_generic = (cffi.verifier.local._FORCE_GENERIC_ENGINE or
                         '__pypy__' in sys.builtin_module_names)
     assert hasattr(lib, '_cffi_python_module') == (not expected_generic)
     assert hasattr(lib, '_cffi_generic_module') == expected_generic
@@ -136,19 +137,11 @@ def test_Wconversion_double2int():
     _Wconversion("int sin(double);",
                  "#include <math.h>", libraries=lib_m)
 
-def test_rounding_1():
+def test_rounding():
     ffi = FFI()
     ffi.cdef("double sinf(float x);")
     lib = ffi.verify('#include <math.h>', libraries=lib_m)
     res = lib.sinf(1.23)
-    assert res != math.sin(1.23)     # not exact, because of double->float
-    assert abs(res - math.sin(1.23)) < 1E-5
-
-def test_rounding_2():
-    ffi = FFI()
-    ffi.cdef("double sin(float x);")
-    lib = ffi.verify('#include <math.h>', libraries=lib_m)
-    res = lib.sin(1.23)
     assert res != math.sin(1.23)     # not exact, because of double->float
     assert abs(res - math.sin(1.23)) < 1E-5
 
@@ -2597,3 +2590,20 @@ def test_passing_large_list():
     arg = list(range(20000000))
     lib.passing_large_list(arg)
     # assert did not segfault
+
+def test_no_regen():
+    from cffi.verifier import Verifier, _caller_dir_pycache
+    import os
+    ffi = FFI()
+    modulename = "_cffi_test_no_regen"
+    ffi.cdef("double sin(double x);")
+    lib = ffi.verify('#include <math.h>', libraries=lib_m, modulename=modulename)
+    assert lib.sin(1.23) == math.sin(1.23)
+    # Make sure that recompiling the same code does not rebuild the C file
+    cfile = os.path.join(ffi.verifier.tmpdir, f"{modulename}.c")
+    assert os.path.exists(cfile)
+    os.unlink(cfile)
+    assert not os.path.exists(cfile)
+    lib = ffi.verify('#include <math.h>', libraries=lib_m, modulename=modulename)
+    assert lib.sin(1.23) == math.sin(1.23)
+    assert not os.path.exists(cfile)
