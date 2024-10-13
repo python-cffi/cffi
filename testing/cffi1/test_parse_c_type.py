@@ -2,6 +2,7 @@ import sys, re, os
 import pytest
 import cffi
 from cffi import cffi_opcode
+from filelock import FileLock
 from pathlib import Path
 
 if '__pypy__' in sys.builtin_module_names:
@@ -26,14 +27,21 @@ header = r_ifdefs.sub(r"", header)
 ffi = cffi.FFI()
 ffi.cdef(header)
 
-with open(os.path.join(cffi_dir, '..', 'c', 'parse_c_type.c')) as _body:
-    body = _body.read()
-lib = ffi.verify(
-    body + """
-static const char *get_common_type(const char *search, size_t search_len) {
-    return NULL;
-}
-""",    include_dirs=[cffi_dir])
+
+def build_lib():
+    sourcename = os.path.join(cffi_dir, '..', 'c', 'parse_c_type.c')
+    with FileLock(sourcename + ".lock"):
+        with open(sourcename) as _body:
+            body = _body.read()
+        lib = ffi.verify(
+            body + """
+        static const char *get_common_type(const char *search, size_t search_len) {
+            return NULL;
+        }
+        """,    include_dirs=[cffi_dir])
+    return lib
+
+lib = build_lib()
 
 class ParseError(Exception):
     pass

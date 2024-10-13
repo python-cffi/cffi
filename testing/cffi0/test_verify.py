@@ -2595,7 +2595,7 @@ def test_no_regen():
     from cffi.verifier import Verifier, _caller_dir_pycache
     import os
     ffi = FFI()
-    modulename = "_cffi_test_no_regen"
+    modulename = "_cffi_test_no_regen_%d" % random.randint(0, 1000000000)
     ffi.cdef("double sin(double x);")
     lib = ffi.verify('#include <math.h>', libraries=lib_m, modulename=modulename)
     assert lib.sin(1.23) == math.sin(1.23)

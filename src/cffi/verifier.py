@@ -203,12 +203,14 @@ class Verifier(object):
         tmpdir = os.path.dirname(self.sourcefilename)
         olddir = os.getcwd()
         os.chdir(tmpdir)
+        self.sourcefilename_orig = self.sourcefilename
         try:
             self.sourcefilename = os.path.relpath(self.sourcefilename)
             output_rel_filename = ffiplatform.compile(tmpdir, self.get_extension())
             outputfilename = os.path.join(tmpdir, output_rel_filename)
         finally:
             os.chdir(olddir)
+            self.sourcefilename = self.sourcefilename_orig
         try:
             same = ffiplatform.samefile(outputfilename, self.modulefilename)
         except OSError:

@@ -42,9 +42,10 @@ Requirements:
 * pycparser >= 2.06: https://github.com/eliben/pycparser (automatically
   tracked by ``pip install cffi``).
 
-* `pytest`_ is needed to run the tests of CFFI itself.
+* `pytest`_ and `filelock` are needed to run the tests of CFFI itself.
 
 .. _`pytest`: http://pypi.python.org/pypi/pytest
+.. _`filelock`: http://pypi.python.org/pypi/filelock
 
 Download and Installation:
 
@@ -54,8 +55,7 @@ Download and Installation:
   ``git clone https://github.com/python-cffi/cffi``
 
 * running the tests: ``pytest  c/  testing/`` (if you didn't
-  install cffi yet, you need first ``python setup_base.py build_ext -f
-  -i``)
+  install cffi yet, you need first ``python -m pip install -e .``)
 
 .. _`GitHub`: https://github.com/python-cffi/cffi
 
