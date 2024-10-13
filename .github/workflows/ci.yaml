@@ -511,7 +511,6 @@ jobs:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
         CIBW_TEST_REQUIRES: pytest setuptools pytest-xdist filelock
-        CIBW_TEST_COMMAND: 'python -m pytest {package}/src/c'
         CIBW_TEST_COMMAND: 'python -m pytest {package}/src/c {project}/testing -n 4'
       run: |
         set -eux
