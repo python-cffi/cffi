@@ -137,11 +137,19 @@ def test_Wconversion_double2int():
     _Wconversion("int sin(double);",
                  "#include <math.h>", libraries=lib_m)
 
-def test_rounding():
+def test_rounding_1():
     ffi = FFI()
     ffi.cdef("double sinf(float x);")
     lib = ffi.verify('#include <math.h>', libraries=lib_m)
     res = lib.sinf(1.23)
+    assert res != math.sin(1.23)     # not exact, because of double->float
+    assert abs(res - math.sin(1.23)) < 1E-5
+
+def test_rounding_2():
+    ffi = FFI()
+    ffi.cdef("double sin(float x);")
+    lib = ffi.verify('#include <math.h>', libraries=lib_m)
+    res = lib.sin(1.23)
     assert res != math.sin(1.23)     # not exact, because of double->float
     assert abs(res - math.sin(1.23)) < 1E-5
 
