@@ -47,7 +47,7 @@ jobs:
         rm -rf dist/
         python -m pip install build
         python -m build --sdist
-        
+
         echo "sdist_artifact_name=$(ls ./dist)" >> "$GITHUB_OUTPUT"
         echo "package_version=$(ls ./dist | sed -En 's/cffi-(.+)\.tar\.gz/\1/p')" >> "$GITHUB_OUTPUT"
 
@@ -76,21 +76,21 @@ jobs:
 
           - spec: cp39-manylinux_x86_64
             omit: ${{ env.skip_ci_redundant_jobs }}
-            
+
           - spec: cp310-manylinux_x86_64
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp311-manylinux_x86_64
             omit: ${{ env.skip_ci_redundant_jobs }}
-          
+
           - spec: cp312-manylinux_x86_64
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp313-manylinux_x86_64
-            
+
           - spec: cp313t-manylinux_x86_64
             skip_artifact_upload: 'true'
-  
+
           - spec: cp38-manylinux_i686
             omit: ${{ env.skip_ci_redundant_jobs }}
 
@@ -108,10 +108,10 @@ jobs:
 
           - spec: cp313-manylinux_i686
             omit: ${{ env.skip_ci_redundant_jobs }}
-          
+
           - spec: cp39-musllinux_x86_64
             omit: ${{ env.skip_ci_redundant_jobs }}
-          
+
           - spec: cp310-musllinux_x86_64
             omit: ${{ env.skip_ci_redundant_jobs }}
 
@@ -120,9 +120,9 @@ jobs:
 
           - spec: cp312-musllinux_x86_64
             omit: ${{ env.skip_ci_redundant_jobs }}
-  
+
           - spec: cp313-musllinux_x86_64
-  
+
           - spec: cp39-musllinux_i686
             omit: ${{ env.skip_ci_redundant_jobs }}
 
@@ -134,14 +134,14 @@ jobs:
 
           #- spec: cp312-musllinux_i686  # busted as of 2024-05-17
           #  omit: ${{ env.skip_ci_redundant_jobs }}
-  
+
           #- spec: cp313-musllinux_i686 # busted as of 2024-05-17
-  
+
           - spec: cp39-musllinux_aarch64
             foreign_arch: true
             test_args: '{package}/src/c'
             omit: ${{ env.skip_ci_redundant_jobs || env.skip_slow_jobs }}
-          
+
           - spec: cp310-musllinux_aarch64
             foreign_arch: true
             test_args: '{package}/src/c'
@@ -156,12 +156,12 @@ jobs:
             foreign_arch: true
             test_args: '{package}/src/c'
             omit: ${{ env.skip_ci_redundant_jobs || env.skip_slow_jobs }}
-  
+
           - spec: cp313-musllinux_aarch64
             foreign_arch: true
             # test_args: '{package}/src/c'
             omit: ${{ env.skip_slow_jobs}}
-  
+
           - spec: cp38-manylinux_aarch64
             foreign_arch: true
             test_args: '{package}/src/c'
@@ -186,12 +186,12 @@ jobs:
             foreign_arch: true
             test_args: '{package}/src/c'
             omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-  
+
           - spec: cp313-manylinux_aarch64
             foreign_arch: true
             # test_args: '{package}/src/c'
             omit: ${{ env.skip_slow_jobs }}
-  
+
           - spec: cp38-manylinux_ppc64le
             foreign_arch: true
             test_args: '{package}/src/c'
@@ -221,7 +221,7 @@ jobs:
             foreign_arch: true
             test_args: '{package}/src/c'
             omit: ${{ env.skip_slow_jobs }}
-  
+
           - spec: cp38-manylinux_s390x
             foreign_arch: true
             test_args: '{package}/src/c'
@@ -299,12 +299,12 @@ jobs:
         CIBW_PRERELEASE_PYTHONS: 'True'
         CIBW_FREE_THREADED_SUPPORT: 'True'
         CIBW_TEST_REQUIRES: pytest pytest-xdist setuptools  # 3.12+ no longer includes distutils, just always ensure setuptools is present
-        CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest ${{ matrix.test_args || '{project}' }}  # default to test all
+        CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest -n auto ${{ matrix.test_args || '{project}' }} # default to test all
       run: |
         set -eux
-        
+
         mkdir cffi
-        
+
         tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
         python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
 
@@ -418,18 +418,18 @@ jobs:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
         CIBW_TEST_REQUIRES: pytest pytest-xdist setuptools
-        CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
+        CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest -n auto
         MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '10.9' }}
         SDKROOT: ${{ matrix.sdkroot || 'macosx' }}
       run: |
         set -eux
-        
+
         mkdir cffi
-        
+
         tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
 
         python3 -m cibuildwheel --output-dir dist cffi
-        
+
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
     - name: upload artifacts
@@ -509,20 +509,20 @@ jobs:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_PRERELEASE_PYTHONS: 'True'
         CIBW_TEST_REQUIRES: pytest pytest-xdist setuptools
-        CIBW_TEST_COMMAND: 'python -m pytest {package}/src/c'
+        CIBW_TEST_COMMAND: 'python -m pytest -n auto {package}/src/c'
         # FIXME: /testing takes ~45min on Windows and has some failures...
-        # CIBW_TEST_COMMAND='python -m pytest {package}/src/c {project}/testing'
+        # CIBW_TEST_COMMAND='python -m pytest -n auto {package}/src/c {project}/testing'
       run: |
         set -eux
-        
+
         mkdir cffi
-        
+
         tar zxf cffi*.tar.gz --strip-components=1 -C cffi
-        
+
         python -m pip install --upgrade pip
         pip install "${{ matrix.cibw_version || 'cibuildwheel'}}"
         python -m cibuildwheel --output-dir dist cffi
-        
+
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
       shell: bash

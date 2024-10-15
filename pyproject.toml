@@ -58,8 +58,6 @@ addopts ="""
     --durations 10
     --color yes
     --showlocals
-    -n auto
-    --maxprocesses 7
 """
 testpaths = [
     "src/c",
