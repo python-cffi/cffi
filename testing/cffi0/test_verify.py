@@ -53,9 +53,11 @@ def test_module_type():
     ffi = FFI()
     lib = ffi.verify()
     if hasattr(lib, '_cffi_python_module'):
-        print('verify got a PYTHON module')
+        pass
+        # print('verify got a PYTHON module')
     if hasattr(lib, '_cffi_generic_module'):
-        print('verify got a GENERIC module')
+        pass
+        # print('verify got a GENERIC module')
     expected_generic = (cffi.verifier._FORCE_GENERIC_ENGINE or
                         '__pypy__' in sys.builtin_module_names)
     assert hasattr(lib, '_cffi_python_module') == (not expected_generic)
@@ -2586,3 +2588,20 @@ def test_passing_large_list():
     arg = list(range(20000000))
     lib.passing_large_list(arg)
     # assert did not segfault
+
+def test_no_regen():
+    from cffi.verifier import Verifier, _caller_dir_pycache
+    import os
+    ffi = FFI()
+    modulename = "_cffi_test_no_regen"
+    ffi.cdef("double sin(double x);")
+    lib = ffi.verify('#include <math.h>', libraries=lib_m, modulename=modulename)
+    assert lib.sin(1.23) == math.sin(1.23)
+    # Make sure that recompiling the same code does not rebuild the C file
+    cfile = os.path.join(ffi.verifier.tmpdir, f"{modulename}.c")
+    assert os.path.exists(cfile)
+    os.unlink(cfile)
+    assert not os.path.exists(cfile)
+    lib = ffi.verify('#include <math.h>', libraries=lib_m, modulename=modulename)
+    assert lib.sin(1.23) == math.sin(1.23)
+    assert not os.path.exists(cfile)
