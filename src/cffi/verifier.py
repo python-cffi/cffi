@@ -284,7 +284,9 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
         suffix = _get_so_suffixes()[0].lower()
     for fn in filelist:
         if fn.lower().startswith('_cffi_') and (
-                fn.lower().endswith(suffix) or fn.lower().endswith('.c')):
+                fn.lower().endswith(suffix) or 
+                fn.lower().endswith('.c') or 
+                fn.lower().endswith('.o')):
             try:
                 os.unlink(os.path.join(tmpdir, fn))
             except OSError:

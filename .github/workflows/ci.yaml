@@ -353,9 +353,7 @@ jobs:
       env:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_TEST_REQUIRES: pytest setuptools
-        CIBW_TEST_COMMAND: ${{ matrix.test_cmd || 'python -m pytest {package}/src/c' }}
-        # FIXME: /testing takes ~45min on Windows and has some failures...
-        # CIBW_TEST_COMMAND='python -m pytest {package}/src/c {package}/testing'
+        CIBW_TEST_COMMAND: ${{ matrix.test_cmd || 'python -m pytest {package}' }}
       run: |
         set -eux
 
