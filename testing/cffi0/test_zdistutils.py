@@ -92,7 +92,7 @@ class DistUtilsTest:
         csrc = f'/*hi there {self}!2*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic,
                      libraries=[self.lib_m])
-        basename = self.__class__.__name__[:10] + '_test_compile_module'
+        basename = self.__class__.__name__[:20] + '_test_compile_module'
         module_file = udir / (basename + '.so')
         v.modulefilename = str(module_file)
         v.compile_module()
