@@ -191,13 +191,19 @@ static PyObject *b_getwinerror(PyObject *self, PyObject *args, PyObject *kwds)
 #define RTLD_GLOBAL 0
 #define RTLD_LOCAL  0
 
+#define MAX_BUF_FULLPATH  32768
+
 static void *dlopen(const char *filename, int flags)
 {
+    char buffer[MAX_BUF_FULLPATH];
     if (flags == 0) {
+        flags = LOAD_LIBRARY_SEARCH_DEFAULT_DIRS;
         for (const char *p = filename; *p != 0; p++)
             if (*p == '\\' || *p == '/') {
-                flags = LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
-                        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR;
+                DWORD r = GetFullPathNameA(filename, MAX_BUF_FULLPATH, buffer, NULL);
+                if (r > 0 && r < MAX_BUF_FULLPATH)
+                    filename = buffer;
+                flags |= LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR;
                 break;
             }
     }
@@ -206,11 +212,15 @@ static void *dlopen(const char *filename, int flags)
 
 static void *dlopenWinW(const wchar_t *filename, int flags)
 {
+    wchar_t buffer[MAX_BUF_FULLPATH];
     if (flags == 0) {
+        flags = LOAD_LIBRARY_SEARCH_DEFAULT_DIRS;
         for (const wchar_t *p = filename; *p != 0; p++)
             if (*p == '\\' || *p == '/') {
-                flags = LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
-                        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR;
+                DWORD r = GetFullPathNameW(filename, MAX_BUF_FULLPATH, buffer, NULL);
+                if (r > 0 && r < MAX_BUF_FULLPATH)
+                    filename = buffer;
+                flags |= LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR;
                 break;
             }
     }
