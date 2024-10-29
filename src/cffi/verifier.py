@@ -288,10 +288,7 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
             try:
                 os.unlink(os.path.join(tmpdir, fn))
             except OSError as e:
-                print("could not remove", fn, e)
                 pass
-            else:
-                print("removed", fn)
     clean_dir = [os.path.join(tmpdir, 'build')]
     for dir in clean_dir:
         try:
@@ -301,9 +298,10 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
                     clean_dir.append(fn)
                 else:
                     os.unlink(fn)
-                    print("removed", fn)
         except OSError:
             pass
+    print("after cleanup_tmp in",tmpdir)
+    print("files left:\n", "\n".join(os.listdir(tmpdir)))
 
 def _get_so_suffixes():
     suffixes = _extension_suffixes()
