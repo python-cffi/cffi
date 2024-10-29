@@ -287,8 +287,11 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
                 fn.lower().endswith(suffix) or fn.lower().endswith('.c')):
             try:
                 os.unlink(os.path.join(tmpdir, fn))
-            except OSError:
+            except OSError as e:
+                print("could not remove", fn, e)
                 pass
+            else:
+                print("removed", fn)
     clean_dir = [os.path.join(tmpdir, 'build')]
     for dir in clean_dir:
         try:
@@ -298,6 +301,7 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
                     clean_dir.append(fn)
                 else:
                     os.unlink(fn)
+                    print("removed", fn)
         except OSError:
             pass
 
