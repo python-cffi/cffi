@@ -380,11 +380,10 @@ jobs:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools meson-python ninja
-        CIBW_TEST_COMMAND: ${{ matrix.test_cmd || 'python -m pytest {package}/src/c' }}
+        CIBW_TEST_COMMAND: ${{ matrix.test_cmd || 'python -m pytest {package}' }}
         CIBW_ENVIRONMENT: >-
           _CL_="$_CL_ ${{ env.skip_artifact_upload == 'true' && '/UNDEBUG' || '/DNDEBUG' }}"
           CFFI_TEST_ASSERTIONS=${{ env.skip_artifact_upload == 'true' && '1' || '0' }}
-        # FIXME: /testing takes ~45min on Windows and has some failures...
         # CIBW_TEST_COMMAND='python -m pytest {package}/src/c {package}/testing'
       run: |
         set -eux
