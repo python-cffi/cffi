@@ -2249,10 +2249,10 @@ def test_implicit_unicode_on_windows():
 
 def test_use_local_dir():
     ffi = FFI()
-    lib = ffi.verify("", modulename="test_use_local_dir")
+    lib = ffi.verify("", modulename="_cffi_test_use_local_dir")
     this_dir = os.path.dirname(__file__)
     pycache_files = os.listdir(os.path.join(this_dir, '__pycache__'))
-    assert any('test_use_local_dir' in s for s in pycache_files)
+    assert any('_cffi_test_use_local_dir' in s for s in pycache_files)
 
 def test_define_known_value():
     ffi = FFI()
@@ -2594,14 +2594,14 @@ def test_no_regen():
     import os
     ffi = FFI()
     modulename = "_cffi_test_no_regen"
-    ffi.cdef("double sin(double x);")
+    ffi.cdef("double cos(double x);")
     lib = ffi.verify('#include <math.h>', libraries=lib_m, modulename=modulename)
-    assert lib.sin(1.23) == math.sin(1.23)
+    assert lib.cos(1.23) == math.cos(1.23)
     # Make sure that recompiling the same code does not rebuild the C file
     cfile = os.path.join(ffi.verifier.tmpdir, f"{modulename}.c")
     assert os.path.exists(cfile)
     os.unlink(cfile)
     assert not os.path.exists(cfile)
     lib = ffi.verify('#include <math.h>', libraries=lib_m, modulename=modulename)
-    assert lib.sin(1.23) == math.sin(1.23)
+    assert lib.cos(1.23) == math.cos(1.23)
     assert not os.path.exists(cfile)
