@@ -2590,9 +2590,10 @@ def test_passing_large_list():
 
 def test_no_regen():
     from cffi.verifier import Verifier, _caller_dir_pycache
+    TF = str(cffi.verifier._FORCE_GENERIC_ENGINE)
     import os
     ffi = FFI()
-    modulename = "_cffi_test_no_regen"
+    modulename = "_cffi_test_no_regen" + TF
     ffi.cdef("double cos(double x);")
     lib = ffi.verify('#include <math.h>', libraries=lib_m, modulename=modulename)
     assert lib.cos(1.23) == math.cos(1.23)
