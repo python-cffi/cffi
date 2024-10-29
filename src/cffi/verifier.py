@@ -284,12 +284,12 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
         suffix = _get_so_suffixes()[0].lower()
     for fn in filelist:
         if fn.lower().startswith('_cffi_') and (
-                fn.lower().endswith(suffix) or 
-                fn.lower().endswith('.c') or 
+                fn.lower().endswith(suffix) or
+                fn.lower().endswith('.c') or
                 fn.lower().endswith('.o')):
             try:
                 os.unlink(os.path.join(tmpdir, fn))
-            except OSError as e:
+            except OSError:
                 pass
     clean_dir = [os.path.join(tmpdir, 'build')]
     for dir in clean_dir:
@@ -302,8 +302,6 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
                     os.unlink(fn)
         except OSError:
             pass
-    print("after cleanup_tmp in",tmpdir)
-    print("files left:\n", "\n".join(os.listdir(tmpdir)))
 
 def _get_so_suffixes():
     suffixes = _extension_suffixes()
