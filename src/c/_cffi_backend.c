@@ -204,6 +204,27 @@
 # define USE_WRITEUNRAISABLEMSG
 #endif
 
+#if PY_VERSION_HEX <= 0x030d00a1
+static int PyDict_GetItemRef(PyObject *mp, PyObject *key, PyObject **result)
+{
+    PyObject *obj = PyDict_GetItemWithError(mp, key);
+    Py_XINCREF(obj);
+    *result = obj;
+    if (obj == NULL) {
+        if (PyErr_Occurred()) {
+            return -1;
+        }
+        return 0;
+    }
+    return 1;
+}
+#endif
+
+#if PY_VERSION_HEX <= 0x030d00b3
+# define Py_BEGIN_CRITICAL_SECTION(op) {
+# define Py_END_CRITICAL_SECTION() }
+#endif
+
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
