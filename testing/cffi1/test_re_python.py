@@ -269,7 +269,7 @@ def test_selfref():
 def test_dlopen_handle():
     import _cffi_backend
     from re_python_pysrc import ffi
-    if sys.platform == 'win32' or is_musl:
+    if sys.platform == 'win32' or is_musl or sys.platform.startswith('freebsd'):
         pytest.skip("uses 'dl' explicitly")
     ffi1 = FFI()
     ffi1.cdef("""void *dlopen(const char *filename, int flags);
