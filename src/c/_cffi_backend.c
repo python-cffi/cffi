@@ -5238,6 +5238,13 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                               &fbitsize, &foffset))
             goto error;
 
+        if ((ftype->ct_flags & (CT_STRUCT | CT_UNION)) &&
+            !(ftype->ct_flags & CT_IS_OPAQUE)) {
+            /* force now the type of the nested field */
+            if (force_lazy_struct(ftype) < 0)
+                return NULL;
+        }
+
         if (ftype->ct_size < 0) {
             if ((ftype->ct_flags & CT_ARRAY) && fbitsize < 0
                     && (i == nb_fields - 1 || foffset != -1)) {
@@ -5252,9 +5259,6 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             }
         }
         else if (ftype->ct_flags & (CT_STRUCT|CT_UNION)) {
-            if (force_lazy_struct(ftype) < 0)   /* for CT_WITH_VAR_ARRAY */
-                return NULL;
-
             /* GCC (or maybe C99) accepts var-sized struct fields that are not
                the last field of a larger struct.  That's why there is no
                check here for "last field": we propagate the flag

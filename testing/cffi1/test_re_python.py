@@ -286,3 +286,33 @@ def test_dlopen_handle():
 
     err = lib1.dlclose(handle)
     assert err == 0
+
+def test_rec_structs_1():
+    ffi = FFI()
+    ffi.cdef("struct B { struct C* c; }; struct C { struct B b; };")
+    ffi.set_source('test_rec_structs_1', None)
+    ffi.emit_python_code(str(tmpdir.join('_rec_structs_1.py')))
+    #
+    if sys.version_info[:2] >= (3, 3):
+        import importlib
+        importlib.invalidate_caches()  # issue 197, maybe
+    #
+    from _rec_structs_1 import ffi
+    # the following line used to raise TypeError
+    # unless preceeded by 'ffi.sizeof("struct C")'.
+    sz = ffi.sizeof("struct B")
+    assert sz == ffi.sizeof("int *")
+
+def test_rec_structs_2():
+    ffi = FFI()
+    ffi.cdef("struct B { struct C* c; }; struct C { struct B b; };")
+    ffi.set_source('test_rec_structs_2', None)
+    ffi.emit_python_code(str(tmpdir.join('_rec_structs_2.py')))
+    #
+    if sys.version_info[:2] >= (3, 3):
+        import importlib
+        importlib.invalidate_caches()  # issue 197, maybe
+    #
+    from _rec_structs_2 import ffi
+    sz = ffi.sizeof("struct C")
+    assert sz == ffi.sizeof("int *")
