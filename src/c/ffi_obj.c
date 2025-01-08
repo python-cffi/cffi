@@ -1001,16 +1001,21 @@ static PyObject *ffi_init_once(FFIObject *self, PyObject *args, PyObject *kwds)
        in this function */
 
     /* atomically get or create a new dict (no GIL release) */
+    Py_BEGIN_CRITICAL_SECTION(self);
     cache = self->init_once_cache;
     if (cache == NULL) {
-        cache = PyDict_New();
-        if (cache == NULL)
-            return NULL;
-        self->init_once_cache = cache;
+        self->init_once_cache = cache = PyDict_New();
+    }
+    Py_END_CRITICAL_SECTION();
+
+    if (cache == NULL) {
+        return NULL;
     }
 
     /* get the tuple from cache[tag], or make a new one: (False, lock) */
-    tup = PyDict_GetItem(cache, tag);
+    if (PyDict_GetItemRef(cache, tag, &tup) < 0) {
+        return NULL;
+    }
     if (tup == NULL) {
         lock = PyThread_allocate_lock();
         if (lock == NULL)
@@ -1033,8 +1038,6 @@ static PyObject *ffi_init_once(FFIObject *self, PyObject *args, PyObject *kwds)
         Py_DECREF(x);
         if (tup == NULL)
             return NULL;
-
-        Py_DECREF(tup);   /* there is still a ref inside the dict */
     }
 
     res = PyTuple_GET_ITEM(tup, 1);
@@ -1042,8 +1045,10 @@ static PyObject *ffi_init_once(FFIObject *self, PyObject *args, PyObject *kwds)
 
     if (PyTuple_GET_ITEM(tup, 0) == Py_True) {
         /* tup == (True, result): return the result. */
+        Py_DECREF(tup);
         return res;
     }
+    Py_DECREF(tup);
 
     /* tup == (False, lock) */
     lockobj = res;
@@ -1058,7 +1063,7 @@ static PyObject *ffi_init_once(FFIObject *self, PyObject *args, PyObject *kwds)
     PyThread_acquire_lock(lock, WAIT_LOCK);
     Py_END_ALLOW_THREADS
 
-    x = PyDict_GetItem(cache, tag);
+    x = PyDict_GetItem(cache, tag);  /* protected by lock */
     if (x != NULL && PyTuple_GET_ITEM(x, 0) == Py_True) {
         /* the real result was put in the dict while we were waiting
            for PyThread_acquire_lock() above */
