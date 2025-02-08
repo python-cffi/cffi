@@ -1,0 +1,12 @@
+name: lint
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: codespell-project/actions-codespell@v2
+    - uses: astral-sh/ruff-action@v3

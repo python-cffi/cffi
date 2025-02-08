@@ -299,7 +299,7 @@ def test_rec_structs_1():
     #
     from _rec_structs_1 import ffi
     # the following line used to raise TypeError
-    # unless preceeded by 'ffi.sizeof("struct C")'.
+    # unless preceded by 'ffi.sizeof("struct C")'.
     sz = ffi.sizeof("struct B")
     assert sz == ffi.sizeof("int *")
 

@@ -48,3 +48,19 @@ Downloads = "https://github.com/python-cffi/cffi/releases"
 Contact = "https://groups.google.com/forum/#!forum/python-cffi"
 "Source Code" = "https://github.com/python-cffi/cffi"
 "Issue Tracker" = "https://github.com/python-cffi/cffi/issues"
+
+[tool.codespell]
+ignore-words-list = "alltime,blong,ccompiler,fo,hel"
+skip = "*.bak"
+
+[tool.ruff.lint]
+select = [
+  "E9",
+  "F63",
+  "F7",
+  "F82",
+]
+[tool.ruff.lint.per-file-ignores]
+"src/cffi/verifier.py" = ["F821"]
+"testing/*" = ["F821"]
+
