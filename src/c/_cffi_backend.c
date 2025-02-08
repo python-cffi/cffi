@@ -2,7 +2,7 @@
 #include <Python.h>
 #include "structmember.h"
 
-#define CFFI_VERSION  "1.17.0.dev0"
+#define CFFI_VERSION  "1.18.0.dev0"
 
 #ifdef MS_WIN32
 #include <windows.h>
@@ -217,7 +217,7 @@
 #define CT_UNION              0x080   /* union */
 #define CT_FUNCTIONPTR        0x100   /* pointer to function */
 #define CT_VOID               0x200   /* void */
-#define CT_PRIMITIVE_COMPLEX  0x400   /* float _Complex, double _Complex */
+#define CT_PRIMITIVE_COMPLEX  0x400   /* _cffi_float/double_complex_t */
 
 /* other flags that may also be set in addition to the base flag: */
 #define CT_IS_VOIDCHAR_PTR     0x00001000
@@ -4728,8 +4728,8 @@ static PyObject *new_primitive_type(const char *name)
        EPTYPE(f, float, CT_PRIMITIVE_FLOAT )                    \
        EPTYPE(d, double, CT_PRIMITIVE_FLOAT )                   \
        EPTYPE(ld, long double, CT_PRIMITIVE_FLOAT | CT_IS_LONGDOUBLE ) \
-       EPTYPE2(fc, "float _Complex", cffi_float_complex_t, CT_PRIMITIVE_COMPLEX ) \
-       EPTYPE2(dc, "double _Complex", cffi_double_complex_t, CT_PRIMITIVE_COMPLEX ) \
+       EPTYPE2(fc, "_cffi_float_complex_t", cffi_float_complex_t, CT_PRIMITIVE_COMPLEX)\
+       EPTYPE2(dc, "_cffi_double_complex_t", cffi_double_complex_t, CT_PRIMITIVE_COMPLEX)\
        ENUM_PRIMITIVE_TYPES_WCHAR                               \
        EPTYPE2(c16, "char16_t", cffi_char16_t, CT_PRIMITIVE_CHAR ) \
        EPTYPE2(c32, "char32_t", cffi_char32_t, CT_PRIMITIVE_CHAR ) \
@@ -5238,6 +5238,13 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                               &fbitsize, &foffset))
             goto error;
 
+        if ((ftype->ct_flags & (CT_STRUCT | CT_UNION)) &&
+            !(ftype->ct_flags & CT_IS_OPAQUE)) {
+            /* force now the type of the nested field */
+            if (force_lazy_struct(ftype) < 0)
+                return NULL;
+        }
+
         if (ftype->ct_size < 0) {
             if ((ftype->ct_flags & CT_ARRAY) && fbitsize < 0
                     && (i == nb_fields - 1 || foffset != -1)) {
@@ -5252,9 +5259,6 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             }
         }
         else if (ftype->ct_flags & (CT_STRUCT|CT_UNION)) {
-            if (force_lazy_struct(ftype) < 0)   /* for CT_WITH_VAR_ARRAY */
-                return NULL;
-
             /* GCC (or maybe C99) accepts var-sized struct fields that are not
                the last field of a larger struct.  That's why there is no
                check here for "last field": we propagate the flag
@@ -7656,14 +7660,13 @@ static int _testfunc23(char *p)
 }
 
 #if 0   /* libffi doesn't properly support complexes currently */
-        /* also, MSVC might not support _Complex... */
         /* if this is enabled one day, remember to also add _Complex
          * arguments in addition to return values. */
-static float _Complex _testfunc24(float a, float b)
+static _cffi_float_complex_t _testfunc24(float a, float b)
 {
     return a + I*2.0*b;
 }
-static double _Complex _testfunc25(double a, double b)
+static _cffi_double_complex_t _testfunc25(double a, double b)
 {
     return a + I*2.0*b;
 }

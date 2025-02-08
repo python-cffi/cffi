@@ -29,6 +29,9 @@ env:
 jobs:
   python_sdist:
     runs-on: ubuntu-22.04
+    outputs:
+      sdist_artifact_name: ${{ steps.build_sdist.outputs.sdist_artifact_name }}
+      package_version: ${{ steps.build_sdist.outputs.package_version }}
     steps:
     - name: clone repo
       uses: actions/checkout@v4
@@ -45,13 +48,14 @@ jobs:
         python -m pip install build
         python -m build --sdist
         
-        echo "artifact_name=$(ls ./dist)" >> "$GITHUB_OUTPUT"
+        echo "sdist_artifact_name=$(ls ./dist)" >> "$GITHUB_OUTPUT"
+        echo "package_version=$(ls ./dist | sed -En 's/cffi-(.+)\.tar\.gz/\1/p')" >> "$GITHUB_OUTPUT"
 
     - name: upload sdist artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.build_sdist.outputs.artifact_name }}
-        path: dist/${{ steps.build_sdist.outputs.artifact_name }}
+        name: ${{ steps.build_sdist.outputs.sdist_artifact_name }}
+        path: dist/${{ steps.build_sdist.outputs.sdist_artifact_name }}
         if-no-files-found: error
       # always upload the sdist artifact- all the wheel build jobs require it
 
@@ -83,6 +87,9 @@ jobs:
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp313-manylinux_x86_64
+            
+          - spec: cp313t-manylinux_x86_64
+            skip_artifact_upload: 'true'
   
           - spec: cp38-manylinux_i686
             omit: ${{ env.skip_ci_redundant_jobs }}
@@ -258,7 +265,7 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: configure docker foreign arch support
       uses: docker/setup-qemu-action@v3
@@ -272,13 +279,14 @@ jobs:
         CIBW_BUILD: ${{ matrix.spec }}
         CIBW_BEFORE_BUILD: |
           set -eux && \
-          curl -L -O https://github.com/libffi/libffi/archive/v3.4.2.tar.gz && \
-          tar zxf v3.4.2.tar.gz && cd libffi-3.4.2 && \
+          curl -L -O https://github.com/libffi/libffi/archive/v3.4.6.tar.gz && \
+          tar zxf v3.4.6.tar.gz && cd libffi-3.4.6 && \
           ((command -v apk && apk add libtool) || true) && \
           ./autogen.sh && \
           ./configure --without-gcc-arch --disable-docs --with-pic --enable-shared=no && \
-          make && \
-          make install
+          make install && \
+          cd .. && \
+          rm -rf libffi-3.4.6
         CIBW_ENVIRONMENT_PASS_LINUX: CFLAGS  # ensure that the build container can see our overridden build config
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_img || '' }}
         CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_img || '' }}
@@ -289,6 +297,7 @@ jobs:
         CIBW_MUSLLINUX_I686_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_1' }}
         CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_1' }}
         CIBW_PRERELEASE_PYTHONS: 'True'
+        CIBW_FREE_THREADED_SUPPORT: 'True'
         CIBW_TEST_REQUIRES: pytest setuptools  # 3.12+ no longer includes distutils, just always ensure setuptools is present
         CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest ${{ matrix.test_args || '{project}' }}  # default to test all
       run: |
@@ -296,7 +305,7 @@ jobs:
         
         mkdir cffi
         
-        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz/cffi*.tar.gz --strip-components=1 -C cffi
+        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
         python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
 
         # actually build libffi + wheel (using env tweaks above)
@@ -310,7 +319,7 @@ jobs:
         name: ${{ steps.build.outputs.artifact_name }}
         path: dist/*.whl
         if-no-files-found: error
-      if: ${{ env.skip_artifact_upload != 'true' }}
+      if: ${{ (matrix.skip_artifact_upload != 'true') && (env.skip_artifact_upload != 'true') }}
 
   make_macos_matrix:
     runs-on: ubuntu-22.04
@@ -389,7 +398,7 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: install python
       uses: actions/setup-python@v5
@@ -417,7 +426,7 @@ jobs:
         
         mkdir cffi
         
-        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz/cffi*.tar.gz --strip-components=1 -C cffi
+        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
 
         python3 -m cibuildwheel --output-dir dist cffi
         
@@ -492,7 +501,7 @@ jobs:
       id: fetch_sdist
       uses: actions/download-artifact@v4
       with:
-        name: ${{ needs.build_sdist.outputs.artifact_name }}
+        name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: build/test wheels
       id: build
@@ -508,7 +517,7 @@ jobs:
         
         mkdir cffi
         
-        tar zxf cffi*.tar.gz/cffi*.tar.gz --strip-components=1 -C cffi
+        tar zxf cffi*.tar.gz --strip-components=1 -C cffi
         
         python -m pip install --upgrade pip
         pip install "${{ matrix.cibw_version || 'cibuildwheel'}}"
@@ -533,7 +542,7 @@ jobs:
     - name: merge all artifacts
       uses: actions/upload-artifact/merge@v4
       with:
-        name: dist
+        name: dist-cffi-${{ needs.python_sdist.outputs.package_version }}
         delete-merged: true
       if: ${{ env.skip_artifact_upload != 'true' }}
 

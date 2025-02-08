@@ -2,8 +2,24 @@
 What's New
 ======================
 
-v1.17
-=====
+v1.18.0.dev0
+============
+
+* WIP
+
+v1.17.1
+=======
+
+* Fix failing ``distutils.msvc9compiler`` imports under Windows (`#118`_).
+* ``ffibuilder.emit_python_code()`` and ``ffibuiler.emit_c_code()`` accept file-like objects (`#115`_).
+* ``ffiplatform`` calls are bypassed by ``ffibuilder.emit_python_code()`` and ``ffibuilder.emit_c_code()`` (`#81`_).
+
+.. _`#118`: https://github.com/python-cffi/cffi/pull/118
+.. _`#115`: https://github.com/python-cffi/cffi/pull/115
+.. _`#81`: https://github.com/python-cffi/cffi/pull/81
+
+v1.17.0
+=======
 
 * In API mode, when you get a function from a C library by writing
   `fn = lib.myfunc`, you get an object of a special type for performance
@@ -18,8 +34,8 @@ v1.17
   structure field of the correct pointer-to-function type, or use
   `ffi.cast()` or `ffi.typeof()` on it.
 
-v1.16.0rc1
-==========
+v1.16.0
+=======
 
 * Add support for Python 3.12. With the removal of ``distutils`` from Python 3.12, projects
   using CFFI features that depend on ``distutils`` at runtime must add a dependency on
@@ -29,6 +45,9 @@ v1.16.0rc1
 * Add support for PEP517 builds; ``setuptools`` is now a required build dependency.
 * Declare ``python_requires`` metadata for Python 3.8+. This allows unsupported Pythons
   to continue using previously released sdists and wheels.
+* Upstream project hosting moved from Heptapod to `GitHub`_.
+
+.. _`GitHub`: https://github.com/python-cffi/cffi
 
 v1.15.1
 =======
