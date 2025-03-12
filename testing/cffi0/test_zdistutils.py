@@ -6,6 +6,10 @@ from cffi.ffiplatform import maybe_relative_path
 from testing.udir import udir
 from testing.support import load_dynamic
 
+pytestmark = [
+    pytest.mark.thread_unsafe,
+]
+
 
 class DistUtilsTest(object):
     def setup_class(self):

@@ -22,7 +22,7 @@ on:
         default: true
 
 env:
-  skip_ci_redundant_jobs: ${{ (github.event_name == 'workflow_dispatch' && inputs.skip_ci_redundant_jobs) || (github.event_name == 'pull_request' || github.event_name == 'push') }}
+  skip_ci_redundant_jobs: ${{ (github.event_name == 'workflow_dispatch' && inputs.skip_ci_redundant_jobs) || (github.event_name == 'push') }}
   skip_slow_jobs: ${{ (github.event_name == 'workflow_dispatch' && inputs.skip_slow_jobs) || (github.event_name == 'pull_request' || github.event_name == 'push') }}
   skip_artifact_upload: ${{ (github.event_name == 'workflow_dispatch' && inputs.skip_artifact_upload) || github.event_name != 'workflow_dispatch' }}
 
@@ -89,7 +89,6 @@ jobs:
           - spec: cp313-manylinux_x86_64
             
           - spec: cp313t-manylinux_x86_64
-            skip_artifact_upload: 'true'
   
           - spec: cp38-manylinux_i686
             omit: ${{ env.skip_ci_redundant_jobs }}

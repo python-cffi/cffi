@@ -47,3 +47,20 @@ static struct cffi_tls_s *get_cffi_tls(void)
 
 #define save_errno      save_errno_only
 #define restore_errno   restore_errno_only
+
+#ifdef Py_GIL_DISABLED
+# ifndef __ATOMIC_SEQ_CST
+#  error "The free threading build needs atomic support"
+# endif
+
+/* Minimal atomic support */
+static void *cffi_atomic_load(void **ptr)
+{
+    return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+}
+
+static void cffi_atomic_store(void **ptr, void *value)
+{
+    __atomic_store_n(ptr, value, __ATOMIC_SEQ_CST);
+}
+#endif

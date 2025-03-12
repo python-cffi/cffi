@@ -10,6 +10,7 @@ from __future__ import unicode_literals
 import sys, math
 from cffi import FFI
 from testing.support import is_musl
+import pytest
 
 
 lib_m = "m"
@@ -70,6 +71,7 @@ def test_dlopen():
     x = m.sin(1.23)
     assert x == math.sin(1.23)
 
+@pytest.mark.thread_unsafe
 def test_verify():
     ffi = FFI()
     ffi.cdef("double test_verify_1(double x);")   # unicode literal

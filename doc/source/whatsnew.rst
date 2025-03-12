@@ -5,6 +5,7 @@ What's New
 v1.18.0.dev0
 ============
 
+* Add support for free threaded Python. (`XXX`)
 * WIP
 
 v1.17.1

@@ -160,6 +160,7 @@ def test_enum():
     e = ffi.cast("enum foo_e", 2)
     assert ffi.string(e) == "CC"
 
+@pytest.mark.thread_unsafe
 def test_include_1():
     sub_ffi = FFI()
     sub_ffi.cdef("static const int k2 = 121212;")
@@ -287,6 +288,7 @@ def test_dlopen_handle():
     err = lib1.dlclose(handle)
     assert err == 0
 
+@pytest.mark.thread_unsafe
 def test_rec_structs_1():
     ffi = FFI()
     ffi.cdef("struct B { struct C* c; }; struct C { struct B b; };")
@@ -303,6 +305,7 @@ def test_rec_structs_1():
     sz = ffi.sizeof("struct B")
     assert sz == ffi.sizeof("int *")
 
+@pytest.mark.thread_unsafe
 def test_rec_structs_2():
     ffi = FFI()
     ffi.cdef("struct B { struct C* c; }; struct C { struct B b; };")

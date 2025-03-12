@@ -1090,6 +1090,7 @@ def test_call_function_5():
     f = cast(BFunc5, _testfunc(5))
     f()   # did not crash
 
+@pytest.mark.thread_unsafe
 def test_call_function_6():
     BInt = new_primitive_type("int")
     BIntPtr = new_pointer_type(BInt)
@@ -1342,6 +1343,7 @@ def test_read_variable_as_unknown_length_array():
     assert repr(stderr).startswith("<cdata 'char *' 0x")
     # ^^ and not 'char[]', which is basically not allowed and would crash
 
+@pytest.mark.thread_unsafe
 def test_write_variable():
     ## FIXME: this test assumes glibc specific behavior, it's not compliant with C standard
     ## https://bugs.pypy.org/issue1643
@@ -1376,6 +1378,7 @@ def test_callback():
     assert str(e.value) == "'int(*)(int)' expects 1 arguments, got 0"
 
 
+@pytest.mark.thread_unsafe
 def test_callback_exception():
     def check_value(x):
         if x == 10000:
@@ -3403,7 +3406,14 @@ def test_bitfield_as_ppc_gcc():
 
 
 def buffer_warning(cdata):
+    import threading
     import warnings
+
+    # warnings.catch_warnings() is not currently thread-safe, so skip the
+    # remainder of this test if running with `pytest-run-parallel`.
+    if threading.current_thread() != threading.main_thread():
+        pytest.skip("cannot run in a secondary thread")
+
     buf = buffer(cdata)
     bytes = len(buf)
     with warnings.catch_warnings(record=True) as w:
@@ -4226,6 +4236,7 @@ def test_cdata_dir():
     check_dir(pp[0], ['a1', 'a2'])
     check_dir(pp[0][0], ['a1', 'a2'])
 
+@pytest.mark.thread_unsafe
 def test_char_pointer_conversion():
     import warnings
     assert __version__.startswith("1."), (

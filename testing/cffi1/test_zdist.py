@@ -6,6 +6,10 @@ from testing.udir import udir
 from shutil import rmtree
 from tempfile import mkdtemp
 
+pytestmark = [
+    pytest.mark.thread_unsafe,
+]
+
 
 def chdir_to_tmp(f):
     f.chdir_to_tmp = True

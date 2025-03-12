@@ -7,6 +7,10 @@ from testing.udir import udir
 from testing.support import u, long
 from testing.support import FdWriteCapture, StdErrCapture, _verify
 
+pytestmark = [
+    pytest.mark.thread_unsafe,
+]
+
 try:
     import importlib
 except ImportError:

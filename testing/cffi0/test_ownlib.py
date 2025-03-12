@@ -329,6 +329,7 @@ class TestOwnLib(object):
             assert ret.top == ownlib.top
             assert ret.bottom == ownlib.bottom
 
+    @pytest.mark.thread_unsafe
     def test_addressof_lib(self):
         if self.module is None:
             pytest.skip("fix the auto-generation of the tiny test lib")

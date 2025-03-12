@@ -256,3 +256,32 @@ static const char *dlerror(void)
     sprintf(buf, "error 0x%x", (unsigned int)dw);
     return buf;
 }
+
+/* Minimal atomic support */
+static int cffi_atomic_compare_exchange(void **ptr, void **expected,
+                                        void *value)
+{
+    void *initial = _InterlockedCompareExchangePointer(ptr, value, expected);
+    if (initial == *expected) {
+        return 1;
+    }
+    *expected = initial;
+    return 0;
+}
+
+static void *cffi_atomic_load(void **ptr)
+{
+#if defined(_M_X64) || defined(_M_IX86)
+    return *(volatile void **)ptr;
+#elif defined(_M_ARM64)
+    return (void *)__ldar64((volatile unsigned __int64 *)ptr);
+#else
+# error "no implementation of cffi_atomic_load"
+#endif
+}
+
+
+static void cffi_atomic_store(void **ptr, void *value)
+{
+    _InterlockedExchangePointer(ptr, value);
+}

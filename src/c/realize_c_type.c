@@ -10,7 +10,7 @@ typedef struct {
 
 
 static PyObject *all_primitives[_CFFI__NUM_PRIM];
-static CTypeDescrObject *g_ct_voidp, *g_ct_chararray;
+static CTypeDescrObject *g_ct_voidp, *g_ct_chararray, *g_ct_int, *g_file_struct;
 
 static PyObject *build_primitive_type(int num);   /* forward */
 
@@ -22,6 +22,7 @@ static PyObject *build_primitive_type(int num);   /* forward */
 static int init_global_types_dict(PyObject *ffi_type_dict)
 {
     int err;
+    Py_ssize_t i;
     PyObject *ct_void, *ct_char, *ct2, *pnull;
     /* XXX some leaks in case these functions fail, but well,
        MemoryErrors during importing an extension module are kind
@@ -49,12 +50,40 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
         return -1;
     g_ct_chararray = (CTypeDescrObject *)ct2;
 
+    g_ct_int = get_primitive_type(_CFFI_PRIM_INT);         // 'int'
+    if (g_ct_int == NULL)
+        return -1;
+
+    ct2 = new_struct_or_union_type("FILE",
+                                   CT_STRUCT | CT_IS_FILE); // 'FILE'
+    if (ct2 == NULL)
+        return -1;
+    g_file_struct = (CTypeDescrObject *)ct2;
+
     pnull = new_simple_cdata(NULL, g_ct_voidp);
     if (pnull == NULL)
         return -1;
     err = PyDict_SetItemString(ffi_type_dict, "NULL", pnull);
     Py_DECREF(pnull);
-    return err;
+    if (err < 0)
+        return err;
+
+#ifdef Py_GIL_DISABLED
+    // Ensure that all primitive types are intitalized to avoid race conditions
+    // on the first access.
+    for (i = 0; i < _CFFI__NUM_PRIM; i++) {
+        ct2 = get_primitive_type(i);
+        if (ct2 == NULL)
+            return -1;
+    }
+#endif
+
+    return 0;
+}
+
+static CTypeDescrObject *_get_ct_int(void)
+{
+    return g_ct_int;
 }
 
 static void free_builder_c(builder_c_t *builder, int ctx_is_static)
@@ -246,11 +275,17 @@ unexpected_fn_type(PyObject *x)
     CTypeDescrObject *ct = unwrap_fn_as_fnptr(x);
     char *text1 = ct->ct_name;
     char *text2 = text1 + ct->ct_name_position + 1;
+    size_t prefix_size = ct->ct_name_position - 2;
+    char *buf = PyMem_Malloc(prefix_size + 1);
+    if (buf == NULL) {
+        return NULL;
+    }
+    memcpy(buf, text1, prefix_size);
+    buf[prefix_size] = '\0';
     assert(text2[-3] == '(');
-    text2[-3] = '\0';
     PyErr_Format(FFIError, "the type '%s%s' is a function type, not a "
-                           "pointer-to-function type", text1, text2);
-    text2[-3] = '(';
+                           "pointer-to-function type", buf, text2);
+    PyMem_Free(buf);
     return NULL;
 }
 
@@ -314,6 +349,17 @@ static PyObject *                                              /* forward */
 _fetch_external_struct_or_union(const struct _cffi_struct_union_s *s,
                                 PyObject *included_ffis, int recursion);
 
+#ifdef Py_GIL_DISABLED
+static PyMutex _realize_mutex;
+# define LOCK_REALIZE()          PyMutex_Lock(&_realize_mutex)
+# define UNLOCK_REALIZE()        PyMutex_Unlock(&_realize_mutex)
+# define ASSERT_REALIZE_LOCKED() assert((_realize_mutex._bits & 0x1) != 0);
+#else
+# define LOCK_REALIZE()          ((void)0)
+# define UNLOCK_REALIZE()        ((void)0)
+# define ASSERT_REALIZE_LOCKED() ((void)0)
+#endif
+
 static PyObject *
 _realize_c_struct_or_union(builder_c_t *builder, int sindex)
 {
@@ -323,12 +369,8 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
 
     if (sindex == _CFFI__IO_FILE_STRUCT) {
         /* returns a single global cached opaque type */
-        static PyObject *file_struct = NULL;
-        if (file_struct == NULL)
-            file_struct = new_struct_or_union_type("FILE",
-                                                   CT_STRUCT | CT_IS_FILE);
-        Py_XINCREF(file_struct);
-        return file_struct;
+        Py_INCREF(g_file_struct);
+        return g_file_struct;
     }
 
     s = &builder->ctx.struct_unions[sindex];
@@ -359,7 +401,7 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
                 ct->ct_size = (Py_ssize_t)s->size;
                 ct->ct_length = s->alignment;   /* may be -1 */
                 ct->ct_flags &= ~CT_IS_OPAQUE;
-                ct->ct_flags |= CT_LAZY_FIELD_LIST;
+                ct->ct_flags_mut |= CT_LAZY_FIELD_LIST;
                 ct->ct_extra = builder;
             }
             else
@@ -639,14 +681,22 @@ realize_c_type_or_func_now(builder_c_t *builder, _cffi_opcode_t op,
     return x;
 }
 
+#ifdef Py_GIL_DISABLED
+__thread int _realize_recursion_level;
+#else
 static int _realize_recursion_level;
+#endif
 
 static PyObject *
 realize_c_type_or_func(builder_c_t *builder,
                         _cffi_opcode_t opcodes[], int index)
 {
     PyObject *x;
-     _cffi_opcode_t op = opcodes[index];
+#ifdef Py_GIL_DISABLED
+    _cffi_opcode_t op = cffi_atomic_load(&opcodes[index]);
+#else
+    _cffi_opcode_t op = opcodes[index];
+#endif
 
     if ((((uintptr_t)op) & 1) == 0) {
         x = (PyObject *)op;
@@ -666,12 +716,33 @@ realize_c_type_or_func(builder_c_t *builder,
     x = realize_c_type_or_func_now(builder, op, opcodes, index);
     _realize_recursion_level--;
 
-    if (x != NULL && opcodes == builder->ctx.types && opcodes[index] != x) {
+    if (x == NULL) {
+        return NULL;
+    }
+
+    LOCK_REALIZE();
+    if (opcodes == builder->ctx.types && opcodes[index] != x) {
         assert((((uintptr_t)x) & 1) == 0);
+
+#ifdef Py_GIL_DISABLED
+        if ((((uintptr_t)opcodes[index]) & 1) == 0) {
+            /* Another thread realized this opcode already */
+            Py_DECREF(x);
+            x = (PyObject *)opcodes[index];
+            Py_INCREF(x);
+        }
+        else {
+            Py_INCREF(x);
+            cffi_atomic_store(&opcodes[index], x);
+        }
+#else
         assert((((uintptr_t)opcodes[index]) & 1) == 1);
         Py_INCREF(x);
         opcodes[index] = x;
+#endif
     }
+    UNLOCK_REALIZE();
+
     return x;
 }
 
@@ -706,7 +777,7 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
     /* This is called by force_lazy_struct() in _cffi_backend.c */
     assert(ct->ct_flags & (CT_STRUCT | CT_UNION));
 
-    if (ct->ct_flags & CT_LAZY_FIELD_LIST) {
+    if (ct->ct_flags_mut & CT_LAZY_FIELD_LIST) {
         builder_c_t *builder;
         char *p;
         int n, i, sflags;
@@ -809,7 +880,7 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
         }
 
         assert(ct->ct_stuff != NULL);
-        ct->ct_flags &= ~CT_LAZY_FIELD_LIST;
+        ct->ct_flags_mut &= ~CT_LAZY_FIELD_LIST;
         Py_DECREF(res);
         return 1;
     }

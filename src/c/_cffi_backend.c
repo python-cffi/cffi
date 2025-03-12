@@ -204,6 +204,53 @@
 # define USE_WRITEUNRAISABLEMSG
 #endif
 
+#if PY_VERSION_HEX <= 0x030d00a1
+static int PyDict_GetItemRef(PyObject *mp, PyObject *key, PyObject **result)
+{
+    PyObject *obj = PyDict_GetItemWithError(mp, key);
+    Py_XINCREF(obj);
+    *result = obj;
+    if (obj == NULL) {
+        if (PyErr_Occurred()) {
+            return -1;
+        }
+        return 0;
+    }
+    return 1;
+}
+#endif
+
+#if PY_VERSION_HEX < 0x030d00a1
+static int PyWeakref_GetRef(PyObject *ref, PyObject **pobj)
+{
+    PyObject *obj = PyWeakref_GetObject(ref);
+    if (obj == NULL) {
+        *pobj = NULL;
+        return -1;
+    }
+    if (obj == Py_None) {
+        *pobj = NULL;
+        return 0;
+    }
+    Py_INCREF(obj);
+    *pobj = obj;
+    return 1;
+}
+#endif
+
+#if PY_VERSION_HEX <= 0x030d00b3
+# define Py_BEGIN_CRITICAL_SECTION(op) {
+# define Py_END_CRITICAL_SECTION() }
+#endif
+
+#ifdef Py_GIL_DISABLED
+# define LOCK_UNIQUE_CACHE()   PyMutex_Lock(&unique_cache_lock)
+# define UNLOCK_UNIQUE_CACHE() PyMutex_Unlock(&unique_cache_lock)
+#else
+# define LOCK_UNIQUE_CACHE()   ((void)0)
+# define UNLOCK_UNIQUE_CACHE() ((void)0)
+#endif
+
 /************************************************************/
 
 /* base type flag: exactly one of the following: */
@@ -263,7 +310,8 @@ typedef struct _ctypedescr {
     Py_ssize_t ct_length;   /* length of arrays, or -1 if unknown;
                                or alignment of primitive and struct types;
                                always -1 for pointers */
-    int ct_flags;           /* CT_xxx flags */
+    int ct_flags;           /* Immutable CT_xxx flags */
+    int ct_flags_mut;       /* Mutable flags (e.g., CT_LAZY_FIELD_LIST) */
 
     int ct_name_position;   /* index in ct_name of where to put a var name */
     char ct_name[1];        /* string, e.g. "int *" for pointers to ints */
@@ -398,6 +446,10 @@ typedef struct _cffi_allocator_s {
 } cffi_allocator_t;
 static const cffi_allocator_t default_allocator = { NULL, NULL, 0 };
 static PyObject *FFIError;
+
+#ifdef Py_GIL_DISABLED
+static PyMutex unique_cache_lock;
+#endif
 static PyObject *unique_cache;
 
 /************************************************************/
@@ -451,6 +503,8 @@ ctypedescr_repr(CTypeDescrObject *ct)
     return PyText_FromFormat("<ctype '%s'>", ct->ct_name);
 }
 
+static void remove_dead_unique_reference(PyObject *unique_key);
+
 static void
 ctypedescr_dealloc(CTypeDescrObject *ct)
 {
@@ -459,11 +513,8 @@ ctypedescr_dealloc(CTypeDescrObject *ct)
         PyObject_ClearWeakRefs((PyObject *) ct);
 
     if (ct->ct_unique_key != NULL) {
-        /* revive dead object temporarily for DelItem */
-        Py_SET_REFCNT(ct, 43);
-        PyDict_DelItem(unique_cache, ct->ct_unique_key);
-        assert(Py_REFCNT(ct) == 42);
-        Py_SET_REFCNT(ct, 0);
+        /* delete the weak reference from unique_cache */
+        remove_dead_unique_reference(ct->ct_unique_key);
         Py_DECREF(ct->ct_unique_key);
     }
     Py_XDECREF(ct->ct_itemdescr);
@@ -1878,7 +1929,7 @@ get_alignment(CTypeDescrObject *ct)
     if ((ct->ct_flags & (CT_PRIMITIVE_ANY|CT_STRUCT|CT_UNION)) &&
         !(ct->ct_flags & CT_IS_OPAQUE)) {
         align = ct->ct_length;
-        if (align == -1 && (ct->ct_flags & CT_LAZY_FIELD_LIST)) {
+        if (align == -1 && (ct->ct_flags_mut & CT_LAZY_FIELD_LIST)) {
             force_lazy_struct(ct);
             align = ct->ct_length;
         }
@@ -2600,11 +2651,14 @@ cdata_slice(CDataObject *cd, PySliceObject *slice)
     if (ct == NULL)
         return NULL;
 
+    Py_BEGIN_CRITICAL_SECTION(ct);
     if (ct->ct_stuff == NULL) {
         ct->ct_stuff = new_array_type(ct, -1);
-        if (ct->ct_stuff == NULL)
-            return NULL;
     }
+    Py_END_CRITICAL_SECTION();
+
+    if (ct->ct_stuff == NULL)
+        return NULL;
     ct = (CTypeDescrObject *)ct->ct_stuff;
 
     cdata = cd->c_data + ct->ct_itemdescr->ct_size * bounds[0];
@@ -2971,16 +3025,8 @@ static cif_description_t *
 fb_prepare_cif(PyObject *fargs, CTypeDescrObject *, Py_ssize_t, ffi_abi);
                                                                    /*forward*/
 
-static PyObject *new_primitive_type(const char *name);             /*forward*/
-
-static CTypeDescrObject *_get_ct_int(void)
-{
-    static CTypeDescrObject *ct_int = NULL;
-    if (ct_int == NULL) {
-        ct_int = (CTypeDescrObject *)new_primitive_type("int");
-    }
-    return ct_int;
-}
+static CTypeDescrObject *_get_ct_int(void);
+/* forward, implemented in realize_c_type.c */
 
 static Py_ssize_t
 _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
@@ -4648,6 +4694,46 @@ static PyObject *b_load_library(PyObject *self, PyObject *args)
 
 /************************************************************/
 
+static PyObject *get_or_insert_unique_type(CTypeDescrObject *x,
+                                           PyObject *key)
+{
+    PyObject *wr, *obj;
+
+    if (PyDict_GetItemRef(unique_cache, key, &wr) < 0) {
+        return NULL;
+    }
+
+    if (wr != NULL) {
+        if (PyWeakref_GetRef(wr, &obj) < 0) {
+            Py_DECREF(wr);
+            return NULL;
+        }
+        Py_DECREF(wr);
+        if (obj != NULL) {
+            return obj;
+        }
+    }
+
+    /* Use a weakref so that the dictionary does not keep 'x' alive */
+    wr = PyWeakref_NewRef((PyObject *)x, NULL);
+    if (wr == NULL) {
+        return NULL;
+    }
+
+    if (PyDict_SetItem(unique_cache, key, wr) < 0) {
+        Py_DECREF(wr);
+        return NULL;
+    }
+
+    assert(x->ct_unique_key == NULL);
+    Py_INCREF(key);
+    x->ct_unique_key = key; /* the key will be freed in ctypedescr_dealloc() */
+
+    Py_DECREF(wr);
+    Py_INCREF(x);
+    return (PyObject *)x;
+}
+
 static PyObject *get_unique_type(CTypeDescrObject *x,
                                  const void *unique_key[], long keylength)
 {
@@ -4665,45 +4751,48 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
            array      [ctype, length]
            funcptr    [ctresult, ellipsis+abi, num_args, ctargs...]
     */
-    PyObject *key, *y, *res;
-    void *pkey;
+    PyObject *key, *y;
 
-    key = PyBytes_FromStringAndSize(NULL, keylength * sizeof(void *));
-    if (key == NULL)
-        goto error;
-
-    pkey = PyBytes_AS_STRING(key);
-    memcpy(pkey, unique_key, keylength * sizeof(void *));
-
-    y = PyDict_GetItem(unique_cache, key);
-    if (y != NULL) {
-        Py_DECREF(key);
-        Py_INCREF(y);
+    key = PyBytes_FromStringAndSize(unique_key, keylength * sizeof(void *));
+    if (key == NULL) {
         Py_DECREF(x);
-        return y;
+        return NULL;
     }
-    if (PyDict_SetItem(unique_cache, key, (PyObject *)x) < 0) {
-        Py_DECREF(key);
-        goto error;
-    }
-    /* Haaaack for our reference count hack: gcmodule.c must not see this
-       dictionary.  The problem is that any PyDict_SetItem() notices that
-       'x' is tracked and re-tracks the unique_cache dictionary.  So here
-       we re-untrack it again... */
-    PyObject_GC_UnTrack(unique_cache);
 
-    assert(x->ct_unique_key == NULL);
-    x->ct_unique_key = key; /* the key will be freed in ctypedescr_dealloc() */
-    /* the 'value' in unique_cache doesn't count as 1, but don't use
-       Py_DECREF(x) here because it will confuse debug builds into thinking
-       there was an extra DECREF in total. */
-    res = (PyObject *)x;
-    Py_SET_REFCNT(res, Py_REFCNT(res) - 1);
-    return res;
+    LOCK_UNIQUE_CACHE();
+    y = get_or_insert_unique_type(x, key);
+    UNLOCK_UNIQUE_CACHE();
 
- error:
+    Py_DECREF(key);
     Py_DECREF(x);
-    return NULL;
+    return y;
+}
+
+/* Delete a dead weakref from the unique cache */
+static void remove_dead_unique_reference(PyObject *unique_key)
+{
+    PyObject *wr;
+    PyObject *tmp = NULL;
+    int err;
+
+    LOCK_UNIQUE_CACHE();
+    /* We need to check that it's not already been replaced by a live weakref
+       to a different object. */
+    wr = PyDict_GetItemWithError(unique_cache, unique_key);
+    if (wr != NULL) {
+        err = PyWeakref_GetRef(wr, &tmp);
+        if (err == 0) {
+            /* The weakref is dead, delete it. */
+            assert(tmp == NULL);
+            err = PyDict_DelItem(unique_cache, unique_key);
+        }
+    }
+    UNLOCK_UNIQUE_CACHE();
+
+    Py_XDECREF(tmp);
+    if (err < 0) {
+        PyErr_WriteUnraisable(NULL);
+    }
 }
 
 /* according to the C standard, these types should be equivalent to the
@@ -4870,6 +4959,7 @@ static PyObject *new_primitive_type(const char *name)
     td->ct_length = ptypes->align;
     td->ct_extra = ffitype;
     td->ct_flags = ptypes->flags;
+    td->ct_flags_mut = 0;
     if (td->ct_flags & (CT_PRIMITIVE_SIGNED | CT_PRIMITIVE_CHAR)) {
         if (td->ct_size <= (Py_ssize_t)sizeof(long))
             td->ct_flags |= CT_PRIMITIVE_FITS_LONG;
@@ -4923,6 +5013,7 @@ static PyObject *new_pointer_type(CTypeDescrObject *ctitem)
         ((ctitem->ct_flags & CT_PRIMITIVE_CHAR) &&
          ctitem->ct_size == sizeof(char)))
         td->ct_flags |= CT_IS_VOIDCHAR_PTR;   /* 'void *' or 'char *' only */
+    td->ct_flags_mut = 0;
     unique_key[0] = ctitem;
     return get_unique_type(td, unique_key, 1);
 }
@@ -5003,6 +5094,7 @@ new_array_type(CTypeDescrObject *ctptr, Py_ssize_t length)
     td->ct_size = arraysize;
     td->ct_length = length;
     td->ct_flags = flags;
+    td->ct_flags_mut = 0;
     unique_key[0] = ctptr;
     unique_key[1] = (void *)length;
     return get_unique_type(td, unique_key, 2);
@@ -5019,6 +5111,7 @@ static PyObject *new_void_type(void)
     memcpy(td->ct_name, "void", name_size);
     td->ct_size = -1;
     td->ct_flags = CT_VOID | CT_IS_OPAQUE;
+    td->ct_flags_mut = 0;
     td->ct_name_position = strlen("void");
     unique_key[0] = "void";
     return get_unique_type(td, unique_key, 1);
@@ -5039,6 +5132,7 @@ static PyObject *new_struct_or_union_type(const char *name, int flag)
     td->ct_size = -1;
     td->ct_length = -1;
     td->ct_flags = flag | CT_IS_OPAQUE;
+    td->ct_flags_mut = 0;
     td->ct_extra = NULL;
     memcpy(td->ct_name, name, namelen + 1);
     td->ct_name_position = namelen;
@@ -5914,6 +6008,7 @@ static CTypeDescrObject *fb_prepare_ctype(struct funcbuilder_s *fb,
     fct->ct_extra = NULL;
     fct->ct_size = sizeof(void(*)(void));
     fct->ct_flags = CT_FUNCTIONPTR;
+    fct->ct_flags_mut = 0;
     return fct;
 
  error:
@@ -6619,6 +6714,7 @@ static PyObject *b_new_enum_type(PyObject *self, PyObject *args)
     td->ct_length = basetd->ct_length;   /* alignment */
     td->ct_extra = basetd->ct_extra;     /* ffi type  */
     td->ct_flags = basetd->ct_flags | CT_IS_ENUM;
+    td->ct_flags_mut = basetd->ct_flags_mut;
     td->ct_name_position = name_size - 1;
     return (PyObject *)td;
 
@@ -8088,6 +8184,10 @@ init_cffi_backend(void)
 
     if (m == NULL)
         INITERROR;
+
+#ifdef Py_GIL_DISABLED
+    PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
+#endif
 
     if (unique_cache == NULL) {
         unique_cache = PyDict_New();

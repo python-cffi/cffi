@@ -114,6 +114,7 @@ class TestFunction(object):
         y = lib.TlsFree(x)
         assert y != 0
 
+    @pytest.mark.thread_unsafe
     def test_fputs(self):
         if not sys.platform.startswith('linux'):
             pytest.skip("probably no symbol 'stderr' in the lib")
@@ -131,6 +132,7 @@ class TestFunction(object):
         res = fd.getvalue()
         assert res == b'hello\n  world\n'
 
+    @pytest.mark.thread_unsafe
     def test_fputs_without_const(self):
         if not sys.platform.startswith('linux'):
             pytest.skip("probably no symbol 'stderr' in the lib")
@@ -148,6 +150,7 @@ class TestFunction(object):
         res = fd.getvalue()
         assert res == b'hello\n  world\n'
 
+    @pytest.mark.thread_unsafe
     def test_vararg(self):
         if not sys.platform.startswith('linux'):
             pytest.skip("probably no symbol 'stderr' in the lib")
@@ -205,6 +208,7 @@ class TestFunction(object):
         if self.Backend is CTypesBackend:
             assert repr(fptr).startswith("<cdata 'int puts(char *)' 0x")
 
+    @pytest.mark.thread_unsafe
     def test_function_pointer(self):
         ffi = FFI(backend=self.Backend())
         def cb(charp):
@@ -232,6 +236,7 @@ class TestFunction(object):
         res = fd.getvalue()
         assert res == b'world\n'
 
+    @pytest.mark.thread_unsafe
     def test_callback_returning_void(self):
         ffi = FFI(backend=self.Backend())
         for returnvalue in [None, 42]:
@@ -328,6 +333,7 @@ class TestFunction(object):
         x = m.sin(1.23)
         assert x == math.sin(1.23)
 
+    @pytest.mark.thread_unsafe
     def test_fputs_custom_FILE(self):
         if self.Backend is CTypesBackend:
             pytest.skip("FILE not supported with the ctypes backend")
@@ -411,6 +417,7 @@ class TestFunction(object):
         x = sin100(1.23)
         assert x == math.sin(1.23) + 100
 
+    @pytest.mark.thread_unsafe
     def test_free_callback_cycle(self):
         if self.Backend is CTypesBackend:
             pytest.skip("seems to fail with the ctypes backend on windows")

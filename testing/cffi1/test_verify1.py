@@ -7,6 +7,10 @@ from testing.support import *
 from testing.support import _verify, extra_compile_args, is_musl
 import _cffi_backend
 
+pytestmark = [
+    pytest.mark.thread_unsafe,
+]
+
 lib_m = ['m']
 if sys.platform == 'win32':
     #there is a small chance this fails on Mingw via environ $CC
