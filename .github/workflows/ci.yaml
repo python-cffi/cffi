@@ -454,44 +454,68 @@ jobs:
         matrix_yaml: |
           include:
           - spec: cp38-win_amd64
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp39-win_amd64
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp310-win_amd64
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp311-win_amd64
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp312-win_amd64
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp313-win_amd64
+            image: windows-2022
             # omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp38-win32
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp39-win32
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp310-win32
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp311-win32
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp312-win32
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
 
           - spec: cp313-win32
+            image: windows-2022
             omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp311-win_arm64
+            image: windows-11-arm
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp312-win_arm64
+            image: windows-11-arm
+            omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp313-win_arm64
+            image: windows-11-arm
+            # omit: ${{ env.skip_ci_redundant_jobs }}
 
   windows:
     needs: [python_sdist, make_windows_matrix]
-    runs-on: windows-2022
+    runs-on: ${{ matrix.image }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.make_windows_matrix.outputs.matrix_json) }}
@@ -502,6 +526,11 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
+
+    - name: install python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.13
 
     - name: build/test wheels
       id: build
