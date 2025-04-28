@@ -32,6 +32,7 @@ def create_venv(name):
                 '-m',
                 'pip',
                 'install',
+                'pip',
                 'setuptools',
                 '--upgrade'
             ])
