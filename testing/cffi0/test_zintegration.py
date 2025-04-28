@@ -17,14 +17,14 @@ def create_venv(name):
     try:
         # FUTURE: we should probably update this to use venv for at least more modern Pythons, and
         # install setuptools/pip/etc explicitly for the tests that require them (as venv has stopped including
-        # setuptools and wheel by default for newer versions).
+        # setuptools by default for newer versions).
         subprocess.check_call(['virtualenv', 
             #'--never-download', <= could be added, but causes failures
             # in random cases on random machines
                                '-p', os.path.abspath(sys.executable),
                                str(tmpdir)])
 
-        # Python 3.12 venv/virtualenv no longer include setuptools and wheel by default, which
+        # Python 3.12 venv/virtualenv no longer include setuptools by default, which
         # breaks a number of these tests; ensure it's always present for 3.12+
         if sys.version_info >= (3, 12):
             subprocess.check_call([
@@ -33,7 +33,6 @@ def create_venv(name):
                 'pip',
                 'install',
                 'setuptools',
-                'wheel',
                 '--upgrade'
             ])
 
