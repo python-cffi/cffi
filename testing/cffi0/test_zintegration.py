@@ -17,14 +17,14 @@ def create_venv(name):
     try:
         # FUTURE: we should probably update this to use venv for at least more modern Pythons, and
         # install setuptools/pip/etc explicitly for the tests that require them (as venv has stopped including
-        # setuptools and wheel by default for newer versions).
+        # setuptools by default for newer versions).
         subprocess.check_call(['virtualenv', 
             #'--never-download', <= could be added, but causes failures
             # in random cases on random machines
                                '-p', os.path.abspath(sys.executable),
                                str(tmpdir)])
 
-        # Python 3.12 venv/virtualenv no longer include setuptools and wheel by default, which
+        # Python 3.12 venv/virtualenv no longer include setuptools by default, which
         # breaks a number of these tests; ensure it's always present for 3.12+
         if sys.version_info >= (3, 12):
             subprocess.check_call([
@@ -32,8 +32,8 @@ def create_venv(name):
                 '-m',
                 'pip',
                 'install',
+                'pip',
                 'setuptools',
-                'wheel',
                 '--upgrade'
             ])
 
@@ -99,7 +99,7 @@ def really_run_setup_and_program(dirname, venv_dir_and_paths, python_snippet):
         # there's a setuptools/easy_install bug that causes this to fail when the build/install occur together and
         # we're in the same directory with the build (it tries to look up dependencies for itself on PyPI);
         # subsequent runs will succeed because this test doesn't properly clean up the build- use pip for now.
-        subprocess.check_call((vp, '-m', 'pip', 'install', '.'), env=env)
+        subprocess.check_call((vp, '-m', 'pip', 'install', '.', '--no-build-isolation'), env=env)
         subprocess.check_call((vp, str(python_f)), env=env)
     finally:
         os.chdir(olddir)
