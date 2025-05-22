@@ -50,7 +50,7 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
         return -1;
     g_ct_chararray = (CTypeDescrObject *)ct2;
 
-    g_ct_int = get_primitive_type(_CFFI_PRIM_INT);         // 'int'
+    g_ct_int = (CTypeDescrObject *)get_primitive_type(_CFFI_PRIM_INT);    // 'int'
     if (g_ct_int == NULL)
         return -1;
 
@@ -370,7 +370,7 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
     if (sindex == _CFFI__IO_FILE_STRUCT) {
         /* returns a single global cached opaque type */
         Py_INCREF(g_file_struct);
-        return g_file_struct;
+        return (PyObject *)g_file_struct;
     }
 
     s = &builder->ctx.struct_unions[sindex];

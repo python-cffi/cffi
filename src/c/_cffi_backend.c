@@ -4753,7 +4753,7 @@ static PyObject *get_unique_type(CTypeDescrObject *x,
     */
     PyObject *key, *y;
 
-    key = PyBytes_FromStringAndSize(unique_key, keylength * sizeof(void *));
+    key = PyBytes_FromStringAndSize((const char *)unique_key, keylength * sizeof(void *));
     if (key == NULL) {
         Py_DECREF(x);
         return NULL;
@@ -4773,7 +4773,7 @@ static void remove_dead_unique_reference(PyObject *unique_key)
 {
     PyObject *wr;
     PyObject *tmp = NULL;
-    int err;
+    int err = 0;
 
     LOCK_UNIQUE_CACHE();
     /* We need to check that it's not already been replaced by a live weakref
