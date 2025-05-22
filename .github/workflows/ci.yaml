@@ -287,7 +287,7 @@ jobs:
           cd .. && \
           rm -rf libffi-3.4.6
         CIBW_ENVIRONMENT_PASS_LINUX: CFLAGS  # ensure that the build container can see our overridden build config
-        CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_img || '' }}
+        CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_img || 'manylinux_2_28' }}
         CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_img || '' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.manylinux_img || '' }}
         CIBW_MANYLINUX_PPC64LE_IMAGE: ${{ matrix.manylinux_img || '' }}
