@@ -279,7 +279,7 @@ static int PyWeakref_GetRef(PyObject *ref, PyObject **pobj)
 #define CT_IS_VOID_PTR         0x00200000
 #define CT_WITH_VAR_ARRAY      0x00400000 /* with open-ended array, anywhere */
 /* unused                      0x00800000 */
-#define CT_LAZY_FIELD_LIST     0x01000000
+/* unused                      0x01000000  */
 #define CT_WITH_PACKED_CHANGE  0x02000000
 #define CT_IS_SIGNED_WCHAR     0x04000000
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
@@ -287,6 +287,14 @@ static int PyWeakref_GetRef(PyObject *ref, PyObject **pobj)
                            CT_PRIMITIVE_CHAR |          \
                            CT_PRIMITIVE_FLOAT |         \
                            CT_PRIMITIVE_COMPLEX)
+
+
+/*
+  Values for mutable ct_flags_mut flags.
+
+  These may be set transiently if fields are lazily constructed.
+*/
+#define CT_LAZY_FIELD_LIST     0x00000001
 
 typedef struct _ctypedescr {
     PyObject_VAR_HEAD
