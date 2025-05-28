@@ -887,7 +887,7 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
         return 1;
     }
     else {
-        assert(ct->ct_flags & CT_IS_OPAQUE);
+        assert(!(ct->ct_flags & CT_UNDER_CONSTRUCTION));
         return 0;
     }
 }
