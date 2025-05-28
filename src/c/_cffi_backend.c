@@ -294,7 +294,8 @@ static int PyWeakref_GetRef(PyObject *ref, PyObject **pobj)
 
   These may be set transiently if fields are lazily constructed.
 */
-#define CT_LAZY_FIELD_LIST     0x00000001
+#define CT_LAZY_FIELD_LIST      0x00000001
+#define CT_UNDER_CONSTRUCTION   0x00000002
 
 typedef struct _ctypedescr {
     PyObject_VAR_HEAD
@@ -627,10 +628,16 @@ get_field_name(CTypeDescrObject *ct, CFieldObject *cf);   /* forward */
 static int do_realize_lazy_struct(CTypeDescrObject *ct);
 /* forward, implemented in realize_c_type.c */
 
+static int ct_is_hidden(CTypeDescrObject *ct)
+{
+  return ((ct->ct_flags & CT_IS_OPAQUE) ||
+          (ct->ct_flags_mut & CT_UNDER_CONSTRUCTION));
+}
+
 static PyObject *ctypeget_fields(CTypeDescrObject *ct, void *context)
 {
     if (ct->ct_flags & (CT_STRUCT | CT_UNION)) {
-        if (!(ct->ct_flags & CT_IS_OPAQUE)) {
+        if (!ct_is_hidden(ct)) {
             CFieldObject *cf;
             PyObject *res;
             if (force_lazy_struct(ct) < 0)
@@ -1155,6 +1162,12 @@ convert_to_object(char *data, CTypeDescrObject *ct)
         }
         else if (ct->ct_flags & CT_IS_OPAQUE) {
             PyErr_Format(PyExc_TypeError, "cdata '%s' is opaque",
+                         ct->ct_name);
+            return NULL;
+        }
+        else if (ct->ct_flags_mut & CT_UNDER_CONSTRUCTION) {
+            PyErr_Format(PyExc_TypeError,
+                         "'%s' is not completed yet",
                          ct->ct_name);
             return NULL;
         }
@@ -1935,7 +1948,7 @@ get_alignment(CTypeDescrObject *ct)
     int align;
  retry:
     if ((ct->ct_flags & (CT_PRIMITIVE_ANY|CT_STRUCT|CT_UNION)) &&
-        !(ct->ct_flags & CT_IS_OPAQUE)) {
+        !ct_is_hidden(ct)) {
         align = ct->ct_length;
         if (align == -1 && (ct->ct_flags_mut & CT_LAZY_FIELD_LIST)) {
             force_lazy_struct(ct);
@@ -3332,8 +3345,9 @@ static PyObject *cdata_dir(PyObject *cd, PyObject *noarg)
     if (ct->ct_flags & CT_POINTER) {
         ct = ct->ct_itemdescr;
     }
+    // NJG: not sure this does the right thing if a type is already under construction
     if ((ct->ct_flags & (CT_STRUCT | CT_UNION)) &&
-        !(ct->ct_flags & CT_IS_OPAQUE)) {
+        !ct_is_hidden(ct)) {
 
         /* for non-opaque structs or unions */
         if (force_lazy_struct(ct) < 0)
@@ -5139,8 +5153,8 @@ static PyObject *new_struct_or_union_type(const char *name, int flag)
 
     td->ct_size = -1;
     td->ct_length = -1;
-    td->ct_flags = flag | CT_IS_OPAQUE;
-    td->ct_flags_mut = 0;
+    td->ct_flags = flag;
+    td->ct_flags_mut = CT_UNDER_CONSTRUCTION;
     td->ct_extra = NULL;
     memcpy(td->ct_name, name, namelen + 1);
     td->ct_name_position = namelen;
@@ -5292,6 +5306,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                           &pack))
         return NULL;
 
+    assert(ct->ct_flags_mut & CT_UNDER_CONSTRUCTION);
+
     sflags = complete_sflags(sflags);
     if (sflags & SF_PACKED)
         pack = 1;
@@ -5300,15 +5316,8 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     else
         sflags |= SF_PACKED;
 
-    if ((ct->ct_flags & (CT_STRUCT|CT_IS_OPAQUE)) ==
-                        (CT_STRUCT|CT_IS_OPAQUE)) {
-        is_union = 0;
-    }
-    else if ((ct->ct_flags & (CT_UNION|CT_IS_OPAQUE)) ==
-                             (CT_UNION|CT_IS_OPAQUE)) {
-        is_union = 1;
-    }
-    else {
+    is_union = ct->ct_flags & CT_UNION;
+    if (!is_union && !(ct->ct_flags & CT_STRUCT)) {
         PyErr_SetString(PyExc_TypeError,
                   "first arg must be a non-initialized struct or union ctype");
         return NULL;
@@ -5341,7 +5350,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             goto error;
 
         if ((ftype->ct_flags & (CT_STRUCT | CT_UNION)) &&
-            !(ftype->ct_flags & CT_IS_OPAQUE)) {
+            !ct_is_hidden(ftype)) {
             /* force now the type of the nested field */
             if (force_lazy_struct(ftype) < 0)
                 return NULL;
@@ -5640,7 +5649,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     ct->ct_size = totalsize;
     ct->ct_length = totalalignment;
     ct->ct_stuff = interned_fields;
-    ct->ct_flags &= ~CT_IS_OPAQUE;
+    ct->ct_flags_mut &= ~CT_UNDER_CONSTRUCTION;
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -6100,6 +6109,8 @@ static PyObject *new_function_type(PyObject *fargs,   /* tuple */
         char *msg;
         if (fresult->ct_flags & CT_IS_OPAQUE)
             msg = "result type '%s' is opaque";
+        else if (fresult->ct_flags_mut & CT_UNDER_CONSTRUCTION)
+            msg = "result type '%s' is under construction";
         else
             msg = "invalid result type: '%s'";
         PyErr_Format(PyExc_TypeError, msg, fresult->ct_name);
