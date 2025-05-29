@@ -630,16 +630,10 @@ get_field_name(CTypeDescrObject *ct, CFieldObject *cf);   /* forward */
 static int do_realize_lazy_struct(CTypeDescrObject *ct);
 /* forward, implemented in realize_c_type.c */
 
-static int ct_is_hidden(CTypeDescrObject *ct)
-{
-  return ((ct->ct_flags & CT_IS_OPAQUE) ||
-          (ct->ct_flags_mut & CT_UNDER_CONSTRUCTION));
-}
-
 static PyObject *ctypeget_fields(CTypeDescrObject *ct, void *context)
 {
     if (ct->ct_flags & (CT_STRUCT | CT_UNION)) {
-        if (!ct_is_hidden(ct)) {
+        if (!(ct->ct_flags & CT_IS_OPAQUE)) {
             CFieldObject *cf;
             PyObject *res;
             if (force_lazy_struct(ct) < 0)
@@ -1950,7 +1944,7 @@ get_alignment(CTypeDescrObject *ct)
     int align;
  retry:
     if ((ct->ct_flags & (CT_PRIMITIVE_ANY|CT_STRUCT|CT_UNION)) &&
-        !ct_is_hidden(ct)) {
+        !(ct->ct_flags & CT_IS_OPAQUE)) {
         align = ct->ct_length;
         if (align == -1 && (ct->ct_flags_mut & CT_LAZY_FIELD_LIST)) {
             force_lazy_struct(ct);
@@ -3348,7 +3342,7 @@ static PyObject *cdata_dir(PyObject *cd, PyObject *noarg)
         ct = ct->ct_itemdescr;
     }
     if ((ct->ct_flags & (CT_STRUCT | CT_UNION)) &&
-        !ct_is_hidden(ct)) {
+        !(ct->ct_flags & CT_IS_OPAQUE)) {
 
         /* for non-opaque structs or unions */
         if (force_lazy_struct(ct) < 0)
@@ -5318,11 +5312,12 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
 
     is_union = ct->ct_flags & CT_UNION;
     if (!((ct->ct_flags & CT_UNION) || (ct->ct_flags & CT_STRUCT)) ||
-        !ct_is_hidden(ct)) {
+        !((ct->ct_flags & CT_IS_OPAQUE) || (ct->ct_flags_mut & CT_UNDER_CONSTRUCTION))) {
         PyErr_SetString(PyExc_TypeError,
                         "first arg must be a non-initialized struct or union ctype");
         return NULL;
     }
+    assert((ct->ct_flags & CT_IS_OPAQUE) ^ (ct->ct_flags_mut & CT_UNDER_CONSTRUCTION));
     ct->ct_flags_mut &= ~(CT_CUSTOM_FIELD_POS | CT_WITH_PACKED_CHANGE);
 
     alignment = 1;
@@ -5351,7 +5346,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             goto error;
 
         if ((ftype->ct_flags & (CT_STRUCT | CT_UNION)) &&
-            !ct_is_hidden(ftype)) {
+            !(ftype->ct_flags & CT_IS_OPAQUE)) {
             /* force now the type of the nested field */
             if (force_lazy_struct(ftype) < 0)
                 return NULL;
