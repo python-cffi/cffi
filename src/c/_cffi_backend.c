@@ -5153,8 +5153,9 @@ static PyObject *new_struct_or_union_type(const char *name, int flag)
 
     td->ct_size = -1;
     td->ct_length = -1;
-    td->ct_flags = flag;
-    td->ct_flags_mut = CT_UNDER_CONSTRUCTION;
+    // may be unset later if this type needs lazy init
+    td->ct_flags = flag | CT_IS_OPAQUE;
+    td->ct_flags_mut = 0;
     td->ct_extra = NULL;
     memcpy(td->ct_name, name, namelen + 1);
     td->ct_name_position = namelen;
@@ -5306,8 +5307,6 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                           &pack))
         return NULL;
 
-    assert(ct->ct_flags_mut & CT_UNDER_CONSTRUCTION);
-
     sflags = complete_sflags(sflags);
     if (sflags & SF_PACKED)
         pack = 1;
@@ -5317,9 +5316,10 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         sflags |= SF_PACKED;
 
     is_union = ct->ct_flags & CT_UNION;
-    if (!is_union && !(ct->ct_flags & CT_STRUCT)) {
+    if (!((ct->ct_flags & CT_UNION) || (ct->ct_flags & CT_STRUCT)) ||
+        !ct_is_hidden(ct)) {
         PyErr_SetString(PyExc_TypeError,
-                  "first arg must be a non-initialized struct or union ctype");
+                        "first arg must be a non-initialized struct or union ctype");
         return NULL;
     }
     ct->ct_flags &= ~(CT_CUSTOM_FIELD_POS | CT_WITH_PACKED_CHANGE);
@@ -5649,7 +5649,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
     ct->ct_size = totalsize;
     ct->ct_length = totalalignment;
     ct->ct_stuff = interned_fields;
-    ct->ct_flags_mut &= ~CT_UNDER_CONSTRUCTION;
+    ct->ct_flags &= ~CT_IS_OPAQUE;
 
     Py_INCREF(Py_None);
     return Py_None;
