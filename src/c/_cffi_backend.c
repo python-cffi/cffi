@@ -272,15 +272,15 @@ static int PyWeakref_GetRef(PyObject *ref, PyObject **pobj)
 #define CT_IS_OPAQUE           0x00004000
 #define CT_IS_ENUM             0x00008000
 #define CT_IS_PTR_TO_OWNED     0x00010000 /* only owned if CDataOwning_Type */
-#define CT_CUSTOM_FIELD_POS    0x00020000
+/* unused                      0x00020000 */
 #define CT_IS_LONGDOUBLE       0x00040000
 #define CT_IS_BOOL             0x00080000
 #define CT_IS_FILE             0x00100000
 #define CT_IS_VOID_PTR         0x00200000
 #define CT_WITH_VAR_ARRAY      0x00400000 /* with open-ended array, anywhere */
 /* unused                      0x00800000 */
-/* unused                      0x01000000  */
-#define CT_WITH_PACKED_CHANGE  0x02000000
+/* unused                      0x01000000 */
+/* unused                      0x02000000 */
 #define CT_IS_SIGNED_WCHAR     0x04000000
 #define CT_PRIMITIVE_ANY  (CT_PRIMITIVE_SIGNED |        \
                            CT_PRIMITIVE_UNSIGNED |      \
@@ -296,6 +296,8 @@ static int PyWeakref_GetRef(PyObject *ref, PyObject **pobj)
 */
 #define CT_LAZY_FIELD_LIST      0x00000001
 #define CT_UNDER_CONSTRUCTION   0x00000002
+#define CT_CUSTOM_FIELD_POS     0x00000004
+#define CT_WITH_PACKED_CHANGE   0x00000008
 
 typedef struct _ctypedescr {
     PyObject_VAR_HEAD
@@ -5278,7 +5280,7 @@ static int detect_custom_layout(CTypeDescrObject *ct, int sflags,
                          ct->ct_name);
             return -1;
         }
-        ct->ct_flags |= CT_CUSTOM_FIELD_POS;
+        ct->ct_flags_mut |= CT_CUSTOM_FIELD_POS;
     }
     return 0;
 }
@@ -5322,7 +5324,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                         "first arg must be a non-initialized struct or union ctype");
         return NULL;
     }
-    ct->ct_flags &= ~(CT_CUSTOM_FIELD_POS | CT_WITH_PACKED_CHANGE);
+    ct->ct_flags_mut &= ~(CT_CUSTOM_FIELD_POS | CT_WITH_PACKED_CHANGE);
 
     alignment = 1;
     byteoffset = 0;     /* the real value is 'byteoffset+bitoffset*8', which */
@@ -5425,7 +5427,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
             byteoffset = (byteoffset + falign-1) & ~(falign-1);
 
             if (byteoffsetorg != byteoffset) {
-                ct->ct_flags |= CT_WITH_PACKED_CHANGE;
+                ct->ct_flags_mut |= CT_WITH_PACKED_CHANGE;
             }
 
             if (foffset >= 0) {
@@ -5458,7 +5460,7 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
                     previous = &(*previous)->cf_next;
                 }
                 /* always forbid such structures from being passed by value */
-                ct->ct_flags |= CT_CUSTOM_FIELD_POS;
+                ct->ct_flags_mut |= CT_CUSTOM_FIELD_POS;
             }
             else {
                 *previous = _add_field(interned_fields, fname, ftype,
@@ -5742,7 +5744,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
         */
         if (force_lazy_struct(ct) < 0)
             return NULL;
-        if (ct->ct_flags & CT_CUSTOM_FIELD_POS) {
+        if (ct->ct_flags_mut & CT_CUSTOM_FIELD_POS) {
             /* these NotImplementedErrors may be caught and ignored until
                a real call is made to a function of this type */
             return fb_unsupported(ct, place,
@@ -5752,7 +5754,7 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
         }
         /* Another reason: __attribute__((packed)) is not supported by libffi.
         */
-        if (ct->ct_flags & CT_WITH_PACKED_CHANGE) {
+        if (ct->ct_flags_mut & CT_WITH_PACKED_CHANGE) {
             return fb_unsupported(ct, place,
                 "It is a 'packed' structure, with a different layout than "
                 "expected by libffi");
