@@ -3347,7 +3347,6 @@ static PyObject *cdata_dir(PyObject *cd, PyObject *noarg)
     if (ct->ct_flags & CT_POINTER) {
         ct = ct->ct_itemdescr;
     }
-    // NJG: not sure this does the right thing if a type is already under construction
     if ((ct->ct_flags & (CT_STRUCT | CT_UNION)) &&
         !ct_is_hidden(ct)) {
 
