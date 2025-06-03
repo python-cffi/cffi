@@ -787,7 +787,7 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
         const struct _cffi_field_s *fld;
         PyObject *fields, *args, *res;
 
-        // should have been unset during init for the ctype
+        // opaque types should never set CT_LAZY_FIELD_LIST
         assert(!(ct->ct_flags & CT_IS_OPAQUE));
 
         builder = ct->ct_extra;
