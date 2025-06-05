@@ -451,6 +451,7 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
             x = builder->ctx.types[s->type_index];
             assert((((uintptr_t)x) & 1) == 0);
             Py_INCREF(x);
+            UNLOCK_REALIZE();
             return x;
         }
 #endif
