@@ -39,7 +39,7 @@ def copy_away_env():
     except NameError:
         org_env = os.environ.copy()
 
-
+@pytest.mark.thread_unsafe
 class EmbeddingTests:
     _compiled_modules = {}
 

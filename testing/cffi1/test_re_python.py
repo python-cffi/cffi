@@ -186,6 +186,7 @@ def test_include_1():
     p = ffi.new("bar_t *", [5, b"foobar"])
     assert p.a[4] == ord('a')
 
+@pytest.mark.thread_unsafe
 def test_global_var():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
@@ -238,6 +239,7 @@ def test_partial_enum():
     pytest.raises(VerificationMissing, ffi.emit_python_code,
                    str(tmpdir.join('test_partial_enum.py')))
 
+@pytest.mark.thread_unsafe
 def test_anonymous_union_inside_struct():
     # based on issue #357
     from re_python_pysrc import ffi
@@ -262,6 +264,7 @@ def test_anonymous_union_inside_struct():
     assert ffi.offsetof("struct NVGcolor", "b") == FLOAT * 2
     assert ffi.offsetof("struct NVGcolor", "a") == FLOAT * 3
 
+@pytest.mark.thread_unsafe
 def test_selfref():
     # based on issue #429
     from re_python_pysrc import ffi
