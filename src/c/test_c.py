@@ -3288,6 +3288,7 @@ def test_new_handle():
     pytest.raises(RuntimeError, from_handle, cast(BCharP, 0))
 
 def test_new_handle_cycle():
+    import gc
     import _weakref
     BVoidP = new_pointer_type(new_void_type())
     class A(object):
@@ -3296,9 +3297,9 @@ def test_new_handle_cycle():
     o.cycle = newp_handle(BVoidP, o)
     wr = _weakref.ref(o)
     del o
-    for i in range(3):
-        if wr() is not None:
-            import gc; gc.collect()
+    # free-threading requires more iterations to clear weakref
+    while wr() is not None:
+        gc.collect()
     assert wr() is None
 
 def _test_bitfield_details(flag):

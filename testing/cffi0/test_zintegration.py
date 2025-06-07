@@ -18,7 +18,7 @@ def create_venv(name):
         # FUTURE: we should probably update this to use venv for at least more modern Pythons, and
         # install setuptools/pip/etc explicitly for the tests that require them (as venv has stopped including
         # setuptools and wheel by default for newer versions).
-        subprocess.check_call(['virtualenv', 
+        subprocess.check_call(['virtualenv',
             #'--never-download', <= could be added, but causes failures
             # in random cases on random machines
                                '-p', os.path.abspath(sys.executable),
@@ -119,6 +119,7 @@ def run_setup_and_program(dirname, python_snippet):
     assert not os.path.exists(str(SNIPPET_DIR.join(dirname, 'lextab.py')))
     assert not os.path.exists(str(SNIPPET_DIR.join(dirname, 'yacctab.py')))
 
+@pytest.mark.thread_unsafe
 class TestZIntegration(object):
     def teardown_class(self):
         if udir.isdir():
