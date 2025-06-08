@@ -1,3 +1,7 @@
+#ifndef CFFI_MISC_WIN32_H
+#define CFFI_MISC_WIN32_H
+
+
 #include <malloc.h>   /* for alloca() */
 
 
@@ -250,7 +254,7 @@ static int dlclose(void *handle)
 static const char *dlerror(void)
 {
     static char buf[32];
-    DWORD dw = GetLastError(); 
+    DWORD dw = GetLastError();
     if (dw == 0)
         return NULL;
     sprintf(buf, "error 0x%x", (unsigned int)dw);
@@ -280,8 +284,9 @@ static void *cffi_atomic_load(void **ptr)
 #endif
 }
 
-
 static void cffi_atomic_store(void **ptr, void *value)
 {
     _InterlockedExchangePointer(ptr, value);
 }
+
+#endif /* CFFI_MISC_WIN32_H */
