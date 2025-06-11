@@ -510,7 +510,11 @@ realize_c_type_or_func_now(builder_c_t *builder, _cffi_opcode_t op,
         _cffi_opcode_t op2;
 
         e = &builder->ctx.enums[_CFFI_GETARG(op)];
+#ifdef Py_GIL_DISABLED
+        op2 = cffi_atomic_load(&builder->ctx.types[e->type_index]);
+#else
         op2 = builder->ctx.types[e->type_index];
+#endif
         if ((((uintptr_t)op2) & 1) == 0) {
             x = (PyObject *)op2;
             Py_INCREF(x);
@@ -583,10 +587,26 @@ realize_c_type_or_func_now(builder_c_t *builder, _cffi_opcode_t op,
             /* Update the "primary" _CFFI_OP_ENUM slot, which
                may be the same or a different slot than the "current" one */
             assert((((uintptr_t)x) & 1) == 0);
+            LOCK_REALIZE();
+#ifdef Py_GIL_DISABLED
+            if (((uintptr_t)builder->ctx.types[e->type_index] & 1) == 0) {
+                /* Another thread realized this already */
+                Py_DECREF(x);
+                x = (PyObject *)builder->ctx.types[e->type_index];
+                assert((((uintptr_t)x) & 1) == 0);
+                Py_INCREF(x);
+                UNLOCK_REALIZE();
+                return x;
+            }
+#endif
             assert(builder->ctx.types[e->type_index] == op2);
             Py_INCREF(x);
+#ifdef Py_GIL_DISABLED
+            cffi_atomic_store(&builder->ctx.types[e->type_index], x);
+#else
             builder->ctx.types[e->type_index] = x;
-
+#endif
+            UNLOCK_REALIZE();
             /* Done, leave without updating the "current" slot because
                it may be done already above.  If not, never mind, the
                next call to realize_c_type() will do it. */
