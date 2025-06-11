@@ -394,4 +394,23 @@ static void gil_release(PyGILState_STATE oldstate)
     PyGILState_Release(oldstate);
 }
 
+
+#if PY_VERSION_HEX <= 0x030d00b3
+# define Py_BEGIN_CRITICAL_SECTION(op) {
+# define Py_END_CRITICAL_SECTION() }
+#endif
+
+#ifdef Py_GIL_DISABLED
+#define cffi_check_flag(arg) cffi_atomic_load_uint8(&(arg))
+#define cffi_set_flag(arg, value) cffi_atomic_store_uint8(&(arg), (value))
+#define cffi_set_size(arg, value) cffi_atomic_store_ssize(&(arg)->ct_size, (value))
+#define cffi_get_size(arg) cffi_atomic_load_ssize(&(arg)->ct_size)
+#else
+#define cffi_check_flag(arg) (arg)
+#define cffi_set_flag(arg, value) (arg) = (value)
+#define cffi_set_size(arg, value) (arg)->ct_size = (value)
+#define cffi_get_size(arg) (arg)->ct_size
+#endif
+
+
 #endif /* CFFI_MISC_THREAD_COMMON_H */

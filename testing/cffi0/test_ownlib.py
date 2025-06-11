@@ -210,6 +210,7 @@ class TestOwnLib(object):
         assert res == 42
         assert ffi.errno == 42
 
+    @pytest.mark.thread_unsafe
     def test_my_array_7(self):
         if self.module is None:
             pytest.skip("fix the auto-generation of the tiny test lib")
@@ -230,6 +231,7 @@ class TestOwnLib(object):
         for i in range(7):
             assert ownlib.my_array[i] == i
 
+    @pytest.mark.thread_unsafe
     def test_my_array_no_length(self):
         if self.module is None:
             pytest.skip("fix the auto-generation of the tiny test lib")
@@ -304,7 +306,7 @@ class TestOwnLib(object):
                 long right;
                 long bottom;
             } RECT;
-            
+
             extern long left, top, right, bottom;
 
             RECT ReturnRect(int i, RECT ar, RECT* br, POINT cp, RECT dr,
@@ -320,7 +322,7 @@ class TestOwnLib(object):
         rect[0].right = ownlib.right
         rect[0].top = ownlib.top
         rect[0].bottom = ownlib.bottom
-        
+
         for i in range(4):
             ret = ownlib.ReturnRect(i, rect[0], rect, pt[0], rect[0],
                                     rect, pt[0], rect[0])

@@ -1,4 +1,11 @@
 
+#ifdef MS_WIN32
+#include "misc_win32.h"
+#else
+#include "misc_thread_posix.h"
+#endif
+
+
 typedef struct {
     struct _cffi_type_context_s ctx;   /* inlined substructure */
     PyObject *types_dict;
@@ -388,6 +395,8 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
 
         if (!(s->flags & _CFFI_F_EXTERNAL)) {
             int flags = (s->flags & _CFFI_F_UNION) ? CT_UNION : CT_STRUCT;
+            int is_opaque = (s->flags & _CFFI_F_OPAQUE);
+            flags |= is_opaque ? CT_IS_OPAQUE : 0;
             char *name = alloca(8 + strlen(s->name));
             _realize_name(name,
                           (s->flags & _CFFI_F_UNION) ? "union " : "struct ",
@@ -399,19 +408,17 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
             if (x == NULL)
                 return NULL;
 
-            if (!(s->flags & _CFFI_F_OPAQUE)) {
+            if (!is_opaque) {
                 assert(s->first_field_index >= 0);
                 ct = (CTypeDescrObject *)x;
                 ct->ct_size = (Py_ssize_t)s->size;
-                // unset opaque flag temporarily added in
-                // new_struct_or_union_type since _CFFI_F_OPAUE isn't set
-                ct->ct_flags &= ~CT_IS_OPAQUE;
                 ct->ct_length = s->alignment; /* may be -1 */
-                ct->ct_flags_mut |= CT_LAZY_FIELD_LIST;
+                ct->ct_lazy_field_list = 1;
                 ct->ct_extra = builder;
             }
-            else
+            else {
                 assert(s->first_field_index < 0);
+            }
         }
         else {
             assert(s->first_field_index < 0);
@@ -439,6 +446,9 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
                     return NULL;
                 }
             }
+        }
+        if (ct != NULL) {
+            cffi_set_flag(ct->ct_unrealized_struct_or_union, 0);
         }
 
         LOCK_REALIZE();
@@ -733,7 +743,13 @@ realize_c_type_or_func_now(builder_c_t *builder, _cffi_opcode_t op,
 }
 
 #ifdef Py_GIL_DISABLED
-__thread int _realize_recursion_level;
+#ifdef MS_WIN32
+static __declspec(thread) int _realize_recursion_level;
+#elif defined(USE__THREAD)
+static __thread int _realize_recursion_level;
+#else
+#error "Cannot detect thread-local keyword"
+#endif
 #else
 static int _realize_recursion_level;
 #endif
@@ -823,20 +839,20 @@ realize_c_func_return_type(builder_c_t *builder,
     }
 }
 
-static int do_realize_lazy_struct(CTypeDescrObject *ct)
+static int do_realize_lazy_struct_lock_held(CTypeDescrObject *ct)
 {
     /* This is called by force_lazy_struct() in _cffi_backend.c */
     assert(ct->ct_flags & (CT_STRUCT | CT_UNION));
-    assert(!(ct->ct_flags_mut & CT_UNDER_CONSTRUCTION));
-    if (ct->ct_flags_mut & CT_LAZY_FIELD_LIST) {
+
+    if (cffi_check_flag(ct->ct_lazy_field_list)) {
         builder_c_t *builder;
         char *p;
         int n, i, sflags;
         const struct _cffi_struct_union_s *s;
         const struct _cffi_field_s *fld;
-        PyObject *fields, *args, *res;
+        PyObject *fields, *res;
 
-        // opaque types should never set CT_LAZY_FIELD_LIST
+        // opaque types should never set ct->ct_lazy_field_list
         assert(!(ct->ct_flags & CT_IS_OPAQUE));
 
         builder = ct->ct_extra;
@@ -912,19 +928,12 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
         if (s->flags & _CFFI_F_PACKED)
             sflags |= SF_PACKED;
 
-        args = Py_BuildValue("(OOOnii)", ct, fields, Py_None,
-                             (Py_ssize_t)s->size,
-                             s->alignment,
-                             sflags);
-        Py_DECREF(fields);
-        if (args == NULL)
-            return -1;
-
         ct->ct_extra = NULL;
-        ct->ct_flags_mut |= CT_UNDER_CONSTRUCTION;
-        res = b_complete_struct_or_union(NULL, args);
-        ct->ct_flags_mut &= ~CT_UNDER_CONSTRUCTION;
-        Py_DECREF(args);
+        cffi_set_flag(ct->ct_under_construction, 1);
+        res = b_complete_struct_or_union_lock_held(ct, fields, s->size, s->alignment,
+                                                   sflags, 0);
+        cffi_set_flag(ct->ct_under_construction, 0);
+        Py_DECREF(fields);
 
         if (res == NULL) {
             ct->ct_extra = builder;
@@ -932,12 +941,18 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct)
         }
 
         assert(ct->ct_stuff != NULL);
-        ct->ct_flags_mut &= ~CT_LAZY_FIELD_LIST;
-        assert(!(ct->ct_flags_mut & CT_UNDER_CONSTRUCTION));
+        cffi_set_flag(ct->ct_lazy_field_list, 0);
         Py_DECREF(res);
-        return 1;
     }
-    else {
-        return 0;
-    }
+    return ct->ct_stuff != NULL;
+}
+
+
+static int do_realize_lazy_struct(CTypeDescrObject *ct)
+{
+    int res = 0;
+    Py_BEGIN_CRITICAL_SECTION(ct);
+    res = do_realize_lazy_struct_lock_held(ct);
+    Py_END_CRITICAL_SECTION();
+    return res;
 }

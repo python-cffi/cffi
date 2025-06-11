@@ -16,6 +16,13 @@
    need to call ffi.cdef() to add more information to it.
 */
 
+#ifdef MS_WIN32
+#include "misc_win32.h"
+#else
+#include "misc_thread_posix.h"
+#endif
+#include "misc_thread_common.h"
+
 #define FFI_COMPLEXITY_OUTPUT   1200     /* xxx should grow as needed */
 
 #define FFIObject_Check(op) PyObject_TypeCheck(op, &FFI_Type)
@@ -280,7 +287,7 @@ static PyObject *ffi_sizeof(FFIObject *self, PyObject *arg)
         CTypeDescrObject *ct = _ffi_type(self, arg, ACCEPT_ALL);
         if (ct == NULL)
             return NULL;
-        size = ct->ct_size;
+        size = cffi_get_size(ct);
         if (size < 0) {
             PyErr_Format(FFIError, "don't know the size of ctype '%s'",
                          ct->ct_name);
