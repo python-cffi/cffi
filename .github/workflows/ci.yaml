@@ -28,7 +28,7 @@ env:
 
 jobs:
   python_sdist:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       sdist_artifact_name: ${{ steps.build_sdist.outputs.sdist_artifact_name }}
       package_version: ${{ steps.build_sdist.outputs.package_version }}
@@ -60,7 +60,7 @@ jobs:
       # always upload the sdist artifact- all the wheel build jobs require it
 
   make_linux_matrix:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -71,191 +71,73 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          - spec: cp38-manylinux_x86_64
-            omit: ${{ env.skip_ci_redundant_jobs }}
+          # x86_64 manylinux
+          - { spec: cp39-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-manylinux_x86_64, arch: x86_64, cibw_version: cibuildwheel~=3.0b1 }
+          # FIXME: need to run tests with PYTHON_GIL=0 on this build to actually test sans-GIL, but breaks packaging tests that use the wrong `virtualenv` script wrapper 
+          - { spec: cp314t-manylinux_x86_64, skip_artifact_upload: 'true', cibw_version: cibuildwheel~=3.0b1 }
 
-          - spec: cp39-manylinux_x86_64
-            omit: ${{ env.skip_ci_redundant_jobs }}
-            
-          - spec: cp310-manylinux_x86_64
-            omit: ${{ env.skip_ci_redundant_jobs }}
+          # x86_64 musllinux
+          - { spec: cp39-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-musllinux_x86_64, arch: x86_64, cibw_version: cibuildwheel~=3.0b1 }
 
-          - spec: cp311-manylinux_x86_64
-            omit: ${{ env.skip_ci_redundant_jobs }}
-          
-          - spec: cp312-manylinux_x86_64
-            omit: ${{ env.skip_ci_redundant_jobs }}
+          # i686 manylinux
+          - { spec: cp39-manylinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-manylinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-manylinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-manylinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-manylinux_i686, arch: i686 }
+          # omit i686 releases > 3.13
 
-          - spec: cp313-manylinux_x86_64
-            
-          - spec: cp313t-manylinux_x86_64
-            skip_artifact_upload: 'true'
-  
-          - spec: cp38-manylinux_i686
-            omit: ${{ env.skip_ci_redundant_jobs }}
+          # i686 musllinux
+          - { spec: cp39-musllinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-musllinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-musllinux_i686, arch: i686 }
+          # omit i686 releases after 3.11
 
-          - spec: cp39-manylinux_i686
-            omit: ${{ env.skip_ci_redundant_jobs }}
+          # aarch64 manylinux
+          - { spec: cp39-manylinux_aarch64, arch: aarch64 }
+          - { spec: cp310-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-manylinux_aarch64, arch: aarch64, cibw_version: cibuildwheel~=3.0b1 }
 
-          - spec: cp310-manylinux_i686
-            omit: ${{ env.skip_ci_redundant_jobs }}
+            # aarch64 musllinux
+          - { spec: cp39-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-musllinux_aarch64, arch: aarch64, cibw_version: cibuildwheel~=3.0b1 }
 
-          - spec: cp311-manylinux_i686
-            omit: ${{ env.skip_ci_redundant_jobs }}
+          # ppc64le manylinux
+          - { spec: cp39-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
+          - { spec: cp310-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-manylinux_ppc64le, arch: ppc64le, omit: ${{ env.skip_slow_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
 
-          - spec: cp312-manylinux_i686
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp313-manylinux_i686
-            omit: ${{ env.skip_ci_redundant_jobs }}
-          
-          - spec: cp39-musllinux_x86_64
-            omit: ${{ env.skip_ci_redundant_jobs }}
-          
-          - spec: cp310-musllinux_x86_64
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp311-musllinux_x86_64
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp312-musllinux_x86_64
-            omit: ${{ env.skip_ci_redundant_jobs }}
-  
-          - spec: cp313-musllinux_x86_64
-  
-          - spec: cp39-musllinux_i686
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp310-musllinux_i686
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp311-musllinux_i686
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          #- spec: cp312-musllinux_i686  # busted as of 2024-05-17
-          #  omit: ${{ env.skip_ci_redundant_jobs }}
-  
-          #- spec: cp313-musllinux_i686 # busted as of 2024-05-17
-  
-          - spec: cp39-musllinux_aarch64
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_ci_redundant_jobs || env.skip_slow_jobs }}
-          
-          - spec: cp310-musllinux_aarch64
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_ci_redundant_jobs || env.skip_slow_jobs }}
-
-          - spec: cp311-musllinux_aarch64
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_ci_redundant_jobs || env.skip_slow_jobs }}
-
-          - spec: cp312-musllinux_aarch64
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_ci_redundant_jobs || env.skip_slow_jobs }}
-  
-          - spec: cp313-musllinux_aarch64
-            foreign_arch: true
-            # test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs}}
-  
-          - spec: cp38-manylinux_aarch64
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs }}
-
-          - spec: cp39-manylinux_aarch64
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp310-manylinux_aarch64
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp311-manylinux_aarch64
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp312-manylinux_aarch64
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-  
-          - spec: cp313-manylinux_aarch64
-            foreign_arch: true
-            # test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs }}
-  
-          - spec: cp38-manylinux_ppc64le
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs }}
-
-          - spec: cp39-manylinux_ppc64le
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp310-manylinux_ppc64le
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp311-manylinux_ppc64le
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp312-manylinux_ppc64le
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp313-manylinux_ppc64le
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs }}
-  
-          - spec: cp38-manylinux_s390x
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs }}
-
-          - spec: cp39-manylinux_s390x
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp310-manylinux_s390x
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp311-manylinux_s390x
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp312-manylinux_s390x
-            foreign_arch: true
-            test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }}
-
-          - spec: cp313-manylinux_s390x
-            foreign_arch: true
-            # test_args: '{package}/src/c'
-            omit: ${{ env.skip_slow_jobs }}
-
+          # s390x manylinux
+          - { spec: cp39-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
+          - { spec: cp310-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
 
   linux:
     needs: [python_sdist, make_linux_matrix]
-    runs-on: ubuntu-22.04
+    runs-on: ${{ (matrix.arch == 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.make_linux_matrix.outputs.matrix_json) }}
@@ -269,7 +151,7 @@ jobs:
 
     - name: configure docker foreign arch support
       uses: docker/setup-qemu-action@v3
-      if: ${{ ! contains(matrix.spec, 'x86_64') }}
+      if: matrix.arch != 'x86_64' && matrix.arch != 'i686' && matrix.arch != 'aarch64'
 
     - name: build/test wheels
       id: build
@@ -293,18 +175,17 @@ jobs:
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.manylinux_img || '' }}
         CIBW_MANYLINUX_PPC64LE_IMAGE: ${{ matrix.manylinux_img || '' }}
         CIBW_MANYLINUX_S390X_IMAGE: ${{ matrix.manylinux_img || '' }}
-        CIBW_MUSLLINUX_X86_64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_1' }}
-        CIBW_MUSLLINUX_I686_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_1' }}
-        CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_1' }}
-        CIBW_PRERELEASE_PYTHONS: 'True'
-        CIBW_FREE_THREADED_SUPPORT: 'True'
+        CIBW_MUSLLINUX_X86_64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
+        CIBW_MUSLLINUX_I686_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
+        CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
+        CIBW_ENABLE: cpython-prerelease cpython-freethreading
         CIBW_TEST_REQUIRES: pytest setuptools  # 3.12+ no longer includes distutils, just always ensure setuptools is present
         CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest ${{ matrix.test_args || '{project}' }}  # default to test all
       run: |
         set -eux
-        
+
         mkdir cffi
-        
+
         tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
         python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
 
@@ -322,7 +203,7 @@ jobs:
       if: ${{ (matrix.skip_artifact_upload != 'true') && (env.skip_artifact_upload != 'true') }}
 
   make_macos_matrix:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -333,55 +214,21 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          # build for x86_64 under the default hosted macOS 10.x x86_64 runner
-          - spec: cp38-macosx_x86_64
-            runs_on: [macos-13]
-            omit: ${{ env.skip_ci_redundant_jobs }}
+          # x86_64 macos
+          - { spec: cp39-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-macosx_x86_64, runs_on: [macos-13], cibw_version: cibuildwheel~=3.0b1 }
 
-          - spec: cp39-macosx_x86_64
-            runs_on: [macos-13]
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp310-macosx_x86_64
-            runs_on: [macos-13]
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp311-macosx_x86_64
-            runs_on: [macos-13]
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp312-macosx_x86_64
-            runs_on: [macos-13]
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp313-macosx_x86_64
-            runs_on: [macos-13]
-            # omit: ${{ env.skip_ci_redundant_jobs }}
-
-           # FIXME: ? cp38-macosx_arm64 requires special handling and fails some test_zdist tests under cibw 2.1.2, skip it (so Apple's XCode python3 won't have a wheel)
-          - spec: cp39-macosx_arm64
-            deployment_target: '11.0'
-            run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp310-macosx_arm64
-            deployment_target: '11.0'
-            run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
-            omit: ${{ env.skip_ci_redundant_jobs}}
-
-          - spec: cp311-macosx_arm64
-            deployment_target: '11.0'
-            run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp312-macosx_arm64
-            deployment_target: '11.0'
-            run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp313-macosx_arm64
-            deployment_target: '11.0'
-            run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
+          # arm64 macos
+          - { spec: cp39-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs}} }
+          - { spec: cp311-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', cibw_version: cibuildwheel~=3.0b1 }
 
   macos:
     needs: [python_sdist, make_macos_matrix]
@@ -416,20 +263,20 @@ jobs:
       id: build
       env:
         CIBW_BUILD: ${{ matrix.spec }}
-        CIBW_PRERELEASE_PYTHONS: 'True'
+        CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools
         CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
-        MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '10.9' }}
+        MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '10.13' }}
         SDKROOT: ${{ matrix.sdkroot || 'macosx' }}
       run: |
         set -eux
-        
+
         mkdir cffi
-        
+
         tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
 
         python3 -m cibuildwheel --output-dir dist cffi
-        
+
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
     - name: upload artifacts
@@ -442,7 +289,7 @@ jobs:
 
 
   make_windows_matrix:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -453,45 +300,31 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          - spec: cp38-win_amd64
-            omit: ${{ env.skip_ci_redundant_jobs }}
+          # x86_64 windows
+          - { spec: cp39-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-win_amd64, cibw_version: cibuildwheel~=3.0b1 }
+          
+          # x86 windows
+          - { spec: cp39-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-win32, cibw_version: cibuildwheel~=3.0b1 }
 
-          - spec: cp39-win_amd64
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp310-win_amd64
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp311-win_amd64
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp312-win_amd64
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp313-win_amd64
-            # omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp38-win32
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp39-win32
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp310-win32
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp311-win32
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp312-win32
-            omit: ${{ env.skip_ci_redundant_jobs }}
-
-          - spec: cp313-win32
-            omit: ${{ env.skip_ci_redundant_jobs }}
+          # arm64 windows
+          - { spec: cp311-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp312-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp313-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp314-win_arm64, runs_on: windows-11-arm, cibw_version: cibuildwheel~=3.0b1 }
 
   windows:
     needs: [python_sdist, make_windows_matrix]
-    runs-on: windows-2022
+    runs-on: ${{ matrix.runs_on || 'windows-2022' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.make_windows_matrix.outputs.matrix_json) }}
@@ -503,26 +336,31 @@ jobs:
       with:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
+    - name: Install python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.x
+
     - name: build/test wheels
       id: build
       env:
         CIBW_BUILD: ${{ matrix.spec }}
-        CIBW_PRERELEASE_PYTHONS: 'True'
+        CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools
-        CIBW_TEST_COMMAND: 'python -m pytest {package}/src/c'
+        CIBW_TEST_COMMAND: ${{ matrix.test_cmd || 'python -m pytest {package}/src/c' }}
         # FIXME: /testing takes ~45min on Windows and has some failures...
-        # CIBW_TEST_COMMAND='python -m pytest {package}/src/c {project}/testing'
+        # CIBW_TEST_COMMAND='python -m pytest {package}/src/c {package}/testing'
       run: |
         set -eux
-        
+
         mkdir cffi
-        
+
         tar zxf cffi*.tar.gz --strip-components=1 -C cffi
-        
+
         python -m pip install --upgrade pip
         pip install "${{ matrix.cibw_version || 'cibuildwheel'}}"
         python -m cibuildwheel --output-dir dist cffi
-        
+
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
       shell: bash
@@ -537,7 +375,7 @@ jobs:
 
   merge_artifacts:
     needs: [python_sdist, linux, macos, windows]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - name: merge all artifacts
       uses: actions/upload-artifact/merge@v4
@@ -550,7 +388,7 @@ jobs:
   check:
     if: always()
     needs: [python_sdist, linux, macos, windows, merge_artifacts]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - name: Verify all previous jobs succeeded (provides a single check to sample for gating purposes)
       uses: re-actors/alls-green@release/v1
