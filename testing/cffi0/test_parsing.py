@@ -415,7 +415,6 @@ def test_WPARAM_on_windows():
     value = int(ffi.cast("WPARAM", -42))
     assert value == sys.maxsize * 2 - 40
 
-@pytest.mark.thread_unsafe
 def test__is_constant_globalvar():
     import warnings
     for input, expected_output in [

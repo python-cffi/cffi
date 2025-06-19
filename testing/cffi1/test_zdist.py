@@ -7,7 +7,7 @@ from shutil import rmtree
 from tempfile import mkdtemp
 
 pytestmark = [
-    pytest.mark.thread_unsafe,
+    pytest.mark.thread_unsafe(reason="very slow in parallel"),
 ]
 
 

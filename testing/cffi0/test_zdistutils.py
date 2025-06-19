@@ -7,7 +7,7 @@ from testing.udir import udir
 from testing.support import load_dynamic
 
 pytestmark = [
-    pytest.mark.thread_unsafe,
+    pytest.mark.thread_unsafe(reason="worker threads would share a compilation directory"),
 ]
 
 

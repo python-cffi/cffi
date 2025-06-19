@@ -71,7 +71,7 @@ def test_dlopen():
     x = m.sin(1.23)
     assert x == math.sin(1.23)
 
-@pytest.mark.thread_unsafe
+@pytest.mark.thread_unsafe(reason="FFI verifier is not thread-safe")
 def test_verify():
     ffi = FFI()
     ffi.cdef("double test_verify_1(double x);")   # unicode literal

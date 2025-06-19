@@ -8,7 +8,7 @@ from testing.support import u, long
 from testing.support import FdWriteCapture, StdErrCapture, _verify
 
 pytestmark = [
-    pytest.mark.thread_unsafe,
+    pytest.mark.thread_unsafe(reason="worker threads would share a compilation directory"),
 ]
 
 try:

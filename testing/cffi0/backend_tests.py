@@ -1427,7 +1427,6 @@ class BackendTests:
         assert ffi.getctype("pe") == 'e *'
         assert ffi.getctype("e1*") == 'e1 *'
 
-    @pytest.mark.thread_unsafe
     def test_opaque_enum(self):
         import warnings
         ffi = FFI(backend=self.Backend())

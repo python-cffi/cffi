@@ -123,6 +123,7 @@ EXPORT THREEBYTES return_three_bytes(void)
 }
 """
 
+@pytest.mark.thread_unsafe(reason="Parallel tests would share a build directory")
 class TestOwnLib(object):
     Backend = CTypesBackend
 
@@ -210,7 +211,6 @@ class TestOwnLib(object):
         assert res == 42
         assert ffi.errno == 42
 
-    @pytest.mark.thread_unsafe
     def test_my_array_7(self):
         if self.module is None:
             pytest.skip("fix the auto-generation of the tiny test lib")
@@ -231,7 +231,6 @@ class TestOwnLib(object):
         for i in range(7):
             assert ownlib.my_array[i] == i
 
-    @pytest.mark.thread_unsafe
     def test_my_array_no_length(self):
         if self.module is None:
             pytest.skip("fix the auto-generation of the tiny test lib")
@@ -331,7 +330,6 @@ class TestOwnLib(object):
             assert ret.top == ownlib.top
             assert ret.bottom == ownlib.bottom
 
-    @pytest.mark.thread_unsafe
     def test_addressof_lib(self):
         if self.module is None:
             pytest.skip("fix the auto-generation of the tiny test lib")

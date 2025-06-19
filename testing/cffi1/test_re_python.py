@@ -160,7 +160,8 @@ def test_enum():
     e = ffi.cast("enum foo_e", 2)
     assert ffi.string(e) == "CC"
 
-@pytest.mark.thread_unsafe
+
+@pytest.mark.thread_unsafe(reason="tests would share a compilation directory")
 def test_include_1():
     sub_ffi = FFI()
     sub_ffi.cdef("static const int k2 = 121212;")
@@ -186,7 +187,7 @@ def test_include_1():
     p = ffi.new("bar_t *", [5, b"foobar"])
     assert p.a[4] == ord('a')
 
-@pytest.mark.thread_unsafe
+@pytest.mark.thread_unsafe(reason="mutates shared global state")
 def test_global_var():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
@@ -239,7 +240,7 @@ def test_partial_enum():
     pytest.raises(VerificationMissing, ffi.emit_python_code,
                    str(tmpdir.join('test_partial_enum.py')))
 
-@pytest.mark.thread_unsafe
+
 def test_anonymous_union_inside_struct():
     # based on issue #357
     from re_python_pysrc import ffi
@@ -264,7 +265,7 @@ def test_anonymous_union_inside_struct():
     assert ffi.offsetof("struct NVGcolor", "b") == FLOAT * 2
     assert ffi.offsetof("struct NVGcolor", "a") == FLOAT * 3
 
-@pytest.mark.thread_unsafe
+
 def test_selfref():
     # based on issue #429
     from re_python_pysrc import ffi
@@ -291,7 +292,7 @@ def test_dlopen_handle():
     err = lib1.dlclose(handle)
     assert err == 0
 
-@pytest.mark.thread_unsafe
+@pytest.mark.thread_unsafe(reason="workers would share a compilation directory")
 def test_rec_structs_1():
     ffi = FFI()
     ffi.cdef("struct B { struct C* c; }; struct C { struct B b; };")
@@ -308,7 +309,7 @@ def test_rec_structs_1():
     sz = ffi.sizeof("struct B")
     assert sz == ffi.sizeof("int *")
 
-@pytest.mark.thread_unsafe
+@pytest.mark.thread_unsafe(reason="workers would share a compilation directory")
 def test_rec_structs_2():
     ffi = FFI()
     ffi.cdef("struct B { struct C* c; }; struct C { struct B b; };")

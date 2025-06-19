@@ -8,7 +8,7 @@ from testing.support import _verify, extra_compile_args, is_musl
 import _cffi_backend
 
 pytestmark = [
-    pytest.mark.thread_unsafe,
+    pytest.mark.thread_unsafe(reason="FFI verifier is not thread-safe"),
 ]
 
 lib_m = ['m']

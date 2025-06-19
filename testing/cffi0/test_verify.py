@@ -7,7 +7,7 @@ from testing.support import extra_compile_args, is_musl
 
 # eliminate warning noise from common test modules that are repeatedly re-imported
 pytestmark = [
-    pytest.mark.thread_unsafe,
+    pytest.mark.thread_unsafe(reason="FFI verifier is not thread-safe"),
     pytest.mark.filterwarnings("ignore:reimporting:UserWarning"),
     #pytest.mark.filterwarnings("ignore:Deprecated:_DeprecatedConfig")
 ]

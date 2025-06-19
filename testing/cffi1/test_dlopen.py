@@ -4,7 +4,7 @@ from cffi.recompiler import make_py_source
 from testing.udir import udir
 
 pytestmark = [
-    pytest.mark.thread_unsafe,
+    pytest.mark.thread_unsafe(reason="worker threads would share a compilation directory"),
 ]
 
 def test_simple():

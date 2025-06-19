@@ -2,7 +2,7 @@ import pytest
 from .test_verify import *
 
 pytestmark = [
-    pytest.mark.thread_unsafe,
+    pytest.mark.thread_unsafe(reason="FFI verifier is not thread-safe"),
     # eliminate warning noise from common test modules that are repeatedly re-imported
     pytest.mark.filterwarnings("ignore:reimporting:UserWarning"),
 ]
