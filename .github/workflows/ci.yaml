@@ -330,7 +330,7 @@ jobs:
         mkdir cffi
         
         tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
-        python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
+        python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel<3' }}"
 
         # actually build libffi + wheel (using env tweaks above)
         python -m cibuildwheel --output-dir dist ./cffi
@@ -443,7 +443,7 @@ jobs:
     - name: build wheel prereqs
       run: |
         set -eux
-        python3 -m pip install --user --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
+        python3 -m pip install --user --upgrade "${{ matrix.cibw_version || 'cibuildwheel<3' }}"
         brew uninstall --ignore-dependencies libffi 2>&1 || true
 
     - name: build/test wheels
@@ -562,7 +562,7 @@ jobs:
         tar zxf cffi*.tar.gz --strip-components=1 -C cffi
         
         python -m pip install --upgrade pip
-        pip install "${{ matrix.cibw_version || 'cibuildwheel' }}"
+        pip install "${{ matrix.cibw_version || 'cibuildwheel<3' }}"
         python -m cibuildwheel --output-dir dist cffi
         
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
