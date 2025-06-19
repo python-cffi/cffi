@@ -382,6 +382,10 @@ jobs:
             runs_on: [macos-13]
             # omit: ${{ env.skip_ci_redundant_jobs }}
 
+          - spec: cp313t-macosx_x86_64
+            runs_on: [macos-13]
+            # omit: ${{ env.skip_ci_redundant_jobs }}
+
            # FIXME: ? cp38-macosx_arm64 requires special handling and fails some test_zdist tests under cibw 2.1.2, skip it (so Apple's XCode python3 won't have a wheel)
           - spec: cp39-macosx_arm64
             deployment_target: '11.0'
@@ -406,6 +410,12 @@ jobs:
           - spec: cp313-macosx_arm64
             deployment_target: '11.0'
             run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
+            # omit: ${{ env.skip_ci_redundant_jobs }}
+
+          - spec: cp313t-macosx_arm64
+            deployment_target: '11.0'
+            run_wrapper: arch -arm64 bash --noprofile --norc -eo pipefail {0}
+            # omit: ${{ env.skip_ci_redundant_jobs }}
 
   macos:
     needs: [python_sdist, make_macos_matrix]
