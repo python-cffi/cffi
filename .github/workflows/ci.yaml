@@ -400,11 +400,33 @@ jobs:
         delete-merged: true
       if: ${{ env.skip_artifact_upload != 'true' }}
 
+  make_run_parallel_matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: make a matrix
+      id: make_matrix
+      uses: ./.github/actions/dynamatrix
+      with:
+        matrix_yaml: |
+          include:
+          - { runner: ubuntu-latest, python-version: 3.13t, omit: ${{env.skip_ci_redundant_jobs }} }
+          - { runner: ubuntu-latest, python-version: 3.14t-dev }
+          - { runner: macos-latest, python-version: 3.13t, omit: ${{env.skip_ci_redundant_jobs }} }
+          - { runner: macos-latest, python-version: 3.14t-dev }
+          - { runner: windows-latest, python-version: 3.13t, omit: ${{env.skip_ci_redundant_jobs }} }
+          - { runner: windows-latest, python-version: 3.14t-dev }
+
+
   pytest-run-parallel:
+    needs: make_run_parallel_matrix
     strategy:
-      matrix:
-        runner-image: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-    runs-on: ${{ matrix.runner-image }}
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.make_run_parallel_matrix.outputs.matrix_json) }}
+
+    runs-on: ${{ matrix.runner }}
     steps:
     - name: clone repo
       uses: actions/checkout@v4
@@ -412,7 +434,7 @@ jobs:
     - name: install python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.14t-dev'
+        python-version: ${{ matrix.python-version }}
 
     - name: build and install
       run: |
