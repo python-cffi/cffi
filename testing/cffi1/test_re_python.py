@@ -160,7 +160,6 @@ def test_enum():
     e = ffi.cast("enum foo_e", 2)
     assert ffi.string(e) == "CC"
 
-
 @pytest.mark.thread_unsafe(reason="tests would share a compilation directory")
 def test_include_1():
     sub_ffi = FFI()
@@ -240,7 +239,6 @@ def test_partial_enum():
     pytest.raises(VerificationMissing, ffi.emit_python_code,
                    str(tmpdir.join('test_partial_enum.py')))
 
-
 def test_anonymous_union_inside_struct():
     # based on issue #357
     from re_python_pysrc import ffi
@@ -264,7 +262,6 @@ def test_anonymous_union_inside_struct():
     assert ffi.offsetof("struct NVGcolor", "g") == FLOAT
     assert ffi.offsetof("struct NVGcolor", "b") == FLOAT * 2
     assert ffi.offsetof("struct NVGcolor", "a") == FLOAT * 3
-
 
 def test_selfref():
     # based on issue #429

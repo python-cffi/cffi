@@ -22,7 +22,7 @@ on:
         default: true
 
 env:
-  skip_ci_redundant_jobs: ${{ (github.event_name == 'workflow_dispatch' && inputs.skip_ci_redundant_jobs) || (github.event_name == 'push') }}
+  skip_ci_redundant_jobs: ${{ (github.event_name == 'workflow_dispatch' && inputs.skip_ci_redundant_jobs) || (github.event_name == 'pull_request' || github.event_name == 'push') }}
   skip_slow_jobs: ${{ (github.event_name == 'workflow_dispatch' && inputs.skip_slow_jobs) || (github.event_name == 'pull_request' || github.event_name == 'push') }}
   skip_artifact_upload: ${{ (github.event_name == 'workflow_dispatch' && inputs.skip_artifact_upload) || github.event_name != 'workflow_dispatch' }}
 
@@ -100,6 +100,12 @@ jobs:
           - { spec: cp313-manylinux_i686, arch: i686 }
           - { spec: cp313t-manylinux_i686, arch: i686 }
           # omit i686 releases > 3.13
+
+          # i686 musllinux
+          - { spec: cp39-musllinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-musllinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-musllinux_i686, arch: i686 }
+          # omit i686 releases after 3.11
 
           # aarch64 manylinux
           - { spec: cp39-manylinux_aarch64, arch: aarch64 }
@@ -193,7 +199,7 @@ jobs:
         mkdir cffi
 
         tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
-        python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel<3' }}"
+        python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
 
         # actually build libffi + wheel (using env tweaks above)
         python -m cibuildwheel --output-dir dist ./cffi
@@ -266,7 +272,7 @@ jobs:
     - name: build wheel prereqs
       run: |
         set -eux
-        python3 -m pip install --user --upgrade "${{ matrix.cibw_version || 'cibuildwheel<3' }}"
+        python3 -m pip install --user --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
         brew uninstall --ignore-dependencies libffi 2>&1 || true
 
     - name: build/test wheels
@@ -374,7 +380,7 @@ jobs:
         tar zxf cffi*.tar.gz --strip-components=1 -C cffi
 
         python -m pip install --upgrade pip
-        pip install "${{ matrix.cibw_version || 'cibuildwheel<3' }}"
+        pip install "${{ matrix.cibw_version || 'cibuildwheel' }}"
         python -m cibuildwheel --output-dir dist cffi
 
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"

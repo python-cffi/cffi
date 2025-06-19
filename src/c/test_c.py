@@ -3410,11 +3410,6 @@ def buffer_warning(cdata):
     import threading
     import warnings
 
-    # warnings.catch_warnings() is not currently thread-safe, so skip the
-    # remainder of this test if running with `pytest-run-parallel`.
-    if threading.current_thread() != threading.main_thread():
-        pytest.skip("cannot run in a secondary thread")
-
     buf = buffer(cdata)
     bytes = len(buf)
     with warnings.catch_warnings(record=True) as w:
@@ -4236,7 +4231,6 @@ def test_cdata_dir():
     check_dir(pp, [])
     check_dir(pp[0], ['a1', 'a2'])
     check_dir(pp[0][0], ['a1', 'a2'])
-
 
 def test_char_pointer_conversion():
     import warnings

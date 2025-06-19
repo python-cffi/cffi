@@ -25,6 +25,7 @@ def test_merge_flags():
         "bar" : ["b", "a", "z"],
         "foo" : []}
 
+
 @pytest.mark.thread_unsafe(reason="monkeypatches pkgconfig")
 def test_pkgconfig():
     assert pkgconfig.flags_from_pkgconfig([]) == {}
