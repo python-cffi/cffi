@@ -517,8 +517,7 @@ static void
 ctypedescr_dealloc(CTypeDescrObject *ct)
 {
     PyObject_GC_UnTrack(ct);
-    if (ct->ct_weakreflist != NULL)
-        PyObject_ClearWeakRefs((PyObject *) ct);
+    PyObject_ClearWeakRefs((PyObject *) ct);
 
     if (ct->ct_unique_key != NULL) {
         /* delete the weak reference from unique_cache */
