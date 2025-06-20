@@ -79,7 +79,6 @@ jobs:
           - { spec: cp313-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }          
           - { spec: cp313t-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp314-manylinux_x86_64, arch: x86_64, cibw_version: cibuildwheel~=3.0b1 }
-          # FIXME: need to run tests with PYTHON_GIL=0 on this build to actually test sans-GIL, but breaks packaging tests that use the wrong `virtualenv` script wrapper 
           - { spec: cp314t-manylinux_x86_64, cibw_version: cibuildwheel~=3.0b1 }
 
           # x86_64 musllinux
