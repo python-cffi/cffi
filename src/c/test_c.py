@@ -3407,9 +3407,7 @@ def test_bitfield_as_ppc_gcc():
 
 
 def buffer_warning(cdata):
-    import threading
     import warnings
-
     buf = buffer(cdata)
     bytes = len(buf)
     with warnings.catch_warnings(record=True) as w:
