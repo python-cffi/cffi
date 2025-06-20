@@ -1987,8 +1987,7 @@ get_alignment(CTypeDescrObject *ct)
 
 static void cdata_dealloc(CDataObject *cd)
 {
-    if (cd->c_weakreflist != NULL)
-        PyObject_ClearWeakRefs((PyObject *) cd);
+    PyObject_ClearWeakRefs((PyObject *) cd);
 
     Py_DECREF(cd->c_type);
 #ifndef CFFI_MEM_LEAK     /* never release anything, tests only */
