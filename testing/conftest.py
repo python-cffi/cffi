@@ -25,6 +25,23 @@ def pytest_configure(config):
             "iterations(n): run the given test function `n` times in each thread",
         )
 
+try:
+    gil_enabled_at_start = sys._is_gil_enabled()
+except AttributeError:
+    # Python 3.12 and older
+    gil_enabled_at_start = True
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    if not gil_enabled_at_start and sys._is_gil_enabled():
+        tr = terminalreporter
+        tr.ensure_newline()
+        tr.section("GIL re-enabled!", sep="=", red=True, bold=True)
+        tr.line("The GIL was re-enabled at runtime during the tests.")
+        tr.line("This can happen with no test failures if the RuntimeWarning")
+        tr.line("raised by Python when this happens is filtered by a test.")
+        pytest.exit("GIL re-enabled during tests", returncode=1)
+
+
 # this problem was supposedly fixed in a newer Python 3.8 release, but after binary installer support expired
 # https://github.com/python/cpython/pull/28054
 if sys.platform == 'darwin' and sys.version_info[:2] == (3, 8):
