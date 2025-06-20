@@ -95,6 +95,8 @@ def test_large_constant():
     assert ffi.integer_const('BIGPOS') == 420000000000
     assert ffi.integer_const('BIGNEG') == -420000000000
 
+@pytest.mark.thread_unsafe(
+    reason="Worker threads might call dlclose concurrently")
 def test_function():
     import _cffi_backend
     from re_python_pysrc import ffi
@@ -102,6 +104,8 @@ def test_function():
     assert lib.add42(-10) == 32
     assert type(lib.add42) is _cffi_backend.FFI.CData
 
+@pytest.mark.thread_unsafe(
+    reason="Worker threads might call dlclose concurrently")
 def test_function_with_varargs():
     import _cffi_backend
     from re_python_pysrc import ffi
@@ -121,6 +125,8 @@ def test_dlopen_none():
     lib = ffi.dlopen(name)
     assert lib.strlen(b"hello") == 5
 
+@pytest.mark.thread_unsafe(
+    reason="Worker threads might call dlclose concurrently")
 def test_dlclose():
     import _cffi_backend
     from re_python_pysrc import ffi
@@ -135,6 +141,8 @@ def test_dlclose():
         "library '%s' has been closed" % (str_extmod,))
     ffi.dlclose(lib)   # does not raise
 
+@pytest.mark.thread_unsafe(
+    reason="Worker threads might call dlclose concurrently")
 def test_constant_via_lib():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
@@ -197,12 +205,16 @@ def test_global_var():
     p[0] -= 1
     assert lib.globalvar42 == 1238
 
+@pytest.mark.thread_unsafe(
+    reason="Worker threads might call dlclose concurrently")
 def test_global_const_int():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
     assert lib.globalconst42 == 4321
     pytest.raises(AttributeError, ffi.addressof, lib, 'globalconst42')
 
+@pytest.mark.thread_unsafe(
+    reason="Worker threads might call dlclose concurrently")
 def test_global_const_nonint():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
@@ -215,6 +227,8 @@ def test_rtld_constants():
     ffi.RTLD_LAZY
     ffi.RTLD_GLOBAL
 
+@pytest.mark.thread_unsafe(
+    reason="Worker threads might call dlclose concurrently")
 def test_no_such_function_or_global_var():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
@@ -268,6 +282,8 @@ def test_selfref():
     from re_python_pysrc import ffi
     ffi.new("selfref_ptr_t")
 
+@pytest.mark.thread_unsafe(
+    reason="Worker threads might call dlclose concurrently")
 def test_dlopen_handle():
     import _cffi_backend
     from re_python_pysrc import ffi

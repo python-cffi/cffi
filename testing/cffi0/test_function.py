@@ -535,6 +535,8 @@ class TestFunction(object):
         m = ffi.dlopen(lib_m)
         assert dir(m) == ['MYE1', 'MYE2', 'MYFOO', 'myconst', 'myfunc', 'myvar']
 
+    @pytest.mark.thread_unsafe(
+        reason="Worker threads might call dlclose simultaneously")
     def test_dlclose(self):
         if self.Backend is CTypesBackend:
             pytest.skip("not with the ctypes backend")
