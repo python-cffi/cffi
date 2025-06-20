@@ -287,6 +287,10 @@ static PyObject *ffi_sizeof(FFIObject *self, PyObject *arg)
         CTypeDescrObject *ct = _ffi_type(self, arg, ACCEPT_ALL);
         if (ct == NULL)
             return NULL;
+        if (ct->ct_flags & (CT_STRUCT | CT_UNION)) {
+            if (force_lazy_struct(ct) < 0)
+                return NULL;
+        }
         size = cffi_get_size(ct);
         if (size < 0) {
             PyErr_Format(FFIError, "don't know the size of ctype '%s'",
