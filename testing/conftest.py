@@ -37,8 +37,8 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         tr.ensure_newline()
         tr.section("GIL re-enabled!", sep="=", red=True, bold=True)
         tr.line("The GIL was re-enabled at runtime during the tests.")
-        tr.line("This can happen with no test failures if the RuntimeWarning")
-        tr.line("raised by Python when this happens is filtered by a test.")
+        tr.line("Re-run the test with '-W error::RuntimeWarning' to ")
+        tr.line("make the tests fail when the GIL is re-enabled.")
         pytest.exit("GIL re-enabled during tests", returncode=1)
 
 
