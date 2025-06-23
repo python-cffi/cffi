@@ -669,12 +669,21 @@ realize_c_type_or_func_now(builder_c_t *builder, _cffi_opcode_t op,
            pointer in the 'opcodes' array, and GETOP() returns a
            random even value.  But OP_FUNCTION_END is odd, so the
            condition below still works correctly. */
-        while (_CFFI_GETOP(opcodes[base_index + num_args]) !=
-                   _CFFI_OP_FUNCTION_END)
+#ifdef Py_GIL_DISABLED
+        while(_CFFI_GETOP(cffi_atomic_load(&opcodes[base_index + num_args]))
+#else
+        while (_CFFI_GETOP(opcodes[base_index + num_args])
+#endif
+               != _CFFI_OP_FUNCTION_END)
             num_args++;
 
+#ifdef Py_GIL_DISABLED
+        ellipsis = _CFFI_GETARG(cffi_atomic_load(&opcodes[base_index + num_args])) & 0x01;
+        abi = _CFFI_GETARG(cffi_atomic_load(&opcodes[base_index + num_args])) & 0xFE;
+#else
         ellipsis = _CFFI_GETARG(opcodes[base_index + num_args]) & 0x01;
-        abi      = _CFFI_GETARG(opcodes[base_index + num_args]) & 0xFE;
+        abi = _CFFI_GETARG(opcodes[base_index + num_args]) & 0xFE;
+#endif
         switch (abi) {
         case 0:
             abi = FFI_DEFAULT_ABI;
