@@ -626,16 +626,17 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct);
 static inline int
 force_lazy_struct(CTypeDescrObject *ct)
 {
+    uint8_t lazy_fields = cffi_check_flag(ct->ct_lazy_field_list);
+    if (lazy_fields) {
+        // not realized yet
+        return do_realize_lazy_struct(ct);
+    }
 #ifdef Py_GIL_DISABLED
     PyObject *ct_stuff = cffi_atomic_load((void**)&ct->ct_stuff);
 #else
     PyObject *ct_stuff = ct->ct_stuff;
 #endif
-    if (ct_stuff != NULL) {
-        /* already realized */
-        return 1;
-    }
-    return do_realize_lazy_struct(ct);
+    return ct_stuff != NULL;
 }
 
 
