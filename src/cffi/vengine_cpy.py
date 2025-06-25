@@ -102,8 +102,6 @@ class VCPythonEngine(object):
         # standard init.
         modname = self.verifier.get_module_name()
         constants = self._chained_list_constants[False]
-        prnt('#if PY_MAJOR_VERSION >= 3')
-        prnt()
         prnt('static struct PyModuleDef _cffi_module_def = {')
         prnt('  PyModuleDef_HEAD_INIT,')
         prnt('  "%s",' % modname)
@@ -127,21 +125,6 @@ class VCPythonEngine(object):
         prnt('  return lib;')
         prnt('}')
         prnt()
-        prnt('#else')
-        prnt()
-        prnt('PyMODINIT_FUNC')
-        prnt('init%s(void)' % modname)
-        prnt('{')
-        prnt('  PyObject *lib;')
-        prnt('  lib = Py_InitModule("%s", _cffi_methods);' % modname)
-        prnt('  if (lib == NULL)')
-        prnt('    return;')
-        prnt('  if (%s < 0 || _cffi_init() < 0)' % (constants,))
-        prnt('    return;')
-        prnt('  return;')
-        prnt('}')
-        prnt()
-        prnt('#endif')
 
     def load_library(self, flags=None):
         # XXX review all usages of 'self' here!
@@ -870,21 +853,9 @@ cffimod_header = r'''
 # define _cffi_double_complex_t  double _Complex
 #endif
 
-#if PY_MAJOR_VERSION < 3
-# undef PyCapsule_CheckExact
-# undef PyCapsule_GetPointer
-# define PyCapsule_CheckExact(capsule) (PyCObject_Check(capsule))
-# define PyCapsule_GetPointer(capsule, name) \
-    (PyCObject_AsVoidPtr(capsule))
-#endif
-
-#if PY_MAJOR_VERSION >= 3
-# define PyInt_FromLong PyLong_FromLong
-#endif
-
 #define _cffi_from_c_double PyFloat_FromDouble
 #define _cffi_from_c_float PyFloat_FromDouble
-#define _cffi_from_c_long PyInt_FromLong
+#define _cffi_from_c_long PyLong_FromLong
 #define _cffi_from_c_ulong PyLong_FromUnsignedLong
 #define _cffi_from_c_longlong PyLong_FromLongLong
 #define _cffi_from_c_ulonglong PyLong_FromUnsignedLongLong
@@ -896,21 +867,21 @@ cffimod_header = r'''
 #define _cffi_from_c_int_const(x)                                        \
     (((x) > 0) ?                                                         \
         ((unsigned long long)(x) <= (unsigned long long)LONG_MAX) ?      \
-            PyInt_FromLong((long)(x)) :                                  \
+            PyLong_FromLong((long)(x)) :                                 \
             PyLong_FromUnsignedLongLong((unsigned long long)(x)) :       \
         ((long long)(x) >= (long long)LONG_MIN) ?                        \
-            PyInt_FromLong((long)(x)) :                                  \
+            PyLong_FromLong((long)(x)) :                                 \
             PyLong_FromLongLong((long long)(x)))
 
 #define _cffi_from_c_int(x, type)                                        \
     (((type)-1) > 0 ? /* unsigned */                                     \
         (sizeof(type) < sizeof(long) ?                                   \
-            PyInt_FromLong((long)x) :                                    \
+            PyLong_FromLong((long)x) :                                   \
          sizeof(type) == sizeof(long) ?                                  \
             PyLong_FromUnsignedLong((unsigned long)x) :                  \
             PyLong_FromUnsignedLongLong((unsigned long long)x)) :        \
         (sizeof(type) <= sizeof(long) ?                                  \
-            PyInt_FromLong((long)x) :                                    \
+            PyLong_FromLong((long)x) :                                   \
             PyLong_FromLongLong((long long)x)))
 
 #define _cffi_to_c_int(o, type)                                          \

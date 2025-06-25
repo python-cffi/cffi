@@ -317,11 +317,8 @@ class Recompiler:
             prnt('#ifdef PYPY_VERSION')
             prnt('# define _CFFI_PYTHON_STARTUP_FUNC  _cffi_pypyinit_%s' % (
                 base_module_name,))
-            prnt('#elif PY_MAJOR_VERSION >= 3')
-            prnt('# define _CFFI_PYTHON_STARTUP_FUNC  PyInit_%s' % (
-                base_module_name,))
             prnt('#else')
-            prnt('# define _CFFI_PYTHON_STARTUP_FUNC  init%s' % (
+            prnt('# define _CFFI_PYTHON_STARTUP_FUNC  PyInit_%s' % (
                 base_module_name,))
             prnt('#endif')
             lines = self._rel_readlines('_embedding.h')
@@ -429,33 +426,20 @@ class Recompiler:
             prnt('    }')
         prnt('    p[0] = (const void *)0x%x;' % self._version)
         prnt('    p[1] = &_cffi_type_context;')
-        prnt('#if PY_MAJOR_VERSION >= 3')
         prnt('    return NULL;')
-        prnt('#endif')
         prnt('}')
         # on Windows, distutils insists on putting init_cffi_xyz in
         # 'export_symbols', so instead of fighting it, just give up and
         # give it one
         prnt('#  ifdef _MSC_VER')
         prnt('     PyMODINIT_FUNC')
-        prnt('#  if PY_MAJOR_VERSION >= 3')
         prnt('     PyInit_%s(void) { return NULL; }' % (base_module_name,))
-        prnt('#  else')
-        prnt('     init%s(void) { }' % (base_module_name,))
         prnt('#  endif')
-        prnt('#  endif')
-        prnt('#elif PY_MAJOR_VERSION >= 3')
+        prnt('#else')
         prnt('PyMODINIT_FUNC')
         prnt('PyInit_%s(void)' % (base_module_name,))
         prnt('{')
         prnt('  return _cffi_init("%s", 0x%x, &_cffi_type_context);' % (
-            self.module_name, self._version))
-        prnt('}')
-        prnt('#else')
-        prnt('PyMODINIT_FUNC')
-        prnt('init%s(void)' % (base_module_name,))
-        prnt('{')
-        prnt('  _cffi_init("%s", 0x%x, &_cffi_type_context);' % (
             self.module_name, self._version))
         prnt('}')
         prnt('#endif')
