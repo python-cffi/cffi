@@ -124,7 +124,7 @@ def use_homebrew_for_libffi():
         os.environ.get('PKG_CONFIG_PATH', '') + ':' + pkgconfig)
 
 if sys.platform == "win32" and uses_msvc():
-    if platform.machine() == "ARM64":
+    if platform.machine() == "ARM64" or os.getenv("VSCMD_ARG_TGT_ARCH") == "arm64":
         include_dirs.append(os.path.join("src/c/libffi_arm64/include"))
         library_dirs.append(os.path.join("src/c/libffi_arm64"))
     else:
