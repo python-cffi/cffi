@@ -1686,11 +1686,7 @@ convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
         CFieldObject *cf;
 
         while (PyDict_Next(init, &i, &d_key, &d_value)) {
-#ifdef Py_GIL_DISABLED
-            cf = (CFieldObject *)PyDict_GetItem((PyObject *)cffi_atomic_load((void **)&ct->ct_stuff), d_key);
-#else
             cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, d_key);
-#endif
             if (cf == NULL) {
                 PyErr_SetObject(PyExc_KeyError, d_key);
                 return -1;
@@ -2972,11 +2968,7 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
     if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
         switch (force_lazy_struct(ct)) {
         case 1:
-#ifdef Py_GIL_DISABLED
-            cf = (CFieldObject *)PyDict_GetItem((PyObject *)cffi_atomic_load((void **)&ct->ct_stuff), attr);
-#else
             cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
-#endif
             if (cf != NULL) {
                 /* read the field 'cf' */
                 char *data = cd->c_data + cf->cf_offset;
@@ -3029,11 +3021,7 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
     if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
         switch (force_lazy_struct(ct)) {
         case 1:
-#ifdef Py_GIL_DISABLED
-            cf = (CFieldObject *)PyDict_GetItem((PyObject *)cffi_atomic_load((void **)&ct->ct_stuff), attr);
-#else
             cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
-#endif
             if (cf != NULL) {
                 /* write the field 'cf' */
                 if (value != NULL) {
@@ -6884,11 +6872,7 @@ static CTypeDescrObject *direct_typeoffsetof(CTypeDescrObject *ct,
                 PyErr_SetString(PyExc_TypeError, "struct/union is opaque");
             return NULL;
         }
-#ifdef Py_GIL_DISABLED
-        cf = (CFieldObject *)PyDict_GetItem((PyObject *)cffi_atomic_load((void **)&ct->ct_stuff), fieldname);
-#else
         cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
-#endif
         if (cf == NULL) {
             PyErr_SetObject(PyExc_KeyError, fieldname);
             return NULL;

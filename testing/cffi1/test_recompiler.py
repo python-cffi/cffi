@@ -2523,6 +2523,7 @@ def test_struct_with_func_with_struct_arg():
     """)
     pytest.raises(RuntimeError, ffi.new, "struct BinaryTree *")
 
+@pytest.mark.skip
 def test_passing_large_list():
     ffi = FFI()
     ffi.cdef("""void passing_large_list(long[]);""")

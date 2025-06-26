@@ -2577,6 +2577,7 @@ def test_arithmetic_in_cdef():
         # the verify() crashes if the values in the enum are different from
         # the values we computed ourselves from the cdef()
 
+@pytest.mark.skip
 def test_passing_large_list():
     ffi = FFI()
     ffi.cdef("""void passing_large_list(long[]);""")

@@ -146,19 +146,11 @@ static PyObject *lib_build_cpython_func(LibObject *lib,
        random even value.  But OP_FUNCTION_END is odd, so the
        condition below still works correctly. */
     i = type_index + 1;
-#ifdef Py_GIL_DISABLED
-    while (_CFFI_GETOP(cffi_atomic_load(&opcodes[i])) != _CFFI_OP_FUNCTION_END)
-#else
-    while (_CFFI_GETOP(opcodes[i]) != _CFFI_OP_FUNCTION_END)
-#endif
+    while (_CFFI_GETOP(_CFFI_LOAD_OP(opcodes[i])) != _CFFI_OP_FUNCTION_END)
         i++;
     pfargs = alloca(sizeof(CTypeDescrObject *) * (i - type_index - 1));
     i = type_index + 1;
-#ifdef Py_GIL_DISABLED
-    while (_CFFI_GETOP(cffi_atomic_load(&opcodes[i])) != _CFFI_OP_FUNCTION_END) {
-#else
-    while (_CFFI_GETOP(opcodes[i]) != _CFFI_OP_FUNCTION_END) {
-#endif
+    while (_CFFI_GETOP(_CFFI_LOAD_OP(opcodes[i])) != _CFFI_OP_FUNCTION_END) {
         CTypeDescrObject *ct = realize_c_type(lib->l_types_builder, opcodes, i);
         if (ct == NULL)
             goto error;
