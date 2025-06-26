@@ -758,6 +758,12 @@ static PyObject *
 realize_c_type_or_func(builder_c_t *builder,
                         _cffi_opcode_t opcodes[], int index)
 {
+    // Thread safety note:
+    //
+    // Concurrent calls to realize_c_type_or_func on the same
+    // index are allowed to race to initialize the type, but
+    // only the winner of the race updates opcodes[index]
+
     PyObject *x;
     _cffi_opcode_t op = _CFFI_LOAD_OP(opcodes[index]);
 
