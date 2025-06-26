@@ -1686,7 +1686,7 @@ convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
         CFieldObject *cf;
 
         while (PyDict_Next(init, &i, &d_key, &d_value)) {
-            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, d_key);
+            cf = (CFieldObject *)PyDict_GetItem(cffi_get_ctstuff(ct), d_key);
             if (cf == NULL) {
                 PyErr_SetObject(PyExc_KeyError, d_key);
                 return -1;
@@ -2968,7 +2968,7 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
     if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
         switch (force_lazy_struct(ct)) {
         case 1:
-            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
+            cf = (CFieldObject *)PyDict_GetItem(cffi_get_ctstuff(ct), attr);
             if (cf != NULL) {
                 /* read the field 'cf' */
                 char *data = cd->c_data + cf->cf_offset;
@@ -3021,7 +3021,7 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
     if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
         switch (force_lazy_struct(ct)) {
         case 1:
-            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
+            cf = (CFieldObject *)PyDict_GetItem(cffi_get_ctstuff(ct), attr);
             if (cf != NULL) {
                 /* write the field 'cf' */
                 if (value != NULL) {
@@ -6872,7 +6872,7 @@ static CTypeDescrObject *direct_typeoffsetof(CTypeDescrObject *ct,
                 PyErr_SetString(PyExc_TypeError, "struct/union is opaque");
             return NULL;
         }
-        cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
+        cf = (CFieldObject *)PyDict_GetItem(cffi_get_ctstuff(ct), fieldname);
         if (cf == NULL) {
             PyErr_SetObject(PyExc_KeyError, fieldname);
             return NULL;
