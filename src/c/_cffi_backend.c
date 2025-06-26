@@ -626,17 +626,13 @@ static int do_realize_lazy_struct(CTypeDescrObject *ct);
 static inline int
 force_lazy_struct(CTypeDescrObject *ct)
 {
+    assert(ct->ct_flags & (CT_STRUCT | CT_UNION));
     uint8_t lazy_fields = cffi_check_flag(ct->ct_lazy_field_list);
     if (lazy_fields) {
         // not realized yet
         return do_realize_lazy_struct(ct);
     }
-#ifdef Py_GIL_DISABLED
-    PyObject *ct_stuff = cffi_atomic_load((void**)&ct->ct_stuff);
-#else
-    PyObject *ct_stuff = ct->ct_stuff;
-#endif
-    return ct_stuff != NULL;
+    return ct->ct_stuff != NULL;
 }
 
 
@@ -1686,7 +1682,7 @@ convert_struct_from_object(char *data, CTypeDescrObject *ct, PyObject *init,
         CFieldObject *cf;
 
         while (PyDict_Next(init, &i, &d_key, &d_value)) {
-            cf = (CFieldObject *)PyDict_GetItem(cffi_get_ctstuff(ct), d_key);
+            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, d_key);
             if (cf == NULL) {
                 PyErr_SetObject(PyExc_KeyError, d_key);
                 return -1;
@@ -2679,11 +2675,7 @@ cdata_slice(CDataObject *cd, PySliceObject *slice)
     array_type = (CTypeDescrObject *)ct->ct_stuff;
     if (ct->ct_stuff == NULL) {
         array_type = (CTypeDescrObject *)new_array_type(ct, -1);
-#ifdef Py_GIL_DISABLED
-        cffi_atomic_store((void **)&ct->ct_stuff, array_type);
-#else
         ct->ct_stuff = (PyObject *)array_type;
-#endif
     }
     Py_END_CRITICAL_SECTION();
 
@@ -2968,7 +2960,7 @@ cdata_getattro(CDataObject *cd, PyObject *attr)
     if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
         switch (force_lazy_struct(ct)) {
         case 1:
-            cf = (CFieldObject *)PyDict_GetItem(cffi_get_ctstuff(ct), attr);
+            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
             if (cf != NULL) {
                 /* read the field 'cf' */
                 char *data = cd->c_data + cf->cf_offset;
@@ -3021,7 +3013,7 @@ cdata_setattro(CDataObject *cd, PyObject *attr, PyObject *value)
     if (ct->ct_flags & (CT_STRUCT|CT_UNION)) {
         switch (force_lazy_struct(ct)) {
         case 1:
-            cf = (CFieldObject *)PyDict_GetItem(cffi_get_ctstuff(ct), attr);
+            cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, attr);
             if (cf != NULL) {
                 /* write the field 'cf' */
                 if (value != NULL) {
@@ -5655,14 +5647,8 @@ static PyObject *b_complete_struct_or_union_lock_held(CTypeDescrObject *ct,
 
     cffi_set_size(ct, totalsize);
     ct->ct_length = totalalignment;
-    cffi_set_flag(ct->ct_unrealized_struct_or_union, 0);
-#ifdef Py_GIL_DISABLED
-    /* use seq consistency at last after writing other fields
-       to ensure other fields are visible to threads */
-    cffi_atomic_store((void **)&ct->ct_stuff, interned_fields);
-#else
     ct->ct_stuff = interned_fields;
-#endif
+    cffi_set_flag(ct->ct_unrealized_struct_or_union, 0);
     res = Py_None;
     Py_INCREF(res);
 
@@ -6872,7 +6858,7 @@ static CTypeDescrObject *direct_typeoffsetof(CTypeDescrObject *ct,
                 PyErr_SetString(PyExc_TypeError, "struct/union is opaque");
             return NULL;
         }
-        cf = (CFieldObject *)PyDict_GetItem(cffi_get_ctstuff(ct), fieldname);
+        cf = (CFieldObject *)PyDict_GetItem(ct->ct_stuff, fieldname);
         if (cf == NULL) {
             PyErr_SetObject(PyExc_KeyError, fieldname);
             return NULL;
