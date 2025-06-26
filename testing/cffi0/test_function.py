@@ -555,7 +555,6 @@ class TestFunction(object):
         assert str(e.value).endswith("' has already been closed")
         ffi.dlclose(lib)    # does not raise
 
-    @pytest.mark.skip
     def test_passing_large_list(self):
         if self.Backend is CTypesBackend:
             pytest.skip("the ctypes backend doesn't support this")
