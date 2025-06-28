@@ -1090,6 +1090,7 @@ def test_call_function_5():
     f = cast(BFunc5, _testfunc(5))
     f()   # did not crash
 
+@pytest.mark.thread_unsafe(reason="_testfunc6 uses global state")
 def test_call_function_6():
     BInt = new_primitive_type("int")
     BIntPtr = new_pointer_type(BInt)
@@ -1342,6 +1343,7 @@ def test_read_variable_as_unknown_length_array():
     assert repr(stderr).startswith("<cdata 'char *' 0x")
     # ^^ and not 'char[]', which is basically not allowed and would crash
 
+@pytest.mark.thread_unsafe(reason="writes to global state")
 def test_write_variable():
     ## FIXME: this test assumes glibc specific behavior, it's not compliant with C standard
     ## https://bugs.pypy.org/issue1643
@@ -1376,6 +1378,7 @@ def test_callback():
     assert str(e.value) == "'int(*)(int)' expects 1 arguments, got 0"
 
 
+@pytest.mark.thread_unsafe("mocks sys.unraiseablehook")
 def test_callback_exception():
     def check_value(x):
         if x == 10000:
@@ -3285,6 +3288,7 @@ def test_new_handle():
     pytest.raises(RuntimeError, from_handle, cast(BCharP, 0))
 
 def test_new_handle_cycle():
+    import gc
     import _weakref
     BVoidP = new_pointer_type(new_void_type())
     class A(object):
@@ -3293,9 +3297,9 @@ def test_new_handle_cycle():
     o.cycle = newp_handle(BVoidP, o)
     wr = _weakref.ref(o)
     del o
-    for i in range(3):
-        if wr() is not None:
-            import gc; gc.collect()
+    # free-threading requires more iterations to clear weakref
+    while wr() is not None:
+        gc.collect()
     assert wr() is None
 
 def _test_bitfield_details(flag):

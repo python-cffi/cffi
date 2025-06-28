@@ -32,6 +32,7 @@ def test_ffi_cache_type():
     assert ffi.typeof("int[][10]") is ffi.typeof("int[][10]")
     assert ffi.typeof("int(*)()") is ffi.typeof("int(*)()")
 
+@pytest.mark.thread_unsafe(reason="May not pass if other threads unexpectedly trigger the gc")
 def test_ffi_type_not_immortal():
     import weakref, gc
     ffi = _cffi1_backend.FFI()
