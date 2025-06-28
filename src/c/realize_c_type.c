@@ -381,11 +381,7 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
     }
 
     s = &builder->ctx.struct_unions[sindex];
-#ifdef Py_GIL_DISABLED
-    op2 = cffi_atomic_load(&builder->ctx.types[s->type_index]);
-#else
-    op2 = builder->ctx.types[s->type_index];
-#endif
+    op2 = _CFFI_LOAD_OP(builder->ctx.types[s->type_index]);
     if ((((uintptr_t)op2) & 1) == 0) {
         x = (PyObject *)op2;     /* found already in the "primary" slot */
         Py_INCREF(x);
@@ -549,11 +545,7 @@ realize_c_type_or_func_now(builder_c_t *builder, _cffi_opcode_t op,
         _cffi_opcode_t op2;
 
         e = &builder->ctx.enums[_CFFI_GETARG(op)];
-#ifdef Py_GIL_DISABLED
-        op2 = cffi_atomic_load(&builder->ctx.types[e->type_index]);
-#else
-        op2 = builder->ctx.types[e->type_index];
-#endif
+        op2 = _CFFI_LOAD_OP(builder->ctx.types[e->type_index]);
         if ((((uintptr_t)op2) & 1) == 0) {
             x = (PyObject *)op2;
             Py_INCREF(x);
