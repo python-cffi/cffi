@@ -406,13 +406,11 @@ static void gil_release(PyGILState_STATE oldstate)
 #define cffi_set_size(arg, value) cffi_atomic_store_ssize(&(arg)->ct_size, (value))
 #define cffi_get_size(arg) cffi_atomic_load_ssize(&(arg)->ct_size)
 #define _CFFI_LOAD_OP(arg) cffi_atomic_load(&(arg))
-#define cffi_get_ctstuff(arg) cffi_atomic_load((void**)&(arg)->ct_stuff)
 #else
 #define cffi_check_flag(arg) (arg)
 #define cffi_set_flag(arg, value) (arg) = (value)
 #define cffi_set_size(arg, value) (arg)->ct_size = (value)
 #define cffi_get_size(arg) (arg)->ct_size
-#define cffi_get_ctstuff(arg) (arg)->ct_stuff
 #define _CFFI_LOAD_OP(arg) (arg)
 #endif
 
