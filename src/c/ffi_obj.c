@@ -195,16 +195,11 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
             struct _cffi_parse_info_s info;
             info.ctx = &ffi->types_builder.ctx;
             info.output_size = FFI_COMPLEXITY_OUTPUT;
-#ifdef Py_GIL_DISABLED
             info.output = PyMem_Malloc(FFI_COMPLEXITY_OUTPUT * sizeof(_cffi_opcode_t));
             if (info.output == NULL) {
                 PyErr_NoMemory();
                 return NULL;
             }
-#else
-            static _cffi_opcode_t internal_output[FFI_COMPLEXITY_OUTPUT];
-            info.output = internal_output;
-#endif
             int index = parse_c_type(&info, input_text);
             if (index < 0) {
                 x = _ffi_bad_type(&info, input_text);
@@ -213,9 +208,7 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
                 x = realize_c_type_or_func(&ffi->types_builder,
                                            info.output, index);
             }
-#ifdef Py_GIL_DISABLED
             PyMem_Free(info.output);
-#endif
             if (x == NULL)
                 return NULL;
 
