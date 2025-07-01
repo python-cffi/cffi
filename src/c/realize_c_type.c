@@ -744,7 +744,6 @@ realize_c_type_or_func_lock_held(builder_c_t *builder,
     return x;
 }
 
-PyObject dummy = {0};
 
 static PyObject *
 realize_c_type_or_func(builder_c_t *builder,
