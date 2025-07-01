@@ -5677,9 +5677,9 @@ static PyObject *b_complete_struct_or_union(PyObject *self, PyObject *args)
         return NULL;
 
     PyObject *res;
-    Py_BEGIN_CRITICAL_SECTION(ct);
+    CFFI_LOCK();
     res = b_complete_struct_or_union_lock_held(ct, fields, totalsize, totalalignment, sflags, pack);
-    Py_END_CRITICAL_SECTION();
+    CFFI_UNLOCK();
     return res;
 }
 

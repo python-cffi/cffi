@@ -401,6 +401,7 @@ static void gil_release(PyGILState_STATE oldstate)
 #endif
 
 #ifdef Py_GIL_DISABLED
+extern PyObject dummy;
 #define cffi_check_flag(arg) cffi_atomic_load_uint8(&(arg))
 #define cffi_set_flag(arg, value) cffi_atomic_store_uint8(&(arg), (value))
 #define cffi_set_size(arg, value) cffi_atomic_store_ssize(&(arg)->ct_size, (value))
@@ -414,5 +415,7 @@ static void gil_release(PyGILState_STATE oldstate)
 #define _CFFI_LOAD_OP(arg) (arg)
 #endif
 
+#define CFFI_LOCK() Py_BEGIN_CRITICAL_SECTION(&dummy)
+#define CFFI_UNLOCK() Py_END_CRITICAL_SECTION()
 
 #endif /* CFFI_MISC_THREAD_COMMON_H */

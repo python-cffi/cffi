@@ -356,17 +356,6 @@ static PyObject *                                              /* forward */
 _fetch_external_struct_or_union(const struct _cffi_struct_union_s *s,
                                 PyObject *included_ffis, int recursion);
 
-#ifdef Py_GIL_DISABLED
-static PyMutex _realize_mutex;
-# define LOCK_REALIZE()          PyMutex_Lock(&_realize_mutex)
-# define UNLOCK_REALIZE()        PyMutex_Unlock(&_realize_mutex)
-# define ASSERT_REALIZE_LOCKED() assert((_realize_mutex._bits & 0x1) != 0);
-#else
-# define LOCK_REALIZE()          ((void)0)
-# define UNLOCK_REALIZE()        ((void)0)
-# define ASSERT_REALIZE_LOCKED() ((void)0)
-#endif
-
 static PyObject *
 _realize_c_struct_or_union(builder_c_t *builder, int sindex)
 {
@@ -447,20 +436,8 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
             cffi_set_flag(ct->ct_unrealized_struct_or_union, 0);
         }
 
-        LOCK_REALIZE();
         /* Update the "primary" OP_STRUCT_UNION slot */
         assert((((uintptr_t)x) & 1) == 0);
-#ifdef Py_GIL_DISABLED
-        if (((uintptr_t)builder->ctx.types[s->type_index] & 1) == 0) {
-            /* Another thread realized this already */
-            Py_DECREF(x);
-            x = builder->ctx.types[s->type_index];
-            assert((((uintptr_t)x) & 1) == 0);
-            Py_INCREF(x);
-            UNLOCK_REALIZE();
-            return x;
-        }
-#endif
         assert(builder->ctx.types[s->type_index] == op2);
         Py_INCREF(x);
 #ifdef Py_GIL_DISABLED
@@ -468,22 +445,16 @@ _realize_c_struct_or_union(builder_c_t *builder, int sindex)
 #else
         builder->ctx.types[s->type_index] = x;
 #endif
-        UNLOCK_REALIZE();
         if (ct != NULL && s->size == (size_t)-2) {
             /* oops, this struct is unnamed and we couldn't generate
                a C expression to get its size.  We have to rely on
                complete_struct_or_union() to compute it now. */
             if (do_realize_lazy_struct(ct) < 0) {
-                LOCK_REALIZE();
-                // if no other thread changed it
-                if (builder->ctx.types[s->type_index] == x) {
 #ifdef Py_GIL_DISABLED
-                    cffi_atomic_store(&builder->ctx.types[s->type_index], op2);
+                cffi_atomic_store(&builder->ctx.types[s->type_index], op2);
 #else
-                    builder->ctx.types[s->type_index] = op2;
+                builder->ctx.types[s->type_index] = op2;
 #endif
-                }
-                UNLOCK_REALIZE();
                 return NULL;
             }
         }
@@ -618,18 +589,6 @@ realize_c_type_or_func_now(builder_c_t *builder, _cffi_opcode_t op,
             /* Update the "primary" _CFFI_OP_ENUM slot, which
                may be the same or a different slot than the "current" one */
             assert((((uintptr_t)x) & 1) == 0);
-            LOCK_REALIZE();
-#ifdef Py_GIL_DISABLED
-            if (((uintptr_t)builder->ctx.types[e->type_index] & 1) == 0) {
-                /* Another thread realized this already */
-                Py_DECREF(x);
-                x = (PyObject *)builder->ctx.types[e->type_index];
-                assert((((uintptr_t)x) & 1) == 0);
-                Py_INCREF(x);
-                UNLOCK_REALIZE();
-                return x;
-            }
-#endif
             assert(builder->ctx.types[e->type_index] == op2);
             Py_INCREF(x);
 #ifdef Py_GIL_DISABLED
@@ -637,7 +596,7 @@ realize_c_type_or_func_now(builder_c_t *builder, _cffi_opcode_t op,
 #else
             builder->ctx.types[e->type_index] = x;
 #endif
-            UNLOCK_REALIZE();
+
             /* Done, leave without updating the "current" slot because
                it may be done already above.  If not, never mind, the
                next call to realize_c_type() will do it. */
@@ -747,14 +706,9 @@ static int _realize_recursion_level;
 #endif
 
 static PyObject *
-realize_c_type_or_func(builder_c_t *builder,
+realize_c_type_or_func_lock_held(builder_c_t *builder,
                         _cffi_opcode_t opcodes[], int index)
 {
-    // Thread safety note:
-    //
-    // Concurrent calls to realize_c_type_or_func on the same
-    // index are allowed to race to initialize the type, but
-    // only the winner of the race updates opcodes[index]
 
     PyObject *x;
     _cffi_opcode_t op = _CFFI_LOAD_OP(opcodes[index]);
@@ -780,30 +734,26 @@ realize_c_type_or_func(builder_c_t *builder,
     if (x == NULL) {
         return NULL;
     }
-
-    LOCK_REALIZE();
-    if (opcodes == builder->ctx.types && opcodes[index] != x) {
-        assert((((uintptr_t)x) & 1) == 0);
-
+    assert((((uintptr_t)x) & 1) == 0);
+    Py_INCREF(x);
 #ifdef Py_GIL_DISABLED
-        if ((((uintptr_t)opcodes[index]) & 1) == 0) {
-            /* Another thread realized this opcode already */
-            Py_DECREF(x);
-            x = (PyObject *)opcodes[index];
-            Py_INCREF(x);
-        }
-        else {
-            Py_INCREF(x);
-            cffi_atomic_store(&opcodes[index], x);
-        }
+    cffi_atomic_store(&opcodes[index], x);
 #else
-        assert((((uintptr_t)opcodes[index]) & 1) == 1);
-        Py_INCREF(x);
-        opcodes[index] = x;
+    opcodes[index] = x;
 #endif
-    }
-    UNLOCK_REALIZE();
+    return x;
+}
 
+PyObject dummy = {0};
+
+static PyObject *
+realize_c_type_or_func(builder_c_t *builder,
+                        _cffi_opcode_t opcodes[], int index)
+{
+    PyObject *x;
+    CFFI_LOCK();
+    x = realize_c_type_or_func_lock_held(builder, opcodes, index);
+    CFFI_UNLOCK();
     return x;
 }
 
@@ -945,8 +895,8 @@ static int do_realize_lazy_struct_lock_held(CTypeDescrObject *ct)
 static int do_realize_lazy_struct(CTypeDescrObject *ct)
 {
     int res = 0;
-    Py_BEGIN_CRITICAL_SECTION(ct);
+    CFFI_LOCK();
     res = do_realize_lazy_struct_lock_held(ct);
-    Py_END_CRITICAL_SECTION();
+    CFFI_UNLOCK();
     return res;
 }
