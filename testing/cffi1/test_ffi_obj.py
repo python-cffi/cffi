@@ -34,6 +34,9 @@ def test_ffi_cache_type():
 
 @pytest.mark.thread_unsafe(reason="May not pass if other threads unexpectedly trigger the gc")
 def test_ffi_type_not_immortal():
+    if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled():
+        pytest.skip("fails on free-threaded builds")
+
     import weakref, gc
     ffi = _cffi1_backend.FFI()
     # this test can fail on free-threaded builds lazier GC if the type was used by another test
