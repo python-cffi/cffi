@@ -731,16 +731,17 @@ realize_c_type_or_func_lock_held(builder_c_t *builder,
     x = realize_c_type_or_func_now(builder, op, opcodes, index);
     _realize_recursion_level--;
 
-    if (x == NULL) {
-        return NULL;
-    }
-    assert((((uintptr_t)x) & 1) == 0);
-    Py_INCREF(x);
+    if (x != NULL && opcodes == builder->ctx.types && opcodes[index] != x) {
+        assert((((uintptr_t)x) & 1) == 0);
+        assert((((uintptr_t)opcodes[index]) & 1) == 1);
+        Py_INCREF(x);
 #ifdef Py_GIL_DISABLED
-    cffi_atomic_store(&opcodes[index], x);
+        cffi_atomic_store(&opcodes[index], x);
 #else
-    opcodes[index] = x;
+        opcodes[index] = x;
 #endif
+    }
+
     return x;
 }
 
