@@ -288,7 +288,7 @@ static int PyWeakref_GetRef(PyObject *ref, PyObject **pobj)
 /* flags that are mutable at runtime, stored separately in ct_flags_mut to avoid
    races with ct_flags
 
-   these are read and set without using atomic operations because a lock is held
+   these are read and set without using atomic operations because CFFI_LOCK is held
    while mutating ct_flags_mut
  */
 #define CT_CUSTOM_FIELD_POS    0x00000001

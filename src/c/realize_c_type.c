@@ -76,7 +76,7 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
         return err;
 
 #ifdef Py_GIL_DISABLED
-    // Ensure that all primitive types are intitalized to avoid race conditions
+    // Ensure that all primitive types are initialised to avoid race conditions
     // on the first access.
     for (i = 0; i < _CFFI__NUM_PRIM; i++) {
         ct2 = get_primitive_type(i);
