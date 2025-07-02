@@ -26,6 +26,7 @@ def test_merge_flags():
         "foo" : []}
 
 
+@pytest.mark.thread_unsafe(reason="monkeypatches pkgconfig")
 def test_pkgconfig():
     assert pkgconfig.flags_from_pkgconfig([]) == {}
 
@@ -56,6 +57,7 @@ class mock_subprocess:
             self.returncode = rc
             return bout, berr
 
+@pytest.mark.thread_unsafe(reason="monkeypatches pkgconfig")
 def test_call():
     saved = pkgconfig.subprocess
     try:
