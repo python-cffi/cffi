@@ -2,7 +2,7 @@
 What's New
 ======================
 
-v1.18.0.dev0
+v2.0.0.dev0
 ============
 
 * Added support for free threaded Python. (`#178`_)
