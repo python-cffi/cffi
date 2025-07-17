@@ -140,8 +140,7 @@ static void
 mb_dealloc(MiniBufferObj *ob)
 {
     PyObject_GC_UnTrack(ob);
-    if (ob->mb_weakreflist != NULL)
-        PyObject_ClearWeakRefs((PyObject *)ob);
+    PyObject_ClearWeakRefs((PyObject *)ob);
     Py_XDECREF(ob->mb_keepalive);
     Py_TYPE(ob)->tp_free((PyObject *)ob);
 }
