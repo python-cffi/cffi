@@ -2166,7 +2166,7 @@ def test_cast_with_functionptr():
     BStructPtr = new_pointer_type(BStruct)
     complete_struct_or_union(BStruct, [('a1', BFunc, -1)])
     newp(BStructPtr, [cast(BFunc, 0)])
-    newp(BStructPtr, [cast(BCharP, 0)])
+    pytest.raises(TypeError, newp, BStructPtr, [cast(BCharP, 0)])
     pytest.raises(TypeError, newp, BStructPtr, [cast(BIntP, 0)])
     pytest.raises(TypeError, newp, BStructPtr, [cast(BFunc2, 0)])
 
@@ -4232,8 +4232,6 @@ def test_cdata_dir():
 
 def test_char_pointer_conversion():
     import warnings
-    assert __version__.startswith("1."), (
-        "the warning will be an error if we ever release cffi 2.x")
     BCharP = new_pointer_type(new_primitive_type("char"))
     BIntP = new_pointer_type(new_primitive_type("int"))
     BVoidP = new_pointer_type(new_void_type())
@@ -4242,28 +4240,17 @@ def test_char_pointer_conversion():
     z2 = cast(BIntP, 0)
     z3 = cast(BVoidP, 0)
     z4 = cast(BUCharP, 0)
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        newp(new_pointer_type(BIntP), z1)    # warn
-        assert len(w) == 1
-        newp(new_pointer_type(BVoidP), z1)   # fine
-        assert len(w) == 1
-        newp(new_pointer_type(BCharP), z2)   # warn
-        assert len(w) == 2
-        newp(new_pointer_type(BVoidP), z2)   # fine
-        assert len(w) == 2
-        newp(new_pointer_type(BCharP), z3)   # fine
-        assert len(w) == 2
-        newp(new_pointer_type(BIntP), z3)    # fine
-        assert len(w) == 2
-        newp(new_pointer_type(BCharP), z4)   # fine (ignore signedness here)
-        assert len(w) == 2
-        newp(new_pointer_type(BUCharP), z1)  # fine (ignore signedness here)
-        assert len(w) == 2
-        newp(new_pointer_type(BUCharP), z3)  # fine
-        assert len(w) == 2
-    # check that the warnings are associated with lines in this file
-    assert w[1].lineno == w[0].lineno + 4
+    with pytest.raises(TypeError) as e1:
+        newp(new_pointer_type(BIntP), z1)
+    newp(new_pointer_type(BVoidP), z1)   # fine
+    with pytest.raises(TypeError) as e2:
+        newp(new_pointer_type(BCharP), z2)
+    newp(new_pointer_type(BVoidP), z2)   # fine
+    newp(new_pointer_type(BCharP), z3)   # fine
+    newp(new_pointer_type(BIntP), z3)    # fine
+    newp(new_pointer_type(BCharP), z4)   # fine (ignore signedness here)
+    newp(new_pointer_type(BUCharP), z1)  # fine (ignore signedness here)
+    newp(new_pointer_type(BUCharP), z3)  # fine
 
 def test_primitive_comparison():
     def assert_eq(a, b):

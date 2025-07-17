@@ -1762,21 +1762,21 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
                    error.  The warning is turned off if both types are
                    pointers to single bytes. */
                 char *msg = (ct->ct_flags & CT_IS_VOIDCHAR_PTR ?
-                    "implicit cast to 'char *' from a different pointer type: "
-                    "will be forbidden in the future (check that the types "
-                    "are as you expect; use an explicit ffi.cast() if they "
-                    "are correct)" :
+                    "implicit cast to 'char *' from a different pointer type."
+                    "(check that the types are as you expect; use an explicit "
+                    "ffi.cast() if they are correct)" :
                     "implicit cast from 'char *' to a different pointer type: "
-                    "will be forbidden in the future (check that the types "
-                    "are as you expect; use an explicit ffi.cast() if they "
-                    "are correct)");
+                    "(check that the types are as you expect; use an explicit "
+                    "ffi.cast() if they are correct)");
                 if ((ct->ct_flags & ctinit->ct_flags & CT_POINTER) &&
                     ct->ct_itemdescr->ct_size == 1 &&
                     ctinit->ct_itemdescr->ct_size == 1) {
-                    /* no warning */
+                    /* no error */
                 }
-                else if (PyErr_WarnEx(PyExc_UserWarning, msg, 1))
+                else {
+                    PyErr_SetString(PyExc_TypeError, msg);
                     return -1;
+                }
             }
             else {
                 expected = "pointer to same type";
