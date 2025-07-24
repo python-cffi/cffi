@@ -3018,7 +3018,7 @@ if sys.version_info >= (3,):
     except ImportError:
         pass   # win32
 
-@pytest.mark.skip(
+@pytest.mark.skipif(
     is_ios,
     reason="For an unknown reason fscanf() doesn't read anything on 3.14"
            " and crashes on 3.13 (that's why it's not an xfail)",
