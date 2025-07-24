@@ -111,7 +111,7 @@ jobs:
           - { spec: cp313-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp314-manylinux_aarch64, arch: aarch64, cibw_version: cibuildwheel~=3.0b1 }
 
-            # aarch64 musllinux
+          # aarch64 musllinux
           - { spec: cp39-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp310-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp311-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
@@ -373,8 +373,111 @@ jobs:
         if-no-files-found: error
       if: ${{ env.skip_artifact_upload != 'true' }}
 
+  make_ios_matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: make a matrix
+      id: make_matrix
+      uses: ./.github/actions/dynamatrix
+      with:
+        matrix_yaml: |
+          include:
+          # arm64 iOS device
+          - { spec: cp313-ios_arm64_iphoneos, platform: 'iphoneos' }
+          - { spec: cp314-ios_arm64_iphoneos, platform: 'iphoneos' }
+
+          # arm64 iOS simulator
+          - { spec: cp313-ios_arm64_iphonesimulator, platform: 'iphonesimulator' }
+          - { spec: cp314-ios_arm64_iphonesimulator, platform: 'iphonesimulator' }
+
+  ios:
+    needs: [python_sdist, make_ios_matrix]
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.make_ios_matrix.outputs.matrix_json) }}
+
+    steps:
+    - name: fetch sdist artifact
+      id: fetch_sdist
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
+
+    - name: install python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: build wheel prereqs
+      run: |
+        set -eux
+        python3 -m pip install --user --upgrade cibuildwheel>=3.1.0
+        brew uninstall --ignore-dependencies libffi 2>&1 || true
+
+    - name: download libffi for iOS
+      env:
+        CFFI_IOS_LIBFFI_VERSION: '3.4.7-2'
+      run: |
+        set -eux
+
+        # Download prebuilt libffi from beeware/cpython-apple-source-deps
+        platform="${{ matrix.platform }}"
+        version="${CFFI_IOS_LIBFFI_VERSION}"
+        url="https://github.com/beeware/cpython-apple-source-deps/releases/download/libFFI-${version}/libffi-${version}-${platform}.arm64.tar.gz"
+
+        echo "Downloading libffi for iOS (${platform})..."
+        curl -L -o libffi-ios.tar.gz "${url}"
+
+        # Extract libffi
+        mkdir -p libffi-ios
+        tar zxf libffi-ios.tar.gz -C libffi-ios
+
+        # Set up paths for cibuildwheel
+        echo "LIBFFI_IOS_DIR=$(pwd)/libffi-ios" >> "$GITHUB_ENV"
+
+    - name: build/test wheels
+      id: build
+      env:
+        CIBW_BUILD: ${{ matrix.spec }}
+        CIBW_ENABLE: cpython-prerelease
+        CIBW_PLATFORM: ios
+        SDKROOT: ${{ matrix.platform }}
+        CIBW_TEST_REQUIRES: pytest setuptools
+        CIBW_TEST_SOURCES: cffi
+        # Running tests from `testing/` will not work since they try to compile C code on device
+        CIBW_TEST_COMMAND: python -m pytest -sv cffi/src/c/
+        # Environment variables for the build
+        CIBW_ENVIRONMENT: >
+          CFLAGS="-I${LIBFFI_IOS_DIR}/include"
+          LDFLAGS="-L${LIBFFI_IOS_DIR}/lib"
+          PYTHONUNBUFFERED=1
+        # Pass through our custom env vars
+        CIBW_ENVIRONMENT_PASS_IOS: LIBFFI_IOS_DIR PYTHONUNBUFFERED
+      run: |
+        set -eux
+
+        mkdir cffi
+
+        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
+
+        python3 -m cibuildwheel --output-dir dist cffi
+
+        echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
+
+    - name: upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.build.outputs.artifact_name }}
+        path: dist/*.whl
+        if-no-files-found: error
+      if: ${{ env.skip_artifact_upload != 'true' }}
+
   merge_artifacts:
-    needs: [python_sdist, linux, macos, windows]
+    needs: [python_sdist, linux, macos, windows, ios]
     runs-on: ubuntu-24.04
     steps:
     - name: merge all artifacts
@@ -387,7 +490,7 @@ jobs:
 
   check:
     if: always()
-    needs: [python_sdist, linux, macos, windows, merge_artifacts]
+    needs: [python_sdist, linux, macos, windows, ios, merge_artifacts]
     runs-on: ubuntu-24.04
     steps:
     - name: Verify all previous jobs succeeded (provides a single check to sample for gating purposes)
