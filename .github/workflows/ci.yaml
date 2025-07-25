@@ -386,12 +386,12 @@ jobs:
         matrix_yaml: |
           include:
           # arm64 iOS device
-          - { spec: cp313-ios_arm64_iphoneos }
-          - { spec: cp314-ios_arm64_iphoneos }
+          - { spec: cp313-ios_arm64_iphoneos, platform: 'iphoneos' }
+          - { spec: cp314-ios_arm64_iphoneos, platform: 'iphoneos' }
 
           # arm64 iOS simulator
-          - { spec: cp313-ios_arm64_iphonesimulator }
-          - { spec: cp314-ios_arm64_iphonesimulator }
+          - { spec: cp313-ios_arm64_iphonesimulator, platform: 'iphonesimulator' }
+          - { spec: cp314-ios_arm64_iphonesimulator, platform: 'iphonesimulator' }
 
   ios:
     needs: [python_sdist, make_ios_matrix]
