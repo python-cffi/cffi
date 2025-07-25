@@ -386,16 +386,16 @@ jobs:
         matrix_yaml: |
           include:
           # arm64 iOS device
-          - { spec: cp313-ios_arm64_iphoneos, platform: 'iphoneos' }
-          - { spec: cp314-ios_arm64_iphoneos, platform: 'iphoneos' }
+          - { spec: cp313-ios_arm64_iphoneos }
+          - { spec: cp314-ios_arm64_iphoneos }
 
           # arm64 iOS simulator
-          - { spec: cp313-ios_arm64_iphonesimulator, platform: 'iphonesimulator' }
-          - { spec: cp314-ios_arm64_iphonesimulator, platform: 'iphonesimulator' }
+          - { spec: cp313-ios_arm64_iphonesimulator }
+          - { spec: cp314-ios_arm64_iphonesimulator }
 
   ios:
     needs: [python_sdist, make_ios_matrix]
-    runs-on: macos-14
+    runs-on: macos-15
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.make_ios_matrix.outputs.matrix_json) }}
@@ -410,7 +410,7 @@ jobs:
     - name: install python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.13'
 
     - name: build wheel prereqs
       run: |
