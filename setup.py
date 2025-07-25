@@ -1,4 +1,4 @@
-import sys, os, platform
+import sys, sysconfig, os, platform
 import subprocess
 import errno
 
@@ -16,6 +16,12 @@ library_dirs = []
 extra_compile_args = []
 extra_link_args = []
 
+FREE_THREADED_BUILD = bool(sysconfig.get_config_var('Py_GIL_DISABLED'))
+
+if FREE_THREADED_BUILD and sys.version_info < (3, 14):
+    raise RuntimeError("CFFI does not support the free-threaded build of CPython 3.13. "
+                       "Upgrade to free-threaded 3.14 or newer to use CFFI with the "
+                       "free-threaded build.")
 
 def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
     pkg_config = os.environ.get('PKG_CONFIG','pkg-config')
