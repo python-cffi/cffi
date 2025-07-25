@@ -77,7 +77,6 @@ jobs:
           - { spec: cp311-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }          
-          - { spec: cp313t-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp314-manylinux_x86_64, arch: x86_64, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-manylinux_x86_64, cibw_version: cibuildwheel~=3.0b1 }
 
@@ -87,7 +86,6 @@ jobs:
           - { spec: cp311-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313t-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp314-musllinux_x86_64, arch: x86_64, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-musllinux_x86_64, arch: x86_64, cibw_version: cibuildwheel~=3.0b1 }
 
@@ -97,7 +95,6 @@ jobs:
           - { spec: cp311-manylinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-manylinux_i686, arch: i686 }
-          - { spec: cp313t-manylinux_i686, arch: i686 }
           # omit i686 releases > 3.13
 
           # i686 musllinux
@@ -112,7 +109,6 @@ jobs:
           - { spec: cp311-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313t-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp314-manylinux_aarch64, arch: aarch64, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-manylinux_aarch64, arch: aarch64, cibw_version: cibuildwheel~=3.0b1 }
 
@@ -122,7 +118,6 @@ jobs:
           - { spec: cp311-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313t-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp314-musllinux_aarch64, arch: aarch64, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-musllinux_aarch64, arch: aarch64, cibw_version: cibuildwheel~=3.0b1 }
 
@@ -132,7 +127,6 @@ jobs:
           - { spec: cp311-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp313-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp313t-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp314-manylinux_ppc64le, arch: ppc64le, omit: ${{ env.skip_slow_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-manylinux_ppc64le, arch: ppc64le, omit: ${{ env.skip_slow_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
 
@@ -142,7 +136,6 @@ jobs:
           - { spec: cp311-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp313-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp313t-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp314-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
 
@@ -231,7 +224,6 @@ jobs:
           - { spec: cp311-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313t-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp314-macosx_x86_64, runs_on: [macos-13], cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-macosx_x86_64, runs_on: [macos-13], cibw_version: cibuildwheel~=3.0b1 }
 
@@ -241,7 +233,6 @@ jobs:
           - { spec: cp311-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313t-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp314-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', cibw_version: cibuildwheel~=3.0b1 }
 
@@ -321,7 +312,6 @@ jobs:
           - { spec: cp311-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313t-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp314-win_amd64, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-win_amd64, cibw_version: cibuildwheel~=3.0b1 }
           
@@ -331,7 +321,6 @@ jobs:
           - { spec: cp311-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313t-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp314-win32, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-win32, cibw_version: cibuildwheel~=3.0b1 }
 
@@ -339,7 +328,6 @@ jobs:
           - { spec: cp311-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp312-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp313-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
-          - { spec: cp313t-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314-win_arm64, runs_on: windows-11-arm, cibw_version: cibuildwheel~=3.0b1 }
           - { spec: cp314t-win_arm64, runs_on: windows-11-arm, cibw_version: cibuildwheel~=3.0b1 }
 
@@ -417,11 +405,8 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          - { runner: ubuntu-latest, python-version: 3.13t, omit: ${{env.skip_ci_redundant_jobs }} }
           - { runner: ubuntu-latest, python-version: 3.14t-dev }
-          - { runner: macos-latest, python-version: 3.13t, omit: ${{env.skip_ci_redundant_jobs }} }
           - { runner: macos-latest, python-version: 3.14t-dev }
-          - { runner: windows-latest, python-version: 3.13t, omit: ${{env.skip_ci_redundant_jobs }} }
           - { runner: windows-latest, python-version: 3.14t-dev }
 
 
