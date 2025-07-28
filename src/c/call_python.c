@@ -199,7 +199,7 @@ static int _update_cache_to_call_python(struct _cffi_externpy_s *externpy)
      !defined(__i386__) && !defined(__i386))
 # if defined(HAVE_SYNC_SYNCHRONIZE)
 #   define read_barrier()  __sync_synchronize()
-# elif defined(_AIX)
+# elif defined(_AIX) && (defined(__xlc__) || defined(__xlC__))
 #   define read_barrier()  __lwsync()
 # elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
 #   include <mbarrier.h>
