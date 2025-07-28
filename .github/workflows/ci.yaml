@@ -76,10 +76,9 @@ jobs:
           - { spec: cp310-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp311-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-manylinux_x86_64, arch: x86_64, cibw_version: cibuildwheel~=3.0b1 }
-          # FIXME: need to run tests with PYTHON_GIL=0 on this build to actually test sans-GIL, but breaks packaging tests that use the wrong `virtualenv` script wrapper 
-          - { spec: cp314t-manylinux_x86_64, skip_artifact_upload: 'true', cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp313-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }          
+          - { spec: cp314-manylinux_x86_64, arch: x86_64 }
+          - { spec: cp314t-manylinux_x86_64, arch: x86_64 }
 
           # x86_64 musllinux
           - { spec: cp39-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
@@ -87,7 +86,8 @@ jobs:
           - { spec: cp311-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-musllinux_x86_64, arch: x86_64, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp314-musllinux_x86_64, arch: x86_64 }
+          - { spec: cp314t-musllinux_x86_64, arch: x86_64 }
 
           # i686 manylinux
           - { spec: cp39-manylinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
@@ -109,7 +109,8 @@ jobs:
           - { spec: cp311-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-manylinux_aarch64, arch: aarch64, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp314-manylinux_aarch64, arch: aarch64 }
+          - { spec: cp314t-manylinux_aarch64, arch: aarch64 }
 
             # aarch64 musllinux
           - { spec: cp39-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
@@ -117,7 +118,8 @@ jobs:
           - { spec: cp311-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-musllinux_aarch64, arch: aarch64, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp314-musllinux_aarch64, arch: aarch64 }
+          - { spec: cp314t-musllinux_aarch64, arch: aarch64 }
 
           # ppc64le manylinux
           - { spec: cp39-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
@@ -125,7 +127,8 @@ jobs:
           - { spec: cp311-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp313-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-manylinux_ppc64le, arch: ppc64le, omit: ${{ env.skip_slow_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp314-manylinux_ppc64le, arch: ppc64le, omit: ${{ env.skip_slow_jobs }} }
+          - { spec: cp314t-manylinux_ppc64le, arch: ppc64le, omit: ${{ env.skip_slow_jobs }} }
 
           # s390x manylinux
           - { spec: cp39-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
@@ -133,7 +136,8 @@ jobs:
           - { spec: cp311-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp313-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp314-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }} }
+          - { spec: cp314t-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }} }
 
   linux:
     needs: [python_sdist, make_linux_matrix]
@@ -178,7 +182,6 @@ jobs:
         CIBW_MUSLLINUX_X86_64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
         CIBW_MUSLLINUX_I686_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
         CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
-        CIBW_ENABLE: cpython-prerelease cpython-freethreading
         CIBW_TEST_REQUIRES: pytest setuptools  # 3.12+ no longer includes distutils, just always ensure setuptools is present
         CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest ${{ matrix.test_args || '{project}' }}  # default to test all
       run: |
@@ -220,7 +223,8 @@ jobs:
           - { spec: cp311-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-macosx_x86_64, runs_on: [macos-13], cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp314-macosx_x86_64, runs_on: [macos-13] }
+          - { spec: cp314t-macosx_x86_64, runs_on: [macos-13] }
 
           # arm64 macos
           - { spec: cp39-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
@@ -228,7 +232,8 @@ jobs:
           - { spec: cp311-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp314-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}' }
+          - { spec: cp314t-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}' }
 
   macos:
     needs: [python_sdist, make_macos_matrix]
@@ -263,7 +268,6 @@ jobs:
       id: build
       env:
         CIBW_BUILD: ${{ matrix.spec }}
-        CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools
         CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
         MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '10.13' }}
@@ -306,7 +310,8 @@ jobs:
           - { spec: cp311-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-win_amd64, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp314-win_amd64 }
+          - { spec: cp314t-win_amd64 }
           
           # x86 windows
           - { spec: cp39-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
@@ -314,13 +319,15 @@ jobs:
           - { spec: cp311-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp313-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-win32, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp314-win32 }
+          - { spec: cp314t-win32 }
 
           # arm64 windows
-          - { spec: cp311-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
-          - { spec: cp312-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
-          - { spec: cp313-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }}, cibw_version: cibuildwheel~=3.0b1 }
-          - { spec: cp314-win_arm64, runs_on: windows-11-arm, cibw_version: cibuildwheel~=3.0b1 }
+          - { spec: cp311-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-win_arm64, runs_on: windows-11-arm }
+          - { spec: cp314t-win_arm64, runs_on: windows-11-arm }
 
   windows:
     needs: [python_sdist, make_windows_matrix]
@@ -345,7 +352,6 @@ jobs:
       id: build
       env:
         CIBW_BUILD: ${{ matrix.spec }}
-        CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools
         CIBW_TEST_COMMAND: ${{ matrix.test_cmd || 'python -m pytest {package}/src/c' }}
         # FIXME: /testing takes ~45min on Windows and has some failures...
@@ -358,7 +364,7 @@ jobs:
         tar zxf cffi*.tar.gz --strip-components=1 -C cffi
 
         python -m pip install --upgrade pip
-        pip install "${{ matrix.cibw_version || 'cibuildwheel'}}"
+        pip install "${{ matrix.cibw_version || 'cibuildwheel' }}"
         python -m cibuildwheel --output-dir dist cffi
 
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
@@ -384,10 +390,73 @@ jobs:
         delete-merged: true
       if: ${{ env.skip_artifact_upload != 'true' }}
 
+  make_run_parallel_matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: make a matrix
+      id: make_matrix
+      uses: ./.github/actions/dynamatrix
+      with:
+        matrix_yaml: |
+          include:
+          - { runner: ubuntu-latest, python-version: 3.14t-dev }
+          - { runner: macos-latest, python-version: 3.14t-dev }
+          - { runner: windows-latest, python-version: 3.14t-dev }
+
+
+  pytest-run-parallel:
+    needs: make_run_parallel_matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.make_run_parallel_matrix.outputs.matrix_json) }}
+
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - name: clone repo
+      uses: actions/checkout@v4
+
+    - name: install python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: build and install
+      run: |
+        python -m pip install pytest setuptools pytest-run-parallel
+        python -m pip install .
+
+    - name: run tests under pytest-run-parallel
+      if: runner.os == 'Windows'
+      run: |
+        python -m pytest --parallel-threads=4 src/c
+
+    - name: run tests under pytest-run-parallel
+      if: runner.os != 'Windows'
+      run: |
+        python -m pytest --parallel-threads=4
+
+  clang_TSAN:
+    runs-on: ubuntu-latest
+    container: ghcr.io/nascheme/numpy-tsan:3.14t
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: build and install
+      run: |
+        python -m pip install setuptools pytest pytest-run-parallel
+        CFLAGS="-g -O3 -fsanitize=thread" python -m pip install -v .
+
+    - name: run tests under pytest-run-parallel
+      run: |
+        TSAN_OPTIONS="suppressions=$PWD/suppressions_free_threading.txt" \
+        python -m pytest --parallel-threads=4 --skip-thread-unsafe=True -sv
 
   check:
     if: always()
-    needs: [python_sdist, linux, macos, windows, merge_artifacts]
+    needs: [python_sdist, linux, macos, windows, clang_TSAN, pytest-run-parallel, merge_artifacts]
     runs-on: ubuntu-24.04
     steps:
     - name: Verify all previous jobs succeeded (provides a single check to sample for gating purposes)
