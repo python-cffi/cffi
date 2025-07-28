@@ -22,7 +22,7 @@ def _read(p):
 def test_version():
     v = cffi.__version__
     version_info = '.'.join(str(i) for i in cffi.__version_info__)
-    version_info = version_info.replace('.beta.', 'b')
+    version_info = version_info.replace('.b', 'b')
     version_info = version_info.replace('.plus', '+')
     version_info = version_info.replace('.rc', 'rc')
     assert v == version_info
