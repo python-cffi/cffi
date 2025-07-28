@@ -17,7 +17,7 @@ platform as well as on Windows 32 and 64.  (It relies occasionally on
 libffi, so it depends on libffi being bug-free; this may not be fully
 the case on some of the more exotic platforms.)
 
-CFFI is tested with CPython 3.8-3.12.
+CFFI is tested with CPython 3.9-3.14.
 
 The core speed of CFFI is better than ctypes, with import times being
 either lower if you use the post-1.0 features, or much higher if you
@@ -29,7 +29,7 @@ libraries on PyPy.
 
 Requirements:
 
-* CPython 3.8+, or PyPy (PyPy 2.0 for the earliest
+* CPython 3.9+, or PyPy (PyPy 2.0 for the earliest
   versions of CFFI; or PyPy 2.6 for CFFI 1.0).
 
 * in some cases you need to be able to compile C extension modules.
