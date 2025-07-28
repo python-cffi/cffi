@@ -2,15 +2,16 @@
 What's New
 ======================
 
-v2.0.0.dev0
+v2.0.0b1
 ============
 
-* Added support for free threaded Python. (`#178`_)
+* Added support for free threaded CPython (3.14t+ only). (`#178`_)
   Note that the free-threaded build does not yet support building extensions
   with the limited API, so you must set py_limited_api=False when building
-  extensions for the free-threaded build.
+  extensions for the free-threaded build. CPython 3.13t is not currently supported due to differences in sync
+  primitive behavior from 3.14t that result in segfaults.
 * Added support for Python 3.14. (`#177`_)
-* WIP
+* Dropped support for Python 3.8.
 
 .. _`#177`: https://github.com/python-cffi/cffi/pull/177
 .. _`#178`: https://github.com/python-cffi/cffi/pull/178
