@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cffi"
-version = "1.18.0.dev0"
+version = "2.0.0.dev0"
 dependencies = [
     "pycparser; implementation_name != 'PyPy'",
 ]
@@ -26,8 +26,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Free Threading :: 2 - Beta",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
 ]
 authors = [
     {name = "Armin Rigo"},
