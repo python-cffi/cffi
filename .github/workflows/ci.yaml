@@ -466,7 +466,11 @@ jobs:
       run: |
         set -eux
 
-        python3 -Im cibuildwheel --output-dir dist "${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz"
+        mkdir cffi
+
+        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
+
+        python3 -m cibuildwheel --output-dir dist cffi
 
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
