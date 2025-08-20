@@ -1236,6 +1236,7 @@ def test_cannot_pass_struct_with_array_of_length_0():
 @pytest.mark.xfail(
     is_ios,
     reason="For an unknown reason f(1, cast(BInt, 42)) returns 36792864",
+    raises=AssertionError,
 )
 def test_call_function_9():
     BInt = new_primitive_type("int")
