@@ -718,21 +718,36 @@ already acquired the lock will block until the lock is released.
 
 Using a global lock like this is necessary it is not safe for more than one
 thread to simultaneously call into any part of the library. This is the case if
-the library relies on global state its implementation that does not have any
-explicit synchronization. Libraries like this are not re-entrant.
+the library relies on global state that does not have any explicit
+synchronization. Libraries like this are not `re-entrant
+<https://en.wikipedia.org/wiki/Reentrancy_(computing)>`_.
 
-For re-entrant libraries, where two threads can simultaneously use the library
-so long as the threads do not share references to an object, generally you will
-want to use a per-object lock instead of a global lock. Keep in mind in this
-case that any program with more than one lock can lead to a deadlock and care
+Libraries that are re-entrant but not thread-safe are usually structured such
+that two threads can simultaneously use the library so long as the threads do
+not simultaneously mutate shared references to an object. For libraries like
+this you will want to use a per-object lock instead of a global lock.  Keep in
+mind in this case that any program with more than one lock can lead to a
+`deadlock <https://en.wikipedia.org/wiki/Deadlock_(computer_science)>`_ and care
 must be taken to avoid situations where two threads can deadlock.
 
-If you do not expect to use the bindings for a thread-unsafe library in a
-multithreaded program, locking is not necessary. Similarly if you know that you
-are using the library in a thread-safe manner by construction, it is not
-necessary to add locking. Also, if you know that the C library you are wrapping
-is thread-safe, no additional locking is necessary to make the CFFI bindings
-thread-safe.
+If it is a programming error for two threads to simultaneously share an object,
+you might acquire a `threading.Lock` object named ``l`` like this:
+
+.. code-block:: python
+
+      if not l.acquire(blocking=False):
+          raise RuntimeError("Multithreaded use is not supported")
+
+      # call into the unsafe library or use an unsafe object
+
+      l.release()
+
+This prevents deadlocks, since `l.acquire(blocking=False)` returns `False`
+immediately if the lock is already acquired by another thread.
+
+If you know that the C library you are wrapping is thread-safe, no additional
+locking is necessary to make the CFFI bindings thread-safe. Please report thread
+safety bugs that you suspect are due to issues in the generated CFFI bindings.
 
 If you publish CFFI bindings for a library, you should document the thread
 safety guarantees of your bindings. It may make sense to add locking into the
@@ -744,6 +759,13 @@ See the Python free-threading guide page on `improving the thread safety of
 Python code
 <https://py-free-threading.github.io/porting/#thread-safety-of-pure-python-code>`_
 for more information about updating a Python library with thread safety in mind.
+
+You can validate the thread safety of your library by running multithreaded
+tests using `Thread Sanitizer
+<https://clang.llvm.org/docs/ThreadSanitizer.html>`_. See the Python
+free-threading guide page on `using Thread Sanitizer to detect thread safety
+issues <https://py-free-threading.github.io/thread_sanitizer/>`_ for more
+details.
 
 .. _abi-versus-api:
 
