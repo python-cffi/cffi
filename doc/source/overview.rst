@@ -613,8 +613,7 @@ structures exposed via FFI.
 If the C library you are wrapping is not thread-safe, then it is not thread-safe
 to use the library via Python without adding some kind of locking. If the
 library *is* thread-safe, then no additional locking is necessary to ensure the
-thread safety of CFFI itself. As of version 2.0, CFFI generates thread-safe
-bindings.
+thread safety of CFFI itself.
 
 Let's make that concrete by wrapping some code that is not thread-safe due to
 use of a C global variable:
@@ -733,8 +732,7 @@ multithreaded program, locking is not necessary. Similarly if you know that you
 are using the library in a thread-safe manner by construction, it is not
 necessary to add locking. Also, if you know that the C library you are wrapping
 is thread-safe, no additional locking is necessary to make the CFFI bindings
-thread-safe. As of version 2.0, CFFI generates thread-safe bindings to C
-libraries.
+thread-safe.
 
 If you publish CFFI bindings for a library, you should document the thread
 safety guarantees of your bindings. It may make sense to add locking into the
