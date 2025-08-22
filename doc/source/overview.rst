@@ -671,20 +671,20 @@ Python script that calls into the wrapper like so:
       def work():
           lib.increment()
 
-    def run_thread_pool():
-        with ThreadPoolExecutor(max_workers=N_WORKERS) as tpe:
-            try:
-                futures = [tpe.submit(work) for _ in range(100000)]
-                # block until all work finishes
-                wait(futures)
-            finally:
-                # check for exceptions in worker threads
-                [f.result() for f in futures]
+      def run_thread_pool():
+          with ThreadPoolExecutor(max_workers=N_WORKERS) as tpe:
+              try:
+                  futures = [tpe.submit(work) for _ in range(100000)]
+                  # block until all work finishes
+                  wait(futures)
+              finally:
+                  # check for exceptions in worker threads
+                  [f.result() for f in futures]
 
 
-    run_thread_pool()
+      run_thread_pool()
 
-    print(lib.increment())
+      print(lib.increment())
 
 On the system used to run this example by the author, this script prints random
 results, with possible result values ranging from 99960 to 99980, indicating
