@@ -595,6 +595,178 @@ with C code to initialize global variables.
 The actual ``lib.*()`` function calls should be obvious: it's like C.
 
 
+.. _thread-safety:
+
+Thread Safety
+-------------
+
+Multithreading can be a powerful but tricky way to exploit the many cores on
+modern CPUs. Combining CFFI with the Python `threading` module is a convenient
+way to use multithreaded parallelism with a C library.
+
+On the GIL-enabled build, CFFI will release the GIL before calling into a C
+library. That means that it is possible to get multithreaded speedups using CFFI
+on both the free-threaded and GIL-enabled builds of Python. However, that also
+means that the GIL does not protect multithreaded shared use of C data
+structures exposed via FFI.
+
+If the C library you are wrapping is not thread-safe, then it is not thread-safe
+to use the library via Python without adding some kind of locking. If the
+library *is* thread-safe, then no additional locking is necessary to ensure the
+thread safety of CFFI itself.
+
+Let's make that concrete by wrapping some code that is not thread-safe due to
+use of a C global variable:
+
+.. code-block:: python
+
+      from cffi import FFI
+      ffibuilder = FFI()
+
+      ffibuilder.set_source("_thread_safety_example",
+          r"""
+          #include <stdint.h>
+
+          static int64_t value = 0;
+          static int64_t increment(void) {
+              value++;
+              return value;
+          }
+          """,
+          libraries=[]
+      )
+
+      ffibuilder.cdef(r"""
+          int64_t increment(void);
+      """
+      )
+
+      if __name__ == "__main__":
+          ffibuilder.compile(verbose=True)
+
+The way that the ``increment`` uses the ``value`` global variable is not
+thread-safe. `Data races
+<https://en.wikipedia.org/wiki/Race_condition#Data_race>`_ are possible if two
+threads simultaneously call ``increment``. We can engineer that situation with a
+Python script that calls into the wrapper like so:
+
+.. code-block:: python
+
+      import sys
+
+      from concurrent.futures import ThreadPoolExecutor, wait
+      import threading
+
+      from _thread_safety_example import ffi, lib
+
+      # Make races more likely by switching threads more often
+      # on the GIL-enabled build. This has no effect on the
+      # free-threaded build.
+      sys.setswitchinterval(.0000001)
+
+      N_WORKERS = 4
+
+      l = threading.Lock()
+
+      def work():
+          lib.increment()
+
+      def run_thread_pool():
+          with ThreadPoolExecutor(max_workers=N_WORKERS) as tpe:
+              try:
+                  futures = [tpe.submit(work) for _ in range(100000)]
+                  # block until all work finishes
+                  wait(futures)
+              finally:
+                  # check for exceptions in worker threads
+                  [f.result() for f in futures]
+
+
+      run_thread_pool()
+
+      print(lib.increment())
+
+On the system used to run this example by the author, this script prints random
+results, with possible result values ranging from 99960 to 99980, indicating
+that, on average, races happen a few dozen times over the hundred thousand loop
+iterations. The results you get will depend on your hardware, system
+configuration, and Python interpreter version.
+
+Note that races are relatively rare. The CFFI bindings and Python interpreter
+add enough overhead that it is not very likely for two threads to simultaneously
+increment the static integer. This can make code *appear* to be sequentially
+consistent for small sample sizes, when it is in fact not consistent. See `this
+tutorial
+<https://github.com/facebookincubator/ft_utils/blob/main/docs/fine_grained_synchronization.md#understanding-the-gil>`_
+for more examples of how the GIL and Python overhead can mask thread safety
+issues that only manifest under production load.
+
+We can make the above example script thread-safe by using a lock:
+
+.. code-block:: python
+
+      l = threading.Lock()
+
+      def work():
+          l.acquire()
+          lib.increment()
+          l.release()
+
+The `threading.Lock` ensures only one thread can call into the wrapped C library
+at a time. Any thread that calls ``l.acquire()`` while another thread has
+already acquired the lock will block until the lock is released.
+
+Using a global lock like this is necessary if it is not safe for more than one
+thread to simultaneously call into any part of the library. This is the case if
+the library relies on global state that does not have any explicit
+synchronization. Libraries like this are not `re-entrant
+<https://en.wikipedia.org/wiki/Reentrancy_(computing)>`_.
+
+Libraries that are re-entrant but not thread-safe are usually structured such
+that two threads can simultaneously use the library so long as the threads do
+not simultaneously mutate shared references to an object. For libraries like
+this you will want to use a per-object lock instead of a global lock.  Keep in
+mind in this case that any program with more than one lock can lead to a
+`deadlock <https://en.wikipedia.org/wiki/Deadlock_(computer_science)>`_ and care
+must be taken to avoid situations where two threads can deadlock.
+
+If it is a programming error for two threads to simultaneously share an object,
+you might acquire a `threading.Lock` object named ``l`` like this:
+
+.. code-block:: python
+
+      if not l.acquire(blocking=False):
+          raise RuntimeError("Multithreaded use is not supported")
+
+      # call into the unsafe library or use an unsafe object
+
+      l.release()
+
+This prevents deadlocks, since `l.acquire(blocking=False)` returns `False`
+immediately if the lock is already acquired by another thread.
+
+If you know that the C library you are wrapping is thread-safe, no additional
+locking is necessary to make the CFFI bindings thread-safe. Please report thread
+safety bugs that you suspect are due to issues in the generated CFFI bindings.
+
+If you publish CFFI bindings for a library, you should document the thread
+safety guarantees of your bindings. It may make sense to add locking into the
+bindings but it might also make sense to clearly document the bindings are not
+thread-safe and it is up to users to ensure appropriate synchronization or
+exclusive access if users do want to use the bindings in a thread pool.
+
+See the Python free-threading guide page on `improving the thread safety of
+Python code
+<https://py-free-threading.github.io/porting/#thread-safety-of-pure-python-code>`_
+for more information about updating a Python library with thread safety in mind.
+
+You can validate the thread safety of your library by running multithreaded
+tests using `Thread Sanitizer
+<https://clang.llvm.org/docs/ThreadSanitizer.html>`_. See the Python
+free-threading guide page on `using Thread Sanitizer to detect thread safety
+issues <https://py-free-threading.github.io/thread_sanitizer/>`_ for more
+details.
+
 .. _abi-versus-api:
 
 ABI versus API
