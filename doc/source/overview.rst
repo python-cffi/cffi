@@ -716,7 +716,7 @@ The `threading.Lock` ensures only one thread can call into the wrapped C library
 at a time. Any thread that calls ``l.acquire()`` while another thread has
 already acquired the lock will block until the lock is released.
 
-Using a global lock like this is necessary it is not safe for more than one
+Using a global lock like this is necessary if it is not safe for more than one
 thread to simultaneously call into any part of the library. This is the case if
 the library relies on global state that does not have any explicit
 synchronization. Libraries like this are not `re-entrant
