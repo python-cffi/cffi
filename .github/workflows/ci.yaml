@@ -429,14 +429,8 @@ jobs:
         python -m pip install .
 
     - name: run tests under pytest-run-parallel
-      if: runner.os == 'Windows'
       run: |
         python -m pytest --parallel-threads=4 --skip-thread-unsafe=True
-
-    - name: run tests under pytest-run-parallel
-      if: runner.os != 'Windows'
-      run: |
-        python -m pytest --parallel-threads=4
 
   clang_TSAN:
     runs-on: ubuntu-latest
