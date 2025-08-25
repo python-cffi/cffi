@@ -429,12 +429,6 @@ jobs:
         python -m pip install .
 
     - name: run tests under pytest-run-parallel
-      if: runner.os == 'Windows'
-      run: |
-        python -m pytest --parallel-threads=4 src/c
-
-    - name: run tests under pytest-run-parallel
-      if: runner.os != 'Windows'
       run: |
         python -m pytest --parallel-threads=4
 
