@@ -1,4 +1,9 @@
 import pytest, sys
+
+pytestmark = [
+    pytest.mark.thread_unsafe(reason="Workers would share a build directory"),
+]
+
 try:
     # comment out the following line to run this test.
     # the latest on x86-64 linux: https://github.com/libffi/libffi/issues/574
