@@ -53,9 +53,11 @@ def test_module_type():
     ffi = FFI()
     lib = ffi.verify()
     if hasattr(lib, '_cffi_python_module'):
-        print('verify got a PYTHON module')
+        pass
+        # print('verify got a PYTHON module')
     if hasattr(lib, '_cffi_generic_module'):
-        print('verify got a GENERIC module')
+        pass
+        # print('verify got a GENERIC module')
     expected_generic = (cffi.verifier._FORCE_GENERIC_ENGINE or
                         '__pypy__' in sys.builtin_module_names)
     assert hasattr(lib, '_cffi_python_module') == (not expected_generic)
@@ -2247,10 +2249,10 @@ def test_implicit_unicode_on_windows():
 
 def test_use_local_dir():
     ffi = FFI()
-    lib = ffi.verify("", modulename="test_use_local_dir")
+    lib = ffi.verify("", modulename="_cffi_test_use_local_dir")
     this_dir = os.path.dirname(__file__)
     pycache_files = os.listdir(os.path.join(this_dir, '__pycache__'))
-    assert any('test_use_local_dir' in s for s in pycache_files)
+    assert any('_cffi_test_use_local_dir' in s for s in pycache_files)
 
 def test_define_known_value():
     ffi = FFI()
@@ -2586,3 +2588,21 @@ def test_passing_large_list():
     arg = list(range(20000000))
     lib.passing_large_list(arg)
     # assert did not segfault
+
+def test_no_regen():
+    from cffi.verifier import Verifier, _caller_dir_pycache, _FORCE_GENERIC_ENGINE
+    import os
+    ffi = FFI()
+    # make sure the module name is unique
+    modulename = "_cffi_test_no_regen" + str(_FORCE_GENERIC_ENGINE)
+    ffi.cdef("double cos(double x);")
+    lib = ffi.verify('#include <math.h>', libraries=lib_m, modulename=modulename)
+    assert lib.cos(1.23) == math.cos(1.23)
+    # Make sure that recompiling the same code does not rebuild the C file
+    cfile = os.path.join(ffi.verifier.tmpdir, f"{modulename}.c")
+    assert os.path.exists(cfile)
+    os.unlink(cfile)
+    assert not os.path.exists(cfile)
+    lib = ffi.verify('#include <math.h>', libraries=lib_m, modulename=modulename)
+    assert lib.cos(1.23) == math.cos(1.23)
+    assert not os.path.exists(cfile)
