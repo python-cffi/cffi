@@ -177,7 +177,7 @@ jobs:
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
-        CIBW_MANYLINUX_PPC64LE_IMAGE: ${{ matrix.manylinux_img || 'manyinux2014' }}
+        CIBW_MANYLINUX_PPC64LE_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_S390X_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MUSLLINUX_X86_64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
         CIBW_MUSLLINUX_I686_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
