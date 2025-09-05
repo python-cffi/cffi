@@ -177,7 +177,7 @@ jobs:
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
-        CIBW_MANYLINUX_PPC64LE_IMAGE: ${{ matrix.manylinux_img || 'manyinux2014' }}
+        CIBW_MANYLINUX_PPC64LE_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_S390X_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MUSLLINUX_X86_64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
         CIBW_MUSLLINUX_I686_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
@@ -402,9 +402,9 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          - { runner: ubuntu-latest, python-version: 3.14t-dev }
-          - { runner: macos-latest, python-version: 3.14t-dev }
-          - { runner: windows-latest, python-version: 3.14t-dev }
+          - { runner: ubuntu-24.04, python-version: 3.14t }
+          - { runner: macos-15, python-version: 3.14t }
+          - { runner: windows-2025, python-version: 3.14t }
 
 
   pytest-run-parallel:
@@ -422,6 +422,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        allow-prereleases: true
 
     - name: build and install
       run: |
@@ -433,7 +434,7 @@ jobs:
         python -m pytest --parallel-threads=4 --skip-thread-unsafe=True
 
   clang_TSAN:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container: ghcr.io/nascheme/numpy-tsan:3.14t
     steps:
     - uses: actions/checkout@v4
