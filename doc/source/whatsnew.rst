@@ -2,8 +2,8 @@
 What's New
 ======================
 
-v2.0.0b1
-============
+v2.0.0
+======
 
 * Added support for free threaded CPython (3.14t+ only). (`#178`_)
   Note that the free-threaded build does not yet support building extensions

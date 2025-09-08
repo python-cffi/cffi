@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cffi"
-version = "2.0.0b1"
+version = "2.0.0"
 dependencies = [
     "pycparser; implementation_name != 'PyPy'",
 ]
@@ -36,6 +36,7 @@ authors = [
 maintainers = [
     {name = "Matt Davis"},
     {name = "Matt Clay"},
+    {name = "Matti Picus"},
 ]
 
 [project.entry-points."distutils.setup_keywords"]
