@@ -22,7 +22,7 @@ def _read(p):
 def test_version():
     v = cffi.__version__
     version_info = '.'.join(str(i) for i in cffi.__version_info__)
-    version_info = version_info.replace('.beta.', 'b')
+    version_info = version_info.replace('.b', 'b')
     version_info = version_info.replace('.plus', '+')
     version_info = version_info.replace('.rc', 'rc')
     assert v == version_info
@@ -35,7 +35,7 @@ def test_doc_version():
     content = _read(p)
     #
     v = cffi.__version__
-    assert ("version = '%s'\n" % v[:4]) in content
+    assert ("version = '%s'\n" % ".".join(v.split('.')[:2])) in content
     assert ("release = '%s'\n" % v) in content
 
 def test_pyproject_version():
