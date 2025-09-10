@@ -29,7 +29,6 @@ static PyObject *build_primitive_type(int num);   /* forward */
 static int init_global_types_dict(PyObject *ffi_type_dict)
 {
     int err;
-    Py_ssize_t i;
     PyObject *ct_void, *ct_char, *ct2, *pnull;
     /* XXX some leaks in case these functions fail, but well,
        MemoryErrors during importing an extension module are kind
@@ -78,7 +77,7 @@ static int init_global_types_dict(PyObject *ffi_type_dict)
 #ifdef Py_GIL_DISABLED
     // Ensure that all primitive types are initialised to avoid race conditions
     // on the first access.
-    for (i = 0; i < _CFFI__NUM_PRIM; i++) {
+    for (Py_ssize_t i = 0; i < _CFFI__NUM_PRIM; i++) {
         ct2 = get_primitive_type(i);
         if (ct2 == NULL)
             return -1;
