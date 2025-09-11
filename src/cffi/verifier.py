@@ -197,8 +197,20 @@ class Verifier(object):
 
     def _compile_module(self):
         # compile this C source
+        # Note: compilation will create artifacts in tmpdir + sourcefilename
+        # This can exceed the windows MAXPATH quite easily. To make it shorter,
+        # cd into tmpdir and make the sourcefilename relative to tmdir
         tmpdir = os.path.dirname(self.sourcefilename)
-        outputfilename = ffiplatform.compile(tmpdir, self.get_extension())
+        olddir = os.getcwd()
+        os.chdir(tmpdir)
+        self.sourcefilename_orig = self.sourcefilename
+        try:
+            self.sourcefilename = os.path.relpath(self.sourcefilename)
+            output_rel_filename = ffiplatform.compile(tmpdir, self.get_extension())
+            outputfilename = os.path.join(tmpdir, output_rel_filename)
+        finally:
+            os.chdir(olddir)
+            self.sourcefilename = self.sourcefilename_orig
         try:
             same = ffiplatform.samefile(outputfilename, self.modulefilename)
         except OSError:
@@ -272,7 +284,9 @@ def cleanup_tmpdir(tmpdir=None, keep_so=False):
         suffix = _get_so_suffixes()[0].lower()
     for fn in filelist:
         if fn.lower().startswith('_cffi_') and (
-                fn.lower().endswith(suffix) or fn.lower().endswith('.c')):
+                fn.lower().endswith(suffix) or 
+                fn.lower().endswith('.c') or 
+                fn.lower().endswith('.o')):
             try:
                 os.unlink(os.path.join(tmpdir, fn))
             except OSError:
