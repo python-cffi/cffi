@@ -8174,27 +8174,21 @@ static struct { const char *name; int value; } all_dlopen_flags[] = {
 
 /************************************************************/
 
-#if PY_MAJOR_VERSION >= 3
-static struct PyModuleDef FFIBackendModuleDef = {
-  PyModuleDef_HEAD_INIT,
-  "_cffi_backend",
-  NULL,
-  -1,
-  FFIBackendMethods,
-  NULL, NULL, NULL, NULL
-};
-#define INITERROR return NULL
+static int module_loaded = 0;
 
-PyMODINIT_FUNC
-PyInit__cffi_backend(void)
-#else
-#define INITERROR return
-
-PyMODINIT_FUNC
-init_cffi_backend(void)
-#endif
+static int
+_cffi_backend_exec(PyObject *m)
 {
-    PyObject *m, *v;
+    PyObject *v;
+
+    // https://docs.python.org/3/howto/isolating-extensions.html#opt-out-limiting-to-one-module-object-per-process
+    if (module_loaded) {
+        PyErr_SetString(PyExc_ImportError,
+                        "cannot load module more than once per process");
+        return -1;
+    }
+    module_loaded = 1;
+
     int i;
     static char init_done = 0;
     static PyTypeObject *all_types[] = {
@@ -8220,17 +8214,11 @@ init_cffi_backend(void)
         PyErr_Format(PyExc_ImportError,
                      "this module was compiled for Python %c%c%c",
                      PY_VERSION[0], PY_VERSION[1], PY_VERSION[2]);
-        INITERROR;
+        return -1;
     }
 
-#if PY_MAJOR_VERSION >= 3
-    m = PyModule_Create(&FFIBackendModuleDef);
-#else
-    m = Py_InitModule("_cffi_backend", FFIBackendMethods);
-#endif
-
     if (m == NULL)
-        INITERROR;
+        return -1;
 
 #ifdef Py_GIL_DISABLED
     PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
@@ -8239,7 +8227,7 @@ init_cffi_backend(void)
     if (unique_cache == NULL) {
         unique_cache = PyDict_New();
         if (unique_cache == NULL)
-            INITERROR;
+            return -1;
     }
 
     /* readify all types and add them to the module */
@@ -8249,36 +8237,36 @@ init_cffi_backend(void)
         if (strncmp(tp->tp_name, "_cffi_backend.", 14) != 0) {
             PyErr_Format(PyExc_ImportError,
                          "'%s' is an ill-formed type name", tp->tp_name);
-            INITERROR;
+            return -1;
         }
         if (PyType_Ready(tp) < 0)
-            INITERROR;
+            return -1;
 
         Py_INCREF(tpo);
         if (PyModule_AddObject(m, tp->tp_name + 14, tpo) < 0)
-            INITERROR;
+            return -1;
     }
 
     if (!init_done) {
         v = PyText_FromString("_cffi_backend");
         if (v == NULL || PyDict_SetItemString(CData_Type.tp_dict,
                                               "__module__", v) < 0)
-            INITERROR;
+            return -1;
         v = PyText_FromString("<cdata>");
         if (v == NULL || PyDict_SetItemString(CData_Type.tp_dict,
                                               "__name__", v) < 0)
-            INITERROR;
+            return -1;
         init_done = 1;
     }
 
     /* this is for backward compatibility only */
     v = PyCapsule_New((void *)cffi_exports, "cffi", NULL);
     if (v == NULL || PyModule_AddObject(m, "_C_API", v) < 0)
-        INITERROR;
+        return -1;
 
     v = PyText_FromString(CFFI_VERSION);
     if (v == NULL || PyModule_AddObject(m, "__version__", v) < 0)
-        INITERROR;
+        return -1;
 
     if (PyModule_AddIntConstant(m, "FFI_DEFAULT_ABI", FFI_DEFAULT_ABI) < 0 ||
 #if defined(MS_WIN32) && !defined(_WIN64)
@@ -8294,28 +8282,62 @@ init_cffi_backend(void)
 #  endif
 #endif
         0)
-      INITERROR;
+      return -1;
 
     for (i = 0; all_dlopen_flags[i].name != NULL; i++) {
         if (PyModule_AddIntConstant(m,
                                     all_dlopen_flags[i].name,
                                     all_dlopen_flags[i].value) < 0)
-            INITERROR;
+            return -1;
     }
 
     init_cffi_tls();
     if (PyErr_Occurred())
-        INITERROR;
+        return -1;
     init_cffi_tls_zombie();
     if (PyErr_Occurred())
-        INITERROR;
+        return -1;
 
     if (init_ffi_lib(m) < 0)
-        INITERROR;
+        return -1;
 
 #if PY_MAJOR_VERSION >= 3
     if (init_file_emulator() < 0)
-        INITERROR;
-    return m;
+        return -1;
+    return 0;
 #endif
 }
+
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef_Slot _cffi_backend_slots[] = {
+    {Py_mod_exec, _cffi_backend_exec},
+#if PY_VERSION_HEX >= 0x030c00f0  // Python 3.12+
+    {Py_mod_multiple_interpreters, Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED},
+#endif
+    {0, NULL},
+};
+
+static struct PyModuleDef FFIBackendModuleDef = {
+    .m_base = PyModuleDef_HEAD_INIT,
+    .m_name = "_cffi_backend",
+    .m_size = 0,
+    .m_methds = FFIBackendMethods,
+    .m_slots = _cffi_backend_slots,
+};
+
+PyMODINIT_FUNC
+PyInit__cffi_backend(void)
+{
+    return PyModuleDef_Init(&FFIBackendModuleDef);
+}
+#else
+PyMODINIT_FUNC
+init_cffi_backend(void)
+{
+    m = Py_InitModule("_cffi_backend", FFIBackendMethods);
+    if (_cffi_backend_exec(m) <0) {
+        return;
+    }
+    return m;
+}
+#endif
