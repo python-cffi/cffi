@@ -218,13 +218,13 @@ jobs:
         matrix_yaml: |
           include:
           # x86_64 macos
-          - { spec: cp39-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp310-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-macosx_x86_64, runs_on: [macos-13], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-macosx_x86_64, runs_on: [macos-13] }
-          - { spec: cp314t-macosx_x86_64, runs_on: [macos-13] }
+          - { spec: cp39-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-macosx_x86_64, runs_on: [macos-15-intel] }
+          - { spec: cp314t-macosx_x86_64, runs_on: [macos-15-intel] }
 
           # arm64 macos
           - { spec: cp39-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
@@ -255,7 +255,7 @@ jobs:
     - name: install python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'  # as of 2024-05, this has to be < 3.12 since the macos-13 runner image's
+        python-version: '3.11'  # as of 2024-05, this has to be < 3.12 since the macos-15-intel runner image's
                                 # built-in virtualenv/pip are pinned to busted versions that fail on newer Pythons
 
     - name: build wheel prereqs
