@@ -1,8 +1,7 @@
 [build-system]
 requires = [
-    # first version that supports Python 3.12; older versions may work
-    # with previous Python versions, but are not tested
-    "setuptools >= 66.1"
+    # Required for PEP 639 support
+    "setuptools >= 77"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -16,7 +15,7 @@ requires-python = ">=3.9"
 
 description = "Foreign Function Interface for Python calling C code."
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
