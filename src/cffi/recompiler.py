@@ -1300,12 +1300,8 @@ class Recompiler:
         else:
             s.decode('utf-8')           # got bytes, check for valid utf-8
         for line in s.splitlines(True):
-            comment = line
-            if type('//') is bytes:     # python2
-                line = map(ord, line)   #     make a list of integers
-            else:                       # python3
-                # type(line) is bytes, which enumerates like a list of integers
-                comment = ascii(comment)[1:-1]
+            # type(line) is bytes, which enumerates like a list of integers
+            comment = ascii(line)[1:-1]
             prnt(('// ' + comment).rstrip())
             printed_line = ''
             for c in line:
@@ -1390,15 +1386,6 @@ class Recompiler:
         self.cffi_types[index] = CffiOp(OP_ENUM, enum_index)
 
 
-if sys.version_info >= (3,):
-    NativeIO = io.StringIO
-else:
-    class NativeIO(io.BytesIO):
-        def write(self, s):
-            if isinstance(s, unicode):
-                s = s.encode('ascii')
-            super().write(s)
-
 def _is_file_like(maybefile):
     # compare to xml.etree.ElementTree._get_writer
     return hasattr(maybefile, 'write')
@@ -1413,7 +1400,7 @@ def _make_c_or_py_source(ffi, module_name, preamble, target_file, verbose):
     if _is_file_like(target_file):
         recompiler.write_source_to_f(target_file, preamble)
         return True
-    f = NativeIO()
+    f = io.StringIO()
     recompiler.write_source_to_f(f, preamble)
     output = f.getvalue()
     try:
