@@ -1410,9 +1410,8 @@ def test_relative_to():
     tmpdir = tempfile.mkdtemp(dir=str(udir))
     ffi = FFI()
     ffi.cdef("int foo(int);")
-    f = open(os.path.join(tmpdir, 'foo.h'), 'w')
-    f.write("int foo(int a) { return a + 42; }\n")
-    f.close()
+    with open(os.path.join(tmpdir, 'foo.h'), 'w') as f:
+        f.write("int foo(int a) { return a + 42; }\n")
     lib = ffi.verify('#include "foo.h"',
                      include_dirs=['.'],
                      relative_to=os.path.join(tmpdir, 'x'))
