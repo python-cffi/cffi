@@ -182,7 +182,7 @@ class Verifier:
             # Determine if this matches the current file
             if os.path.exists(self.sourcefilename):
                 with open(self.sourcefilename, "r") as fp:
-                    needs_written = not (fp.read() == source_data)
+                    needs_written = fp.read() != source_data
             else:
                 needs_written = True
 
