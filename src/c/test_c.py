@@ -3017,8 +3017,8 @@ def test_string_assignment_to_byte_array():
 # XXX hack
 if sys.version_info >= (3,):
     try:
-        import posix, io
-        posix.fdopen = io.open
+        import posix
+        posix.fdopen = open
     except ImportError:
         pass   # win32
 
