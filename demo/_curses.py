@@ -513,9 +513,7 @@ class Window:
         code = lib.is_linetouched(self._win, line)
         if code == lib.ERR:
             raise error("is_linetouched: line number outside of boundaries")
-        if code == lib.FALSE:
-            return False
-        return True
+        return code != lib.FALSE
 
     def noutrefresh(self, *args):
         if lib._m_ispad(self._win):
