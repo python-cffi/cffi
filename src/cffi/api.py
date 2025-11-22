@@ -7,7 +7,7 @@ try:
     callable
 except NameError:
     # Python 3.1
-    from collections import Callable
+    from collections.abc import Callable
     callable = lambda x: isinstance(x, Callable)
 
 try:
