@@ -124,7 +124,7 @@ EXPORT THREEBYTES return_three_bytes(void)
 """
 
 @pytest.mark.thread_unsafe(reason="Parallel tests would share a build directory")
-class TestOwnLib(object):
+class TestOwnLib:
     Backend = CTypesBackend
 
     def setup_class(cls):

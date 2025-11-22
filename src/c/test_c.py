@@ -75,7 +75,7 @@ if sys.version_info < (3,):
     mandatory_u_prefix = 'u'
     bytechr = chr
     bitem2bchr = lambda x: x
-    class U(object):
+    class U:
         def __add__(self, other):
             return eval('u'+repr(other).replace(r'\\u', r'\u')
                                        .replace(r'\\U', r'\U'))
@@ -3322,7 +3322,7 @@ def test_new_handle_cycle():
     import gc
     import _weakref
     BVoidP = new_pointer_type(new_void_type())
-    class A(object):
+    class A:
         pass
     o = A()
     o.cycle = newp_handle(BVoidP, o)
@@ -3849,7 +3849,7 @@ def test_from_buffer_more_cases():
                 return
             if expected_for_memoryview is not None:
                 expected = expected_for_memoryview
-        class X(object):
+        class X:
             pass
         _testbuff(X, methods)
         bufobj = X()

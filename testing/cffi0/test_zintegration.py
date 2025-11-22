@@ -119,7 +119,7 @@ def run_setup_and_program(dirname, python_snippet):
     assert not (SNIPPET_DIR / dirname / 'yacctab.py').exists()
 
 @pytest.mark.thread_unsafe(reason="very slow in parallel")
-class TestZIntegration(object):
+class TestZIntegration:
     def teardown_class(self):
         if udir.is_dir():
             shutil.rmtree(udir)
