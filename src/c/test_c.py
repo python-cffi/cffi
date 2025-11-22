@@ -460,7 +460,7 @@ def test_reading_pointer_to_pointer():
     assert p[0] is not None
     assert p[0] == cast(BVoidP, 0)
     assert p[0] == cast(BCharP, 0)
-    assert p[0] != None
+    assert p[0] is not None
     assert repr(p[0]) == "<cdata 'int *' NULL>"
     p[0] = q
     assert p[0] != cast(BVoidP, 0)
@@ -495,12 +495,12 @@ def test_no_len_on_nonarray():
 def test_cmp_none():
     p = new_primitive_type("int")
     x = cast(p, 42)
-    assert (x == None) is False
-    assert (x != None) is True
+    assert (x is None) is False
+    assert (x is not None) is True
     assert (x == ["hello"]) is False
     assert (x != ["hello"]) is True
     y = cast(p, 0)
-    assert (y == None) is False
+    assert (y is None) is False
 
 def test_invalid_indexing():
     p = new_primitive_type("int")

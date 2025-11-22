@@ -43,7 +43,7 @@ class TestDist:
         # NOTE: pointing $HOME to a nonexistent directory can break certain things
         # that look there for configuration (like ccache).
         tmp_home = mkdtemp()
-        assert tmp_home != None, "cannot create temporary homedir"
+        assert tmp_home is not None, "cannot create temporary homedir"
         env['HOME'] = tmp_home
         pathlist = sys.path[:]
         if cwd is None:
