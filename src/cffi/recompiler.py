@@ -1299,10 +1299,6 @@ class Recompiler:
             s = s.encode('utf-8')       # -> bytes
         else:
             s.decode('utf-8')           # got bytes, check for valid utf-8
-        try:
-            s.decode('ascii')
-        except UnicodeDecodeError:
-            s = b'# -*- encoding: utf8 -*-\n' + s
         for line in s.splitlines(True):
             comment = line
             if type('//') is bytes:     # python2
