@@ -24,7 +24,7 @@ else:
         def write(self, s):
             if isinstance(s, unicode):
                 s = s.encode('ascii')
-            super(NativeIO, self).write(s)
+            super().write(s)
 
 
 class Verifier:
