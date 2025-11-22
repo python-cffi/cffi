@@ -4,13 +4,6 @@ from .error import CDefError
 from . import model
 
 try:
-    callable
-except NameError:
-    # Python 3.1
-    from collections import Callable
-    callable = lambda x: isinstance(x, Callable)
-
-try:
     basestring
 except NameError:
     # Python 3.x
