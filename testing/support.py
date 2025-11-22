@@ -103,20 +103,19 @@ def _verify(ffi, module_name, preamble, *args, **kwds):
 
 if sys.platform == 'win32':
     extra_compile_args = []      # no obvious -Werror equivalent on MSVC
+elif (sys.platform == 'darwin' and
+      [int(x) for x in os.uname()[2].split('.')] >= [11, 0, 0]):
+    # assume a standard clang or gcc
+    extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion',
+                          '-Wno-unused-parameter',
+                          '-Wno-unreachable-code']
+    # special things for clang
+    extra_compile_args.append('-Qunused-arguments')
 else:
-    if (sys.platform == 'darwin' and
-          [int(x) for x in os.uname()[2].split('.')] >= [11, 0, 0]):
-        # assume a standard clang or gcc
-        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion',
-                              '-Wno-unused-parameter',
-                              '-Wno-unreachable-code']
-        # special things for clang
-        extra_compile_args.append('-Qunused-arguments')
-    else:
-        # assume a standard gcc
-        extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion',
-                              '-Wno-unused-parameter',
-                              '-Wno-unreachable-code']
+    # assume a standard gcc
+    extra_compile_args = ['-Werror', '-Wall', '-Wextra', '-Wconversion',
+                          '-Wno-unused-parameter',
+                          '-Wno-unreachable-code']
 
 is_musl = False
 if sys.platform == 'linux':

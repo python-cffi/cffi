@@ -3366,15 +3366,14 @@ def _test_bitfield_details(flag):
             assert raw == b'A\xE3\x9B\x9D'
         else:
             raise AssertionError("bad flag")
+    elif flag & SF_MSVC_BITFIELDS:
+        assert raw == b'A\x00\x00\x00\x00\x00\xC77\x9D\x00\x00\x00'
+    elif flag & SF_GCC_LITTLE_ENDIAN:
+        assert raw == b'A\xC77\x9D'
+    elif flag & SF_GCC_BIG_ENDIAN:
+        assert raw == b'A\x9B\xE3\x9D'
     else:
-        if flag & SF_MSVC_BITFIELDS:
-            assert raw == b'A\x00\x00\x00\x00\x00\xC77\x9D\x00\x00\x00'
-        elif flag & SF_GCC_LITTLE_ENDIAN:
-            assert raw == b'A\xC77\x9D'
-        elif flag & SF_GCC_BIG_ENDIAN:
-            assert raw == b'A\x9B\xE3\x9D'
-        else:
-            raise AssertionError("bad flag")
+        raise AssertionError("bad flag")
     #
     BStruct = new_struct_type("struct foo2")
     complete_struct_or_union(BStruct, [('a', BChar, -1),

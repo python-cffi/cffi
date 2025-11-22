@@ -158,11 +158,10 @@ else:
             if type(v) is list:
                 for i, v1 in enumerate(v):
                     check(ffi.addressof(p, 'f%d' % i), v1)
+            elif ffi.typeof(p).item is _tp_long_double:
+                assert ffi.cast("double", p[0]) == v
             else:
-                if ffi.typeof(p).item is _tp_long_double:
-                    assert ffi.cast("double", p[0]) == v
-                else:
-                    assert p[0] == v
+                assert p[0] == v
 
         for i, arg in enumerate(passed_args):
             check(ffi.addressof(lib, 'testfargs_arg%d' % i), arg)
