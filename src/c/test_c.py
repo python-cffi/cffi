@@ -4180,8 +4180,8 @@ def test_unpack():
     for typename in ["wchar_t", "char16_t", "char32_t"]:
         BWChar = new_primitive_type(typename)
         BArray = new_array_type(new_pointer_type(BWChar), 10)   # wchar_t[10]
-        p = newp(BArray, u"abc\x00def")
-        assert unpack(p, 10) == u"abc\x00def\x00\x00\x00"
+        p = newp(BArray, "abc\x00def")
+        assert unpack(p, 10) == "abc\x00def\x00\x00\x00"
 
     for typename, samples in [
             ("uint8_t",  [0, 2**8-1]),
