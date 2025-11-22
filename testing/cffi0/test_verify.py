@@ -22,7 +22,7 @@ if sys.platform == 'win32':
 else:
     class FFI(FFI):
         def verify(self, *args, **kwds):
-            return super(FFI, self).verify(
+            return super().verify(
                 *args, extra_compile_args=extra_compile_args, **kwds)
 
 def setup_module():

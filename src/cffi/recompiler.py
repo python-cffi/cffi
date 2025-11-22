@@ -1401,7 +1401,7 @@ else:
         def write(self, s):
             if isinstance(s, unicode):
                 s = s.encode('ascii')
-            super(NativeIO, self).write(s)
+            super().write(s)
 
 def _is_file_like(maybefile):
     # compare to xml.etree.ElementTree._get_writer
