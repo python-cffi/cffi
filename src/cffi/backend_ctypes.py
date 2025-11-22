@@ -564,7 +564,7 @@ class CTypesBackend:
                     if value and isinstance(value[0], bytes):
                         return ctypes.c_char_p(value[0])
                     else:
-                        return super(CTypesPtr, cls)._arg_to_ctypes(*value)
+                        return super()._arg_to_ctypes(*value)
 
             if kind == 'charp' or kind == 'bytep':
                 def _to_string(self, maxlen):
@@ -581,7 +581,7 @@ class CTypesBackend:
                 if getattr(self, '_own', False):
                     return 'owning %d bytes' % (
                         ctypes.sizeof(self._as_ctype_ptr.contents),)
-                return super(CTypesPtr, self)._get_own_repr()
+                return super()._get_own_repr()
         #
         if (BItem is self.ffi._get_cached_btype(model.void_type) or
             BItem is self.ffi._get_cached_btype(model.PrimitiveType('char'))):
@@ -677,7 +677,7 @@ class CTypesBackend:
             def _get_own_repr(self):
                 if getattr(self, '_own', False):
                     return 'owning %d bytes' % (ctypes.sizeof(self._blob),)
-                return super(CTypesArray, self)._get_own_repr()
+                return super()._get_own_repr()
 
             def _convert_to_address(self, BClass):
                 if BClass in (CTypesPtr, None) or BClass._automatic_casts:
@@ -917,7 +917,7 @@ class CTypesBackend:
             def _get_own_repr(self):
                 if getattr(self, '_own_callback', None) is not None:
                     return 'calling %r' % (self._own_callback,)
-                return super(CTypesFunctionPtr, self)._get_own_repr()
+                return super()._get_own_repr()
 
             def __call__(self, *args):
                 if has_varargs:
