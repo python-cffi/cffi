@@ -8,10 +8,6 @@ import pytest
 
 if sys.platform == 'win32':
     pytestmark = pytest.mark.skip('snippets do not run on win32')
-if sys.version_info < (2, 7):
-    pytestmark = pytest.mark.skip(
-                 'fails e.g. on a Debian/Ubuntu which patches virtualenv'
-                 ' in a non-2.6-friendly way')
 
 def create_venv(name):
     tmpdir = udir / name

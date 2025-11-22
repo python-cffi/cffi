@@ -1279,8 +1279,7 @@ class BackendTests:
     def test_ffi_buffer_comparisons(self):
         ffi = FFI(backend=self.Backend())
         ba = bytearray(range(100, 110))
-        if sys.version_info >= (2, 7):
-            assert ba == memoryview(ba)    # justification for the following
+        assert ba == memoryview(ba)    # justification for the following
         a = ffi.new("uint8_t[]", list(ba))
         c = ffi.new("uint8_t[]", [99] + list(ba))
         try:
@@ -1968,10 +1967,7 @@ class BackendTests:
 
     def test_init_once_multithread(self):
         import sys, time
-        if sys.version_info < (3,):
-            import thread
-        else:
-            import _thread as thread
+        import _thread as thread
         #
         def do_init():
             seen.append('init!')

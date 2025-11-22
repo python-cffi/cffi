@@ -167,8 +167,7 @@ class TestOwnLib:
                 try:
                     unicode_name = u+'testownlibcaf\xe9'
                     encoded = unicode_name.encode(sys.getfilesystemencoding())
-                    if sys.version_info >= (3,):
-                        encoded = str(unicode_name)
+                    encoded = str(unicode_name)
                 except UnicodeEncodeError:
                     pass
             if encoded is None:

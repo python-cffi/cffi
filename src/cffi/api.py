@@ -603,10 +603,7 @@ class FFI:
                 # we need 'libpypy-c.{so,dylib}', which should be by
                 # default located in 'sys.prefix/bin' for installed
                 # systems.
-                if sys.version_info < (3,):
-                    pythonlib = "pypy-c"
-                else:
-                    pythonlib = "pypy3-c"
+                pythonlib = "pypy3-c"
                 if hasattr(sys, 'prefix'):
                     ensure('library_dirs', os.path.join(sys.prefix, 'bin'))
             # On uninstalled pypy's, the libpypy-c is typically found in
