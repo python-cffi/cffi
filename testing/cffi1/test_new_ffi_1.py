@@ -1811,7 +1811,7 @@ class TestNewFFI1:
         # equivalent to "import ffi, lib"
         d = {}
         exec("from _test_import_from_lib import *", d)
-        assert (sorted([x for x in d.keys() if not x.startswith('__')]) ==
+        assert (sorted(x for x in d if not x.startswith('__')) ==
                 ['ffi', 'lib'])
 
     def test_char16_t(self):
