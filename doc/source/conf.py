@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # CFFI documentation build configuration file, created by
 # sphinx-quickstart on Thu Jun 14 16:37:47 2012.
 #
