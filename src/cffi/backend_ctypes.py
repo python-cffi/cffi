@@ -336,7 +336,6 @@ class CTypesBackend:
                 if novalue is not None:
                     raise TypeError("None expected, got %s object" %
                                     (type(novalue).__name__,))
-                return None
         CTypesVoid._fix_class()
         return CTypesVoid
 
