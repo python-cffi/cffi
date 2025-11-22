@@ -20,7 +20,7 @@ def from_outside(f):
     return f
 
 
-class TestDist(object):
+class TestDist:
 
     def setup_method(self, meth):
         self.executable = os.path.abspath(sys.executable)

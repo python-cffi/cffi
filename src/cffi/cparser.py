@@ -292,7 +292,7 @@ def _common_type_names(csource):
     return words_used
 
 
-class Parser(object):
+class Parser:
 
     def __init__(self):
         self._declarations = {}

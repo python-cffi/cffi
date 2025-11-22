@@ -22,7 +22,7 @@ def qualify(quals, replace_with):
     return replace_with
 
 
-class BaseTypeByIdentity(object):
+class BaseTypeByIdentity:
     is_array_type = False
     is_raw_function = False
 

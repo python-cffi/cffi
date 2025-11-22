@@ -20,7 +20,7 @@ _unspecified = object()
 
 
 
-class FFI(object):
+class FFI:
     r'''
     The main top-level class that you instantiate once, or once per module.
 
@@ -909,7 +909,7 @@ def _make_ffi_library(ffi, libname, flags):
                     raise AttributeError(name)
             accessors[name](name)
     #
-    class FFILibrary(object):
+    class FFILibrary:
         def __getattr__(self, name):
             make_accessor(name)
             return getattr(self, name)

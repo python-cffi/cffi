@@ -27,7 +27,7 @@ else:
             super(NativeIO, self).write(s)
 
 
-class Verifier(object):
+class Verifier:
 
     def __init__(self, ffi, preamble, tmpdir=None, modulename=None,
                  ext_package=None, tag='', force_generic_engine=False,
