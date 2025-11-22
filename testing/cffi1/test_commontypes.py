@@ -9,7 +9,7 @@ def getlines():
                               '..', 'c', 'commontypes.c'))
     except OSError:
         pytest.skip("cannot find ../c/commontypes.c")
-    lines = [line for line in f.readlines() if line.strip().startswith('EQ(')]
+    lines = [line for line in f if line.strip().startswith('EQ(')]
     f.close()
     return lines
 
