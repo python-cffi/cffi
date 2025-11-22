@@ -70,8 +70,7 @@ class TestDist:
             curdir = str(self.udir)
         found_so = None
         for name in os.listdir(curdir):
-            if (name.endswith('.so') or name.endswith('.pyd') or
-                name.endswith('.dylib') or name.endswith('.dll')):
+            if (name.endswith(('.so', '.pyd', '.dylib', '.dll'))):
                 found_so = os.path.join(curdir, name)
                 # foo.so => foo
                 parts = name.split('.')
