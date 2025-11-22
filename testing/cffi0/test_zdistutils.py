@@ -31,12 +31,11 @@ class DistUtilsTest:
             # asked for the generic engine, which must not generate a
             # CPython extension module
             assert not cls._gen_python_module
-        else:
+        elif '__pypy__' not in sys.builtin_module_names:
             # asked for the CPython engine: check that we got it, unless
             # we are running on top of PyPy, where the generic engine is
             # always better
-            if '__pypy__' not in sys.builtin_module_names:
-                assert cls._gen_python_module
+            assert cls._gen_python_module
 
     def test_write_source(self):
         ffi = FFI()
