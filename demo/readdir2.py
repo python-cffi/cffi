@@ -26,7 +26,7 @@ def walk(basefd, path):
             break
         name = ffi.string(dirent.d_name)
         print('%3d %s' % (dirent.d_type, name))
-        if dirent.d_type == lib.DT_DIR and name != '.' and name != '..':
+        if dirent.d_type == lib.DT_DIR and name not in {'.', '..'}:
             walk(dirfd, name)
     lib.closedir(dir)
     print('}')

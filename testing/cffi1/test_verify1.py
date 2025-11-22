@@ -228,7 +228,7 @@ def test_all_integer_and_float_types():
     for typename in all_primitive_types:
         if (all_primitive_types[typename] == 'c' or
             all_primitive_types[typename] == 'j' or    # complex
-            typename == '_Bool' or typename == 'long double'):
+            typename in {'_Bool', 'long double'}):
             pass
         else:
             typenames.append(typename)
@@ -1629,7 +1629,7 @@ def test_FILE_stored_in_stdout():
     os.close(fdr)
     # the 'X' might remain in the user-level buffer of 'fw1' and
     # end up showing up after the 'hello, 42!\n'
-    assert result == b"Xhello, 42!\n" or result == b"hello, 42!\nX"
+    assert result in {b"Xhello, 42!\n", b"hello, 42!\nX"}
 
 def test_FILE_stored_explicitly():
     ffi = FFI()
@@ -1655,7 +1655,7 @@ def test_FILE_stored_explicitly():
     os.close(fdr)
     # the 'X' might remain in the user-level buffer of 'fw1' and
     # end up showing up after the 'hello, 42!\n'
-    assert result == b"Xhello, 42!\n" or result == b"hello, 42!\nX"
+    assert result in {b"Xhello, 42!\n", b"hello, 42!\nX"}
 
 def test_global_array_with_missing_length():
     ffi = FFI()

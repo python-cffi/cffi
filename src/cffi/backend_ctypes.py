@@ -386,7 +386,7 @@ class CTypesBackend:
                     return ctype()
                 return ctype(CTypesPrimitive._to_ctypes(init))
 
-            if kind == 'int' or kind == 'byte':
+            if kind in {'int', 'byte'}:
                 @classmethod
                 def _cast_from(cls, source):
                     source = _cast_source_to_int(source)
@@ -434,7 +434,7 @@ class CTypesBackend:
 
             _cast_to_integer = __int__
 
-            if kind == 'int' or kind == 'byte' or kind == 'bool':
+            if kind in {'int', 'byte', 'bool'}:
                 @staticmethod
                 def _to_ctypes(x):
                     if not isinstance(x, (int, long)):
@@ -557,7 +557,7 @@ class CTypesBackend:
             def __setitem__(self, index, value):
                 self._as_ctype_ptr[index] = BItem._to_ctypes(value)
 
-            if kind == 'charp' or kind == 'voidp':
+            if kind in {'charp', 'voidp'}:
                 @classmethod
                 def _arg_to_ctypes(cls, *value):
                     if value and isinstance(value[0], bytes):
@@ -565,7 +565,7 @@ class CTypesBackend:
                     else:
                         return super()._arg_to_ctypes(*value)
 
-            if kind == 'charp' or kind == 'bytep':
+            if kind in {'charp', 'bytep'}:
                 def _to_string(self, maxlen):
                     if maxlen < 0:
                         maxlen = sys.maxsize
@@ -662,7 +662,7 @@ class CTypesBackend:
                     raise IndexError
                 self._blob[index] = BItem._to_ctypes(value)
 
-            if kind == 'char' or kind == 'byte':
+            if kind in {'char', 'byte'}:
                 def _to_string(self, maxlen):
                     if maxlen < 0:
                         maxlen = len(self._blob)
