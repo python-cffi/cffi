@@ -893,8 +893,7 @@ def test_unpack_args():
     e7 = pytest.raises(TypeError, lib.foo2, 45, 46, 47)
     def st1(s):
         s = str(s)
-        if s.startswith("_CFFI_test_unpack_args.Lib."):
-            s = s[len("_CFFI_test_unpack_args.Lib."):]
+        s = s.removeprefix("_CFFI_test_unpack_args.Lib.")
         return s
     assert st1(e1.value) == "foo0() takes no arguments (1 given)"
     assert st1(e2.value) == "foo0() takes no arguments (2 given)"
