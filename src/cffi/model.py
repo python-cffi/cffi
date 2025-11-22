@@ -371,8 +371,7 @@ class StructOrUnion(StructOrUnionOrEnum):
             if (name == '' and isinstance(type, StructOrUnion)
                     and expand_anonymous_struct_union):
                 # nested anonymous struct/union
-                for result in type.enumfields():
-                    yield result
+                yield from type.enumfields()
             else:
                 yield (name, type, bitsize, quals)
 

@@ -1241,8 +1241,7 @@ def test_macro_var_callback():
     #
     values = ffi.new("int[50]")
     def it():
-        for i in range(50):
-            yield i
+        yield from range(50)
     it = it()
     #
     @ffi.callback("int *(*)(void)")
