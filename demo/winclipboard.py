@@ -1,4 +1,3 @@
-from __future__ import print_function
 __author__ = "Israel Fruchter <israel.fruchter@gmail.com>"
 
 import sys, os

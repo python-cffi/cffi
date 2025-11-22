@@ -3,8 +3,6 @@ btrfs-snap.py: source target newname
 
 creates a exactly named snapshots and bails out if they exist
 """
-from __future__ import print_function
-
 import argparse
 import fcntl
 import os

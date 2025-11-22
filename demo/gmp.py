@@ -1,4 +1,3 @@
-from __future__ import print_function
 import sys
 #
 # This is only a demo based on the GMP library.

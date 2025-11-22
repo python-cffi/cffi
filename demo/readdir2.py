@@ -1,4 +1,3 @@
-from __future__ import print_function
 # A Linux-only demo, using set_source() instead of hard-coding the exact layouts
 #
 import sys
