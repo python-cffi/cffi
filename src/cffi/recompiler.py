@@ -538,8 +538,7 @@ class Recompiler:
                                                     tovar, errcode)
             return
         #
-        elif (isinstance(tp, model.StructOrUnionOrEnum) or
-              isinstance(tp, model.BasePrimitiveType)):
+        elif (isinstance(tp, (model.StructOrUnionOrEnum, model.BasePrimitiveType))):
             # a struct (not a struct pointer) as a function argument;
             # or, a complex (the same code works)
             self._prnt('  if (_cffi_to_c((char *)&%s, _cffi_type(%d), %s) < 0)'
