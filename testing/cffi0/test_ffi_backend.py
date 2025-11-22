@@ -1,7 +1,6 @@
 import sys, platform
 import pytest
 from testing.cffi0 import backend_tests, test_function, test_ownlib
-from testing.support import u
 from cffi import FFI
 import _cffi_backend
 
@@ -613,32 +612,32 @@ class TestBitfield:
         ffi = FFI()
         x = ffi.new("char16_t[]", 5)
         assert len(x) == 5 and ffi.sizeof(x) == 10
-        x[2] = u+'\u1324'
-        assert x[2] == u+'\u1324'
-        y = ffi.new("char16_t[]", u+'\u1234\u5678')
+        x[2] = '\u1324'
+        assert x[2] == '\u1324'
+        y = ffi.new("char16_t[]", '\u1234\u5678')
         assert len(y) == 3
-        assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
-        assert ffi.string(y) == u+'\u1234\u5678'
-        z = ffi.new("char16_t[]", u+'\U00012345')
+        assert list(y) == ['\u1234', '\u5678', '\x00']
+        assert ffi.string(y) == '\u1234\u5678'
+        z = ffi.new("char16_t[]", '\U00012345')
         assert len(z) == 3
-        assert list(z) == [u+'\ud808', u+'\udf45', u+'\x00']
-        assert ffi.string(z) == u+'\U00012345'
+        assert list(z) == ['\ud808', '\udf45', '\x00']
+        assert ffi.string(z) == '\U00012345'
 
     def test_char32_t(self):
         ffi = FFI()
         x = ffi.new("char32_t[]", 5)
         assert len(x) == 5 and ffi.sizeof(x) == 20
-        x[3] = u+'\U00013245'
-        assert x[3] == u+'\U00013245'
-        y = ffi.new("char32_t[]", u+'\u1234\u5678')
+        x[3] = '\U00013245'
+        assert x[3] == '\U00013245'
+        y = ffi.new("char32_t[]", '\u1234\u5678')
         assert len(y) == 3
-        assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
-        py_uni = u+'\U00012345'
+        assert list(y) == ['\u1234', '\u5678', '\x00']
+        py_uni = '\U00012345'
         z = ffi.new("char32_t[]", py_uni)
         assert len(z) == 2
-        assert list(z) == [py_uni, u+'\x00']    # maybe a 2-unichars string
+        assert list(z) == [py_uni, '\x00']    # maybe a 2-unichars string
         assert ffi.string(z) == py_uni
         if len(py_uni) == 1:    # 4-bytes unicodes in Python
-            s = ffi.new("char32_t[]", u+'\ud808\udf00')
+            s = ffi.new("char32_t[]", '\ud808\udf00')
             assert len(s) == 3
-            assert list(s) == [u+'\ud808', u+'\udf00', u+'\x00']
+            assert list(s) == ['\ud808', '\udf00', '\x00']

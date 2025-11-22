@@ -3,7 +3,7 @@ import pytest
 from cffi import FFI
 from cffi import recompiler, ffiplatform, VerificationMissing
 from testing.udir import udir
-from testing.support import u, is_musl
+from testing.support import is_musl
 
 
 def setup_module(mod):
@@ -40,9 +40,9 @@ def setup_module(mod):
     # test with a non-ascii char
     ofn, oext = os.path.splitext(outputfilename)
     if sys.platform == "win32":
-        unicode_name = ofn + (u+'\u03be') + oext
+        unicode_name = ofn + ('\u03be') + oext
     else:
-        unicode_name = ofn + (u+'\xe9') + oext
+        unicode_name = ofn + ('\xe9') + oext
         try:
             unicode_name.encode(sys.getfilesystemencoding())
         except UnicodeEncodeError:
@@ -132,13 +132,8 @@ def test_dlclose():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
     ffi.dlclose(lib)
-    if type(extmod) is not str:   # unicode, on python 2
-        str_extmod = extmod.encode('utf-8')
-    else:
-        str_extmod = extmod
     e = pytest.raises(ffi.error, getattr, lib, 'add42')
-    assert str(e.value) == (
-        "library '%s' has been closed" % (str_extmod,))
+    assert str(e.value) == "library '%s' has been closed" % (extmod,)
     ffi.dlclose(lib)   # does not raise
 
 @pytest.mark.thread_unsafe(
@@ -178,9 +173,8 @@ def test_include_1():
     sub_ffi.set_source('re_python_pysrc', None)
     sub_ffi.emit_python_code(str(tmpdir / '_re_include_1.py'))
     #
-    if sys.version_info[:2] >= (3, 3):
-        import importlib
-        importlib.invalidate_caches()  # issue 197 (but can't reproduce myself)
+    import importlib
+    importlib.invalidate_caches()  # issue 197 (but can't reproduce myself)
     #
     from _re_include_1 import ffi
     assert ffi.integer_const('FOOBAR') == -42
@@ -312,9 +306,8 @@ def test_rec_structs_1():
     ffi.set_source('test_rec_structs_1', None)
     ffi.emit_python_code(str(tmpdir / '_rec_structs_1.py'))
     #
-    if sys.version_info[:2] >= (3, 3):
-        import importlib
-        importlib.invalidate_caches()  # issue 197, maybe
+    import importlib
+    importlib.invalidate_caches()  # issue 197, maybe
     #
     from _rec_structs_1 import ffi
     # the following line used to raise TypeError
@@ -329,9 +322,8 @@ def test_rec_structs_2():
     ffi.set_source('test_rec_structs_2', None)
     ffi.emit_python_code(tmpdir / '_rec_structs_2.py')
     #
-    if sys.version_info[:2] >= (3, 3):
-        import importlib
-        importlib.invalidate_caches()  # issue 197, maybe
+    import importlib
+    importlib.invalidate_caches()  # issue 197, maybe
     #
     from _rec_structs_2 import ffi
     sz = ffi.sizeof("struct C")
