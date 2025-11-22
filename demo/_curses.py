@@ -329,17 +329,14 @@ class Window:
         if attr is None:
             attr = lib.A_NORMAL
         lib.wbkgdset(self._win, _chtype(ch) | attr)
-        return None
 
     def border(self, ls=0, rs=0, ts=0, bs=0, tl=0, tr=0, bl=0, br=0):
         lib.wborder(self._win,
                     _chtype(ls), _chtype(rs), _chtype(ts), _chtype(bs),
                     _chtype(tl), _chtype(tr), _chtype(bl), _chtype(br))
-        return None
 
     def box(self, vertint=0, horint=0):
         lib.box(self._win, vertint, horint)
-        return None
 
     @_argspec(1, 1, 2)
     def chgat(self, y, x, num, attr=None):
@@ -650,7 +647,6 @@ noqiflush = _mk_return_val("noqiflush")
 
 def filter():
     lib.filter()
-    return None
 
 
 def color_content(color):
@@ -913,7 +909,6 @@ def qiflush(flag=True):
         lib.qiflush()
     else:
         lib.noqiflush()
-    return None
 
 
 # XXX: Do something about the following?
@@ -1016,7 +1011,6 @@ def qiflush(flag=True):
 def setsyx(y, x):
     _ensure_initialised()
     lib.setsyx(y, x)
-    return None
 
 
 def start_color():
@@ -1024,7 +1018,6 @@ def start_color():
     globals()["COLORS"] = lib.COLORS
     globals()["COLOR_PAIRS"] = lib.COLOR_PAIRS
     globals()["_initialised_color"] = True
-    return None
 
 
 def tigetflag(capname):
@@ -1070,7 +1063,6 @@ def ungetch(ch):
 
 def use_env(flag):
     lib.use_env(flag)
-    return None
 
 
 if not lib._m_STRICT_SYSV_CURSES:
