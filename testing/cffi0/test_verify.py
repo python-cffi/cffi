@@ -1502,7 +1502,7 @@ def test_bool():
     assert int(ffi.cast("_Bool", 10**200)) == 1
     assert int(ffi.cast("_Bool", 10**40000)) == 1
     #
-    class Foo(object):
+    class Foo:
         def __int__(self):
             self.seen = 1
             return result
@@ -2520,7 +2520,7 @@ def test_ffi_gc_size_arg_2():
     lib = ffi.verify(r"""
         #include <stdlib.h>
     """)
-    class X(object):
+    class X:
         pass
     for i in range(2000):
         p = lib.malloc(50*1024*1024)    # 50 MB
@@ -2540,7 +2540,7 @@ def test_ffi_new_with_cycles():
     ffi = FFI()
     ffi.cdef("")
     lib = ffi.verify("")
-    class X(object):
+    class X:
         pass
     for i in range(2000):
         p = ffi.new("char[]", 50*1024*1024)    # 50 MB

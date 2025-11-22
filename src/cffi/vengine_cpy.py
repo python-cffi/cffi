@@ -7,7 +7,7 @@ from .error import VerificationError
 from . import _imp_emulation as imp
 
 
-class VCPythonEngine(object):
+class VCPythonEngine:
     _class_key = 'x'
     _gen_python_module = True
 
@@ -166,7 +166,7 @@ class VCPythonEngine(object):
         # it will invoke the chained list of functions that will really
         # build (notably) the constant objects, as <cdata> if they are
         # pointers, and store them as attributes on the 'library' object.
-        class FFILibrary(object):
+        class FFILibrary:
             _cffi_python_module = module
             _cffi_ffi = self.ffi
             _cffi_dir = []

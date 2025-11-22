@@ -1,6 +1,6 @@
 from cffi import FFI
 
-class FakeBackend(object):
+class FakeBackend:
 
     def nonstandard_integer_types(self):
         return {}
@@ -28,7 +28,7 @@ class FakeBackend(object):
     buffer = "buffer type"
 
 
-class FakeType(object):
+class FakeType:
     def __init__(self, cdecl):
         self.cdecl = cdecl
 

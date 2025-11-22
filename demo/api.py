@@ -35,7 +35,7 @@ class PythonFFI(FFI):
         return lib
 
 
-class _PyExport(object):
+class _PyExport:
     def __init__(self, tp, func):
         self.tp = tp
         self.func = func

@@ -11,7 +11,7 @@ pytestmark = [
 ]
 
 
-class DistUtilsTest(object):
+class DistUtilsTest:
     def setup_class(self):
         self.lib_m = "m"
         if sys.platform == 'win32':

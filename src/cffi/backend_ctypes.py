@@ -12,7 +12,7 @@ else:
 class CTypesType(type):
     pass
 
-class CTypesData(object):
+class CTypesData:
     __metaclass__ = CTypesType
     __slots__ = ['__weakref__']
     __name__ = '<cdata>'
@@ -270,7 +270,7 @@ class CTypesBaseStructOrUnion(CTypesData):
         return CTypesData.__repr__(self, c_name or self._get_c_name(' &'))
 
 
-class CTypesBackend(object):
+class CTypesBackend:
 
     PRIMITIVE_TYPES = {
         'char': ctypes.c_char,
@@ -1094,7 +1094,7 @@ class CTypesBackend(object):
         return BTypePtr._from_ctypes(ptr)
 
 
-class CTypesLibrary(object):
+class CTypesLibrary:
 
     def __init__(self, backend, cdll):
         self.backend = backend
