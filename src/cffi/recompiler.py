@@ -7,7 +7,6 @@ VERSION_BASE = 0x2601
 VERSION_EMBEDDED = 0x2701
 VERSION_CHAR16CHAR32 = 0x2801
 
-
 class GlobalExpr:
     def __init__(self, name, address, type_op, size=0, check_value=0):
         self.name = name
@@ -1281,9 +1280,8 @@ class Recompiler:
         else:
             s.decode('utf-8')           # got bytes, check for valid utf-8
         for line in s.splitlines(True):
-            comment = line
             # type(line) is bytes, which enumerates like a list of integers
-            comment = ascii(comment)[1:-1]
+            comment = ascii(line)[1:-1]
             prnt(('// ' + comment).rstrip())
             printed_line = ''
             for c in line:

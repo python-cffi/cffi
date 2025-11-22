@@ -133,8 +133,7 @@ def test_dlclose():
     lib = ffi.dlopen(extmod)
     ffi.dlclose(lib)
     e = pytest.raises(ffi.error, getattr, lib, 'add42')
-    assert str(e.value) == (
-        f"library '{extmod}' has been closed")
+    assert str(e.value) == f"library '{extmod}' has been closed"
     ffi.dlclose(lib)   # does not raise
 
 @pytest.mark.thread_unsafe(

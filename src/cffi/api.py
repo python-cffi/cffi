@@ -620,8 +620,7 @@ class FFI:
         if os.sep in module_name or (os.altsep and os.altsep in module_name):
             raise ValueError("'module_name' must not contain '/': use a dotted "
                              "name to make a 'package.module' location")
-        self._assigned_source = (str(module_name), source,
-                                 source_extension, kwds)
+        self._assigned_source = (module_name, source, source_extension, kwds)
 
     def set_source_pkgconfig(self, module_name, pkgconfig_libs, source,
                              source_extension='.c', **kwds):

@@ -489,8 +489,7 @@ class VGenericEngine:
         function = module.load_function(BFunc, funcname)
         p = self.ffi.new(BType, 256)
         if function(p) < 0:
-            error = self.ffi.string(p)
-            error = str(error, 'utf-8')
+            error = str(self.ffi.string(p), 'utf-8')
             raise VerificationError(error)
 
     def _enum_funcname(self, prefix, name):

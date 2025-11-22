@@ -226,9 +226,8 @@ def test_ffi_invalid_type():
                             "struct never_heard_of_s\n"
                             "       ^")
     e = pytest.raises(ffi.error, ffi.cast, "\t\n\x01\x1f~\x7f\x80\xff", 0)
-    marks = "??"
     assert str(e.value) == ("identifier expected\n"
-                            f"  ??~?{marks}{marks}\n"
+                            "  ??~?????\n"
                             "  ^")
     e = pytest.raises(ffi.error, ffi.cast, "X" * 600, 0)
     assert str(e.value) == ("undefined type name")
