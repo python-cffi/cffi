@@ -156,8 +156,8 @@ class TestOwnLib:
             if sys.maxsize > 2**32:
                 arch = 'amd64'
             if os.path.isfile(vcvarsall):
-                cmd = '"%s" %s' % (vcvarsall, arch) + ' & cl.exe testownlib.c ' \
-                        ' /LD /Fetestownlib.dll'
+                cmd = '"%s" %s & cl.exe testownlib.c /LD /Fetestownlib.dll' % (
+                    vcvarsall, arch)
                 subprocess.check_call(cmd, cwd = str(udir), shell=True)
                 os.rename(f"{udir}\\testownlib.dll", dll_path)
                 cls.module = dll_path
