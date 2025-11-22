@@ -407,7 +407,7 @@ class FFI:
         if (replace_with.startswith('*')
                 and '&[' in self._backend.getcname(cdecl, '&')):
             replace_with = '(%s)' % replace_with
-        elif replace_with and not replace_with[0] in '[(':
+        elif replace_with and replace_with[0] not in '[(':
             replace_with = ' ' + replace_with
         return self._backend.getcname(cdecl, replace_with)
 
