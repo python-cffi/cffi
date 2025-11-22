@@ -35,8 +35,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'CFFI'
-copyright = u'2012-2025, Armin Rigo, Maciej Fijalkowski'
+project = 'CFFI'
+copyright = '2012-2025, Armin Rigo, Maciej Fijalkowski'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -170,8 +170,8 @@ htmlhelp_basename = 'CFFIdoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'CFFI.tex', u'CFFI Documentation',
-   u'Armin Rigo, Maciej Fijalkowski', 'manual'),
+  ('index', 'CFFI.tex', 'CFFI Documentation',
+   'Armin Rigo, Maciej Fijalkowski', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
