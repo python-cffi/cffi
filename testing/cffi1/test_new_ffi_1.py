@@ -113,7 +113,7 @@ class TestNewFFI1:
                 c_decl = {None: '',
                           False: 'signed ',
                           True: 'unsigned '}[unsigned] + c_type
-                if c_decl == 'char' or c_decl == '':
+                if c_decl in {'char', ''}:
                     continue
                 self._test_int_type(ffi, c_decl, size, unsigned)
 
