@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 referents = []     # list "object descriptor -> python object"
 freelist = None
 

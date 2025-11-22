@@ -1,4 +1,3 @@
-from __future__ import print_function
 import _cffi_backend
 
 ffi = _cffi_backend.FFI(b"manual2",
