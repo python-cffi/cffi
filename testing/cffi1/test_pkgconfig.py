@@ -1,7 +1,7 @@
 import sys
 import subprocess
 import pytest
-import cffi.pkgconfig as pkgconfig
+from cffi import pkgconfig
 from cffi import PkgConfigError
 
 
