@@ -25,10 +25,10 @@ def setup_module(mod):
     void init_test_re_python(void) { }      /* windows hack */
     void PyInit__test_re_python(void) { }   /* windows hack */
     """
-    tmpdir = udir.join('test_re_python')
-    tmpdir.ensure(dir=1)
-    c_file = tmpdir.join('_test_re_python.c')
-    c_file.write(SRC)
+    tmpdir = udir / 'test_re_python'
+    tmpdir.mkdir(exist_ok=True)
+    c_file = tmpdir/ '_test_re_python.c'
+    c_file.write_text(SRC)
     ext = ffiplatform.get_extension(
         str(c_file),
         '_test_re_python',
@@ -79,7 +79,7 @@ def setup_module(mod):
     typedef struct selfref { struct selfref *next; } *selfref_ptr_t;
     """)
     ffi.set_source('re_python_pysrc', None)
-    ffi.emit_python_code(str(tmpdir.join('re_python_pysrc.py')))
+    ffi.emit_python_code(str(tmpdir / 're_python_pysrc.py'))
     mod.original_ffi = ffi
     #
     sys.path.insert(0, str(tmpdir))
@@ -176,7 +176,7 @@ def test_include_1():
     assert 'macro FOOBAR' in original_ffi._parser._declarations
     assert 'macro FOOBAZ' in original_ffi._parser._declarations
     sub_ffi.set_source('re_python_pysrc', None)
-    sub_ffi.emit_python_code(str(tmpdir.join('_re_include_1.py')))
+    sub_ffi.emit_python_code(str(tmpdir / '_re_include_1.py'))
     #
     if sys.version_info[:2] >= (3, 3):
         import importlib
@@ -251,7 +251,7 @@ def test_partial_enum():
     ffi.cdef("enum foo { A, B, ... };")
     ffi.set_source('test_partial_enum', None)
     pytest.raises(VerificationMissing, ffi.emit_python_code,
-                   str(tmpdir.join('test_partial_enum.py')))
+                   str(tmpdir / 'test_partial_enum.py'))
 
 def test_anonymous_union_inside_struct():
     # based on issue #357
@@ -310,7 +310,7 @@ def test_rec_structs_1():
     ffi = FFI()
     ffi.cdef("struct B { struct C* c; }; struct C { struct B b; };")
     ffi.set_source('test_rec_structs_1', None)
-    ffi.emit_python_code(str(tmpdir.join('_rec_structs_1.py')))
+    ffi.emit_python_code(str(tmpdir / '_rec_structs_1.py'))
     #
     if sys.version_info[:2] >= (3, 3):
         import importlib
@@ -327,7 +327,7 @@ def test_rec_structs_2():
     ffi = FFI()
     ffi.cdef("struct B { struct C* c; }; struct C { struct B b; };")
     ffi.set_source('test_rec_structs_2', None)
-    ffi.emit_python_code(str(tmpdir.join('_rec_structs_2.py')))
+    ffi.emit_python_code(tmpdir / '_rec_structs_2.py')
     #
     if sys.version_info[:2] >= (3, 3):
         import importlib

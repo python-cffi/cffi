@@ -2258,8 +2258,8 @@ def test_windows_dllimport_data():
     if sys.platform != 'win32':
         pytest.skip("Windows only")
     from testing.udir import udir
-    tmpfile = udir.join('dllimport_data.c')
-    tmpfile.write('int my_value = 42;\n')
+    tmpfile = udir / 'dllimport_data.c'
+    tmpfile.write_text('int my_value = 42;\n')
     ffi = FFI()
     ffi.cdef("int my_value;")
     lib = ffi.verify("extern __declspec(dllimport) int my_value;",

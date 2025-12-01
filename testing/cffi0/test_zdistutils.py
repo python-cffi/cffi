@@ -21,9 +21,9 @@ class DistUtilsTest(object):
                 self.lib_m = 'msvcrt'
 
     def teardown_class(self):
-        if udir.isdir():
-            udir.remove(ignore_errors=True)
-        udir.ensure(dir=1)
+        if udir.is_dir():
+            shutil.rmtree(udir)
+        udir.mkdir()
 
     def test_locate_engine_class(self):
         cls = _locate_engine_class(FFI(), self.generic)
@@ -55,12 +55,11 @@ class DistUtilsTest(object):
         csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
         v = Verifier(ffi, csrc, force_generic_engine=self.generic,
                      libraries=[self.lib_m])
-        v.sourcefilename = filename = str(udir.join('write_source.c'))
+        source_file = udir / 'write_source.c'
+        v.sourcefilename = str(source_file)
         v.write_source()
-        assert filename == v.sourcefilename
-        with open(filename, 'r') as f:
-            data = f.read()
-        assert csrc in data
+        assert str(source_file) == v.sourcefilename
+        assert csrc in source_file.read_text()
 
     def test_write_source_to_file_obj(self):
         ffi = FFI()
@@ -95,9 +94,10 @@ class DistUtilsTest(object):
         v = Verifier(ffi, csrc, force_generic_engine=self.generic,
                      libraries=[self.lib_m])
         basename = self.__class__.__name__[:10] + '_test_compile_module'
-        v.modulefilename = filename = str(udir.join(basename + '.so'))
+        module_file = udir / (basename + '.so')
+        v.modulefilename = str(module_file)
         v.compile_module()
-        assert filename == v.modulefilename
+        assert str(module_file) == v.modulefilename
         assert v.get_module_name() == basename
         if v.generates_python_module():
             mod = load_dynamic(v.get_module_name(), v.modulefilename)
@@ -136,7 +136,7 @@ class DistUtilsTest(object):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
         csrc = '/*hi there %s!4*/#include "test_verifier_args.h"\n' % self
-        udir.join('test_verifier_args.h').write('#include <math.h>\n')
+        (udir / 'test_verifier_args.h').write_text('#include <math.h>\n')
         v = Verifier(ffi, csrc, include_dirs=[str(udir)],
                      force_generic_engine=self.generic,
                      libraries=[self.lib_m])
@@ -189,13 +189,13 @@ class DistUtilsTest(object):
     def test_extension_object_extra_sources(self):
         ffi = FFI()
         ffi.cdef("double test1eoes(double x);")
-        extra_source = str(udir.join('extension_extra_sources.c'))
-        with open(extra_source, 'w') as f:
-            f.write('double test1eoes(double x) { return x * 6.0; }\n')
+        extra_source = udir / 'extension_extra_sources.c'
+        extra_source.write_text(
+            'double test1eoes(double x) { return x * 6.0; }\n')
         csrc = '/*9%s*/' % self + '''
         double test1eoes(double x);   /* or #include "extra_sources.h" */
         '''
-        lib = ffi.verify(csrc, sources=[extra_source],
+        lib = ffi.verify(csrc, sources=[str(extra_source)],
                          force_generic_engine=self.generic)
         assert lib.test1eoes(7.0) == 42.0
         v = ffi.verifier
@@ -203,7 +203,7 @@ class DistUtilsTest(object):
         assert 'distutils.extension.Extension' in str(ext.__class__) or \
                'setuptools.extension.Extension' in str(ext.__class__)
         assert ext.sources == [maybe_relative_path(v.sourcefilename),
-                               extra_source]
+                               str(extra_source)]
         assert ext.name == v.get_module_name()
 
     def test_install_and_reload_module(self, targetpackage='', ext_package=''):
@@ -212,7 +212,8 @@ class DistUtilsTest(object):
             pytest.skip("test requires os.fork()")
 
         if targetpackage:
-            udir.ensure(targetpackage, dir=1).ensure('__init__.py')
+            (udir / targetpackage).mkdir(exist_ok=True)
+            (udir / targetpackage / "__init__.py").touch(exist_ok=True)
         sys.path.insert(0, str(udir))
 
         def make_ffi(**verifier_args):
@@ -232,7 +233,7 @@ class DistUtilsTest(object):
             assert lib.test1iarm(1.5) == 63.0
             # "install" the module by moving it into udir (/targetpackage)
             if targetpackage:
-                target = udir.join(targetpackage)
+                target = udir / targetpackage
             else:
                 target = udir
             shutil.move(ffi.verifier.modulefilename, str(target))
