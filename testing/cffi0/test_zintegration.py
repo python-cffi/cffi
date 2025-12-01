@@ -1,7 +1,8 @@
-import py, os, sys, shutil
+import os, sys, shutil
 import subprocess
 import sysconfig
 import textwrap
+from pathlib import Path
 from testing.udir import udir
 import pytest
 
@@ -13,7 +14,7 @@ if sys.version_info < (2, 7):
                  ' in a non-2.6-friendly way')
 
 def create_venv(name):
-    tmpdir = udir.join(name)
+    tmpdir = udir / name
     try:
         # FUTURE: we should probably update this to use venv for at least more modern Pythons, and
         # install setuptools/pip/etc explicitly for the tests that require them (as venv has stopped including
@@ -27,7 +28,7 @@ def create_venv(name):
         # Newer venv/virtualenv no longer include setuptools by default, which
         # breaks a number of these tests; ensure they're always present
         subprocess.check_call([
-            os.path.join(tmpdir, 'bin/python'),
+            str(tmpdir / 'bin/python'),
             '-m',
             'pip',
             'install',
@@ -39,8 +40,8 @@ def create_venv(name):
         pytest.skip("Cannot execute virtualenv: %s" % (e,))
 
     site_packages = None
-    for dirpath, dirnames, filenames in os.walk(str(tmpdir)):
-        if os.path.basename(dirpath) == 'site-packages':
+    for dirpath, dirnames, filenames in os.walk(tmpdir):
+        if Path(dirpath).name == 'site-packages':
             site_packages = dirpath
             break
     paths = ""
@@ -70,27 +71,27 @@ def create_venv(name):
         paths = os.pathsep.join(paths)
     return tmpdir, paths
 
-SNIPPET_DIR = py.path.local(__file__).join('..', 'snippets')
+SNIPPET_DIR = Path(__file__).absolute().parent / 'snippets'
 
 def really_run_setup_and_program(dirname, venv_dir_and_paths, python_snippet):
     venv_dir, paths = venv_dir_and_paths
     def remove(dir):
-        dir = str(SNIPPET_DIR.join(dirname, dir))
+        dir = str(SNIPPET_DIR / dirname / dir)
         shutil.rmtree(dir, ignore_errors=True)
     remove('build')
     remove('__pycache__')
-    for basedir in os.listdir(str(SNIPPET_DIR.join(dirname))):
-        remove(os.path.join(basedir, '__pycache__'))
+    for basedir in (SNIPPET_DIR / dirname).iterdir():
+        remove(basedir / '__pycache__')
     olddir = os.getcwd()
-    python_f = udir.join('x.py')
-    python_f.write(textwrap.dedent(python_snippet))
+    python_f = udir / 'x.py'
+    python_f.write_text(textwrap.dedent(python_snippet))
     try:
-        os.chdir(str(SNIPPET_DIR.join(dirname)))
+        os.chdir(str(SNIPPET_DIR / dirname))
         if os.name == 'nt':
             bindir = 'Scripts'
         else:
             bindir = 'bin'
-        vp = str(venv_dir.join(bindir).join('python'))
+        vp = str(venv_dir / bindir / 'python')
         env = os.environ.copy()
         env['PYTHONPATH'] = paths
         subprocess.check_call((vp, 'setup.py', 'clean'), env=env)
@@ -114,15 +115,15 @@ def run_setup_and_program(dirname, python_snippet):
         del sys._force_generic_engine_
     # the two files lextab.py and yacctab.py are created by not-correctly-
     # installed versions of pycparser.
-    assert not os.path.exists(str(SNIPPET_DIR.join(dirname, 'lextab.py')))
-    assert not os.path.exists(str(SNIPPET_DIR.join(dirname, 'yacctab.py')))
+    assert not (SNIPPET_DIR / dirname / 'lextab.py').exists()
+    assert not (SNIPPET_DIR / dirname / 'yacctab.py').exists()
 
 @pytest.mark.thread_unsafe(reason="very slow in parallel")
 class TestZIntegration(object):
     def teardown_class(self):
-        if udir.isdir():
-            udir.remove(ignore_errors=True)
-        udir.ensure(dir=1)
+        if udir.is_dir():
+            shutil.rmtree(udir)
+        udir.mkdir()
 
     def test_infrastructure(self):
         run_setup_and_program('infrastructure', '''

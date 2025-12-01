@@ -337,18 +337,18 @@ class TestFunction(object):
     def test_fputs_custom_FILE(self):
         if self.Backend is CTypesBackend:
             pytest.skip("FILE not supported with the ctypes backend")
-        filename = str(udir.join('fputs_custom_FILE'))
+        temp_file = udir / 'fputs_custom_FILE'
         ffi = FFI(backend=self.Backend())
         ffi.cdef("int fputs(const char *, FILE *);")
         needs_dlopen_none()
         C = ffi.dlopen(None)
-        with open(filename, 'wb') as f:
+        with temp_file.open('wb') as f:
             f.write(b'[')
             C.fputs(b"hello from custom file", f)
             f.write(b'][')
             C.fputs(b"some more output", f)
             f.write(b']')
-        with open(filename, 'rb') as f:
+        with temp_file.open('rb') as f:
             res = f.read()
         assert res == b'[hello from custom file][some more output]'
 

@@ -550,13 +550,13 @@ def test_module_name_in_package():
                          tmpdir=str(udir))
     old_sys_path = sys.path[:]
     try:
-        package_dir = udir.join('test_module_name_in_package')
-        for name in os.listdir(str(udir)):
-            assert not name.startswith('test_module_name_in_package.')
-        assert os.path.isdir(str(package_dir))
-        assert len(os.listdir(str(package_dir))) > 0
-        assert os.path.exists(str(package_dir.join('mymod.c')))
-        package_dir.join('__init__.py').write('')
+        package_dir = udir / 'test_module_name_in_package'
+        for item in udir.iterdir():
+            assert not item.name.startswith('test_module_name_in_package.')
+        assert package_dir.is_dir()
+        assert next(package_dir.iterdir())
+        assert (package_dir / 'mymod.c').is_file()
+        (package_dir / '__init__.py').touch()
         #
         getattr(importlib, 'invalidate_caches', object)()
         #
@@ -1002,9 +1002,9 @@ def test_variable_of_unknown_size():
     assert ffi.string(ffi.cast("char *", p), 8) == b"hello"
 
 def test_constant_of_value_unknown_to_the_compiler():
-    extra_c_source = udir.join(
-        'extra_test_constant_of_value_unknown_to_the_compiler.c')
-    extra_c_source.write('const int external_foo = 42;\n')
+    extra_c_source = (
+        udir / 'extra_test_constant_of_value_unknown_to_the_compiler.c')
+    extra_c_source.write_text('const int external_foo = 42;\n')
     ffi = FFI()
     ffi.cdef("const int external_foo;")
     lib = verify(ffi, 'test_constant_of_value_unknown_to_the_compiler', """
@@ -1013,9 +1013,8 @@ def test_constant_of_value_unknown_to_the_compiler():
     assert lib.external_foo == 42
 
 def test_dotdot_in_source_file_names():
-    extra_c_source = udir.join(
-        'extra_test_dotdot_in_source_file_names.c')
-    extra_c_source.write('const int external_foo = 42;\n')
+    extra_c_source = udir / 'extra_test_dotdot_in_source_file_names.c'
+    extra_c_source.write_text('const int external_foo = 42;\n')
     ffi = FFI()
     ffi.cdef("const int external_foo;")
     lib = verify(ffi, 'test_dotdot_in_source_file_names', """

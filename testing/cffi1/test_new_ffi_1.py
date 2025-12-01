@@ -1775,9 +1775,9 @@ class TestNewFFI1:
     def test_emit_c_code(self):
         ffi = cffi.FFI()
         ffi.set_source("foobar", "??")
-        c_file = str(udir.join('test_emit_c_code'))
-        ffi.emit_c_code(c_file)
-        assert os.path.isfile(c_file)
+        c_file = udir / 'test_emit_c_code'
+        ffi.emit_c_code(str(c_file))
+        assert c_file.is_file()
 
     @pytest.mark.thread_unsafe(reason="workers would share a compilation directory")
     def test_emit_c_code_to_file_obj(self):
