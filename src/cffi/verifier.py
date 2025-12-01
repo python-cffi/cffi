@@ -6,28 +6,15 @@ from . import __version_verifier_modules__
 from . import ffiplatform
 from .error import VerificationError
 
-if sys.version_info >= (3, 3):
-    import importlib.machinery
-    def _extension_suffixes():
-        return importlib.machinery.EXTENSION_SUFFIXES[:]
-else:
-    import imp
-    def _extension_suffixes():
-        return [suffix for suffix, _, type in imp.get_suffixes()
-                if type == imp.C_EXTENSION]
+import importlib.machinery
+def _extension_suffixes():
+    return importlib.machinery.EXTENSION_SUFFIXES[:]
 
 
-if sys.version_info >= (3,):
-    NativeIO = io.StringIO
-else:
-    class NativeIO(io.BytesIO):
-        def write(self, s):
-            if isinstance(s, unicode):
-                s = s.encode('ascii')
-            super(NativeIO, self).write(s)
+NativeIO = io.StringIO
 
 
-class Verifier(object):
+class Verifier:
 
     def __init__(self, ffi, preamble, tmpdir=None, modulename=None,
                  ext_package=None, tag='', force_generic_engine=False,
@@ -54,8 +41,7 @@ class Verifier(object):
                                __version_verifier_modules__,
                                preamble, flattened_kwds] +
                               ffi._cdefsources)
-            if sys.version_info >= (3,):
-                key = key.encode('utf-8')
+            key = key.encode('utf-8')
             k1 = hex(binascii.crc32(key[0::2]) & 0xffffffff)
             k1 = k1.lstrip('0x').rstrip('L')
             k2 = hex(binascii.crc32(key[1::2]) & 0xffffffff)

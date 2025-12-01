@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 referents = []     # list "object descriptor -> python object"
 freelist = None
 
@@ -24,7 +22,7 @@ def discard(p):
     freelist = p
     return x
 
-class Ref(object):
+class Ref:
     """For use in 'with Ref(x) as ob': open an object descriptor
     and returns it in 'ob', and close it automatically when the
     'with' statement finishes."""

@@ -8,10 +8,7 @@ except ImportError:
 import weakref, re, sys
 
 try:
-    if sys.version_info < (3,):
-        import thread as _thread
-    else:
-        import _thread
+    import _thread
     lock = _thread.allocate_lock()
 except ImportError:
     lock = None
@@ -292,7 +289,7 @@ def _common_type_names(csource):
     return words_used
 
 
-class Parser(object):
+class Parser:
 
     def __init__(self):
         self._declarations = {}

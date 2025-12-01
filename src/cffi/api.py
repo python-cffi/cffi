@@ -7,7 +7,7 @@ try:
     callable
 except NameError:
     # Python 3.1
-    from collections import Callable
+    from collections.abc import Callable
     callable = lambda x: isinstance(x, Callable)
 
 try:
@@ -20,7 +20,7 @@ _unspecified = object()
 
 
 
-class FFI(object):
+class FFI:
     r'''
     The main top-level class that you instantiate once, or once per module.
 
@@ -414,7 +414,7 @@ class FFI(object):
         if (replace_with.startswith('*')
                 and '&[' in self._backend.getcname(cdecl, '&')):
             replace_with = '(%s)' % replace_with
-        elif replace_with and not replace_with[0] in '[(':
+        elif replace_with and replace_with[0] not in '[(':
             replace_with = ' ' + replace_with
         return self._backend.getcname(cdecl, replace_with)
 
@@ -603,10 +603,7 @@ class FFI(object):
                 # we need 'libpypy-c.{so,dylib}', which should be by
                 # default located in 'sys.prefix/bin' for installed
                 # systems.
-                if sys.version_info < (3,):
-                    pythonlib = "pypy-c"
-                else:
-                    pythonlib = "pypy3-c"
+                pythonlib = "pypy3-c"
                 if hasattr(sys, 'prefix'):
                     ensure('library_dirs', os.path.join(sys.prefix, 'bin'))
             # On uninstalled pypy's, the libpypy-c is typically found in
@@ -909,7 +906,7 @@ def _make_ffi_library(ffi, libname, flags):
                     raise AttributeError(name)
             accessors[name](name)
     #
-    class FFILibrary(object):
+    class FFILibrary:
         def __getattr__(self, name):
             make_accessor(name)
             return getattr(self, name)

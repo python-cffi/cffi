@@ -893,8 +893,7 @@ def test_unpack_args():
     e7 = pytest.raises(TypeError, lib.foo2, 45, 46, 47)
     def st1(s):
         s = str(s)
-        if s.startswith("_CFFI_test_unpack_args.Lib."):
-            s = s[len("_CFFI_test_unpack_args.Lib."):]
+        s = s.removeprefix("_CFFI_test_unpack_args.Lib.")
         return s
     assert st1(e1.value) == "foo0() takes no arguments (1 given)"
     assert st1(e2.value) == "foo0() takes no arguments (2 given)"
@@ -1241,8 +1240,7 @@ def test_macro_var_callback():
     #
     values = ffi.new("int[50]")
     def it():
-        for i in range(50):
-            yield i
+        yield from range(50)
     it = it()
     #
     @ffi.callback("int *(*)(void)")
@@ -2048,7 +2046,7 @@ def test_function_returns_partial_struct():
 
 def test_function_returns_float_complex():
     ffi = FFI()
-    ffi.cdef("float _Complex f1(float a, float b);");
+    ffi.cdef("float _Complex f1(float a, float b);")
     if sys.platform == 'win32':
         lib = verify(ffi, "test_function_returns_float_complex", """
             #include <complex.h>
@@ -2066,7 +2064,7 @@ def test_function_returns_float_complex():
 
 def test_function_returns_double_complex():
     ffi = FFI()
-    ffi.cdef("double _Complex f1(double a, double b);");
+    ffi.cdef("double _Complex f1(double a, double b);")
     if sys.platform == 'win32':
         lib = verify(ffi, "test_function_returns_double_complex", """
             #include <complex.h>
@@ -2086,7 +2084,7 @@ def test_cdef_using_windows_complex():
     if sys.platform != 'win32':
         pytest.skip("only for MSVC")
     ffi = FFI()
-    ffi.cdef("_Fcomplex f1(float a, float b); _Dcomplex f2(double a, double b);");
+    ffi.cdef("_Fcomplex f1(float a, float b); _Dcomplex f2(double a, double b);")
     lib = verify(ffi, "test_cdef_using_windows_complex", """
         #include <complex.h>
         static _Fcomplex f1(float a, float b) { return _FCbuild(a, 2.0f*b); }
@@ -2103,7 +2101,7 @@ def test_cdef_using_windows_complex():
 
 def test_function_argument_float_complex():
     ffi = FFI()
-    ffi.cdef("float f1(float _Complex x);");
+    ffi.cdef("float f1(float _Complex x);")
     if sys.platform == 'win32':
         lib = verify(ffi, "test_function_argument_float_complex", """
             #include <complex.h>
@@ -2120,7 +2118,7 @@ def test_function_argument_float_complex():
 
 def test_function_argument_double_complex():
     ffi = FFI()
-    ffi.cdef("double f1(double _Complex);");
+    ffi.cdef("double f1(double _Complex);")
     if sys.platform == 'win32':
         lib = verify(ffi, "test_function_argument_double_complex", """
             #include <complex.h>
@@ -2409,12 +2407,8 @@ def test_char16_char32_plain_c():
 def test_loader_spec():
     ffi = FFI()
     lib = verify(ffi, "test_loader_spec", "")
-    if sys.version_info < (3,):
-        assert not hasattr(lib, '__loader__')
-        assert not hasattr(lib, '__spec__')
-    else:
-        assert lib.__loader__ is None
-        assert lib.__spec__ is None
+    assert lib.__loader__ is None
+    assert lib.__spec__ is None
 
 def test_realize_struct_error():
     ffi = FFI()

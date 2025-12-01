@@ -1,4 +1,3 @@
-from __future__ import print_function
 # A Linux-only demo
 #
 # For comparison purposes, this is a ctypes version of readdir.py.

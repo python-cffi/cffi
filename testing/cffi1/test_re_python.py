@@ -178,9 +178,8 @@ def test_include_1():
     sub_ffi.set_source('re_python_pysrc', None)
     sub_ffi.emit_python_code(str(tmpdir / '_re_include_1.py'))
     #
-    if sys.version_info[:2] >= (3, 3):
-        import importlib
-        importlib.invalidate_caches()  # issue 197 (but can't reproduce myself)
+    import importlib
+    importlib.invalidate_caches()  # issue 197 (but can't reproduce myself)
     #
     from _re_include_1 import ffi
     assert ffi.integer_const('FOOBAR') == -42
@@ -312,9 +311,8 @@ def test_rec_structs_1():
     ffi.set_source('test_rec_structs_1', None)
     ffi.emit_python_code(str(tmpdir / '_rec_structs_1.py'))
     #
-    if sys.version_info[:2] >= (3, 3):
-        import importlib
-        importlib.invalidate_caches()  # issue 197, maybe
+    import importlib
+    importlib.invalidate_caches()  # issue 197, maybe
     #
     from _rec_structs_1 import ffi
     # the following line used to raise TypeError
@@ -329,9 +327,8 @@ def test_rec_structs_2():
     ffi.set_source('test_rec_structs_2', None)
     ffi.emit_python_code(tmpdir / '_rec_structs_2.py')
     #
-    if sys.version_info[:2] >= (3, 3):
-        import importlib
-        importlib.invalidate_caches()  # issue 197, maybe
+    import importlib
+    importlib.invalidate_caches()  # issue 197, maybe
     #
     from _rec_structs_2 import ffi
     sz = ffi.sizeof("struct C")

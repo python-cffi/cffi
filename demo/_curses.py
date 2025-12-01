@@ -219,7 +219,7 @@ class error(Exception):
     pass
 
 
-class Window(object):
+class Window:
     def __init__(self, window):
         self._win = window
 

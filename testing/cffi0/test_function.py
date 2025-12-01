@@ -28,7 +28,7 @@ if sys.platform == 'win32':
 elif is_musl:
     lib_m = 'c'
 
-class TestFunction(object):
+class TestFunction:
     Backend = CTypesBackend
 
     def test_sin(self):
@@ -430,7 +430,7 @@ class TestFunction(object):
             # Ref cycle: callback -> lambda (closure) -> container -> callback
             return callback
 
-        class Data(object):
+        class Data:
             pass
         ffi = FFI(backend=self.Backend())
         data = Data()
