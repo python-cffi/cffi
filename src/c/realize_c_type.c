@@ -246,13 +246,13 @@ static PyObject *realize_global_int(builder_c_t *builder, int gindex)
 
     case 0:
         if (value <= (unsigned long long)LONG_MAX)
-            return PyInt_FromLong((long)value);
+            return PyLong_FromLong((long)value);
         else
             return PyLong_FromUnsignedLongLong(value);
 
     case 1:
         if ((long long)value >= (long long)LONG_MIN)
-            return PyInt_FromLong((long)value);
+            return PyLong_FromLong((long)value);
         else
             return PyLong_FromLongLong((long long)value);
 
@@ -550,7 +550,7 @@ realize_c_type_or_func_now(builder_c_t *builder, _cffi_opcode_t op,
                 j = 0;
                 while (p[j] != ',' && p[j] != '\0')
                     j++;
-                tmp = PyText_FromStringAndSize(p, j);
+                tmp = PyUnicode_FromStringAndSize(p, j);
                 if (tmp == NULL)
                     break;
                 PyTuple_SET_ITEM(enumerators, i, tmp);
