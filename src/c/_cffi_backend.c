@@ -5152,7 +5152,7 @@ static PyObject *b_complete_struct_or_union_lock_held(CTypeDescrObject *ct,
     Py_ssize_t byteoffsetorg;
     CFieldObject **previous;
     int prev_bitfield_size, prev_bitfield_free;
-    PyObject *interned_fields;
+    PyObject *interned_fields = NULL;
 
     sflags = complete_sflags(sflags);
     if (sflags & SF_PACKED)
