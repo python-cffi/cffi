@@ -695,8 +695,7 @@ static PyObject *address_of_global_var(PyObject *args)
     if (!PyArg_ParseTuple(args, "O!s", &Lib_Type, &lib, &varname))
         return NULL;
 
-    /* rebuild a string from 'varname', to do typechecks and to force
-       a unicode back to a plain string (on python 2) */
+    /* rebuild a string from 'varname', to do typechecks */
     o_varname = PyUnicode_FromString(varname);
     if (o_varname == NULL)
         return NULL;

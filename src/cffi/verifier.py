@@ -6,25 +6,9 @@ from . import __version_verifier_modules__
 from . import ffiplatform
 from .error import VerificationError
 
-if sys.version_info >= (3, 3):
-    import importlib.machinery
-    def _extension_suffixes():
-        return importlib.machinery.EXTENSION_SUFFIXES[:]
-else:
-    import imp
-    def _extension_suffixes():
-        return [suffix for suffix, _, type in imp.get_suffixes()
-                if type == imp.C_EXTENSION]
-
-
-if sys.version_info >= (3,):
-    NativeIO = io.StringIO
-else:
-    class NativeIO(io.BytesIO):
-        def write(self, s):
-            if isinstance(s, unicode):
-                s = s.encode('ascii')
-            super().write(s)
+import importlib.machinery
+def _extension_suffixes():
+    return importlib.machinery.EXTENSION_SUFFIXES[:]
 
 
 class Verifier:
@@ -54,8 +38,7 @@ class Verifier:
                                __version_verifier_modules__,
                                preamble, flattened_kwds] +
                               ffi._cdefsources)
-            if sys.version_info >= (3,):
-                key = key.encode('utf-8')
+            key = key.encode('utf-8')
             k1 = hex(binascii.crc32(key[0::2]) & 0xffffffff)
             k1 = k1.lstrip('0x').rstrip('L')
             k2 = hex(binascii.crc32(key[1::2]) & 0xffffffff)
@@ -175,7 +158,7 @@ class Verifier:
             self._write_source_to(file)
         else:
             # Write our source file to an in memory file.
-            f = NativeIO()
+            f = io.StringIO()
             self._write_source_to(f)
             source_data = f.getvalue()
 

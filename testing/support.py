@@ -1,28 +1,10 @@
 import sys, os
 from cffi._imp_emulation import load_dynamic
 
-if sys.version_info < (3,):
-    __all__ = ['u', 'arraytostring', 'load_dynamic']
-
-    class U:
-        def __add__(self, other):
-            return eval('u'+repr(other).replace(r'\\u', r'\u')
-                                       .replace(r'\\U', r'\U'))
-    u = U()
-    long = long     # for further "from testing.support import long"
-    assert u+'a\x00b' == eval(r"u'a\x00b'")
-    assert u+'a\u1234b' == eval(r"u'a\u1234b'")
-    assert u+'a\U00012345b' == eval(r"u'a\U00012345b'")
-    def arraytostring(a):
-        return a.tostring()
-
-else:
-    __all__ = ['u', 'unicode', 'long', 'arraytostring', 'load_dynamic']
-    u = ""
-    unicode = str
-    long = int
-    def arraytostring(a):
-        return a.tobytes()
+__all__ = ['long', 'arraytostring', 'load_dynamic']
+long = int
+def arraytostring(a):
+    return a.tobytes()
 
 
 class StdErrCapture:
