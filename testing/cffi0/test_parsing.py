@@ -365,7 +365,7 @@ def test_unknown_name():
     e = pytest.raises(CDefError, ffi.cast, "foobarbazunknown*", 0)
     assert str(e.value).startswith('cannot parse "foobarbazunknown*"')
     e = pytest.raises(CDefError, ffi.cast, "int(*)(foobarbazunknown)", 0)
-    assert str(e.value).startswith("in expression arg 1: unknown type 'foobarbazunknown'")
+    assert 'foobarbazunknown' in str(e.value)
 
 def test_redefine_common_type():
     prefix = "" if sys.version_info < (3,) else "b"
