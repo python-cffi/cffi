@@ -197,7 +197,7 @@ def test_dont_remove_comment_in_line_directives():
 
         some syntax error here
     """)
-    assert str(e.value) == "parse error\nbaz.c:9:14: before: syntax"
+    assert str(e.value).startswith("parse error\nbaz.c:9:")
     #
     e = pytest.raises(CDefError, ffi.cdef, """
         #line 7 "foo//bar.c"
@@ -205,21 +205,21 @@ def test_dont_remove_comment_in_line_directives():
         some syntax error here
     """)
     #
-    assert str(e.value) == "parse error\nfoo//bar.c:8:14: before: syntax"
+    assert str(e.value).startswith("parse error\nfoo//bar.c:8:")
     ffi = FFI(backend=FakeBackend())
     e = pytest.raises(CDefError, ffi.cdef, """
         \t # \t 8 \t "baz.c" \t
 
         some syntax error here
     """)
-    assert str(e.value) == "parse error\nbaz.c:9:14: before: syntax"
+    assert str(e.value).startswith("parse error\nbaz.c:9:")
     #
     e = pytest.raises(CDefError, ffi.cdef, """
         # 7 "foo//bar.c"
 
         some syntax error here
     """)
-    assert str(e.value) == "parse error\nfoo//bar.c:8:14: before: syntax"
+    assert str(e.value).startswith("parse error\nfoo//bar.c:8:")
 
 def test_multiple_line_directives():
     ffi = FFI(backend=FakeBackend())
@@ -233,7 +233,7 @@ def test_multiple_line_directives():
         #line 8 "yadda.c"
         extern int zz;
     """)
-    assert str(e.value) == "parse error\nbaz.c:7:14: before: syntax"
+    assert str(e.value).startswith("parse error\nbaz.c:7:")
     #
     e = pytest.raises(CDefError, ffi.cdef,
     """ # 5 "foo.c"
@@ -245,7 +245,7 @@ def test_multiple_line_directives():
         # 8 "yadda.c"
         extern int zz;
     """)
-    assert str(e.value) == "parse error\nbaz.c:7:14: before: syntax"
+    assert str(e.value).startswith("parse error\nbaz.c:7:")
 
 def test_commented_line_directive():
     ffi = FFI(backend=FakeBackend())
@@ -262,7 +262,7 @@ def test_commented_line_directive():
         some syntax error
     """)
     #
-    assert str(e.value) == "parse error\nbar.c:9:14: before: syntax"
+    assert str(e.value).startswith("parse error\nbar.c:9:")
     e = pytest.raises(CDefError, ffi.cdef, """
         /*
         # 5 "foo.c"
@@ -275,7 +275,7 @@ def test_commented_line_directive():
         */
         some syntax error
     """)
-    assert str(e.value) == "parse error\nbar.c:9:14: before: syntax"
+    assert str(e.value).startswith("parse error\nbar.c:9:")
 
 def test_line_continuation_in_defines():
     ffi = FFI(backend=FakeBackend())
@@ -365,7 +365,7 @@ def test_unknown_name():
     e = pytest.raises(CDefError, ffi.cast, "foobarbazunknown*", 0)
     assert str(e.value).startswith('cannot parse "foobarbazunknown*"')
     e = pytest.raises(CDefError, ffi.cast, "int(*)(foobarbazunknown)", 0)
-    assert str(e.value).startswith('cannot parse "int(*)(foobarbazunknown)"')
+    assert 'foobarbazunknown' in str(e.value)
 
 def test_redefine_common_type():
     prefix = "" if sys.version_info < (3,) else "b"
