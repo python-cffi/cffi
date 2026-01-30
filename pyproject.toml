@@ -15,8 +15,8 @@ requires-python = ">=3.9"
 
 description = "Foreign Function Interface for Python calling C code."
 readme = "README.md"
-license = "MIT-0 AND MIT"
-license-files = ["LICENSE", "src/c/libffi_x86_x64/LICENSE"]
+license = "MIT-0"
+license-files = ["LICENSE"]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
