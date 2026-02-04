@@ -59,6 +59,9 @@
 extern "C" {
 #endif
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "parse_c_type.h"
 
 /* this block of #ifs should be kept exactly identical between
