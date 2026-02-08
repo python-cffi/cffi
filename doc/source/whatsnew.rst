@@ -19,7 +19,7 @@ v1.17.1
 =======
 
 * Fix failing ``distutils.msvc9compiler`` imports under Windows (`#118`_).
-* ``ffibuilder.emit_python_code()`` and ``ffibuiler.emit_c_code()`` accept file-like objects (`#115`_).
+* ``ffibuilder.emit_python_code()`` and ``ffibuilder.emit_c_code()`` accept file-like objects (`#115`_).
 * ``ffiplatform`` calls are bypassed by ``ffibuilder.emit_python_code()`` and ``ffibuilder.emit_c_code()`` (`#81`_).
 
 .. _`#118`: https://github.com/python-cffi/cffi/pull/118
