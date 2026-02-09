@@ -308,7 +308,7 @@ with the files ``pi.c`` and ``pi.h``:
       # include <math.h>
 
       /* Returns a very crude approximation of Pi
-         given a int: a number of iteration */
+         given an int: a number of iterations */
       float pi_approx(int n){
 
         double i,x,y,sum=0;
@@ -430,7 +430,7 @@ mode and the in-line ABI mode.  It lets you use the ABI mode, with its
 advantages (not requiring a C compiler) and problems (crashes more
 easily).
 
-This mixture mode lets you massively reduces the import times, because
+This mixture mode lets you massively reduce the import times, because
 it is slow to parse a large C header.  It also allows you to do more
 detailed checkings during build-time without worrying about performance
 (e.g. calling :ref:`cdef() <cdef>` many times with small pieces of declarations,
@@ -644,7 +644,7 @@ use of a C global variable:
       if __name__ == "__main__":
           ffibuilder.compile(verbose=True)
 
-The way that the ``increment`` uses the ``value`` global variable is not
+The way that ``increment`` uses the ``value`` global variable is not
 thread-safe. `Data races
 <https://en.wikipedia.org/wiki/Race_condition#Data_race>`_ are possible if two
 threads simultaneously call ``increment``. We can engineer that situation with a

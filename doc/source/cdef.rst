@@ -437,7 +437,7 @@ least ``libraries=['foo']`` in order to link with ``libfoo.so`` or
 ``libfoo.so.X.Y``, or ``foo.dll`` on Windows.  The ``sources`` is a
 list of extra .c files compiled and linked together (the file
 ``module_name.c`` shown above is always generated and automatically added as the
-first argument to ``sources``).  See the distutils documentations for
+first argument to ``sources``).  See the distutils documentation for
 `more information about the other arguments`__.
 
 .. __: https://setuptools.pypa.io/en/stable/userguide/ext_modules.html#building-extension-modules
@@ -482,7 +482,7 @@ Letting the C compiler fill the gaps
 
 If you are using a C compiler ("API mode"), then:
 
-*  functions taking or returning integer or float-point arguments can be
+*  functions taking or returning integer or floating-point arguments can be
    misdeclared: if e.g. a function is declared by ``cdef()`` as taking a
    ``int``, but actually takes a ``long``, then the C compiler handles the
    difference.

@@ -391,7 +391,7 @@ pointers, with each of them only valid during the corresponding call.  This is
 important notably for PyPy which uses many optimizations tweaking the data
 underlying a byte string object.  CFFI will not make and free a copy of
 the whole string at *every* call---it usually won't---but you *cannot*
-write code that relies on it: there are cases were that would break.
+write code that relies on it: there are cases where that would break.
 If you need a pointer to remain valid, you need to make one explicitly,
 for example with ``ptr = ffi.new("char[]", x)``.)
 
@@ -532,7 +532,7 @@ but it makes the next GC occur earlier, which is often enough.
 
 The same applies if the memory allocations are indirect, e.g. the C
 function allocates some internal data structures.  In that case, call
-``__pypy__.add_memory_pressure(n)`` with an argument ``n`` that is an
+``__pypy__.add_memory_pressure(n)`` with an argument ``n`` that is a
 rough estimation.  Knowing the exact size is not important, and memory
 pressure doesn't have to be manually brought down again after calling
 the freeing function.  If you are writing wrappers for the allocating /

@@ -10,7 +10,7 @@ Quick installation for CPython (cffi is distributed with PyPy):
 
 .. __: http://pypi.python.org/pypi/cffi
 
-In more details:
+In more detail:
 
 This code has been developed on Linux, but should work on any POSIX
 platform as well as on Windows 32 and 64.  (It relies occasionally on
@@ -53,8 +53,8 @@ Download and Installation:
 * Or grab the most current version from `GitHub`_:
   ``git clone https://github.com/python-cffi/cffi``
 
-* running the tests: ``pytest  c/  testing/`` (if you didn't
-  install cffi yet, you need first ``python setup_base.py build_ext -f
+* running the tests: ``pytest c/ testing/`` (if you didn't
+  install cffi yet, you need to first run ``python setup_base.py build_ext -f
   -i``)
 
 .. _`GitHub`: https://github.com/python-cffi/cffi
@@ -79,8 +79,8 @@ Platform-specific instructions
 ``libffi`` is notoriously messy to install and use --- to the point that
 CPython includes its own copy to avoid relying on external packages.
 CFFI does the same for Windows, but not for other platforms (which should
-have their own working libffi's).
-Modern Linuxes work out of the box thanks to ``pkg-config``.  Here are some
+have their own working libffi).
+Modern Linux distributions work out of the box thanks to ``pkg-config``.  Here are some
 (user-supplied) instructions for other platforms.
 
 
