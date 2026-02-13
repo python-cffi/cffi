@@ -447,17 +447,17 @@ static PyObject *ffi_cast(FFIObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(ffi_string_doc,
-"Return a Python string (or unicode string) from the 'cdata'.  If\n"
+"Return a Python string from the 'cdata'.  If\n"
 "'cdata' is a pointer or array of characters or bytes, returns the\n"
 "null-terminated string.  The returned string extends until the first\n"
 "null character, or at most 'maxlen' characters.  If 'cdata' is an\n"
 "array then 'maxlen' defaults to its length.\n"
 "\n"
-"If 'cdata' is a pointer or array of wchar_t, returns a unicode string\n"
+"If 'cdata' is a pointer or array of wchar_t, returns a string\n"
 "following the same rules.\n"
 "\n"
 "If 'cdata' is a single character or byte or a wchar_t, returns it as a\n"
-"string or unicode string.\n"
+"string.\n"
 "\n"
 "If 'cdata' is an enum, returns the value of the enumerator as a\n"
 "string, or 'NUMBER' if the value is out of range.");
@@ -467,13 +467,13 @@ PyDoc_STRVAR(ffi_string_doc,
 
 PyDoc_STRVAR(ffi_unpack_doc,
 "Unpack an array of C data of the given length,\n"
-"returning a Python string/unicode/list.\n"
+"returning a Python string/list.\n"
 "\n"
 "If 'cdata' is a pointer to 'char', returns a byte string.\n"
 "It does not stop at the first null.  This is equivalent to:\n"
 "ffi.buffer(cdata, length)[:]\n"
 "\n"
-"If 'cdata' is a pointer to 'wchar_t', returns a unicode string.\n"
+"If 'cdata' is a pointer to 'wchar_t', returns a string.\n"
 "'length' is measured in wchar_t's; it is not the size in bytes.\n"
 "\n"
 "If 'cdata' is a pointer to anything else, returns a list of\n"
@@ -662,7 +662,7 @@ static PyObject *ffi_getctype(FFIObject *self, PyObject *args, PyObject *kwds)
     if (add_paren)
         p[replace_with_len] = ')';
 
-    /* bytes -> unicode string */
+    /* bytes -> string */
     u = PyUnicode_DecodeLatin1(PyBytes_AS_STRING(res),
                                PyBytes_GET_SIZE(res),
                                NULL);
@@ -696,7 +696,7 @@ PyDoc_STRVAR(ffi_from_handle_doc,
 PyDoc_STRVAR(ffi_from_buffer_doc,
 "Return a <cdata 'char[]'> that points to the data of the given Python\n"
 "object, which must support the buffer interface.  Note that this is\n"
-"not meant to be used on the built-in types str or unicode\n"
+"not meant to be used on the built-in types str or bytes\n"
 "(you can build 'char[]' arrays explicitly) but only on objects\n"
 "containing large quantities of raw data in some other format, like\n"
 "'array.array' or numpy arrays.");

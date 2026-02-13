@@ -3,7 +3,7 @@ import subprocess, weakref
 import pytest
 from cffi import FFI
 from cffi.backend_ctypes import CTypesBackend
-from testing.support import u, is_musl
+from testing.support import is_musl
 
 
 SOURCE = """\
@@ -165,14 +165,13 @@ class TestOwnLib:
             encoded = None
             if cls.Backend is not CTypesBackend:
                 try:
-                    unicode_name = u+'testownlibcaf\xe9'
+                    unicode_name = 'testownlibcaf\xe9'
                     encoded = unicode_name.encode(sys.getfilesystemencoding())
-                    if sys.version_info >= (3,):
-                        encoded = str(unicode_name)
+                    encoded = str(unicode_name)
                 except UnicodeEncodeError:
                     pass
             if encoded is None:
-                unicode_name = u+'testownlib'
+                unicode_name = 'testownlib'
                 encoded = str(unicode_name)
             subprocess.check_call(
                 "cc testownlib.c -shared -fPIC -o '%s.so'" % (encoded,),
@@ -359,9 +358,9 @@ class TestOwnLib:
             char32_t foo_4bytes(char32_t);
         """)
         lib = ffi.dlopen(self.module)
-        assert lib.foo_2bytes(u+'\u1234') == u+'\u125e'
-        assert lib.foo_4bytes(u+'\u1234') == u+'\u125e'
-        assert lib.foo_4bytes(u+'\U00012345') == u+'\U0001236f'
+        assert lib.foo_2bytes('\u1234') == '\u125e'
+        assert lib.foo_4bytes('\u1234') == '\u125e'
+        assert lib.foo_4bytes('\U00012345') == '\U0001236f'
 
     def test_modify_struct_value(self):
         if self.module is None:

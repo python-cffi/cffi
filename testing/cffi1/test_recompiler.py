@@ -4,7 +4,7 @@ import pytest
 from cffi import FFI, VerificationError, FFIError, CDefError
 from cffi import recompiler
 from testing.udir import udir
-from testing.support import u, long
+from testing.support import long
 from testing.support import FdWriteCapture, StdErrCapture, _verify
 
 pytestmark = [
@@ -343,7 +343,7 @@ def test_verify_struct():
     #
     assert ffi.offsetof("struct foo_s", "a") == 0
     assert ffi.offsetof("struct foo_s", "b") == 4
-    assert ffi.offsetof(u+"struct foo_s", u+"b") == 4
+    assert ffi.offsetof("struct foo_s", "b") == 4
     #
     pytest.raises(TypeError, ffi.addressof, p)
     assert ffi.addressof(p[0]) == p
@@ -746,25 +746,6 @@ def test_include_8():
         "'struct foo_s' is opaque in the ffi.include(), but no longer in "
         "the ffi doing the include (workaround: don't use ffi.include() but"
         " duplicate the declarations of everything using struct foo_s)")
-
-def test_unicode_libraries():
-    try:
-        unicode
-    except NameError:
-        pytest.skip("for python 2.x")
-    #
-    import math
-    lib_m = "m"
-    if sys.platform == 'win32':
-        #there is a small chance this fails on Mingw via environ $CC
-        import distutils.ccompiler
-        if distutils.ccompiler.get_default_compiler() == 'msvc':
-            lib_m = 'msvcrt'
-    ffi = FFI()
-    ffi.cdef(unicode("float sin(double); double cos(double);"))
-    lib = verify(ffi, 'test_math_sin_unicode', unicode('#include <math.h>'),
-                 libraries=[unicode(lib_m)], ignore_warnings=True)
-    assert lib.cos(1.43) == math.cos(1.43)
 
 def test_incomplete_struct_as_arg():
     ffi = FFI()
@@ -2394,10 +2375,10 @@ def test_char16_char32_type(no_cpp=False):
     char16_t foo_2bytes(char16_t a) { return (char16_t)(a + 42); }
     char32_t foo_4bytes(char32_t a) { return (char32_t)(a + 42); }
     """, no_cpp=no_cpp)
-    assert lib.foo_2bytes(u+'\u1234') == u+'\u125e'
-    assert lib.foo_4bytes(u+'\u1234') == u+'\u125e'
-    assert lib.foo_4bytes(u+'\U00012345') == u+'\U0001236f'
-    pytest.raises(TypeError, lib.foo_2bytes, u+'\U00012345')
+    assert lib.foo_2bytes('\u1234') == '\u125e'
+    assert lib.foo_4bytes('\u1234') == '\u125e'
+    assert lib.foo_4bytes('\U00012345') == '\U0001236f'
+    pytest.raises(TypeError, lib.foo_2bytes, '\U00012345')
     pytest.raises(TypeError, lib.foo_2bytes, 1234)
     pytest.raises(TypeError, lib.foo_4bytes, 1234)
 
@@ -2407,12 +2388,8 @@ def test_char16_char32_plain_c():
 def test_loader_spec():
     ffi = FFI()
     lib = verify(ffi, "test_loader_spec", "")
-    if sys.version_info < (3,):
-        assert not hasattr(lib, '__loader__')
-        assert not hasattr(lib, '__spec__')
-    else:
-        assert lib.__loader__ is None
-        assert lib.__spec__ is None
+    assert lib.__loader__ is None
+    assert lib.__spec__ is None
 
 def test_realize_struct_error():
     ffi = FFI()

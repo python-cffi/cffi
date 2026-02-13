@@ -1,10 +1,11 @@
 import pytest
 import platform
+import io
 import sys, os, ctypes
 import cffi
 from testing.udir import udir
 from testing.support import *
-from cffi.recompiler import recompile, NativeIO
+from cffi.recompiler import recompile
 from cffi.cffi_opcode import PRIMITIVE_TO_INDEX
 
 SIZE_OF_INT   = ctypes.sizeof(ctypes.c_int)
@@ -362,7 +363,7 @@ class TestNewFFI1:
         assert bool(ffi.cast("char", 1))
         assert bool(ffi.cast("char", 255))
         pytest.raises(TypeError, ffi.new, "char*", 32)
-        pytest.raises(TypeError, ffi.new, "char*", u+"x")
+        pytest.raises(TypeError, ffi.new, "char*", "x")
         pytest.raises(TypeError, ffi.new, "char*", b"foo")
         #
         p = ffi.new("char[]", [b'a', b'b', b'\x9c'])
@@ -392,13 +393,13 @@ class TestNewFFI1:
 
     def test_wchar_t(self):
         self.check_wchar_t(ffi)
-        assert ffi.new("wchar_t*", u+'x')[0] == u+'x'
-        assert ffi.new("wchar_t*", u+'\u1234')[0] == u+'\u1234'
+        assert ffi.new("wchar_t*", 'x')[0] == 'x'
+        assert ffi.new("wchar_t*", '\u1234')[0] == '\u1234'
         if SIZE_OF_WCHAR > 2:
-            assert ffi.new("wchar_t*", u+'\U00012345')[0] == u+'\U00012345'
+            assert ffi.new("wchar_t*", '\U00012345')[0] == '\U00012345'
         else:
-            pytest.raises(TypeError, ffi.new, "wchar_t*", u+'\U00012345')
-        assert ffi.new("wchar_t*")[0] == u+'\x00'
+            pytest.raises(TypeError, ffi.new, "wchar_t*", '\U00012345')
+        assert ffi.new("wchar_t*")[0] == '\x00'
         assert int(ffi.cast("wchar_t", 300)) == 300
         assert not bool(ffi.cast("wchar_t", 0))
         assert bool(ffi.cast("wchar_t", 1))
@@ -408,40 +409,40 @@ class TestNewFFI1:
         pytest.raises(TypeError, ffi.new, "wchar_t*", 32)
         pytest.raises(TypeError, ffi.new, "wchar_t*", "foo")
         #
-        p = ffi.new("wchar_t[]", [u+'a', u+'b', u+'\u1234'])
+        p = ffi.new("wchar_t[]", ['a', 'b', '\u1234'])
         assert len(p) == 3
-        assert p[0] == u+'a'
-        assert p[1] == u+'b' and type(p[1]) is unicode
-        assert p[2] == u+'\u1234'
-        p[0] = u+'x'
-        assert p[0] == u+'x' and type(p[0]) is unicode
-        p[1] = u+'\u1357'
-        assert p[1] == u+'\u1357'
-        p = ffi.new("wchar_t[]", u+"abcd")
+        assert p[0] == 'a'
+        assert p[1] == 'b' and type(p[1]) is str
+        assert p[2] == '\u1234'
+        p[0] = 'x'
+        assert p[0] == 'x' and type(p[0]) is str
+        p[1] = '\u1357'
+        assert p[1] == '\u1357'
+        p = ffi.new("wchar_t[]", "abcd")
         assert len(p) == 5
-        assert p[4] == u+'\x00'
-        p = ffi.new("wchar_t[]", u+"a\u1234b")
+        assert p[4] == '\x00'
+        p = ffi.new("wchar_t[]", "a\u1234b")
         assert len(p) == 4
-        assert p[1] == u+'\u1234'
+        assert p[1] == '\u1234'
         #
-        p = ffi.new("wchar_t[]", u+'\U00023456')
+        p = ffi.new("wchar_t[]", '\U00023456')
         if SIZE_OF_WCHAR == 2:
             assert len(p) == 3
-            assert p[0] == u+'\ud84d'
-            assert p[1] == u+'\udc56'
-            assert p[2] == u+'\x00'
+            assert p[0] == '\ud84d'
+            assert p[1] == '\udc56'
+            assert p[2] == '\x00'
         else:
             assert len(p) == 2
-            assert p[0] == u+'\U00023456'
-            assert p[1] == u+'\x00'
+            assert p[0] == '\U00023456'
+            assert p[1] == '\x00'
         #
-        p = ffi.new("wchar_t[4]", u+"ab")
+        p = ffi.new("wchar_t[4]", "ab")
         assert len(p) == 4
-        assert [p[i] for i in range(4)] == [u+'a', u+'b', u+'\x00', u+'\x00']
-        p = ffi.new("wchar_t[2]", u+"ab")
+        assert [p[i] for i in range(4)] == ['a', 'b', '\x00', '\x00']
+        p = ffi.new("wchar_t[2]", "ab")
         assert len(p) == 2
-        assert [p[i] for i in range(2)] == [u+'a', u+'b']
-        pytest.raises(IndexError, ffi.new, "wchar_t[2]", u+"abc")
+        assert [p[i] for i in range(2)] == ['a', 'b']
+        pytest.raises(IndexError, ffi.new, "wchar_t[2]", "abc")
 
     def test_none_as_null_doesnt_work(self):
         p = ffi.new("int*[1]")
@@ -622,14 +623,14 @@ class TestNewFFI1:
         assert str(x) == repr(x)
         assert ffi.string(x) == b"x"
         assert ffi.string(ffi.new("char*", b"\x00")) == b""
-        pytest.raises(TypeError, ffi.new, "char*", unicode("foo"))
+        pytest.raises(TypeError, ffi.new, "char*", "foo")
 
     def test_unicode_from_wchar_pointer(self):
         self.check_wchar_t(ffi)
-        x = ffi.new("wchar_t*", u+"x")
-        assert unicode(x) == unicode(repr(x))
-        assert ffi.string(x) == u+"x"
-        assert ffi.string(ffi.new("wchar_t*", u+"\x00")) == u+""
+        x = ffi.new("wchar_t*", "x")
+        assert str(x) == repr(x)
+        assert ffi.string(x) == "x"
+        assert ffi.string(ffi.new("wchar_t*", "\x00")) == ""
 
     def test_string_from_char_array(self):
         p = ffi.new("char[]", b"hello.")
@@ -650,36 +651,35 @@ class TestNewFFI1:
 
     def test_string_from_wchar_array(self):
         self.check_wchar_t(ffi)
-        assert ffi.string(ffi.cast("wchar_t", "x")) == u+"x"
-        assert ffi.string(ffi.cast("wchar_t", u+"x")) == u+"x"
+        assert ffi.string(ffi.cast("wchar_t", "x")) == "x"
         x = ffi.cast("wchar_t", "x")
         assert str(x) == repr(x)
-        assert ffi.string(x) == u+"x"
+        assert ffi.string(x) == "x"
         #
-        p = ffi.new("wchar_t[]", u+"hello.")
-        p[5] = u+'!'
-        assert ffi.string(p) == u+"hello!"
-        p[6] = u+'\u04d2'
-        assert ffi.string(p) == u+"hello!\u04d2"
-        p[3] = u+'\x00'
-        assert ffi.string(p) == u+"hel"
-        assert ffi.string(p, 123) == u+"hel"
+        p = ffi.new("wchar_t[]", "hello.")
+        p[5] = '!'
+        assert ffi.string(p) == "hello!"
+        p[6] = '\u04d2'
+        assert ffi.string(p) == "hello!\u04d2"
+        p[3] = '\x00'
+        assert ffi.string(p) == "hel"
+        assert ffi.string(p, 123) == "hel"
         with pytest.raises(IndexError):
-            p[7] = u+'X'
+            p[7] = 'X'
         #
-        a = ffi.new("wchar_t[]", u+"hello\x00world")
+        a = ffi.new("wchar_t[]", "hello\x00world")
         assert len(a) == 12
         p = ffi.cast("wchar_t *", a)
-        assert ffi.string(p) == u+'hello'
-        assert ffi.string(p, 123) == u+'hello'
-        assert ffi.string(p, 5) == u+'hello'
-        assert ffi.string(p, 2) == u+'he'
+        assert ffi.string(p) == 'hello'
+        assert ffi.string(p, 123) == 'hello'
+        assert ffi.string(p, 5) == 'hello'
+        assert ffi.string(p, 2) == 'he'
 
     def test_fetch_const_char_p_field(self):
         # 'const' is ignored so far, in the declaration of 'struct string'
         t = ffi.new("const char[]", b"testing")
         s = ffi.new("struct string*", [t])
-        assert type(s.name) not in (bytes, str, unicode)
+        assert type(s.name) not in (bytes, str)
         assert ffi.string(s.name) == b"testing"
         with pytest.raises(TypeError):
             s.name = None
@@ -689,10 +689,10 @@ class TestNewFFI1:
     def test_fetch_const_wchar_p_field(self):
         # 'const' is ignored so far
         self.check_wchar_t(ffi)
-        t = ffi.new("const wchar_t[]", u+"testing")
+        t = ffi.new("const wchar_t[]", "testing")
         s = ffi.new("struct ustring*", [t])
-        assert type(s.name) not in (bytes, str, unicode)
-        assert ffi.string(s.name) == u+"testing"
+        assert type(s.name) not in (bytes, str)
+        assert ffi.string(s.name) == "testing"
         s.name = ffi.NULL
         assert s.name == ffi.NULL
 
@@ -803,7 +803,7 @@ class TestNewFFI1:
 
     def test_wchar_cast(self):
         self.check_wchar_t(ffi)
-        p = ffi.cast("int", ffi.cast("wchar_t", u+'\u1234'))
+        p = ffi.cast("int", ffi.cast("wchar_t", '\u1234'))
         assert int(p) == 0x1234
         p = ffi.cast("long long", ffi.cast("wchar_t", -1))
         if SIZE_OF_WCHAR == 2:      # 2 bytes, unsigned
@@ -813,7 +813,7 @@ class TestNewFFI1:
             assert int(p) == -1
         else:                     # in general, it can be either signed or not
             assert int(p) in [-1, 0xffffffff]  # e.g. on arm, both cases occur
-        p = ffi.cast("int", u+'\u1234')
+        p = ffi.cast("int", '\u1234')
         assert int(p) == 0x1234
 
     def test_cast_array_to_charp(self):
@@ -1783,7 +1783,7 @@ class TestNewFFI1:
     def test_emit_c_code_to_file_obj(self):
         ffi = cffi.FFI()
         ffi.set_source("foobar", "??")
-        fileobj = NativeIO()
+        fileobj = io.StringIO()
         ffi.emit_c_code(fileobj)
         assert 'foobar' in fileobj.getvalue()
 
@@ -1817,26 +1817,26 @@ class TestNewFFI1:
     def test_char16_t(self):
         x = ffi.new("char16_t[]", 5)
         assert len(x) == 5 and ffi.sizeof(x) == 10
-        x[2] = u+'\u1324'
-        assert x[2] == u+'\u1324'
-        y = ffi.new("char16_t[]", u+'\u1234\u5678')
+        x[2] = '\u1324'
+        assert x[2] == '\u1324'
+        y = ffi.new("char16_t[]", '\u1234\u5678')
         assert len(y) == 3
-        assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
-        assert ffi.string(y) == u+'\u1234\u5678'
-        z = ffi.new("char16_t[]", u+'\U00012345')
+        assert list(y) == ['\u1234', '\u5678', '\x00']
+        assert ffi.string(y) == '\u1234\u5678'
+        z = ffi.new("char16_t[]", '\U00012345')
         assert len(z) == 3
-        assert list(z) == [u+'\ud808', u+'\udf45', u+'\x00']
-        assert ffi.string(z) == u+'\U00012345'
+        assert list(z) == ['\ud808', '\udf45', '\x00']
+        assert ffi.string(z) == '\U00012345'
 
     def test_char32_t(self):
         x = ffi.new("char32_t[]", 5)
         assert len(x) == 5 and ffi.sizeof(x) == 20
-        x[3] = u+'\U00013245'
-        assert x[3] == u+'\U00013245'
-        y = ffi.new("char32_t[]", u+'\u1234\u5678')
+        x[3] = '\U00013245'
+        assert x[3] == '\U00013245'
+        y = ffi.new("char32_t[]", '\u1234\u5678')
         assert len(y) == 3
-        assert list(y) == [u+'\u1234', u+'\u5678', u+'\x00']
-        z = ffi.new("char32_t[]", u+'\U00012345')
+        assert list(y) == ['\u1234', '\u5678', '\x00']
+        z = ffi.new("char32_t[]", '\U00012345')
         assert len(z) == 2
-        assert list(z) == [u+'\U00012345', u+'\x00'] # maybe a 2-unichars string
-        assert ffi.string(z) == u+'\U00012345'
+        assert list(z) == ['\U00012345', '\x00'] # maybe a 2-unichars string
+        assert ffi.string(z) == '\U00012345'
