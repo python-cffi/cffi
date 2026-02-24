@@ -406,11 +406,32 @@ ffi.CData, ffi.CType
 as ``<cdata>`` and ``<ctype>`` in the rest of this document.  Note
 that some cdata objects may be actually of a subclass of
 ``ffi.CData``, and similarly with ctype, so you should check with
-``if isinstance(x, ffi.CData)``.  Also, ``<ctype>`` objects have
-a number of attributes for introspection: ``kind`` and ``cname`` are
-always present, and depending on the kind they may also have
-``item``, ``length``, ``fields``, ``args``, ``result``, ``ellipsis``,
-``abi``, ``elements`` and ``relements``.
+``if isinstance(x, ffi.CData)``.
+
+``<ctype>`` objects have a number of attributes for introspection.
+``kind`` (``enum``, ``primitive``, ``pointer``, ``array``, ``void``,
+``function``, ``struct``, ``union``) and ``cname`` (normalized C type
+string) are always present, and depending on the kind they may have
+additional attributes:
+
+* ``enum``: attribute ``relements`` is a dictionary of enumerator names
+  to their numerical values, and ``elements`` maps numerical values to
+  the name of the first defined enumerator with that value.
+
+* ``pointer``, ``array``: attribute ``item`` is the base (dereferenced)
+  ``<ctype>``, and for arrays, attribute ``length`` is the array length
+  in elements (``None`` if dynamic, e.g. ``T[]``).
+
+* ``function`` describes a function pointer: attribute ``result`` is the
+  return ``<ctype>``, ``args`` is a tuple of argument ``<ctype>`` objects,
+  ``ellipsis`` is a boolean indicating whether the function is variadic,
+  i.e. ends with an ellipsis (``...``), and ``abi`` is a numerical value
+  indicating the calling convention.
+
+* ``struct``, ``union`` describe a composite type: attribute ``fields``
+  is a list of ``(name, <cfield>)`` pairs, or ``None`` if the type is
+  incomplete. CField objects have attributes ``type`` (contained
+  ``<ctype>``), ``offset``, ``bitshift``, ``bitsize`` and ``flags``.
 
 *New in version 1.10:* ``ffi.buffer`` is now `a type`__ as well.
 
@@ -745,11 +766,45 @@ example::
 .. __: https://foss.heptapod.net/pypy/cffi/-/issues/233
 
 
+.. _ffi-includes:
+.. _ffi-list-globals:
+
+ffi.includes, ffi.list_globals()
+++++++++++++++++++++++++++++++++
+
+**ffi.includes**: Returns a tuple of directly included FFI instances.
+*New in version 2.0.0dev.*
+
+**ffi.list_globals()**: Returns a list of globals known to this FFI
+instance, sorted by name. This allows introspecting the API that a
+loaded library object would have (assuming the library provides all
+symbols) without needing one.  *New in version 2.0.0dev.*
+
+Note that only the globals directly defined in this FFI instance are
+returned; to get globals inherited from included FFI instances, call
+``list_globals()`` on them. Note that when resolving symbols cffi currently
+applies a 100-level recursion limit for safety, but this may change in
+the future. Each item in the list is a ``CGlobal`` object, with at least
+fields ``name`` (Python attribute name) and ``kind``. Depending on the
+value of ``kind``, additional attributes may be available:
+
+* ``enum``, ``int_constant``: an extra ``value`` attribute returns the
+  numerical value of the attribute. These attributes are also available
+  on the FFI instance, as their value does not depend on the loaded
+  library.
+
+* ``constant``, ``variable``, ``function``, ``python_function``: an extra
+  ``type`` attribute is available, which is the ``<ctype>`` of the global.
+  For ``function`` and ``python_function``, ``type`` is guaranteed to be
+  of kind ``function``, i.e. a function pointer.
+
+
 .. _ffi-getctype:
 .. _ffi-list-types:
+.. _ffi-list-enums:
 
-ffi.getctype(), ffi.list_types()
-++++++++++++++++++++++++++++++++
+ffi.getctype(), ffi.list_types(), ffi.list_enums()
+++++++++++++++++++++++++++++++++++++++++++++++++++
 
 **ffi.getctype("C type" or <ctype>, extra="")**: return the string
 representation of the given C type.  If non-empty, the "extra" string is
@@ -762,8 +817,12 @@ of the C type "pointer to the same type than x"; and
 
 **ffi.list_types()**: Returns the user type names known to this FFI
 instance.  This returns a tuple containing three lists of names:
-``(typedef_names, names_of_structs, names_of_unions)``.  *New in
+``(typedef_names, names_of_structs, names_of_unions)``. For historical
+reasons enums are not included, see ``ffi.list_enums()``.  *New in
 version 1.6.*
+
+**ffi.list_enums()**: Returns the list of enum type names known to this
+FFI instance.  *New in version 2.0.0dev.*
 
 
 .. _`Preparing and Distributing modules`: cdef.html#loading-libraries
