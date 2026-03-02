@@ -111,6 +111,7 @@ def _set_py_limited_api(Extension, kwds):
             kwds['py_limited_api'] = False
         else:
             kwds.setdefault("define_macros", []).append(("_Py_OPAQUE_PYOBJECT", None))
+            kwds["define_macros"].append(("Py_LIMITED_API", "0x030f0000"))
 
     if kwds.get('py_limited_api') is False:
         # avoid setting Py_LIMITED_API if py_limited_api=False
