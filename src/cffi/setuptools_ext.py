@@ -104,10 +104,9 @@ def _set_py_limited_api(Extension, kwds):
             # warning.
             kwds['py_limited_api'] = True
 
-    if sysconfig.get_config_var("Py_GIL_DISABLED"):
+    if sysconfig.get_config_var("Py_GIL_DISABLED") and sys.version_info < (3, 15):
         if kwds.get('py_limited_api'):
             log.info("Ignoring py_limited_api=True for free-threaded build.")
-
         kwds['py_limited_api'] = False
 
     if kwds.get('py_limited_api') is False:
