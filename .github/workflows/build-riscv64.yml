@@ -65,6 +65,9 @@ jobs:
     runs-on: [self-hosted, linux, riscv64]
     if: success()
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download wheel artifact
         uses: actions/download-artifact@v4
         with:
@@ -116,10 +119,9 @@ jobs:
     steps:
       - name: Trigger index update
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
         run: |
           gh api repos/gounthar/riscv64-python-wheels/dispatches \
             -f event_type=fork-release-published \
             -f "client_payload[repo]=${{ github.repository }}" \
-            -f "client_payload[tag]=${{ github.ref_name }}" || true
-
+            -f "client_payload[tag]=${{ github.ref_name }}"
