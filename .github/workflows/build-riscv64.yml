@@ -109,3 +109,17 @@ jobs:
       - name: Cleanup
         if: always()
         run: rm -rf /tmp/wheels
+  notify-index:
+    needs: release
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Trigger index update
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api repos/gounthar/riscv64-python-wheels/dispatches \
+            -f event_type=fork-release-published \
+            -f "client_payload[repo]=${{ github.repository }}" \
+            -f "client_payload[tag]=${{ github.ref_name }}" || true
+
