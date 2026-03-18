@@ -11,6 +11,29 @@ except NameError:
 
 _unspecified = object()
 
+class CGlobal:
+    def __init__(self, ffi, name, kind, type=None, value=None):
+        self.__ffi = ffi
+        self.__name = name
+        self.__kind = kind
+        self.__type = type
+        self.__value = value
+    @property
+    def name(self):
+        return self.__name
+    @property
+    def kind(self):
+        return self.__kind
+    @property
+    def type(self):
+        if self.kind == 'function' or self.kind == 'constant' or self.kind == 'variable':
+            return self.__type
+        raise AttributeError('type')
+    @property
+    def value(self):
+        if self.kind == 'enum' or self.kind == 'int_constant':
+            return self.__value
+        raise AttributeError('value')
 
 
 class FFI:
@@ -795,6 +818,44 @@ class FFI:
         unions.sort()
         return (typedefs, structs, unions)
 
+    def list_enums(self):
+        """Returns the list of enum type names known to this FFI instance.
+        """
+        enums = []
+        for key in self._parser._declarations:
+            if key.startswith('enum '):
+                enums.append(key[5:])
+        enums.sort()
+        return enums
+
+    def list_globals(self):
+        """Returns a list of globals known to this FFI instance, sorted by
+        name. This allows introspecting the API that a loaded library
+        object would have (assuming the library provides all symbols)
+        without needing one.
+        """
+        cglobals = []
+        for key, (tp, _) in self._parser._declarations.items():
+            if not isinstance(tp, model.EnumType):
+                tag, name = key.split(' ', 1)
+                if tag == 'function' or tag == 'variable' or tag == 'constant':
+                    with self._lock:
+                        type = self._get_cached_btype(tp)
+                    cglobals.append(CGlobal(self, name, tag, type=type))
+            else:
+                for name, value in zip(tp.enumerators, tp.enumvalues):
+                    cglobals.append(CGlobal(self, name, 'enum', value=value))
+        for name, value in self._parser._int_constants.items():
+            cglobals.append(CGlobal(self, name, 'int_constant', value=value))
+        cglobals.sort(key=lambda cg: cg.name)
+        return cglobals
+
+    @property
+    def includes(self):
+        """Returns a tuple of directly included FFI instances.
+        """
+        with self._lock:
+            return tuple(self._included_ffis)
 
 def _load_backend_lib(backend, name, flags):
     import os
