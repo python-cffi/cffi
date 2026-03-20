@@ -243,6 +243,11 @@ static PyObject *mb_subscript(MiniBufferObj *self, PyObject *item)
 static int
 mb_ass_subscript(MiniBufferObj* self, PyObject* item, PyObject* value)
 {
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError,
+                        "'del x[n]' not supported for buffer objects");
+        return -1;
+    }
     if (PyIndex_Check(item)) {
         Py_ssize_t i = PyNumber_AsSsize_t(item, PyExc_IndexError);
         if (i == -1 && PyErr_Occurred())
