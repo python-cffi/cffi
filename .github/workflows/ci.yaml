@@ -291,7 +291,6 @@ jobs:
         if-no-files-found: error
       if: ${{ env.skip_artifact_upload != 'true' }}
 
-
   make_windows_matrix:
     runs-on: ubuntu-24.04
     outputs:
@@ -506,9 +505,8 @@ jobs:
         matrix_yaml: |
           include:
           - { runner: ubuntu-24.04, python-version: 3.14t }
-          - { runner: macos-15, python-version: 3.14t }
+          - { runner: macos-26, python-version: 3.14t }
           - { runner: windows-2025, python-version: 3.14t }
-
 
   pytest-run-parallel:
     needs: make_run_parallel_matrix
