@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted, linux, riscv64]
+    runs-on: ubuntu-24.04-riscv
     timeout-minutes: 120
     steps:
       - name: Checkout
@@ -28,6 +28,7 @@ jobs:
 
       - name: Set up Python
         run: |
+          export PATH="$(ls -d /opt/python-3.1*/bin 2>/dev/null | sort -V | tail -1):$PATH"
           python3 -m venv /tmp/build-venv
           . /tmp/build-venv/bin/activate
           pip install --upgrade pip setuptools wheel
@@ -62,7 +63,7 @@ jobs:
 
   release:
     needs: build
-    runs-on: [self-hosted, linux, riscv64]
+    runs-on: ubuntu-24.04-riscv
     if: success()
     env:
       GH_REPO: ${{ github.repository }}
