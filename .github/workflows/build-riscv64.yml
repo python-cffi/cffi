@@ -28,10 +28,9 @@ jobs:
 
       - name: Set up Python
         run: |
-          export PATH="$(ls -d /opt/python-3.1*/bin 2>/dev/null | sort -V | tail -1):$PATH"
-          python3 -m venv --without-pip /tmp/build-venv
+          sudo apt-get install -y python3-venv python3-pip
+          python3 -m venv /tmp/build-venv
           . /tmp/build-venv/bin/activate
-          curl -sS https://bootstrap.pypa.io/get-pip.py | python3
           pip install --upgrade pip setuptools wheel
 
       - name: Build wheel
