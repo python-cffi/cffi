@@ -2,11 +2,6 @@ name: Build riscv64 wheel
 
 on:
   workflow_dispatch:
-    inputs:
-      release_tag:
-        description: 'Upstream release tag to build from'
-        required: false
-        type: string
   schedule:
     - cron: '0 2 * * 0'
 
@@ -18,7 +13,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
           fetch-depth: 0
 
       - name: Install system dependencies
@@ -26,20 +20,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libffi-dev
 
-      - name: Set up Python
-        run: |
-          # Remove broken /opt/python from PATH
-          export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v /opt/python | tr '\n' ':' | sed 's/:$//')
-          sudo apt-get install -y python3-venv python3-pip python3-dev
-          /usr/bin/python3 -m venv --without-pip /tmp/build-venv
-          . /tmp/build-venv/bin/activate
-          curl -sS https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3
-          pip install --upgrade setuptools wheel
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
 
       - name: Build wheel
         run: |
-          . /tmp/build-venv/bin/activate
-          pip wheel --no-deps --wheel-dir /tmp/wheels/ . 
+          uvx --python 3.14 pip wheel --no-deps --wheel-dir /tmp/wheels/ .
 
       - name: Verify platform tag
         run: |
@@ -59,75 +45,3 @@ jobs:
           name: wheel-riscv64
           path: /tmp/wheels/*.whl
           retention-days: 90
-
-      - name: Cleanup
-        if: always()
-        run: rm -rf /tmp/build-venv /tmp/wheels
-
-  release:
-    needs: build
-    runs-on: ubuntu-24.04-riscv
-    if: success()
-    env:
-      GH_REPO: ${{ github.repository }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download wheel artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: wheel-riscv64
-          path: /tmp/wheels/
-
-      - name: Get wheel info
-        id: wheel_info
-        run: |
-          WHL=$(ls /tmp/wheels/*.whl | head -1)
-          BASENAME=$(basename "$WHL")
-          VERSION=$(echo "$BASENAME" | sed 's/^[^-]*-\([^-]*\)-.*/\1/')
-          echo "whl_path=$WHL" >> "$GITHUB_OUTPUT"
-          echo "whl_name=$BASENAME" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Generate checksums
-        run: |
-          cd /tmp/wheels
-          sha256sum *.whl > SHA256SUMS
-
-      - name: Create or update release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="riscv64-v${{ steps.wheel_info.outputs.version }}"
-          TITLE="riscv64 wheel v${{ steps.wheel_info.outputs.version }}"
-          gh release delete "$TAG" --yes 2>/dev/null || true
-          git tag -d "$TAG" 2>/dev/null || true
-          git push origin ":refs/tags/$TAG" 2>/dev/null || true
-          gh release create "$TAG"             --title "$TITLE"             --notes "Prebuilt riscv64 wheel for $(uname -m) Linux.
-
-          Built on: BananaPi F3 (SpacemiT K1, rv64imafdcv)
-          Python: $(python3 --version 2>&1)
-          Wheel: ${{ steps.wheel_info.outputs.whl_name }}
-
-          Install:
-          \`\`\`
-          pip install cffi --find-links https://github.com/gounthar/$(basename $PWD)/releases/download/$TAG/
-          \`\`\`"             /tmp/wheels/*.whl             /tmp/wheels/SHA256SUMS
-
-      - name: Cleanup
-        if: always()
-        run: rm -rf /tmp/wheels
-  notify-index:
-    needs: release
-    runs-on: ubuntu-latest
-    if: success()
-    steps:
-      - name: Trigger index update
-        env:
-          GH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
-        run: |
-          gh api repos/gounthar/riscv64-python-wheels/dispatches \
-            -f event_type=fork-release-published \
-            -f "client_payload[repo]=${{ github.repository }}" \
-            -f "client_payload[tag]=${{ github.ref_name }}"
