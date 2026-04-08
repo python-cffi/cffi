@@ -481,8 +481,104 @@ jobs:
         if-no-files-found: error
       if: ${{ env.skip_artifact_upload != 'true' }}
 
+  make_android_matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: make a matrix
+      id: make_matrix
+      uses: ./.github/actions/dynamatrix
+      with:
+        matrix_yaml: |
+          include:
+          # arm64 Android device
+          - { spec: cp313-android_arm64_v8a, libffi_arch: aarch64-linux-android }
+          - { spec: cp314-android_arm64_v8a, libffi_arch: aarch64-linux-android }
+
+          # x86_64 Android (emulator)
+          - { spec: cp313-android_x86_64, libffi_arch: x86_64-linux-android }
+          - { spec: cp314-android_x86_64, libffi_arch: x86_64-linux-android }
+
+  android:
+    needs: [python_sdist, make_android_matrix]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.make_android_matrix.outputs.matrix_json) }}
+
+    steps:
+    - name: fetch sdist artifact
+      id: fetch_sdist
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
+
+    - name: install python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: build wheel prereqs
+      run: |
+        set -eux
+        python3 -m pip install --user --upgrade cibuildwheel>=3.1.0
+
+    - name: download libffi for Android
+      env:
+        CFFI_ANDROID_LIBFFI_VERSION: '3.4.4-3'
+      run: |
+        set -eux
+
+        # Download prebuilt libffi from beeware/cpython-android-source-deps
+        libffi_arch="${{ matrix.libffi_arch }}"
+        version="${CFFI_ANDROID_LIBFFI_VERSION}"
+        url="https://github.com/beeware/cpython-android-source-deps/releases/download/libffi-${version}/libffi-${version}-${libffi_arch}.tar.gz"
+
+        echo "Downloading libffi for Android (${libffi_arch})..."
+        curl -L -o libffi-android.tar.gz "${url}"
+
+        # Extract libffi
+        mkdir -p libffi-android
+        tar zxf libffi-android.tar.gz -C libffi-android
+
+        # Set up paths for cibuildwheel
+        echo "LIBFFI_ANDROID_DIR=$(pwd)/libffi-android" >> "$GITHUB_ENV"
+
+    - name: build/test wheels
+      id: build
+      env:
+        CIBW_BUILD: ${{ matrix.spec }}
+        CIBW_ARCHS_ANDROID: all
+        CIBW_PLATFORM: android
+        CIBW_TEST_REQUIRES: pytest setuptools
+        CIBW_TEST_SOURCES: cffi
+        # Running tests from `testing/` will not work since they try to compile C code on device
+        CIBW_TEST_COMMAND: python -m pytest -sv cffi/src/c/
+        # Pass LIBFFI_ANDROID_DIR into the cross-build environment so setup.py can use it
+        CIBW_ENVIRONMENT_PASS_ANDROID: LIBFFI_ANDROID_DIR
+      run: |
+        set -eux
+
+        mkdir cffi
+
+        tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
+
+        python3 -m cibuildwheel --output-dir dist cffi
+
+        echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
+
+    - name: upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.build.outputs.artifact_name }}
+        path: dist/*.whl
+        if-no-files-found: error
+      if: ${{ env.skip_artifact_upload != 'true' }}
+
   merge_artifacts:
-    needs: [python_sdist, linux, macos, windows, ios]
+    needs: [python_sdist, linux, macos, windows, ios, android]
     runs-on: ubuntu-24.04
     steps:
     - name: merge all artifacts
@@ -552,7 +648,7 @@ jobs:
 
   check:
     if: always()
-    needs: [python_sdist, linux, macos, windows, ios, clang_TSAN, pytest-run-parallel, merge_artifacts]
+    needs: [python_sdist, linux, macos, windows, ios, android, clang_TSAN, pytest-run-parallel, merge_artifacts]
     runs-on: ubuntu-24.04
     steps:
     - name: Verify all previous jobs succeeded (provides a single check to sample for gating purposes)
