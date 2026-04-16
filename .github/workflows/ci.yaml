@@ -504,9 +504,9 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          - { runner: ubuntu-24.04, python-version: 3.14t }
-          - { runner: macos-26, python-version: 3.14t }
-          - { runner: windows-2025, python-version: 3.14t }
+          - { runner: ubuntu-24.04, python-version: 3.15t-dev }
+          - { runner: macos-26, python-version: 3.15t-dev }
+          - { runner: windows-2025, python-version: 3.15t-dev }
 
   pytest-run-parallel:
     needs: make_run_parallel_matrix
@@ -536,7 +536,7 @@ jobs:
 
   clang_TSAN:
     runs-on: ubuntu-24.04
-    container: ghcr.io/nascheme/numpy-tsan:3.14t
+    container: ghcr.io/nascheme/numpy-tsan:3.15t-dev
     steps:
     - uses: actions/checkout@v4
 
