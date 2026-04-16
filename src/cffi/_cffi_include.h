@@ -28,8 +28,13 @@
 #if !defined(_CFFI_USE_EMBEDDING) && !defined(Py_LIMITED_API)
 #  ifdef _MSC_VER
 #    if !defined(_DEBUG) && !defined(Py_DEBUG) && !defined(Py_TRACE_REFS) && !defined(Py_REF_DEBUG) && !defined(_CFFI_NO_LIMITED_API)
-#      define Py_LIMITED_API
+#      if !defined(Py_GIL_DISABLED)
+#        define Py_LIMITED_API
+#      else
+#        define Py_LIMITED_API 0x030f0000
+#      endif
 #    endif
+
 #    include <pyconfig.h>
      /* sanity-check: Py_LIMITED_API will cause crashes if any of these
         are also defined.  Normally, the Python file PC/pyconfig.h does not
@@ -49,7 +54,11 @@
 #  else
 #    include <pyconfig.h>
 #    if !defined(Py_DEBUG) && !defined(Py_TRACE_REFS) && !defined(Py_REF_DEBUG) && !defined(_CFFI_NO_LIMITED_API)
-#      define Py_LIMITED_API
+#      if !defined(Py_GIL_DISABLED)
+#        define Py_LIMITED_API
+#      else
+#        define Py_LIMITED_API 0x030f0000
+#      endif
 #    endif
 #  endif
 #endif
