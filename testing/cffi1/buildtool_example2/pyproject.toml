@@ -1,0 +1,10 @@
+[build-system]
+build-backend = 'mesonpy'
+requires = ['meson-python', 'cffi']
+
+[project]
+name = 'squared'
+version = '0.1.0'
+description = 'Small self-contained example project that builds a CFFI extension via meson-python.'
+requires-python = '>=3.9'
+dependencies = ['cffi']

@@ -10,7 +10,15 @@ v2.0.0.dev0
   with the limited API, so you must set py_limited_api=False when building
   extensions for the free-threaded build.
 * Added support for Python 3.14. (`#177`_)
+* Added the :mod:`cffi.buildtool` subpackage and the ``gen-cffi-src``
+  command-line tool, which let build backends such as `meson-python`_
+  generate CFFI extension C source without depending on setuptools.
+  See :doc:`buildtool` for details. Integrated from the
+  `cffi-buildtool`_ project by Rose Davidson.
 * WIP
+
+.. _`meson-python`: https://meson-python.readthedocs.io/
+.. _`cffi-buildtool`: https://github.com/inklesspen/cffi-buildtool
 
 .. _`#177`: https://github.com/python-cffi/cffi/pull/177
 .. _`#178`: https://github.com/python-cffi/cffi/pull/178

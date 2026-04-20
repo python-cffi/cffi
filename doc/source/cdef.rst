@@ -1,8 +1,14 @@
-======================================
-Preparing and Distributing modules
-======================================
+=========================
+Preparing Wrapper Modules
+=========================
 
 .. contents::
+
+.. note::
+
+   This covers how to create wrapper modules. See :ref:`buildtool_docs`
+   for instructions on how to integrate with a Python build backend and
+   distribute wrapper modules.
 
 There are three or four different ways to use CFFI in a project.
 In order of complexity:
@@ -75,92 +81,6 @@ In order of complexity:
     # no ffi.dlopen()
 
     # use ffi and lib here
-
-.. _distutils-setuptools:
-
-* Finally, you can (but don't have to) use CFFI's **Distutils** or
-  **Setuptools integration** when writing a ``setup.py``.  For
-  Distutils (only in out-of-line API mode; deprecated since
-  Python 3.10):
-
-  .. code-block:: python
-
-    # setup.py (requires CFFI to be installed first)
-    from distutils.core import setup
-
-    import foo_build   # possibly with sys.path tricks to find it
-
-    setup(
-        ...,
-        ext_modules=[foo_build.ffibuilder.distutils_extension()],
-    )
-
-  For Setuptools (out-of-line only, but works in ABI or API mode;
-  recommended):
-
-  .. code-block:: python
-
-    # setup.py (with automatic dependency tracking)
-    from setuptools import setup
-
-    setup(
-        ...,
-        setup_requires=["cffi>=1.0.0"],
-        cffi_modules=["package/foo_build.py:ffibuilder"],
-        install_requires=["cffi>=1.0.0"],
-    )
-
-  Note again that the ``foo_build.py`` example contains the following
-  lines, which mean that the ``ffibuilder`` is not actually compiled
-  when ``package.foo_build`` is merely imported---it will be compiled
-  independently by the Setuptools logic, using compilation parameters
-  provided by Setuptools:
-
-  .. code-block:: python
-
-    if __name__ == "__main__":    # not when running with setuptools
-        ffibuilder.compile(verbose=True)
-
-* Note that some bundler tools that try to find all modules used by a
-  project, like PyInstaller, will miss ``_cffi_backend`` in the
-  out-of-line mode because your program contains no explicit ``import
-  cffi`` or ``import _cffi_backend``.  You need to add
-  ``_cffi_backend`` explicitly (as a "hidden import" in PyInstaller,
-  but it can also be done more generally by adding the line ``import
-  _cffi_backend`` in your main program).
-
-Note that CFFI actually contains two different ``FFI`` classes.  The
-page `Using the ffi/lib objects`_ describes the common functionality.
-It is what you get in the ``from package._foo import ffi`` lines above.
-On the other hand, the extended ``FFI`` class is the one you get from
-``import cffi; ffi_or_ffibuilder = cffi.FFI()``.  It has the same
-functionality (for in-line use), but also the extra methods described
-below (to prepare the FFI).  NOTE: We use the name ``ffibuilder``
-instead of ``ffi`` in the out-of-line context, when the code is about
-producing a ``_foo.so`` file; this is an attempt to distinguish it
-from the different ``ffi`` object that you get by later saying
-``from _foo import ffi``.
-
-.. _`Using the ffi/lib objects`: using.html
-
-The reason for this split of functionality is that a regular program
-using CFFI out-of-line does not need to import the ``cffi`` pure
-Python package at all.  (Internally it still needs ``_cffi_backend``,
-a C extension module that comes with CFFI; this is why CFFI is also
-listed in ``install_requires=..`` above.  In the future this might be
-split into a different PyPI package that only installs
-``_cffi_backend``.)
-
-Note that a few small differences do exist: notably, ``from _foo import
-ffi`` returns an object of a type written in C, which does not let you
-add random attributes to it (nor does it have all the
-underscore-prefixed internal attributes of the Python version).
-Similarly, the ``lib`` objects returned by the C version are read-only,
-apart from writes to global variables.  Also, ``lib.__dict__`` does
-not work before version 1.2 or if ``lib`` happens to declare a name
-called ``__dict__`` (use instead ``dir(lib)``).  The same is true
-for ``lib.__class__``, ``lib.__all__`` and ``lib.__name__`` added
-in successive versions.
 
 
 .. _cdef:
@@ -935,10 +855,10 @@ steps.
 
 and *if* the "stuff" part is big enough that import time is a concern,
 then rewrite it as described in `the out-of-line but still ABI mode`__
-above.  Optionally, see also the `setuptools integration`__ paragraph.
+above.  Optionally, see also the :ref:`build backend and distrubution
+<buildtool_docs>` documentation.
 
 .. __: out-of-line-abi_
-.. __: distutils-setuptools_
 
 
 **API mode** if your CFFI project uses ``ffi.verify()``:
@@ -951,16 +871,15 @@ above.  Optionally, see also the `setuptools integration`__ paragraph.
     ffi.cdef("stuff")
     lib = ffi.verify("real C code")
 
-then you should really rewrite it as described in `the out-of-line,
-API mode`__ above.  It avoids a number of issues that have caused
+then you should really rewrite it as described in `the out-of-line, API
+mode`__ above.  It avoids a number of issues that have caused
 ``ffi.verify()`` to grow a number of extra arguments over time.  Then
-see the `distutils or setuptools`__ paragraph.  Also, remember to
-remove the ``ext_package=".."`` from your ``setup.py``, which was
-sometimes needed with ``verify()`` but is just creating confusion with
-``set_source()``.
+see the :ref:`build backend and distrubution <buildtool_docs>`
+documentation.  Also, remember to remove the ``ext_package=".."`` from
+your ``setup.py``, which was sometimes needed with ``verify()`` but is
+just creating confusion with ``set_source()``.
 
 .. __: out-of-line-api_
-.. __: distutils-setuptools_
 
 The following example should work both with old (pre-1.0) and new
 versions of CFFI---supporting both is important to run on old
