@@ -41,6 +41,9 @@ maintainers = [
 [project.entry-points."distutils.setup_keywords"]
 cffi_modules = "cffi.setuptools_ext:cffi_modules"
 
+[project.scripts]
+gen-cffi-src = "cffi.buildtool._cli:run"
+
 [project.urls]
 Documentation = "https://cffi.readthedocs.io/"
 Changelog = "https://cffi.readthedocs.io/en/latest/whatsnew.html"

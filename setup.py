@@ -183,7 +183,7 @@ if __name__ == '__main__':
     cpython = ('_cffi_backend' not in sys.builtin_module_names)
 
     setup(
-        packages=['cffi'] if cpython else [],
+        packages=['cffi', 'cffi.buildtool'] if cpython else [],
         package_dir={"": "src"},
         package_data={'cffi': ['_cffi_include.h', 'parse_c_type.h', 
                                '_embedding.h', '_cffi_errors.h']}

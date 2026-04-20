@@ -182,7 +182,7 @@ jobs:
         CIBW_MUSLLINUX_X86_64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
         CIBW_MUSLLINUX_I686_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
         CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
-        CIBW_TEST_REQUIRES: pytest setuptools  # 3.12+ no longer includes distutils, just always ensure setuptools is present
+        CIBW_TEST_REQUIRES: pytest setuptools meson-python ninja # 3.12+ no longer includes distutils, just always ensure setuptools is present
         CIBW_TEST_COMMAND: PYTHONUNBUFFERED=1 python -m pytest ${{ matrix.test_args || '{project}' }}  # default to test all
       run: |
         set -eux
@@ -268,7 +268,7 @@ jobs:
       id: build
       env:
         CIBW_BUILD: ${{ matrix.spec }}
-        CIBW_TEST_REQUIRES: pytest setuptools
+        CIBW_TEST_REQUIRES: pytest setuptools meson-python ninja
         CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
         MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '10.13' }}
         SDKROOT: ${{ matrix.sdkroot || 'macosx' }}
@@ -351,7 +351,7 @@ jobs:
       id: build
       env:
         CIBW_BUILD: ${{ matrix.spec }}
-        CIBW_TEST_REQUIRES: pytest setuptools
+        CIBW_TEST_REQUIRES: pytest setuptools meson-python ninja
         CIBW_TEST_COMMAND: ${{ matrix.test_cmd || 'python -m pytest {package}/src/c' }}
         # FIXME: /testing takes ~45min on Windows and has some failures...
         # CIBW_TEST_COMMAND='python -m pytest {package}/src/c {package}/testing'
@@ -527,7 +527,7 @@ jobs:
 
     - name: build and install
       run: |
-        python -m pip install pytest setuptools pytest-run-parallel
+        python -m pip install pytest setuptools meson-python ninja pytest-run-parallel
         python -m pip install .
 
     - name: run tests under pytest-run-parallel
@@ -542,7 +542,7 @@ jobs:
 
     - name: build and install
       run: |
-        python -m pip install setuptools pytest pytest-run-parallel
+        python -m pip install setuptools meson-python ninja pytest pytest-run-parallel
         CFLAGS="-g -O3 -fsanitize=thread" python -m pip install -v .
 
     - name: run tests under pytest-run-parallel
