@@ -542,8 +542,12 @@ jobs:
 
     - name: build and install
       run: |
+        # these two steps can be removed when
+        # https://github.com/nascheme/cpython_sanity/issues/12 and the images
+        # are rebuilt
         apt update
         apt install -y llvm
+
         python -m pip install setuptools pytest pytest-run-parallel
         CFLAGS="-g -O3 -fsanitize=thread" python -m pip install -v .
 
