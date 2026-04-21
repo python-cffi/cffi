@@ -547,7 +547,6 @@ jobs:
 
     - name: run tests under pytest-run-parallel
       run: |
-        TSAN_OPTIONS="suppressions=$PWD/suppressions_free_threading.txt" \
         python -m pytest --parallel-threads=4 --skip-thread-unsafe=True -sv
 
   check:

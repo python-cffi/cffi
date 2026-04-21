@@ -48,3 +48,7 @@ Download = "https://github.com/python-cffi/cffi/releases"
 Contact = "https://groups.google.com/forum/#!forum/python-cffi"
 "Source Code" = "https://github.com/python-cffi/cffi"
 "Issue Tracker" = "https://github.com/python-cffi/cffi/issues"
+
+[pytest]
+faulthandler_timeout = 600
+faulthandler_exit_on_timeout = true
