@@ -536,7 +536,7 @@ jobs:
 
   clang_TSAN:
     runs-on: ubuntu-24.04
-    container: ghcr.io/nascheme/numpy-tsan:3.14t
+    container: ghcr.io/nascheme/numpy-tsan:3.15t-dev
     steps:
     - uses: actions/checkout@v4
 
