@@ -542,6 +542,8 @@ jobs:
 
     - name: build and install
       run: |
+        apt update
+        apt install -y llvm
         python -m pip install setuptools pytest pytest-run-parallel
         CFLAGS="-g -O3 -fsanitize=thread" python -m pip install -v .
 
