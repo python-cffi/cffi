@@ -2576,3 +2576,22 @@ def test_convert_api_mode_builtin_function_to_cdata():
     my_array_2 = ffi.new("void *[]", [lib.add1, lib.add2])
     assert ffi.cast("struct s(*)(struct s)", my_array_2[1])(s).x == 302
     assert ffi.typeof(lib.add1) == ffi.typeof("struct s(*)(struct s)")
+
+def test_large_enum():
+    ffi = FFI()
+    biglist = ['nn%d' % i for i in range(6000)]
+    ffi.cdef(
+        """enum foo_s { %s };""" % ','.join(biglist))
+    lib = verify(ffi, "test_large_enum", """
+        enum foo_s { %s };""" % ','.join(biglist))
+    assert lib.nn0 == 0
+    assert lib.nn1234 == 1234
+    assert lib.nn5999 == 5999
+    e = ffi.typeof("enum foo_s")
+    elements = {}
+    relements = {}
+    for i in range(6000):
+        elements[i] = biglist[i]
+        relements[biglist[i]] = i
+    assert e.elements == elements
+    assert e.relements == relements
