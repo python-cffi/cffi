@@ -139,6 +139,13 @@ jobs:
           - { spec: cp314-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }} }
           - { spec: cp314t-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }} }
 
+          # riscv64 manylinux
+          - { spec: cp39-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_slow_jobs  || env.skip_ci_redundant_jobs}}}
+          - { spec: cp310-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_slow_jobs  || env.skip_ci_redundant_jobs}}}
+          - { spec: cp311-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_slow_jobs  || env.skip_ci_redundant_jobs}}}
+          - { spec: cp312-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_slow_jobs  || env.skip_ci_redundant_jobs}}}
+          - { spec: cp313-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_slow_jobs  || env.skip_ci_redundant_jobs}}}
+
   linux:
     needs: [python_sdist, make_linux_matrix]
     runs-on: ${{ (matrix.arch == 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
