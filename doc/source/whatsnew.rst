@@ -10,10 +10,16 @@ v2.0.0.dev0
   with the limited API, so you must set py_limited_api=False when building
   extensions for the free-threaded build.
 * Added support for Python 3.14. (`#177`_)
+* `ffi.includes`_
+* `ffi.list_globals()`_
+* `ffi.list_enums()`_
 * WIP
 
 .. _`#177`: https://github.com/python-cffi/cffi/pull/177
 .. _`#178`: https://github.com/python-cffi/cffi/pull/178
+.. _`ffi.includes`: ref.html#ffi-includes
+.. _`ffi.list_globals()`: ref.html#ffi-list-globals
+.. _`ffi.list_enums()`: ref.html#ffi-list-enums
 
 v1.17.1
 =======
