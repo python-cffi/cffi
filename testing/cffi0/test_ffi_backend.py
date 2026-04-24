@@ -587,6 +587,14 @@ class TestBitfield:
         p = ffi.new("int[]", [-123456789])
         assert ffi.unpack(p, 1) == [-123456789]
 
+    def test_delitem_raises(self):
+        ffi = FFI()
+        arr = ffi.new("int[5]")
+        buf = ffi.buffer(arr)
+        for obj in (arr, buf):
+            pytest.raises(TypeError, obj.__delitem__, 0) # del obj[0]
+            pytest.raises(TypeError, obj.__delitem__, slice(1, 3)) # del obj[1:3]
+
     def test_negative_array_size(self):
         ffi = FFI()
         pytest.raises(ValueError, ffi.cast, "int[-5]", 0)
