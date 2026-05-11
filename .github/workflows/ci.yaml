@@ -139,6 +139,15 @@ jobs:
           - { spec: cp314-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }} }
           - { spec: cp314t-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }} }
 
+          # riscv64 manylinux
+          - { spec: cp39-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
+          - { spec: cp310-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_slow_jobs }} }
+          - { spec: cp314t-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_slow_jobs }} }
+
   linux:
     needs: [python_sdist, make_linux_matrix]
     runs-on: ${{ (matrix.arch == 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
@@ -179,6 +188,7 @@ jobs:
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_PPC64LE_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_S390X_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
+        CIBW_MANYLINUX_RISCV64_IMAGE: ${{ matrix.manylinux_img || 'manylinux_2_39' }}
         CIBW_MUSLLINUX_X86_64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
         CIBW_MUSLLINUX_I686_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
         CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
