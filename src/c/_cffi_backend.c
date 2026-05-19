@@ -2609,6 +2609,11 @@ cdata_ass_slice(CDataObject *cd, PySliceObject *slice, PyObject *v)
     cdata = cd->c_data + itemsize * bounds[0];
     length = bounds[1];
 
+    if (v == NULL) {
+        PyErr_SetString(PyExc_TypeError,
+                        "'del x[n]' not supported for cdata objects");
+        return -1;
+    }
     if (CData_Check(v)) {
         CTypeDescrObject *ctv = ((CDataObject *)v)->c_type;
         if ((ctv->ct_flags & CT_ARRAY) && (ctv->ct_itemdescr == ct) &&

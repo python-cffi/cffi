@@ -50,3 +50,6 @@ race_top:set_tp_bases
 race_top:type_set_bases_unlocked
 
 race:partial_vectorcall_fallback
+
+# gh-113956: races from simultaneously interning a string
+race_top:_Py_SetImmortalUntracked
