@@ -12,7 +12,7 @@ command-line program, ``gen-cffi-src``. Both produce the same output as
 a CPython extension module. What they add is two convenient front-ends
 -- one that executes an existing "build" Python script, and one that
 reads a ``cdef`` and C prelude from two files. This tool enables
-integrating with and build backend, such as `meson-python
+integrating with any build backend, such as `meson-python
 <https://meson-python.readthedocs.io/>`_, `scikit-build-core
 <https://scikit-build-core.readthedocs.io/>`_, or similar.
 
