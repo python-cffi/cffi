@@ -2,13 +2,10 @@
 
 The test provisions a fresh nested venv under ``tmp_path`` using the
 stdlib :mod:`venv` module, installs ``cffi`` (from the current source
-tree) and ``meson-python`` into it, installs the small example project
-that lives under ``testing/cffi1/buildtool_example/``, and then
+tree) and ``meson-python`` into it, installs one of the small example
+projects that live under ``testing/cffi1/buildtool_examples/``, and then
 imports the built extension to confirm it works.
 
-The test does not use ``uv``. It only relies on the running Python
-interpreter having access to ``pip`` (which is true for any venv
-created by :mod:`venv`) and on a working C compiler being on ``PATH``.
 """
 
 import os
@@ -32,8 +29,8 @@ except ImportError:
 
 
 HERE = Path(__file__).resolve().parent
-EXAMPLE_PROJECT = HERE / "buildtool_example"
-EXAMPLE_PROJECT2 = HERE / "buildtool_example2"
+EXAMPLE_PROJECT = HERE / "buildtool_examples" / "build_script_example"
+EXAMPLE_PROJECT2 = HERE / "buildtool_examples" / "cdef_example"
 CFFI_DIR = HERE.parent.parent
 
 
