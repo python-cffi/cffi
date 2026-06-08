@@ -110,7 +110,7 @@ def _set_py_limited_api(Extension, kwds):
                 log.info("Ignoring py_limited_api=True for free-threaded build.")
             kwds['py_limited_api'] = False
         else:
-            kwds["define_macros"].append(("Py_TARGET_ABI3T", "0x030f0000"))
+            kwds.setdefault("define_macros", []).append(("Py_TARGET_ABI3T", "0x030f0000"))
 
     if kwds.get('py_limited_api') is False:
         # avoid setting Py_LIMITED_API if py_limited_api=False
