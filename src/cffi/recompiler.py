@@ -93,9 +93,18 @@ class EnumExpr:
         self.allenums = allenums
 
     def as_c_expr(self):
-        return ('  { "%s", %d, _cffi_prim_int(%s, %s),\n'
-                '    "%s" },' % (self.name, self.type_index,
-                                 self.size, self.signed, self.allenums))
+        lines = ['  { "%s", %d, _cffi_prim_int(%s, %s),' % (self.name, self.type_index,
+                                                            self.size, self.signed,)]
+        pending = 0
+        while len(self.allenums) > pending + 110:
+            j = self.allenums.find(',', pending + 100)
+            if j < 0:
+                break
+            j += 1
+            lines.append('    "%s"' % (self.allenums[pending:j],))
+            pending = j
+        lines.append('    "%s" },' % (self.allenums[pending:],))
+        return '\n'.join(lines)
 
     def as_python_expr(self):
         prim_index = {
