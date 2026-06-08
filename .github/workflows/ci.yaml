@@ -128,20 +128,20 @@ jobs:
           - { spec: cp311-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp313-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-manylinux_ppc64le, arch: ppc64le, omit: ${{ env.skip_slow_jobs }} omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp314t-manylinux_ppc64le, arch: ppc64le, omit: ${{ env.skip_slow_jobs }} omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-manylinux_ppc64le, arch: ppc64le, omit: ${{ env.skip_slow_jobs }} }
-          - { spec: cp315t-manylinux_ppc64le, arch: ppc64le, omit: ${{ env.skip_slow_jobs }} }
+          - { spec: cp314-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp314t-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp315-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
+          - { spec: cp315t-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
 
           # s390x manylinux
           - { spec: cp310-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
           - { spec: cp311-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp312-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp313-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp314t-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }} }
-          - { spec: cp315t-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }} }
+          - { spec: cp314-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp314t-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
+          - { spec: cp315-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
+          - { spec: cp315t-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
 
   linux:
     needs: [python_sdist, make_linux_matrix]
@@ -167,6 +167,7 @@ jobs:
         CFLAGS: -Dffi_call=cffistatic_ffi_call  # override name for ffi_call to break hard if we linked against someone else's libffi
         CIBW_ARCHS_LINUX: all
         CIBW_BUILD: ${{ matrix.spec }}
+        CIBW_ENABLE: cpython-prerelease
         CIBW_BEFORE_BUILD: |
           set -eux && \
           curl -L -O https://github.com/libffi/libffi/archive/v3.4.6.tar.gz && \
@@ -274,6 +275,7 @@ jobs:
       id: build
       env:
         CIBW_BUILD: ${{ matrix.spec }}
+        CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools
         CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
         MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '10.13' }}
@@ -363,6 +365,7 @@ jobs:
       id: build
       env:
         CIBW_BUILD: ${{ matrix.spec }}
+        CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools
         CIBW_TEST_COMMAND: ${{ matrix.test_cmd || 'python -m pytest {package}/src/c' }}
         # FIXME: /testing takes ~45min on Windows and has some failures...
