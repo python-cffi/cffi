@@ -781,6 +781,7 @@ def test_get_set_errno():
     ffi = FFI()
     ffi.cdef("int foo(int);")
     lib = ffi.verify("""
+        #include <errno.h>
         static int foo(int x)
         {
             errno += 1;
