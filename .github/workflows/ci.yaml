@@ -139,9 +139,18 @@ jobs:
           - { spec: cp314-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }} }
           - { spec: cp314t-manylinux_s390x, arch: s390x, omit: ${{ env.skip_slow_jobs }} }
 
+          # riscv64 manylinux (native RISE runners)
+          - { spec: cp39-manylinux_riscv64, arch: riscv64 }
+          - { spec: cp310-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-manylinux_riscv64, arch: riscv64 }
+          - { spec: cp314t-manylinux_riscv64, arch: riscv64 }
+
   linux:
     needs: [python_sdist, make_linux_matrix]
-    runs-on: ${{ (matrix.arch == 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    runs-on: ${{ (matrix.arch == 'aarch64') && 'ubuntu-24.04-arm' || (matrix.arch == 'riscv64') && 'ubuntu-24.04-riscv' || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.make_linux_matrix.outputs.matrix_json) }}
@@ -155,7 +164,11 @@ jobs:
 
     - name: configure docker foreign arch support
       uses: docker/setup-qemu-action@v3
-      if: matrix.arch != 'x86_64' && matrix.arch != 'i686' && matrix.arch != 'aarch64'
+      if: matrix.arch != 'x86_64' && matrix.arch != 'i686' && matrix.arch != 'aarch64' && matrix.arch != 'riscv64'
+
+    - name: Set up uv (riscv64)
+      if: matrix.arch == 'riscv64'
+      uses: astral-sh/setup-uv@v7
 
     - name: build/test wheels
       id: build
@@ -179,6 +192,7 @@ jobs:
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_PPC64LE_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_S390X_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
+        CIBW_MANYLINUX_RISCV64_IMAGE: ${{ matrix.manylinux_img || 'manylinux_2_39' }}
         CIBW_MUSLLINUX_X86_64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
         CIBW_MUSLLINUX_I686_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
         CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.musllinux_img || 'musllinux_1_2' }}
@@ -190,10 +204,14 @@ jobs:
         mkdir cffi
 
         tar zxf ${{ steps.fetch_sdist.outputs.download-path }}/cffi*.tar.gz --strip-components=1 -C cffi
-        python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
 
-        # actually build libffi + wheel (using env tweaks above)
-        python -m cibuildwheel --output-dir dist ./cffi
+        if [ "${{ matrix.arch }}" = "riscv64" ]; then
+          # Use uvx on riscv64 RISE runners (setup-python not available)
+          uvx --python 3.14 "${{ matrix.cibw_version || 'cibuildwheel' }}" --output-dir dist ./cffi
+        else
+          python -m pip install --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
+          python -m cibuildwheel --output-dir dist ./cffi
+        fi
 
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
