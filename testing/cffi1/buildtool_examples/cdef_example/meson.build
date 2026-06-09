@@ -9,8 +9,6 @@ py = import('python').find_installation(pure: false)
 
 install_subdir('src/squared', install_dir: py.get_install_dir())
 
-gen_cffi_src = find_program('gen-cffi-src')
-
 square_lib = static_library(
     'square',
     'src/csrc/square.c',
@@ -24,7 +22,8 @@ square_dep = declare_dependency(
 squared_ext_src = custom_target(
     'squared-cffi-src',
     command: [
-        gen_cffi_src,
+        py,
+        '-m', 'cffi.buildtool',
         'read-sources',
         'squared._squared',
         '@INPUT0@',

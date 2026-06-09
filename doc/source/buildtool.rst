@@ -6,10 +6,10 @@ Building and Distributing CFFI Extensions
 
 .. contents::
 
-CFFI ships a subpackage, :mod:`cffi.buildtool`, together with a
-command-line program, ``gen-cffi-src``. Both produce the same output as
+CFFI ships a command-line tool, invoked as ``python -m
+cffi.buildtool``, that produces the same output as
 :meth:`FFI.emit_c_code`: a ``.c`` source file ready to be compiled into
-a CPython extension module. They add is two convenient front-ends
+a CPython extension module. It adds two convenient front-ends
 -- one that executes an existing "build" Python script, and one that
 reads a ``cdef`` and C prelude from two files. This tool enables
 integrating with any build backend, such as `meson-python
@@ -18,50 +18,21 @@ integrating with any build backend, such as `meson-python
 
 The rest of this page uses meson-python in the examples, but any PEP
 517 backend that lets you run a helper program during the build can
-drive ``gen-cffi-src`` the same way.
+drive ``python -m cffi.buildtool`` the same way.
 
-The ``cffi.buildtool`` subpackage was vendored with permission from the
-`cffi-buildtool`_ project by Rose Davidson (@inklesspen on GitHub).
+The command line is the buildtool's only public interface; the
+implementation inside the ``cffi`` package is private. The buildtool
+was vendored with permission from the `cffi-buildtool`_ project by Rose
+Davidson (@inklesspen on GitHub).
 
 .. _cffi-buildtool: https://github.com/inklesspen/cffi-buildtool
 
 
-Python API for ``cffi.buildtool``
-=================================
+The ``python -m cffi.buildtool`` Command-line Tool
+==================================================
 
-.. py:module:: cffi.buildtool
-
-.. py:function:: find_ffi_in_python_script(pysrc, filename, ffivar)
-
-   Execute a Python build script and return the :class:`cffi.FFI`
-   object it defines. ``pysrc`` is the text of the script,
-   ``filename`` is used for diagnostics, and ``ffivar`` is the name
-   the script binds to the :class:`FFI` (or to a callable returning
-   one -- typical ``ffibuilder`` names are supported). The script is
-   executed with ``__name__`` set to ``"gen-cffi-src"`` so a trailing
-   ``if __name__ == "__main__": ffibuilder.compile()`` block is
-   skipped.
-
-.. py:function:: make_ffi_from_sources(modulename, cdef, csrc)
-
-   Build an :class:`cffi.FFI` from a ``cdef`` string and a C source
-   prelude. Equivalent to::
-
-     ffi = FFI()
-     ffi.cdef(cdef)
-     ffi.set_source(modulename, csrc)
-
-.. py:function:: generate_c_source(ffi)
-
-   Return the C source that :meth:`FFI.emit_c_code` would write for
-   the given :class:`cffi.FFI`, as a :class:`str`.
-
-
-The ``gen-cffi-src`` Command-line Tool
-======================================
-
-``gen-cffi-src`` has two subcommands. In both, the final positional
-argument is the path to the ``.c`` file to generate.
+``python -m cffi.buildtool`` has two subcommands. In both, the final
+positional argument is the path to the ``.c`` file to generate.
 
 .. note::
 
@@ -74,8 +45,8 @@ argument is the path to the ``.c`` file to generate.
    arguments of ``py.extension_module()``.
 
 
-``gen-cffi-src exec-python``
-----------------------------
+``python -m cffi.buildtool exec-python``
+----------------------------------------
 
 This mode takes the Python build script you would normally run by
 hand -- the one the CFFI docs show under "Main mode of usage" -- and
@@ -100,17 +71,21 @@ you run:
 
 .. code-block:: console
 
-    $ gen-cffi-src exec-python _squared_build.py _squared.c
+    $ python -m cffi.buildtool exec-python _squared_build.py _squared.c
+
+The script is executed with ``__name__`` set to ``"cffi.buildtool"``,
+so the trailing ``if __name__ == "__main__":`` block is skipped: the
+tool only generates the C source and never compiles it.
 
 If the :class:`cffi.FFI` is bound to a name other than ``ffibuilder``,
 pass ``--ffi-var``:
 
 .. code-block:: console
 
-    $ gen-cffi-src exec-python --ffi-var=make_ffi _squared_build.py _squared.c
+    $ python -m cffi.buildtool exec-python --ffi-var=make_ffi _squared_build.py _squared.c
 
-``gen-cffi-src read-sources``
------------------------------
+``python -m cffi.buildtool read-sources``
+-----------------------------------------
 
 For larger modules, keeping the ``cdef`` and the C source prelude in
 separate files tends to be easier to work with -- your editor
@@ -133,7 +108,7 @@ you run:
 
 .. code-block:: console
 
-   $ gen-cffi-src read-sources squared._squared squared.cdef.txt squared.csrc.c _squared.c
+   $ python -m cffi.buildtool read-sources squared._squared squared.cdef.txt squared.csrc.c _squared.c
 
 The first positional argument is the fully qualified module name that
 will be embedded in the generated source (equivalent to the first
@@ -186,8 +161,6 @@ Project layout:
 
   install_subdir('src/squared', install_dir: py.get_install_dir())
 
-  gen_cffi_src = find_program('gen-cffi-src')
-
   square_lib = static_library(
       'square',
       'src/csrc/square.c',
@@ -201,7 +174,8 @@ Project layout:
   squared_ext_src = custom_target(
       'squared-cffi-src',
       command: [
-          gen_cffi_src,
+          py,
+          '-m', 'cffi.buildtool',
           'exec-python',
           '@INPUT@',
           '@OUTPUT@',
@@ -247,7 +221,8 @@ To switch this project to ``read-sources`` mode, replace
 .. code-block:: meson
 
   command: [
-    gen_cffi_src,
+    py,
+    '-m', 'cffi.buildtool',
     'read-sources',
     'squared._squared',
     '@INPUT0@',
