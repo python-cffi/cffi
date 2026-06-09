@@ -6,9 +6,12 @@ Preparing Wrapper Modules
 
 .. note::
 
-   This covers how to create wrapper modules. See :ref:`buildtool_docs`
-   for instructions on how to integrate with a Python build backend and
-   distribute wrapper modules.
+   A *wrapper module* is a Python module that uses CFFI to expose
+   functions and data from a C library, so that the rest of your
+   program can import it and call the library through the ``ffi`` and
+   ``lib`` objects. This page covers how to create wrapper modules.
+   See :ref:`buildtool_docs` for instructions on how to integrate with
+   a Python build backend and distribute wrapper modules.
 
 There are three or four different ways to use CFFI in a project.
 In order of complexity:
@@ -855,7 +858,7 @@ steps.
 
 and *if* the "stuff" part is big enough that import time is a concern,
 then rewrite it as described in `the out-of-line but still ABI mode`__
-above.  Optionally, see also the :ref:`build backend and distrubution
+above.  Optionally, see also the :ref:`build backend and distribution
 <buildtool_docs>` documentation.
 
 .. __: out-of-line-abi_
@@ -874,7 +877,7 @@ above.  Optionally, see also the :ref:`build backend and distrubution
 then you should really rewrite it as described in `the out-of-line, API
 mode`__ above.  It avoids a number of issues that have caused
 ``ffi.verify()`` to grow a number of extra arguments over time.  Then
-see the :ref:`build backend and distrubution <buildtool_docs>`
+see the :ref:`build backend and distribution <buildtool_docs>`
 documentation.  Also, remember to remove the ``ext_package=".."`` from
 your ``setup.py``, which was sometimes needed with ``verify()`` but is
 just creating confusion with ``set_source()``.

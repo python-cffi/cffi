@@ -39,5 +39,5 @@ py.extension_module(
     squared_ext_src,
     subdir: 'squared',
     install: true,
-    dependencies: [square_dep, py.dependency()],
+    dependencies: [square_dep],
 )

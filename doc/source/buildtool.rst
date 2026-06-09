@@ -9,48 +9,53 @@ Building and Distributing CFFI Extensions
 CFFI ships a command-line tool, invoked as ``python -m
 cffi.buildtool``, that produces the same output as
 :meth:`FFI.emit_c_code`: a ``.c`` source file ready to be compiled into
-a CPython extension module. It adds two convenient front-ends
--- one that executes an existing "build" Python script, and one that
-reads a ``cdef`` and C prelude from two files. This tool enables
+a CPython extension module. This tool enables
 integrating with any build backend, such as `meson-python
 <https://meson-python.readthedocs.io/>`_, `scikit-build-core
 <https://scikit-build-core.readthedocs.io/>`_, or similar.
 
-The rest of this page uses meson-python in the examples, but any PEP
-517 backend that lets you run a helper program during the build can
+The rest of this page uses meson-python in the examples, but any `Python build
+backend`_ that lets you run a helper program during the build can
 drive ``python -m cffi.buildtool`` the same way.
 
-The command line is the buildtool's only public interface; the
-implementation inside the ``cffi`` package is private. The buildtool
-was vendored with permission from the `cffi-buildtool`_ project by Rose
-Davidson (@inklesspen on GitHub).
+The only way to use the buildtool functionality is via ``python -m
+cffi.buildtool``; the implementation inside the ``cffi`` package is
+private.
 
+The implementation is based on the `cffi-buildtool`_ project by Rose Davidson
+(`@inklesspen`_ on GitHub). It is included in CFFI with permission of the original
+author.
+
+.. _Python build backend: https://packaging.python.org/en/latest/guides/tool-recommendations/#build-backends-for-extension-modules
 .. _cffi-buildtool: https://github.com/inklesspen/cffi-buildtool
-
+.. _@inklesspen: https://github.com/inklesspen
 
 The ``python -m cffi.buildtool`` Command-line Tool
 ==================================================
 
-``python -m cffi.buildtool`` has two subcommands. In both, the final
-positional argument is the path to the ``.c`` file to generate.
-
-.. note::
-
-   When you drive the build from a build backend, the
-   ``libraries=``, ``library_dirs=``, ``include_dirs=``,
-   ``extra_compile_args=`` etc. arguments you pass to
-   :meth:`FFI.set_source` are *ignored*. Link and include settings are
-   the build backend's responsibility; for meson-python you express
-   them through the ``dependencies:`` / ``include_directories:``
-   arguments of ``py.extension_module()``.
-
+``python -m cffi.buildtool`` has two subcommands. The first, ``exec-python`` is
+most useful if you already have a Python script that sets up an FFI
+definition. The second, ``read-sources`` is most useful if you are wrapping
+a large API surface and want a more structured way to specify a set of FFI
+definitions.
 
 ``python -m cffi.buildtool exec-python``
 ----------------------------------------
 
-This mode takes the Python build script you would normally run by
-hand -- the one the CFFI docs show under "Main mode of usage" -- and
-generates the ``.c`` source for you. For example, given this
+This mode takes a Python script that dynamically defines an FFI interface and
+accompanying C extension source code. The FFI definition script is the same
+script you would normally run by hand -- the one the CFFI docs show under
+:ref:`real-example`.
+
+Let's say we want to create an extension module that wraps a single C function named
+``square``. The ``square`` function has the following signature:
+
+.. code-block:: C
+
+   int square(int n);
+
+Let's also say this function definition is exposed inside a header named
+`square.h`. We could create a set of FFI bindings for this function given this
 ``_squared_build.py``::
 
   from cffi import FFI
@@ -64,33 +69,53 @@ generates the ``.c`` source for you. For example, given this
       '#include "square.h"',
   )
 
-  if __name__ == "__main__":
-      ffibuilder.compile(verbose=True)
-
-you run:
+To generate the source code for the C extension, you would run:
 
 .. code-block:: console
 
     $ python -m cffi.buildtool exec-python _squared_build.py _squared.c
 
-The script is executed with ``__name__`` set to ``"cffi.buildtool"``,
-so the trailing ``if __name__ == "__main__":`` block is skipped: the
-tool only generates the C source and never compiles it.
+Many CFFI build scripts have an ``if __name__ == "__main__"`` section
+that triggers a compilation step. This is not needed for a
+``cffi.buildtool`` script, which does not generate compiled artifacts,
+only C source code. It is up to your build-backend of choice
+(e.g. meson-python) to run a C compiler and build compiled artifacts.
+If the script does have such a section it is harmless: the script is
+executed with ``__name__`` set to ``"cffi.buildtool"``, so the block is
+skipped and an existing build script works unchanged.
 
-If the :class:`cffi.FFI` is bound to a name other than ``ffibuilder``,
-pass ``--ffi-var``:
+If the :class:`cffi.FFI` is bound to a name other than ``ffibuilder``, pass
+``--ffi-var``. To make that concrete, let's say your build script creates an FFI
+object named ``make_ffi``::
+
+    from cffi import FFI
+
+    make_ffi = FFI()
+
+In that case, you would pass ``--ffi-var=make_ffi`` to ``cffi.buildtool``:
 
 .. code-block:: console
 
     $ python -m cffi.buildtool exec-python --ffi-var=make_ffi _squared_build.py _squared.c
 
+.. note::
+
+   CFFI's setuptools integration supports passing ``libraries=``,
+   ``library_dirs=``, ``include_dirs=``, and ``extra_compile_args=``
+   arguments to :meth:`FFI.set_source`. When using `cffi.buildtool`,
+   these arguments are *ignored*. Link and include settings are the
+   build backend's responsibility; for meson-python you would express
+   them through the ``dependencies``, ``include_directories``, and
+   ``c_args`` arguments of ``py.extension_module()``.
+
 ``python -m cffi.buildtool read-sources``
 -----------------------------------------
 
-For larger modules, keeping the ``cdef`` and the C source prelude in
-separate files tends to be easier to work with -- your editor
-treats them as plain C, and presubmit tooling doesn't have to parse
-them out of a string literal.
+For larger modules, keeping the FFI definition and any necessary C
+source prelude in separate files tends to be easier to work with --
+you can configure your editor to treat them as plain C, and write
+presubmit tooling that parses the FFI definition directly without
+extracting it from a Python script.
 
 Given ``squared.cdef.txt``:
 
@@ -104,15 +129,17 @@ and ``squared.csrc.c``:
 
    #include "square.h"
 
-you run:
+you would run the following command to generate a CFFI extension:
 
 .. code-block:: console
 
    $ python -m cffi.buildtool read-sources squared._squared squared.cdef.txt squared.csrc.c _squared.c
 
-The first positional argument is the fully qualified module name that
-will be embedded in the generated source (equivalent to the first
-argument to :meth:`FFI.set_source`).
+With all other details left exactly the same as the ``exec-python`` example.
+
+The first positional argument passed to the ``read-sources`` command is the
+fully qualified module name that will be embedded in the generated C source
+code (equivalent to the first argument to :meth:`FFI.set_source`).
 
 
 A Worked Example Using ``meson-python``
@@ -135,78 +162,36 @@ Project layout:
 
 ``pyproject.toml``:
 
-.. code-block:: toml
-
-  [build-system]
-  build-backend = 'mesonpy'
-  requires = ['meson-python', 'cffi']
-
-  [project]
-  name = 'squared'
-  version = '0.1.0'
-  requires-python = '>=3.9'
-  dependencies = ['cffi']
+.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/pyproject.toml
+   :language: toml
 
 ``meson.build``:
 
-.. code-block:: meson
-
-  project(
-      'squared',
-      'c',
-      version: '0.1.0',
-  )
-
-  py = import('python').find_installation(pure: false)
-
-  install_subdir('src/squared', install_dir: py.get_install_dir())
-
-  square_lib = static_library(
-      'square',
-      'src/csrc/square.c',
-      include_directories: include_directories('src/csrc'),
-  )
-  square_dep = declare_dependency(
-      link_with: square_lib,
-      include_directories: include_directories('src/csrc'),
-  )
-
-  squared_ext_src = custom_target(
-      'squared-cffi-src',
-      command: [
-          py,
-          '-m', 'cffi.buildtool',
-          'exec-python',
-          '@INPUT@',
-          '@OUTPUT@',
-      ],
-      output: '_squared.c',
-      input: ['src/squared/_squared_build.py'],
-  )
-
-  py.extension_module(
-      '_squared',
-      squared_ext_src,
-      subdir: 'squared',
-      install: true,
-      dependencies: [square_dep, py.dependency()],
-  )
+.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/meson.build
+   :language: meson
 
 ``src/squared/__init__.py``:
 
-.. code-block:: python
+.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/src/squared/__init__.py
+   :language: python
 
-   from ._squared import ffi, lib
+``src/squared/_squared_build.py``:
 
+.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/src/squared/_squared_build.py
+   :language: python
 
-   def squared(n):
-       return lib.square(n)
+``src/csrc/square.h``:
 
-``src/squared/_squared_build.py``, ``src/csrc/square.h`` and
-``src/csrc/square.c`` contain the snippets shown above.
+.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/src/csrc/square.h
+   :language: C
 
-Build and install the project with any PEP 517 front-end. For
-example:
+``src/csrc/square.c``:
+
+.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/src/csrc/square.c
+   :language: C
+
+Build and install the project with any Python build front-end. For
+example, with `pip`, in the root `squared` directory:
 
 .. code-block:: console
 
@@ -215,8 +200,35 @@ example:
   49
 
 To switch this project to ``read-sources`` mode, replace
-``_squared_build.py`` with two files (``_squared.cdef.txt`` and
-``_squared.csrc.c``), then change the ``custom_target`` command to:
+``_squared_build.py`` with two files, so that the project layout
+becomes:
+
+.. code-block:: text
+
+  squared/
+  ├── pyproject.toml
+  ├── meson.build
+  └── src/
+      ├── squared/
+      │   ├── __init__.py
+      │   ├── squared.cdef.txt
+      │   └── squared.csrc.c
+      └── csrc/
+          ├── square.h
+          └── square.c
+
+The first new file, ``squared.cdef.txt``, contains the FFI definition:
+
+.. literalinclude:: ../../testing/cffi1/buildtool_examples/cdef_example/src/squared/squared.cdef.txt
+   :language: python
+
+and the second, ``squared.csrc.c``, contains the C source prelude:
+
+.. literalinclude:: ../../testing/cffi1/buildtool_examples/cdef_example/src/squared/squared.csrc.c
+   :language: python
+
+then change two spots in the ``meson.build`` file.  First, update the ``custom_target``
+``command`` to call ``python -m cffi.buildtool read-sources`` with two input arguments:
 
 .. code-block:: meson
 
@@ -230,11 +242,11 @@ To switch this project to ``read-sources`` mode, replace
     '@OUTPUT@',
   ],
 
-and list both files under ``input:``:
+and then list both of the FFI specification files under ``input``:
 
 .. code-block:: meson
 
-  input: ['src/squared/_squared.cdef.txt', '_squared.csrc.c']
+  input: ['src/squared/squared.cdef.txt', 'src/squared/squared.csrc.c']
 
 Distributing CFFI Extensions using Setuptools
 =============================================
