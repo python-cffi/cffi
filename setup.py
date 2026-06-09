@@ -154,7 +154,7 @@ else:
     ask_supports_thread()
     ask_supports_sync_synchronize()
 
-if 'darwin' in sys.platform:
+if sysconfig.get_platform().startswith('macosx'):
     # priority is given to `pkg_config`, but always fall back on SDK's libffi.
     extra_compile_args += ['-iwithsysroot/usr/include/ffi']
 
