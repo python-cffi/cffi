@@ -6,10 +6,10 @@ Building and Distributing CFFI Extensions
 
 .. contents::
 
-CFFI ships a small subpackage, :mod:`cffi.buildtool`, together with a
+CFFI ships a subpackage, :mod:`cffi.buildtool`, together with a
 command-line program, ``gen-cffi-src``. Both produce the same output as
 :meth:`FFI.emit_c_code`: a ``.c`` source file ready to be compiled into
-a CPython extension module. What they add is two convenient front-ends
+a CPython extension module. They add is two convenient front-ends
 -- one that executes an existing "build" Python script, and one that
 reads a ``cdef`` and C prelude from two files. This tool enables
 integrating with any build backend, such as `meson-python
@@ -20,7 +20,7 @@ The rest of this page uses meson-python in the examples, but any PEP
 517 backend that lets you run a helper program during the build can
 drive ``gen-cffi-src`` the same way.
 
-The ``cffi.buildtool`` subpackage was integrated from the
+The ``cffi.buildtool`` subpackage was vendored with permission from the
 `cffi-buildtool`_ project by Rose Davidson (@inklesspen on GitHub).
 
 .. _cffi-buildtool: https://github.com/inklesspen/cffi-buildtool
