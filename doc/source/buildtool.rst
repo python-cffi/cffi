@@ -75,18 +75,18 @@ To generate the source code for the C extension, you would run:
 
     $ python -m cffi.buildtool exec-python _squared_build.py _squared.c
 
-Many CFFI build scripts have an ``if __name__ == "__main__"`` section
+Many CFFI FFI definition scripts have an ``if __name__ == "__main__"`` section
 that triggers a compilation step. This is not needed for a
 ``cffi.buildtool`` script, which does not generate compiled artifacts,
 only C source code. It is up to your build-backend of choice
 (e.g. meson-python) to run a C compiler and build compiled artifacts.
 If the script does have such a section it is harmless: the script is
 executed with ``__name__`` set to ``"cffi.buildtool"``, so the block is
-skipped and an existing build script works unchanged.
+skipped and an existing FFI definition script works unchanged.
 
 If the :class:`cffi.FFI` is bound to a name other than ``ffibuilder``, pass
-``--ffi-var``. To make that concrete, let's say your build script creates an FFI
-object named ``make_ffi``::
+``--ffi-var``. To make that concrete, let's say your FFI definition script
+creates an FFI object named ``make_ffi``::
 
     from cffi import FFI
 
