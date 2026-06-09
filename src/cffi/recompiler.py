@@ -9,7 +9,7 @@ VERSION_CHAR16CHAR32 = 0x2801
 
 USE_LIMITED_API = ((sys.platform != 'win32' or sys.version_info < (3, 0) or
                    sys.version_info >= (3, 5)) and
-                   not sysconfig.get_config_var("Py_GIL_DISABLED"))  # free-threaded doesn't yet support limited API
+                   (not sysconfig.get_config_var("Py_GIL_DISABLED") or sys.version_info >= (3, 15)))  # free-threaded doesn't yet support limited API
 
 class GlobalExpr:
     def __init__(self, name, address, type_op, size=0, check_value=0):
