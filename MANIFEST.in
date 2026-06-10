@@ -1,6 +1,6 @@
 recursive-include src/cffi *.py *.h
 recursive-include src/c *.c *.h *.asm *.py win64.obj ffi.lib
-recursive-include testing *.py *.c *.h
+recursive-include testing *.py *.c *.h meson.build pyproject.toml *.txt
 recursive-include doc *.py *.rst Makefile *.bat
 recursive-include demo py.cleanup *.py embedding_test.c manual.c
 include AUTHORS LICENSE setup.py setup_base.py

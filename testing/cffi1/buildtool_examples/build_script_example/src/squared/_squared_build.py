@@ -1,0 +1,13 @@
+from cffi import FFI
+
+ffibuilder = FFI()
+
+ffibuilder.cdef("int square(int n);")
+
+ffibuilder.set_source(
+    "squared._squared",
+    '#include "square.h"',
+)
+
+if __name__ == "__main__":
+    ffibuilder.compile(verbose=True)
