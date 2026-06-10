@@ -25,7 +25,7 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""Implementation of the ``python -m cffi.buildtool`` command-line tool.
+"""Implementation of the ``gen-cffi-src`` command-line tool.
 
 This module is private; the command line is the only supported
 interface. Two subcommands:
@@ -42,6 +42,8 @@ interface. Two subcommands:
 
 import argparse
 import io
+import os
+import sys
 
 from .api import FFI
 
@@ -117,8 +119,17 @@ def read_sources(*, output, module_name, cdef_input, csrc_input):
         output.write(generated)
 
 
+def _prog():
+    # The same parser serves both documented invocations; make --help
+    # and usage messages show the one that was actually used.
+    argv0 = os.path.basename(sys.argv[0]) if sys.argv else ''
+    if argv0.startswith('gen-cffi-src'):
+        return 'gen-cffi-src'
+    return 'python -m cffi.buildtool'
+
+
 parser = argparse.ArgumentParser(
-    prog='python -m cffi.buildtool',
+    prog=_prog(),
     description='Generate CFFI C source for a build backend (e.g. meson-python).',
 )
 subparsers = parser.add_subparsers(dest='mode')

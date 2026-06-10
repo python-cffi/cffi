@@ -9,6 +9,7 @@ imports the built extension to confirm it works.
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -63,11 +64,20 @@ def test_meson_python_build(tmp_path, project):
     project_dir = tmp_path / "project"
     shutil.copytree(project, project_dir)
 
+    # The example meson.build files locate the codegen tool with
+    # find_program('gen-cffi-src'), which searches PATH. pip only puts
+    # an environment's scripts directory on PATH for isolated builds,
+    # so with --no-build-isolation the nested venv's script must be
+    # made findable by hand.
+    env = os.environ.copy()
+    env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
+
     # --no-build-isolation to ensure the test runs against the CFFI build we want to test
-    subprocess.check_call([
-        str(venv_python), "-m", "pip", "install",
+    proc = subprocess.run([
+        str(venv_python), "-m", "pip", "install", "-v",
         "--no-build-isolation", str(project_dir),
-    ])
+    ], env=env, capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
 
     # Confirm the built extension imports and behaves as expected.
     subprocess.check_call([
