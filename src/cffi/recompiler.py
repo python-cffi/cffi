@@ -7,9 +7,11 @@ VERSION_BASE = 0x2601
 VERSION_EMBEDDED = 0x2701
 VERSION_CHAR16CHAR32 = 0x2801
 
+FREE_THREADED_BUILD = sysconfig.get_config_var("Py_GIL_DISABLED")
 USE_LIMITED_API = ((sys.platform != 'win32' or sys.version_info < (3, 0) or
                    sys.version_info >= (3, 5)) and
-                   (not sysconfig.get_config_var("Py_GIL_DISABLED") or sys.version_info >= (3, 15)))  # free-threaded doesn't yet support limited API
+                   # free-threaded build doesn't support the stable ABI until Python 3.15
+                   (not FREE_THREADED_BUILD or sys.version_info >= (3, 15)))
 
 class GlobalExpr:
     def __init__(self, name, address, type_op, size=0, check_value=0):
