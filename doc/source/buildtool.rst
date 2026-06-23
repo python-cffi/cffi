@@ -8,7 +8,7 @@ Building and Distributing CFFI Extensions
 
 CFFI ships a command-line tool, ``gen-cffi-src``, that produces the
 same output as :meth:`FFI.emit_c_code`: a ``.c`` source file ready to
-be compiled into a CPython extension module. This tool enables
+be compiled into a CPython c-extension module. This tool enables
 integrating with any build backend, such as `meson-python
 <https://meson-python.readthedocs.io/>`_, `scikit-build-core
 <https://scikit-build-core.readthedocs.io/>`_, or similar.
@@ -133,7 +133,7 @@ and ``squared.csrc.c``:
 
    #include "square.h"
 
-you would run the following command to generate a CFFI extension:
+you would run the following command to generate the c code for a CFFI extension:
 
 .. code-block:: console
 
