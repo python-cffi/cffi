@@ -3,7 +3,7 @@
 The test provisions a fresh nested venv under ``tmp_path`` using the
 stdlib :mod:`venv` module, installs ``cffi`` (from the current source
 tree) and ``meson-python`` into it, installs one of the small example
-projects that live under ``testing/cffi1/buildtool_examples/``, and then
+projects that live under ``testing/cffi1/cffi_gen_src_examples/``, and then
 imports the built extension to confirm it works.
 
 """
@@ -30,8 +30,8 @@ except ImportError:
 
 
 HERE = Path(__file__).resolve().parent
-EXAMPLE_PROJECT = HERE / "buildtool_examples" / "build_script_example"
-EXAMPLE_PROJECT2 = HERE / "buildtool_examples" / "cdef_example"
+EXAMPLE_PROJECT = HERE / "cffi_gen_src_examples" / "exec_python_example"
+EXAMPLE_PROJECT2 = HERE / "cffi_gen_src_examples" / "read_sources_example"
 CFFI_DIR = HERE.parent.parent
 
 
@@ -65,7 +65,7 @@ def test_meson_python_build(tmp_path, project):
     shutil.copytree(project, project_dir)
 
     # The example meson.build files locate the codegen tool with
-    # find_program('gen-cffi-src'), which searches PATH. pip only puts
+    # find_program('cffi-gen-src'), which searches PATH. pip only puts
     # an environment's scripts directory on PATH for isolated builds,
     # so with --no-build-isolation the nested venv's script must be
     # made findable by hand.

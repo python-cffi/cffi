@@ -1,6 +1,6 @@
-"""Tests for the buildtool command-line tool.
+"""Tests for the cffi-gen-src command-line tool.
 
-The command line is the buildtool's only public interface, so these
+The command line is the tool's only public interface, so these
 tests drive it exclusively through subprocesses.
 """
 
@@ -46,13 +46,13 @@ def something_else():
 """
 
 
-def _gen_cffi_src_path():
-    """Locate the installed ``gen-cffi-src`` script, or return None."""
-    exe = "gen-cffi-src" + (".exe" if sys.platform == "win32" else "")
+def _cffi_gen_src_path():
+    """Locate the installed ``cffi-gen-src`` script, or return None."""
+    exe = "cffi-gen-src" + (".exe" if sys.platform == "win32" else "")
     candidate = os.path.join(sysconfig.get_path("scripts"), exe)
     if os.path.exists(candidate):
         return candidate
-    return shutil.which("gen-cffi-src")
+    return shutil.which("cffi-gen-src")
 
 
 def _run(argv, *args):
@@ -64,18 +64,18 @@ def _run(argv, *args):
     )
 
 
-# `gen-cffi-src` can also be invoked via `python -m cffi.buildtool`.
+# `cffi-gen-src` can also be invoked via `python -m cffi.gen_src`.
 # This fixture enables testing both invocations.
 @pytest.fixture(params=["module", "script"])
-def run_buildtool(request):
-    """Run the buildtool CLI in a subprocess, via both invocations."""
+def run_cffi_gen_src(request):
+    """Run the cffi-gen-src CLI in a subprocess, via both invocations."""
     if request.param == "script":
-        script = _gen_cffi_src_path()
+        script = _cffi_gen_src_path()
         if script is None:
-            pytest.skip("the gen-cffi-src script is not installed")
+            pytest.skip("the cffi-gen-src script is not installed")
         argv = [script]
     else:
-        argv = [sys.executable, "-m", "cffi.buildtool"]
+        argv = [sys.executable, "-m", "cffi.gen_src"]
 
     def run(*args):
         return _run(argv, *args)
@@ -83,11 +83,11 @@ def run_buildtool(request):
     return run
 
 
-def test_exec_python(tmp_path, run_buildtool):
+def test_exec_python(tmp_path, run_cffi_gen_src):
     pyfile = tmp_path / "_squared_build.py"
     pyfile.write_text(SIMPLE_SCRIPT)
     output = tmp_path / "out.c"
-    proc = run_buildtool("exec-python", str(pyfile), str(output))
+    proc = run_cffi_gen_src("exec-python", str(pyfile), str(output))
     assert proc.returncode == 0, proc.stderr
     generated = output.read_text()
     assert "square" in generated
@@ -95,22 +95,49 @@ def test_exec_python(tmp_path, run_buildtool):
     assert "PyInit" in generated or "_cffi_f_" in generated
 
 
-def test_exec_python_ffi_var(tmp_path, run_buildtool):
+def test_exec_python_ffi_var(tmp_path, run_cffi_gen_src):
     pyfile = tmp_path / "_squared_build.py"
     pyfile.write_text(CALLABLE_SCRIPT)
     output = tmp_path / "out.c"
-    proc = run_buildtool(
+    proc = run_cffi_gen_src(
         "exec-python", "--ffi-var", "make_ffi", str(pyfile), str(output)
     )
     assert proc.returncode == 0, proc.stderr
     assert "square" in output.read_text()
 
 
-def test_exec_python_name_not_found(tmp_path, run_buildtool):
+def test_exec_python_supports_file_and_script_imports(tmp_path, run_cffi_gen_src):
+    helper = tmp_path / "helper.py"
+    helper.write_text("HEADER = '#include \"square.h\"'\n")
+    pyfile = tmp_path / "_squared_build.py"
+    pyfile.write_text("""\
+import os
+
+from cffi import FFI
+
+assert os.path.basename(__file__) == "_squared_build.py"
+
+def make_ffi():
+    from helper import HEADER
+
+    ffibuilder = FFI()
+    ffibuilder.cdef("int square(int n);")
+    ffibuilder.set_source("squared._squared", HEADER)
+    return ffibuilder
+""")
+    output = tmp_path / "out.c"
+    proc = run_cffi_gen_src(
+        "exec-python", "--ffi-var", "make_ffi", str(pyfile), str(output)
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "square" in output.read_text()
+
+
+def test_exec_python_name_not_found(tmp_path, run_cffi_gen_src):
     pyfile = tmp_path / "_squared_build.py"
     pyfile.write_text(SIMPLE_SCRIPT)
     output = tmp_path / "out.c"
-    proc = run_buildtool(
+    proc = run_cffi_gen_src(
         "exec-python", "--ffi-var", "notfound", str(pyfile), str(output)
     )
     assert proc.returncode != 0
@@ -121,24 +148,24 @@ def test_exec_python_name_not_found(tmp_path, run_buildtool):
 @pytest.mark.parametrize(
     "script", [SIMPLE_SCRIPT, CALLABLE_SCRIPT], ids=["simple", "callable"]
 )
-def test_exec_python_wrong_type(tmp_path, run_buildtool, script):
+def test_exec_python_wrong_type(tmp_path, run_cffi_gen_src, script):
     pyfile = tmp_path / "_squared_build.py"
     pyfile.write_text(script)
     output = tmp_path / "out.c"
-    proc = run_buildtool(
+    proc = run_cffi_gen_src(
         "exec-python", "--ffi-var", "something_else", str(pyfile), str(output)
     )
     assert proc.returncode != 0
     assert "not an instance of cffi.api.FFI" in proc.stderr
 
 
-def test_read_sources(tmp_path, run_buildtool):
+def test_read_sources(tmp_path, run_cffi_gen_src):
     cdef = tmp_path / "squared.cdef.txt"
     cdef.write_text("int square(int n);\n")
     csrc = tmp_path / "squared.csrc.c"
     csrc.write_text('#include "square.h"\n')
     output = tmp_path / "out.c"
-    proc = run_buildtool(
+    proc = run_cffi_gen_src(
         "read-sources", "squared._squared", str(cdef), str(csrc), str(output)
     )
     assert proc.returncode == 0, proc.stderr
@@ -147,37 +174,37 @@ def test_read_sources(tmp_path, run_buildtool):
     assert "PyInit" in generated or "_cffi_f_" in generated
 
 
-def test_read_sources_same_input_fails(run_buildtool):
-    proc = run_buildtool("read-sources", "_squared", "-", "-", "-")
+def test_read_sources_same_input_fails(run_cffi_gen_src):
+    proc = run_cffi_gen_src("read-sources", "_squared", "-", "-", "-")
     assert proc.returncode != 0
     assert "are the same file and should not be" in proc.stderr
 
 
-def test_no_subcommand(run_buildtool):
-    proc = run_buildtool()
+def test_no_subcommand(run_cffi_gen_src):
+    proc = run_cffi_gen_src()
     assert proc.returncode != 0
     assert "a subcommand is required" in proc.stderr
 
 
 def test_module_help_names_module_invocation():
-    proc = _run([sys.executable, "-m", "cffi.buildtool"], "--help")
+    proc = _run([sys.executable, "-m", "cffi.gen_src"], "--help")
     assert proc.returncode == 0, proc.stderr
-    assert proc.stdout.startswith("usage: python -m cffi.buildtool")
+    assert proc.stdout.startswith("usage: python -m cffi.gen_src")
 
 
 def test_script_help_names_script_invocation():
-    script = _gen_cffi_src_path()
+    script = _cffi_gen_src_path()
     if script is None:
-        pytest.skip("the gen-cffi-src script is not installed")
+        pytest.skip("the cffi-gen-src script is not installed")
     proc = _run([script], "--help")
     assert proc.returncode == 0, proc.stderr
-    assert proc.stdout.startswith("usage: gen-cffi-src")
+    assert proc.stdout.startswith("usage: cffi-gen-src")
 
 
 def test_import_is_inert():
     # importing the entry-point module must not run the CLI
     proc = subprocess.run(
-        [sys.executable, "-c", "import cffi.buildtool"],
+        [sys.executable, "-c", "import cffi.gen_src"],
         capture_output=True,
         text=True,
     )

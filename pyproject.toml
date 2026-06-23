@@ -42,7 +42,7 @@ maintainers = [
 cffi_modules = "cffi.setuptools_ext:cffi_modules"
 
 [project.scripts]
-gen-cffi-src = "cffi._buildtool:run"
+cffi-gen-src = "cffi._cffi_gen_src:run"
 
 [project.urls]
 Documentation = "https://cffi.readthedocs.io/"

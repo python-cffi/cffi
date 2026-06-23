@@ -25,18 +25,18 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""Implementation of the ``gen-cffi-src`` command-line tool.
+"""Implementation of the ``cffi-gen-src`` command-line tool.
 
 This module is private; the command line is the only supported
 interface. Two subcommands:
 
 ``exec-python``
-    Execute a Python build script that constructs a :class:`cffi.FFI`
+    Execute a Python script that constructs a :class:`cffi.FFI`
     (the same kind of script that the CFFI docs' "Main mode of usage"
     describes) and emit the generated C source.
 
 ``read-sources``
-    Build the :class:`cffi.FFI` from a separate ``cdef`` file and C
+    Create the :class:`cffi.FFI` from a separate ``cdef`` file and C
     source prelude, then emit the generated C source.
 """
 
@@ -56,7 +56,7 @@ def _execfile(pysrc, filename, globs):
 def find_ffi_in_python_script(pysrc, filename, ffivar):
     """Execute ``pysrc`` and return the :class:`FFI` object it defines.
 
-    The script is executed with ``__name__`` set to ``"cffi.buildtool"``,
+    The script is executed with ``__name__`` set to ``"cffi.gen_src"``,
     so a trailing ``if __name__ == "__main__": ffibuilder.compile()``
     block in the script is skipped.
 
@@ -67,27 +67,33 @@ def find_ffi_in_python_script(pysrc, filename, ffivar):
     or :class:`TypeError` if the name does not resolve to an
     :class:`FFI` instance.
     """
-    globs = {'__name__': 'cffi.buildtool'}
-    _execfile(pysrc, filename, globs)
-    if ffivar not in globs:
-        raise NameError(
-            "Expected to find the FFI object with the name %r, "
-            "but it was not found." % (ffivar,)
-        )
-    ffi = globs[ffivar]
-    if not isinstance(ffi, FFI) and callable(ffi):
-        # Maybe it's a callable that returns a FFI
-        ffi = ffi()
-    if not isinstance(ffi, FFI):
-        raise TypeError(
-            "Found an object with the name %r but it was not an "
-            "instance of cffi.api.FFI" % (ffivar,)
-        )
-    return ffi
+    filename = os.path.abspath(filename)
+    globs = {'__name__': 'cffi.gen_src', '__file__': filename}
+    old_path = sys.path[:]
+    sys.path.insert(0, os.path.dirname(filename))
+    try:
+        _execfile(pysrc, filename, globs)
+        if ffivar not in globs:
+            raise NameError(
+                "Expected to find the FFI object with the name %r, "
+                "but it was not found." % (ffivar,)
+            )
+        ffi = globs[ffivar]
+        if not isinstance(ffi, FFI) and callable(ffi):
+            # Maybe it's a callable that returns a FFI
+            ffi = ffi()
+        if not isinstance(ffi, FFI):
+            raise TypeError(
+                "Found an object with the name %r but it was not an "
+                "instance of cffi.api.FFI" % (ffivar,)
+            )
+        return ffi
+    finally:
+        sys.path[:] = old_path
 
 
 def make_ffi_from_sources(modulename, cdef, csrc):
-    """Build an :class:`FFI` from ``cdef`` text and a C source prelude."""
+    """Create an :class:`FFI` from ``cdef`` text and a C source prelude."""
     ffibuilder = FFI()
     ffibuilder.cdef(cdef)
     ffibuilder.set_source(modulename, csrc)
@@ -101,12 +107,28 @@ def generate_c_source(ffi):
     return output.getvalue()
 
 
+def write_c_source(output, generated):
+    if output == '-':
+        sys.stdout.write(generated)
+        return
+    with open(output, 'w', encoding='utf-8') as f:
+        f.write(generated)
+
+
+def same_input_file(file1, file2):
+    if file1 is file2:
+        return True
+    try:
+        return os.path.samefile(file1.name, file2.name)
+    except OSError:
+        return False
+
+
 def exec_python(*, output, pyfile, ffi_var):
     with pyfile:
         ffi = find_ffi_in_python_script(pyfile.read(), pyfile.name, ffi_var)
     generated = generate_c_source(ffi)
-    with output:
-        output.write(generated)
+    write_c_source(output, generated)
 
 
 def read_sources(*, output, module_name, cdef_input, csrc_input):
@@ -115,28 +137,27 @@ def read_sources(*, output, module_name, cdef_input, csrc_input):
         cdef = cdef_input.read()
     ffi = make_ffi_from_sources(module_name, cdef, csrc)
     generated = generate_c_source(ffi)
-    with output:
-        output.write(generated)
+    write_c_source(output, generated)
 
 
 def _prog():
     # The same parser serves both documented invocations; make --help
     # and usage messages show the one that was actually used.
     argv0 = os.path.basename(sys.argv[0]) if sys.argv else ''
-    if argv0.startswith('gen-cffi-src'):
-        return 'gen-cffi-src'
-    return 'python -m cffi.buildtool'
+    if argv0.startswith('cffi-gen-src'):
+        return 'cffi-gen-src'
+    return 'python -m cffi.gen_src'
 
 
 parser = argparse.ArgumentParser(
     prog=_prog(),
-    description='Generate CFFI C source for a build backend (e.g. meson-python).',
+    description='Generate CFFI C source for extension modules.',
 )
 subparsers = parser.add_subparsers(dest='mode')
 
 exec_python_parser = subparsers.add_parser(
     'exec-python',
-    help='Execute a Python script to build an FFI object',
+    help='Execute a Python script that defines an FFI object',
 )
 exec_python_parser.add_argument(
     '--ffi-var',
@@ -150,13 +171,12 @@ exec_python_parser.add_argument(
 )
 exec_python_parser.add_argument(
     'output',
-    type=argparse.FileType('w', encoding='utf-8'),
     help='Output path for the C source',
 )
 
 read_sources_parser = subparsers.add_parser(
     'read-sources',
-    help='Read cdef and C source prelude files to build an FFI object',
+    help='Read cdef and C source prelude files that define an FFI object',
 )
 read_sources_parser.add_argument(
     'module_name',
@@ -174,7 +194,6 @@ read_sources_parser.add_argument(
 )
 read_sources_parser.add_argument(
     'output',
-    type=argparse.FileType('w', encoding='utf-8'),
     help='Output path for the C source',
 )
 
@@ -184,7 +203,7 @@ def run(args=None):
     if args.mode == 'exec-python':
         exec_python(output=args.output, pyfile=args.pyfile, ffi_var=args.ffi_var)
     elif args.mode == 'read-sources':
-        if args.cdef is args.csrc:
+        if same_input_file(args.cdef, args.csrc):
             parser.error('cdef and csrc are the same file and should not be')
         read_sources(
             output=args.output,

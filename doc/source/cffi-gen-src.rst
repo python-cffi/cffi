@@ -1,30 +1,34 @@
-.. _buildtool_docs:
+.. _cffi_gen_src_docs:
 
-=========================================
-Building and Distributing CFFI Extensions
-=========================================
+========================================
+Generating C Sources for CFFI Extensions
+========================================
 
 .. contents::
 
-CFFI ships a command-line tool, ``gen-cffi-src``, that produces the
+CFFI ships a command-line tool, ``cffi-gen-src``, that produces the
 same output as :meth:`FFI.emit_c_code`: a ``.c`` source file ready to
-be compiled into a CPython c-extension module. This tool enables
-integrating with any build backend, such as `meson-python
-<https://meson-python.readthedocs.io/>`_, `scikit-build-core
-<https://scikit-build-core.readthedocs.io/>`_, or similar.
+be compiled into a CPython c-extension module. This is useful for
+projects that want CFFI to generate source code for a later compilation
+step without depending on setuptools.
 
-Installing CFFI installs the ``gen-cffi-src`` script; running ``python
--m cffi.buildtool`` invokes the same command line and behaves
+Installing CFFI installs the ``cffi-gen-src`` script; running ``python
+-m cffi.gen_src`` invokes the same command line and behaves
 identically. Use the former where a script with a Python shebang
 makes more sense (e.g. cross-compiling) and use the latter when the
 console script is not on PATH but a Python interpreter is.
 
-The rest of this page uses meson-python in the examples, but any `Python build
-backend`_ that lets you run a helper program during the build can
-drive ``gen-cffi-src`` the same way.
+In a packaged project, ``cffi-gen-src`` is usually called by a script or
+rule executed by a build backend, and the build backend then consumes the
+generated C file. Any `Python build backend`_ that can run a source generator,
+such as
+`meson-python <https://meson-python.readthedocs.io/>`_,
+`scikit-build-core <https://scikit-build-core.readthedocs.io/>`_, or
+similar, can use ``cffi-gen-src`` the same way. The rest of this page uses
+meson-python in the examples.
 
-The only way to use the buildtool functionality is via this command
-line; the implementation inside the ``cffi`` package is private.
+The command line is the only supported interface; the Python API inside
+``cffi._cffi_gen_src`` is private.
 
 The implementation is based on the `cffi-buildtool`_ project by Rose Davidson
 (`@inklesspen`_ on GitHub). It is included in CFFI with permission of the original
@@ -34,22 +38,24 @@ author.
 .. _cffi-buildtool: https://github.com/inklesspen/cffi-buildtool
 .. _@inklesspen: https://github.com/inklesspen
 
-The ``gen-cffi-src`` Command-line Tool
+The ``cffi-gen-src`` Command-line Tool
 ======================================
 
-``gen-cffi-src`` has two subcommands. The first, ``exec-python`` is
+``cffi-gen-src`` has two subcommands. The first, ``exec-python`` is
 most useful if you already have a Python script that sets up an FFI
 definition. The second, ``read-sources`` is most useful if you are wrapping
 a large API surface and want a more structured way to specify a set of FFI
 definitions.
 
-``gen-cffi-src exec-python``
+``cffi-gen-src exec-python``
 ----------------------------
 
-This mode takes a Python script that dynamically defines an FFI interface and
-accompanying C extension source code. The FFI definition script is the same
-script you would normally run by hand -- the one the CFFI docs show under
-:ref:`real-example`.
+This mode executes a Python script that creates a :class:`cffi.FFI` object
+as a module-level global and calls :meth:`FFI.set_source` on it, then emits
+the generated C source. By default ``cffi-gen-src`` looks for a global
+named ``ffibuilder``; pass ``--ffi-var`` if the object has another name.
+Apart from being run by the tool instead of by hand, it is the same script
+the CFFI docs show under :ref:`real-example`.
 
 Let's say we want to create an extension module that wraps a single C function named
 ``square``. The ``square`` function has the following signature:
@@ -77,16 +83,15 @@ To generate the source code for the C extension, you would run:
 
 .. code-block:: console
 
-    $ gen-cffi-src exec-python _squared_build.py _squared.c
+    $ cffi-gen-src exec-python _squared_build.py _squared.c
 
 Many CFFI FFI definition scripts have an ``if __name__ == "__main__"`` section
 that triggers a compilation step. This is not needed for a script run
-by ``gen-cffi-src``, which does not generate compiled artifacts,
-only C source code. It is up to your build-backend of choice
-(e.g. meson-python) to run a C compiler and build compiled artifacts.
-If the script does have such a section it is harmless: the script is
-executed with ``__name__`` set to ``"cffi.buildtool"``, so the block is
-skipped and an existing FFI definition script works unchanged.
+by ``cffi-gen-src``, which only writes the generated C source. If the
+script does have such a section it is harmless: the script is executed with
+``__name__`` set to
+``"cffi.gen_src"``, so the block is skipped and an existing FFI
+definition script works unchanged.
 
 If the :class:`cffi.FFI` is bound to a name other than ``ffibuilder``, pass
 ``--ffi-var``. To make that concrete, let's say your FFI definition script
@@ -96,23 +101,31 @@ creates an FFI object named ``make_ffi``::
 
     make_ffi = FFI()
 
-In that case, you would pass ``--ffi-var=make_ffi`` to ``gen-cffi-src``:
+In that case, you would pass ``--ffi-var=make_ffi`` to ``cffi-gen-src``:
 
 .. code-block:: console
 
-    $ gen-cffi-src exec-python --ffi-var=make_ffi _squared_build.py _squared.c
+    $ cffi-gen-src exec-python --ffi-var=make_ffi _squared_build.py _squared.c
+
+.. note::
+
+   ``cffi-gen-src`` emits C source for out-of-line API mode modules. It
+   cannot emit source for ABI mode modules where :meth:`FFI.set_source`
+   is called with ``None``.
 
 .. note::
 
    CFFI's setuptools integration supports passing ``libraries=``,
    ``library_dirs=``, ``include_dirs=``, and ``extra_compile_args=``
-   arguments to :meth:`FFI.set_source`. When using ``gen-cffi-src``,
+   arguments to :meth:`FFI.set_source`. When using ``cffi-gen-src``,
    these arguments are *ignored*. Link and include settings are the
-   build backend's responsibility; for meson-python you would express
-   them through the ``dependencies``, ``include_directories``, and
-   ``c_args`` arguments of ``py.extension_module()``.
+   responsibility of the compilation step that happens after generating
+   the C extension sources. If you are using meson-python following the
+   examples in this section, you would express them through the
+   ``dependencies``, ``include_directories``, and ``c_args`` arguments of
+   ``py.extension_module()``.
 
-``gen-cffi-src read-sources``
+``cffi-gen-src read-sources``
 -----------------------------
 
 For larger modules, keeping the FFI definition and any necessary C
@@ -133,11 +146,11 @@ and ``squared.csrc.c``:
 
    #include "square.h"
 
-you would run the following command to generate the c code for a CFFI extension:
+you would run the following command to generate the C source code for a CFFI extension:
 
 .. code-block:: console
 
-   $ gen-cffi-src read-sources squared._squared squared.cdef.txt squared.csrc.c _squared.c
+   $ cffi-gen-src read-sources squared._squared squared.cdef.txt squared.csrc.c _squared.c
 
 With all other details left exactly the same as the ``exec-python`` example.
 
@@ -166,32 +179,32 @@ Project layout:
 
 ``pyproject.toml``:
 
-.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/pyproject.toml
+.. literalinclude:: ../../testing/cffi1/cffi_gen_src_examples/exec_python_example/pyproject.toml
    :language: toml
 
 ``meson.build``:
 
-.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/meson.build
+.. literalinclude:: ../../testing/cffi1/cffi_gen_src_examples/exec_python_example/meson.build
    :language: meson
 
 ``src/squared/__init__.py``:
 
-.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/src/squared/__init__.py
+.. literalinclude:: ../../testing/cffi1/cffi_gen_src_examples/exec_python_example/src/squared/__init__.py
    :language: python
 
 ``src/squared/_squared_build.py``:
 
-.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/src/squared/_squared_build.py
+.. literalinclude:: ../../testing/cffi1/cffi_gen_src_examples/exec_python_example/src/squared/_squared_build.py
    :language: python
 
 ``src/csrc/square.h``:
 
-.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/src/csrc/square.h
+.. literalinclude:: ../../testing/cffi1/cffi_gen_src_examples/exec_python_example/src/csrc/square.h
    :language: C
 
 ``src/csrc/square.c``:
 
-.. literalinclude:: ../../testing/cffi1/buildtool_examples/build_script_example/src/csrc/square.c
+.. literalinclude:: ../../testing/cffi1/cffi_gen_src_examples/exec_python_example/src/csrc/square.c
    :language: C
 
 Build and install the project with any Python build front-end. For
@@ -223,21 +236,21 @@ becomes:
 
 The first new file, ``squared.cdef.txt``, contains the FFI definition:
 
-.. literalinclude:: ../../testing/cffi1/buildtool_examples/cdef_example/src/squared/squared.cdef.txt
+.. literalinclude:: ../../testing/cffi1/cffi_gen_src_examples/read_sources_example/src/squared/squared.cdef.txt
    :language: python
 
 and the second, ``squared.csrc.c``, contains the C source prelude:
 
-.. literalinclude:: ../../testing/cffi1/buildtool_examples/cdef_example/src/squared/squared.csrc.c
+.. literalinclude:: ../../testing/cffi1/cffi_gen_src_examples/read_sources_example/src/squared/squared.csrc.c
    :language: python
 
 then change two spots in the ``meson.build`` file.  First, update the ``custom_target``
-``command`` to call ``gen-cffi-src read-sources`` with two input arguments:
+``command`` to call ``cffi-gen-src read-sources`` with two input arguments:
 
 .. code-block:: meson
 
   command: [
-    gen_cffi_src,
+    cffi_gen_src,
     'read-sources',
     'squared._squared',
     '@INPUT0@',

@@ -16,5 +16,5 @@ copy-paste from header files or documentation.
    using
    ref
    cdef
-   buildtool
+   cffi-gen-src
    embedding
