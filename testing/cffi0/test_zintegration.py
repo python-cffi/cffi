@@ -181,7 +181,10 @@ class TestZIntegration:
             pytest.skip(str(e))
         orig_version = setuptools.__version__
         # free-threaded Python does not yet support limited API
-        expecting_limited_api = not hasattr(sys, 'gettotalrefcount') and not sysconfig.get_config_var("Py_GIL_DISABLED")
+        expecting_limited_api = (
+            not hasattr(sys, 'gettotalrefcount') and not
+            (sysconfig.get_config_var("Py_GIL_DISABLED") and sys.version_info < (3, 15))
+        )
         try:
             setuptools.__version__ = '26.0.0'
             from setuptools import Extension

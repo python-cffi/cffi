@@ -7,9 +7,11 @@ VERSION_BASE = 0x2601
 VERSION_EMBEDDED = 0x2701
 VERSION_CHAR16CHAR32 = 0x2801
 
+FREE_THREADED_BUILD = sysconfig.get_config_var("Py_GIL_DISABLED")
 USE_LIMITED_API = ((sys.platform != 'win32' or sys.version_info < (3, 0) or
                    sys.version_info >= (3, 5)) and
-                   not sysconfig.get_config_var("Py_GIL_DISABLED"))  # free-threaded doesn't yet support limited API
+                   # free-threaded build doesn't support the stable ABI until Python 3.15
+                   (not FREE_THREADED_BUILD or sys.version_info >= (3, 15)))
 
 class GlobalExpr:
     def __init__(self, name, address, type_op, size=0, check_value=0):
@@ -93,9 +95,18 @@ class EnumExpr:
         self.allenums = allenums
 
     def as_c_expr(self):
-        return ('  { "%s", %d, _cffi_prim_int(%s, %s),\n'
-                '    "%s" },' % (self.name, self.type_index,
-                                 self.size, self.signed, self.allenums))
+        lines = ['  { "%s", %d, _cffi_prim_int(%s, %s),' % (self.name, self.type_index,
+                                                            self.size, self.signed,)]
+        pending = 0
+        while len(self.allenums) > pending + 110:
+            j = self.allenums.find(',', pending + 100)
+            if j < 0:
+                break
+            j += 1
+            lines.append('    "%s"' % (self.allenums[pending:j],))
+            pending = j
+        lines.append('    "%s" },' % (self.allenums[pending:],))
+        return '\n'.join(lines)
 
     def as_python_expr(self):
         prim_index = {
