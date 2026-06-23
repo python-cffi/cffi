@@ -843,6 +843,17 @@ static PyObject *ffi_get_errno(PyObject *self, void *closure)
     return b_get_errno(NULL, NULL);
 }
 
+PyDoc_STRVAR(ffi_includes_doc, "tuple of directly included FFI objects, if any");
+
+static PyObject *ffi_get_includes(FFIObject *self, void *closure)
+{
+    PyObject *result = self->types_builder.included_ffis;
+    if (result == NULL)
+        return PyTuple_New(0);
+    Py_INCREF(result);
+    return result;
+}
+
 static int ffi_set_errno(PyObject *self, PyObject *newval, void *closure)
 {
     PyObject *x = b_set_errno(NULL, newval);
@@ -892,6 +903,36 @@ static PyObject *ffi_int_const(FFIObject *self, PyObject *args, PyObject *kwds)
                      "integer constant '%.200s' not found", name);
     }
     return x;
+}
+
+static PyObject *cglobaldescr_new(FFIObject *ffi, int index);   /* forward */
+
+PyDoc_STRVAR(ffi_list_globals_doc,
+"Returns a list of globals known to this FFI instance, sorted by name.\n"
+"This allows introspecting the API that a loaded library object would have\n"
+"(assuming the library provides all symbols) without needing one.");
+
+static PyObject *ffi_list_globals(FFIObject *self, PyObject *noargs)
+{
+    Py_ssize_t i, n = self->types_builder.ctx.num_globals;
+    PyObject *o, *lst, *result = NULL;
+
+    lst = PyList_New(n);
+    if (lst == NULL)
+        goto error;
+
+    for (i = 0; i < n; i++) {
+        o = cglobaldescr_new(self, i);
+        if (o == NULL)
+            goto error;
+        PyList_SET_ITEM(lst, i, o);
+    }
+    result = lst;
+    lst = NULL;
+    /* fall-through */
+ error:
+    Py_XDECREF(lst);
+    return result;
 }
 
 PyDoc_STRVAR(ffi_list_types_doc,
@@ -945,6 +986,33 @@ static PyObject *ffi_list_types(FFIObject *self, PyObject *noargs)
     Py_XDECREF(lst[2]);
     Py_XDECREF(lst[1]);
     Py_XDECREF(lst[0]);
+    return result;
+}
+
+PyDoc_STRVAR(ffi_list_enums_doc,
+"Returns the list of enum type names known to this FFI instance.");
+
+static PyObject *ffi_list_enums(FFIObject *self, PyObject *noargs)
+{
+    Py_ssize_t i, n = self->types_builder.ctx.num_enums;
+    PyObject *o, *lst, *result = NULL;
+
+    lst = PyList_New(n);
+    if (lst == NULL)
+        goto error;
+
+    for (i = 0; i < n; i++) {
+        o = PyUnicode_FromString(self->types_builder.ctx.enums[i].name);
+        if (o == NULL)
+            goto error;
+        PyList_SET_ITEM(lst, i, o);
+    }
+
+    result = lst;
+    lst = NULL;
+    /* fall-through */
+ error:
+    Py_XDECREF(lst);
     return result;
 }
 
@@ -1116,7 +1184,9 @@ static PyMethodDef ffi_methods[] = {
 #endif
  {"init_once",  (PyCFunction)ffi_init_once,  METH_VKW,     ffi_init_once_doc},
  {"integer_const",(PyCFunction)ffi_int_const,METH_VKW,     ffi_int_const_doc},
+ {"list_globals",(PyCFunction)ffi_list_globals,METH_NOARGS,ffi_list_globals_doc},
  {"list_types", (PyCFunction)ffi_list_types, METH_NOARGS,  ffi_list_types_doc},
+ {"list_enums", (PyCFunction)ffi_list_enums, METH_NOARGS,  ffi_list_enums_doc},
  {"memmove",    (PyCFunction)ffi_memmove,    METH_VKW,     ffi_memmove_doc},
  {"new",        (PyCFunction)ffi_new,        METH_VKW,     ffi_new_doc},
 {"new_allocator",(PyCFunction)ffi_new_allocator,METH_VKW,ffi_new_allocator_doc},
@@ -1132,6 +1202,7 @@ static PyMethodDef ffi_methods[] = {
 
 static PyGetSetDef ffi_getsets[] = {
     {"errno",  ffi_get_errno,  ffi_set_errno,  ffi_errno_doc},
+    {"includes",  (getter)ffi_get_includes,  NULL,  ffi_includes_doc},
     {NULL}
 };
 
@@ -1219,3 +1290,216 @@ _fetch_external_struct_or_union(const struct _cffi_struct_union_s *s,
     }
     return NULL;   /* not found at all, leave without an error */
 }
+
+/************************************************************/
+
+typedef struct cglobaldescrobject_s {
+    PyObject_HEAD
+    FFIObject *ffi;
+    int index;
+    builder_c_t *types_builder;
+    const struct _cffi_global_s *global;
+} CGlobalDescrObject;
+
+static PyObject *
+cglobaldescr_new(FFIObject *ffi, int index)
+{
+    CGlobalDescrObject *cg = PyObject_GC_New(CGlobalDescrObject,
+                                             &CGlobalDescr_Type);
+    if (cg == NULL)
+        return NULL;
+
+    Py_INCREF(ffi);
+    cg->ffi = ffi;
+    cg->types_builder = &ffi->types_builder;
+    cg->index = index;
+    cg->global = &ffi->types_builder.ctx.globals[index];
+    PyObject_GC_Track(cg);
+    return (PyObject *) cg;
+}
+
+static void
+cglobaldescr_dealloc(CGlobalDescrObject *cg)
+{
+    PyObject_GC_UnTrack(cg);
+    Py_XDECREF(cg->ffi);
+    Py_TYPE(cg)->tp_free((PyObject *)cg);
+}
+
+static int
+cglobaldescr_traverse(CGlobalDescrObject *cg, visitproc visit, void *arg)
+{
+    Py_VISIT(cg->ffi);
+    return 0;
+}
+
+static int
+cglobaldescr_clear(CGlobalDescrObject *cg)
+{
+    Py_CLEAR(cg->ffi);
+    return 0;
+}
+
+static PyObject *cglobalget_name(CGlobalDescrObject *cg, void *context)
+{
+    return PyUnicode_FromString(cg->global->name);
+}
+
+static PyObject *cglobalget_kind(CGlobalDescrObject *cg, void *context)
+{
+    char *result;
+
+    switch (_CFFI_GETOP(cg->global->type_op)) {
+
+    case _CFFI_OP_CONSTANT_INT:
+        result = "int_constant";
+        break;
+    case _CFFI_OP_ENUM:
+        result = "enum";
+        break;
+
+    case _CFFI_OP_CONSTANT:
+    case _CFFI_OP_DLOPEN_CONST:
+        result = "constant";
+        break;
+
+    case _CFFI_OP_GLOBAL_VAR:
+    case _CFFI_OP_GLOBAL_VAR_F:
+        result = "variable";
+        break;
+
+    case _CFFI_OP_DLOPEN_FUNC:
+    case _CFFI_OP_EXTERN_PYTHON:
+        result = "function";
+        break;
+
+    case _CFFI_OP_CPYTHON_BLTN_V:
+    case _CFFI_OP_CPYTHON_BLTN_N:
+    case _CFFI_OP_CPYTHON_BLTN_O:
+        result = "python_function";
+        break;
+
+    default:
+        result = "?";
+    }
+
+    return PyUnicode_FromString(result);
+}
+
+static PyObject *cglobalget_type(CGlobalDescrObject *cg, void *context)
+{
+    PyObject *ft, *ct;
+    _cffi_opcode_t type_op = cg->global->type_op;
+
+    switch (_CFFI_GETOP(type_op)) {
+
+    case _CFFI_OP_CONSTANT:
+    case _CFFI_OP_DLOPEN_CONST:
+    case _CFFI_OP_GLOBAL_VAR:
+    case _CFFI_OP_GLOBAL_VAR_F:
+        return (PyObject *)realize_c_type(cg->types_builder,
+                                          cg->types_builder->ctx.types,
+                                          _CFFI_GETARG(type_op));
+
+    case _CFFI_OP_DLOPEN_FUNC:
+    case _CFFI_OP_EXTERN_PYTHON:
+    case _CFFI_OP_CPYTHON_BLTN_V:
+    case _CFFI_OP_CPYTHON_BLTN_N:
+    case _CFFI_OP_CPYTHON_BLTN_O:
+        ft = realize_c_type_or_func(cg->types_builder,
+                                    cg->types_builder->ctx.types,
+                                    _CFFI_GETARG(type_op));
+        if (ft == NULL)
+            return NULL;
+
+        ct = (PyObject *)unwrap_fn_as_fnptr(ft);
+        Py_INCREF(ct);
+        Py_DECREF(ft);
+        return ct;
+    }
+    return nosuchattr("type");
+}
+
+static PyObject *cglobalget_value(CGlobalDescrObject *cg, void *context)
+{
+    switch (_CFFI_GETOP(cg->global->type_op)) {
+    case _CFFI_OP_CONSTANT_INT:
+    case _CFFI_OP_ENUM:
+        return realize_global_int(cg->types_builder, cg->index);
+    }
+    return nosuchattr("value");
+}
+
+static PyGetSetDef cglobaldescr_getsets[] = {
+    {"name", (getter)cglobalget_name, NULL, "attribute name"},
+    {"kind", (getter)cglobalget_kind, NULL, "kind"},
+    {"type", (getter)cglobalget_type, NULL, "attribute ctype"},
+    {"value", (getter)cglobalget_value, NULL, "integer constant value"},
+    {NULL}                        /* sentinel */
+};
+
+static PyObject *
+cglobaldescr_dir(PyObject *cg, PyObject *noarg)
+{
+    int err;
+    struct PyGetSetDef *gsdef;
+    PyObject *res = PyList_New(0);
+    if (res == NULL)
+        return NULL;
+
+    for (gsdef = cglobaldescr_getsets; gsdef->name; gsdef++) {
+        PyObject *x = PyObject_GetAttrString(cg, gsdef->name);
+        if (x == NULL) {
+            PyErr_Clear();
+        }
+        else {
+            Py_DECREF(x);
+            x = PyUnicode_FromString(gsdef->name);
+            err = (x != NULL) ? PyList_Append(res, x) : -1;
+            Py_XDECREF(x);
+            if (err < 0) {
+                Py_DECREF(res);
+                return NULL;
+            }
+        }
+    }
+    return res;
+}
+
+static PyMethodDef cglobaldescr_methods[] = {
+    {"__dir__",   cglobaldescr_dir,  METH_NOARGS},
+    {NULL,        NULL}           /* sentinel */
+};
+
+static PyTypeObject CGlobalDescr_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_cffi_backend.CGlobal",
+    sizeof(CGlobalDescrObject),
+    0,
+    (destructor)cglobaldescr_dealloc,         /* tp_dealloc */
+    0,                                        /* tp_print */
+    0,                                        /* tp_getattr */
+    0,                                        /* tp_setattr */
+    0,                                        /* tp_compare */
+    0,                                        /* tp_repr */
+    0,                                        /* tp_as_number */
+    0,                                        /* tp_as_sequence */
+    0,                                        /* tp_as_mapping */
+    0,                                        /* tp_hash */
+    0,                                        /* tp_call */
+    0,                                        /* tp_str */
+    PyObject_GenericGetAttr,                  /* tp_getattro */
+    0,                                        /* tp_setattro */
+    0,                                        /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,  /* tp_flags */
+    0,                                        /* tp_doc */
+    (traverseproc)cglobaldescr_traverse,      /* tp_traverse */
+    (inquiry)cglobaldescr_clear,              /* tp_clear */
+    0,                                        /* tp_richcompare */
+    0,                                        /* tp_weaklistoffset */
+    0,                                        /* tp_iter */
+    0,                                        /* tp_iternext */
+    cglobaldescr_methods,                     /* tp_methods */
+    0,                                        /* tp_members */
+    cglobaldescr_getsets,                     /* tp_getset */
+};

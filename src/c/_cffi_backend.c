@@ -287,6 +287,7 @@ typedef struct cfieldobject_s {
 #define BS_EMPTY_ARRAY        (-2) /* a field declared 'type[0]' or 'type[]' */
 #define BF_IGNORE_IN_CTOR     0x01 /* union field not in the first place */
 
+static PyTypeObject CGlobalDescr_Type;
 static PyTypeObject CTypeDescr_Type;
 static PyTypeObject CField_Type;
 static PyTypeObject CData_Type;
@@ -7913,6 +7914,7 @@ PyInit__cffi_backend(void)
         &dl_type,
         &CTypeDescr_Type,
         &CField_Type,
+        &CGlobalDescr_Type,
         &CData_Type,
         &CDataOwning_Type,
         &CDataOwningGC_Type,
