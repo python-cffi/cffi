@@ -280,6 +280,7 @@ class TestFunction:
         res = ffi.C.strlen(p)
         assert res == 5
 
+    @pytest.mark.thread_unsafe(reason="Mutates process-global libc stdout pointer")
     def test_write_variable(self):
         if not sys.platform.startswith('linux') or _is_musl:
             pytest.skip("probably no symbol 'stdout' in the lib")
