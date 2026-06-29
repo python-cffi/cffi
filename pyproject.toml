@@ -7,11 +7,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cffi"
-version = "2.0.1.dev0"
+version = "2.1.0.dev0"
 dependencies = [
     "pycparser; implementation_name != 'PyPy'",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 description = "Foreign Function Interface for Python calling C code."
 readme = "README.md"
@@ -20,7 +20,6 @@ license-files = ["LICENSE"]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
