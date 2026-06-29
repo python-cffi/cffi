@@ -312,7 +312,6 @@ jobs:
         matrix_yaml: |
           include:
           # x86_64 windows
-          - { spec: cp39-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp310-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp311-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
@@ -323,7 +322,6 @@ jobs:
           - { spec: cp315t-win_amd64 }
           
           # x86 windows
-          - { spec: cp39-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp310-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp311-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp312-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
