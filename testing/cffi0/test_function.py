@@ -307,9 +307,9 @@ class TestFunction:
         q = ffi.C.strchr(p, ord('w'))
         assert ffi.string(q) == b"world!"
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="no 'inet_ntoa'")
+    @pytest.mark.thread_unsafe(reason="inet_ntoa returns a globally shared static buffer on some systems")
     def test_function_with_struct_argument(self):
-        if sys.platform == 'win32':
-            pytest.skip("no 'inet_ntoa'")
         if (self.Backend is CTypesBackend and
             '__pypy__' in sys.builtin_module_names):
             pytest.skip("ctypes limitation on pypy")
