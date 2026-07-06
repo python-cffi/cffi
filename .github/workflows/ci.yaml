@@ -223,31 +223,31 @@ jobs:
         matrix_yaml: |
           include:
           # x86_64 macos
-          - { spec: cp310-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp314t-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp315-macosx_x86_64, runs_on: [macos-15-intel] }
-          - { spec: cp315t-macosx_x86_64, runs_on: [macos-15-intel] }
+          - { spec: cp310-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp314t-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp315-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel }
+          - { spec: cp315t-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel }
 
           # arm64 macos
-          - { spec: cp310-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp314t-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp315-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}' }
-          - { spec: cp315t-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}' }
+          - { spec: cp310-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp314t-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp315-macosx_arm64, deployment_target: '11.0' }
+          - { spec: cp315t-macosx_arm64, deployment_target: '11.0' }
 
   macos:
     needs: [python_sdist, make_macos_matrix]
     defaults:
       run:
         shell: ${{ matrix.run_wrapper || 'bash --noprofile --norc -eo pipefail {0}' }}
-    runs-on: ${{ matrix.runs_on || 'macos-14' }}
+    runs-on: ${{ matrix.runs_on || 'macos-26' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.make_macos_matrix.outputs.matrix_json) }}
@@ -262,8 +262,7 @@ jobs:
     - name: install python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'  # as of 2024-05, this has to be < 3.12 since the macos-15-intel runner image's
-                                # built-in virtualenv/pip are pinned to busted versions that fail on newer Pythons
+        python-version: '3.12'
 
     - name: build wheel prereqs
       run: |
@@ -278,7 +277,7 @@ jobs:
         CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools meson-python ninja
         CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
-        MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '10.13' }}
+        MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '11.0' }}
         SDKROOT: ${{ matrix.sdkroot || 'macosx' }}
       run: |
         set -eux
