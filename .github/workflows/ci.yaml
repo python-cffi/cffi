@@ -34,10 +34,10 @@ jobs:
       package_version: ${{ steps.build_sdist.outputs.package_version }}
     steps:
     - name: clone repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: install python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.x
 
@@ -52,7 +52,7 @@ jobs:
         echo "package_version=$(ls ./dist | sed -En 's/cffi-(.+)\.tar\.gz/\1/p')" >> "$GITHUB_OUTPUT"
 
     - name: upload sdist artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.build_sdist.outputs.sdist_artifact_name }}
         path: dist/${{ steps.build_sdist.outputs.sdist_artifact_name }}
@@ -64,7 +64,7 @@ jobs:
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: make a matrix
       id: make_matrix
       uses: ./.github/actions/dynamatrix
@@ -153,12 +153,12 @@ jobs:
     steps:
     - name: fetch sdist artifact
       id: fetch_sdist
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: configure docker foreign arch support
-      uses: docker/setup-qemu-action@v3
+      uses: docker/setup-qemu-action@v4.2.0
       if: matrix.arch != 'x86_64' && matrix.arch != 'i686' && matrix.arch != 'aarch64'
 
     - name: build/test wheels
@@ -203,7 +203,7 @@ jobs:
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.build.outputs.artifact_name }}
         path: dist/*.whl
@@ -215,7 +215,7 @@ jobs:
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: make a matrix
       id: make_matrix
       uses: ./.github/actions/dynamatrix
@@ -255,12 +255,12 @@ jobs:
     steps:
     - name: fetch sdist artifact
       id: fetch_sdist
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: install python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.12'
 
@@ -291,7 +291,7 @@ jobs:
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.build.outputs.artifact_name }}
         path: dist/*.whl
@@ -303,7 +303,7 @@ jobs:
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: make a matrix
       id: make_matrix
       uses: ./.github/actions/dynamatrix
@@ -349,12 +349,12 @@ jobs:
     steps:
     - name: fetch sdist artifact
       id: fetch_sdist
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: Install python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.x
 
@@ -383,7 +383,7 @@ jobs:
       shell: bash
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.build.outputs.artifact_name }}
         path: dist/*.whl
@@ -395,7 +395,7 @@ jobs:
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: make a matrix
       id: make_matrix
       uses: ./.github/actions/dynamatrix
@@ -422,12 +422,12 @@ jobs:
     steps:
     - name: fetch sdist artifact
       id: fetch_sdist
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: install python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.13'
 
@@ -488,7 +488,7 @@ jobs:
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.build.outputs.artifact_name }}
         path: dist/*.whl
@@ -511,7 +511,7 @@ jobs:
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: make a matrix
       id: make_matrix
       uses: ./.github/actions/dynamatrix
@@ -531,10 +531,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
     - name: clone repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: install python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
@@ -552,7 +552,7 @@ jobs:
     runs-on: ubuntu-24.04
     container: ghcr.io/nascheme/numpy-tsan:3.15t-dev
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: build and install
       run: |
