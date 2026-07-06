@@ -223,14 +223,14 @@ jobs:
         matrix_yaml: |
           include:
           # x86_64 macos
-          - { spec: cp310-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp314t-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp315-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel }
-          - { spec: cp315t-macosx_x86_64, deployment_target: '10.13', runs_on: macos-15-intel }
+          - { spec: cp310-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp314t-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp315-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel }
+          - { spec: cp315t-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel }
 
           # arm64 macos
           - { spec: cp310-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
@@ -268,7 +268,7 @@ jobs:
       run: |
         set -eux
         python3 -m pip install --user --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
-        brew uninstall --ignore-dependencies libffi 2>&1 || true
+        brew uninstall -f --ignore-dependencies libffi 2>&1 || true
 
     - name: build/test wheels
       id: build
@@ -435,7 +435,7 @@ jobs:
       run: |
         set -eux
         python3 -m pip install --user --upgrade cibuildwheel>=3.1.0
-        brew uninstall --ignore-dependencies libffi 2>&1 || true
+        brew uninstall -f --ignore-dependencies libffi 2>&1 || true
 
     - name: download libffi for iOS
       env:
@@ -476,6 +476,7 @@ jobs:
           PYTHONUNBUFFERED=1
         # Pass through our custom env vars
         CIBW_ENVIRONMENT_PASS_IOS: LIBFFI_IOS_DIR PYTHONUNBUFFERED
+        CIBW_XBUILD_TOOLS: ""
       run: |
         set -eux
 
