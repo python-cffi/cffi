@@ -2,8 +2,13 @@
 What's New
 ======================
 
-v2.1.0.dev0
+v2.2.0.dev0
 ===========
+
+* TBD
+
+v2.1.0
+======
 
 * Added the ``cffi-gen-src`` command-line tool (also invocable as
   ``python -m cffi.gen_src``), which generates CFFI C extension
