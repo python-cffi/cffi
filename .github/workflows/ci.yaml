@@ -34,10 +34,10 @@ jobs:
       package_version: ${{ steps.build_sdist.outputs.package_version }}
     steps:
     - name: clone repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: install python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.x
 
@@ -52,7 +52,7 @@ jobs:
         echo "package_version=$(ls ./dist | sed -En 's/cffi-(.+)\.tar\.gz/\1/p')" >> "$GITHUB_OUTPUT"
 
     - name: upload sdist artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.build_sdist.outputs.sdist_artifact_name }}
         path: dist/${{ steps.build_sdist.outputs.sdist_artifact_name }}
@@ -64,7 +64,7 @@ jobs:
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: make a matrix
       id: make_matrix
       uses: ./.github/actions/dynamatrix
@@ -153,12 +153,12 @@ jobs:
     steps:
     - name: fetch sdist artifact
       id: fetch_sdist
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: configure docker foreign arch support
-      uses: docker/setup-qemu-action@v3
+      uses: docker/setup-qemu-action@v4.2.0
       if: matrix.arch != 'x86_64' && matrix.arch != 'i686' && matrix.arch != 'aarch64'
 
     - name: build/test wheels
@@ -203,7 +203,7 @@ jobs:
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.build.outputs.artifact_name }}
         path: dist/*.whl
@@ -215,7 +215,7 @@ jobs:
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: make a matrix
       id: make_matrix
       uses: ./.github/actions/dynamatrix
@@ -223,31 +223,31 @@ jobs:
         matrix_yaml: |
           include:
           # x86_64 macos
-          - { spec: cp310-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp314t-macosx_x86_64, runs_on: [macos-15-intel], omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp315-macosx_x86_64, runs_on: [macos-15-intel] }
-          - { spec: cp315t-macosx_x86_64, runs_on: [macos-15-intel] }
+          - { spec: cp310-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp314t-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp315-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel }
+          - { spec: cp315t-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel }
 
           # arm64 macos
-          - { spec: cp310-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp314t-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}', omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp315-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}' }
-          - { spec: cp315t-macosx_arm64, deployment_target: '11.0', run_wrapper: 'arch -arm64 bash --noprofile --norc -eo pipefail {0}' }
+          - { spec: cp310-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp311-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp312-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp313-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp314-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp314t-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp315-macosx_arm64, deployment_target: '11.0' }
+          - { spec: cp315t-macosx_arm64, deployment_target: '11.0' }
 
   macos:
     needs: [python_sdist, make_macos_matrix]
     defaults:
       run:
         shell: ${{ matrix.run_wrapper || 'bash --noprofile --norc -eo pipefail {0}' }}
-    runs-on: ${{ matrix.runs_on || 'macos-14' }}
+    runs-on: ${{ matrix.runs_on || 'macos-26' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.make_macos_matrix.outputs.matrix_json) }}
@@ -255,21 +255,20 @@ jobs:
     steps:
     - name: fetch sdist artifact
       id: fetch_sdist
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: install python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
-        python-version: '3.11'  # as of 2024-05, this has to be < 3.12 since the macos-15-intel runner image's
-                                # built-in virtualenv/pip are pinned to busted versions that fail on newer Pythons
+        python-version: '3.12'
 
     - name: build wheel prereqs
       run: |
         set -eux
         python3 -m pip install --user --upgrade "${{ matrix.cibw_version || 'cibuildwheel' }}"
-        brew uninstall --ignore-dependencies libffi 2>&1 || true
+        brew uninstall -f --ignore-dependencies libffi 2>&1 || true
 
     - name: build/test wheels
       id: build
@@ -278,7 +277,7 @@ jobs:
         CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools meson-python ninja
         CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
-        MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '10.13' }}
+        MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '11.0' }}
         SDKROOT: ${{ matrix.sdkroot || 'macosx' }}
       run: |
         set -eux
@@ -292,7 +291,7 @@ jobs:
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.build.outputs.artifact_name }}
         path: dist/*.whl
@@ -304,7 +303,7 @@ jobs:
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: make a matrix
       id: make_matrix
       uses: ./.github/actions/dynamatrix
@@ -350,12 +349,12 @@ jobs:
     steps:
     - name: fetch sdist artifact
       id: fetch_sdist
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: Install python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.x
 
@@ -384,7 +383,7 @@ jobs:
       shell: bash
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.build.outputs.artifact_name }}
         path: dist/*.whl
@@ -396,7 +395,7 @@ jobs:
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: make a matrix
       id: make_matrix
       uses: ./.github/actions/dynamatrix
@@ -423,12 +422,12 @@ jobs:
     steps:
     - name: fetch sdist artifact
       id: fetch_sdist
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: install python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.13'
 
@@ -436,7 +435,7 @@ jobs:
       run: |
         set -eux
         python3 -m pip install --user --upgrade cibuildwheel>=3.1.0
-        brew uninstall --ignore-dependencies libffi 2>&1 || true
+        brew uninstall -f --ignore-dependencies libffi 2>&1 || true
 
     - name: download libffi for iOS
       env:
@@ -477,6 +476,7 @@ jobs:
           PYTHONUNBUFFERED=1
         # Pass through our custom env vars
         CIBW_ENVIRONMENT_PASS_IOS: LIBFFI_IOS_DIR PYTHONUNBUFFERED
+        CIBW_XBUILD_TOOLS: ""
       run: |
         set -eux
 
@@ -489,7 +489,7 @@ jobs:
         echo "artifact_name=$(ls ./dist/)" >> "$GITHUB_OUTPUT"
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.build.outputs.artifact_name }}
         path: dist/*.whl
@@ -501,7 +501,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - name: merge all artifacts
-      uses: actions/upload-artifact/merge@v4
+      uses: actions/upload-artifact/merge@v7
       with:
         name: dist-cffi-${{ needs.python_sdist.outputs.package_version }}
         delete-merged: true
@@ -512,7 +512,7 @@ jobs:
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: make a matrix
       id: make_matrix
       uses: ./.github/actions/dynamatrix
@@ -532,10 +532,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
     - name: clone repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: install python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
@@ -553,7 +553,7 @@ jobs:
     runs-on: ubuntu-24.04
     container: ghcr.io/nascheme/numpy-tsan:3.15t-dev
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: build and install
       run: |

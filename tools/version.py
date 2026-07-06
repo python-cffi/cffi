@@ -20,7 +20,7 @@ def main() -> None:
     updates: list[tuple[str, re.Pattern, str | Version]] = [
         ('doc/source/conf.py', re.compile(r"^(version = ')[^']*(')$", flags=re.MULTILINE), major_minor_version),
         ('doc/source/conf.py', re.compile(r"^(release = ')[^']*(')$", flags=re.MULTILINE), version),
-        ('setup.py', re.compile(r"^( +version=')[^']*(',)$", flags=re.MULTILINE), version),
+        ('pyproject.toml', re.compile(r'^(version = ")[^"]*(")$', flags=re.MULTILINE), version),
         ('src/c/_cffi_backend.c', re.compile(r'^(#define CFFI_VERSION +")[^"]*(")$', flags=re.MULTILINE), version),
         ('src/c/test_c.py', re.compile(r'^(assert __version__ == ")[^"]*(", .*)$', flags=re.MULTILINE), version),
         ('src/cffi/__init__.py', re.compile(r'^(__version__ = ")[^"]*(")$', flags=re.MULTILINE), version),
