@@ -2164,9 +2164,15 @@ static PyObject *cdata_repr(CDataObject *cd)
         extra = " &";
     else
         extra = "";
+
+    const char *s_utf8 = PyText_AsUTF8(s);
+    if (s_utf8 == NULL) {
+        Py_DECREF(s);
+        return NULL;
+    }
     result = PyUnicode_FromFormat("<cdata '%s%s' %s>",
                                cd->c_type->ct_name, extra,
-                               PyUnicode_AsUTF8(s));
+                               s_utf8);
     Py_DECREF(s);
     return result;
 }
@@ -2176,8 +2182,14 @@ static PyObject *_cdata_repr2(CDataObject *cd, char *text, PyObject *x)
     PyObject *res, *s = PyObject_Repr(x);
     if (s == NULL)
         return NULL;
+
+    const char *s_utf8 = PyText_AsUTF8(s);
+    if (s_utf8 == NULL) {
+        Py_DECREF(s);
+        return NULL;
+    }
     res = PyUnicode_FromFormat("<cdata '%s' %s %s>",
-                            cd->c_type->ct_name, text, PyUnicode_AsUTF8(s));
+                            cd->c_type->ct_name, text, s_utf8);
     Py_DECREF(s);
     return res;
 }
@@ -4488,7 +4500,14 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
             return NULL;
         }
         *p_temp = PyUnicode_FromFormat("%p", handle);
+        if (*p_temp == NULL)
+            return NULL;
         *p_printable_filename = PyUnicode_AsUTF8(*p_temp);
+        if (*p_printable_filename == NULL) {
+            Py_DECREF(*p_temp);
+            *p_temp = NULL;
+            return NULL;
+        }
         *auto_close = 0;
         return handle;
     }
@@ -5069,8 +5088,12 @@ _add_field(PyObject *interned_fields, PyObject *fname, CTypeDescrObject *ftype,
         return NULL;
 
     if (PyDict_Size(interned_fields) != prev_size + 1) {
+        const char *name_utf8 = PyUnicode_AsUTF8(fname);
+         if (name_utf8 == NULL) {
+             return NULL;
+         }
         PyErr_Format(PyExc_KeyError, "duplicate field name '%s'",
-                     PyUnicode_AsUTF8(fname));
+                     name_utf8);
         return NULL;
     }
     return cf;   /* borrowed reference */
@@ -5217,9 +5240,13 @@ static PyObject *b_complete_struct_or_union_lock_held(CTypeDescrObject *ct,
                 ct->ct_flags_mut |= CT_WITH_VAR_ARRAY;
             }
             else {
+                const char *fname_utf8 = PyText_AS_UTF8(fname);
+                if (fname_utf8 == NULL) {
+                    goto finally;
+                }
                 PyErr_Format(PyExc_TypeError,
                              "field '%s.%s' has ctype '%s' of unknown size",
-                             ct->ct_name, PyUnicode_AsUTF8(fname),
+                             ct->ct_name, fname_utf8,
                              ftype->ct_name);
                 goto finally;
             }
@@ -5287,9 +5314,13 @@ static PyObject *b_complete_struct_or_union_lock_held(CTypeDescrObject *ct,
             if (foffset >= 0) {
                 /* a forced field position: ignore the offset just computed,
                    except to know if we must set CT_CUSTOM_FIELD_POS  */
+                const char *fname_utf8 = PyUnicode_AsUTF8(fname);
+                if (fname_utf8 == NULL) {
+                    goto finally;
+                }
                 if (detect_custom_layout(ct, sflags, byteoffset, foffset,
                                          "wrong offset for field '",
-                                         PyUnicode_AsUTF8(fname), "'") < 0)
+                                         fname_utf8, "'") < 0)
                     goto finally;
                 byteoffset = foffset;
             }
@@ -5333,27 +5364,40 @@ static PyObject *b_complete_struct_or_union_lock_held(CTypeDescrObject *ct,
             int bits_already_occupied, bitshift;
 
             if (foffset >= 0) {
+                const char *fname_utf8 = PyUnicode_AsUTF8(fname);
+                if (fname_utf8 == NULL) {
+                    goto finally;
+                }
+
                 PyErr_Format(PyExc_TypeError,
                              "field '%s.%s' is a bitfield, "
                              "but a fixed offset is specified",
-                             ct->ct_name, PyUnicode_AsUTF8(fname));
+                             ct->ct_name, fname_utf8);
                 goto finally;
             }
 
             if (!(ftype->ct_flags & (CT_PRIMITIVE_SIGNED |
                                      CT_PRIMITIVE_UNSIGNED |
                                      CT_PRIMITIVE_CHAR))) {
+                const char *fname_utf8 = PyUnicode_AsUTF8(fname);
+                if (fname_utf8 == NULL) {
+                    goto finally;
+                }
                 PyErr_Format(PyExc_TypeError,
                         "field '%s.%s' declared as '%s' cannot be a bit field",
-                             ct->ct_name, PyUnicode_AsUTF8(fname),
+                             ct->ct_name, fname_utf8,
                              ftype->ct_name);
                 goto finally;
             }
             if (fbitsize > 8 * ftype->ct_size) {
+                const char *fname_utf8 = PyUnicode_AsUTF8(fname);
+                if (fname_utf8 == NULL) {
+                    goto finally;
+                }
                 PyErr_Format(PyExc_TypeError,
                              "bit field '%s.%s' is declared '%s:%d', which "
                              "exceeds the width of the type",
-                             ct->ct_name, PyUnicode_AsUTF8(fname),
+                             ct->ct_name, fname_utf8,
                              ftype->ct_name, fbitsize);
                 goto finally;
             }
@@ -5366,9 +5410,13 @@ static PyObject *b_complete_struct_or_union_lock_held(CTypeDescrObject *ct,
 
             if (fbitsize == 0) {
                 if (PyUnicode_GetLength(fname) > 0) {
+                    const char *fname_utf8 = PyUnicode_AsUTF8(fname);
+                    if (fname_utf8 == NULL) {
+                        goto finally;
+                    }
                     PyErr_Format(PyExc_TypeError,
                                  "field '%s.%s' is declared with :0",
-                                 ct->ct_name, PyUnicode_AsUTF8(fname));
+                                 ct->ct_name, fname_utf8);
                     goto finally;
                 }
                 if (!(sflags & SF_MSVC_BITFIELDS)) {
@@ -5405,10 +5453,14 @@ static PyObject *b_complete_struct_or_union_lock_held(CTypeDescrObject *ct,
                            allowed position */
                         if ((sflags & SF_PACKED) &&
                             (bits_already_occupied & 7)) {
+                            const char *fname_utf8 = PyUnicode_AsUTF8(fname);
+                            if (fname_utf8 == NULL) {
+                                goto finally;
+                            }
                             PyErr_Format(PyExc_NotImplementedError,
                                 "with 'packed', gcc would compile field "
                                 "'%s.%s' to reuse some bits in the previous "
-                                "field", ct->ct_name, PyUnicode_AsUTF8(fname));
+                                "field", ct->ct_name, fname_utf8);
                             goto finally;
                         }
                         field_offset_bytes += falign;

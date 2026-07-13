@@ -192,6 +192,9 @@ static CTypeDescrObject *_ffi_type(FFIObject *ffi, PyObject *arg,
 
         if (x == NULL) {
             const char *input_text = PyUnicode_AsUTF8(arg);
+            if (input_text == NULL) {
+               return NULL;
+         }
             struct _cffi_parse_info_s info;
             info.ctx = &ffi->types_builder.ctx;
             info.output_size = FFI_COMPLEXITY_OUTPUT;
