@@ -1,10 +1,11 @@
 """End-to-end test: build a self-contained CFFI extension with meson-python.
 
 The test provisions a fresh nested venv under ``tmp_path`` using the
-stdlib :mod:`venv` module, installs ``cffi`` (from the current source
-tree) and ``meson-python`` into it, installs one of the small example
-projects that live under ``testing/cffi1/cffi_gen_src_examples/``, and then
-imports the built extension to confirm it works.
+stdlib :mod:`venv` module, bridged so that it can import this
+environment's ``cffi`` and ``meson-python`` (see
+``testing.support.create_bridged_venv``), installs one of the small
+example projects that live under ``testing/cffi1/cffi_gen_src_examples/``,
+and then imports the built extension to confirm it works.
 
 """
 
@@ -19,6 +20,8 @@ import pytest
 
 import cffi
 
+from testing.support import create_bridged_venv
+
 pytestmark = [
     pytest.mark.thread_unsafe(reason="spawns subprocesses, slow"),
 ]
@@ -28,11 +31,15 @@ try:
 except ImportError:
     pytest.skip("Test requires meson-python", allow_module_level=True)
 
+# meson needs the ninja binary at build time; it is not a Python-level
+# dependency of meson-python.
+if not (shutil.which("ninja") or shutil.which("ninja-build")):
+    pytest.skip("Test requires ninja", allow_module_level=True)
+
 
 HERE = Path(__file__).resolve().parent
 EXAMPLE_PROJECT = HERE / "cffi_gen_src_examples" / "exec_python_example"
 EXAMPLE_PROJECT2 = HERE / "cffi_gen_src_examples" / "read_sources_example"
-CFFI_DIR = HERE.parent.parent
 
 
 def _venv_python(venv_dir):
@@ -44,39 +51,21 @@ def _venv_python(venv_dir):
 @pytest.mark.parametrize("project", [EXAMPLE_PROJECT, EXAMPLE_PROJECT2])
 def test_meson_python_build(tmp_path, project):
     venv_dir = tmp_path / "venv"
-    subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
+    create_bridged_venv(venv_dir)
     venv_python = _venv_python(venv_dir)
     assert venv_python.exists(), venv_python
-
-    # Upgrade pip so --no-build-isolation behaves consistently with recent
-    # resolver behaviour on older base images.
-    subprocess.check_call([
-        str(venv_python), "-m", "pip", "install", "--upgrade", "pip",
-    ])
-
-    # Install build-time deps into the nested venv.
-    subprocess.check_call([
-        str(venv_python), "-m", "pip", "install", "meson-python", CFFI_DIR
-    ])
 
     # Copy the example project so nothing is written back into the
     # source tree
     project_dir = tmp_path / "project"
     shutil.copytree(project, project_dir)
 
-    # The example meson.build files locate the codegen tool with
-    # find_program('cffi-gen-src'), which searches PATH. pip only puts
-    # an environment's scripts directory on PATH for isolated builds,
-    # so with --no-build-isolation the nested venv's script must be
-    # made findable by hand.
-    env = os.environ.copy()
-    env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
-
-    # --no-build-isolation to ensure the test runs against the CFFI build we want to test
+    # --no-build-isolation so the build uses the bridged environment;
+    # --no-index/--no-deps so pip cannot touch the network.
     proc = subprocess.run([
         str(venv_python), "-m", "pip", "install", "-v",
-        "--no-build-isolation", str(project_dir),
-    ], env=env, capture_output=True, text=True)
+        "--no-index", "--no-deps", "--no-build-isolation", str(project_dir),
+    ], capture_output=True, text=True)
     assert proc.returncode == 0, proc.stdout + proc.stderr
 
     # Confirm the built extension imports and behaves as expected.
