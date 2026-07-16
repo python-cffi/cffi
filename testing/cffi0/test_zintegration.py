@@ -4,72 +4,20 @@ import sysconfig
 import textwrap
 from pathlib import Path
 from testing.udir import udir
+from testing.support import create_bridged_venv
 import pytest
 
 if sys.platform == 'win32':
     pytestmark = pytest.mark.skip('snippets do not run on win32')
-if sys.version_info < (2, 7):
-    pytestmark = pytest.mark.skip(
-                 'fails e.g. on a Debian/Ubuntu which patches virtualenv'
-                 ' in a non-2.6-friendly way')
+try:
+    import setuptools
+except ImportError:
+    pytestmark = pytest.mark.skip('the snippets need setuptools at build time')
 
 def create_venv(name):
     tmpdir = udir / name
-    try:
-        # FUTURE: we should probably update this to use venv for at least more modern Pythons, and
-        # install setuptools/pip/etc explicitly for the tests that require them (as venv has stopped including
-        # setuptools by default for newer versions).
-        subprocess.check_call(['virtualenv', 
-            #'--never-download', <= could be added, but causes failures
-            # in random cases on random machines
-                               '-p', os.path.abspath(sys.executable),
-                               str(tmpdir)])
-
-        # Newer venv/virtualenv no longer include setuptools by default, which
-        # breaks a number of these tests; ensure they're always present
-        subprocess.check_call([
-            str(tmpdir / 'bin/python'),
-            '-m',
-            'pip',
-            'install',
-            'setuptools',
-            '--upgrade'
-        ])
-
-    except OSError as e:
-        pytest.skip("Cannot execute virtualenv: %s" % (e,))
-
-    site_packages = None
-    for dirpath, dirnames, filenames in os.walk(tmpdir):
-        if Path(dirpath).name == 'site-packages':
-            site_packages = dirpath
-            break
-    paths = ""
-    if site_packages:
-        try:
-            from cffi import _pycparser
-            modules = ('cffi', '_cffi_backend')
-        except ImportError:
-            modules = ('cffi', '_cffi_backend', 'pycparser')
-            try:
-                import ply
-            except ImportError:
-                pass
-            else:
-                modules += ('ply',)   # needed for older versions of pycparser
-        paths = []
-        for module in modules:
-            target = __import__(module, None, None, [])
-            if not hasattr(target, '__file__'):   # for _cffi_backend on pypy
-                continue
-            src = os.path.abspath(target.__file__)
-            for end in ['__init__.pyc', '__init__.pyo', '__init__.py']:
-                if src.lower().endswith(end):
-                    src = src[:-len(end)-1]
-                    break
-            paths.append(os.path.dirname(src))
-        paths = os.pathsep.join(paths)
-    return tmpdir, paths
+    create_bridged_venv(tmpdir)
+    return tmpdir, ''
 
 SNIPPET_DIR = Path(__file__).absolute().parent / 'snippets'
 

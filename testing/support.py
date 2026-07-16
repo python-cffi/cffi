@@ -1,4 +1,7 @@
 import sys, os
+import site, subprocess
+from pathlib import Path
+import pytest
 from cffi._imp_emulation import load_dynamic
 
 if sys.version_info < (3,):
@@ -134,3 +137,28 @@ if sys.platform == 'linux':
                 extra_compile_args.append('-Wno-error=sign-conversion')
 
         del platform_tags
+
+
+def create_bridged_venv(tmpdir):
+    """Create a venv at *tmpdir* that can import this environment's
+    packages, so tests can build and install projects into it without
+    downloading anything.
+    """
+    try:
+        subprocess.check_call([sys.executable, '-m', 'venv', str(tmpdir)])
+    except OSError as e:
+        pytest.skip("Cannot execute venv: %s" % (e,))
+
+    site_packages = None
+    for dirpath, dirnames, filenames in os.walk(tmpdir):
+        if Path(dirpath).name == 'site-packages':
+            site_packages = dirpath
+            break
+    if site_packages:
+        site_dirs = list(site.getsitepackages())
+        user_site = site.getusersitepackages()
+        if user_site:
+            site_dirs.append(user_site)
+        pth = Path(site_packages) / '_outer_test_env.pth'
+        pth.write_text(''.join(
+            'import site; site.addsitedir(%r)\n' % (d,) for d in site_dirs))
