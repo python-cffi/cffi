@@ -1762,7 +1762,7 @@ convert_from_object(char *data, CTypeDescrObject *ct, PyObject *init)
         switch (ct->ct_size) {
         case sizeof(char): {
             int res = _convert_to_char(init);
-            if (res < 0)
+            if (res < 0 && PyErr_Occurred())
                 return -1;
             data[0] = res;
             return 0;
@@ -5009,6 +5009,7 @@ static PyObject *new_struct_or_union_type(const char *name, int flag)
     int namelen = strlen(name);
     CTypeDescrObject *td = ctypedescr_new(namelen + 1);
     if (td == NULL)
+        PyErr_NoMemory();  /* ctypedescr_new does not set an exception on OOM */
         return NULL;
 
     td->ct_size = -1;
