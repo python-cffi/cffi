@@ -151,7 +151,7 @@ class TestNewFFI1:
         assert q == p
         assert int(q) == int(p)
         assert hash(q) == hash(p)
-        c_decl_ptr = '%s *' % c_decl
+        c_decl_ptr = f'{c_decl} *'
         pytest.raises(OverflowError, ffi.new, c_decl_ptr, min - 1)
         pytest.raises(OverflowError, ffi.new, c_decl_ptr, max + 1)
         pytest.raises(OverflowError, ffi.new, c_decl_ptr, long(min - 1))
@@ -745,7 +745,7 @@ class TestNewFFI1:
 
     def test_functionptr_advanced(self):
         t = ffi.typeof("int(*(*)(int))(int)")
-        assert repr(t) == "<ctype '%s'>" % "int(*(*)(int))(int)"
+        assert repr(t) == "<ctype '{}'>".format("int(*(*)(int))(int)")
 
     def test_functionptr_voidptr_return(self):
         def cb():

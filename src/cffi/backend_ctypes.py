@@ -18,12 +18,11 @@ class CTypesData:
     __name__ = '<cdata>'
 
     def __init__(self, *args):
-        raise TypeError("cannot instantiate %r" % (self.__class__,))
+        raise TypeError(f"cannot instantiate {self.__class__!r}")
 
     @classmethod
     def _newp(cls, init):
-        raise TypeError("expected a pointer or array ctype, got '%s'"
-                        % (cls._get_c_name(),))
+        raise TypeError(f"expected a pointer or array ctype, got '{cls._get_c_name()}'")
 
     @staticmethod
     def _to_ctypes(value):
@@ -34,7 +33,7 @@ class CTypesData:
         try:
             ctype = cls._ctype
         except AttributeError:
-            raise TypeError("cannot create an instance of %r" % (cls,))
+            raise TypeError(f"cannot create an instance of {cls!r}")
         if value:
             res = cls._to_ctypes(*value)
             if not isinstance(res, ctype):
@@ -60,8 +59,8 @@ class CTypesData:
 
     @classmethod
     def _fix_class(cls):
-        cls.__name__ = 'CData<%s>' % (cls._get_c_name(),)
-        cls.__qualname__ = 'CData<%s>' % (cls._get_c_name(),)
+        cls.__name__ = f'CData<{cls._get_c_name()}>'
+        cls.__qualname__ = f'CData<{cls._get_c_name()}>'
         cls.__module__ = 'ffi'
 
     def _get_own_repr(self):
@@ -73,19 +72,17 @@ class CTypesData:
         else:
             if address < 0:
                 address += 1 << (8*ctypes.sizeof(ctypes.c_void_p))
-            return '0x%x' % address
+            return f'0x{address:x}'
 
     def __repr__(self, c_name=None):
         own = self._get_own_repr()
-        return '<cdata %r %s>' % (c_name or self._get_c_name(), own)
+        return f'<cdata {c_name or self._get_c_name()!r} {own}>'
 
     def _convert_to_address(self, BClass):
         if BClass is None:
-            raise TypeError("cannot convert %r to an address" % (
-                self._get_c_name(),))
+            raise TypeError(f"cannot convert {self._get_c_name()!r} to an address")
         else:
-            raise TypeError("cannot convert %r to %r" % (
-                self._get_c_name(), BClass._get_c_name()))
+            raise TypeError(f"cannot convert {self._get_c_name()!r} to {BClass._get_c_name()!r}")
 
     @classmethod
     def _get_size(cls):
@@ -96,7 +93,7 @@ class CTypesData:
 
     @classmethod
     def _cast_from(cls, source):
-        raise TypeError("cannot cast to %r" % (cls._get_c_name(),))
+        raise TypeError(f"cannot cast to {cls._get_c_name()!r}")
 
     def _cast_to_integer(self):
         return self._convert_to_address(None)
@@ -106,8 +103,7 @@ class CTypesData:
         return ctypes.alignment(cls._ctype)
 
     def __iter__(self):
-        raise TypeError("cdata %r does not support iteration" % (
-            self._get_c_name()),)
+        raise TypeError(f"cdata {self._get_c_name()!r} does not support iteration",)
 
     def _make_cmp(name):
         cmpfunc = getattr(operator, name)
@@ -140,7 +136,7 @@ class CTypesData:
         return hash(self._convert_to_address(None))
 
     def _to_string(self, maxlen):
-        raise TypeError("string(): %r" % (self,))
+        raise TypeError(f"string(): {self!r}")
 
 
 class CTypesGenericPrimitive(CTypesData):
@@ -186,8 +182,7 @@ class CTypesGenericPtr(CTypesData):
         elif isinstance(source, (int, long)):
             address = source
         else:
-            raise TypeError("bad type for cast to %r: %r" %
-                            (cls, type(source).__name__))
+            raise TypeError(f"bad type for cast to {cls!r}: {type(source).__name__!r}")
         return cls._new_pointer_at(address)
 
     @classmethod
@@ -213,7 +208,7 @@ class CTypesGenericPtr(CTypesData):
     @classmethod
     def _to_ctypes(cls, value):
         if not isinstance(value, CTypesData):
-            raise TypeError("unexpected %s object" % type(value).__name__)
+            raise TypeError(f"unexpected {type(value).__name__} object")
         address = value._convert_to_address(cls)
         return ctypes.cast(address, cls._ctype)
 
@@ -241,7 +236,7 @@ class CTypesBaseStructOrUnion(CTypesData):
     @classmethod
     def _create_ctype_obj(cls, init):
         # may be overridden
-        raise TypeError("cannot instantiate opaque type %s" % (cls,))
+        raise TypeError(f"cannot instantiate opaque type {cls}")
 
     def _get_own_repr(self):
         return self._addr_repr(ctypes.addressof(self._blob))
@@ -334,8 +329,7 @@ class CTypesBackend:
             @staticmethod
             def _to_ctypes(novalue):
                 if novalue is not None:
-                    raise TypeError("None expected, got %s object" %
-                                    (type(novalue).__name__,))
+                    raise TypeError(f"None expected, got {type(novalue).__name__} object")
         CTypesVoid._fix_class()
         return CTypesVoid
 
@@ -366,15 +360,14 @@ class CTypesBackend:
             elif source is None:
                 source = 0
             else:
-                raise TypeError("bad type for cast to %r: %r" %
-                                (CTypesPrimitive, type(source).__name__))
+                raise TypeError(f"bad type for cast to {CTypesPrimitive!r}: {type(source).__name__!r}")
             return source
         #
         kind1 = kind
         class CTypesPrimitive(CTypesGenericPrimitive):
             __slots__ = ['_value']
             _ctype = ctype
-            _reftypename = '%s &' % name
+            _reftypename = f'{name} &'
             kind = kind1
 
             def __init__(self, value):
@@ -441,14 +434,12 @@ class CTypesBackend:
                         if isinstance(x, CTypesData):
                             x = int(x)
                         else:
-                            raise TypeError("integer expected, got %s" %
-                                            type(x).__name__)
+                            raise TypeError(f"integer expected, got {type(x).__name__}")
                     if ctype(x).value != x:
                         if not is_signed and x < 0:
-                            raise OverflowError("%s: negative integer" % name)
+                            raise OverflowError(f"{name}: negative integer")
                         else:
-                            raise OverflowError("%s: integer out of bounds"
-                                                % name)
+                            raise OverflowError(f"{name}: integer out of bounds")
                     return x
 
             if kind == 'char':
@@ -458,8 +449,7 @@ class CTypesBackend:
                         return x
                     if isinstance(x, CTypesPrimitive):    # <CData <char>>
                         return x._value
-                    raise TypeError("character expected, got %s" %
-                                    type(x).__name__)
+                    raise TypeError(f"character expected, got {type(x).__name__}")
                 def __nonzero__(self):
                     return ord(self._value) != 0
             else:
@@ -471,8 +461,7 @@ class CTypesBackend:
                 @staticmethod
                 def _to_ctypes(x):
                     if not isinstance(x, (int, long, float, CTypesData)):
-                        raise TypeError("float expected, got %s" %
-                                        type(x).__name__)
+                        raise TypeError(f"float expected, got {type(x).__name__}")
                     return ctype(x).value
 
             @staticmethod
@@ -638,7 +627,7 @@ class CTypesBackend:
                     if isinstance(init, CTypesGenericArray):
                         if (len(init) != len(blob) or
                             not isinstance(init, CTypesArray)):
-                            raise TypeError("length/type mismatch: %s" % (init,))
+                            raise TypeError(f"length/type mismatch: {init}")
                     init = tuple(init)
                 if len(init) > len(blob):
                     raise IndexError("too many initializers")
@@ -704,8 +693,7 @@ class CTypesBackend:
 
             @classmethod
             def _cast_from(cls, source):
-                raise NotImplementedError("casting to %r" % (
-                    cls._get_c_name(),))
+                raise NotImplementedError(f"casting to {cls._get_c_name()!r}")
         #
         CTypesArray._fix_class()
         return CTypesArray
@@ -714,13 +702,13 @@ class CTypesBackend:
         #
         class struct_or_union(base_ctypes_class):
             pass
-        struct_or_union.__name__ = '%s_%s' % (kind, name)
+        struct_or_union.__name__ = f'{kind}_{name}'
         kind1 = kind
         #
         class CTypesStructOrUnion(CTypesBaseStructOrUnion):
             __slots__ = ['_blob']
             _ctype = struct_or_union
-            _reftypename = '%s &' % (name,)
+            _reftypename = f'{name} &'
             _kind = kind = kind1
         #
         CTypesStructOrUnion._fix_class()
@@ -779,8 +767,7 @@ class CTypesBackend:
                     raise TypeError("union initializer: got a str")
                 init = tuple(init)
                 if len(init) > len(fnames):
-                    raise ValueError("too many values for %s initializer" %
-                                     CTypesStructOrUnion._get_c_name())
+                    raise ValueError(f"too many values for {CTypesStructOrUnion._get_c_name()} initializer")
                 init = dict(zip(fnames, init))
             addr = ctypes.addressof(blob)
             for fname, value in init.items():
@@ -798,8 +785,8 @@ class CTypesBackend:
             if fname == '':
                 raise NotImplementedError("nested anonymous structs/unions")
             if hasattr(CTypesStructOrUnion, fname):
-                raise ValueError("the field name %r conflicts in "
-                                 "the ctypes backend" % fname)
+                raise ValueError(f"the field name {fname!r} conflicts in "
+                                 "the ctypes backend")
             if bitsize < 0:
                 def getter(self, fname=fname, BField=BField,
                            offset=CTypesStructOrUnion._offsetof(fname),
@@ -836,8 +823,8 @@ class CTypesBackend:
         CTypesPtr = self.ffi._get_cached_btype(model.PointerType(tp))
         for fname in fnames:
             if hasattr(CTypesPtr, fname):
-                raise ValueError("the field name %r conflicts in "
-                                 "the ctypes backend" % fname)
+                raise ValueError(f"the field name {fname!r} conflicts in "
+                                 "the ctypes backend")
             def getter(self, fname=fname):
                 return getattr(self[0], fname)
             def setter(self, value, fname=fname):
@@ -855,7 +842,7 @@ class CTypesBackend:
             _ctype = ctypes.CFUNCTYPE(getattr(BResult, '_ctype', None),
                                       *[BArg._ctype for BArg in BArgs],
                                       use_errno=True)
-            _reftypename = BResult._get_c_name('(* &)(%s)' % (nameargs,))
+            _reftypename = BResult._get_c_name(f'(* &)({nameargs})')
 
             def __init__(self, init, error=None):
                 # create a callback to the Python callable init()
@@ -915,7 +902,7 @@ class CTypesBackend:
 
             def _get_own_repr(self):
                 if getattr(self, '_own_callback', None) is not None:
-                    return 'calling %r' % (self._own_callback,)
+                    return f'calling {self._own_callback!r}'
                 return super()._get_own_repr()
 
             def __call__(self, *args):
@@ -952,7 +939,7 @@ class CTypesBackend:
         #
         class CTypesEnum(CTypesInt):
             __slots__ = []
-            _reftypename = '%s &' % name
+            _reftypename = f'{name} &'
 
             def _get_own_repr(self):
                 value = self._value

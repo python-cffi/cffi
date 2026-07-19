@@ -8,7 +8,7 @@ def test_no_unknown_exported_symbols():
         pytest.skip("_cffi_backend module is built-in")
     if not sys.platform.startswith('linux') or is_musl:
         pytest.skip("linux-only")
-    g = os.popen("objdump -T '%s'" % _cffi_backend.__file__, 'r')
+    g = os.popen(f"objdump -T '{_cffi_backend.__file__}'", 'r')
     for line in g:
         if not line.startswith('0'):
             continue
@@ -23,5 +23,5 @@ def test_no_unknown_exported_symbols():
         if name.startswith('ffi_') and 'Base' in line:
             continue
         if name not in ('init_cffi_backend', 'PyInit__cffi_backend', 'cffistatic_ffi_call'):
-            raise Exception("Unexpected exported name %r" % (name,))
+            raise Exception(f"Unexpected exported name {name!r}")
     g.close()
