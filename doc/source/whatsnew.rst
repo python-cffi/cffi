@@ -780,7 +780,7 @@ v1.3.1
 
 * Some parsing details, notably ``volatile`` is passed along like
   ``const`` and ``restrict``.  Also, older versions of pycparser
-  mis-parse some pointer-to-pointer types like ``char * const *``: the
+  misparse some pointer-to-pointer types like ``char * const *``: the
   "const" ends up at the wrong place.  Added a workaround.
 
 

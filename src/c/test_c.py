@@ -2602,7 +2602,7 @@ def test_cast_invalid():
     s = p[0]
     pytest.raises(TypeError, cast, BStruct, s)
 
-def test_bug_float_convertion():
+def test_bug_float_conversion():
     BDouble = new_primitive_type("double")
     BDoubleP = new_pointer_type(BDouble)
     pytest.raises(TypeError, newp, BDoubleP, "foobar")

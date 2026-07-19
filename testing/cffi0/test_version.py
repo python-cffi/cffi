@@ -62,5 +62,5 @@ def test_embedding_h():
     loc = content.find('cffi version: ')
     assert loc > 0, "Cannot find cffi version string in _embedding.h"
     context = content[loc-100:loc+100]
-    msg = f"CFFI verison is incorrect, context for current version string is:\n{context}"
+    msg = f"CFFI version is incorrect, context for current version string is:\n{context}"
     assert (f'cffi version: {v}"') in context, msg

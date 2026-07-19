@@ -77,17 +77,17 @@ static Py_ssize_t allocate_num_pages = 0;
 
 /******************************************************************/
 
-union mmaped_block {
+union mmapped_block {
     ffi_closure closure;
-    union mmaped_block *next;
+    union mmapped_block *next;
 };
 
-static union mmaped_block *free_list = 0;
+static union mmapped_block *free_list = 0;
 static Py_ssize_t _pagesize = 0;
 
 static void more_core(void)
 {
-    union mmaped_block *item;
+    union mmapped_block *item;
     Py_ssize_t count, i;
 
 /* determine the pagesize */
@@ -113,13 +113,13 @@ static void more_core(void)
     allocate_num_pages = 1 + (
         (Py_ssize_t)(allocate_num_pages * PAGE_ALLOCATION_GROWTH_RATE));
 
-    /* calculate the number of mmaped_blocks to allocate */
-    count = (allocate_num_pages * _pagesize) / sizeof(union mmaped_block);
+    /* calculate the number of mmapped_blocks to allocate */
+    count = (allocate_num_pages * _pagesize) / sizeof(union mmapped_block);
 
     /* allocate a memory block */
 #ifdef MS_WIN32
-    item = (union mmaped_block *)VirtualAlloc(NULL,
-                                           count * sizeof(union mmaped_block),
+    item = (union mmapped_block *)VirtualAlloc(NULL,
+                                           count * sizeof(union mmapped_block),
                                            MEM_COMMIT,
                                            PAGE_EXECUTE_READWRITE);
     if (item == NULL)
@@ -129,7 +129,7 @@ static void more_core(void)
     int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
     if (is_emutramp_enabled ())
         prot &= ~PROT_EXEC;
-    item = (union mmaped_block *)mmap(NULL,
+    item = (union mmapped_block *)mmap(NULL,
                         allocate_num_pages * _pagesize,
                         prot,
                         MAP_PRIVATE | MAP_ANONYMOUS,
@@ -141,7 +141,7 @@ static void more_core(void)
 #endif
 
 #ifdef MALLOC_CLOSURE_DEBUG
-    printf("block at %p allocated (%ld bytes), %ld mmaped_blocks\n",
+    printf("block at %p allocated (%ld bytes), %ld mmapped_blocks\n",
            item, (long)(allocate_num_pages * _pagesize), (long)count);
 #endif
     /* put them into the free list */
@@ -167,7 +167,7 @@ static PyMutex malloc_closure_lock;
 static void cffi_closure_free(ffi_closure *p)
 {
     MALLOC_CLOSURE_LOCK();
-    union mmaped_block *item = (union mmaped_block *)p;
+    union mmapped_block *item = (union mmapped_block *)p;
     item->next = free_list;
     free_list = item;
     MALLOC_CLOSURE_UNLOCK();
@@ -176,7 +176,7 @@ static void cffi_closure_free(ffi_closure *p)
 /* return one item from the free list, allocating more if needed */
 static ffi_closure *cffi_closure_alloc(void)
 {
-    union mmaped_block *item;
+    union mmapped_block *item;
     MALLOC_CLOSURE_LOCK();
     if (!free_list)
         more_core();
