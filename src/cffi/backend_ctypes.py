@@ -1,13 +1,10 @@
 import ctypes, ctypes.util, operator, sys
 from . import model
 
-if sys.version_info < (3,):
-    bytechr = chr
-else:
-    unicode = str
-    long = int
-    xrange = range
-    bytechr = lambda num: bytes([num])
+unicode = str
+long = int
+xrange = range
+bytechr = lambda num: bytes([num])
 
 class CTypesType(type):
     pass
