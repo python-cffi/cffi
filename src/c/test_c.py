@@ -69,31 +69,17 @@ import sys
 assert __version__ == "2.2.0.dev0", ("This test_c.py file is for testing a version"
                                      " of cffi that differs from the one that we"
                                      " get from 'import _cffi_backend'")
-if sys.version_info < (3,):
-    type_or_class = "type"
-    mandatory_b_prefix = ''
-    mandatory_u_prefix = 'u'
-    bytechr = chr
-    bitem2bchr = lambda x: x
-    class U:
-        def __add__(self, other):
-            return eval('u'+repr(other).replace(r'\\u', r'\u')
-                                       .replace(r'\\U', r'\U'))
-    u = U()
-    str2bytes = str
-    strict_compare = False
-else:
-    type_or_class = "class"
-    long = int
-    unicode = str
-    unichr = chr
-    mandatory_b_prefix = 'b'
-    mandatory_u_prefix = ''
-    bytechr = lambda n: bytes([n])
-    bitem2bchr = bytechr
-    u = ""
-    str2bytes = lambda s: bytes(s, "ascii")
-    strict_compare = True
+type_or_class = "class"
+long = int
+unicode = str
+unichr = chr
+mandatory_b_prefix = 'b'
+mandatory_u_prefix = ''
+bytechr = lambda n: bytes([n])
+bitem2bchr = bytechr
+u = ""
+str2bytes = lambda s: bytes(s, "ascii")
+strict_compare = True
 
 def size_of_int():
     BInt = new_primitive_type("int")
@@ -1687,10 +1673,6 @@ def test_enum_in_struct():
             "expected integer, got NoneType object" in msg) # newer PyPys
     with pytest.raises(TypeError):
         p.a1 = "def"
-    if sys.version_info < (3,):
-        BEnum2 = new_enum_type(unicode("foo"), (unicode('abc'),), (5,), BInt)
-        assert string(cast(BEnum2, 5)) == 'abc'
-        assert type(string(cast(BEnum2, 5))) is str
 
 def test_enum_overflow():
     max_uint = 2 ** (size_of_int()*8) - 1
@@ -2485,11 +2467,7 @@ def test_buffer():
     assert repr(buf).startswith('<_cffi_backend.buffer object at 0x')
     assert bytes(buf) == b"hi there\x00"
     assert type(buf) is buffer
-    if sys.version_info < (3,):
-        assert str(buf) == "hi there\x00"
-        assert unicode(buf) == u+"hi there\x00"
-    else:
-        assert str(buf) == repr(buf)
+    assert str(buf) == repr(buf)
     # --mb_length--
     assert len(buf) == len(b"hi there\x00")
     # --mb_item--
@@ -3015,12 +2993,11 @@ def test_string_assignment_to_byte_array():
     assert list(p) == [ord("X"), ord("Y"), ord("Z"), 0, 0]
 
 # XXX hack
-if sys.version_info >= (3,):
-    try:
-        import posix
-        posix.fdopen = open
-    except ImportError:
-        pass   # win32
+try:
+    import posix
+    posix.fdopen = open
+except ImportError:
+    pass   # win32
 
 @pytest.mark.skipif(
     is_ios,
@@ -3838,16 +3815,14 @@ def test_from_buffer_more_cases():
     def check1(bufobj, expected):
         c = from_buffer(BCharA, bufobj)
         assert typeof(c) is BCharA
-        if sys.version_info >= (3,):
-            expected = [bytes(c, "ascii") for c in expected]
+        expected = [bytes(c, "ascii") for c in expected]
         assert list(c) == list(expected)
     #
     def check(methods, expected, expected_for_memoryview=None):
-        if sys.version_info >= (3,):
-            if methods <= 7:
-                return
-            if expected_for_memoryview is not None:
-                expected = expected_for_memoryview
+        if methods <= 7:
+            return
+        if expected_for_memoryview is not None:
+            expected = expected_for_memoryview
         class X:
             pass
         _testbuff(X, methods)
