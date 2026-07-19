@@ -55,10 +55,7 @@ class VGenericEngine:
         # 'export_symbols', so instead of fighting it, just give up and
         # give it one
         if sys.platform == 'win32':
-            if sys.version_info >= (3,):
-                prefix = 'PyInit_'
-            else:
-                prefix = 'init'
+            prefix = 'PyInit_'
             modname = self.verifier.get_module_name()
             prnt(f"void {prefix}{modname}(void) {{ }}\n")
 
@@ -494,8 +491,7 @@ class VGenericEngine:
         p = self.ffi.new(BType, 256)
         if function(p) < 0:
             error = self.ffi.string(p)
-            if sys.version_info >= (3,):
-                error = str(error, 'utf-8')
+            error = str(error, 'utf-8')
             raise VerificationError(error)
 
     def _enum_funcname(self, prefix, name):

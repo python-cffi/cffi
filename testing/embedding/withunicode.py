@@ -1,9 +1,6 @@
 import sys, cffi
-if sys.version_info < (3,):
-    u_prefix = "u"
-else:
-    u_prefix = ""
-    unichr = chr
+u_prefix = ""
+unichr = chr
 
 
 ffi = cffi.FFI()
