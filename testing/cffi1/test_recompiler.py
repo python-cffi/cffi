@@ -231,12 +231,12 @@ def test_macro_check_value():
     if sys.maxsize <= 2**32 or sys.platform == 'win32':
         vals.remove('-2147483648')
     ffi = FFI()
-    cdef_lines = ['#define FOO_%d_%d %s' % (i, j, vals[i])
+    cdef_lines = [f'#define FOO_{i}_{i} {vals[i]}'
                   for i in range(len(vals))
                   for j in range(len(vals))]
     ffi.cdef('\n'.join(cdef_lines))
 
-    verify_lines = ['#define FOO_%d_%d %s' % (i, j, vals[j])  # [j], not [i]
+    verify_lines = [f'#define FOO_{i}_{j} {vals[j]}'  # [j], not [i]
                     for i in range(len(vals))
                     for j in range(len(vals))]
     lib = verify(ffi, 'test_macro_check_value_ok',
@@ -249,7 +249,7 @@ def test_macro_check_value():
             c_compiler_msg += f' (0x{c_got:x})'
         #
         for i in range(len(vals)):
-            attrname = 'FOO_%d_%d' % (i, j)
+            attrname = f'FOO_{i}_{j}'
             if i == j:
                 x = getattr(lib, attrname)
                 assert x == c_got
@@ -510,9 +510,9 @@ def test_verify_anonymous_enum_with_typedef():
     assert repr(ffi.cast("e1", 2)) == "<cdata 'e1' 2: AA>"
     #
     ffi = FFI()
-    ffi.cdef("typedef enum { AA=%d } e1;" % sys.maxsize)
+    ffi.cdef(f"typedef enum {{ AA={sys.maxsize} }} e1;")
     lib = verify(ffi, 'test_verify_anonymous_enum_with_typedef2',
-                 "typedef enum { AA=%d } e1;" % sys.maxsize)
+                 f"typedef enum {{ AA={sys.maxsize} }} e1;")
     assert lib.AA == int(ffi.cast("long", sys.maxsize))
     assert ffi.sizeof("e1") == ffi.sizeof("long")
 
@@ -2579,7 +2579,7 @@ def test_convert_api_mode_builtin_function_to_cdata():
 
 def test_large_enum():
     ffi = FFI()
-    biglist = ['nn%d' % i for i in range(6000)]
+    biglist = [f'nn{i}' for i in range(6000)]
     ffi.cdef(
         """enum foo_s {{ {} }};""".format(','.join(biglist)))
     lib = verify(ffi, "test_large_enum", """

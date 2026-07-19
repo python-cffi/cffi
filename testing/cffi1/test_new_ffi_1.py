@@ -119,8 +119,8 @@ class TestNewFFI1:
 
     def test_fixedsize_int(self):
         for size in [1, 2, 4, 8]:
-            self._test_int_type(ffi, 'int%d_t' % (8*size), size, False)
-            self._test_int_type(ffi, 'uint%d_t' % (8*size), size, True)
+            self._test_int_type(ffi, f'int{8*size}_t', size, False)
+            self._test_int_type(ffi, f'uint{8*size}_t', size, True)
         self._test_int_type(ffi, 'intptr_t', SIZE_OF_PTR, False)
         self._test_int_type(ffi, 'uintptr_t', SIZE_OF_PTR, True)
         self._test_int_type(ffi, 'ptrdiff_t', SIZE_OF_PTR, False)
@@ -288,10 +288,10 @@ class TestNewFFI1:
         assert repr(ffi.typeof(p)) == typerepr % "int *"
         #
         p = ffi.new("int*")
-        assert repr(p) == "<cdata 'int *' owning %d bytes>" % SIZE_OF_INT
+        assert repr(p) == f"<cdata 'int *' owning {SIZE_OF_INT} bytes>"
         assert repr(ffi.typeof(p)) == typerepr % "int *"
         p = ffi.new("int**")
-        assert repr(p) == "<cdata 'int * *' owning %d bytes>" % SIZE_OF_PTR
+        assert repr(p) == f"<cdata 'int * *' owning {SIZE_OF_PTR} bytes>"
         assert repr(ffi.typeof(p)) == typerepr % "int * *"
         p = ffi.new("int [2]")
         assert repr(p) == "<cdata 'int[2]' owning %d bytes>" % (2*SIZE_OF_INT)
@@ -575,8 +575,7 @@ class TestNewFFI1:
         assert u.a == -2
         with pytest.raises((AttributeError, TypeError)):
             del u.a
-        assert repr(u) == "<cdata 'union simple_u *' owning %d bytes>" % (
-            SIZE_OF_INT,)
+        assert repr(u) == f"<cdata 'union simple_u *' owning {SIZE_OF_INT} bytes>"
 
     def test_union_opaque(self):
         pytest.raises(ffi.error, ffi.new, "union baz*")
@@ -732,8 +731,7 @@ class TestNewFFI1:
             "<cdata 'int(*)(int)' calling <function cb at 0x")
         assert ffi.typeof(p) is ffi.typeof("int(*)(int)")
         q = ffi.new("int(**)(int)", p)
-        assert repr(q) == "<cdata 'int(* *)(int)' owning %d bytes>" % (
-            SIZE_OF_PTR)
+        assert repr(q) == f"<cdata 'int(* *)(int)' owning {SIZE_OF_PTR} bytes>"
         with pytest.raises(TypeError):
             q(43)
         res = q[0](43)
@@ -984,7 +982,7 @@ class TestNewFFI1:
 
     def test_pointer_to_array(self):
         p = ffi.new("int(**)[5]")
-        assert repr(p) == "<cdata 'int(* *)[5]' owning %d bytes>" % SIZE_OF_PTR
+        assert repr(p) == f"<cdata 'int(* *)[5]' owning {SIZE_OF_PTR} bytes>"
 
     def test_iterate_array(self):
         a = ffi.new("char[]", b"hello")

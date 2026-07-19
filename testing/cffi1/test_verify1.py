@@ -26,7 +26,7 @@ class FFI(FFI):
     def verify(self, preamble='', *args, **kwds):
         # HACK to reuse the tests from ../cffi0/test_verify.py
         FFI._verify_counter += 1
-        module_name = 'verify%d' % FFI._verify_counter
+        module_name = f'verify{FFI._verify_counter}'
         try:
             del self._assigned_source
         except AttributeError:
@@ -692,11 +692,11 @@ def test_global_const_int_size():
         ffi = FFI()
         if value == int(ffi.cast("long long", value)):
             if value < 0:
-                vstr = '(-%dLL-1)' % (~value,)
+                vstr = f'(-{~value}LL-1)'
             else:
-                vstr = '%dLL' % value
+                vstr = f'{value}LL'
         elif value == int(ffi.cast("unsigned long long", value)):
-            vstr = '%dULL' % value
+            vstr = f'{value}ULL'
         else:
             raise AssertionError(value)
         ffi.cdef("static const unsigned short AA;")
@@ -1734,10 +1734,10 @@ def test_enum_size():
              ('-2147483647-1', 4, -1),
              ]
     if FFI().sizeof("long") == 8:
-        cases += [('4294967296L',        8, 2**64-1),
-                  ('%dUL' % (2**64-1),   8, 2**64-1),
-                  ('-2147483649L',       8, -1),
-                  ('%dL-1L' % (1-2**63), 8, -1)]
+        cases += [('4294967296L',    8, 2**64-1),
+                  (f'{2**64-1}UL',   8, 2**64-1),
+                  ('-2147483649L',   8, -1),
+                  (f'{1-2**63}L-1L', 8, -1)]
     for hidden_value, expected_size, expected_minus1 in cases:
         if sys.platform == 'win32' and 'U' in hidden_value:
             continue   # skipped on Windows
@@ -1754,7 +1754,7 @@ def test_enum_size():
 ##    for hidden_value, expected_size, expected_minus1 in cases:
 ##        ffi = FFI()
 ##        ffi.cdef("enum foo_e { AA, BB, ... };")
-##        lib = ffi.verify("enum foo_e { AA, BB=%s };" % hidden_value)
+##        lib = ffi.verify(f"enum foo_e {{ AA, BB={hidden_value} }};")
 ##        assert lib.AA == 0
 ##        assert ffi.sizeof("enum foo_e") == expected_size
 ##        assert int(ffi.cast("enum foo_e", -1)) == expected_minus1

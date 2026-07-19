@@ -131,7 +131,7 @@ def parsex(input):
     def str_if_int(x):
         if isinstance(x, str):
             return x
-        return '%d,%d' % (x & 255, x >> 8)
+        return f'{x & 255},{x >> 8}'
     return '  '.join(map(str_if_int, result))
 
 def parse_error(input, expected_msg, expected_location):
@@ -302,9 +302,9 @@ def test_error():
 
 def test_number_too_large():
     num_max = sys.maxsize
-    assert parse("char[%d]" % num_max) == [Prim(lib._CFFI_PRIM_CHAR),
-                                          '->', Array(0), num_max]
-    parse_error("char[%d]" % (num_max + 1), "number too large", 5)
+    assert parse(f"char[{num_max}]") == [Prim(lib._CFFI_PRIM_CHAR),
+                                         '->', Array(0), num_max]
+    parse_error(f"char[{num_max + 1}]", "number too large", 5)
 
 def test_complexity_limit():
     parse_error("int" + "[]" * 2500, "internal type complexity limit reached",
