@@ -69,17 +69,8 @@ import sys
 assert __version__ == "2.2.0.dev0", ("This test_c.py file is for testing a version"
                                      " of cffi that differs from the one that we"
                                      " get from 'import _cffi_backend'")
-type_or_class = "class"
-long = int
-unicode = str
-unichr = chr
-mandatory_b_prefix = 'b'
-mandatory_u_prefix = ''
-bytechr = lambda n: bytes([n])
-bitem2bchr = bytechr
-u = ""
+bitem2bchr = lambda n: bytes([n])
 str2bytes = lambda s: bytes(s, "ascii")
-strict_compare = True
 
 def size_of_int():
     BInt = new_primitive_type("int")
@@ -101,14 +92,9 @@ def find_and_load_library(name, flags=RTLD_NOW):
         path = None
     else:
         path = ctypes.util.find_library(name)
-        if path is None and sys.platform == 'darwin' and sys.version_info[:2] == (3, 8):
-            pytest.xfail("find_library usually broken on MacOS Python 3.8")
         if path is None and name == 'c':
             assert sys.platform == 'win32'
-            assert (sys.version_info >= (3,) or
-                    '__pypy__' in sys.builtin_module_names)
-            pytest.skip("dlopen(None) cannot work on Windows "
-                         "with PyPy or Python 3")
+            pytest.skip("dlopen(None) cannot work on Windows")
     return load_library(path, flags)
 
 def test_load_library():
@@ -152,7 +138,7 @@ def test_cast_to_signed_char():
     p = new_primitive_type("signed char")
     x = cast(p, -65 + 17*256)
     assert repr(x) == "<cdata 'signed char' -65>"
-    assert repr(type(x)) == "<%s '_cffi_backend._CDataBase'>" % type_or_class
+    assert repr(type(x)) == "<class '_cffi_backend._CDataBase'>"
     assert int(x) == -65
     x = cast(p, -66 + (1<<199)*256)
     assert repr(x) == "<cdata 'signed char' -66>"
@@ -179,9 +165,8 @@ def test_integer_types():
         assert int(cast(p, min - 1)) == max
         assert int(cast(p, max + 1)) == min
         pytest.raises(TypeError, cast, p, None)
-        assert long(cast(p, min - 1)) == max
         assert int(cast(p, b'\x08')) == 8
-        assert int(cast(p, u+'\x08')) == 8
+        assert int(cast(p, '\x08')) == 8
     for name in ['char', 'short', 'int', 'long', 'long long']:
         p = new_primitive_type('unsigned ' + name)
         size = sizeof(p)
@@ -190,9 +175,8 @@ def test_integer_types():
         assert int(cast(p, max)) == max
         assert int(cast(p, -1)) == max
         assert int(cast(p, max + 1)) == 0
-        assert long(cast(p, -1)) == max
         assert int(cast(p, b'\xFE')) == 254
-        assert int(cast(p, u+'\xFE')) == 254
+        assert int(cast(p, '\xFE')) == 254
 
 def test_no_float_on_int_types():
     p = new_primitive_type('long')
@@ -212,11 +196,8 @@ def test_float_types():
         assert bool(cast(p, float("nan")))
         assert int(cast(p, -150)) == -150
         assert int(cast(p, 61.91)) == 61
-        assert long(cast(p, 61.91)) == 61
         assert type(int(cast(p, 61.91))) is int
-        assert type(int(cast(p, 1E22))) is long
-        assert type(long(cast(p, 61.91))) is long
-        assert type(long(cast(p, 1E22))) is long
+        assert type(int(cast(p, 1E22))) is int
         pytest.raises(OverflowError, int, cast(p, INF))
         pytest.raises(OverflowError, int, cast(p, -INF))
         assert float(cast(p, 1.25)) == 1.25
@@ -229,7 +210,7 @@ def test_float_types():
         assert cast(p, -1.1) == cast(p, -1.1)
         assert repr(float(cast(p, -0.0))) == '-0.0'
         assert float(cast(p, b'\x09')) == 9.0
-        assert float(cast(p, u+'\x09')) == 9.0
+        assert float(cast(p, '\x09')) == 9.0
         assert float(cast(p, True)) == 1.0
         pytest.raises(TypeError, cast, p, None)
 
@@ -245,7 +226,6 @@ def test_complex_types():
         assert bool(cast(p, -INF*1j))
         # "can't convert complex to float", like CPython's "float(0j)"
         pytest.raises(TypeError, int, cast(p, -150))
-        pytest.raises(TypeError, long, cast(p, -150))
         pytest.raises(TypeError, float, cast(p, -150))
         assert complex(cast(p, 1.25)) == 1.25
         assert complex(cast(p, 1.25j)) == 1.25j
@@ -260,7 +240,7 @@ def test_complex_types():
         assert repr(complex(cast(p, -0.0)).real) == '-0.0'
         #assert repr(complex(cast(p, -0j))) == '-0j'   # http://bugs.python.org/issue29602
         assert complex(cast(p, b'\x09')) == 9.0 + 0j
-        assert complex(cast(p, u+'\x09')) == 9.0 + 0j
+        assert complex(cast(p, '\x09')) == 9.0 + 0j
         assert complex(cast(p, True)) == 1.0 + 0j
         pytest.raises(TypeError, cast, p, None)
         #
@@ -291,13 +271,11 @@ def test_character_type():
     assert bool(cast(p, '\x00')) is False    # since 1.7
     assert cast(p, '\x00') == cast(p, -17*256)
     assert int(cast(p, 'A')) == 65
-    assert long(cast(p, 'A')) == 65
     assert type(int(cast(p, 'A'))) is int
-    assert type(long(cast(p, 'A'))) is long
     assert str(cast(p, 'A')) == repr(cast(p, 'A'))
-    assert repr(cast(p, 'A')) == "<cdata 'char' %s'A'>" % mandatory_b_prefix
-    assert repr(cast(p, 255)) == r"<cdata 'char' %s'\xff'>" % mandatory_b_prefix
-    assert repr(cast(p, 0)) == r"<cdata 'char' %s'\x00'>" % mandatory_b_prefix
+    assert repr(cast(p, 'A')) == "<cdata 'char' b'A'>"
+    assert repr(cast(p, 255)) == r"<cdata 'char' b'\xff'>"
+    assert repr(cast(p, 0)) == r"<cdata 'char' b'\x00'>"
 
 def test_pointer_type():
     p = new_primitive_type("int")
@@ -424,12 +402,12 @@ def test_reading_pointer_to_char():
     assert p[0] == b'A'
     pytest.raises(TypeError, newp, BPtr, 65)
     pytest.raises(TypeError, newp, BPtr, b"foo")
-    pytest.raises(TypeError, newp, BPtr, u+"foo")
+    pytest.raises(TypeError, newp, BPtr, "foo")
     c = cast(BChar, b'A')
     assert str(c) == repr(c)
     assert int(c) == ord(b'A')
     pytest.raises(TypeError, cast, BChar, b'foo')
-    pytest.raises(TypeError, cast, BChar, u+'foo')
+    pytest.raises(TypeError, cast, BChar, 'foo')
     e = pytest.raises(TypeError, newp, new_array_type(BPtr, None), 12.3)
     assert str(e.value) == (
         "expected new array length or list/tuple/str, not float")
@@ -505,13 +483,6 @@ def test_default_str():
     x = newp(BArray, None)
     assert str(x) == repr(x)
 
-def test_default_unicode():
-    BInt = new_primitive_type("int")
-    x = cast(BInt, 42)
-    assert unicode(x) == unicode(repr(x))
-    BArray = new_array_type(new_pointer_type(BInt), 10)
-    x = newp(BArray, None)
-    assert unicode(x) == unicode(repr(x))
 
 def test_cast_from_cdataint():
     BInt = new_primitive_type("int")
@@ -1109,7 +1080,7 @@ def test_call_function_6():
     #
     pytest.raises(TypeError, f, 123456)
     pytest.raises(TypeError, f, "foo")
-    pytest.raises(TypeError, f, u+"bar")
+    pytest.raises(TypeError, f, "bar")
 
 def test_call_function_7():
     BChar = new_primitive_type("char")
@@ -1735,14 +1706,14 @@ def test_callback_returning_char():
     BInt = new_primitive_type("int")
     BChar = new_primitive_type("char")
     def cb(n):
-        return bytechr(n)
+        return bytes([n])
     BFunc = new_function_type((BInt,), BChar)
     f = callback(BFunc, cb)
     assert f(0) == b'\x00'
     assert f(255) == b'\xFF'
 
 def _hacked_pypy_uni4():
-    pyuni4 = {1: True, 2: False}[len(u+'\U00012345')]
+    pyuni4 = {1: True, 2: False}[len('\U00012345')]
     return 'PY_DOT_PY' in globals() and not pyuni4
 
 @pytest.mark.skipif(is_ios, reason="Cannot allocate executable memory on iOS")
@@ -1751,18 +1722,18 @@ def test_callback_returning_wchar_t():
     BWChar = new_primitive_type("wchar_t")
     def cb(n):
         if n == -1:
-            return u+'\U00012345'
+            return '\U00012345'
         if n == -2:
             raise ValueError
-        return unichr(n)
+        return chr(n)
     BFunc = new_function_type((BInt,), BWChar)
     f = callback(BFunc, cb)
-    assert f(0) == unichr(0)
-    assert f(255) == unichr(255)
-    assert f(0x1234) == u+'\u1234'
+    assert f(0) == chr(0)
+    assert f(255) == chr(255)
+    assert f(0x1234) == '\u1234'
     if sizeof(BWChar) == 4 and not _hacked_pypy_uni4():
-        assert f(-1) == u+'\U00012345'
-    assert f(-2) == u+'\x00'   # and an exception printed to stderr
+        assert f(-1) == '\U00012345'
+    assert f(-2) == '\x00'   # and an exception printed to stderr
 
 def test_struct_with_bitfields():
     BLong = new_primitive_type("long")
@@ -2015,16 +1986,16 @@ def test_string_wchar():
 
 def _test_string_wchar_variant(typename):
     BWChar = new_primitive_type(typename)
-    assert string(cast(BWChar, 42)) == u+'*'
-    assert string(cast(BWChar, 0x4253)) == u+'\u4253'
-    assert string(cast(BWChar, 0)) == u+'\x00'
+    assert string(cast(BWChar, 42)) == '*'
+    assert string(cast(BWChar, 0x4253)) == '\u4253'
+    assert string(cast(BWChar, 0)) == '\x00'
     BArray = new_array_type(new_pointer_type(BWChar), None)
-    a = newp(BArray, [u+'A', u+'B', u+'C'])
-    assert type(string(a)) is unicode and string(a) == u+'ABC'
+    a = newp(BArray, ['A', 'B', 'C'])
+    assert type(string(a)) is str and string(a) == 'ABC'
     if 'PY_DOT_PY' not in globals() and sys.version_info < (3,):
         try:
             # may contain additional garbage
-            assert string(a, 8).startswith(u+'ABC')
+            assert string(a, 8).startswith('ABC')
         except ValueError:    # garbage contains values > 0x10FFFF
             assert sizeof(BWChar) == 4
 
@@ -2081,7 +2052,7 @@ def test_struct_return_in_func():
     f = cast(BFunc10, _testfunc(10))
     s = f(40)
     assert repr(s) == "<cdata 'struct foo_s' owning 4 bytes>"
-    assert s.a1 == bytechr(40)
+    assert s.a1 == bytes([40])
     assert s.a2 == 40 * 40
     #
     BStruct11 = new_struct_type("struct test11")
@@ -2198,22 +2169,18 @@ def test_char32():
 def _test_wchar_variant(typename):
     BWChar = new_primitive_type(typename)
     BInt = new_primitive_type("int")
-    pyuni4 = {1: True, 2: False}[len(u+'\U00012345')]
+    pyuni4 = {1: True, 2: False}[len('\U00012345')]
     wchar4 = {2: False, 4: True}[sizeof(BWChar)]
-    assert str(cast(BWChar, 0x45)) == "<cdata '%s' %s'E'>" % (
-        typename, mandatory_u_prefix)
-    assert str(cast(BWChar, 0x1234)) == "<cdata '%s' %s'\u1234'>" % (
-        typename, mandatory_u_prefix)
+    assert str(cast(BWChar, 0x45)) == "<cdata '%s' 'E'>" % typename
+    assert str(cast(BWChar, 0x1234)) == "<cdata '%s' '\u1234'>" typename
     if not _hacked_pypy_uni4():
         if wchar4:
             x = cast(BWChar, 0x12345)
-            assert str(x) == "<cdata '%s' %s'\U00012345'>" % (
-                typename, mandatory_u_prefix)
+            assert str(x) == "<cdata '%s' '\U00012345'>" % typename
             assert int(x) == 0x12345
         else:
             x = cast(BWChar, 0x18345)
-            assert str(x) == "<cdata '%s' %s'\u8345'>" % (
-                typename, mandatory_u_prefix)
+            assert str(x) == "<cdata '%s' '\u8345'>" % typename
             assert int(x) == 0x8345
     #
     BWCharP = new_pointer_type(BWChar)
@@ -2222,47 +2189,47 @@ def _test_wchar_variant(typename):
     complete_struct_or_union(BStruct, [('a1', BWChar, -1),
                                        ('a2', BWCharP, -1)])
     s = newp(BStructPtr)
-    s.a1 = u+'\x00'
-    assert s.a1 == u+'\x00'
+    s.a1 = '\x00'
+    assert s.a1 == '\x00'
     with pytest.raises(TypeError):
         s.a1 = b'a'
     with pytest.raises(TypeError):
-        s.a1 = bytechr(0xFF)
-    s.a1 = u+'\u1234'
-    assert s.a1 == u+'\u1234'
+        s.a1 = bytes([0xFF])
+    s.a1 = '\u1234'
+    assert s.a1 == '\u1234'
     if pyuni4:
         if wchar4:
-            s.a1 = u+'\U00012345'
-            assert s.a1 == u+'\U00012345'
+            s.a1 = '\U00012345'
+            assert s.a1 == '\U00012345'
     elif wchar4:
         if not _hacked_pypy_uni4():
             s.a1 = cast(BWChar, 0x12345)
-            assert s.a1 == u+'\ud808\udf45'
-            s.a1 = u+'\ud807\udf44'
-            assert s.a1 == u+'\U00011f44'
+            assert s.a1 == '\ud808\udf45'
+            s.a1 = '\ud807\udf44'
+            assert s.a1 == '\U00011f44'
     else:
         with pytest.raises(TypeError):
-            s.a1 = u+'\U00012345'
+            s.a1 = '\U00012345'
     #
     BWCharArray = new_array_type(BWCharP, None)
-    a = newp(BWCharArray, u+'hello \u1234 world')
+    a = newp(BWCharArray, 'hello \u1234 world')
     assert len(a) == 14   # including the final null
-    assert string(a) == u+'hello \u1234 world'
-    a[13] = u+'!'
-    assert string(a) == u+'hello \u1234 world!'
+    assert string(a) == 'hello \u1234 world'
+    a[13] = '!'
+    assert string(a) == 'hello \u1234 world!'
     assert str(a) == repr(a)
-    assert a[6] == u+'\u1234'
-    a[6] = u+'-'
-    assert string(a) == u+'hello - world!'
+    assert a[6] == '\u1234'
+    a[6] = '-'
+    assert string(a) == 'hello - world!'
     assert str(a) == repr(a)
     #
     if wchar4 and not _hacked_pypy_uni4():
-        u1 = u+'\U00012345\U00012346\U00012347'
+        u1 = '\U00012345\U00012346\U00012347'
         a = newp(BWCharArray, u1)
         assert len(a) == 4
         assert string(a) == u1
         assert len(list(a)) == 4
-        expected = [u+'\U00012345', u+'\U00012346', u+'\U00012347', unichr(0)]
+        expected = ['\U00012345', '\U00012346', '\U00012347', chr(0)]
         assert list(a) == expected
         got = [a[i] for i in range(4)]
         assert got == expected
@@ -2270,46 +2237,45 @@ def _test_wchar_variant(typename):
             a[4]
     #
     w = cast(BWChar, 'a')
-    assert repr(w) == "<cdata '%s' %s'a'>" % (typename, mandatory_u_prefix)
+    assert repr(w) == "<cdata '%s' 'a'>" % typename
     assert str(w) == repr(w)
-    assert string(w) == u+'a'
+    assert string(w) == 'a'
     assert int(w) == ord('a')
     w = cast(BWChar, 0x1234)
-    assert repr(w) == "<cdata '%s' %s'\u1234'>" % (typename, mandatory_u_prefix)
+    assert repr(w) == "<cdata '%s' '\u1234'>" typename
     assert str(w) == repr(w)
-    assert string(w) == u+'\u1234'
+    assert string(w) == '\u1234'
     assert int(w) == 0x1234
-    w = cast(BWChar, u+'\u8234')
-    assert repr(w) == "<cdata '%s' %s'\u8234'>" % (typename, mandatory_u_prefix)
+    w = cast(BWChar, '\u8234')
+    assert repr(w) == "<cdata '%s' '\u8234'>" typename
     assert str(w) == repr(w)
-    assert string(w) == u+'\u8234'
+    assert string(w) == '\u8234'
     assert int(w) == 0x8234
-    w = cast(BInt, u+'\u1234')
+    w = cast(BInt, '\u1234')
     assert repr(w) == "<cdata 'int' 4660>"
     if wchar4 and not _hacked_pypy_uni4():
-        w = cast(BWChar, u+'\U00012345')
-        assert repr(w) == "<cdata '%s' %s'\U00012345'>" % (
-            typename, mandatory_u_prefix)
+        w = cast(BWChar, '\U00012345')
+        assert repr(w) == "<cdata '%s' '\U00012345'>" typename
         assert str(w) == repr(w)
-        assert string(w) == u+'\U00012345'
+        assert string(w) == '\U00012345'
         assert int(w) == 0x12345
-        w = cast(BInt, u+'\U00012345')
+        w = cast(BInt, '\U00012345')
         assert repr(w) == "<cdata 'int' 74565>"
-    pytest.raises(TypeError, cast, BInt, u+'')
-    pytest.raises(TypeError, cast, BInt, u+'XX')
-    assert int(cast(BInt, u+'a')) == ord('a')
+    pytest.raises(TypeError, cast, BInt, '')
+    pytest.raises(TypeError, cast, BInt, 'XX')
+    assert int(cast(BInt, 'a')) == ord('a')
     #
-    a = newp(BWCharArray, u+'hello - world')
+    a = newp(BWCharArray, 'hello - world')
     p = cast(BWCharP, a)
-    assert string(p) == u+'hello - world'
-    p[6] = u+'\u2345'
-    assert string(p) == u+'hello \u2345 world'
+    assert string(p) == 'hello - world'
+    p[6] = '\u2345'
+    assert string(p) == 'hello \u2345 world'
     #
-    s = newp(BStructPtr, [u+'\u1234', p])
-    assert s.a1 == u+'\u1234'
+    s = newp(BStructPtr, ['\u1234', p])
+    assert s.a1 == '\u1234'
     assert s.a2 == p
     assert str(s.a2) == repr(s.a2)
-    assert string(s.a2) == u+'hello \u2345 world'
+    assert string(s.a2) == 'hello \u2345 world'
     #
     q = cast(BWCharP, 0)
     assert str(q) == repr(q)
@@ -2322,7 +2288,7 @@ def _test_wchar_variant(typename):
         return len(string(p))
     BFunc = new_function_type((BWCharP,), BInt, False)
     f = callback(BFunc, cb, -42)
-    assert f(u+'a\u1234b') == 3
+    assert f('a\u1234b') == 3
     #
     if wchar4 and not pyuni4 and not _hacked_pypy_uni4():
         # try out-of-range wchar_t values
@@ -2347,10 +2313,10 @@ def test_wchar_variants_mix():
     x = cast(BChar16, 'A')
     pytest.raises(TypeError, newp, BChar32A, [x])
     #
-    a = newp(BChar16A, u+'\U00012345')
+    a = newp(BChar16A, '\U00012345')
     assert len(a) == 3
-    a = newp(BChar32A, u+'\U00012345')
-    assert len(a) == 2   # even if the Python unicode string above is 2 chars
+    a = newp(BChar32A, '\U00012345')
+    assert len(a) == 2   # even if the Python string above is 2 chars
 
 def test_keepalive_struct():
     # exception to the no-keepalive rule: p=newp(BStructPtr) returns a
@@ -2427,13 +2393,12 @@ def test_cmp():
     assert (p != q) is True
     assert (q == p) is False
     assert (q != p) is True
-    if strict_compare:
-        with pytest.raises(TypeError): p < q
-        with pytest.raises(TypeError): p <= q
-        with pytest.raises(TypeError): q < p
-        with pytest.raises(TypeError): q <= p
-        with pytest.raises(TypeError): p > q
-        with pytest.raises(TypeError): p >= q
+	with pytest.raises(TypeError): p < q
+	with pytest.raises(TypeError): p <= q
+	with pytest.raises(TypeError): q < p
+	with pytest.raises(TypeError): q <= p
+	with pytest.raises(TypeError): p > q
+	with pytest.raises(TypeError): p >= q
     r = cast(BVoidP, p)
     assert (p <  r) is False
     assert (p <= r) is True
@@ -2478,7 +2443,7 @@ def test_buffer():
             with pytest.raises(IndexError):
                 buf[i]
         else:
-            assert buf[i] == bitem2bchr(expected)
+            assert buf[i] == bytes([expected])
     # --mb_slice--
     assert buf[:] == b"hi there\x00"
     for i in range(-12, 12):
@@ -2489,24 +2454,19 @@ def test_buffer():
     # --misc--
     assert list(buf) == list(map(bitem2bchr, b"hi there\x00"))
     # --mb_as_buffer--
-    if hasattr(__builtin__, 'buffer'):          # Python <= 2.7
-        pytest.raises(TypeError, __builtin__.buffer, c)
-        bf1 = __builtin__.buffer(buf)
-        assert len(bf1) == len(buf) and bf1[3] == "t"
-    if hasattr(__builtin__, 'memoryview'):      # Python >= 2.7
-        pytest.raises(TypeError, memoryview, c)
-        mv1 = memoryview(buf)
-        assert len(mv1) == len(buf) and mv1[3] in (b"t", ord(b"t"))
+	pytest.raises(TypeError, memoryview, c)
+	mv1 = memoryview(buf)
+	assert len(mv1) == len(buf) and mv1[3] in (b"t", ord(b"t"))
     # --mb_ass_item--
     expected = list(map(bitem2bchr, b"hi there\x00"))
     for i in range(-12, 12):
         try:
-            expected[i] = bytechr(i & 0xff)
+            expected[i] = bytes([i & 0xff])
         except IndexError:
             with pytest.raises(IndexError):
-                buf[i] = bytechr(i & 0xff)
+                buf[i] = bytes([i & 0xff])
         else:
-            buf[i] = bytechr(i & 0xff)
+            buf[i] = bytes([i & 0xff])
         assert list(buf) == expected
     # --mb_ass_slice--
     buf[:] = b"hi there\x00"
@@ -2528,7 +2488,7 @@ def test_buffer():
             stop  = j if j >= 0 else j + len(buf)
             start = max(0, min(len(buf), start))
             stop  = max(0, min(len(buf), stop))
-            sample = bytechr(x & 0xff) * (stop - start)
+            sample = bytes([x & 0xff) * (stop - start])
             x += 1
             buf[i:j] = sample
             expected[i:j] = map(bitem2bchr, sample)
@@ -2832,8 +2792,7 @@ def test_bool():
     assert bool(cast(BBool, False)) is False    # since 1.7
     assert bool(cast(BBool, True)) is True
     assert int(cast(BBool, 3)) == 1
-    assert int(cast(BBool, long(3))) == 1
-    assert int(cast(BBool, long(10)**4000)) == 1
+    assert int(cast(BBool, 10**4000)) == 1
     assert int(cast(BBool, -0.1)) == 1
     assert int(cast(BBool, -0.0)) == 0
     assert int(cast(BBool, '\x00')) == 0
@@ -2895,7 +2854,7 @@ def test_typeoffsetof():
     assert typeoffsetof(BStructPtr, 'a2') == (BChar, 1)
     assert typeoffsetof(BStruct, 'a3') == (BChar, 2)
     assert typeoffsetof(BStructPtr, 'a2', 0) == (BChar, 1)
-    assert typeoffsetof(BStruct, u+'a3') == (BChar, 2)
+    assert typeoffsetof(BStruct, 'a3') == (BChar, 2)
     pytest.raises(TypeError, typeoffsetof, BStructPtr, 'a2', 1)
     pytest.raises(KeyError, typeoffsetof, BStructPtr, 'a4')
     pytest.raises(KeyError, typeoffsetof, BStruct, 'a5')
@@ -3143,10 +3102,10 @@ def test_nonstandard_integer_types():
                      'intmax_t', 'uintmax_t']:
         new_primitive_type(typename)    # works
 
-def test_cannot_convert_unicode_to_charp():
+def test_cannot_convert_str_to_charp():
     BCharP = new_pointer_type(new_primitive_type("char"))
     BCharArray = new_array_type(BCharP, None)
-    pytest.raises(TypeError, newp, BCharArray, u+'foobar')
+    pytest.raises(TypeError, newp, BCharArray, 'foobar')
 
 def test_buffer_keepalive():
     BCharP = new_pointer_type(new_primitive_type("char"))
@@ -3638,17 +3597,17 @@ def test_ass_slice():
     p[1:3] = b"XY"
     assert list(p) == [b"f", b"X", b"Y", b"Z", b"T", b"r", b"\x00"]
     with pytest.raises(TypeError):
-        p[1:5] = u+'XYZT'
+        p[1:5] = 'XYZT'
     with pytest.raises(TypeError):
         p[1:5] = [1, 2, 3, 4]
     #
     for typename in ["wchar_t", "char16_t", "char32_t"]:
         BUniChar = new_primitive_type(typename)
         BArray = new_array_type(new_pointer_type(BUniChar), None)
-        p = newp(BArray, u+"foobar")
-        p[2:5] = [u+"*", u+"Z", u+"T"]
-        p[1:3] = u+"XY"
-        assert list(p) == [u+"f", u+"X", u+"Y", u+"Z", u+"T", u+"r", u+"\x00"]
+        p = newp(BArray, "foobar")
+        p[2:5] = ["*", "Z", "T"]
+        p[1:3] = "XY"
+        assert list(p) == ["f", "X", "Y", "Z", "T", "r", "\x00"]
         with pytest.raises(TypeError):
             p[1:5] = b'XYZT'
         with pytest.raises(TypeError):
@@ -3753,7 +3712,7 @@ def test_from_buffer():
     cast(p, c)[1] += 500
     assert list(a) == [10000, 20500, 30000]
 
-def test_from_buffer_not_str_unicode():
+def test_from_buffer_not_str():
     BChar = new_primitive_type("char")
     BCharP = new_pointer_type(BChar)
     BCharA = new_array_type(BCharP, None)
@@ -3761,7 +3720,7 @@ def test_from_buffer_not_str_unicode():
     assert p1 == from_buffer(BCharA, b"foo")
     import gc; gc.collect()
     assert p1 == from_buffer(BCharA, b"foo")
-    pytest.raises(TypeError, from_buffer, BCharA, u+"foo")
+    pytest.raises(TypeError, from_buffer, BCharA, "foo")
     try:
         from __builtin__ import buffer
     except ImportError:
@@ -3772,8 +3731,8 @@ def test_from_buffer_not_str_unicode():
         assert len(contents) == len(p1)
         for i in range(len(contents)):
             assert contents[i] == p1[i]
-        p4 = buffer(u+"foo")
-        contents = from_buffer(BCharA, buffer(u+"foo"))
+        p4 = buffer("foo")
+        contents = from_buffer(BCharA, buffer("foo"))
         assert len(contents) == len(p4)
         for i in range(len(contents)):
             assert contents[i] == p4[i]
@@ -4294,19 +4253,14 @@ def test_primitive_comparison():
         assert (b == a) is False
         assert (a != b) is True
         assert (b != a) is True
-        if strict_compare:
-            with pytest.raises(TypeError): a < b
-            with pytest.raises(TypeError): a <= b
-            with pytest.raises(TypeError): a > b
-            with pytest.raises(TypeError): a >= b
-            with pytest.raises(TypeError): b < a
-            with pytest.raises(TypeError): b <= a
-            with pytest.raises(TypeError): b > a
-            with pytest.raises(TypeError): b >= a
-        elif a < b:
-            assert_lt(a, b)
-        else:
-            assert_lt(b, a)
+		with pytest.raises(TypeError): a < b
+		with pytest.raises(TypeError): a <= b
+		with pytest.raises(TypeError): a > b
+		with pytest.raises(TypeError): a >= b
+		with pytest.raises(TypeError): b < a
+		with pytest.raises(TypeError): b <= a
+		with pytest.raises(TypeError): b > a
+		with pytest.raises(TypeError): b >= a
     assert_eq(5, 5)
     assert_lt(3, 5)
     assert_ne('5', 5)
@@ -4465,8 +4419,6 @@ def test_int_doesnt_give_bool():
     BBool = new_primitive_type("_Bool")
     x = int(cast(BBool, 42))
     assert type(x) is int and x == 1
-    x = long(cast(BBool, 42))
-    assert type(x) is long and x == 1
     with pytest.raises(TypeError):
         float(cast(BBool, 42))
     with pytest.raises(TypeError):

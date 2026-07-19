@@ -3,7 +3,7 @@ import pytest
 from cffi import FFI
 from cffi import recompiler, ffiplatform, VerificationMissing
 from testing.udir import udir
-from testing.support import u, is_musl
+from testing.support import is_musl
 
 
 def setup_module(mod):
@@ -40,9 +40,9 @@ def setup_module(mod):
     # test with a non-ascii char
     ofn, oext = os.path.splitext(outputfilename)
     if sys.platform == "win32":
-        unicode_name = ofn + (u+'\u03be') + oext
+        unicode_name = ofn + '\u03be' + oext
     else:
-        unicode_name = ofn + (u+'\xe9') + oext
+        unicode_name = ofn + '\xe9' + oext
         try:
             unicode_name.encode(sys.getfilesystemencoding())
         except UnicodeEncodeError:
@@ -132,13 +132,9 @@ def test_dlclose():
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
     ffi.dlclose(lib)
-    if type(extmod) is not str:   # unicode, on python 2
-        str_extmod = extmod.encode('utf-8')
-    else:
-        str_extmod = extmod
     e = pytest.raises(ffi.error, getattr, lib, 'add42')
     assert str(e.value) == (
-        "library '%s' has been closed" % (str_extmod,))
+        "library '%s' has been closed" % (extmod,))
     ffi.dlclose(lib)   # does not raise
 
 @pytest.mark.thread_unsafe(

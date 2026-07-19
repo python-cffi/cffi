@@ -41,7 +41,3 @@ class TestCTypes(backend_tests.BackendTests):
 
     def test_nested_anonymous_struct_2(self):
         pytest.skip("ctypes backend: not supported: nested anonymous union")
-
-    def test_CData_CType_2(self):
-        pytest.skip("ctypes backend: not supported in Python 3: CType")
-        backend_tests.BackendTests.test_CData_CType_2(self)
