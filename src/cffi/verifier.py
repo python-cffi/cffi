@@ -161,7 +161,7 @@ class Verifier:
             self._write_source_to(file)
         else:
             # Write our source file to an in memory file.
-            f = NativeIO()
+            f = io.StringIO()
             self._write_source_to(f)
             source_data = f.getvalue()
 
