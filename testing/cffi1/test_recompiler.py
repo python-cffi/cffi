@@ -36,7 +36,7 @@ def verify(ffi, module_name, source, *args, **kwds):
     ffi.set_source(module_name, source)
     if not os.environ.get('NO_CPP') and not no_cpp:   # test the .cpp mode too
         kwds.setdefault('source_extension', '.cpp')
-        source = 'extern "C" {\n%s\n}' % (source,)
+        source = f'extern "C" {{\n{source}\n}}'
     elif sys.platform != 'win32' and not ignore_warnings:
         # add '-Werror' to the existing 'extra_compile_args' flags
         from testing.support import extra_compile_args
@@ -246,7 +246,7 @@ def test_macro_check_value():
         c_got = int(vals[j].replace('U', '').replace('L', ''), 0)
         c_compiler_msg = str(c_got)
         if c_got > 0:
-            c_compiler_msg += ' (0x%x)' % (c_got,)
+            c_compiler_msg += f' (0x{c_got:x})'
         #
         for i in range(len(vals)):
             attrname = 'FOO_%d_%d' % (i, j)
@@ -256,8 +256,8 @@ def test_macro_check_value():
             else:
                 e = pytest.raises(ffi.error, getattr, lib, attrname)
                 assert str(e.value) == (
-                    "the C compiler says '%s' is equal to "
-                    "%s, but the cdef disagrees" % (attrname, c_compiler_msg))
+                    f"the C compiler says '{attrname}' is equal to "
+                    f"{c_compiler_msg}, but the cdef disagrees")
 
 def test_constant():
     ffi = FFI()
@@ -1585,7 +1585,7 @@ def test_extern_python_1():
             void boz(void);
         }
         """)
-    assert len(log) == 0, "got a warning: %r" % (log,)
+    assert len(log) == 0, f"got a warning: {log!r}"
     lib = verify(ffi, 'test_extern_python_1', """
         static void baz(int, int);   /* forward */
     """)
@@ -1671,7 +1671,7 @@ def test_extern_python_bogus_result_type():
         res = lib.bar(321)
     assert res is None
     msg = f.getvalue()
-    assert "rom cffi callback %r" % (bar,) in msg
+    assert f"rom cffi callback {bar!r}" in msg
     assert "rying to convert the result back to C:\n" in msg
     assert msg.endswith(
         "TypeError: callback with the return type 'void' must return None\n")
@@ -2581,9 +2581,9 @@ def test_large_enum():
     ffi = FFI()
     biglist = ['nn%d' % i for i in range(6000)]
     ffi.cdef(
-        """enum foo_s { %s };""" % ','.join(biglist))
+        """enum foo_s {{ {} }};""".format(','.join(biglist)))
     lib = verify(ffi, "test_large_enum", """
-        enum foo_s { %s };""" % ','.join(biglist))
+        enum foo_s {{ {} }};""".format(','.join(biglist)))
     assert lib.nn0 == 0
     assert lib.nn1234 == 1234
     assert lib.nn5999 == 5999

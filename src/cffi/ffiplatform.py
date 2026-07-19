@@ -51,7 +51,7 @@ def _build(tmpdir, ext, compiler_verbose=0, debug=None):
         finally:
             set_threshold(old_level)
     except (CompileError, LinkError) as e:
-        raise VerificationError('%s: %s' % (e.__class__.__name__, e))
+        raise VerificationError(f'{e.__class__.__name__}: {e}')
     #
     return soname
 
@@ -105,7 +105,7 @@ def _flatten(x, f):
         f.write('%di' % (x,))
     else:
         raise TypeError(
-            "the keywords to verify() contains unsupported object %r" % (x,))
+            f"the keywords to verify() contains unsupported object {x!r}")
 
 def flatten(x):
     f = cStringIO.StringIO()

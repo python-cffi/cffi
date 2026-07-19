@@ -30,4 +30,4 @@ CFFI_DLLEXPORT int (*my_callback)(int);
 """)
 
 fn = ffi.compile(verbose=True)
-print('FILENAME: %s' % (fn,))
+print(f'FILENAME: {fn}')

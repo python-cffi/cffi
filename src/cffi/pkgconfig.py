@@ -16,9 +16,9 @@ def merge_flags(cfg1, cfg2):
             cfg1[key] = value
         else:
             if not isinstance(cfg1[key], list):
-                raise TypeError("cfg1[%r] should be a list of strings" % (key,))
+                raise TypeError(f"cfg1[{key!r}] should be a list of strings")
             if not isinstance(value, list):
-                raise TypeError("cfg2[%r] should be a list of strings" % (key,))
+                raise TypeError(f"cfg2[{key!r}] should be a list of strings")
             cfg1[key].extend(value)
     return cfg1
 
@@ -32,7 +32,7 @@ def call(libname, flag, encoding=sys.getfilesystemencoding()):
     try:
         pc = subprocess.Popen(a, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError as e:
-        raise PkgConfigError("cannot run pkg-config: %s" % (str(e).strip(),))
+        raise PkgConfigError(f"cannot run pkg-config: {str(e).strip()}")
 
     bout, berr = pc.communicate()
     if pc.returncode != 0:
@@ -46,14 +46,12 @@ def call(libname, flag, encoding=sys.getfilesystemencoding()):
         try:
             bout = bout.decode(encoding)
         except UnicodeDecodeError:
-            raise PkgConfigError("pkg-config %s %s returned bytes that cannot "
-                                 "be decoded with encoding %r:\n%r" %
-                                 (flag, libname, encoding, bout))
+            raise PkgConfigError(f"pkg-config {flag} {libname} returned bytes that cannot "
+                                 f"be decoded with encoding {encoding!r}:\n{bout!r}")
 
     if os.altsep != '\\' and '\\' in bout:
-        raise PkgConfigError("pkg-config %s %s returned an unsupported "
-                             "backslash-escaped output:\n%r" %
-                             (flag, libname, bout))
+        raise PkgConfigError(f"pkg-config {flag} {libname} returned an unsupported "
+                             f"backslash-escaped output:\n{bout!r}")
     return bout
 
 

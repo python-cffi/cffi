@@ -18,4 +18,4 @@ ffi.set_source("_perf_cffi", """
 """)
 
 fn = ffi.compile(verbose=True)
-print('FILENAME: %s' % (fn,))
+print(f'FILENAME: {fn}')
