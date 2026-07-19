@@ -28,7 +28,7 @@ env:
 
 jobs:
   python_sdist:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       sdist_artifact_name: ${{ steps.build_sdist.outputs.sdist_artifact_name }}
       package_version: ${{ steps.build_sdist.outputs.package_version }}
@@ -60,7 +60,7 @@ jobs:
       # always upload the sdist artifact- all the wheel build jobs require it
 
   make_linux_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -154,7 +154,7 @@ jobs:
 
   linux:
     needs: [python_sdist, make_linux_matrix]
-    runs-on: ${{ (matrix.arch == 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    runs-on: ${{ (matrix.arch == 'aarch64') && 'ubuntu-26.04-arm' || 'ubuntu-26.04' }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -188,6 +188,7 @@ jobs:
           make install && \
           cd .. && \
           rm -rf libffi-3.4.6
+        CIBW_CONTAINER_ENGINE: "${{ matrix.arch == 'i686' && 'docker; create_args: --security-opt seccomp=unconfined' || 'docker' }}"  # Docker’s default seccomp profile is blocking a syscall required by the old 32-bit glibc resolver
         CIBW_ENVIRONMENT_PASS_LINUX: CFLAGS  # ensure that the build container can see our overridden build config
         CIBW_ENVIRONMENT: >-
           CPPFLAGS="$CPPFLAGS ${{ env.skip_artifact_upload == 'true' && '-UNDEBUG' || '-DNDEBUG' }}"
@@ -225,7 +226,7 @@ jobs:
       if: ${{ (matrix.skip_artifact_upload != 'true') && (env.skip_artifact_upload != 'true') }}
 
   make_macos_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -317,7 +318,7 @@ jobs:
       if: ${{ env.skip_artifact_upload != 'true' }}
 
   make_windows_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -411,7 +412,7 @@ jobs:
       if: ${{ env.skip_artifact_upload != 'true' }}
 
   make_ios_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -522,7 +523,7 @@ jobs:
 
   merge_artifacts:
     needs: [python_sdist, linux, macos, windows, ios]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - name: merge all artifacts
       uses: actions/upload-artifact/merge@v7
@@ -532,7 +533,7 @@ jobs:
       if: ${{ env.skip_artifact_upload != 'true' }}
 
   make_run_parallel_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -543,7 +544,7 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          - { runner: ubuntu-24.04, python-version: 3.15t-dev }
+          - { runner: ubuntu-26.04, python-version: 3.15t-dev }
           - { runner: macos-26, python-version: 3.15t-dev }
           - { runner: windows-2025, python-version: 3.15t-dev }
 
@@ -579,8 +580,10 @@ jobs:
         python -m pytest --parallel-threads=4 --skip-thread-unsafe=True --timeout=300 --timeout-method=thread
 
   clang_TSAN:
-    runs-on: ubuntu-24.04
-    container: ghcr.io/nascheme/numpy-tsan:3.15t-dev
+    runs-on: ubuntu-26.04
+    container:
+      image: ghcr.io/nascheme/numpy-tsan:3.15t-dev
+      options: --security-opt seccomp=unconfined
     timeout-minutes: 30
     env:
       CFLAGS: -g -O0 -fsanitize=thread
@@ -602,7 +605,7 @@ jobs:
   check:
     if: always()
     needs: [python_sdist, linux, macos, windows, ios, clang_TSAN, pytest-run-parallel, merge_artifacts]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - name: Verify all previous jobs succeeded (provides a single check to sample for gating purposes)
       uses: re-actors/alls-green@release/v1
