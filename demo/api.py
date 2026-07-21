@@ -12,10 +12,9 @@ class PythonFFI(FFI):
         def decorator(func):
             name = func.__name__
             if name in self._pyexports:
-                raise cffi.CDefError("duplicate pyexport'ed function %r"
-                                     % (name,))
+                raise cffi.CDefError(f"duplicate pyexport'ed function {name!r}")
             callback_var = self.getctype(tp, name)
-            self.cdef("%s;" % callback_var)
+            self.cdef(f"{callback_var};")
             self._pyexports[name] = _PyExport(tp, func)
         return decorator
 
@@ -24,7 +23,7 @@ class PythonFFI(FFI):
         pyexports = sorted(self._pyexports.items())
         for name, export in pyexports:
             callback_var = self.getctype(export.tp, name)
-            extras.append("%s;" % callback_var)
+            extras.append(f"{callback_var};")
         extras.append(source)
         source = '\n'.join(extras)
         lib = FFI.verify(self, source, **kwargs)

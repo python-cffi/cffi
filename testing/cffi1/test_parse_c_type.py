@@ -131,7 +131,7 @@ def parsex(input):
     def str_if_int(x):
         if isinstance(x, str):
             return x
-        return '%d,%d' % (x & 255, x >> 8)
+        return f'{x & 255},{x >> 8}'
     return '  '.join(map(str_if_int, result))
 
 def parse_error(input, expected_msg, expected_location):
@@ -264,8 +264,8 @@ def test_fix_arg_types():
 
 def test_enum():
     for i in range(len(enum_names)):
-        assert parse("enum %s" % (enum_names[i],)) == ['->', Enum(i)]
-        assert parse("enum %s*" % (enum_names[i],)) == [Enum(i),
+        assert parse(f"enum {enum_names[i]}") == ['->', Enum(i)]
+        assert parse(f"enum {enum_names[i]}*") == [Enum(i),
                                                         '->', Pointer(0)]
 
 def test_error():
@@ -302,9 +302,9 @@ def test_error():
 
 def test_number_too_large():
     num_max = sys.maxsize
-    assert parse("char[%d]" % num_max) == [Prim(lib._CFFI_PRIM_CHAR),
-                                          '->', Array(0), num_max]
-    parse_error("char[%d]" % (num_max + 1), "number too large", 5)
+    assert parse(f"char[{num_max}]") == [Prim(lib._CFFI_PRIM_CHAR),
+                                         '->', Array(0), num_max]
+    parse_error(f"char[{num_max + 1}]", "number too large", 5)
 
 def test_complexity_limit():
     parse_error("int" + "[]" * 2500, "internal type complexity limit reached",
@@ -316,20 +316,20 @@ def test_struct():
             tag = "union"
         else:
             tag = "struct"
-        assert parse("%s %s" % (tag, struct_names[i])) == ['->', Struct(i)]
-        assert parse("%s %s*" % (tag, struct_names[i])) == [Struct(i),
+        assert parse(f"{tag} {struct_names[i]}") == ['->', Struct(i)]
+        assert parse(f"{tag} {struct_names[i]}*") == [Struct(i),
                                                             '->', Pointer(0)]
 
 def test_exchanging_struct_union():
-    parse_error("union %s" % (struct_names[0],),
+    parse_error(f"union {struct_names[0]}",
                 "wrong kind of tag: struct vs union", 6)
-    parse_error("struct %s" % (struct_names[3],),
+    parse_error(f"struct {struct_names[3]}",
                 "wrong kind of tag: struct vs union", 7)
 
 def test_identifier():
     for i in range(len(identifier_names)):
-        assert parse("%s" % (identifier_names[i])) == ['->', Typename(i)]
-        assert parse("%s*" % (identifier_names[i])) == [Typename(i),
+        assert parse(f"{identifier_names[i]}") == ['->', Typename(i)]
+        assert parse(f"{identifier_names[i]}*") == [Typename(i),
                                                         '->', Pointer(0)]
 
 def test_cffi_opcode_sync():

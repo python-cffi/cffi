@@ -166,7 +166,7 @@ def test_cast_to_signed_char():
     p = new_primitive_type("signed char")
     x = cast(p, -65 + 17*256)
     assert repr(x) == "<cdata 'signed char' -65>"
-    assert repr(type(x)) == "<%s '_cffi_backend._CDataBase'>" % type_or_class
+    assert repr(type(x)) == f"<{type_or_class} '_cffi_backend._CDataBase'>"
     assert int(x) == -65
     x = cast(p, -66 + (1<<199)*256)
     assert repr(x) == "<cdata 'signed char' -66>"
@@ -309,9 +309,9 @@ def test_character_type():
     assert type(int(cast(p, 'A'))) is int
     assert type(long(cast(p, 'A'))) is long
     assert str(cast(p, 'A')) == repr(cast(p, 'A'))
-    assert repr(cast(p, 'A')) == "<cdata 'char' %s'A'>" % mandatory_b_prefix
-    assert repr(cast(p, 255)) == r"<cdata 'char' %s'\xff'>" % mandatory_b_prefix
-    assert repr(cast(p, 0)) == r"<cdata 'char' %s'\x00'>" % mandatory_b_prefix
+    assert repr(cast(p, 'A')) == f"<cdata 'char' {mandatory_b_prefix}'A'>"
+    assert repr(cast(p, 255)) == rf"<cdata 'char' {mandatory_b_prefix}'\xff'>"
+    assert repr(cast(p, 0)) == rf"<cdata 'char' {mandatory_b_prefix}'\x00'>"
 
 def test_pointer_type():
     p = new_primitive_type("int")
@@ -2218,20 +2218,16 @@ def _test_wchar_variant(typename):
     BInt = new_primitive_type("int")
     pyuni4 = {1: True, 2: False}[len(u+'\U00012345')]
     wchar4 = {2: False, 4: True}[sizeof(BWChar)]
-    assert str(cast(BWChar, 0x45)) == "<cdata '%s' %s'E'>" % (
-        typename, mandatory_u_prefix)
-    assert str(cast(BWChar, 0x1234)) == "<cdata '%s' %s'\u1234'>" % (
-        typename, mandatory_u_prefix)
+    assert str(cast(BWChar, 0x45)) == f"<cdata '{typename}' {mandatory_u_prefix}'E'>"
+    assert str(cast(BWChar, 0x1234)) == f"<cdata '{typename}' {mandatory_u_prefix}'\u1234'>"
     if not _hacked_pypy_uni4():
         if wchar4:
             x = cast(BWChar, 0x12345)
-            assert str(x) == "<cdata '%s' %s'\U00012345'>" % (
-                typename, mandatory_u_prefix)
+            assert str(x) == f"<cdata '{typename}' {mandatory_u_prefix}'\U00012345'>"
             assert int(x) == 0x12345
         else:
             x = cast(BWChar, 0x18345)
-            assert str(x) == "<cdata '%s' %s'\u8345'>" % (
-                typename, mandatory_u_prefix)
+            assert str(x) == f"<cdata '{typename}' {mandatory_u_prefix}'\u8345'>"
             assert int(x) == 0x8345
     #
     BWCharP = new_pointer_type(BWChar)
@@ -2288,17 +2284,17 @@ def _test_wchar_variant(typename):
             a[4]
     #
     w = cast(BWChar, 'a')
-    assert repr(w) == "<cdata '%s' %s'a'>" % (typename, mandatory_u_prefix)
+    assert repr(w) == f"<cdata '{typename}' {mandatory_u_prefix}'a'>"
     assert str(w) == repr(w)
     assert string(w) == u+'a'
     assert int(w) == ord('a')
     w = cast(BWChar, 0x1234)
-    assert repr(w) == "<cdata '%s' %s'\u1234'>" % (typename, mandatory_u_prefix)
+    assert repr(w) == f"<cdata '{typename}' {mandatory_u_prefix}'\u1234'>"
     assert str(w) == repr(w)
     assert string(w) == u+'\u1234'
     assert int(w) == 0x1234
     w = cast(BWChar, u+'\u8234')
-    assert repr(w) == "<cdata '%s' %s'\u8234'>" % (typename, mandatory_u_prefix)
+    assert repr(w) == f"<cdata '{typename}' {mandatory_u_prefix}'\u8234'>"
     assert str(w) == repr(w)
     assert string(w) == u+'\u8234'
     assert int(w) == 0x8234
@@ -2306,8 +2302,7 @@ def _test_wchar_variant(typename):
     assert repr(w) == "<cdata 'int' 4660>"
     if wchar4 and not _hacked_pypy_uni4():
         w = cast(BWChar, u+'\U00012345')
-        assert repr(w) == "<cdata '%s' %s'\U00012345'>" % (
-            typename, mandatory_u_prefix)
+        assert repr(w) == f"<cdata '{typename}' {mandatory_u_prefix}'\U00012345'>"
         assert str(w) == repr(w)
         assert string(w) == u+'\U00012345'
         assert int(w) == 0x12345
@@ -2336,7 +2331,7 @@ def _test_wchar_variant(typename):
     if is_ios:
         return  # cannot allocate executable memory for the callback() below
     def cb(p):
-        assert repr(p).startswith("<cdata '%s *' 0x" % typename)
+        assert repr(p).startswith(f"<cdata '{typename} *' 0x")
         return len(string(p))
     BFunc = new_function_type((BWCharP,), BInt, False)
     f = callback(BFunc, cb, -42)

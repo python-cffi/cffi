@@ -67,7 +67,7 @@ class TestFunction:
     def test_dlopen_filename(self):
         path = ctypes.util.find_library(lib_m)
         if not path:
-            pytest.skip("%s not found" % lib_m)
+            pytest.skip(f"{lib_m} not found")
         ffi = FFI(backend=self.Backend())
         ffi.cdef("""
             double cos(double x);
@@ -216,7 +216,7 @@ class TestFunction:
             return 42
         fptr = ffi.callback("int(*)(const char *txt)", cb)
         assert fptr != ffi.callback("int(*)(const char *)", cb)
-        assert repr(fptr) == "<cdata 'int(*)(char *)' calling %r>" % (cb,)
+        assert repr(fptr) == f"<cdata 'int(*)(char *)' calling {cb!r}>"
         res = fptr(b"Hello")
         assert res == 42
         #

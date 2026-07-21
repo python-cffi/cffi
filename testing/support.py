@@ -78,8 +78,7 @@ class FdWriteCapture:
 def _verify(ffi, module_name, preamble, *args, **kwds):
     from cffi.recompiler import recompile
     from .udir import udir
-    assert module_name not in sys.modules, "module name conflict: %r" % (
-        module_name,)
+    assert module_name not in sys.modules, f"module name conflict: {module_name!r}"
     kwds.setdefault('tmpdir', str(udir))
     outputfilename = recompile(ffi, module_name, preamble, *args, **kwds)
     module = load_dynamic(module_name, outputfilename)
@@ -147,7 +146,7 @@ def create_bridged_venv(tmpdir):
     try:
         subprocess.check_call([sys.executable, '-m', 'venv', str(tmpdir)])
     except OSError as e:
-        pytest.skip("Cannot execute venv: %s" % (e,))
+        pytest.skip(f"Cannot execute venv: {e}")
 
     site_packages = None
     for dirpath, dirnames, filenames in os.walk(tmpdir):
@@ -161,4 +160,4 @@ def create_bridged_venv(tmpdir):
             site_dirs.append(user_site)
         pth = Path(site_packages) / '_outer_test_env.pth'
         pth.write_text(''.join(
-            'import site; site.addsitedir(%r)\n' % (d,) for d in site_dirs))
+            f'import site; site.addsitedir({d!r})\n' for d in site_dirs))

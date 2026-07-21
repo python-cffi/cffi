@@ -65,8 +65,7 @@ class EmbeddingTests:
         output, _ = popen.communicate()
         err = popen.returncode
         if err:
-            raise OSError(("popen failed with exit code %r: %r\n\n%s" % (
-                err, args, output)).rstrip())
+            raise OSError((f"popen failed with exit code {err!r}: {args!r}\n\n{output}").rstrip())
         print(output.rstrip())
         return output
 
@@ -74,7 +73,7 @@ class EmbeddingTests:
         self.patch_environment()
         if name not in self._compiled_modules:
             path = self.get_path()
-            filename = '%s.py' % name
+            filename = f'{name}.py'
             # NOTE: if you have an .egg globally installed with an older
             # version of cffi, this will not work, because sys.path ends
             # up with the .egg before the PYTHONPATH entries.  I didn't
@@ -110,7 +109,7 @@ if sys.platform == 'win32':
 
     def compile(self, name, modules, opt=False, threads=False, defines={}):
         path = self.get_path()
-        filename = '%s.c' % name
+        filename = f'{name}.c'
         shutil.copy(os.path.join(local_dir, filename), path)
         shutil.copy(os.path.join(local_dir, 'thread-test.h'), path)
         import distutils.ccompiler
@@ -118,7 +117,7 @@ if sys.platform == 'win32':
         try:
             os.chdir(self.get_path())
             c = distutils.ccompiler.new_compiler()
-            print('compiling %s with %r' % (name, modules))
+            print(f'compiling {name} with {modules!r}')
             extra_preargs = []
             debug = True
             if sys.platform == 'win32':
@@ -126,7 +125,7 @@ if sys.platform == 'win32':
                 for m in modules:
                     m = os.path.basename(m)
                     assert m.endswith('.dll')
-                    libfiles.append('Release\\%s.lib' % m[:-4])
+                    libfiles.append(f'Release\\{m[:-4]}.lib')
                 modules = libfiles
                 extra_preargs.append('/MANIFEST')
                 debug = False    # you need to install extra stuff
@@ -157,12 +156,12 @@ if sys.platform == 'win32':
         env_extra[envname] = libpath
         for key, value in sorted(env_extra.items()):
             if os.environ.get(key) != value:
-                print('* setting env var %r to %r' % (key, value))
+                print(f'* setting env var {key!r} to {value!r}')
                 os.environ[key] = value
 
     def execute(self, name):
         path = self.get_path()
-        print('running %r in %r' % (name, path))
+        print(f'running {name!r} in {path!r}')
         executable_name = name
         if sys.platform == 'win32':
             executable_name = os.path.join(path, executable_name + '.exe')
@@ -174,8 +173,7 @@ if sys.platform == 'win32':
         result, _ = popen.communicate()
         err = popen.returncode
         if err:
-            raise OSError("%r failed with exit code %r" % (
-                os.path.join(path, executable_name), err))
+            raise OSError(f"{os.path.join(path, executable_name)!r} failed with exit code {err!r}")
         return result
 
 

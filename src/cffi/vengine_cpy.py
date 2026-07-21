@@ -104,7 +104,7 @@ class VCPythonEngine:
         constants = self._chained_list_constants[False]
         prnt('static struct PyModuleDef _cffi_module_def = {')
         prnt('  PyModuleDef_HEAD_INIT,')
-        prnt('  "%s",' % modname)
+        prnt(f'  "{modname}",')
         prnt('  NULL,')
         prnt('  -1,')
         prnt('  _cffi_methods,')
@@ -112,13 +112,13 @@ class VCPythonEngine:
         prnt('};')
         prnt()
         prnt('PyMODINIT_FUNC')
-        prnt('PyInit_%s(void)' % modname)
+        prnt(f'PyInit_{modname}(void)')
         prnt('{')
         prnt('  PyObject *lib;')
         prnt('  lib = PyModule_Create(&_cffi_module_def);')
         prnt('  if (lib == NULL)')
         prnt('    return NULL;')
-        prnt('  if (%s < 0 || _cffi_init() < 0) {' % (constants,))
+        prnt(f'  if ({constants} < 0 || _cffi_init() < 0) {{')
         prnt('    Py_DECREF(lib);')
         prnt('    return NULL;')
         prnt('  }')
@@ -142,7 +142,7 @@ class VCPythonEngine:
                 module = imp.load_dynamic(self.verifier.get_module_name(),
                                           self.verifier.modulefilename)
             except ImportError as e:
-                error = "importing %r: %s" % (self.verifier.modulefilename, e)
+                error = f"importing {self.verifier.modulefilename!r}: {e}"
                 raise VerificationError(error)
             finally:
                 if hasattr(sys, "setdlopenflags"):
@@ -175,8 +175,7 @@ class VCPythonEngine:
         library = FFILibrary()
         if module._cffi_setup(lst, VerificationError, library):
             import warnings
-            warnings.warn("reimporting %r might overwrite older definitions"
-                          % (self.verifier.get_module_name()))
+            warnings.warn(f"reimporting {self.verifier.get_module_name()!r} might overwrite older definitions")
         #
         # finally, call the loaded_cpy_xxx() functions.  This will perform
         # the final adjustments, like copying the Python->C wrapper
@@ -197,11 +196,10 @@ class VCPythonEngine:
         for name, tp in self._get_declarations():
             kind, realname = name.split(' ', 1)
             try:
-                method = getattr(self, '_generate_cpy_%s_%s' % (kind,
-                                                                step_name))
+                method = getattr(self, f'_generate_cpy_{kind}_{step_name}')
             except AttributeError:
                 raise VerificationError(
-                    "not implemented in verify(): %r" % name)
+                    f"not implemented in verify(): {name!r}")
             try:
                 method(tp, realname)
             except Exception as e:
@@ -211,7 +209,7 @@ class VCPythonEngine:
     def _load(self, module, step_name, **kwds):
         for name, tp in self._get_declarations():
             kind, realname = name.split(' ', 1)
-            method = getattr(self, '_%s_cpy_%s' % (step_name, kind))
+            method = getattr(self, f'_{step_name}_cpy_{kind}')
             try:
                 method(tp, realname, module, **kwds)
             except Exception as e:
@@ -231,12 +229,12 @@ class VCPythonEngine:
         if isinstance(tp, model.PrimitiveType):
             if tp.is_integer_type() and tp.name != '_Bool':
                 converter = '_cffi_to_c_int'
-                extraarg = ', %s' % tp.name
+                extraarg = f', {tp.name}'
             elif tp.is_complex_type():
                 raise VerificationError(
                     "not implemented in verify(): complex types")
             else:
-                converter = '(%s)_cffi_to_c_%s' % (tp.get_c_name(''),
+                converter = '({})_cffi_to_c_{}'.format(tp.get_c_name(''),
                                                    tp.name.replace(' ', '_'))
             errvalue = '-1'
         #
@@ -249,21 +247,21 @@ class VCPythonEngine:
             # a struct (not a struct pointer) as a function argument
             self._prnt('  if (_cffi_to_c((char *)&%s, _cffi_type(%d), %s) < 0)'
                       % (tovar, self._gettypenum(tp), fromvar))
-            self._prnt('    %s;' % errcode)
+            self._prnt(f'    {errcode};')
             return
         #
         elif isinstance(tp, model.FunctionPtrType):
-            converter = '(%s)_cffi_to_c_pointer' % tp.get_c_name('')
+            converter = '({})_cffi_to_c_pointer'.format(tp.get_c_name(''))
             extraarg = ', _cffi_type(%d)' % self._gettypenum(tp)
             errvalue = 'NULL'
         #
         else:
             raise NotImplementedError(tp)
         #
-        self._prnt('  %s = %s(%s%s);' % (tovar, converter, fromvar, extraarg))
-        self._prnt('  if (%s == (%s)%s && PyErr_Occurred())' % (
+        self._prnt(f'  {tovar} = {converter}({fromvar}{extraarg});')
+        self._prnt('  if ({} == ({}){} && PyErr_Occurred())'.format(
             tovar, tp.get_c_name(''), errvalue))
-        self._prnt('    %s;' % errcode)
+        self._prnt(f'    {errcode};')
 
     def _extra_local_variables(self, tp, localvars, freelines):
         if isinstance(tp, model.PointerType):
@@ -277,20 +275,20 @@ class VCPythonEngine:
         self._prnt('      _cffi_type(%d), %s, (char **)&%s);' % (
             self._gettypenum(tp), fromvar, tovar))
         self._prnt('  if (datasize != 0) {')
-        self._prnt('    %s = ((size_t)datasize) <= 640 ? '
-                   'alloca((size_t)datasize) : NULL;' % (tovar,))
+        self._prnt(f'    {tovar} = ((size_t)datasize) <= 640 ? '
+                   'alloca((size_t)datasize) : NULL;')
         self._prnt('    if (_cffi_convert_array_argument(_cffi_type(%d), %s, '
                    '(char **)&%s,' % (self._gettypenum(tp), fromvar, tovar))
         self._prnt('            datasize, &large_args_free) < 0)')
-        self._prnt('      %s;' % errcode)
+        self._prnt(f'      {errcode};')
         self._prnt('  }')
 
     def _convert_expr_from_c(self, tp, var, context):
         if isinstance(tp, model.PrimitiveType):
             if tp.is_integer_type() and tp.name != '_Bool':
-                return '_cffi_from_c_int(%s, %s)' % (var, tp.name)
+                return f'_cffi_from_c_int({var}, {tp.name})'
             elif tp.name != 'long double':
-                return '_cffi_from_c_%s(%s)' % (tp.name.replace(' ', '_'), var)
+                return '_cffi_from_c_{}({})'.format(tp.name.replace(' ', '_'), var)
             else:
                 return '_cffi_from_c_deref((char *)&%s, _cffi_type(%d))' % (
                     var, self._gettypenum(tp))
@@ -302,8 +300,7 @@ class VCPythonEngine:
                 var, self._gettypenum(model.PointerType(tp.item)))
         elif isinstance(tp, model.StructOrUnion):
             if tp.fldnames is None:
-                raise TypeError("'%s' is used as %s, but is opaque" % (
-                    tp._get_c_name(), context))
+                raise TypeError(f"'{tp._get_c_name()}' is used as {context}, but is opaque")
             return '_cffi_from_c_struct((char *)&%s, _cffi_type(%d))' % (
                 var, self._gettypenum(tp))
         elif isinstance(tp, model.EnumType):
@@ -352,24 +349,24 @@ class VCPythonEngine:
         else:
             argname = 'args'
         prnt('static PyObject *')
-        prnt('_cffi_f_%s(PyObject *self, PyObject *%s)' % (name, argname))
+        prnt(f'_cffi_f_{name}(PyObject *self, PyObject *{argname})')
         prnt('{')
         #
-        context = 'argument of %s' % name
+        context = f'argument of {name}'
         for i, type in enumerate(tp.args):
-            prnt('  %s;' % type.get_c_name(' x%d' % i, context))
+            prnt('  {};'.format(type.get_c_name(' x%d' % i, context)))
         #
         localvars = set()
         freelines = set()
         for type in tp.args:
             self._extra_local_variables(type, localvars, freelines)
         for decl in sorted(localvars):
-            prnt('  %s;' % (decl,))
+            prnt(f'  {decl};')
         #
         if not isinstance(tp.result, model.VoidType):
             result_code = 'result = '
-            context = 'result of %s' % name
-            prnt('  %s;' % tp.result.get_c_name(' result', context))
+            context = f'result of {name}'
+            prnt('  {};'.format(tp.result.get_c_name(' result', context)))
             prnt('  PyObject *pyresult;')
         else:
             result_code = ''
@@ -379,7 +376,7 @@ class VCPythonEngine:
             for i in rng:
                 prnt('  PyObject *arg%d;' % i)
             prnt()
-            prnt('  if (!PyArg_ParseTuple(args, "%s:%s", %s))' % (
+            prnt('  if (!PyArg_ParseTuple(args, "{}:{}", {}))'.format(
                 'O' * numargs, name, ', '.join(['&arg%d' % i for i in rng])))
             prnt('    return NULL;')
         prnt()
@@ -391,7 +388,7 @@ class VCPythonEngine:
         #
         prnt('  Py_BEGIN_ALLOW_THREADS')
         prnt('  _cffi_restore_errno();')
-        prnt('  { %s%s(%s); }' % (
+        prnt('  {{ {}{}({}); }}'.format(
             result_code, name,
             ', '.join(['x%d' % i for i in range(len(tp.args))])))
         prnt('  _cffi_save_errno();')
@@ -402,8 +399,7 @@ class VCPythonEngine:
         if numargs == 0:
             prnt('  (void)noarg; /* unused */')
         if result_code:
-            prnt('  pyresult = %s;' %
-                 self._convert_expr_from_c(tp.result, 'result', 'result type'))
+            prnt('  pyresult = {};'.format(self._convert_expr_from_c(tp.result, 'result', 'result type')))
             for freeline in freelines:
                 prnt('  ' + freeline)
             prnt('  return pyresult;')
@@ -425,7 +421,7 @@ class VCPythonEngine:
             meth = 'METH_O'
         else:
             meth = 'METH_VARARGS'
-        self._prnt('  {"%s", _cffi_f_%s, %s, NULL},' % (name, name, meth))
+        self._prnt(f'  {{"{name}", _cffi_f_{name}, {meth}, NULL}},')
 
     _loading_cpy_function = _loaded_noop
 
@@ -464,12 +460,12 @@ class VCPythonEngine:
     def _generate_struct_or_union_decl(self, tp, prefix, name):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
-        checkfuncname = '_cffi_check_%s_%s' % (prefix, name)
-        layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
-        cname = ('%s %s' % (prefix, name)).strip()
+        checkfuncname = f'_cffi_check_{prefix}_{name}'
+        layoutfuncname = f'_cffi_layout_{prefix}_{name}'
+        cname = (f'{prefix} {name}').strip()
         #
         prnt = self._prnt
-        prnt('static void %s(%s *p)' % (checkfuncname, cname))
+        prnt(f'static void {checkfuncname}({cname} *p)')
         prnt('{')
         prnt('  /* only to generate compile-time warnings or errors */')
         prnt('  (void)p;')
@@ -477,52 +473,51 @@ class VCPythonEngine:
             if (isinstance(ftype, model.PrimitiveType)
                 and ftype.is_integer_type()) or fbitsize >= 0:
                 # accept all integers, but complain on float or double
-                prnt('  (void)((p->%s) << 1);' % fname)
+                prnt(f'  (void)((p->{fname}) << 1);')
             else:
                 # only accept exactly the type declared.
                 try:
-                    prnt('  { %s = &p->%s; (void)tmp; }' % (
-                        ftype.get_c_name('*tmp', 'field %r'%fname, quals=fqual),
+                    prnt('  {{ {} = &p->{}; (void)tmp; }}'.format(
+                        ftype.get_c_name('*tmp', f'field {fname!r}', quals=fqual),
                         fname))
                 except VerificationError as e:
-                    prnt('  /* %s */' % str(e))   # cannot verify it, ignore
+                    prnt(f'  /* {str(e)} */')   # cannot verify it, ignore
         prnt('}')
         prnt('static PyObject *')
-        prnt('%s(PyObject *self, PyObject *noarg)' % (layoutfuncname,))
+        prnt(f'{layoutfuncname}(PyObject *self, PyObject *noarg)')
         prnt('{')
-        prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
+        prnt(f'  struct _cffi_aligncheck {{ char x; {cname} y; }};')
         prnt('  static Py_ssize_t nums[] = {')
-        prnt('    sizeof(%s),' % cname)
+        prnt(f'    sizeof({cname}),')
         prnt('    offsetof(struct _cffi_aligncheck, y),')
         for fname, ftype, fbitsize, fqual in tp.enumfields():
             if fbitsize >= 0:
                 continue      # xxx ignore fbitsize for now
-            prnt('    offsetof(%s, %s),' % (cname, fname))
+            prnt(f'    offsetof({cname}, {fname}),')
             if isinstance(ftype, model.ArrayType) and ftype.length is None:
-                prnt('    0,  /* %s */' % ftype._get_c_name())
+                prnt(f'    0,  /* {ftype._get_c_name()} */')
             else:
-                prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
+                prnt(f'    sizeof((({cname} *)0)->{fname}),')
         prnt('    -1')
         prnt('  };')
         prnt('  (void)self; /* unused */')
         prnt('  (void)noarg; /* unused */')
         prnt('  return _cffi_get_struct_layout(nums);')
         prnt('  /* the next line is not executed, but compiled */')
-        prnt('  %s(0);' % (checkfuncname,))
+        prnt(f'  {checkfuncname}(0);')
         prnt('}')
         prnt()
 
     def _generate_struct_or_union_method(self, tp, prefix, name):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
-        layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
-        self._prnt('  {"%s", %s, METH_NOARGS, NULL},' % (layoutfuncname,
-                                                         layoutfuncname))
+        layoutfuncname = f'_cffi_layout_{prefix}_{name}'
+        self._prnt(f'  {{"{layoutfuncname}", {layoutfuncname}, METH_NOARGS, NULL}},')
 
     def _loading_struct_or_union(self, tp, prefix, name, module):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
-        layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
+        layoutfuncname = f'_cffi_layout_{prefix}_{name}'
         #
         function = getattr(module, layoutfuncname)
         layout = function()
@@ -537,7 +532,7 @@ class VCPythonEngine:
             assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
             tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
         else:
-            cname = ('%s %s' % (prefix, name)).strip()
+            cname = (f'{prefix} {name}').strip()
             self._struct_pending_verification[tp] = layout, cname
 
     def _loaded_struct_or_union(self, tp):
@@ -562,11 +557,11 @@ class VCPythonEngine:
                 if fbitsize >= 0:
                     continue        # xxx ignore fbitsize for now
                 check(layout[i], ffi.offsetof(BStruct, fname),
-                      "wrong offset for field %r" % (fname,))
+                      f"wrong offset for field {fname!r}")
                 if layout[i+1] != 0:
                     BField = ffi._get_cached_btype(ftype)
                     check(layout[i+1], ffi.sizeof(BField),
-                          "wrong size for field %r" % (fname,))
+                          f"wrong size for field {fname!r}")
                 i += 2
             assert i == len(layout)
 
@@ -605,13 +600,13 @@ class VCPythonEngine:
                             vartp=None, delayed=True, size_too=False,
                             check_value=None):
         prnt = self._prnt
-        funcname = '_cffi_%s_%s' % (category, name)
-        prnt('static int %s(PyObject *lib)' % funcname)
+        funcname = f'_cffi_{category}_{name}'
+        prnt(f'static int {funcname}(PyObject *lib)')
         prnt('{')
         prnt('  PyObject *o;')
         prnt('  int res;')
         if not is_int:
-            prnt('  %s;' % (vartp or tp).get_c_name(' i', name))
+            prnt('  {};'.format((vartp or tp).get_c_name(' i', name)))
         else:
             assert category == 'const'
         #
@@ -623,28 +618,27 @@ class VCPythonEngine:
                 realexpr = '&' + name
             else:
                 realexpr = name
-            prnt('  i = (%s);' % (realexpr,))
-            prnt('  o = %s;' % (self._convert_expr_from_c(tp, 'i',
+            prnt(f'  i = ({realexpr});')
+            prnt('  o = {};'.format(self._convert_expr_from_c(tp, 'i',
                                                           'variable type'),))
             assert delayed
         else:
-            prnt('  o = _cffi_from_c_int_const(%s);' % name)
+            prnt(f'  o = _cffi_from_c_int_const({name});')
         prnt('  if (o == NULL)')
         prnt('    return -1;')
         if size_too:
             prnt('  {')
             prnt('    PyObject *o1 = o;')
-            prnt('    o = Py_BuildValue("On", o1, (Py_ssize_t)sizeof(%s));'
-                 % (name,))
+            prnt(f'    o = Py_BuildValue("On", o1, (Py_ssize_t)sizeof({name}));')
             prnt('    Py_DECREF(o1);')
             prnt('    if (o == NULL)')
             prnt('      return -1;')
             prnt('  }')
-        prnt('  res = PyObject_SetAttrString(lib, "%s", o);' % name)
+        prnt(f'  res = PyObject_SetAttrString(lib, "{name}", o);')
         prnt('  Py_DECREF(o);')
         prnt('  if (res < 0)')
         prnt('    return -1;')
-        prnt('  return %s;' % self._chained_list_constants[delayed])
+        prnt(f'  return {self._chained_list_constants[delayed]};')
         self._chained_list_constants[delayed] = funcname + '(lib)'
         prnt('}')
         prnt()
@@ -674,11 +668,10 @@ class VCPythonEngine:
             prnt('  if ((%s) <= 0 || (unsigned long)(%s) != %dUL) {' % (
                 name, name, value))
         prnt('    char buf[64];')
-        prnt('    if ((%s) <= 0)' % name)
-        prnt('        snprintf(buf, 63, "%%ld", (long)(%s));' % name)
+        prnt(f'    if (({name}) <= 0)')
+        prnt(f'        snprintf(buf, 63, "%ld", (long)({name}));')
         prnt('    else')
-        prnt('        snprintf(buf, 63, "%%lu", (unsigned long)(%s));' %
-             name)
+        prnt(f'        snprintf(buf, 63, "%lu", (unsigned long)({name}));')
         prnt('    PyErr_Format(_cffi_VerificationError,')
         prnt('                 "%s%s has the real value %s, not %s",')
         prnt('                 "%s", "%s", buf, "%d");' % (
@@ -689,7 +682,7 @@ class VCPythonEngine:
     def _enum_funcname(self, prefix, name):
         # "$enum_$1" => "___D_enum____D_1"
         name = name.replace('$', '___D_')
-        return '_cffi_e_%s_%s' % (prefix, name)
+        return f'_cffi_e_{prefix}_{name}'
 
     def _generate_cpy_enum_decl(self, tp, name, prefix='enum'):
         if tp.partial:
@@ -699,12 +692,12 @@ class VCPythonEngine:
         #
         funcname = self._enum_funcname(prefix, name)
         prnt = self._prnt
-        prnt('static int %s(PyObject *lib)' % funcname)
+        prnt(f'static int {funcname}(PyObject *lib)')
         prnt('{')
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
             self._check_int_constant_value(enumerator, enumvalue,
-                                           "enum %s: " % name)
-        prnt('  return %s;' % self._chained_list_constants[True])
+                                           f"enum {name}: ")
+        prnt(f'  return {self._chained_list_constants[True]};')
         self._chained_list_constants[True] = funcname + '(lib)'
         prnt('}')
         prnt()
@@ -771,8 +764,7 @@ class VCPythonEngine:
                 length, rest = divmod(size, self.ffi.sizeof(BItemType))
                 if rest != 0:
                     raise VerificationError(
-                        "bad size: %r does not seem to be an array of %s" %
-                        (name, tp.item))
+                        f"bad size: {name!r} does not seem to be an array of {tp.item}")
                 tp = tp.resolve_length(length)
             # 'value' is a <cdata 'type *'> which we have to replace with
             # a <cdata 'type[N]'> if the N is actually known
@@ -798,7 +790,7 @@ class VCPythonEngine:
         prnt = self._prnt
         prnt('static int _cffi_setup_custom(PyObject *lib)')
         prnt('{')
-        prnt('  return %s;' % self._chained_list_constants[True])
+        prnt(f'  return {self._chained_list_constants[True]};')
         prnt('}')
 
 cffimod_header = r'''
