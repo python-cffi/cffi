@@ -28,7 +28,7 @@ env:
 
 jobs:
   python_sdist:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       sdist_artifact_name: ${{ steps.build_sdist.outputs.sdist_artifact_name }}
       package_version: ${{ steps.build_sdist.outputs.package_version }}
@@ -60,7 +60,7 @@ jobs:
       # always upload the sdist artifact- all the wheel build jobs require it
 
   make_linux_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -80,7 +80,7 @@ jobs:
           - { spec: cp314t-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp315-manylinux_x86_64, arch: x86_64 }
           - { spec: cp315t-manylinux_x86_64, arch: x86_64 }
-
+        
           # x86_64 musllinux
           - { spec: cp310-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
           - { spec: cp311-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
@@ -145,7 +145,7 @@ jobs:
 
   linux:
     needs: [python_sdist, make_linux_matrix]
-    runs-on: ${{ (matrix.arch == 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    runs-on: ${{ (matrix.arch == 'aarch64') && 'ubuntu-26.04-arm' || 'ubuntu-26.04' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.make_linux_matrix.outputs.matrix_json) }}
@@ -211,7 +211,7 @@ jobs:
       if: ${{ (matrix.skip_artifact_upload != 'true') && (env.skip_artifact_upload != 'true') }}
 
   make_macos_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -299,7 +299,7 @@ jobs:
       if: ${{ env.skip_artifact_upload != 'true' }}
 
   make_windows_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -391,7 +391,7 @@ jobs:
       if: ${{ env.skip_artifact_upload != 'true' }}
 
   make_ios_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -498,7 +498,7 @@ jobs:
 
   merge_artifacts:
     needs: [python_sdist, linux, macos, windows, ios]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - name: merge all artifacts
       uses: actions/upload-artifact/merge@v7
@@ -508,7 +508,7 @@ jobs:
       if: ${{ env.skip_artifact_upload != 'true' }}
 
   make_run_parallel_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix_json: ${{ steps.make_matrix.outputs.matrix_json }}
     steps:
@@ -519,7 +519,7 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          - { runner: ubuntu-24.04, python-version: 3.15t-dev }
+          - { runner: ubuntu-26.04, python-version: 3.15t-dev }
           - { runner: macos-26, python-version: 3.15t-dev }
           - { runner: windows-2025, python-version: 3.15t-dev }
 
@@ -550,7 +550,7 @@ jobs:
         python -m pytest --parallel-threads=4 --skip-thread-unsafe=True
 
   clang_TSAN:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     container: ghcr.io/nascheme/numpy-tsan:3.15t-dev
     steps:
     - uses: actions/checkout@v7
@@ -568,7 +568,7 @@ jobs:
   check:
     if: always()
     needs: [python_sdist, linux, macos, windows, ios, clang_TSAN, pytest-run-parallel, merge_artifacts]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - name: Verify all previous jobs succeeded (provides a single check to sample for gating purposes)
       uses: re-actors/alls-green@release/v1
