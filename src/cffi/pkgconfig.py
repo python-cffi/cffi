@@ -42,13 +42,12 @@ def call(libname, flag, encoding=sys.getfilesystemencoding()):
             pass
         raise PkgConfigError(berr.strip())
 
-    if sys.version_info >= (3,) and not isinstance(bout, str):   # Python 3.x
-        try:
-            bout = bout.decode(encoding)
-        except UnicodeDecodeError:
-            raise PkgConfigError("pkg-config %s %s returned bytes that cannot "
-                                 "be decoded with encoding %r:\n%r" %
-                                 (flag, libname, encoding, bout))
+	try:
+		bout = bout.decode(encoding)
+	except UnicodeDecodeError:
+		raise PkgConfigError("pkg-config %s %s returned bytes that cannot "
+							 "be decoded with encoding %r:\n%r" %
+							 (flag, libname, encoding, bout))
 
     if os.altsep != '\\' and '\\' in bout:
         raise PkgConfigError("pkg-config %s %s returned an unsupported "
