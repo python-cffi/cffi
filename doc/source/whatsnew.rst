@@ -5,7 +5,13 @@ What's New
 v2.2.0.dev0
 ===========
 
-* TBD
+* Fixed variadic function calls on Apple platforms when ``_cffi_backend`` is
+  built against a libffi other than the one provided by the macOS SDK — that
+  is, the iOS/tvOS/watchOS wheels, or a macOS build using a Homebrew libffi.
+  Such builds never used ``ffi_prep_cif_var()``, so variadic arguments were
+  passed using the fixed-arguments calling convention; on arm64 they are
+  passed differently, so the callee read garbage: integer arguments arrived
+  as random values, and pointer arguments typically caused a crash.
 
 v2.1.0
 ======
