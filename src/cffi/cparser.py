@@ -190,7 +190,7 @@ def _preprocess(csource):
     # First, remove the lines of the form '#line N "filename"' because
     # the "filename" part could confuse the rest
     csource, line_directives = _remove_line_directives(csource)
-    # Remove comments.  NOTE: this only work because the cdef() section
+    # Remove comments.  NOTE: this only works because the cdef() section
     # should not contain any string literals (except in line directives)!
     def replace_keeping_newlines(m):
         return ' ' + m.group().count('\n') * '\n'
