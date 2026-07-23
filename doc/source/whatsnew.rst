@@ -5,7 +5,12 @@ What's New
 v2.2.0.dev0
 ===========
 
-* TBD
+* Fixed variadic function calls on Apple platforms when ``_cffi_backend`` is
+  built against a libffi other than the one provided by the macOS SDK — that
+  is, the iOS/tvOS/watchOS wheels, or a macOS build using a Homebrew libffi.
+  (`#265`_).
+
+.. _`#265`: https://github.com/python-cffi/cffi/pull/265
 
 v2.1.0
 ======

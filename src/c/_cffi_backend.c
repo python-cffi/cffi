@@ -117,6 +117,25 @@
 # define CFFI_CHECK_FFI_PREP_CIF_VAR __builtin_available(macos 10.15, ios 13, watchos 6, tvos 13, *)
 # define CFFI_CHECK_FFI_PREP_CIF_VAR_MAYBE 1
 
+#elif defined(__APPLE__)
+
+/* On Apple platforms, but built against a libffi whose headers do not
+ * define FFI_AVAILABLE_APPLE: not the OS-provided libffi, but e.g. the
+ * static libffi that iOS/tvOS/watchOS wheels are built against, or a
+ * Homebrew libffi on macOS.  There is no runtime-availability question
+ * there: whatever the linker resolved is present, so all three functions
+ * can be used unconditionally.  ffi_prep_cif_var() in particular must be
+ * used: on arm64 Apple platforms variadic arguments are passed on the
+ * stack, unlike regular arguments, so calling a variadic function through
+ * a cif prepared with ffi_prep_cif() silently passes garbage.
+ */
+# define CFFI_CHECK_FFI_CLOSURE_ALLOC 1
+# define CFFI_CHECK_FFI_CLOSURE_ALLOC_MAYBE 1
+# define CFFI_CHECK_FFI_PREP_CLOSURE_LOC 1
+# define CFFI_CHECK_FFI_PREP_CLOSURE_LOC_MAYBE 1
+# define CFFI_CHECK_FFI_PREP_CIF_VAR 1
+# define CFFI_CHECK_FFI_PREP_CIF_VAR_MAYBE 1
+
 #elif defined(__EMSCRIPTEN__)
 
 # define CFFI_CHECK_FFI_CLOSURE_ALLOC 1

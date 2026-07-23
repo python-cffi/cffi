@@ -1233,11 +1233,6 @@ def test_cannot_pass_struct_with_array_of_length_0():
     BFunc2 = new_function_type((BInt,), BStruct, False)
     pytest.raises(NotImplementedError, cast(BFunc2, 123), 123)
 
-@pytest.mark.xfail(
-    is_ios,
-    reason="For an unknown reason f(1, cast(BInt, 42)) returns 36792864",
-    raises=AssertionError,
-)
 def test_call_function_9():
     BInt = new_primitive_type("int")
     BFunc9 = new_function_type((BInt,), BInt, True)    # vararg
@@ -3022,11 +3017,6 @@ if sys.version_info >= (3,):
     except ImportError:
         pass   # win32
 
-@pytest.mark.skipif(
-    is_ios,
-    reason="For an unknown reason fscanf() doesn't read anything on 3.14"
-           " and crashes on 3.13 (that's why it's not an xfail)",
-)
 def test_FILE():
     if sys.platform == "win32":
         pytest.skip("testing FILE not implemented")
