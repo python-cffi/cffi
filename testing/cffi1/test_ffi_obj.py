@@ -227,10 +227,9 @@ def test_ffi_invalid_type():
                             "struct never_heard_of_s\n"
                             "       ^")
     e = pytest.raises(ffi.error, ffi.cast, "\t\n\x01\x1f~\x7f\x80\xff", 0)
-    marks = "?" if sys.version_info < (3,) else "??"
     assert str(e.value) == ("identifier expected\n"
-                            "  ??~?%s%s\n"
-                            "  ^" % (marks, marks))
+                            "  ??~?????\n"
+                            "  ^")
     e = pytest.raises(ffi.error, ffi.cast, "X" * 600, 0)
     assert str(e.value) == ("undefined type name")
 
@@ -467,10 +466,7 @@ def test_init_once():
         assert seen == [1, 1]
 
 def test_init_once_multithread():
-    if sys.version_info < (3,):
-        import thread
-    else:
-        import _thread as thread
+    import _thread
     import time
     #
     def do_init():
@@ -486,7 +482,7 @@ def test_init_once_multithread():
         def f():
             res = ffi.init_once(do_init, "tag")
             seen.append(res)
-        thread.start_new_thread(f, ())
+        _thread.start_new_thread(f, ())
     time.sleep(1.5)
     assert seen == ['init!', 'init done'] + 6 * [7]
 
@@ -501,10 +497,7 @@ def test_init_once_failure():
         assert seen == [1] * (i + 1)
 
 def test_init_once_multithread_failure():
-    if sys.version_info < (3,):
-        import thread
-    else:
-        import _thread as thread
+    import _thread
     import time
     def do_init():
         seen.append('init!')
@@ -516,7 +509,7 @@ def test_init_once_multithread_failure():
     for i in range(3):
         def f():
             pytest.raises(ValueError, ffi.init_once, do_init, "tag")
-        thread.start_new_thread(f, ())
+        _thread.start_new_thread(f, ())
     i = 0
     while len(seen) < 6:
         i += 1

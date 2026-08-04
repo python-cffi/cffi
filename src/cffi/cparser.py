@@ -8,10 +8,7 @@ except ImportError:
 import weakref, re, sys
 
 try:
-    if sys.version_info < (3,):
-        import thread as _thread
-    else:
-        import _thread
+    import _thread
     lock = _thread.allocate_lock()
 except ImportError:
     lock = None

@@ -55,12 +55,8 @@ class VGenericEngine:
         # 'export_symbols', so instead of fighting it, just give up and
         # give it one
         if sys.platform == 'win32':
-            if sys.version_info >= (3,):
-                prefix = 'PyInit_'
-            else:
-                prefix = 'init'
             modname = self.verifier.get_module_name()
-            prnt("void %s%s(void) { }\n" % (prefix, modname))
+            prnt(f"void PyInit_{modname}(void) {{ }}\n")
 
     def load_library(self, flags=0):
         # import it with the CFFI backend
@@ -497,8 +493,7 @@ class VGenericEngine:
         p = self.ffi.new(BType, 256)
         if function(p) < 0:
             error = self.ffi.string(p)
-            if sys.version_info >= (3,):
-                error = str(error, 'utf-8')
+            error = str(error, 'utf-8')
             raise VerificationError(error)
 
     def _enum_funcname(self, prefix, name):
