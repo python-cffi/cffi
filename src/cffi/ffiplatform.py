@@ -47,7 +47,7 @@ def _build(tmpdir, ext, compiler_verbose=0, debug=None):
             set_verbosity(compiler_verbose)
             dist.run_command('build_ext')
             cmd_obj = dist.get_command_obj('build_ext')
-            [soname] = cmd_obj.get_outputs()
+            soname = cmd_obj.get_ext_fullpath(ext.name)
         finally:
             set_threshold(old_level)
     except (CompileError, LinkError) as e:

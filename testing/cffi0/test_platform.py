@@ -1,4 +1,7 @@
+import binascii
 import os
+import pytest
+from cffi import FFI
 from cffi.ffiplatform import maybe_relative_path, flatten
 
 
@@ -23,3 +26,33 @@ def test_flatten():
     assert flatten([4, 5]) == "2l4i5i"
     assert flatten({4: 5}) == "1d4i5i"
     assert flatten({"foo": ("bar", "baaz")}) == "1d3sfoo2l3sbar4sbaaz"
+
+@pytest.mark.thread_unsafe(reason="monkeypatches a shared distutils class method")
+def test_compile_with_extra_build_ext_outputs(monkeypatch):
+    # Some setuptools/distutils versions can make build_ext.get_outputs()
+    # return more entries than the single extension we asked it to build
+    # (see https://github.com/python-cffi/cffi/issues/246, which is the
+    # same underlying unpacking crash reported in
+    # https://github.com/python-cffi/cffi/issues/229). Unpacking that list
+    # unconditionally used to raise a confusing
+    # "ValueError: too many values to unpack".
+    from cffi._shimmed_dist_utils import build_ext as real_build_ext
+
+    original_get_outputs = real_build_ext.get_outputs
+
+    def get_outputs_with_extra_entry(self):
+        return list(original_get_outputs(self)) + ['/nonexistent/other.so']
+
+    monkeypatch.setattr(real_build_ext, 'get_outputs',
+                        get_outputs_with_extra_entry)
+
+    # force a fresh module name/compile every run, so the monkeypatched
+    # get_outputs() above is actually exercised instead of reusing a
+    # previously-built module cached under the same checksum-derived name
+    tag = binascii.hexlify(os.urandom(8)).decode()
+
+    ffi = FFI()
+    ffi.cdef("double test_platform_extra_outputs(double x);")
+    csrc = "double test_platform_extra_outputs(double x) { return x + 1.0; }"
+    lib = ffi.verify(csrc, tag=tag)
+    assert lib.test_platform_extra_outputs(41.0) == 42.0
