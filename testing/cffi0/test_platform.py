@@ -1,4 +1,3 @@
-import binascii
 import os
 import pytest
 from cffi import FFI
@@ -49,7 +48,7 @@ def test_compile_with_extra_build_ext_outputs(monkeypatch):
     # force a fresh module name/compile every run, so the monkeypatched
     # get_outputs() above is actually exercised instead of reusing a
     # previously-built module cached under the same checksum-derived name
-    tag = binascii.hexlify(os.urandom(8)).decode()
+    tag = os.urandom(8).hex()
 
     ffi = FFI()
     ffi.cdef("double test_platform_extra_outputs(double x);")
