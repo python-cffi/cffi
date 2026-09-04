@@ -204,6 +204,10 @@ thread_canary_register(PyThreadState *tstate)
     if (tdict == NULL)
         goto ignore_error;
 
+    /* Give ThreadCanary_Type a valid metatype before instantiating it. */
+    if (PyType_Ready(&ThreadCanary_Type) < 0)
+        goto ignore_error;
+
     canary = PyObject_New(ThreadCanaryObj, &ThreadCanary_Type);
     //fprintf(stderr, "thread_canary_register(%p): tstate=%p tls=%p\n", canary, tstate, tls);
     if (canary == NULL)
@@ -265,13 +269,6 @@ static PyTypeObject ThreadCanary_Type = {
 
 static void init_cffi_tls_zombie(void)
 {
-    /* thread_canary objects are created with PyObject_New(&ThreadCanary_Type);
-       the type must be readied so it has a valid metatype (ob_type). Otherwise
-       introspection of a canary from another module dereferences a NULL metatype
-       and crashes. */
-    if (PyType_Ready(&ThreadCanary_Type) < 0)
-        return;  /* error set; PyInit__cffi_backend checks PyErr_Occurred() */
-
     cffi_zombie_head.zombie_next = &cffi_zombie_head;
     cffi_zombie_head.zombie_prev = &cffi_zombie_head;
     cffi_zombie_lock = PyThread_allocate_lock();
