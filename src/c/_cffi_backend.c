@@ -7585,6 +7585,14 @@ static _cffi_double_complex_t _testfunc25(double a, double b)
 }
 #endif
 
+static int _testfunc26(void)
+{
+    /* Report whether assert expressions are evaluated in this build. */
+    int enabled = 0;
+    assert(++enabled);
+    return enabled;
+}
+
 static PyObject *b__testfunc(PyObject *self, PyObject *args)
 {
     /* for testing only */
@@ -7621,6 +7629,7 @@ static PyObject *b__testfunc(PyObject *self, PyObject *args)
     case 24: f = &_testfunc24; break;
     case 25: f = &_testfunc25; break;
 #endif
+    case 26: f = &_testfunc26; break;
     default:
         PyErr_SetNone(PyExc_ValueError);
         return NULL;

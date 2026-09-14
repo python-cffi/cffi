@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import traceback
 import unittest.mock
 
@@ -1221,6 +1222,16 @@ def test_call_function_23_bool_array():
     res = f(b"\x01\x01")
     assert res == 1000
     pytest.raises(ValueError, f, b"\x02\x02")
+
+def test_backend_assertions():
+    expected = os.environ.get('CFFI_TEST_ASSERTIONS')
+    if expected is None and not os.environ.get('GITHUB_ACTIONS'):
+        pytest.skip("CFFI_TEST_ASSERTIONS is not set")
+    assert expected in ('0', '1')
+    BInt = new_primitive_type("int")
+    BFunc = new_function_type((), BInt, False)
+    f = cast(BFunc, _testfunc(26))
+    assert f() == int(expected)
 
 def test_cannot_pass_struct_with_array_of_length_0():
     BInt = new_primitive_type("int")

@@ -188,6 +188,9 @@ jobs:
           cd .. && \
           rm -rf libffi-3.4.6
         CIBW_ENVIRONMENT_PASS_LINUX: CFLAGS  # ensure that the build container can see our overridden build config
+        CIBW_ENVIRONMENT: >-
+          CPPFLAGS="$CPPFLAGS ${{ env.skip_artifact_upload == 'true' && '-UNDEBUG' || '-DNDEBUG' }}"
+          CFFI_TEST_ASSERTIONS=${{ env.skip_artifact_upload == 'true' && '1' || '0' }}
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.manylinux_img || 'manylinux2014' }}
@@ -287,6 +290,9 @@ jobs:
         CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools meson-python ninja
         CIBW_TEST_COMMAND: pip install pip --upgrade; cd {project}; PYTHONUNBUFFERED=1 pytest
+        CIBW_ENVIRONMENT: >-
+          CPPFLAGS="$CPPFLAGS ${{ env.skip_artifact_upload == 'true' && '-UNDEBUG' || '-DNDEBUG' }}"
+          CFFI_TEST_ASSERTIONS=${{ env.skip_artifact_upload == 'true' && '1' || '0' }}
         MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target || '11.0' }}
         SDKROOT: ${{ matrix.sdkroot || 'macosx' }}
       run: |
@@ -375,6 +381,9 @@ jobs:
         CIBW_ENABLE: cpython-prerelease
         CIBW_TEST_REQUIRES: pytest setuptools meson-python ninja
         CIBW_TEST_COMMAND: ${{ matrix.test_cmd || 'python -m pytest {package}/src/c' }}
+        CIBW_ENVIRONMENT: >-
+          _CL_="$_CL_ ${{ env.skip_artifact_upload == 'true' && '/UNDEBUG' || '/DNDEBUG' }}"
+          CFFI_TEST_ASSERTIONS=${{ env.skip_artifact_upload == 'true' && '1' || '0' }}
         # FIXME: /testing takes ~45min on Windows and has some failures...
         # CIBW_TEST_COMMAND='python -m pytest {package}/src/c {package}/testing'
       run: |
@@ -479,9 +488,12 @@ jobs:
         CIBW_TEST_SOURCES: cffi
         # Running tests from `testing/` will not work since they try to compile C code on device
         CIBW_TEST_COMMAND: python -m pytest -sv cffi/src/c/
+        # Xcode forwards TEST_RUNNER_ variables into the simulator test process.
+        CIBW_TEST_ENVIRONMENT: TEST_RUNNER_CFFI_TEST_ASSERTIONS=${{ env.skip_artifact_upload == 'true' && '1' || '0' }}
         # Environment variables for the build
         CIBW_ENVIRONMENT: >
           CFLAGS="-I${LIBFFI_IOS_DIR}/include"
+          CPPFLAGS="$CPPFLAGS ${{ env.skip_artifact_upload == 'true' && '-UNDEBUG' || '-DNDEBUG' }}"
           LDFLAGS="-L${LIBFFI_IOS_DIR}/lib"
           PYTHONUNBUFFERED=1
         # Pass through our custom env vars
@@ -535,6 +547,10 @@ jobs:
 
   pytest-run-parallel:
     needs: make_run_parallel_matrix
+    env:
+      CPPFLAGS: -UNDEBUG
+      _CL_: /UNDEBUG
+      CFFI_TEST_ASSERTIONS: '1'
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.make_run_parallel_matrix.outputs.matrix_json) }}
@@ -562,13 +578,17 @@ jobs:
   clang_TSAN:
     runs-on: ubuntu-24.04
     container: ghcr.io/nascheme/numpy-tsan:3.15t-dev
+    env:
+      CFLAGS: -g -O0 -fsanitize=thread
+      CPPFLAGS: -UNDEBUG
+      CFFI_TEST_ASSERTIONS: '1'
     steps:
     - uses: actions/checkout@v7
 
     - name: build and install
       run: |
         python -m pip install setuptools meson-python ninja pytest pytest-run-parallel
-        CFLAGS="-g -O3 -fsanitize=thread" python -m pip install -v .
+        python -m pip install -v .
 
     - name: run tests under pytest-run-parallel
       run: |
