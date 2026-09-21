@@ -343,6 +343,8 @@ the C extension:
           #include "pi.h"
       """,
           sources=['pi.c'],   # includes pi.c as additional sources
+          depends=['pi.h'],   # includes pi.h in source distributions
+          include_dirs=['.'], # lets the compiler find pi.h
           libraries=['m'])    # on Unix, link with the math library
 
       if __name__ == "__main__":

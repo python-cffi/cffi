@@ -353,7 +353,7 @@ code.
 
 The keywords arguments to ``set_source()`` control how the C compiler
 will be called.  They are passed directly to distutils_ or setuptools_
-and include at least ``sources``, ``include_dirs``, ``define_macros``,
+and include at least ``sources``, ``depends``, ``include_dirs``, ``define_macros``,
 ``undef_macros``, ``libraries``, ``library_dirs``, ``extra_objects``,
 ``extra_compile_args`` and ``extra_link_args``.  You typically need at
 least ``libraries=['foo']`` in order to link with ``libfoo.so`` or
@@ -366,6 +366,17 @@ first argument to ``sources``).  See the distutils documentation for
 .. __: https://setuptools.pypa.io/en/stable/userguide/ext_modules.html#building-extension-modules
 .. _distutils: http://docs.python.org/3.11/distutils/setupscript.html#describing-extension-modules
 .. _setuptools: https://setuptools.pypa.io/
+
+If your C sources include project-local header files, list those files in
+``depends``, for example ``depends=['pi.h']``.  Setuptools uses this list
+both to detect when an extension needs rebuilding and to include the files
+in a source distribution.  Use paths relative to the project root.
+``include_dirs`` only tells the compiler where to search for headers; it
+does not add those headers to the source distribution.  Without them, a
+wheel built from the source distribution (as done by ``python -m build``)
+can fail even if compilation from the working tree succeeds.  List the
+headers themselves, including any project-local headers they include;
+``depends`` does not recursively discover ``#include`` dependencies.
 
 An extra keyword argument processed internally is
 ``source_extension``, defaulting to ``".c"``.  The file generated will
