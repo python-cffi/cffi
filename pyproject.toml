@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 name = "cffi"
 version = "2.2.0.dev0"
 dependencies = [
-    "pycparser; implementation_name != 'PyPy'",
+    "pycparser; implementation_name != 'pypy'",
 ]
 requires-python = ">=3.10"
 
