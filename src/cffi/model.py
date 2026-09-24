@@ -33,15 +33,14 @@ class BaseTypeByIdentity:
         replace_with = replace_with.strip()
         if replace_with:
             if replace_with.startswith('*') and '&[' in result:
-                replace_with = '(%s)' % replace_with
+                replace_with = f'({replace_with})'
             elif replace_with[0] not in '[(':
                 replace_with = ' ' + replace_with
         replace_with = qualify(quals, replace_with)
         result = result.replace('&', replace_with)
         if '$' in result:
             raise VerificationError(
-                "cannot generate '%s' in %s: unknown type name"
-                % (self._get_c_name(), context))
+                f"cannot generate '{self._get_c_name()}' in {context}: unknown type name")
         return result
 
     def _get_c_name(self):
@@ -63,7 +62,7 @@ class BaseTypeByIdentity:
         return BType
 
     def __repr__(self):
-        return '<%s>' % (self._get_c_name(),)
+        return f'<{self._get_c_name()}>'
 
     def _get_items(self):
         return [(name, getattr(self, name)) for name in self._attrs_]
@@ -186,8 +185,8 @@ class UnknownIntegerType(BasePrimitiveType):
         return True
 
     def build_backend_type(self, ffi, finishlist):
-        raise NotImplementedError("integer type '%s' can only be used after "
-                                  "compilation" % self.name)
+        raise NotImplementedError(f"integer type '{self.name}' can only be used after "
+                                  "compilation")
 
 class UnknownFloatType(BasePrimitiveType):
     _attrs_ = ('name', )
@@ -197,8 +196,8 @@ class UnknownFloatType(BasePrimitiveType):
         self.c_name_with_marker = name + '&'
 
     def build_backend_type(self, ffi, finishlist):
-        raise NotImplementedError("float type '%s' can only be used after "
-                                  "compilation" % self.name)
+        raise NotImplementedError(f"float type '{self.name}' can only be used after "
+                                  "compilation")
 
 
 class BaseFunctionType(BaseType):
@@ -229,8 +228,8 @@ class RawFunctionType(BaseFunctionType):
     is_raw_function = True
 
     def build_backend_type(self, ffi, finishlist):
-        raise CDefError("cannot render the type %r: it is a function "
-                        "type, not a pointer-to-function type" % (self,))
+        raise CDefError(f"cannot render the type {self!r}: it is a function "
+                        "type, not a pointer-to-function type")
 
     def as_function_pointer(self):
         return FunctionPtrType(self.args, self.result, self.ellipsis, self.abi)
@@ -266,7 +265,7 @@ class PointerType(BaseType):
         self.quals = quals
         extra = " *&"
         if totype.is_array_type:
-            extra = "(%s)" % (extra.lstrip(),)
+            extra = f"({extra.lstrip()})"
         extra = qualify(quals, extra)
         self.c_name_with_marker = totype.c_name_with_marker.replace('&', extra)
 
@@ -304,7 +303,7 @@ class ArrayType(BaseType):
         elif length == '...':
             brackets = '&[/*...*/]'
         else:
-            brackets = '&[%s]' % length
+            brackets = f'&[{length}]'
         self.c_name_with_marker = (
             self.item.c_name_with_marker.replace('&', brackets))
 
@@ -316,8 +315,7 @@ class ArrayType(BaseType):
 
     def build_backend_type(self, ffi, finishlist):
         if self.length_is_unknown():
-            raise CDefError("cannot render the type %r: unknown length" %
-                            (self,))
+            raise CDefError(f"cannot render the type {self!r}: unknown length")
         self.item.get_cached_btype(ffi, finishlist)   # force the item BType
         BPtrItem = PointerType(self.item).get_cached_btype(ffi, finishlist)
         return global_cache(self, ffi, 'new_array_type', BPtrItem, self.length)
@@ -330,7 +328,7 @@ class StructOrUnionOrEnum(BaseTypeByIdentity):
     forcename = None
 
     def build_c_name_with_marker(self):
-        name = self.forcename or '%s %s' % (self.kind, self.name)
+        name = self.forcename or f'{self.kind} {self.name}'
         self.c_name_with_marker = name + '&'
 
     def force_the_name(self, forcename):
@@ -404,7 +402,7 @@ class StructOrUnion(StructOrUnionOrEnum):
         if self.completed:
             if self.completed != 2:
                 raise NotImplementedError("recursive structure declaration "
-                                          "for '%s'" % (self.name,))
+                                          f"for '{self.name}'")
             return
         BType = ffi._cached_btypes[self]
         #
@@ -439,7 +437,7 @@ class StructOrUnion(StructOrUnionOrEnum):
                     nlen, nrest = divmod(fsize, ffi.sizeof(BItemType))
                     if nrest != 0:
                         self._verification_error(
-                            "field '%s.%s' has a bogus size?" % (
+                            "field '{}.{}' has a bogus size?".format(
                             self.name, self.fldnames[i] or '{}'))
                     ftype = ftype.resolve_length(nlen)
                     self.fldtypes = (self.fldtypes[:i] + (ftype,) +
@@ -474,7 +472,7 @@ class StructOrUnion(StructOrUnionOrEnum):
         self.check_not_partial()
         finishlist.append(self)
         #
-        return global_cache(self, ffi, 'new_%s_type' % self.kind,
+        return global_cache(self, ffi, f'new_{self.kind}_type',
                             self.get_official_name(), key=self)
 
 
@@ -532,9 +530,8 @@ class EnumType(StructOrUnionOrEnum):
                 __warningregistry__.clear()
             except NameError:
                 pass
-            warnings.warn("%r has no values explicitly defined; "
-                          "guessing that it is equivalent to 'unsigned int'"
-                          % self._get_c_name())
+            warnings.warn(f"{self._get_c_name()!r} has no values explicitly defined; "
+                          "guessing that it is equivalent to 'unsigned int'")
             smallest_value = largest_value = 0
         if smallest_value < 0:   # needs a signed type
             sign = 1
@@ -554,12 +551,12 @@ class EnumType(StructOrUnionOrEnum):
         if (smallest_value >= ((-1) << (8*size2-1)) and
             largest_value < (1 << (8*size2-sign))):
             return btype2
-        raise CDefError("%s values don't all fit into either 'long' "
-                        "or 'unsigned long'" % self._get_c_name())
+        raise CDefError(f"{self._get_c_name()} values don't all fit into either 'long' "
+                        "or 'unsigned long'")
 
 def unknown_type(name, structname=None):
     if structname is None:
-        structname = '$%s' % name
+        structname = f'${name}'
     tp = StructType(structname, None, None, None)
     tp.force_the_name(name)
     tp.origin = "unknown_type"
@@ -567,7 +564,7 @@ def unknown_type(name, structname=None):
 
 def unknown_ptr_type(name, structname=None):
     if structname is None:
-        structname = '$$%s' % name
+        structname = f'$${name}'
     tp = StructType(structname, None, None, None)
     return NamedPointerType(tp, name)
 
@@ -596,7 +593,7 @@ def global_cache(srctype, ffi, funcname, *args, **kwds):
     try:
         res = getattr(ffi._backend, funcname)(*args)
     except NotImplementedError as e:
-        raise NotImplementedError("%s: %r: %s" % (funcname, srctype, e))
+        raise NotImplementedError(f"{funcname}: {srctype!r}: {e}")
     # note that setdefault() on WeakValueDictionary is not atomic
     # and contains a rare bug (http://bugs.python.org/issue19542);
     # we have to use a lock and do it ourselves
@@ -614,4 +611,4 @@ def pointer_cache(ffi, BType):
 
 def attach_exception_info(e, name):
     if e.args and type(e.args[0]) is str:
-        e.args = ('%s: %s' % (name, e.args[0]),) + e.args[1:]
+        e.args = (f'{name}: {e.args[0]}',) + e.args[1:]

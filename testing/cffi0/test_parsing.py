@@ -24,14 +24,14 @@ class FakeBackend:
         args = [arg.cdecl for arg in args]
         result = result.cdecl
         return FakeType(
-            '<func (%s), %s, %s>' % (', '.join(args), result, has_varargs))
+            '<func ({}), {}, {}>'.format(', '.join(args), result, has_varargs))
 
     def new_primitive_type(self, name):
         assert name == name.lower()
-        return FakeType('<%s>' % name)
+        return FakeType(f'<{name}>')
 
     def new_pointer_type(self, itemtype):
-        return FakeType('<pointer to %s>' % (itemtype,))
+        return FakeType(f'<pointer to {itemtype}>')
 
     def new_struct_type(self, name):
         return FakeStruct(name)
@@ -42,7 +42,7 @@ class FakeBackend:
         s.fields = fields
 
     def new_array_type(self, ptrtype, length):
-        return FakeType('<array %s x %s>' % (ptrtype, length))
+        return FakeType(f'<array {ptrtype} x {length}>')
 
     def new_void_type(self):
         return FakeType("<void>")
@@ -371,9 +371,9 @@ def test_redefine_common_type():
     prefix = "" if sys.version_info < (3,) else "b"
     ffi = FFI()
     ffi.cdef("typedef char FILE;")
-    assert repr(ffi.cast("FILE", 123)) == "<cdata 'char' %s'{'>" % prefix
+    assert repr(ffi.cast("FILE", 123)) == f"<cdata 'char' {prefix}'{{'>"
     ffi.cdef("typedef char int32_t;")
-    assert repr(ffi.cast("int32_t", 123)) == "<cdata 'char' %s'{'>" % prefix
+    assert repr(ffi.cast("int32_t", 123)) == f"<cdata 'char' {prefix}'{{'>"
     ffi = FFI()
     ffi.cdef("typedef int bool, *FILE;")
     assert repr(ffi.cast("bool", 123)) == "<cdata 'int' 123>"
@@ -539,9 +539,9 @@ def test_stdcall():
     else:
         stdcall = ''
     assert str(tp) == (
-        "<ctype 'int(*)(int(%s*)(int), "
+        f"<ctype 'int(*)(int({stdcall}*)(int), "
                         "long(*)(), "
-                        "short(%s*)(short))'>" % (stdcall, stdcall))
+                        f"short({stdcall}*)(short))'>")
 
 def test_extern_python():
     ffi = FFI()
@@ -612,7 +612,7 @@ def test_unsigned_int_suffix_for_constant():
     C = ffi.dlopen(None)
     for base, expected_result in (('bin', 2), ('oct', 8), ('dec', 10), ('hex', 16)):
         for index in range(7):
-            assert getattr(C, '{base}_{index}'.format(base=base, index=index)) == expected_result
+            assert getattr(C, f'{base}_{index}') == expected_result
 
 def test_missing_newline_bug():
     ffi = FFI(backend=FakeBackend())

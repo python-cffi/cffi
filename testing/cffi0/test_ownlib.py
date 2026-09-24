@@ -144,7 +144,7 @@ class TestOwnLib:
             # no mingw
             from distutils.msvc9compiler import get_build_version
             version = get_build_version()
-            toolskey = "VS%0.f0COMNTOOLS" % version
+            toolskey = f"VS{version:0.0f}0COMNTOOLS"
             toolsdir = os.environ.get(toolskey, None)
             if toolsdir is None:
                 return
@@ -174,7 +174,7 @@ class TestOwnLib:
                 unicode_name = u+'testownlib'
                 encoded = str(unicode_name)
             subprocess.check_call(
-                "cc testownlib.c -shared -fPIC -o '%s.so'" % (encoded,),
+                f"cc testownlib.c -shared -fPIC -o '{encoded}.so'",
                 cwd=str(udir), shell=True)
             cls.module = f"{udir / unicode_name}.so"
         print(repr(cls.module))

@@ -35,7 +35,7 @@ class Verifier:
         if ffi._parser._uses_new_feature:
             raise VerificationError(
                 "feature not supported with ffi.verify(), but only "
-                "with ffi.set_source(): %s" % (ffi._parser._uses_new_feature,))
+                f"with ffi.set_source(): {ffi._parser._uses_new_feature}")
         self.ffi = ffi
         self.preamble = preamble
         if not modulename:
@@ -60,8 +60,7 @@ class Verifier:
             k1 = k1.lstrip('0x').rstrip('L')
             k2 = hex(binascii.crc32(key[1::2]) & 0xffffffff)
             k2 = k2.lstrip('0').rstrip('L')
-            modulename = '_cffi_%s_%s%s%s' % (tag, self._vengine._class_key,
-                                              k1, k2)
+            modulename = f'_cffi_{tag}_{self._vengine._class_key}{k1}{k2}'
         suffix = _get_so_suffixes()[0]
         self.tmpdir = tmpdir or _caller_dir_pycache()
         self.sourcefilename = os.path.join(self.tmpdir, modulename + source_extension)
@@ -136,8 +135,7 @@ class Verifier:
                 if key in kwds:
                     lst = kwds[key]
                     if not isinstance(lst, (list, tuple)):
-                        raise TypeError("keyword '%s' should be a list or tuple"
-                                        % (key,))
+                        raise TypeError(f"keyword '{key}' should be a list or tuple")
                     lst = [os.path.join(dirname, fn) for fn in lst]
                     kwds[key] = lst
         return kwds

@@ -60,7 +60,7 @@ class VGenericEngine:
             else:
                 prefix = 'init'
             modname = self.verifier.get_module_name()
-            prnt("void %s%s(void) { }\n" % (prefix, modname))
+            prnt(f"void {prefix}{modname}(void) {{ }}\n")
 
     def load_library(self, flags=0):
         # import it with the CFFI backend
@@ -100,11 +100,10 @@ class VGenericEngine:
         for name, tp in self._get_declarations():
             kind, realname = name.split(' ', 1)
             try:
-                method = getattr(self, '_generate_gen_%s_%s' % (kind,
-                                                                step_name))
+                method = getattr(self, f'_generate_gen_{kind}_{step_name}')
             except AttributeError:
                 raise VerificationError(
-                    "not implemented in verify(): %r" % name)
+                    f"not implemented in verify(): {name!r}")
             try:
                 method(tp, realname)
             except Exception as e:
@@ -114,7 +113,7 @@ class VGenericEngine:
     def _load(self, module, step_name, **kwds):
         for name, tp in self._get_declarations():
             kind, realname = name.split(' ', 1)
-            method = getattr(self, '_%s_gen_%s' % (step_name, kind))
+            method = getattr(self, f'_{step_name}_gen_{kind}')
             try:
                 method(tp, realname, module, **kwds)
             except Exception as e:
@@ -153,22 +152,22 @@ class VGenericEngine:
             if isinstance(type, model.StructOrUnion):
                 indirection = '*'
             argnames.append('%sx%d' % (indirection, i))
-        context = 'argument of %s' % name
-        arglist = [type.get_c_name(' %s' % arg, context)
+        context = f'argument of {name}'
+        arglist = [type.get_c_name(f' {arg}', context)
                    for type, arg in zip(tp.args, argnames)]
         tpresult = tp.result
         if isinstance(tpresult, model.StructOrUnion):
             arglist.insert(0, tpresult.get_c_name(' *r', context))
             tpresult = model.void_type
         arglist = ', '.join(arglist) or 'void'
-        wrappername = '_cffi_f_%s' % name
+        wrappername = f'_cffi_f_{name}'
         self.export_symbols.append(wrappername)
         if tp.abi:
             abi = tp.abi + ' '
         else:
             abi = ''
-        funcdecl = ' %s%s(%s)' % (abi, wrappername, arglist)
-        context = 'result of %s' % name
+        funcdecl = f' {abi}{wrappername}({arglist})'
+        context = f'result of {name}'
         prnt(tpresult.get_c_name(funcdecl, context))
         prnt('{')
         #
@@ -178,7 +177,7 @@ class VGenericEngine:
             result_code = 'return '
         else:
             result_code = ''
-        prnt('  %s%s(%s);' % (result_code, name, ', '.join(argnames)))
+        prnt('  {}{}({});'.format(result_code, name, ', '.join(argnames)))
         prnt('}')
         prnt()
 
@@ -202,9 +201,8 @@ class VGenericEngine:
                 indirect_result = tp.result
                 if isinstance(indirect_result, model.StructOrUnion):
                     if indirect_result.fldtypes is None:
-                        raise TypeError("'%s' is used as result type, "
-                                        "but is opaque" % (
-                                            indirect_result._get_c_name(),))
+                        raise TypeError(f"'{indirect_result._get_c_name()}' is used as result type, "
+                                        "but is opaque")
                     indirect_result = model.PointerType(indirect_result)
                     indirect_args.insert(0, indirect_result)
                     indirections.insert(0, ("result", indirect_result))
@@ -212,7 +210,7 @@ class VGenericEngine:
                 tp = model.FunctionPtrType(tuple(indirect_args),
                                            indirect_result, tp.ellipsis)
             BFunc = self.ffi._get_cached_btype(tp)
-            wrappername = '_cffi_f_%s' % name
+            wrappername = f'_cffi_f_{name}'
             newfunction = module.load_function(BFunc, wrappername)
             for i, typ in indirections:
                 newfunction = self._make_struct_wrapper(newfunction, i, typ,
@@ -262,12 +260,12 @@ class VGenericEngine:
     def _generate_struct_or_union_decl(self, tp, prefix, name):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
-        checkfuncname = '_cffi_check_%s_%s' % (prefix, name)
-        layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
-        cname = ('%s %s' % (prefix, name)).strip()
+        checkfuncname = f'_cffi_check_{prefix}_{name}'
+        layoutfuncname = f'_cffi_layout_{prefix}_{name}'
+        cname = (f'{prefix} {name}').strip()
         #
         prnt = self._prnt
-        prnt('static void %s(%s *p)' % (checkfuncname, cname))
+        prnt(f'static void {checkfuncname}({cname} *p)')
         prnt('{')
         prnt('  /* only to generate compile-time warnings or errors */')
         prnt('  (void)p;')
@@ -275,43 +273,43 @@ class VGenericEngine:
             if (isinstance(ftype, model.PrimitiveType)
                 and ftype.is_integer_type()) or fbitsize >= 0:
                 # accept all integers, but complain on float or double
-                prnt('  (void)((p->%s) << 1);' % fname)
+                prnt(f'  (void)((p->{fname}) << 1);')
             else:
                 # only accept exactly the type declared.
                 try:
-                    prnt('  { %s = &p->%s; (void)tmp; }' % (
-                        ftype.get_c_name('*tmp', 'field %r'%fname, quals=fqual),
+                    prnt('  {{ {} = &p->{}; (void)tmp; }}'.format(
+                        ftype.get_c_name('*tmp', f'field {fname!r}', quals=fqual),
                         fname))
                 except VerificationError as e:
-                    prnt('  /* %s */' % str(e))   # cannot verify it, ignore
+                    prnt(f'  /* {str(e)} */')   # cannot verify it, ignore
         prnt('}')
         self.export_symbols.append(layoutfuncname)
-        prnt('intptr_t %s(intptr_t i)' % (layoutfuncname,))
+        prnt(f'intptr_t {layoutfuncname}(intptr_t i)')
         prnt('{')
-        prnt('  struct _cffi_aligncheck { char x; %s y; };' % cname)
+        prnt(f'  struct _cffi_aligncheck {{ char x; {cname} y; }};')
         prnt('  static intptr_t nums[] = {')
-        prnt('    sizeof(%s),' % cname)
+        prnt(f'    sizeof({cname}),')
         prnt('    offsetof(struct _cffi_aligncheck, y),')
         for fname, ftype, fbitsize, fqual in tp.enumfields():
             if fbitsize >= 0:
                 continue      # xxx ignore fbitsize for now
-            prnt('    offsetof(%s, %s),' % (cname, fname))
+            prnt(f'    offsetof({cname}, {fname}),')
             if isinstance(ftype, model.ArrayType) and ftype.length is None:
-                prnt('    0,  /* %s */' % ftype._get_c_name())
+                prnt(f'    0,  /* {ftype._get_c_name()} */')
             else:
-                prnt('    sizeof(((%s *)0)->%s),' % (cname, fname))
+                prnt(f'    sizeof((({cname} *)0)->{fname}),')
         prnt('    -1')
         prnt('  };')
         prnt('  return nums[i];')
         prnt('  /* the next line is not executed, but compiled */')
-        prnt('  %s(0);' % (checkfuncname,))
+        prnt(f'  {checkfuncname}(0);')
         prnt('}')
         prnt()
 
     def _loading_struct_or_union(self, tp, prefix, name, module):
         if tp.fldnames is None:
             return     # nothing to do with opaque structs
-        layoutfuncname = '_cffi_layout_%s_%s' % (prefix, name)
+        layoutfuncname = f'_cffi_layout_{prefix}_{name}'
         #
         BFunc = self.ffi._typeof_locked("intptr_t(*)(intptr_t)")[0]
         function = module.load_function(BFunc, layoutfuncname)
@@ -333,7 +331,7 @@ class VGenericEngine:
             assert len(fieldofs) == len(fieldsize) == len(tp.fldnames)
             tp.fixedlayout = fieldofs, fieldsize, totalsize, totalalignment
         else:
-            cname = ('%s %s' % (prefix, name)).strip()
+            cname = (f'{prefix} {name}').strip()
             self._struct_pending_verification[tp] = layout, cname
 
     def _loaded_struct_or_union(self, tp):
@@ -358,11 +356,11 @@ class VGenericEngine:
                 if fbitsize >= 0:
                     continue        # xxx ignore fbitsize for now
                 check(layout[i], ffi.offsetof(BStruct, fname),
-                      "wrong offset for field %r" % (fname,))
+                      f"wrong offset for field {fname!r}")
                 if layout[i+1] != 0:
                     BField = ffi._get_cached_btype(ftype)
                     check(layout[i+1], ffi.sizeof(BField),
-                          "wrong size for field %r" % (fname,))
+                          f"wrong size for field {fname!r}")
                 i += 2
             assert i == len(layout)
 
@@ -394,22 +392,22 @@ class VGenericEngine:
     def _generate_gen_const(self, is_int, name, tp=None, category='const',
                             check_value=None):
         prnt = self._prnt
-        funcname = '_cffi_%s_%s' % (category, name)
+        funcname = f'_cffi_{category}_{name}'
         self.export_symbols.append(funcname)
         if check_value is not None:
             assert is_int
             assert category == 'const'
-            prnt('int %s(char *out_error)' % funcname)
+            prnt(f'int {funcname}(char *out_error)')
             prnt('{')
             self._check_int_constant_value(name, check_value)
             prnt('  return 0;')
             prnt('}')
         elif is_int:
             assert category == 'const'
-            prnt('int %s(long long *out_value)' % funcname)
+            prnt(f'int {funcname}(long long *out_value)')
             prnt('{')
-            prnt('  *out_value = (long long)(%s);' % (name,))
-            prnt('  return (%s) <= 0;' % (name,))
+            prnt(f'  *out_value = (long long)({name});')
+            prnt(f'  return ({name}) <= 0;')
             prnt('}')
         else:
             assert tp is not None
@@ -422,9 +420,9 @@ class VGenericEngine:
             if category == 'const' and isinstance(tp, model.StructOrUnion):
                 extra = 'const *'
                 ampersand = '&'
-            prnt(tp.get_c_name(' %s%s(void)' % (extra, funcname), name))
+            prnt(tp.get_c_name(f' {extra}{funcname}(void)', name))
             prnt('{')
-            prnt('  return (%s%s);' % (ampersand, name))
+            prnt(f'  return ({ampersand}{name});')
             prnt('}')
         prnt()
 
@@ -435,7 +433,7 @@ class VGenericEngine:
     _loading_gen_constant = _loaded_noop
 
     def _load_constant(self, is_int, tp, name, module, check_value=None):
-        funcname = '_cffi_const_%s' % name
+        funcname = f'_cffi_const_{name}'
         if check_value is not None:
             assert is_int
             self._load_known_int_constant(module, funcname)
@@ -480,11 +478,10 @@ class VGenericEngine:
             prnt('  if ((%s) <= 0 || (unsigned long)(%s) != %dUL) {' % (
                 name, name, value))
         prnt('    char buf[64];')
-        prnt('    if ((%s) <= 0)' % name)
-        prnt('        sprintf(buf, "%%ld", (long)(%s));' % name)
+        prnt(f'    if (({name}) <= 0)')
+        prnt(f'        sprintf(buf, "%ld", (long)({name}));')
         prnt('    else')
-        prnt('        sprintf(buf, "%%lu", (unsigned long)(%s));' %
-             name)
+        prnt(f'        sprintf(buf, "%lu", (unsigned long)({name}));')
         prnt('    sprintf(out_error, "%s has the real value %s, not %s",')
         prnt('            "%s", buf, "%d");' % (name[:100], value))
         prnt('    return -1;')
@@ -504,7 +501,7 @@ class VGenericEngine:
     def _enum_funcname(self, prefix, name):
         # "$enum_$1" => "___D_enum____D_1"
         name = name.replace('$', '___D_')
-        return '_cffi_e_%s_%s' % (prefix, name)
+        return f'_cffi_e_{prefix}_{name}'
 
     def _generate_gen_enum_decl(self, tp, name, prefix='enum'):
         if tp.partial:
@@ -515,7 +512,7 @@ class VGenericEngine:
         funcname = self._enum_funcname(prefix, name)
         self.export_symbols.append(funcname)
         prnt = self._prnt
-        prnt('int %s(char *out_error)' % funcname)
+        prnt(f'int {funcname}(char *out_error)')
         prnt('{')
         for enumerator, enumvalue in zip(tp.enumerators, tp.enumvalues):
             self._check_int_constant_value(enumerator, enumvalue)
@@ -567,11 +564,11 @@ class VGenericEngine:
         if isinstance(tp, model.ArrayType):
             if tp.length_is_unknown():
                 prnt = self._prnt
-                funcname = '_cffi_sizeof_%s' % (name,)
+                funcname = f'_cffi_sizeof_{name}'
                 self.export_symbols.append(funcname)
-                prnt("size_t %s(void)" % funcname)
+                prnt(f"size_t {funcname}(void)")
                 prnt("{")
-                prnt("  return sizeof(%s);" % (name,))
+                prnt(f"  return sizeof({name});")
                 prnt("}")
             tp_ptr = model.PointerType(tp.item)
             self._generate_gen_const(False, name, tp_ptr)
@@ -585,7 +582,7 @@ class VGenericEngine:
         if isinstance(tp, model.ArrayType):   # int a[5] is "constant" in the
                                               # sense that "a=..." is forbidden
             if tp.length_is_unknown():
-                funcname = '_cffi_sizeof_%s' % (name,)
+                funcname = f'_cffi_sizeof_{name}'
                 BFunc = self.ffi._typeof_locked('size_t(*)(void)')[0]
                 function = module.load_function(BFunc, funcname)
                 size = function()
@@ -593,8 +590,7 @@ class VGenericEngine:
                 length, rest = divmod(size, self.ffi.sizeof(BItemType))
                 if rest != 0:
                     raise VerificationError(
-                        "bad size: %r does not seem to be an array of %s" %
-                        (name, tp.item))
+                        f"bad size: {name!r} does not seem to be an array of {tp.item}")
                 tp = tp.resolve_length(length)
             tp_ptr = model.PointerType(tp.item)
             value = self._load_constant(False, tp_ptr, name, module)
@@ -608,7 +604,7 @@ class VGenericEngine:
             return
         # remove ptr=<cdata 'int *'> from the library instance, and replace
         # it by a property on the class, which reads/writes into ptr[0].
-        funcname = '_cffi_var_%s' % name
+        funcname = f'_cffi_var_{name}'
         BFunc = self.ffi._typeof_locked(tp.get_c_name('*(*)(void)', name))[0]
         function = module.load_function(BFunc, funcname)
         ptr = function()

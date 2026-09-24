@@ -156,7 +156,7 @@ def test_strlen_approximate():
 def test_return_approximate():
     for typename in ['short', 'int', 'long', 'long long']:
         ffi = FFI()
-        ffi.cdef("%s foo(signed char x);" % typename)
+        ffi.cdef(f"{typename} foo(signed char x);")
         lib = ffi.verify("signed char foo(signed char x) { return x;}")
         assert lib.foo(-128) == -128
         assert lib.foo(+127) == +127
@@ -256,13 +256,12 @@ def test_all_integer_and_float_types():
             typenames.append(typename)
     #
     ffi = FFI()
-    ffi.cdef('\n'.join(["%s foo_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
+    ffi.cdef('\n'.join(["{} foo_{}({});".format(tp, tp.replace(' ', '_'), tp)
                        for tp in typenames]))
-    lib = ffi.verify('\n'.join(["%s foo_%s(%s x) { return (%s)(x+1); }" %
-                                (tp, tp.replace(' ', '_'), tp, tp)
+    lib = ffi.verify('\n'.join(["{} foo_{}({} x) {{ return ({})(x+1); }}".format(tp, tp.replace(' ', '_'), tp, tp)
                                 for tp in typenames]))
     for typename in typenames:
-        foo = getattr(lib, 'foo_%s' % typename.replace(' ', '_'))
+        foo = getattr(lib, 'foo_{}'.format(typename.replace(' ', '_')))
         assert foo(42) == 43
         if sys.version < '3':
             assert foo(long(44)) == 45
@@ -290,22 +289,21 @@ def test_all_complex_types():
         header = ''
     #
     ffi = FFI()
-    ffi.cdef('\n'.join(["%s foo_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
+    ffi.cdef('\n'.join(["{} foo_{}({});".format(tp, tp.replace(' ', '_'), tp)
                        for tp in typenames]))
     e = pytest.raises(VerificationError, ffi.verify,
-            header + '\n'.join(["%s foo_%s(%s x) { return x; }" %
-                                (tp, tp.replace(' ', '_'), tp)
+            header + '\n'.join(["{} foo_{}({} x) {{ return x; }}".format(tp, tp.replace(' ', '_'), tp)
                                 for tp in typenames]))
 
 def test_var_signed_integer_types():
     ffi = FFI()
     lst = all_signed_integer_types(ffi)
-    csource = "\n".join(["static %s somevar_%s;" % (tp, tp.replace(' ', '_'))
+    csource = "\n".join(["static {} somevar_{};".format(tp, tp.replace(' ', '_'))
                          for tp in lst])
     ffi.cdef(csource)
     lib = ffi.verify(csource)
     for tp in lst:
-        varname = 'somevar_%s' % tp.replace(' ', '_')
+        varname = 'somevar_{}'.format(tp.replace(' ', '_'))
         sz = ffi.sizeof(tp)
         max = (1 << (8*sz-1)) - 1
         min = -(1 << (8*sz-1))
@@ -319,12 +317,12 @@ def test_var_signed_integer_types():
 def test_var_unsigned_integer_types():
     ffi = FFI()
     lst = all_unsigned_integer_types(ffi)
-    csource = "\n".join(["static %s somevar_%s;" % (tp, tp.replace(' ', '_'))
+    csource = "\n".join(["static {} somevar_{};".format(tp, tp.replace(' ', '_'))
                          for tp in lst])
     ffi.cdef(csource)
     lib = ffi.verify(csource)
     for tp in lst:
-        varname = 'somevar_%s' % tp.replace(' ', '_')
+        varname = 'somevar_{}'.format(tp.replace(' ', '_'))
         sz = ffi.sizeof(tp)
         if tp != '_Bool':
             max = (1 << (8*sz)) - 1
@@ -340,14 +338,13 @@ def test_var_unsigned_integer_types():
 def test_fn_signed_integer_types():
     ffi = FFI()
     lst = all_signed_integer_types(ffi)
-    cdefsrc = "\n".join(["%s somefn_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
+    cdefsrc = "\n".join(["{} somefn_{}({});".format(tp, tp.replace(' ', '_'), tp)
                          for tp in lst])
     ffi.cdef(cdefsrc)
-    verifysrc = "\n".join(["%s somefn_%s(%s x) { return x; }" %
-                           (tp, tp.replace(' ', '_'), tp) for tp in lst])
+    verifysrc = "\n".join(["{} somefn_{}({} x) {{ return x; }}".format(tp, tp.replace(' ', '_'), tp) for tp in lst])
     lib = ffi.verify(verifysrc)
     for tp in lst:
-        fnname = 'somefn_%s' % tp.replace(' ', '_')
+        fnname = 'somefn_{}'.format(tp.replace(' ', '_'))
         sz = ffi.sizeof(tp)
         max = (1 << (8*sz-1)) - 1
         min = -(1 << (8*sz-1))
@@ -360,14 +357,13 @@ def test_fn_signed_integer_types():
 def test_fn_unsigned_integer_types():
     ffi = FFI()
     lst = all_unsigned_integer_types(ffi)
-    cdefsrc = "\n".join(["%s somefn_%s(%s);" % (tp, tp.replace(' ', '_'), tp)
+    cdefsrc = "\n".join(["{} somefn_{}({});".format(tp, tp.replace(' ', '_'), tp)
                          for tp in lst])
     ffi.cdef(cdefsrc)
-    verifysrc = "\n".join(["%s somefn_%s(%s x) { return x; }" %
-                           (tp, tp.replace(' ', '_'), tp) for tp in lst])
+    verifysrc = "\n".join(["{} somefn_{}({} x) {{ return x; }}".format(tp, tp.replace(' ', '_'), tp) for tp in lst])
     lib = ffi.verify(verifysrc)
     for tp in lst:
-        fnname = 'somefn_%s' % tp.replace(' ', '_')
+        fnname = 'somefn_{}'.format(tp.replace(' ', '_'))
         sz = ffi.sizeof(tp)
         if tp != '_Bool':
             max = (1 << (8*sz)) - 1
@@ -445,12 +441,12 @@ def test_verify_typedefs():
     for cdefed in types:
         for real in types:
             ffi = FFI()
-            ffi.cdef("typedef %s foo_t;" % cdefed)
+            ffi.cdef(f"typedef {cdefed} foo_t;")
             if cdefed == real:
-                ffi.verify("typedef %s foo_t;" % real)
+                ffi.verify(f"typedef {real} foo_t;")
             else:
                 pytest.raises(VerificationError, ffi.verify,
-                               "typedef %s foo_t;" % real)
+                               f"typedef {real} foo_t;")
 
 def test_nondecl_struct():
     ffi = FFI()
@@ -527,21 +523,21 @@ def _check_field_match(typename, real, expect_mismatch):
     testing_by_size = (expect_mismatch == 'by_size')
     if testing_by_size:
         expect_mismatch = ffi.sizeof(typename) != ffi.sizeof(real)
-    ffi.cdef("struct foo_s { %s x; ...; };" % typename)
+    ffi.cdef(f"struct foo_s {{ {typename} x; ...; }};")
     try:
-        ffi.verify("struct foo_s { %s x; };" % real)
+        ffi.verify(f"struct foo_s {{ {real} x; }};")
     except VerificationError:
         if not expect_mismatch:
             if testing_by_size and typename != real:
-                print("ignoring mismatch between %s* and %s* even though "
-                      "they have the same size" % (typename, real))
+                print(f"ignoring mismatch between {typename}* and {real}* even though "
+                      "they have the same size")
                 return
-            raise AssertionError("unexpected mismatch: %s should be accepted "
-                                 "as equal to %s" % (typename, real))
+            raise AssertionError(f"unexpected mismatch: {typename} should be accepted "
+                                 f"as equal to {real}")
     else:
         if expect_mismatch:
             raise AssertionError("mismatch not detected: "
-                                 "%s != %s" % (typename, real))
+                                 f"{typename} != {real}")
 
 def test_struct_bad_sized_integer():
     for typename in ['int8_t', 'int16_t', 'int32_t', 'int64_t']:
@@ -715,7 +711,7 @@ def test_global_const_int_size():
         else:
             raise AssertionError(value)
         ffi.cdef("static const unsigned short AA;")
-        lib = ffi.verify("#define AA %s\n" % vstr)
+        lib = ffi.verify(f"#define AA {vstr}\n")
         assert lib.AA == value
         assert type(lib.AA) is type(int(lib.AA))
 
@@ -862,7 +858,7 @@ def test_access_address_of_variable():
 def test_access_array_variable(length=5):
     ffi = FFI()
     ffi.cdef("int foo(int);\n"
-             "static int somenumber[%s];" % (length,))
+             f"static int somenumber[{length}];")
     lib = ffi.verify("""
         static int somenumber[] = {2, 2, 3, 4, 5};
         static int foo(int i) {
@@ -877,7 +873,7 @@ def test_access_array_variable(length=5):
         assert repr(lib.somenumber).startswith("<cdata 'int *' 0x")
         pytest.raises(TypeError, len, lib.somenumber)
     else:
-        assert repr(lib.somenumber).startswith("<cdata 'int[%s]' 0x" % length)
+        assert repr(lib.somenumber).startswith(f"<cdata 'int[{length}]' 0x")
         assert len(lib.somenumber) == 5
     assert lib.somenumber[3] == 4
     assert lib.foo(3) == 28
@@ -1540,16 +1536,16 @@ def test_bool_on_long_double():
 def test_cannot_pass_float():
     for basetype in ['char', 'short', 'int', 'long', 'long long']:
         for sign in ['signed', 'unsigned']:
-            type = '%s %s' % (sign, basetype)
+            type = f'{sign} {basetype}'
             ffi = FFI()
-            ffi.cdef("struct foo_s { %s x; };\n"
-                     "int foo(%s);" % (type, type))
-            lib = ffi.verify("""
-                struct foo_s { %s x; };
-                int foo(%s arg) {
+            ffi.cdef(f"struct foo_s {{ {type} x; }};\n"
+                     f"int foo({type});")
+            lib = ffi.verify(f"""
+                struct foo_s {{ {type} x; }};
+                int foo({type} arg) {{
                     return !arg;
-                }
-            """ % (type, type))
+                }}
+            """)
             p = ffi.new("struct foo_s *")
             with pytest.raises(TypeError):
                 p.x = 0.0
@@ -1561,7 +1557,7 @@ def test_cast_from_int_type_to_bool():
     ffi = FFI()
     for basetype in ['char', 'short', 'int', 'long', 'long long']:
         for sign in ['signed', 'unsigned']:
-            type = '%s %s' % (sign, basetype)
+            type = f'{sign} {basetype}'
             assert int(ffi.cast("_Bool", ffi.cast(type, 42))) == 1
             assert int(ffi.cast("bool", ffi.cast(type, 42))) == 1
             assert int(ffi.cast("_Bool", ffi.cast(type, 0))) == 0
@@ -1779,7 +1775,7 @@ def test_enum_size():
             continue   # skipped on Windows
         ffi = FFI()
         ffi.cdef("enum foo_e { AA, BB, ... };")
-        lib = ffi.verify("enum foo_e { AA, BB=%s };" % hidden_value)
+        lib = ffi.verify(f"enum foo_e {{ AA, BB={hidden_value} }};")
         assert lib.AA == 0
         assert lib.BB == eval(hidden_value.replace('U', '').replace('L', ''))
         assert ffi.sizeof("enum foo_e") == expected_size
@@ -1803,9 +1799,9 @@ def test_enum_bug118():
         if c2c and sys.platform == 'win32':
             continue     # enums may always be signed with MSVC
         ffi = FFI()
-        ffi.cdef("enum foo_e { AA=%s };" % c1)
+        ffi.cdef(f"enum foo_e {{ AA={c1} }};")
         e = pytest.raises(VerificationError, ffi.verify,
-                           "enum foo_e { AA=%s%s };" % (c2, c2c))
+                           f"enum foo_e {{ AA={c2}{c2c} }};")
         assert str(e.value) == ('enum foo_e: AA has the real value %d, not %d'
                                 % (c2, c1))
 

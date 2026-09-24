@@ -36,7 +36,7 @@ def verify(ffi, module_name, source, *args, **kwds):
     ffi.set_source(module_name, source)
     if not os.environ.get('NO_CPP') and not no_cpp:   # test the .cpp mode too
         kwds.setdefault('source_extension', '.cpp')
-        source = 'extern "C" {\n%s\n}' % (source,)
+        source = f'extern "C" {{\n{source}\n}}'
     elif sys.platform != 'win32' and not ignore_warnings:
         # add '-Werror' to the existing 'extra_compile_args' flags
         from testing.support import extra_compile_args
@@ -231,12 +231,12 @@ def test_macro_check_value():
     if sys.maxsize <= 2**32 or sys.platform == 'win32':
         vals.remove('-2147483648')
     ffi = FFI()
-    cdef_lines = ['#define FOO_%d_%d %s' % (i, j, vals[i])
+    cdef_lines = [f'#define FOO_{i}_{i} {vals[i]}'
                   for i in range(len(vals))
                   for j in range(len(vals))]
     ffi.cdef('\n'.join(cdef_lines))
 
-    verify_lines = ['#define FOO_%d_%d %s' % (i, j, vals[j])  # [j], not [i]
+    verify_lines = [f'#define FOO_{i}_{j} {vals[j]}'  # [j], not [i]
                     for i in range(len(vals))
                     for j in range(len(vals))]
     lib = verify(ffi, 'test_macro_check_value_ok',
@@ -246,18 +246,18 @@ def test_macro_check_value():
         c_got = int(vals[j].replace('U', '').replace('L', ''), 0)
         c_compiler_msg = str(c_got)
         if c_got > 0:
-            c_compiler_msg += ' (0x%x)' % (c_got,)
+            c_compiler_msg += f' (0x{c_got:x})'
         #
         for i in range(len(vals)):
-            attrname = 'FOO_%d_%d' % (i, j)
+            attrname = f'FOO_{i}_{j}'
             if i == j:
                 x = getattr(lib, attrname)
                 assert x == c_got
             else:
                 e = pytest.raises(ffi.error, getattr, lib, attrname)
                 assert str(e.value) == (
-                    "the C compiler says '%s' is equal to "
-                    "%s, but the cdef disagrees" % (attrname, c_compiler_msg))
+                    f"the C compiler says '{attrname}' is equal to "
+                    f"{c_compiler_msg}, but the cdef disagrees")
 
 def test_constant():
     ffi = FFI()
@@ -510,9 +510,9 @@ def test_verify_anonymous_enum_with_typedef():
     assert repr(ffi.cast("e1", 2)) == "<cdata 'e1' 2: AA>"
     #
     ffi = FFI()
-    ffi.cdef("typedef enum { AA=%d } e1;" % sys.maxsize)
+    ffi.cdef(f"typedef enum {{ AA={sys.maxsize} }} e1;")
     lib = verify(ffi, 'test_verify_anonymous_enum_with_typedef2',
-                 "typedef enum { AA=%d } e1;" % sys.maxsize)
+                 f"typedef enum {{ AA={sys.maxsize} }} e1;")
     assert lib.AA == int(ffi.cast("long", sys.maxsize))
     assert ffi.sizeof("e1") == ffi.sizeof("long")
 
@@ -1585,7 +1585,7 @@ def test_extern_python_1():
             void boz(void);
         }
         """)
-    assert len(log) == 0, "got a warning: %r" % (log,)
+    assert len(log) == 0, f"got a warning: {log!r}"
     lib = verify(ffi, 'test_extern_python_1', """
         static void baz(int, int);   /* forward */
     """)
@@ -1671,7 +1671,7 @@ def test_extern_python_bogus_result_type():
         res = lib.bar(321)
     assert res is None
     msg = f.getvalue()
-    assert "rom cffi callback %r" % (bar,) in msg
+    assert f"rom cffi callback {bar!r}" in msg
     assert "rying to convert the result back to C:\n" in msg
     assert msg.endswith(
         "TypeError: callback with the return type 'void' must return None\n")
@@ -2579,11 +2579,11 @@ def test_convert_api_mode_builtin_function_to_cdata():
 
 def test_large_enum():
     ffi = FFI()
-    biglist = ['nn%d' % i for i in range(6000)]
+    biglist = [f'nn{i}' for i in range(6000)]
     ffi.cdef(
-        """enum foo_s { %s };""" % ','.join(biglist))
+        """enum foo_s {{ {} }};""".format(','.join(biglist)))
     lib = verify(ffi, "test_large_enum", """
-        enum foo_s { %s };""" % ','.join(biglist))
+        enum foo_s {{ {} }};""".format(','.join(biglist)))
     assert lib.nn0 == 0
     assert lib.nn1234 == 1234
     assert lib.nn5999 == 5999

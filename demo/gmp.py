@@ -22,7 +22,7 @@ a = ffi.new("mpz_t")
 b = ffi.new("mpz_t")
 
 if len(sys.argv) < 3:
-    print('call as %s bigint1, bigint2' % sys.argv[0])
+    print(f'call as {sys.argv[0]} bigint1, bigint2')
     sys.exit(2)
 
 lib.mpz_init_set_str(a, sys.argv[1], 10)	# Assume decimal integers

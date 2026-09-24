@@ -38,11 +38,11 @@ except ImportError:
 
     def find_module(name, path=None):
         if not isinstance(name, str):
-            raise TypeError("'name' must be a str, not {}".format(type(name)))
+            raise TypeError(f"'name' must be a str, not {type(name)}")
         elif not isinstance(path, (type(None), list)):
             # Backwards-compatibility
             raise RuntimeError("'path' must be None or a list, "
-                               "not {}".format(type(path)))
+                               f"not {type(path)}")
 
         if path is None:
             if is_builtin(name):

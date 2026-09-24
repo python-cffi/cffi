@@ -79,8 +79,7 @@ def test_ffi_docstrings():
         if not methname.startswith('_'):
             method = getattr(_cffi1_backend.FFI, methname)
             if isinstance(method, check_type):
-                assert method.__doc__, "method FFI.%s() has no docstring" % (
-                    methname,)
+                assert method.__doc__, f"method FFI.{methname}() has no docstring"
 
 def test_ffi_NULL():
     NULL = _cffi1_backend.FFI.NULL
@@ -229,8 +228,8 @@ def test_ffi_invalid_type():
     e = pytest.raises(ffi.error, ffi.cast, "\t\n\x01\x1f~\x7f\x80\xff", 0)
     marks = "?" if sys.version_info < (3,) else "??"
     assert str(e.value) == ("identifier expected\n"
-                            "  ??~?%s%s\n"
-                            "  ^" % (marks, marks))
+                            f"  ??~?{marks}{marks}\n"
+                            "  ^")
     e = pytest.raises(ffi.error, ffi.cast, "X" * 600, 0)
     assert str(e.value) == ("undefined type name")
 
@@ -446,7 +445,7 @@ def test_cast_from_int_type_to_bool():
     ffi = _cffi1_backend.FFI()
     for basetype in ['char', 'short', 'int', 'long', 'long long']:
         for sign in ['signed', 'unsigned']:
-            type = '%s %s' % (sign, basetype)
+            type = f'{sign} {basetype}'
             assert int(ffi.cast("_Bool", ffi.cast(type, 42))) == 1
             assert int(ffi.cast("bool", ffi.cast(type, 42))) == 1
             assert int(ffi.cast("_Bool", ffi.cast(type, 0))) == 0

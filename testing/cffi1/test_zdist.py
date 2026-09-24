@@ -87,8 +87,7 @@ class TestDist:
                 continue    # no clue why this shows up sometimes and not others
             if name == '.eggs':
                 continue    # seems new in 3.5, ignore it
-            assert name in content, "found unexpected file %r" % (
-                os.path.join(curdir, name),)
+            assert name in content, f"found unexpected file {os.path.join(curdir, name)!r}"
             value = content.pop(name)
             if value is None:
                 assert name.endswith('.SO') or (
@@ -99,8 +98,7 @@ class TestDist:
                 if value == '?':
                     continue
                 found_so = self.check_produced_files(value, subdir) or found_so
-        assert content == {}, "files or dirs not produced in %r: %r" % (
-            curdir, content.keys())
+        assert content == {}, f"files or dirs not produced in {curdir!r}: {content.keys()!r}"
         return found_so
 
     @chdir_to_tmp

@@ -23,4 +23,4 @@ ffi.set_source("_withunicode_cffi", """
 """)
 
 fn = ffi.compile(verbose=True)
-print('FILENAME: %s' % (fn,))
+print(f'FILENAME: {fn}')

@@ -73,7 +73,7 @@ class BackendTests:
         assert q == p
         assert int(q) == int(p)
         assert hash(q) == hash(p)
-        c_decl_ptr = '%s *' % c_decl
+        c_decl_ptr = f'{c_decl} *'
         pytest.raises(OverflowError, ffi.new, c_decl_ptr, min - 1)
         pytest.raises(OverflowError, ffi.new, c_decl_ptr, max + 1)
         pytest.raises(OverflowError, ffi.new, c_decl_ptr, long(min - 1))
@@ -1094,7 +1094,7 @@ class BackendTests:
     def test_struct_with_two_usages(self):
         for name in ['foo_s', '']:    # anonymous or not
             ffi = FFI(backend=self.Backend())
-            ffi.cdef("typedef struct %s { int a; } foo_t, *foo_p;" % name)
+            ffi.cdef(f"typedef struct {name} {{ int a; }} foo_t, *foo_p;")
             f = ffi.new("foo_t *", [12345])
             ps = ffi.new("foo_p[]", [f])
 
@@ -1888,7 +1888,7 @@ class BackendTests:
         assert ffi.alignof("struct is_packed8") == 4
         for name in ['is_packed', 'is_packed1', 'is_packed2',
                      'is_packed4', 'is_packed8']:
-            s = ffi.new("struct %s[2]" % name)
+            s = ffi.new(f"struct {name}[2]")
             s[0].b = 42623381
             s[0].a = b'X'
             s[1].b = -4892220

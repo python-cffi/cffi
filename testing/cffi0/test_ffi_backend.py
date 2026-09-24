@@ -184,7 +184,7 @@ class TestBitfield:
         # The numbers expected from MSVC are not explicitly written
         # in this file, and will just be taken from the compiler.
         ffi = FFI()
-        ffi.cdef("struct s1 { %s };" % source)
+        ffi.cdef(f"struct s1 {{ {source} }};")
         ctype = ffi.typeof("struct s1")
         # verify the information with gcc
         ffi1 = FFI()
@@ -198,19 +198,19 @@ class TestBitfield:
                    for iname in enumerate(fnames)]
         lib = ffi1.verify("""
             #include <string.h>
-            struct s1 { %s };
-            struct sa { char a; struct s1 b; };
+            struct s1 {{ {} }};
+            struct sa {{ char a; struct s1 b; }};
             #define Gofs_y  offsetof(struct s1, y)
             #define Galign  offsetof(struct sa, b)
             #define Gsize   sizeof(struct s1)
             struct s1 *try_with_value(int fieldnum, long long value)
-            {
+            {{
                 static struct s1 s;
                 memset(&s, 0, sizeof(s));
-                switch (fieldnum) { %s }
+                switch (fieldnum) {{ {} }}
                 return &s;
-            }
-        """ % (source, ' '.join(setters)))
+            }}
+        """.format(source, ' '.join(setters)))
         if sys.platform == 'win32':
             expected_ofs_y = lib.Gofs_y
             expected_align = lib.Galign

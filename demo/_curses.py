@@ -97,7 +97,7 @@ def _check_ERR(code, fname):
     elif fname is None:
         raise error("curses function returned ERR")
     else:
-        raise error("%s() returned ERR" % (fname,))
+        raise error(f"{fname}() returned ERR")
 
 
 def _check_NULL(rval):
@@ -174,8 +174,7 @@ def _texttype(text):
     elif isinstance(text, unicode):
         return str(text)   # default encoding
     else:
-        raise TypeError("str or unicode expected, got a '%s' object"
-                        % (type(text).__name__,))
+        raise TypeError(f"str or unicode expected, got a '{type(text).__name__}' object")
 
 
 def _extract_yx(args):
@@ -195,8 +194,7 @@ def _process_args(funcname, args, count, optcount, frontopt=0):
             # No front optional args, so make them None.
             outargs.extend([None] * frontopt)
     if (len(args) < count) or (len(args) > count + optcount):
-        raise error("%s requires %s to %s arguments" % (
-                funcname, count, count + optcount + frontopt))
+        raise error(f"{funcname} requires {count} to {count + optcount + frontopt} arguments")
     outargs.extend(args)
     return outargs
 
