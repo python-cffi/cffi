@@ -825,6 +825,23 @@ class Parser:
         if type.decls is None:
             return tp
         #
+        if (kind == 'struct' and name is not None and
+                name == COMMON_TYPES['FILE'].name):
+            # cffi internally special-cases the C name used here (e.g.
+            # '_IO_FILE' on Linux) to mean the opaque FILE type: giving an
+            # explicit body for it collides with that special-casing and
+            # used to crash the process with a fatal error at runtime
+            # instead of failing cleanly here (issue #149).  This commonly
+            # happens when cdef() is fed an already-preprocessed system
+            # header, which spells out the real definition of this struct.
+            raise CDefError(
+                "'%s %s' is the struct name that cffi uses internally for "
+                "the opaque 'FILE' type; giving an explicit definition for "
+                "it in cdef() is not supported.  If this comes from a "
+                "preprocessed header, remove that struct definition (its "
+                "fields are not going to be used by cffi anyway)."
+                % (kind, name))
+        #
         if tp.fldnames is not None:
             raise CDefError("duplicate declaration of struct %s" % name)
         fldnames = []

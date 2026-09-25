@@ -382,6 +382,34 @@ def test_redefine_common_type():
     ffi = FFI()
     ffi.cdef("typedef bool (*fn_t)(bool, bool);")   # "bool," but within "( )"
 
+def test_explicit_struct_IO_FILE_rejected():
+    # Explicitly giving a body for the struct that cffi uses internally
+    # to back the opaque 'FILE' type used to build fine but then crash
+    # the whole process with a fatal error the first time the type was
+    # used (issue #149).  It's now rejected right away in cdef().  This
+    # is a realistic case: it happens when cdef() is fed a header that
+    # went through the C preprocessor, which spells out the real
+    # definition of 'struct _IO_FILE' coming from <stdio.h>.
+    ffi = FFI()
+    e = pytest.raises(CDefError, ffi.cdef, """
+        struct _IO_FILE {
+            int dummy;
+        };
+        typedef struct _IO_FILE FILE;
+    """)
+    assert 'struct _IO_FILE' in str(e.value)
+    assert 'FILE' in str(e.value)
+    # a forward declaration only (no body) is not ambiguous and is fine
+    ffi = FFI()
+    ffi.cdef("""
+        struct _IO_FILE;
+        typedef struct _IO_FILE FILE;
+        int fputs(const char *, FILE *);
+    """)
+    # plain use of FILE without redefining the struct still works
+    ffi = FFI()
+    ffi.cdef("int fputs(const char *, FILE *);")
+
 def test_bool():
     ffi = FFI()
     ffi.cdef("void f(bool);")
