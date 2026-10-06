@@ -29,12 +29,7 @@ def test_flatten():
 @pytest.mark.thread_unsafe(reason="monkeypatches a shared distutils class method")
 def test_compile_with_extra_build_ext_outputs(monkeypatch):
     # Some setuptools/distutils versions can make build_ext.get_outputs()
-    # return more entries than the single extension we asked it to build
-    # (see https://github.com/python-cffi/cffi/issues/246, which is the
-    # same underlying unpacking crash reported in
-    # https://github.com/python-cffi/cffi/issues/229). Unpacking that list
-    # unconditionally used to raise a confusing
-    # "ValueError: too many values to unpack".
+    # return more than one entry.
     from cffi._shimmed_dist_utils import build_ext as real_build_ext
 
     original_get_outputs = real_build_ext.get_outputs
