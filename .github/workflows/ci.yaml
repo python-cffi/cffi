@@ -72,85 +72,48 @@ jobs:
         matrix_yaml: |
           include:
           # x86_64 manylinux
-          - { spec: cp310-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }          
-          - { spec: cp314-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-manylinux_x86_64, arch: x86_64 }
           - { spec: cp314t-manylinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-manylinux_x86_64, arch: x86_64 }
           - { spec: cp315t-manylinux_x86_64, arch: x86_64 }
 
-          # x86_64 musllinux
-          - { spec: cp310-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-musllinux_x86_64, arch: x86_64 }
           - { spec: cp314t-musllinux_x86_64, arch: x86_64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-musllinux_x86_64, arch: x86_64 }
           - { spec: cp315t-musllinux_x86_64, arch: x86_64 }
 
           # i686 manylinux
-          - { spec: cp310-manylinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-manylinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-manylinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-manylinux_i686, arch: i686 }
-          # omit i686 releases > 3.13
+          - { spec: cp310-manylinux_i686, arch: i686 }
 
           # i686 musllinux
-          - { spec: cp310-musllinux_i686, arch: i686, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-musllinux_i686, arch: i686 }
-          # omit i686 releases after 3.11
+          - { spec: cp310-musllinux_i686, arch: i686 }
 
           # aarch64 manylinux
-          - { spec: cp310-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-manylinux_aarch64, arch: aarch64 }
           - { spec: cp314t-manylinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-manylinux_aarch64, arch: aarch64 }
           - { spec: cp315t-manylinux_aarch64, arch: aarch64 }
 
           # aarch64 musllinux
-          - { spec: cp310-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-musllinux_aarch64, arch: aarch64 }
           - { spec: cp314t-musllinux_aarch64, arch: aarch64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-musllinux_aarch64, arch: aarch64 }
           - { spec: cp315t-musllinux_aarch64, arch: aarch64 }
 
           # ppc64le manylinux
           - { spec: cp310-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
-          - { spec: cp311-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp314t-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
           - { spec: cp315t-manylinux_ppc64le, arch: ppc64le, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
 
           # s390x manylinux
           - { spec: cp310-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
-          - { spec: cp311-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
           - { spec: cp314t-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
           - { spec: cp315t-manylinux_s390x, arch: s390x, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
 
-          # riscv64 manylinux
-          - { spec: cp39-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
-          - { spec: cp310-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs || env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_slow_jobs }} }
+          # riscv64: cp39 is below the abi3 floor (Py_LIMITED_API 0x030A0000), keep it a full build
+          - { spec: cp310-manylinux_riscv64, arch: riscv64, test_args: '{package}/src/c', omit: ${{ env.skip_slow_jobs }} }
           - { spec: cp314t-manylinux_riscv64, arch: riscv64, omit: ${{ env.skip_slow_jobs }} }
+
+          # riscv64 musllinux
+          - { spec: cp310-musllinux_riscv64, arch: riscv64 }
+          - { spec: cp314t-musllinux_riscv64, arch: riscv64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp315t-musllinux_riscv64, arch: riscv64 }
 
   linux:
     needs: [python_sdist, make_linux_matrix]
@@ -235,24 +198,14 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          # x86_64 macos
-          - { spec: cp310-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }}  }
+          # x86_64 macos: cp310 builds the abi3 wheel covering 3.10-3.15; free-threaded has no stable ABI
+          - { spec: cp310-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel }
           - { spec: cp314t-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel, omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp315-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel }
           - { spec: cp315t-macosx_x86_64, deployment_target: '10.15', runs_on: macos-15-intel }
 
           # arm64 macos
-          - { spec: cp310-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }}  }
+          - { spec: cp310-macosx_arm64, deployment_target: '11.0' }
           - { spec: cp314t-macosx_arm64, deployment_target: '11.0', omit: ${{ env.skip_ci_redundant_jobs }}  }
-          - { spec: cp315-macosx_arm64, deployment_target: '11.0' }
           - { spec: cp315t-macosx_arm64, deployment_target: '11.0' }
 
   macos:
@@ -326,33 +279,19 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          # x86_64 windows
-          - { spec: cp310-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
+          # x86_64 windows: cp310 builds the abi3 wheel covering 3.10-3.15; free-threaded has no stable ABI
+          - { spec: cp310-win_amd64 }
           - { spec: cp314t-win_amd64, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-win_amd64 }
           - { spec: cp315t-win_amd64 }
-          
+
           # x86 windows
-          - { spec: cp310-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp311-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
+          - { spec: cp310-win32 }
           - { spec: cp314t-win32, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-win32 }
           - { spec: cp315t-win32 }
 
-          # arm64 windows
-          - { spec: cp311-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp312-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp313-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp314-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }} }
+          # arm64 windows: no cp310 build available, cp311 is the abi3 floor here
+          - { spec: cp311-win_arm64, runs_on: windows-11-arm }
           - { spec: cp314t-win_arm64, runs_on: windows-11-arm, omit: ${{ env.skip_ci_redundant_jobs }} }
-          - { spec: cp315-win_arm64, runs_on: windows-11-arm }
           - { spec: cp315t-win_arm64, runs_on: windows-11-arm }
 
   windows:
@@ -421,15 +360,9 @@ jobs:
       with:
         matrix_yaml: |
           include:
-          # arm64 iOS device
+          # arm64 iOS: cp313 is the abi3 floor here, builds the wheel covering 3.13-3.15
           - { spec: cp313-ios_arm64_iphoneos, platform: 'iphoneos' }
-          - { spec: cp314-ios_arm64_iphoneos, platform: 'iphoneos' }
-          - { spec: cp315-ios_arm64_iphoneos, platform: 'iphoneos' }
-
-          # arm64 iOS simulator
           - { spec: cp313-ios_arm64_iphonesimulator, platform: 'iphonesimulator' }
-          - { spec: cp314-ios_arm64_iphonesimulator, platform: 'iphonesimulator' }
-          - { spec: cp315-ios_arm64_iphonesimulator, platform: 'iphonesimulator' }
 
   ios:
     needs: [python_sdist, make_ios_matrix]

@@ -23,6 +23,12 @@ if FREE_THREADED_BUILD and sys.version_info < (3, 14):
                        "Upgrade to free-threaded 3.14 or newer to use CFFI with the "
                        "free-threaded build.")
 
+# no stable ABI for free-threaded builds yet, and Py_LIMITED_API 0x030A0000 needs 3.10+ headers
+STABLE_ABI_BUILD = not FREE_THREADED_BUILD and sys.version_info >= (3, 10)
+
+if STABLE_ABI_BUILD:
+    define_macros.append(('Py_LIMITED_API', '0x030A0000'))
+
 def _ask_pkg_config(resultlist, option, result_prefix='', sysroot=False):
     pkg_config = os.environ.get('PKG_CONFIG','pkg-config')
     try:
@@ -201,5 +207,6 @@ if __name__ == '__main__':
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
             extra_objects=forced_extra_objs,
+            py_limited_api=STABLE_ABI_BUILD,
         )] if cpython else [],
     )
