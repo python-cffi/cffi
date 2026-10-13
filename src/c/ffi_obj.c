@@ -1014,7 +1014,12 @@ static PyObject *ffi_init_once(FFIObject *self, PyObject *args, PyObject *kwds)
     if (tup == NULL) {
         lock = PyThread_allocate_lock();
         if (lock == NULL)
+        {
+            PyErr_SetString(PyExc_RuntimeError,
+                    "failed to allocate thread lock for init_once");
             return NULL;
+        }
+            
         x = PyCapsule_New(lock, "cffi_init_once_lock", _free_init_once_lock);
         if (x == NULL) {
             PyThread_free_lock(lock);
