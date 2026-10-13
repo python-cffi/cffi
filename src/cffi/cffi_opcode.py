@@ -8,31 +8,26 @@ class CffiOp:
     def as_c_expr(self):
         if self.op is None:
             assert isinstance(self.arg, str)
-            return '(_cffi_opcode_t)(%s)' % (self.arg,)
+            return f'(_cffi_opcode_t)({self.arg})'
         classname = CLASS_NAME[self.op]
-        return '_CFFI_OP(_CFFI_OP_%s, %s)' % (classname, self.arg)
+        return f'_CFFI_OP(_CFFI_OP_{classname}, {self.arg})'
 
     def as_python_bytes(self):
         if self.op is None and self.arg.isdigit():
             value = int(self.arg)     # non-negative: '-' not in self.arg
             if value >= 2**31:
-                raise OverflowError("cannot emit %r: limited to 2**31-1"
-                                    % (self.arg,))
+                raise OverflowError(f"cannot emit {self.arg!r}: limited to 2**31-1")
             return format_four_bytes(value)
         if isinstance(self.arg, str):
-            raise VerificationError("cannot emit to Python: %r" % (self.arg,))
+            raise VerificationError(f"cannot emit to Python: {self.arg!r}")
         return format_four_bytes((self.arg << 8) | self.op)
 
     def __str__(self):
         classname = CLASS_NAME.get(self.op, self.op)
-        return '(%s %s)' % (classname, self.arg)
+        return f'({classname} {self.arg})'
 
 def format_four_bytes(num):
-    return '\\x%02X\\x%02X\\x%02X\\x%02X' % (
-        (num >> 24) & 0xFF,
-        (num >> 16) & 0xFF,
-        (num >>  8) & 0xFF,
-        (num      ) & 0xFF)
+    return f'\\x{(num >> 24) & 0xFF:02X}\\x{(num >> 16) & 0xFF:02X}\\x{(num >>  8) & 0xFF:02X}\\x{(num      ) & 0xFF:02X}'
 
 OP_PRIMITIVE       = 1
 OP_POINTER         = 3

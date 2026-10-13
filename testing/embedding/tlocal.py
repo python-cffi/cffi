@@ -30,4 +30,4 @@ ffi.set_source("_tlocal_cffi", """
 """)
 
 fn = ffi.compile(verbose=True)
-print('FILENAME: %s' % (fn,))
+print(f'FILENAME: {fn}')

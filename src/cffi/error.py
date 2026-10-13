@@ -12,7 +12,7 @@ class CDefError(Exception):
             prefix = '%s:%d: ' % (filename, linenum)
         except (AttributeError, TypeError, IndexError):
             prefix = ''
-        return '%s%s' % (prefix, self.args[0])
+        return f'{prefix}{self.args[0]}'
 
 class VerificationError(Exception):
     """ An error raised when verification fails

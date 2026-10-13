@@ -40,7 +40,7 @@ class DistUtilsTest:
     def test_write_source(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
+        csrc = f'/*hi there {self}!*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic,
                      libraries=[self.lib_m])
         v.write_source()
@@ -51,7 +51,7 @@ class DistUtilsTest:
     def test_write_source_explicit_filename(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
+        csrc = f'/*hi there {self}!*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic,
                      libraries=[self.lib_m])
         source_file = udir / 'write_source.c'
@@ -63,7 +63,7 @@ class DistUtilsTest:
     def test_write_source_to_file_obj(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
+        csrc = f'/*hi there {self}!*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic,
                      libraries=[self.lib_m])
         try:
@@ -77,7 +77,7 @@ class DistUtilsTest:
     def test_compile_module(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there %s!*/\n#include <math.h>\n' % self
+        csrc = f'/*hi there {self}!*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic,
                      libraries=[self.lib_m])
         v.compile_module()
@@ -89,7 +89,7 @@ class DistUtilsTest:
     def test_compile_module_explicit_filename(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there %s!2*/\n#include <math.h>\n' % self
+        csrc = f'/*hi there {self}!2*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic,
                      libraries=[self.lib_m])
         basename = self.__class__.__name__[:10] + '_test_compile_module'
@@ -106,7 +106,7 @@ class DistUtilsTest:
         names = []
         for csrc in ['double', 'double', 'float']:
             ffi = FFI()
-            ffi.cdef("%s sin(double x);" % csrc)
+            ffi.cdef(f"{csrc} sin(double x);")
             v = Verifier(ffi, "#include <math.h>",
                          force_generic_engine=self.generic,
                          libraries=[self.lib_m])
@@ -125,7 +125,7 @@ class DistUtilsTest:
     def test_load_library(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there %s!3*/\n#include <math.h>\n' % self
+        csrc = f'/*hi there {self}!3*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic,
                      libraries=[self.lib_m])
         library = v.load_library()
@@ -134,7 +134,7 @@ class DistUtilsTest:
     def test_verifier_args(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there %s!4*/#include "test_verifier_args.h"\n' % self
+        csrc = f'/*hi there {self}!4*/#include "test_verifier_args.h"\n'
         (udir / 'test_verifier_args.h').write_text('#include <math.h>\n')
         v = Verifier(ffi, csrc, include_dirs=[str(udir)],
                      force_generic_engine=self.generic,
@@ -145,7 +145,7 @@ class DistUtilsTest:
     def test_verifier_object_from_ffi(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = "/*6%s*/\n#include <math.h>" % self
+        csrc = f"/*6{self}*/\n#include <math.h>"
         lib = ffi.verify(csrc, force_generic_engine=self.generic,
                          libraries=[self.lib_m])
         assert lib.sin(12.3) == math.sin(12.3)
@@ -157,7 +157,7 @@ class DistUtilsTest:
     def test_extension_object(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*7%s*/' % self + '''
+        csrc = f'/*7{self}*/' + '''
     #include <math.h>
     #ifndef TEST_EXTENSION_OBJECT
     # error "define_macros missing"
@@ -178,7 +178,7 @@ class DistUtilsTest:
     def test_extension_forces_write_source(self):
         ffi = FFI()
         ffi.cdef("double sin(double x);")
-        csrc = '/*hi there9!%s*/\n#include <math.h>\n' % self
+        csrc = f'/*hi there9!{self}*/\n#include <math.h>\n'
         v = Verifier(ffi, csrc, force_generic_engine=self.generic,
                      libraries=[self.lib_m])
         assert not os.path.exists(v.sourcefilename)
@@ -191,7 +191,7 @@ class DistUtilsTest:
         extra_source = udir / 'extension_extra_sources.c'
         extra_source.write_text(
             'double test1eoes(double x) { return x * 6.0; }\n')
-        csrc = '/*9%s*/' % self + '''
+        csrc = f'/*9{self}*/' + '''
         double test1eoes(double x);   /* or #include "extra_sources.h" */
         '''
         lib = ffi.verify(csrc, sources=[str(extra_source)],
@@ -217,7 +217,7 @@ class DistUtilsTest:
 
         def make_ffi(**verifier_args):
             ffi = FFI()
-            ffi.cdef("/* %s, %s, %s */" % (KEY, targetpackage, ext_package))
+            ffi.cdef(f"/* {KEY}, {targetpackage}, {ext_package} */")
             ffi.cdef("double test1iarm(double x);")
             csrc = "double test1iarm(double x) { return x * 42.0; }"
             lib = ffi.verify(csrc, force_generic_engine=self.generic,
@@ -264,7 +264,7 @@ class DistUtilsTest:
 
     def test_tag(self):
         ffi = FFI()
-        ffi.cdef("/* %s test_tag */ double test1tag(double x);" % self)
+        ffi.cdef(f"/* {self} test_tag */ double test1tag(double x);")
         csrc = "double test1tag(double x) { return x - 42.0; }"
         lib = ffi.verify(csrc, force_generic_engine=self.generic,
                          tag='xxtest_tagxx')
@@ -273,7 +273,7 @@ class DistUtilsTest:
 
     def test_modulename(self):
         ffi = FFI()
-        ffi.cdef("/* %s test_modulename */ double test1foo(double x);" % self)
+        ffi.cdef(f"/* {self} test_modulename */ double test1foo(double x);")
         csrc = "double test1foo(double x) { return x - 63.0; }"
         modname = 'xxtest_modulenamexx%d' % (self.generic,)
         lib = ffi.verify(csrc, force_generic_engine=self.generic,
