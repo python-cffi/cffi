@@ -433,7 +433,7 @@ jobs:
 
   ios:
     needs: [python_sdist, make_ios_matrix]
-    runs-on: macos-14
+    runs-on: macos-15
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.make_ios_matrix.outputs.matrix_json) }}
