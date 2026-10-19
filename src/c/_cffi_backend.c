@@ -4537,14 +4537,13 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
         }
         PyErr_Clear();
 #endif
-        if (!PyArg_ParseTuple(args, "et|i:load_library",
-                     Py_FileSystemDefaultEncoding, &filename_or_null, &flags))
+        if (!PyArg_ParseTuple(args, "O&|i:load_library",
+                     PyUnicode_FSConverter, p_temp, &flags))
             return NULL;
         *p_printable_filename = PyUnicode_AsUTF8(s);
-        if (*p_printable_filename == NULL) {
-            PyMem_Free(filename_or_null);
+        if (*p_printable_filename == NULL)
             return NULL;
-        }
+        filename_or_null = PyBytes_AS_STRING(*p_temp);
     }
     if ((flags & (RTLD_NOW | RTLD_LAZY)) == 0)
         flags |= RTLD_NOW;
@@ -4557,7 +4556,6 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
 #endif
 
     handle = dlopen(filename_or_null, flags);
-    PyMem_Free(filename_or_null);
 
 #ifdef MS_WIN32
   got_handle:

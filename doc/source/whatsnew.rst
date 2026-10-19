@@ -17,8 +17,14 @@ v2.2.0.dev0
   ``FILE`` type. This could happen with an already-preprocessed system
   header, which spells out the real struct. (`#281`_).
 
+* Fixed building on CPython 3.16, which removed
+  ``Py_FileSystemDefaultEncoding``. A file name with an embedded null
+  character passed to ``ffi.dlopen()`` now raises ``ValueError`` instead of
+  ``TypeError``. (`#287`_).
+
 .. _`#265`: https://github.com/python-cffi/cffi/pull/265
 .. _`#281`: https://github.com/python-cffi/cffi/pull/281
+.. _`#287`: https://github.com/python-cffi/cffi/pull/287
 
 v2.1.0
 ======
