@@ -291,6 +291,7 @@ typedef struct {
     CTypeDescrObject *c_type;
     char *c_data;
     PyObject *c_weakreflist;
+    vectorcallfunc vectorcall;
 } CDataObject;
 
 typedef struct cfieldobject_s {
@@ -309,6 +310,7 @@ typedef struct cfieldobject_s {
 static PyTypeObject CTypeDescr_Type;
 static PyTypeObject CField_Type;
 static PyTypeObject CData_Type;
+static PyObject *cdata_vectorcall(PyObject *, PyObject *const *, size_t, PyObject *);
 static PyTypeObject CDataOwning_Type;
 static PyTypeObject CDataOwningGC_Type;
 static PyTypeObject CDataFromBuf_Type;
@@ -333,6 +335,13 @@ typedef union {
     double m_double;
     long double m_longdouble;
 } union_alignment;
+
+typedef struct {
+    char prefix;
+    union_alignment value;
+} union_alignment_probe;
+
+#define UNION_ALIGNMENT_VALUE  offsetof(union_alignment_probe, value)
 
 typedef struct {
     CDataObject head;
@@ -382,8 +391,21 @@ typedef struct {
        - the call is done
        - the result is read back from 'buffer + exchange_offset_arg[0]' */
     Py_ssize_t exchange_size;
+    unsigned int exchange_alignment;
+    Py_ssize_t nargs;
+    CTypeDescrObject *fresult;
+    CTypeDescrObject **argtypes;
+    unsigned char *argkinds;
+    unsigned int fast_plan;
+    unsigned char result_kind;
     Py_ssize_t exchange_offset_arg[1];
 } cif_description_t;
+
+#define FAST_KIND_GENERIC 0
+#define FAST_KIND_SINT32  1
+#define FAST_KIND_DOUBLE  2
+#define FAST_KIND_VOID    3
+#define FAST_PLAN_BASE    4
 
 #define ADD_WRAPAROUND(x, y)  ((Py_ssize_t)(((size_t)(x)) + ((size_t)(y))))
 #define MUL_WRAPAROUND(x, y)  ((Py_ssize_t)(((size_t)(x)) * ((size_t)(y))))
@@ -1078,6 +1100,7 @@ new_simple_cdata(char *data, CTypeDescrObject *ct)
     cd->c_data = data;
     cd->c_type = ct;
     cd->c_weakreflist = NULL;
+    cd->vectorcall = cdata_vectorcall;
     return (PyObject *)cd;
 }
 
@@ -1094,6 +1117,7 @@ new_sized_cdata(char *data, CTypeDescrObject *ct, Py_ssize_t length)
     scd->head.c_type = ct;
     scd->head.c_data = data;
     scd->head.c_weakreflist = NULL;
+    scd->head.vectorcall = cdata_vectorcall;
     scd->length = length;
     return (PyObject *)scd;
 }
@@ -3060,17 +3084,175 @@ _prepare_pointer_call_argument(CTypeDescrObject *ctptr, PyObject *init,
     return convert_from_object((char *)output_data, ctptr, init);
 }
 
+typedef PyObject *(*fast_result_converter_fn)(char *, CTypeDescrObject *);
+
+static int
+fast_arg_sint32(char *data, CTypeDescrObject *ct, PyObject *obj)
+{
+    long long value = PyLong_AsLongLong(obj);
+    int narrowed;
+    assert(PyLong_CheckExact(obj));
+    assert(!PyErr_Occurred());
+    assert(value >= INT_MIN && value <= INT_MAX);
+    narrowed = (int)value;
+    memcpy(data, &narrowed, sizeof(narrowed));
+    return 0;
+}
+
+static int
+fast_arg_double(char *data, CTypeDescrObject *ct, PyObject *obj)
+{
+    double value;
+    assert(PyFloat_CheckExact(obj));
+    value = PyFloat_AS_DOUBLE(obj);
+    memcpy(data, &value, sizeof(value));
+    return 0;
+}
+
+static PyObject *
+fast_result_generic(char *data, CTypeDescrObject *ct)
+{
+    return convert_to_object(data, ct);
+}
+
+static PyObject *
+fast_result_sint32(char *data, CTypeDescrObject *ct)
+{
+    int value;
+    memcpy(&value, data, sizeof(value));
+    return PyLong_FromLong((long)value);
+}
+
+static PyObject *
+fast_result_double(char *data, CTypeDescrObject *ct)
+{
+    double value;
+    memcpy(&value, data, sizeof(value));
+    return PyFloat_FromDouble(value);
+}
+
+static PyObject *
+fast_result_void(char *data, CTypeDescrObject *ct)
+{
+    Py_RETURN_NONE;
+}
+
+static fast_result_converter_fn fast_result_table[] = {
+    fast_result_generic,
+    fast_result_sint32,
+    fast_result_double,
+    fast_result_void
+};
+
+static PyObject *
+fast_convert_result(char *data, CTypeDescrObject *ct, unsigned char kind)
+{
+    return fast_result_table[kind](data, ct);
+}
+
+static int
+direct_plan_applicable(cif_description_t *cif_descr, PyObject *const *args)
+{
+    Py_ssize_t i;
+
+    for (i = 0; i < cif_descr->nargs; i++) {
+        switch (cif_descr->argkinds[i]) {
+        case FAST_KIND_SINT32: {
+            int overflow = 0;
+            long long value;
+            if (!PyLong_CheckExact(args[i]))
+                return 0;
+            value = PyLong_AsLongLongAndOverflow(args[i], &overflow);
+            if (overflow != 0 || value < INT_MIN || value > INT_MAX) {
+                PyErr_Clear();
+                return 0;
+            }
+            break;
+        }
+        case FAST_KIND_DOUBLE:
+            if (!PyFloat_CheckExact(args[i]))
+                return 0;
+            break;
+        default:
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int
+fast_plan_supported(unsigned int plan)
+{
+    switch (plan) {
+#ifndef WORDS_BIGENDIAN
+    case 1:     /* int(void) */
+    case 5:     /* int(int) */
+    case 21:    /* int(int, int) */
+    case 341:   /* int(int, int, int, int) */
+        return 1;
+#endif
+    case 42:    /* double(double, double) */
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static int
+prepare_direct_plan(cif_description_t *cif_descr, char *buffer,
+                    void **buffer_array, PyObject *const *args)
+{
+#define PREP_ARG(index, converter)                                              \
+    do {                                                                        \
+        char *data = buffer + cif_descr->exchange_offset_arg[1 + (index)];     \
+        buffer_array[(index)] = data;                                           \
+        if (converter(data, cif_descr->argtypes[(index)], args[(index)]) < 0)  \
+            return -1;                                                          \
+    } while (0)
+
+    switch (cif_descr->fast_plan) {
+    case 1:     /* int -> result, no args */
+        return 1;
+    case 5:     /* int(int) */
+        PREP_ARG(0, fast_arg_sint32);
+        return 1;
+    case 21:    /* int(int, int) */
+        PREP_ARG(0, fast_arg_sint32);
+        PREP_ARG(1, fast_arg_sint32);
+        return 1;
+    case 341:   /* int(int, int, int, int) */
+        PREP_ARG(0, fast_arg_sint32);
+        PREP_ARG(1, fast_arg_sint32);
+        PREP_ARG(2, fast_arg_sint32);
+        PREP_ARG(3, fast_arg_sint32);
+        return 1;
+    case 42:    /* double(double, double) */
+        PREP_ARG(0, fast_arg_double);
+        PREP_ARG(1, fast_arg_double);
+        return 1;
+    default:
+        return 0;
+    }
+#undef PREP_ARG
+}
+
 static PyObject*
-cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
+cdata_call_impl(CDataObject *cd, PyObject *const *args,
+                Py_ssize_t nargs, int has_keywords)
 {
     char *buffer;
     void** buffer_array;
     cif_description_t *cif_descr;
-    Py_ssize_t i, nargs, nargs_declared;
+    Py_ssize_t i, nargs_declared;
     PyObject *signature, *res = NULL, *fvarargs;
     CTypeDescrObject *fresult;
     char *resultdata;
     char *errormsg;
+    int use_fast_plan = 0;
+    int direct_plan_prepared = 0;
+    int buffer_is_heap = 0;
+    union_alignment stack_buffer[(512 + sizeof(union_alignment) - 1) /
+                                 sizeof(union_alignment)];
     struct freeme_s {
         struct freeme_s *next;
         union_alignment alignment;
@@ -3087,17 +3269,12 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
                      cd->c_type->ct_name);
         return NULL;
     }
-    if (kwds != NULL && PyDict_Size(kwds) != 0) {
+    if (has_keywords) {
         PyErr_SetString(PyExc_TypeError,
                 "a cdata function cannot be called with keyword arguments");
         return NULL;
     }
     signature = cd->c_type->ct_stuff;
-    nargs = PyTuple_Size(args);
-    if (nargs < 0)
-        return NULL;
-    nargs_declared = PyTuple_GET_SIZE(signature) - 2;
-    fresult = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 1);
     fvarargs = NULL;
     buffer = NULL;
 
@@ -3105,6 +3282,8 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
 
     if (cif_descr != NULL) {
         /* regular case: this function does not take '...' arguments */
+        nargs_declared = cif_descr->nargs;
+        fresult = cif_descr->fresult;
         if (nargs != nargs_declared) {
             errormsg = "'%s' expects %zd arguments, got %zd";
           bad_number_of_arguments:
@@ -3116,6 +3295,8 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     else {
         /* call of a variadic function */
         ffi_abi fabi;
+        nargs_declared = PyTuple_GET_SIZE(signature) - 2;
+        fresult = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 1);
         if (nargs < nargs_declared) {
             errormsg = "'%s' expects at least %zd arguments, got %zd";
             goto bad_number_of_arguments;
@@ -3129,7 +3310,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             PyTuple_SET_ITEM(fvarargs, i, o);
         }
         for (i = nargs_declared; i < nargs; i++) {
-            PyObject *obj = PyTuple_GET_ITEM(args, i);
+            PyObject *obj = args[i];
             CTypeDescrObject *ct;
 
             if (CData_Check(obj)) {
@@ -3162,22 +3343,44 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             goto error;
     }
 
-    buffer = PyObject_Malloc(cif_descr->exchange_size);
-    if (buffer == NULL) {
-        PyErr_NoMemory();
-        goto error;
+    use_fast_plan = (fvarargs == NULL &&
+                     fast_plan_supported(cif_descr->fast_plan) &&
+                     direct_plan_applicable(cif_descr, args));
+
+    if (cif_descr->exchange_size <= (Py_ssize_t)sizeof(stack_buffer) &&
+            cif_descr->exchange_alignment <= UNION_ALIGNMENT_VALUE) {
+        buffer = (char *)stack_buffer;
+    }
+    else {
+        buffer = PyObject_Malloc(cif_descr->exchange_size);
+        if (buffer == NULL) {
+            PyErr_NoMemory();
+            goto error;
+        }
+        buffer_is_heap = 1;
     }
 
     buffer_array = (void **)buffer;
 
+    if (use_fast_plan) {
+        direct_plan_prepared = prepare_direct_plan(cif_descr, buffer,
+                                                   buffer_array, args);
+        if (direct_plan_prepared < 0)
+            goto error;
+        if (direct_plan_prepared > 0)
+            goto arguments_ready;
+    }
+
     for (i=0; i<nargs; i++) {
         CTypeDescrObject *argtype;
         char *data = buffer + cif_descr->exchange_offset_arg[1 + i];
-        PyObject *obj = PyTuple_GET_ITEM(args, i);
+        PyObject *obj = args[i];
 
         buffer_array[i] = data;
 
-        if (i < nargs_declared)
+        if (fvarargs == NULL)
+            argtype = cif_descr->argtypes[i];
+        else if (i < nargs_declared)
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(signature, 2 + i);
         else
             argtype = (CTypeDescrObject *)PyTuple_GET_ITEM(fvarargs, i);
@@ -3216,6 +3419,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             goto error;
     }
 
+ arguments_ready:
     resultdata = buffer + cif_descr->exchange_offset_arg[0];
     /*READ(cd->c_data, sizeof(void(*)(void)))*/
 
@@ -3226,8 +3430,11 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
     save_errno();
     Py_END_ALLOW_THREADS
 
-    if (fresult->ct_flags & (CT_PRIMITIVE_CHAR | CT_PRIMITIVE_SIGNED |
-                             CT_PRIMITIVE_UNSIGNED)) {
+    if (use_fast_plan) {
+        res = fast_convert_result(resultdata, fresult, cif_descr->result_kind);
+    }
+    else if (fresult->ct_flags & (CT_PRIMITIVE_CHAR | CT_PRIMITIVE_SIGNED |
+                                  CT_PRIMITIVE_UNSIGNED)) {
 #ifdef WORDS_BIGENDIAN
         /* For results of precisely these types, libffi has a strange
            rule that they will be returned as a whole 'ffi_arg' if they
@@ -3255,7 +3462,7 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
         freeme = freeme->next;
         PyObject_Free(p);
     }
-    if (buffer)
+    if (buffer_is_heap)
         PyObject_Free(buffer);
     if (fvarargs != NULL) {
         Py_DECREF(fvarargs);
@@ -3263,6 +3470,24 @@ cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
             PyObject_Free(cif_descr);
     }
     return res;
+}
+
+static PyObject*
+cdata_call(CDataObject *cd, PyObject *args, PyObject *kwds)
+{
+    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
+    PyObject *const *items = nargs ? &PyTuple_GET_ITEM(args, 0) : NULL;
+    int has_keywords = kwds != NULL && PyDict_Size(kwds) != 0;
+    return cdata_call_impl(cd, items, nargs, has_keywords);
+}
+
+static PyObject*
+cdata_vectorcall(PyObject *callable, PyObject *const *args,
+                 size_t nargsf, PyObject *kwnames)
+{
+    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    int has_keywords = kwnames != NULL && PyTuple_GET_SIZE(kwnames) != 0;
+    return cdata_call_impl((CDataObject *)callable, args, nargs, has_keywords);
 }
 
 static PyObject *cdata_dir(PyObject *cd, PyObject *noarg)
@@ -3434,12 +3659,12 @@ static PyTypeObject CData_Type = {
     0,                                          /* tp_as_sequence */
     &CData_as_mapping,                          /* tp_as_mapping */
     cdata_hash,                                 /* tp_hash */
-    (ternaryfunc)cdata_call,                    /* tp_call */
+    PyVectorcall_Call,                          /* tp_call */
     0,                                          /* tp_str */
     (getattrofunc)cdata_getattro,               /* tp_getattro */
     (setattrofunc)cdata_setattro,               /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_VECTORCALL, /* tp_flags */
     "The internal base type for CData objects.  Use FFI.CData to access "
     "it.  Always check with isinstance(): subtypes are sometimes returned "
     "on CPython, for performance reasons.",     /* tp_doc */
@@ -3750,6 +3975,7 @@ static CDataObject *allocate_owning_object(Py_ssize_t size,
     Py_INCREF(ct);
     cd->c_type = ct;
     cd->c_weakreflist = NULL;
+    cd->vectorcall = cdata_vectorcall;
     return cd;
 }
 
@@ -3794,6 +4020,7 @@ static CDataObject *allocate_gcp_object(CDataObject *origobj,
     cd->head.c_data = origobj->c_data;
     cd->head.c_type = ct;
     cd->head.c_weakreflist = NULL;
+    cd->head.vectorcall = cdata_vectorcall;
     cd->origobj = (PyObject *)origobj;
     cd->destructor = destructor;
 
@@ -4033,6 +4260,7 @@ static CDataObject *_new_casted_primitive(CTypeDescrObject *ct)
     cd->c_type = ct;
     cd->c_data = ((char*)cd) + dataoffset;
     cd->c_weakreflist = NULL;
+    cd->vectorcall = cdata_vectorcall;
     return cd;
 }
 
@@ -5746,11 +5974,27 @@ static ffi_type *fb_fill_type(struct funcbuilder_s *fb, CTypeDescrObject *ct,
 #define ALIGN_TO(n, a)  ((n) + ((a)-1)) & ~((a)-1)
 #define ALIGN_ARG(n)    ALIGN_TO(n, 8)
 
+static unsigned char
+classify_fast_kind(CTypeDescrObject *ct)
+{
+    if ((ct->ct_flags & CT_PRIMITIVE_SIGNED) &&
+            ct->ct_size == (Py_ssize_t)sizeof(int))
+        return FAST_KIND_SINT32;
+    if ((ct->ct_flags & CT_PRIMITIVE_FLOAT) &&
+            !(ct->ct_flags & CT_IS_LONGDOUBLE) &&
+            ct->ct_size == (Py_ssize_t)sizeof(double))
+        return FAST_KIND_DOUBLE;
+    if (ct->ct_flags & CT_VOID)
+        return FAST_KIND_VOID;
+    return FAST_KIND_GENERIC;
+}
+
 static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
                     CTypeDescrObject *fresult)
 {
     Py_ssize_t i, nargs = PyTuple_GET_SIZE(fargs);
     Py_ssize_t exchange_offset;
+    unsigned int plan_mul = FAST_PLAN_BASE;
     cif_description_t *cif_descr;
 
     /* ffi buffer: start with a cif_description */
@@ -5760,6 +6004,22 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
     /* ffi buffer: next comes an array of 'ffi_type*', one per argument */
     fb->atypes = fb_alloc(fb, nargs * sizeof(ffi_type*));
     fb->nargs = nargs;
+
+    if (cif_descr != NULL) {
+        cif_descr->nargs = nargs;
+        cif_descr->fresult = fresult;
+        cif_descr->exchange_alignment = 1;
+        cif_descr->argtypes = fb_alloc(fb, nargs * sizeof(CTypeDescrObject *));
+        cif_descr->argkinds = fb_alloc(fb, nargs * sizeof(unsigned char));
+        cif_descr->result_kind = classify_fast_kind(fresult);
+        cif_descr->fast_plan = cif_descr->result_kind;
+        if (cif_descr->result_kind == FAST_KIND_GENERIC || nargs > 6)
+            cif_descr->fast_plan = 0;
+    }
+    else {
+        fb_alloc(fb, nargs * sizeof(CTypeDescrObject *));
+        fb_alloc(fb, nargs * sizeof(unsigned char));
+    }
 
     /* ffi buffer: next comes the result type */
     fb->rtype = fb_fill_type(fb, fresult, 1);
@@ -5772,6 +6032,8 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
         /* then enough room for the result --- which means at least
            sizeof(ffi_arg), according to the ffi docs, but we also
            align according to the result type, for issue #531 */
+        if (fb->rtype->alignment > cif_descr->exchange_alignment)
+            cif_descr->exchange_alignment = fb->rtype->alignment;
         exchange_offset = ALIGN_TO(exchange_offset, fb->rtype->alignment);
         exchange_offset = ALIGN_ARG(exchange_offset);
         cif_descr->exchange_offset_arg[0] = exchange_offset;
@@ -5800,8 +6062,20 @@ static int fb_build(struct funcbuilder_s *fb, PyObject *fargs,
             return -1;
 
         if (fb->atypes != NULL) {
+            unsigned char kind = classify_fast_kind(farg);
             fb->atypes[i] = atype;
+            cif_descr->argtypes[i] = farg;
+            cif_descr->argkinds[i] = kind;
+            if (cif_descr->fast_plan != 0 && kind != FAST_KIND_GENERIC) {
+                cif_descr->fast_plan += (unsigned int)kind * plan_mul;
+                plan_mul *= FAST_PLAN_BASE;
+            }
+            else {
+                cif_descr->fast_plan = 0;
+            }
             /* exchange data size */
+            if (atype->alignment > cif_descr->exchange_alignment)
+                cif_descr->exchange_alignment = atype->alignment;
             exchange_offset = ALIGN_TO(exchange_offset, atype->alignment);
             exchange_offset = ALIGN_ARG(exchange_offset);
             cif_descr->exchange_offset_arg[1 + i] = exchange_offset;
@@ -6423,6 +6697,7 @@ static PyObject *b_callback(PyObject *self, PyObject *args)
     cd->head.c_type = ct;
     cd->head.c_data = CFFI_CLOSURE_TO_FNPTR(char *, closure_exec);
     cd->head.c_weakreflist = NULL;
+    cd->head.vectorcall = cdata_vectorcall;
     closure->user_data = NULL;
     cd->closure = closure;
 
@@ -7124,6 +7399,7 @@ static PyObject *newp_handle(CTypeDescrObject *ct_voidp, PyObject *x)
     cd->head.c_type = ct_voidp;
     cd->head.c_data = (char *)cd;
     cd->head.c_weakreflist = NULL;
+    cd->head.vectorcall = cdata_vectorcall;
     Py_INCREF(x);
     cd->structobj = x;
     PyObject_GC_Track(cd);
@@ -7277,6 +7553,7 @@ static PyObject *direct_from_buffer(CTypeDescrObject *ct, PyObject *x,
     cd->c_type = ct;
     cd->c_data = view->buf;
     cd->c_weakreflist = NULL;
+    cd->vectorcall = cdata_vectorcall;
     ((CDataObject_frombuf *)cd)->length = arraylength;
     ((CDataObject_frombuf *)cd)->bufferview = view;
     PyObject_GC_Track(cd);
@@ -7977,6 +8254,8 @@ PyInit__cffi_backend(void)
         if (unique_cache == NULL)
             INITERROR;
     }
+
+    CData_Type.tp_vectorcall_offset = offsetof(CDataObject, vectorcall);
 
     /* readify all types and add them to the module */
     for (i = 0; all_types[i] != NULL; i++) {
