@@ -4537,8 +4537,25 @@ static void *b_do_dlopen(PyObject *args, const char **p_printable_filename,
         }
         PyErr_Clear();
 #endif
-        if (!PyArg_ParseTuple(args, "et|i:load_library",
-                     Py_FileSystemDefaultEncoding, &filename_or_null, &flags))
+        const char *encoding;
+#if PY_VERSION_HEX >= 0x030E0000
+        PyObject *default_fs_encoding = PyConfig_Get("filesystem_encoding");
+        if (default_fs_encoding == NULL)
+            return NULL;
+        encoding = PyUnicode_AsUTF8(default_fs_encoding);
+        if (encoding == NULL) {
+            Py_DECREF(default_fs_encoding);
+            return NULL;
+        }
+#else
+        encoding = Py_FileSystemDefaultEncoding;
+#endif
+        int parsed = PyArg_ParseTuple(args, "et|i:load_library",
+                    encoding, &filename_or_null, &flags);
+#if PY_VERSION_HEX >= 0x030E0000
+        Py_DECREF(default_fs_encoding);
+#endif
+        if (!parsed)
             return NULL;
         *p_printable_filename = PyUnicode_AsUTF8(s);
         if (*p_printable_filename == NULL) {
