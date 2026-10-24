@@ -134,6 +134,13 @@ def test_load_library():
     x = find_and_load_library('c', RTLD_LAZY)
     assert repr(x).startswith("<clibrary '")
 
+def test_load_library_invalid_filename():
+    pytest.raises(TypeError, load_library, b"foo")
+    pytest.raises(TypeError, load_library, "foo", "not-an-int")
+    if sys.platform != 'win32':
+        # the Windows code path does not reject embedded null characters
+        pytest.raises(ValueError, load_library, "foo\x00bar")
+
 def test_all_rtld_symbols():
     import sys
     FFI_DEFAULT_ABI        # these symbols must be defined
