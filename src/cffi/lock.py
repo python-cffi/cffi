@@ -1,9 +1,6 @@
 import sys
 
-try:
-    from _thread import allocate_lock
-except ImportError:
-    from _dummy_thread import allocate_lock
+from _thread import allocate_lock
 
 
 ##import sys

@@ -2,12 +2,6 @@ import os
 import sys
 import sysconfig
 
-try:
-    basestring
-except NameError:
-    # Python 3.x
-    basestring = str
-
 def error(msg):
     from cffi._shimmed_dist_utils import DistutilsSetupError
     raise DistutilsSetupError(msg)
@@ -29,7 +23,7 @@ def execfile(filename, glob):
 def add_cffi_module(dist, mod_spec):
     from cffi.api import FFI
 
-    if not isinstance(mod_spec, basestring):
+    if not isinstance(mod_spec, str):
         error("argument to 'cffi_modules=...' must be a str or a list of str,"
               f" not {type(mod_spec).__name__!r}")
     mod_spec = str(mod_spec)
@@ -216,7 +210,7 @@ def _add_py_module(dist, ffi, module_name):
 
 def cffi_modules(dist, attr, value):
     assert attr == 'cffi_modules'
-    if isinstance(value, basestring):
+    if isinstance(value, str):
         value = [value]
 
     for cffi_module in value:
