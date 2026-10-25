@@ -4,12 +4,7 @@ from pathlib import Path
 import pytest
 from cffi._imp_emulation import load_dynamic
 
-__all__ = ['u', 'unicode', 'long', 'arraytostring', 'load_dynamic']
-u = ""
-unicode = str
-long = int
-def arraytostring(a):
-    return a.tobytes()
+__all__ = ['load_dynamic']
 
 
 class StdErrCapture:
