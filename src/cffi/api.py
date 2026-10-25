@@ -3,12 +3,6 @@ from .lock import allocate_lock
 from .error import CDefError
 from . import model
 
-try:
-    basestring
-except NameError:
-    # Python 3.x
-    basestring = str
-
 _unspecified = object()
 
 
@@ -36,8 +30,7 @@ class FFI:
         select a non-default backend, mostly for tests.
         """
         if backend is None:
-            # You need PyPy (>= 2.0 beta), or a CPython (>= 2.6) with
-            # _cffi_backend.so compiled.
+            # You need PyPy or a CPython with _cffi_backend.so compiled.
             import _cffi_backend as backend
             from . import __version__
             if backend.__version__ != __version__:
@@ -108,7 +101,7 @@ class FFI:
 
     def _cdef(self, csource, override=False, **options):
         if not isinstance(csource, str):    # unicode, on Python 2
-            if not isinstance(csource, basestring):
+            if not isinstance(csource, str):
                 raise TypeError("cdef() argument must be a string")
             csource = csource.encode('ascii')
         with self._lock:
@@ -131,7 +124,7 @@ class FFI:
         linked to a particular library, just like C headers; in the
         library we only look for the actual (untyped) symbols.
         """
-        if not (isinstance(name, basestring) or
+        if not (isinstance(name, str) or
                 name is None or
                 isinstance(name, self.CData)):
             raise TypeError("dlopen(name): name must be a file name, None, "
@@ -186,7 +179,7 @@ class FFI:
         corresponding <ctype> object.
         It can also be used on 'cdata' instance to get its C type.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             return self._typeof(cdecl)
         if isinstance(cdecl, self.CData):
             return self._backend.typeof(cdecl)
@@ -204,7 +197,7 @@ class FFI:
         """Return the size in bytes of the argument.  It can be a
         string naming a C type, or a 'cdata' instance.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             BType = self._typeof(cdecl)
             return self._backend.sizeof(BType)
         else:
@@ -214,7 +207,7 @@ class FFI:
         """Return the natural alignment size in bytes of the C type
         given as a string.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         return self._backend.alignof(cdecl)
 
@@ -225,7 +218,7 @@ class FFI:
         You can also give numeric values which correspond to array
         items, in case of an array type.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         return self._typeoffsetof(cdecl, *fields_or_indexes)[1]
 
@@ -252,7 +245,7 @@ class FFI:
         about that when copying the pointer to the memory somewhere
         else, e.g. into another structure.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         return self._backend.newp(cdecl, init)
 
@@ -275,7 +268,7 @@ class FFI:
         allocator = compiled_ffi.new_allocator(alloc, free,
                                                should_clear_after_alloc)
         def allocate(cdecl, init=None):
-            if isinstance(cdecl, basestring):
+            if isinstance(cdecl, str):
                 cdecl = self._typeof(cdecl)
             return allocator(cdecl, init)
         return allocate
@@ -285,7 +278,7 @@ class FFI:
         type initialized with the given 'source'.  The source is
         casted between integers or pointers of any type.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         return self._backend.cast(cdecl, source)
 
@@ -350,7 +343,7 @@ class FFI:
         """
         if python_buffer is _unspecified:
             cdecl, python_buffer = self.BCharA, cdecl
-        elif isinstance(cdecl, basestring):
+        elif isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         return self._backend.from_buffer(cdecl, python_buffer,
                                          require_writable)
@@ -385,7 +378,7 @@ class FFI:
                                 "is not callable")
             return self._backend.callback(cdecl, python_callable,
                                           error, onerror)
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl, consider_function_as_funcptr=True)
         if python_callable is None:
             return callback_decorator_wrap                # decorator mode
@@ -398,7 +391,7 @@ class FFI:
         extra text to append (or insert for more complicated C types), like
         a variable name, or '*' to get actually the C type 'pointer-to-cdecl'.
         """
-        if isinstance(cdecl, basestring):
+        if isinstance(cdecl, str):
             cdecl = self._typeof(cdecl)
         replace_with = replace_with.strip()
         if (replace_with.startswith('*')
@@ -605,10 +598,7 @@ class FFI:
                 if hasattr(sys, 'gettotalrefcount'):
                     template += '_d'
             else:
-                try:
-                    import sysconfig
-                except ImportError:    # 2.6
-                    from cffi._shimmed_dist_utils import sysconfig
+                import sysconfig
                 template = "python%d.%d"
                 if sysconfig.get_config_var('DEBUG_EXT'):
                     template += sysconfig.get_config_var('DEBUG_EXT')
@@ -625,7 +615,7 @@ class FFI:
         if hasattr(self, '_assigned_source'):
             raise ValueError("set_source() cannot be called several times "
                              "per ffi object")
-        if not isinstance(module_name, basestring):
+        if not isinstance(module_name, str):
             raise TypeError("'module_name' must be a string")
         if os.sep in module_name or (os.altsep and os.altsep in module_name):
             raise ValueError("'module_name' must not contain '/': use a dotted "
@@ -791,7 +781,7 @@ class FFI:
 
 def _load_backend_lib(backend, name, flags):
     import os
-    if not isinstance(name, basestring):
+    if not isinstance(name, str):
         if sys.platform != "win32" or name is not None:
             return backend.load_library(name, flags)
         name = "c"    # Windows: load_library(None) fails, but this works
@@ -805,8 +795,8 @@ def _load_backend_lib(backend, name, flags):
     import ctypes.util
     path = ctypes.util.find_library(name)
     if path is None:
-        if name == "c" and sys.platform == "win32" and sys.version_info >= (3,):
-            raise OSError("dlopen(None) cannot work on Windows for Python 3 "
+        if name == "c" and sys.platform == "win32":
+            raise OSError("dlopen(None) cannot work on Windows "
                           "(see http://bugs.python.org/issue23606)")
         msg = ("ctypes.util.find_library() did not manage "
                f"to locate a library called {name!r}")
@@ -927,7 +917,7 @@ def _make_ffi_library(ffi, libname, flags):
             backendlib.close_lib()
             self.__dict__.clear()
     #
-    if isinstance(libname, basestring):
+    if isinstance(libname, str):
         try:
             if not isinstance(libname, str):    # unicode, on Python 2
                 libname = libname.encode('utf-8')

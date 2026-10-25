@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, io
 from .error import VerificationError
 
 
@@ -81,13 +81,6 @@ def maybe_relative_path(path):
 
 # ____________________________________________________________
 
-try:
-    int_or_long = (int, long)
-    import cStringIO
-except NameError:
-    int_or_long = int      # Python 3
-    import io as cStringIO
-
 def _flatten(x, f):
     if isinstance(x, str):
         f.write('%ds%s' % (len(x), x))
@@ -101,13 +94,13 @@ def _flatten(x, f):
         f.write('%dl' % len(x))
         for value in x:
             _flatten(value, f)
-    elif isinstance(x, int_or_long):
+    elif isinstance(x, int):
         f.write('%di' % (x,))
     else:
         raise TypeError(
             f"the keywords to verify() contains unsupported object {x!r}")
 
 def flatten(x):
-    f = cStringIO.StringIO()
+    f = io.StringIO()
     _flatten(x, f)
     return f.getvalue()

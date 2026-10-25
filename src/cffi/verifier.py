@@ -11,9 +11,6 @@ def _extension_suffixes():
     return importlib.machinery.EXTENSION_SUFFIXES[:]
 
 
-NativeIO = io.StringIO
-
-
 class Verifier:
 
     def __init__(self, ffi, preamble, tmpdir=None, modulename=None,
@@ -159,7 +156,7 @@ class Verifier:
             self._write_source_to(file)
         else:
             # Write our source file to an in memory file.
-            f = NativeIO()
+            f = io.StringIO()
             self._write_source_to(f)
             source_data = f.getvalue()
 
