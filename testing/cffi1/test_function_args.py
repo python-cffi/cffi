@@ -65,7 +65,7 @@ else:
                           for (j, ftp) in enumerate(field_types)]
                 fields = '\n    '.join(fields)
                 name = 's%d' % len(cdefs)
-                cdefs.append("typedef struct {\n    %s\n} %s;" % (fields, name))
+                cdefs.append(f"typedef struct {{\n    {fields}\n}} {name};")
                 structs[name] = field_types
                 return name
             else:
@@ -75,17 +75,17 @@ else:
         result = build_type(tp_result)
 
         TEST_RUN_COUNTER += 1
-        signature = "%s testfargs(%s)" % (result,
+        signature = "{} testfargs({})".format(result,
             ', '.join(['%s a%d' % (arg, i) for (i, arg) in enumerate(args)])
             or 'void')
 
         source = list(cdefs)
 
-        cdefs.append("%s;" % signature)
-        cdefs.append("extern %s testfargs_result;" % result)
+        cdefs.append(f"{signature};")
+        cdefs.append(f"extern {result} testfargs_result;")
         for i, arg in enumerate(args):
             cdefs.append("extern %s testfargs_arg%d;" % (arg, i))
-        source.append("%s testfargs_result;" % result)
+        source.append(f"{result} testfargs_result;")
         for i, arg in enumerate(args):
             source.append("%s testfargs_arg%d;" % (arg, i))
         source.append(signature)
@@ -95,17 +95,16 @@ else:
         source.append("    return testfargs_result;")
         source.append("}")
 
-        typedef_line = "typedef %s;" % (signature.replace('testfargs',
+        typedef_line = "typedef {};".format(signature.replace('testfargs',
                                                           '(*mycallback_t)'),)
         assert signature.endswith(')')
-        sig_callback = "%s testfcallback(mycallback_t callback)" % result
+        sig_callback = f"{result} testfcallback(mycallback_t callback)"
         cdefs.append(typedef_line)
-        cdefs.append("%s;" % sig_callback)
+        cdefs.append(f"{sig_callback};")
         source.append(typedef_line)
         source.append(sig_callback)
         source.append("{")
-        source.append("    return callback(%s);" %
-                ', '.join(["testfargs_arg%d" % i for i in range(len(args))]))
+        source.append("    return callback({});".format(', '.join(["testfargs_arg%d" % i for i in range(len(args))])))
         source.append("}")
 
         ffi = FFI()
@@ -118,14 +117,14 @@ else:
             from testing.udir import udir
             import subprocess
             with (udir / 'run1.py').open('w') as f:
-                f.write('import sys; sys.path = %r\n' % (sys.path,))
+                f.write(f'import sys; sys.path = {sys.path!r}\n')
                 f.write('from _CFFI_test_function_args_%d import ffi, lib\n' %
                         TEST_RUN_COUNTER)
                 for i in range(len(args)):
                     f.write('a%d = ffi.new("%s *")\n' % (i, args[i]))
                 aliststr = ', '.join(['a%d[0]' % i for i in range(len(args))])
-                f.write('lib.testfargs(%s)\n' % aliststr)
-                f.write('ffi.addressof(lib, "testfargs")(%s)\n' % aliststr)
+                f.write(f'lib.testfargs({aliststr})\n')
+                f.write(f'ffi.addressof(lib, "testfargs")({aliststr})\n')
             print("checking for segfault for direct call...")
             rc = subprocess.call([sys.executable, 'run1.py'], cwd=str(udir))
             assert rc == 0, rc
@@ -184,13 +183,11 @@ else:
             from testing.udir import udir
             import subprocess
             with (udir / 'run1.py').open('w') as f:
-                f.write('import sys; sys.path = %r\n' % (sys.path,))
+                f.write(f'import sys; sys.path = {sys.path!r}\n')
                 f.write('from _CFFI_test_function_args_%d import ffi, lib\n' %
                         TEST_RUN_COUNTER)
-                f.write('def callback(*args): return ffi.new("%s *")[0]\n'
-                        % result)
-                f.write('fptr = ffi.callback("%s(%s)", callback)\n'
-                        % (result, ','.join(args)))
+                f.write(f'def callback(*args): return ffi.new("{result} *")[0]\n')
+                f.write('fptr = ffi.callback("{}({})", callback)\n'.format(result, ','.join(args)))
                 f.write('print(lib.testfcallback(fptr))\n')
             print("checking for segfault for callback...")
             rc = subprocess.call([sys.executable, 'run1.py'], cwd=str(udir))
@@ -201,7 +198,7 @@ else:
             seen_args.append([expand(arg) for arg in args])
             return returned_value
 
-        fptr = ffi.callback("%s(%s)" % (result, ','.join(args)), callback)
+        fptr = ffi.callback("{}({})".format(result, ','.join(args)), callback)
         print("CALL with callback")
         received_return = lib.testfcallback(fptr)
 

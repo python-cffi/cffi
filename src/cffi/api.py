@@ -44,13 +44,10 @@ class FFI:
                 # bad version!  Try to be as explicit as possible.
                 if hasattr(backend, '__file__'):
                     # CPython
-                    raise Exception("Version mismatch: this is the 'cffi' package version %s, located in %r.  When we import the top-level '_cffi_backend' extension module, we get version %s, located in %r.  The two versions should be equal; check your installation." % (
-                        __version__, __file__,
-                        backend.__version__, backend.__file__))
+                    raise Exception(f"Version mismatch: this is the 'cffi' package version {__version__}, located in {__file__!r}.  When we import the top-level '_cffi_backend' extension module, we get version {backend.__version__}, located in {backend.__file__!r}.  The two versions should be equal; check your installation.")
                 else:
                     # PyPy
-                    raise Exception("Version mismatch: this is the 'cffi' package version %s, located in %r.  This interpreter comes with a built-in '_cffi_backend' module, which is version %s.  The two versions should be equal; check your installation." % (
-                        __version__, __file__, backend.__version__))
+                    raise Exception(f"Version mismatch: this is the 'cffi' package version {__version__}, located in {__file__!r}.  This interpreter comes with a built-in '_cffi_backend' module, which is version {backend.__version__}.  The two versions should be equal; check your installation.")
             # (If you insist you can also try to pass the option
             # 'backend=backend_ctypes.CTypesBackend()', but don't
             # rely on it!  It's probably not going to work well.)
@@ -180,8 +177,8 @@ class FFI:
         #
         btype, really_a_function_type = result
         if really_a_function_type and not consider_function_as_funcptr:
-            raise CDefError("the type %r is a function type, not a "
-                            "pointer-to-function type" % (cdecl,))
+            raise CDefError(f"the type {cdecl!r} is a function type, not a "
+                            "pointer-to-function type")
         return btype
 
     def typeof(self, cdecl):
@@ -406,7 +403,7 @@ class FFI:
         replace_with = replace_with.strip()
         if (replace_with.startswith('*')
                 and '&[' in self._backend.getcname(cdecl, '&')):
-            replace_with = '(%s)' % replace_with
+            replace_with = f'({replace_with})'
         elif replace_with and replace_with[0] not in '[(':
             replace_with = ' ' + replace_with
         return self._backend.getcname(cdecl, replace_with)
@@ -518,8 +515,7 @@ class FFI:
         """
         if not isinstance(ffi_to_include, FFI):
             raise TypeError("ffi.include() expects an argument that is also of"
-                            " type cffi.FFI, not %r" % (
-                                type(ffi_to_include).__name__,))
+                            f" type cffi.FFI, not {type(ffi_to_include).__name__!r}")
         if ffi_to_include is self:
             raise ValueError("self.include(self)")
         with ffi_to_include._lock:
@@ -589,7 +585,7 @@ class FFI:
             if sys.platform == "win32":
                 # we need 'libpypy-c.lib'.  Current distributions of
                 # pypy (>= 4.1) contain it as 'libs/python27.lib'.
-                pythonlib = "python{0[0]}{0[1]}".format(sys.version_info)
+                pythonlib = f"python{sys.version_info[0]}{sys.version_info[1]}"
                 if hasattr(sys, 'prefix'):
                     ensure('library_dirs', os.path.join(sys.prefix, 'libs'))
             else:
@@ -671,9 +667,9 @@ class FFI:
                                  call_c_compiler=False, **kwds)
         if verbose:
             if updated:
-                sys.stderr.write("regenerated: %r\n" % (ext.sources[0],))
+                sys.stderr.write(f"regenerated: {ext.sources[0]!r}\n")
             else:
-                sys.stderr.write("not modified: %r\n" % (ext.sources[0],))
+                sys.stderr.write(f"not modified: {ext.sources[0]!r}\n")
         return ext
 
     def emit_c_code(self, filename):
@@ -816,9 +812,9 @@ def _load_backend_lib(backend, name, flags):
             raise OSError("dlopen(None) cannot work on Windows for Python 3 "
                           "(see http://bugs.python.org/issue23606)")
         msg = ("ctypes.util.find_library() did not manage "
-               "to locate a library called %r" % (name,))
+               f"to locate a library called {name!r}")
         if first_error is not None:
-            msg = "%s.  Additionally, %s" % (first_error, msg)
+            msg = f"{first_error}.  Additionally, {msg}"
         raise OSError(msg)
     return backend.load_library(path, flags)
 
@@ -859,8 +855,8 @@ def _make_ffi_library(ffi, libname, flags):
             return addr_variables[name]
     #
     def accessor_constant(name):
-        raise NotImplementedError("non-integer constant '%s' cannot be "
-                                  "accessed from a dlopen() library" % (name,))
+        raise NotImplementedError(f"non-integer constant '{name}' cannot be "
+                                  "accessed from a dlopen() library")
     #
     def accessor_int_constant(name):
         library.__dict__[name] = ffi._parser._int_constants[name]
@@ -929,7 +925,7 @@ def _make_ffi_library(ffi, libname, flags):
             if name in FFILibrary.__dict__:
                 return addressof_var(name)
             raise AttributeError("cffi library has no function or "
-                                 "global variable named '%s'" % (name,))
+                                 f"global variable named '{name}'")
         def __cffi_close__(self):
             backendlib.close_lib()
             self.__dict__.clear()
@@ -938,7 +934,7 @@ def _make_ffi_library(ffi, libname, flags):
         try:
             if not isinstance(libname, str):    # unicode, on Python 2
                 libname = libname.encode('utf-8')
-            FFILibrary.__name__ = 'FFILibrary_%s' % libname
+            FFILibrary.__name__ = f'FFILibrary_{libname}'
         except UnicodeError:
             pass
     library = FFILibrary()

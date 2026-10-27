@@ -34,15 +34,15 @@ def resolve_common_type(parser, commontype):
         elif cdecl in model.PrimitiveType.ALL_PRIMITIVE_TYPES:
             result, quals = model.PrimitiveType(cdecl), 0
         elif cdecl == 'set-unicode-needed':
-            raise FFIError("The Windows type %r is only available after "
-                           "you call ffi.set_unicode()" % (commontype,))
+            raise FFIError(f"The Windows type {commontype!r} is only available after "
+                           "you call ffi.set_unicode()")
         else:
             if commontype == cdecl:
                 raise FFIError(
-                    "Unsupported type: %r.  Please look at "
+                    f"Unsupported type: {commontype!r}.  Please look at "
         "http://cffi.readthedocs.io/en/latest/cdef.html#ffi-cdef-limitations "
                     "and file an issue if you think this type should really "
-                    "be supported." % (commontype,))
+                    "be supported.")
             result, quals = parser.parse_type_and_quals(cdecl)   # recursive
 
         assert isinstance(result, model.BaseTypeByIdentity)

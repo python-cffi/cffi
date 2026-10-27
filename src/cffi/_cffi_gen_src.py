@@ -75,8 +75,8 @@ def find_ffi_in_python_script(pysrc, filename, ffivar):
         _execfile(pysrc, filename, globs)
         if ffivar not in globs:
             raise NameError(
-                "Expected to find the FFI object with the name %r, "
-                "but it was not found." % (ffivar,)
+                f"Expected to find the FFI object with the name {ffivar!r}, "
+                "but it was not found."
             )
         ffi = globs[ffivar]
         if not isinstance(ffi, FFI) and callable(ffi):
@@ -84,8 +84,8 @@ def find_ffi_in_python_script(pysrc, filename, ffivar):
             ffi = ffi()
         if not isinstance(ffi, FFI):
             raise TypeError(
-                "Found an object with the name %r but it was not an "
-                "instance of cffi.api.FFI" % (ffivar,)
+                f"Found an object with the name {ffivar!r} but it was not an "
+                "instance of cffi.api.FFI"
             )
         return ffi
     finally:

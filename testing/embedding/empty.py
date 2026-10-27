@@ -14,4 +14,4 @@ void initialize_my_empty_cffi(void) {
 """)
 
 fn = ffi.compile(verbose=True)
-print('FILENAME: %s' % (fn,))
+print(f'FILENAME: {fn}')
