@@ -398,11 +398,7 @@ typedef struct {
 #include "minibuffer.h"
 #include "file_emulator.h"
 
-#ifdef PyUnicode_KIND     /* Python >= 3.3 */
-# include "wchar_helper_3.h"
-#else
-# include "wchar_helper.h"
-#endif
+#include "wchar_helper.h"
 
 #include "../cffi/_cffi_errors.h"
 
@@ -3613,9 +3609,7 @@ static PyTypeObject CDataGCP_Type = {
     0,  /* inherited */                         /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT                          /* tp_flags */
-#ifdef Py_TPFLAGS_HAVE_FINALIZE
                        | Py_TPFLAGS_HAVE_FINALIZE
-#endif
                        | Py_TPFLAGS_HAVE_GC,
     "This is an internal subtype of _CDataBase for performance only on "
     "CPython.  Check with isinstance(x, ffi.CData).",   /* tp_doc */
@@ -3629,7 +3623,6 @@ static PyTypeObject CDataGCP_Type = {
     0,                                          /* tp_members */
     0,                                          /* tp_getset */
     &CData_Type,                                /* tp_base */
-#ifdef Py_TPFLAGS_HAVE_FINALIZE  /* CPython >= 3.4 */
     0,                                          /* tp_dict */
     0,                                          /* tp_descr_get */
     0,                                          /* tp_descr_set */
@@ -3647,7 +3640,6 @@ static PyTypeObject CDataGCP_Type = {
     0,                                          /* tp_del */
     0,                                          /* version_tag */
     (destructor)cdatagcp_finalize,              /* tp_finalize */
-#endif
 };
 
 /************************************************************/
