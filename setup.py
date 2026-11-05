@@ -149,6 +149,13 @@ if sys.platform == "win32" and uses_msvc():
             extra_link_args.append(os.path.join(COMPILE_LIBFFI, 'win64.obj'))
         sources.extend(os.path.join(COMPILE_LIBFFI, filename)
                     for filename in _filenames)
+elif sys.platform == "android":
+    libffi_dir = os.environ.get('LIBFFI_ANDROID_DIR', '')
+    if libffi_dir:
+        include_dirs.append(os.path.join(libffi_dir, 'include'))
+        library_dirs.append(os.path.join(libffi_dir, 'lib'))
+    ask_supports_thread()
+    ask_supports_sync_synchronize()
 else:
     use_pkg_config()
     ask_supports_thread()
