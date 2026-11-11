@@ -62,10 +62,17 @@ def test_meson_python_build(tmp_path, project):
 
     # --no-build-isolation so the build uses the bridged environment;
     # --no-index/--no-deps so pip cannot touch the network.
-    proc = subprocess.run([
+    cmd = [
         str(venv_python), "-m", "pip", "install", "-v",
-        "--no-index", "--no-deps", "--no-build-isolation", str(project_dir),
-    ], capture_output=True, text=True)
+        "--no-index", "--no-deps", "--no-build-isolation",
+    ]
+    if sys.platform == "win32":
+        # meson only activates the MSVC environment by itself when it finds
+        # no compiler at all, so without this it picks up any mingw gcc on
+        # PATH and then cannot build for a 32-bit or arm64 host
+        cmd.append("-Csetup-args=--vsenv")
+    proc = subprocess.run(cmd + [str(project_dir)],
+                          capture_output=True, text=True)
     assert proc.returncode == 0, proc.stdout + proc.stderr
 
     # Confirm the built extension imports and behaves as expected.
