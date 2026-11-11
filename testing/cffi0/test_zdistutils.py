@@ -21,9 +21,10 @@ class DistUtilsTest:
                 self.lib_m = 'msvcrt'
 
     def teardown_class(self):
-        if udir.is_dir():
-            shutil.rmtree(udir)
-        udir.mkdir()
+        # udir is shared with the other test modules, and windows cannot
+        # delete a .pyd that is still loaded into this process
+        shutil.rmtree(udir, ignore_errors=True)
+        udir.mkdir(exist_ok=True)
 
     def test_locate_engine_class(self):
         cls = _locate_engine_class(FFI(), self.generic)
