@@ -1459,6 +1459,7 @@ def test_callback_exception():
 
 
 @pytest.mark.skipif(is_ios, reason="Cannot allocate executable memory on iOS")
+@pytest.mark.thread_unsafe("mocks sys.unraiseablehook")
 def test_callback_return_type():
     for rettype in ["signed char", "short", "int", "long", "long long",
                     "unsigned char", "unsigned short", "unsigned int",
@@ -1477,7 +1478,10 @@ def test_callback_return_type():
             max = (1 << (8*sizeof(BRet)-1)) - 1
         assert f(min) == min + 1
         assert f(max - 1) == max
-        assert f(max) == 42
+        # the callback returns max + 1, which does not fit 'rettype', so the
+        # conversion back to C fails and the error_value is returned instead
+        with _assert_unraisable(OverflowError):
+            assert f(max) == 42
 
 @pytest.mark.skipif(is_ios, reason="Cannot allocate executable memory on iOS")
 def test_a_lot_of_callbacks():
@@ -1777,6 +1781,7 @@ def _hacked_pypy_uni4():
     return 'PY_DOT_PY' in globals() and not pyuni4
 
 @pytest.mark.skipif(is_ios, reason="Cannot allocate executable memory on iOS")
+@pytest.mark.thread_unsafe("mocks sys.unraiseablehook")
 def test_callback_returning_wchar_t():
     BInt = new_primitive_type("int")
     BWChar = new_primitive_type("wchar_t")
@@ -1793,7 +1798,8 @@ def test_callback_returning_wchar_t():
     assert f(0x1234) == u+'\u1234'
     if sizeof(BWChar) == 4 and not _hacked_pypy_uni4():
         assert f(-1) == u+'\U00012345'
-    assert f(-2) == u+'\x00'   # and an exception printed to stderr
+    with _assert_unraisable(ValueError):
+        assert f(-2) == u+'\x00'
 
 def test_struct_with_bitfields():
     BLong = new_primitive_type("long")
