@@ -1,4 +1,4 @@
-import sys, tempfile, os, atexit
+import shutil, sys, tempfile, os, atexit
 from pathlib import Path
 
 
@@ -95,12 +95,9 @@ def make_numbered_dir(prefix='session-', rootdir=None, keep=3,
                         continue   # skip directories still locked
                 except FileNotFoundError:
                     pass   # assume that it means that there is no 'lf'
-                try:
-                    path.remove(rec=1)
-                except KeyboardInterrupt:
-                    raise
-                except: # this might be py.error.Error, WindowsError ...
-                    pass
+                # ignore_errors: windows cannot delete a .pyd that is
+                # still loaded, but a later run will not have it loaded
+                shutil.rmtree(path, ignore_errors=True)
 
     # make link...
     try:
