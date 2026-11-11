@@ -39,4 +39,9 @@ py.extension_module(
     subdir: 'squared',
     install: true,
     dependencies: [square_dep],
+    # _cffi_include.h defines Py_LIMITED_API by default under MSVC, and
+    # pyconfig.h then asks the linker for python3.lib via a #pragma.  Only
+    # meson's limited_api: kwarg puts that library on the link line, so build
+    # an ordinary extension instead.
+    c_args: ['-D_CFFI_NO_LIMITED_API'],
 )
