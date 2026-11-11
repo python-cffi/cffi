@@ -1,3 +1,4 @@
+import os
 import pytest
 import sys
 
@@ -9,7 +10,52 @@ try:
 except Exception:
     PARALLEL_RUN_AVAILABLE = False
 
+def _msvc_env():
+    """Query the MSVC environment for the platform we are running on."""
+    from setuptools._distutils.util import get_platform
+    try:
+        # setuptools >= 80
+        from setuptools._distutils.compilers.C.msvc import (
+            _get_vc_env, _get_vcvars_spec)
+        from setuptools._distutils.util import get_host_platform
+        spec = _get_vcvars_spec(get_host_platform(), get_platform())
+    except ImportError:
+        from setuptools._distutils._msvccompiler import (
+            _get_vc_env, PLAT_TO_VCVARS)
+        spec = PLAT_TO_VCVARS[get_platform()]
+    return _get_vc_env(spec)
+
+
+def _prime_msvc_env():
+    """Put the MSVC environment in os.environ once, on windows.
+
+    _get_vc_env() runs 'cmd /u /c vcvarsall.bat && set' and caches nothing,
+    and it is called from MSVCCompiler.initialize(), i.e. once per compiler
+    instance.  cffi builds a fresh compiler for every ffi.verify(), so this
+    suite would spawn vcvarsall hundreds of times.  Querying it once and
+    setting DISTUTILS_USE_SDK makes _get_vc_env() return os.environ instead.
+
+    It also puts cl.exe on PATH, which is where meson looks for a compiler
+    before falling back to a stray mingw gcc.
+    """
+    if sys.platform != 'win32' or os.environ.get('DISTUTILS_USE_SDK'):
+        return
+    try:
+        env = _msvc_env()
+    except Exception:
+        return          # leave distutils to find the compiler by itself
+    # vcvarsall inherits our environment, so these already include whatever
+    # PATH/INCLUDE/LIB we were started with
+    wanted = {key: env.get(key.lower(), '')
+              for key in ('PATH', 'INCLUDE', 'LIB', 'LIBPATH')}
+    if not all(wanted[key] for key in ('PATH', 'INCLUDE', 'LIB')):
+        return
+    os.environ.update(wanted)
+    os.environ['DISTUTILS_USE_SDK'] = '1'
+
+
 def pytest_configure(config):
+    _prime_msvc_env()
     # Don't warn for `pytest-run-parallel` markers if they're not available
     if not PARALLEL_RUN_AVAILABLE:
         config.addinivalue_line(
