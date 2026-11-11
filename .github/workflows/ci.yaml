@@ -576,8 +576,7 @@ jobs:
 
     - name: run tests under pytest-run-parallel
       run: |
-        python -m pytest --parallel-threads=4 --skip-thread-unsafe=True \
-            --timeout=300 --timeout-method=thread
+        python -m pytest --parallel-threads=4 --skip-thread-unsafe=True --timeout=300 --timeout-method=thread
 
   clang_TSAN:
     runs-on: ubuntu-24.04
