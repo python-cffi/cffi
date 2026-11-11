@@ -37,7 +37,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: install python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: 3.x
 
@@ -167,7 +167,7 @@ jobs:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: configure docker foreign arch support
-      uses: docker/setup-qemu-action@v4.2.0
+      uses: docker/setup-qemu-action@v4.4.0
       if: matrix.arch != 'x86_64' && matrix.arch != 'i686' && matrix.arch != 'aarch64'
 
     - name: build/test wheels
@@ -273,7 +273,7 @@ jobs:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: install python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.12'
 
@@ -370,7 +370,7 @@ jobs:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: Install python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: 3.x
 
@@ -446,7 +446,7 @@ jobs:
         name: ${{ needs.python_sdist.outputs.sdist_artifact_name }}
 
     - name: install python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.13'
 
@@ -561,7 +561,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: install python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
