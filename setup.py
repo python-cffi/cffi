@@ -1,11 +1,13 @@
-import sys, sysconfig, os, platform
-import subprocess
 import errno
+import os
+import platform
+import subprocess
+import sys
+import sysconfig
 
 # the setuptools distutils shim should make distutils available, but this will definitely do
 # it, since setuptools is now required at build-time
 import setuptools
-
 
 sources = ['src/c/_cffi_backend.c']
 libraries = ['ffi']
@@ -168,7 +170,7 @@ if forced_extra_objs:
 
 
 if __name__ == '__main__':
-    from setuptools import setup, Distribution, Extension
+    from setuptools import Distribution, Extension, setup
 
     class CFFIDistribution(Distribution):
         def has_ext_modules(self):

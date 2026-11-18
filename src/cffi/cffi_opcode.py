@@ -1,5 +1,6 @@
 from .error import VerificationError
 
+
 class CffiOp:
     def __init__(self, op, arg):
         self.op = op

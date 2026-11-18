@@ -1,5 +1,6 @@
 import pytest
-from cffi import FFI, VerificationError, CDefError
+
+from cffi import FFI, CDefError, VerificationError
 from cffi.recompiler import make_py_source
 from testing.udir import udir
 

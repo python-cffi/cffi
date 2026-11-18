@@ -1,10 +1,13 @@
-import sys, os
-import pytest
+import os
 import subprocess
-import cffi
-from testing.udir import udir
+import sys
 from shutil import rmtree
 from tempfile import mkdtemp
+
+import pytest
+
+import cffi
+from testing.udir import udir
 
 pytestmark = [
     pytest.mark.thread_unsafe(reason="very slow in parallel"),

@@ -1,4 +1,5 @@
 import sys
+
 if sys.platform == 'win32':
     #This module does not exist in windows
     raise ImportError('No module named _curses')

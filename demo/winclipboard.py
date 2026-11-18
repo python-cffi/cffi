@@ -1,6 +1,7 @@
 __author__ = "Israel Fruchter <israel.fruchter@gmail.com>"
 
-import sys, os
+import os
+import sys
 
 if not sys.platform == 'win32':
     raise Exception("Windows-only demo")

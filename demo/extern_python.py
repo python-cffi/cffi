@@ -19,6 +19,7 @@ ffi.compile()
 
 from _extern_python_cffi import ffi, lib
 
+
 @ffi.def_extern()
 def f(n):
     return n * n

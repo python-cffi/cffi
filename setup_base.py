@@ -1,9 +1,15 @@
-import sys, os
+import os
+import sys
 
-
-from setup import include_dirs, sources, libraries, define_macros
-from setup import library_dirs, extra_compile_args, extra_link_args
-
+from setup import (
+    define_macros,
+    extra_compile_args,
+    extra_link_args,
+    include_dirs,
+    libraries,
+    library_dirs,
+    sources,
+)
 
 if __name__ == '__main__':
     from distutils.core import setup

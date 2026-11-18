@@ -1,8 +1,8 @@
-import sys, os
+import os
+import sys
 
 # run xclient_build first, then make sure the shared object is on sys.path
 from _xclient_cffi import ffi, lib
-
 
 # ffi "knows" about the declared variables and functions from the
 #     cdef parts of the module xclient_build created,

@@ -1,7 +1,9 @@
-import sys, types
-from .lock import allocate_lock
-from .error import CDefError
+import sys
+import types
+
 from . import model
+from .error import CDefError
+from .lock import allocate_lock
 
 _unspecified = object()
 
@@ -32,6 +34,7 @@ class FFI:
         if backend is None:
             # You need PyPy or a CPython with _cffi_backend.so compiled.
             import _cffi_backend as backend
+
             from . import __version__
             if backend.__version__ != __version__:
                 # bad version!  Try to be as explicit as possible.
@@ -633,6 +636,7 @@ class FFI:
 
     def distutils_extension(self, tmpdir='build', verbose=True):
         from cffi._shimmed_dist_utils import mkpath
+
         from .recompiler import recompile
         #
         if not hasattr(self, '_assigned_source'):

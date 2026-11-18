@@ -1,7 +1,9 @@
 import sys
+
 import pytest
-from testing.cffi0 import backend_tests
+
 from cffi.backend_ctypes import CTypesBackend
+from testing.cffi0 import backend_tests
 
 
 class TestCTypes(backend_tests.BackendTests):

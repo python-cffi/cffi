@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import contextlib
 import os
+import sys
 import traceback
+import typing as t
 import unittest.mock
 
 import pytest
-import sys
-import typing as t
 
 is_musl = False
 if sys.platform == 'linux':
@@ -22,11 +22,13 @@ is_ios = sys.platform == 'ios'
 
 
 def _setup_path():
-    import os, sys
+    import os
+    import sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 _setup_path()
 from _cffi_backend import *
-from _cffi_backend import _get_types, _get_common_types
+from _cffi_backend import _get_common_types, _get_types
+
 try:
     from _cffi_backend import _testfunc
 except ImportError:
@@ -67,6 +69,7 @@ def _assert_unraisable(error_type: type[Exception] | None, message: str = '', tr
 # ____________________________________________________________
 
 import sys
+
 assert __version__ == "2.2.0.dev0", ("This test_c.py file is for testing a version"
                                      " of cffi that differs from the one that we"
                                      " get from 'import _cffi_backend'")
@@ -3254,8 +3257,8 @@ def test_new_handle():
     pytest.raises(RuntimeError, from_handle, cast(BCharP, 0))
 
 def test_new_handle_cycle():
-    import gc
     import _weakref
+    import gc
     BVoidP = new_pointer_type(new_void_type())
     class A:
         pass

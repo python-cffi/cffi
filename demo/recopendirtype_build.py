@@ -1,5 +1,6 @@
-from cffi import FFI
 import bsdopendirtype_build
+
+from cffi import FFI
 
 ffi = FFI()
 

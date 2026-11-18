@@ -1,11 +1,16 @@
-import pytest
+import ctypes
+import io
+import os
 import platform
-import sys, os, io, ctypes
+import sys
+
+import pytest
+
 import cffi
-from testing.udir import udir
-from testing.support import load_dynamic
-from cffi.recompiler import recompile
 from cffi.cffi_opcode import PRIMITIVE_TO_INDEX
+from cffi.recompiler import recompile
+from testing.support import load_dynamic
+from testing.udir import udir
 
 SIZE_OF_INT   = ctypes.sizeof(ctypes.c_int)
 SIZE_OF_LONG  = ctypes.sizeof(ctypes.c_long)
@@ -1198,7 +1203,9 @@ class TestNewFFI1:
         assert ffi.buffer(a1)[:] == ffi.buffer(a2, 4*10)[:]
 
     def test_ffi_buffer_with_file(self):
-        import tempfile, os, array
+        import array
+        import os
+        import tempfile
         fd, filename = tempfile.mkstemp()
         f = os.fdopen(fd, 'r+b')
         a = ffi.new("int[]", list(range(1005)))
@@ -1217,7 +1224,8 @@ class TestNewFFI1:
         os.unlink(filename)
 
     def test_ffi_buffer_with_io(self):
-        import io, array
+        import array
+        import io
         f = io.BytesIO()
         a = ffi.new("int[]", list(range(1005)))
         try:
@@ -1785,7 +1793,7 @@ class TestNewFFI1:
                                    "int myvar = -5;\n"
                                    "#define MYFOO 42", tmpdir=str(udir))
         load_dynamic("_test_import_from_lib", outputfilename)
-        from _test_import_from_lib.lib import myfunc, myvar, MYFOO
+        from _test_import_from_lib.lib import MYFOO, myfunc, myvar
         assert MYFOO == 42
         assert myfunc(43) == 44
         assert myvar == -5     # but can't be changed, so not very useful

@@ -1,6 +1,7 @@
 
-from cffi import FFI
 import sys
+
+from cffi import FFI
 
 ffi = FFI()
 ffi.cdef("""     // some declarations from the man page

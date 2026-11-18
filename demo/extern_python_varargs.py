@@ -40,6 +40,7 @@ ffi.compile()
 
 from _extern_python_cffi import ffi, lib
 
+
 @ffi.def_extern()
 def f(n, va):
     if n == 3:

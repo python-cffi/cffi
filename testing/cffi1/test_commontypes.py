@@ -1,6 +1,10 @@
-import os, cffi, re
-import pytest
+import os
+import re
+
 import _cffi_backend
+import pytest
+
+import cffi
 
 
 def getlines():

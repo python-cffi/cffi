@@ -1,5 +1,7 @@
 # pkg-config, https://www.freedesktop.org/wiki/Software/pkg-config/ integration for cffi
-import sys, os, subprocess
+import os
+import subprocess
+import sys
 
 from .error import PkgConfigError
 

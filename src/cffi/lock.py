@@ -1,5 +1,4 @@
 import sys
-
 from _thread import allocate_lock
 
 

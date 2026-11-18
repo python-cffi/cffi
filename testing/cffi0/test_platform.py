@@ -1,7 +1,9 @@
 import os
+
 import pytest
+
 from cffi import FFI
-from cffi.ffiplatform import maybe_relative_path, flatten
+from cffi.ffiplatform import flatten, maybe_relative_path
 
 
 def test_not_absolute():

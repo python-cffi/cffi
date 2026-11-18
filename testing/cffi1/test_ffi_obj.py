@@ -1,6 +1,7 @@
 import sys
-import pytest
+
 import _cffi_backend as _cffi1_backend
+import pytest
 
 
 def test_ffi_new():
@@ -34,7 +35,8 @@ def test_ffi_cache_type():
 
 @pytest.mark.thread_unsafe(reason="May not pass if other threads unexpectedly trigger the gc")
 def test_ffi_type_not_immortal():
-    import weakref, gc
+    import gc
+    import weakref
     ffi = _cffi1_backend.FFI()
     # this test can fail on free-threaded builds lazier GC if the type was used by another test
     t1 = ffi.typeof("unsigned short int **")

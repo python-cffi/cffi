@@ -1,8 +1,12 @@
-import sys, re
+import re
+import sys
+
 import pytest
-from cffi import FFI, FFIError, CDefError, VerificationError
-from .backend_tests import needs_dlopen_none
+
+from cffi import FFI, CDefError, FFIError, VerificationError
 from testing.support import is_musl
+
+from .backend_tests import needs_dlopen_none
 
 
 class FakeBackend:

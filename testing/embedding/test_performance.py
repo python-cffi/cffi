@@ -1,4 +1,5 @@
 import sys
+
 from testing.embedding.test_basic import EmbeddingTests
 
 if sys.platform == 'win32':

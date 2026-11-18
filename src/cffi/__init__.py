@@ -1,9 +1,14 @@
-__all__ = ['FFI', 'VerificationError', 'VerificationMissing', 'CDefError',
-           'FFIError']
+__all__ = ['FFI', 'CDefError','FFIError',
+           'VerificationError', 'VerificationMissing']
 
 from .api import FFI
-from .error import CDefError, FFIError, VerificationError, VerificationMissing
-from .error import PkgConfigError
+from .error import (
+           CDefError,
+           FFIError,
+           PkgConfigError,
+           VerificationError,
+           VerificationMissing,
+)
 
 __version__ = "2.2.0.dev0"
 __version_info__ = (2, 2, 0, 'dev0')

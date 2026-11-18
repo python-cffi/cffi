@@ -1,4 +1,5 @@
 import sys
+
 from cffi import FFI
 
 if not sys.platform.startswith('linux'):

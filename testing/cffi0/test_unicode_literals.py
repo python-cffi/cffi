@@ -1,8 +1,10 @@
-import sys, math
-from cffi import FFI
-from testing.support import is_musl
+import math
+import sys
+
 import pytest
 
+from cffi import FFI
+from testing.support import is_musl
 
 lib_m = "m"
 if sys.platform == 'win32':

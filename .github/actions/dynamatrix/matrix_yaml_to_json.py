@@ -6,9 +6,9 @@ import os
 import pathlib
 import sys
 import typing as t
-import yaml
-
 from collections.abc import MutableMapping, Sequence
+
+import yaml
 
 skipped_entries = []
 

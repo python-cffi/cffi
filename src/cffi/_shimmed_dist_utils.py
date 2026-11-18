@@ -26,7 +26,7 @@ try:
     from distutils.command.build_ext import build_ext
     from distutils.core import Distribution, Extension
     from distutils.dir_util import mkpath
-    from distutils.errors import DistutilsSetupError, CompileError, LinkError
+    from distutils.errors import CompileError, DistutilsSetupError, LinkError
     from distutils.log import set_threshold, set_verbosity
 
     if sys.platform == 'win32':

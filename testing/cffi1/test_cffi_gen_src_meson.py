@@ -19,7 +19,6 @@ from pathlib import Path
 import pytest
 
 import cffi
-
 from testing.support import create_bridged_venv
 
 pytestmark = [

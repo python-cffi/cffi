@@ -1,6 +1,8 @@
-import sys, os, io
-from .error import VerificationError
+import io
+import os
+import sys
 
+from .error import VerificationError
 
 LIST_OF_FILE_NAMES = ['sources', 'include_dirs', 'library_dirs',
                       'extra_objects', 'depends']
@@ -29,7 +31,13 @@ def compile(tmpdir, ext, compiler_verbose=0, debug=None):
 
 def _build(tmpdir, ext, compiler_verbose=0, debug=None):
     # XXX compact but horrible :-(
-    from cffi._shimmed_dist_utils import Distribution, CompileError, LinkError, set_threshold, set_verbosity
+    from cffi._shimmed_dist_utils import (
+        CompileError,
+        Distribution,
+        LinkError,
+        set_threshold,
+        set_verbosity,
+    )
 
     dist = Distribution({'ext_modules': [ext]})
     dist.parse_config_files()

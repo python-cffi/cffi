@@ -1,7 +1,12 @@
-import os, sys
-import pytest
-import cffi, _cffi_backend
+import os
+import sys
 from pathlib import Path
+
+import _cffi_backend
+import pytest
+
+import cffi
+
 
 def setup_module(mod):
     if '_cffi_backend' in sys.builtin_module_names:

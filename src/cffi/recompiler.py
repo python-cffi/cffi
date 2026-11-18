@@ -1,7 +1,10 @@
-import io, os, sys
+import io
+import os
+import sys
+
 from . import ffiplatform, model
-from .error import VerificationError
 from .cffi_opcode import *
+from .error import VerificationError
 
 VERSION_BASE = 0x2601
 VERSION_EMBEDDED = 0x2701

@@ -1,8 +1,8 @@
 import types
 import weakref
 
-from .lock import allocate_lock
 from .error import CDefError, VerificationError, VerificationMissing
+from .lock import allocate_lock
 
 # type qualifiers
 Q_CONST    = 0x01
