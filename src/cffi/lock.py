@@ -1,5 +1,4 @@
-import sys
-from _thread import allocate_lock
+from _thread import allocate_lock  # noqa: F401
 
 
 ##import sys

@@ -1,5 +1,3 @@
-import sys
-
 import pytest
 
 from cffi.backend_ctypes import CTypesBackend

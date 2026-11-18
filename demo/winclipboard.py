@@ -1,6 +1,5 @@
 __author__ = "Israel Fruchter <israel.fruchter@gmail.com>"
 
-import os
 import sys
 
 if not sys.platform == 'win32':

@@ -1,4 +1,3 @@
-import platform
 import sys
 
 import _cffi_backend

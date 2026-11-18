@@ -1964,7 +1964,6 @@ class BackendTests:
 
     def test_init_once_multithread(self):
         import _thread as thread
-        import sys
         import time
         #
         def do_init():

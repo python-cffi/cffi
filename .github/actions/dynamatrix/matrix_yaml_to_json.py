@@ -5,7 +5,6 @@ import json
 import os
 import pathlib
 import sys
-import typing as t
 from collections.abc import MutableMapping, Sequence
 
 import yaml

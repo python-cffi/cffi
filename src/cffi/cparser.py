@@ -7,7 +7,6 @@ try:
 except ImportError:
     import pycparser
 import re
-import sys
 import weakref
 
 try:
@@ -20,8 +19,9 @@ def _workaround_for_static_import_finders():
     # Issue #392: packaging tools like cx_Freeze can not find these
     # because pycparser uses exec dynamic import.  This is an obscure
     # workaround.  This function is never called.
-    import pycparser.lextab
-    import pycparser.yacctab
+    import pycparser.lextab  # noqa: F401
+    import pycparser.yacctab  # noqa: F401
+    pass
 
 CDEF_SOURCE_STRING = "<cdef source string>"
 _r_comment = re.compile(r"/\*.*?\*/|//([^\n\\]|\\.)*?$",

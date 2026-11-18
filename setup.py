@@ -7,7 +7,7 @@ import sysconfig
 
 # the setuptools distutils shim should make distutils available, but this will definitely do
 # it, since setuptools is now required at build-time
-import setuptools
+import setuptools  # noqa: F401
 
 sources = ['src/c/_cffi_backend.c']
 libraries = ['ffi']

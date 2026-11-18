@@ -1,4 +1,4 @@
-__all__ = ['FFI', 'CDefError','FFIError',
+__all__ = ['FFI', 'CDefError','FFIError', 'PkgConfigError',
            'VerificationError', 'VerificationMissing']
 
 from .api import FFI

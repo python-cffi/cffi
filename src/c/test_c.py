@@ -4,8 +4,6 @@ import contextlib
 import os
 import sys
 import traceback
-import typing as t
-import unittest.mock
 
 import pytest
 
@@ -4170,7 +4168,6 @@ def test_cdata_dir():
     check_dir(pp[0][0], ['a1', 'a2'])
 
 def test_char_pointer_conversion():
-    import warnings
     BCharP = new_pointer_type(new_primitive_type("char"))
     BIntP = new_pointer_type(new_primitive_type("int"))
     BVoidP = new_pointer_type(new_void_type())

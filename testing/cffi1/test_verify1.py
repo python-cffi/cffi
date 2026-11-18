@@ -1,5 +1,4 @@
 import math
-import os
 import sys
 
 import _cffi_backend
@@ -12,7 +11,6 @@ from cffi import (
     VerificationError,
     VerificationMissing,
     model,
-    recompiler,
 )
 from testing.support import _verify, extra_compile_args, is_musl
 

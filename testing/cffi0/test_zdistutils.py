@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from cffi import FFI, FFIError
+from cffi import FFI
 from cffi.ffiplatform import maybe_relative_path
 from cffi.verifier import Verifier, _get_so_suffixes, _locate_engine_class
 from testing.support import load_dynamic

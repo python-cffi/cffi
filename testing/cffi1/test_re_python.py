@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from cffi import FFI, VerificationMissing, ffiplatform, recompiler
+from cffi import FFI, VerificationMissing, ffiplatform
 from testing.support import is_musl
 from testing.udir import udir
 
@@ -116,7 +116,6 @@ def test_function_with_varargs():
     assert type(lib.add43) is _cffi_backend.FFI.CData
 
 def test_dlopen_none():
-    import _cffi_backend
     from re_python_pysrc import ffi
     name = None
     if sys.platform == 'win32':
@@ -130,7 +129,6 @@ def test_dlopen_none():
 @pytest.mark.thread_unsafe(
     reason="Worker threads might call dlclose concurrently")
 def test_dlclose():
-    import _cffi_backend
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
     ffi.dlclose(lib)

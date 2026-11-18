@@ -11,7 +11,7 @@ except ImportError:
     import os
     import sys
     import tokenize
-    from _imp import acquire_lock, is_builtin, is_frozen, release_lock
+    from _imp import is_builtin, is_frozen
     from importlib import machinery
     from importlib._bootstrap import _load
 

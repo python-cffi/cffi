@@ -1,6 +1,3 @@
-import subprocess
-import sys
-
 import pytest
 
 from cffi import PkgConfigError, pkgconfig

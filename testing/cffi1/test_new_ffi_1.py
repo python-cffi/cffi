@@ -1,6 +1,5 @@
 import ctypes
 import io
-import os
 import platform
 import sys
 
@@ -1799,6 +1798,7 @@ class TestNewFFI1:
         assert myvar == -5     # but can't be changed, so not very useful
         with pytest.raises(ImportError):
             from _test_import_from_lib.lib import bar
+            pass
         d = {}
         exec("from _test_import_from_lib.lib import *", d)
         assert ({key for key in d if not key.startswith('_')} ==

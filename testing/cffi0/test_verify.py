@@ -2594,7 +2594,7 @@ def test_passing_large_list():
 def test_no_regen():
     import os
 
-    from cffi.verifier import _FORCE_GENERIC_ENGINE, Verifier, _caller_dir_pycache
+    from cffi.verifier import _FORCE_GENERIC_ENGINE
     ffi = FFI()
     # make sure the module name is unique
     modulename = "_cffi_test_no_regen" + str(_FORCE_GENERIC_ENGINE)
