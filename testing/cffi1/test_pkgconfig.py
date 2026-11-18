@@ -84,13 +84,12 @@ def test_call():
         result = pkgconfig.call("libfoo", "--cflags")
         assert result == "abc def\n"
 
-        if sys.version_info >= (3,):
-            mock_subprocess.RESULT = b"\xff\n", "", 0
-            e = pytest.raises(PkgConfigError, pkgconfig.call,
-                               "libfoo", "--cflags", encoding="utf-8")
-            assert str(e.value) == (
-                "pkg-config --cflags libfoo returned bytes that cannot be "
-                "decoded with encoding 'utf-8':\nb'\\xff\\n'")
+        mock_subprocess.RESULT = b"\xff\n", "", 0
+        e = pytest.raises(PkgConfigError, pkgconfig.call,
+                           "libfoo", "--cflags", encoding="utf-8")
+        assert str(e.value) == (
+            "pkg-config --cflags libfoo returned bytes that cannot be "
+            "decoded with encoding 'utf-8':\nb'\\xff\\n'")
 
     finally:
         pkgconfig.subprocess = saved
