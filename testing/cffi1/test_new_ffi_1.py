@@ -1703,7 +1703,7 @@ class TestNewFFI1:
         pytest.raises(TypeError, list, q.a)
 
     def test_all_primitives(self):
-        assert set(PRIMITIVE_TO_INDEX) == set([
+        assert set(PRIMITIVE_TO_INDEX) == {
             "char",
             "short",
             "int",
@@ -1755,7 +1755,7 @@ class TestNewFFI1:
             "ssize_t",
             '_cffi_float_complex_t',
             '_cffi_double_complex_t',
-            ])
+            }
         for name in PRIMITIVE_TO_INDEX:
             x = ffi.sizeof(name)
             assert 1 <= x <= 16
@@ -1794,7 +1794,7 @@ class TestNewFFI1:
         d = {}
         exec("from _test_import_from_lib.lib import *", d)
         assert ({key for key in d if not key.startswith('_')} ==
-                set(['myfunc', 'MYFOO']))
+                {'myfunc', 'MYFOO'})
         #
         # also test "import *" on the module itself, which should be
         # equivalent to "import ffi, lib"
