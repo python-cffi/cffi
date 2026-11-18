@@ -244,7 +244,7 @@ class Recompiler:
 
     # ----------
 
-    ALL_STEPS = ["global", "field", "struct_union", "enum", "typename"]
+    ALL_STEPS = ("global", "field", "struct_union", "enum", "typename")
 
     def collect_step_tables(self):
         # collect the declarations for '_cffi_globals', '_cffi_typenames', etc.
