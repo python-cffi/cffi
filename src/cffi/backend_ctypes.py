@@ -833,7 +833,7 @@ class CTypesBackend:
         nameargs = ', '.join(nameargs)
         #
         class CTypesFunctionPtr(CTypesGenericPtr):
-            __slots__ = ['_own_callback', '_name']
+            __slots__ = ['_name', '_own_callback']
             _ctype = ctypes.CFUNCTYPE(getattr(BResult, '_ctype', None),
                                       *[BArg._ctype for BArg in BArgs],
                                       use_errno=True)
