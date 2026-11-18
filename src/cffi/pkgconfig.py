@@ -100,7 +100,6 @@ def flags_from_pkgconfig(libs):
 
     # return kwargs for given libname
     def kwargs(libname):
-        fse = sys.getfilesystemencoding()
         all_cflags = call(libname, "--cflags")
         all_libs = call(libname, "--libs")
         return {

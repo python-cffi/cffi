@@ -4176,10 +4176,10 @@ def test_char_pointer_conversion():
     z2 = cast(BIntP, 0)
     z3 = cast(BVoidP, 0)
     z4 = cast(BUCharP, 0)
-    with pytest.raises(TypeError) as e1:
+    with pytest.raises(TypeError):
         newp(new_pointer_type(BIntP), z1)
     newp(new_pointer_type(BVoidP), z1)   # fine
-    with pytest.raises(TypeError) as e2:
+    with pytest.raises(TypeError):
         newp(new_pointer_type(BCharP), z2)
     newp(new_pointer_type(BVoidP), z2)   # fine
     newp(new_pointer_type(BCharP), z3)   # fine
