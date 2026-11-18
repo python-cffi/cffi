@@ -3244,8 +3244,8 @@ def test_new_handle():
     del o
     import gc; gc.collect()
     assert wr() is not None
-    assert from_handle(x) == list((2, 3, 4))
-    assert from_handle(cast(BCharP, x)) == list((2, 3, 4))
+    assert from_handle(x) == [2, 3, 4]
+    assert from_handle(cast(BCharP, x)) == [2, 3, 4]
     del x
     for i in range(3):
         if wr() is not None:
