@@ -615,12 +615,11 @@ class CTypesBackend:
             def _initialize(blob, init):
                 if isinstance(init, bytes):
                     init = [init[i:i+1] for i in range(len(init))]
-                else:
-                    if isinstance(init, CTypesGenericArray):
-                        if (len(init) != len(blob) or
-                            not isinstance(init, CTypesArray)):
-                            raise TypeError(f"length/type mismatch: {init}")
-                    init = tuple(init)
+                elif isinstance(init, CTypesGenericArray):
+                    if (len(init) != len(blob) or
+                        not isinstance(init, CTypesArray)):
+                        raise TypeError(f"length/type mismatch: {init}")
+                init = tuple(init)
                 if len(init) > len(blob):
                     raise IndexError("too many initializers")
                 addr = ctypes.cast(blob, ctypes.c_void_p).value
@@ -749,11 +748,10 @@ class CTypesBackend:
         CTypesStructOrUnion._create_ctype_obj = _create_ctype_obj
         #
         def initialize(blob, init):
-            if is_union:
-                if len(init) > 1:
-                    raise ValueError("union initializer: %d items given, but "
-                                    "only one supported (use a dict if needed)"
-                                     % (len(init),))
+            if is_union and len(init) > 1:
+                raise ValueError("union initializer: %d items given, but "
+                                 "only one supported (use a dict if needed)"
+                                 % (len(init),))
             if not isinstance(init, dict):
                 if isinstance(init, (bytes, str)):
                     raise TypeError("union initializer: got a str")
