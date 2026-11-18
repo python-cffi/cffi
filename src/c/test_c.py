@@ -4311,12 +4311,10 @@ def test_explicit_release_badtype():
 def test_explicit_release_badtype_contextmgr():
     BIntP = new_pointer_type(new_primitive_type("int"))
     p = cast(BIntP, 12345)
-    with pytest.raises(ValueError):
-        with p:
-            pass
-    with pytest.raises(ValueError):
-        with p:
-            pass
+    with pytest.raises(ValueError), p:
+        pass
+    with pytest.raises(ValueError), p:
+        pass
 
 def test_explicit_release_gc():
     BIntP = new_pointer_type(new_primitive_type("int"))
