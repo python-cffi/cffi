@@ -1793,7 +1793,7 @@ class TestNewFFI1:
             from _test_import_from_lib.lib import bar
         d = {}
         exec("from _test_import_from_lib.lib import *", d)
-        assert (set(key for key in d if not key.startswith('_')) ==
+        assert ({key for key in d if not key.startswith('_')} ==
                 set(['myfunc', 'MYFOO']))
         #
         # also test "import *" on the module itself, which should be
