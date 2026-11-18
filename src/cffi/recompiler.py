@@ -865,7 +865,7 @@ class Recompiler:
                     ftype.get_c_name('*tmp', f'field {fname!r}', quals=fqual),
                     fname))
             except VerificationError as e:
-                prnt(f'  /* {str(e)} */')   # cannot verify it, ignore
+                prnt(f'  /* {e} */')   # cannot verify it, ignore
         prnt('}')
         prnt(f'struct _cffi_align_{approxname} {{ char x; {cname} y; }};')
         prnt()

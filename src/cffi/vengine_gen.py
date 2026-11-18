@@ -277,7 +277,7 @@ class VGenericEngine:
                         ftype.get_c_name('*tmp', f'field {fname!r}', quals=fqual),
                         fname))
                 except VerificationError as e:
-                    prnt(f'  /* {str(e)} */')   # cannot verify it, ignore
+                    prnt(f'  /* {e} */')   # cannot verify it, ignore
         prnt('}')
         self.export_symbols.append(layoutfuncname)
         prnt(f'intptr_t {layoutfuncname}(intptr_t i)')

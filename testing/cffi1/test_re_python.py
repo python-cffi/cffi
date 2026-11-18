@@ -50,7 +50,7 @@ def setup_module(mod):
         except UnicodeEncodeError:
             name = None
     if name is not None:
-        print(f'{repr(outputfilename)} ==> {repr(name)}')
+        print(f'{outputfilename!r} ==> {name!r}')
         os.rename(outputfilename, name)
         outputfilename = name
 
