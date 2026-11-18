@@ -1,9 +1,13 @@
-import sys, os, re
-import shutil, subprocess, time
-import pytest
-from testing.udir import udir
-import cffi
+import os
+import re
+import shutil
+import subprocess
+import sys
 
+import pytest
+
+import cffi
+from testing.udir import udir
 
 local_dir = os.path.dirname(os.path.abspath(__file__))
 _link_error = '?'

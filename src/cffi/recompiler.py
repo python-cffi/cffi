@@ -1,12 +1,14 @@
-import io, os, sys
+import io
+import os
+import sys
+
 from . import ffiplatform, model
-from .error import VerificationError
 from .cffi_opcode import *
+from .error import VerificationError
 
 VERSION_BASE = 0x2601
 VERSION_EMBEDDED = 0x2701
 VERSION_CHAR16CHAR32 = 0x2801
-
 
 class GlobalExpr:
     def __init__(self, name, address, type_op, size=0, check_value=0):
@@ -242,7 +244,7 @@ class Recompiler:
 
     # ----------
 
-    ALL_STEPS = ["global", "field", "struct_union", "enum", "typename"]
+    ALL_STEPS = ("global", "field", "struct_union", "enum", "typename")
 
     def collect_step_tables(self):
         # collect the declarations for '_cffi_globals', '_cffi_typenames', etc.
@@ -331,7 +333,7 @@ class Recompiler:
         #
         # the declaration of '_cffi_types'
         prnt('static void *_cffi_types[] = {')
-        typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
+        typeindex2type = {i: tp for (tp, i) in self._typesdict.items()}
         for i, op in enumerate(self.cffi_types):
             comment = ''
             if i in typeindex2type:
@@ -483,7 +485,7 @@ class Recompiler:
         self.cffi_types = tuple(self.cffi_types)    # don't change any more
         types_lst = [op.as_python_bytes() for op in self.cffi_types]
         prnt('    _types = {},'.format(self._to_py(''.join(types_lst))))
-        typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
+        typeindex2type = {i: tp for (tp, i) in self._typesdict.items()}
         #
         # the keyword arguments from ALL_STEPS
         for step_name in self.ALL_STEPS:
@@ -863,7 +865,7 @@ class Recompiler:
                     ftype.get_c_name('*tmp', f'field {fname!r}', quals=fqual),
                     fname))
             except VerificationError as e:
-                prnt(f'  /* {str(e)} */')   # cannot verify it, ignore
+                prnt(f'  /* {e} */')   # cannot verify it, ignore
         prnt('}')
         prnt(f'struct _cffi_align_{approxname} {{ char x; {cname} y; }};')
         prnt()
@@ -1281,9 +1283,8 @@ class Recompiler:
         else:
             s.decode('utf-8')           # got bytes, check for valid utf-8
         for line in s.splitlines(True):
-            comment = line
             # type(line) is bytes, which enumerates like a list of integers
-            comment = ascii(comment)[1:-1]
+            comment = ascii(line)[1:-1]
             prnt(('// ' + comment).rstrip())
             printed_line = ''
             for c in line:

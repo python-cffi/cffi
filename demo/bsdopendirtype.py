@@ -1,4 +1,5 @@
 import os
+
 from _bsdopendirtype import ffi, lib
 
 

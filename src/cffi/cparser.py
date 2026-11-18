@@ -1,11 +1,13 @@
 from . import model
 from .commontypes import COMMON_TYPES, resolve_common_type
-from .error import FFIError, CDefError
+from .error import CDefError, FFIError
+
 try:
     from . import _pycparser as pycparser
 except ImportError:
     import pycparser
-import weakref, re, sys
+import re
+import weakref
 
 try:
     import _thread
@@ -17,8 +19,9 @@ def _workaround_for_static_import_finders():
     # Issue #392: packaging tools like cx_Freeze can not find these
     # because pycparser uses exec dynamic import.  This is an obscure
     # workaround.  This function is never called.
-    import pycparser.yacctab
-    import pycparser.lextab
+    import pycparser.lextab  # noqa: F401
+    import pycparser.yacctab  # noqa: F401
+    pass
 
 CDEF_SOURCE_STRING = "<cdef source string>"
 _r_comment = re.compile(r"/\*.*?\*/|//([^\n\\]|\\.)*?$",
@@ -316,10 +319,9 @@ class Parser:
                 ctn.discard(name)
         typenames += sorted(ctn)
         #
-        csourcelines = []
-        csourcelines.append('# 1 "<cdef automatic initialization code>"')
-        for typename in typenames:
-            csourcelines.append(f'typedef int {typename};')
+        csourcelines = ['# 1 "<cdef automatic initialization code>"']
+        csourcelines.extend(f'typedef int {typename};'
+                            for typename in typenames)
         csourcelines.append('typedef int __dotdotdotint__, __dotdotdotfloat__,'
                             ' __dotdotdot__;')
         # this forces pycparser to consider the following in the file
@@ -653,10 +655,11 @@ class Parser:
                         else:
                             break
                     # ignore the 'signed' prefix below, and reorder the others
-                    newnames = []
-                    for prefix in ('unsigned', 'short', 'long'):
-                        for i in range(prefixes.get(prefix, 0)):
-                            newnames.append(prefix)
+                    newnames = [
+                        prefix
+                        for prefix in ('unsigned', 'short', 'long')
+                        for i in range(prefixes.get(prefix, 0))
+                    ]
                     if not names:
                         names = ['int']    # implicitly
                     if names == ['int']:   # but kill it if 'short' or 'long'

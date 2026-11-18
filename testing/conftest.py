@@ -1,8 +1,7 @@
 import os
-import pytest
 import sys
 
-from ctypes import util
+import pytest
 
 try:
     import pytest_run_parallel  # noqa:F401
@@ -15,13 +14,11 @@ def _msvc_env():
     from setuptools._distutils.util import get_platform
     try:
         # setuptools >= 80
-        from setuptools._distutils.compilers.C.msvc import (
-            _get_vc_env, _get_vcvars_spec)
+        from setuptools._distutils.compilers.C.msvc import _get_vc_env, _get_vcvars_spec
         from setuptools._distutils.util import get_host_platform
         spec = _get_vcvars_spec(get_host_platform(), get_platform())
     except ImportError:
-        from setuptools._distutils._msvccompiler import (
-            _get_vc_env, PLAT_TO_VCVARS)
+        from setuptools._distutils._msvccompiler import PLAT_TO_VCVARS, _get_vc_env
         spec = PLAT_TO_VCVARS[get_platform()]
     return _get_vc_env(spec)
 

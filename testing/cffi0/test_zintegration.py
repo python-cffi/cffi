@@ -1,11 +1,15 @@
-import os, sys, shutil
+import os
+import shutil
 import subprocess
+import sys
 import sysconfig
 import textwrap
 from pathlib import Path
-from testing.udir import udir
-from testing.support import create_bridged_venv
+
 import pytest
+
+from testing.support import create_bridged_venv
+from testing.udir import udir
 
 if sys.platform == 'win32':
     pytestmark = pytest.mark.skip('snippets do not run on win32')

@@ -6,6 +6,7 @@ if not sys.platform.startswith('linux'):
     raise Exception("Linux-only demo")
 
 from _readdir import ffi
+
 lib = ffi.dlopen(None)
 
 

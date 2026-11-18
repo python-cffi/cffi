@@ -93,7 +93,7 @@ def _ensure_initialised_color():
 
 def _check_ERR(code, fname):
     if code != lib.ERR:
-        return None
+        return
     elif fname is None:
         raise error("curses function returned ERR")
     else:
@@ -799,7 +799,7 @@ def setupterm(term=None, fd=-1):
         fd = sys.stdout.fileno()
 
     if _initialised_setupterm:
-        return None
+        return
 
     if term is None:
         term = ffi.NULL
@@ -814,7 +814,7 @@ def setupterm(term=None, fd=-1):
             raise error("setupterm: unknown error")
 
     globals()["_initialised_setupterm"] = True
-    return None
+    return
 
 
 def intrflush(ch):

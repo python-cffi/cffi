@@ -1,6 +1,6 @@
 
-from setuptools import setup
 import snip_setuptools_verify2
+from setuptools import setup
 
 setup(
     zip_safe=False,

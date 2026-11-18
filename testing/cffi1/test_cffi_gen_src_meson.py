@@ -9,16 +9,12 @@ and then imports the built extension to confirm it works.
 
 """
 
-import os
-import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
-
-import cffi
 
 from testing.support import create_bridged_venv
 
@@ -78,7 +74,7 @@ def test_meson_python_build(tmp_path, project):
     # Confirm the built extension imports and behaves as expected.
     subprocess.check_call([
         str(venv_python), "-c",
-        "from squared import squared; "
-        "assert squared(7) == 49; "
-        "assert squared(-3) == 9",
+        ("from squared import squared; "
+         "assert squared(7) == 49; "
+         "assert squared(-3) == 9"),
     ])

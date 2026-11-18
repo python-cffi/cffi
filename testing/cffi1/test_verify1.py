@@ -1,10 +1,18 @@
-import os, sys, math
-import pytest
-from cffi import FFI, FFIError, VerificationError, VerificationMissing, model
-from cffi import CDefError
-from cffi import recompiler
-from testing.support import _verify, extra_compile_args, is_musl
+import math
+import sys
+
 import _cffi_backend
+import pytest
+
+from cffi import (
+    FFI,
+    CDefError,
+    FFIError,
+    VerificationError,
+    VerificationMissing,
+    model,
+)
+from testing.support import _verify, extra_compile_args, is_musl
 
 pytestmark = [
     pytest.mark.thread_unsafe(reason="FFI verifier is not thread-safe"),
@@ -1388,7 +1396,9 @@ def test_ffi_struct_packed():
     """)
 
 def test_tmpdir():
-    import tempfile, os
+    import os
+    import tempfile
+
     from testing.udir import udir
     tmpdir = tempfile.mkdtemp(dir=str(udir))
     ffi = FFI()
@@ -1399,7 +1409,9 @@ def test_tmpdir():
 
 def test_relative_to():
     pytest.skip("not available")
-    import tempfile, os
+    import os
+    import tempfile
+
     from testing.udir import udir
     tmpdir = tempfile.mkdtemp(dir=str(udir))
     ffi = FFI()
@@ -1555,7 +1567,9 @@ def test_callback_in_thread():
     pytest.xfail("adapt or remove")
     if sys.platform == 'win32':
         pytest.skip("pthread only")
-    import os, subprocess
+    import os
+    import subprocess
+
     from cffi import _imp_emulation as imp
     arg = os.path.join(os.path.dirname(__file__), 'callback_in_thread.py')
     g = subprocess.Popen([sys.executable, arg,
@@ -2064,7 +2078,7 @@ def _run_in_multiple_threads(test1):
     def wrapper(lock):
         try:
             test1()
-        except:
+        except Exception:
             errors.append(sys.exc_info())
         lock.release()
     locks = []

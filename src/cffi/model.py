@@ -1,8 +1,8 @@
 import types
 import weakref
 
-from .lock import allocate_lock
 from .error import CDefError, VerificationError, VerificationMissing
+from .lock import allocate_lock
 
 # type qualifiers
 Q_CONST    = 0x01
@@ -240,9 +240,7 @@ class FunctionPtrType(BaseFunctionType):
 
     def build_backend_type(self, ffi, finishlist):
         result = self.result.get_cached_btype(ffi, finishlist)
-        args = []
-        for tp in self.args:
-            args.append(tp.get_cached_btype(ffi, finishlist))
+        args = [tp.get_cached_btype(ffi, finishlist) for tp in self.args]
         abi_args = ()
         if self.abi == "__stdcall":
             if not self.ellipsis:    # __stdcall ignored for variadic funcs

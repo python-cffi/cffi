@@ -277,7 +277,7 @@ class VGenericEngine:
                         ftype.get_c_name('*tmp', f'field {fname!r}', quals=fqual),
                         fname))
                 except VerificationError as e:
-                    prnt(f'  /* {str(e)} */')   # cannot verify it, ignore
+                    prnt(f'  /* {e} */')   # cannot verify it, ignore
         prnt('}')
         self.export_symbols.append(layoutfuncname)
         prnt(f'intptr_t {layoutfuncname}(intptr_t i)')
@@ -489,8 +489,7 @@ class VGenericEngine:
         function = module.load_function(BFunc, funcname)
         p = self.ffi.new(BType, 256)
         if function(p) < 0:
-            error = self.ffi.string(p)
-            error = str(error, 'utf-8')
+            error = str(self.ffi.string(p), 'utf-8')
             raise VerificationError(error)
 
     def _enum_funcname(self, prefix, name):

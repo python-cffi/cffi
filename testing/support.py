@@ -1,7 +1,11 @@
-import sys, os
-import site, subprocess
+import os
+import site
+import subprocess
+import sys
 from pathlib import Path
+
 import pytest
+
 from cffi._imp_emulation import load_dynamic
 
 __all__ = ['load_dynamic']
@@ -56,6 +60,7 @@ class FdWriteCapture:
 
 def _verify(ffi, module_name, preamble, *args, **kwds):
     from cffi.recompiler import recompile
+
     from .udir import udir
     assert module_name not in sys.modules, f"module name conflict: {module_name!r}"
     kwds.setdefault('tmpdir', str(udir))

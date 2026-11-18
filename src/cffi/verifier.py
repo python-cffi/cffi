@@ -1,12 +1,17 @@
 #
 # DEPRECATED: implementation for ffi.verify()
 #
-import sys, os, binascii, shutil, io
-from . import __version_verifier_modules__
-from . import ffiplatform
+import binascii
+import importlib.machinery
+import io
+import os
+import shutil
+import sys
+
+from . import __version_verifier_modules__, ffiplatform
 from .error import VerificationError
 
-import importlib.machinery
+
 def _extension_suffixes():
     return importlib.machinery.EXTENSION_SUFFIXES[:]
 

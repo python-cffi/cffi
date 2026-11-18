@@ -1,7 +1,11 @@
-import sys, os
-import pytest
+import os
+import sys
+
 import _cffi_backend
+import pytest
+
 from testing.support import is_musl
+
 
 def test_no_unknown_exported_symbols():
     if not hasattr(_cffi_backend, '__file__'):

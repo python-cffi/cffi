@@ -1,4 +1,5 @@
 from distutils.core import setup
+
 import readdir2_build
 
 setup(

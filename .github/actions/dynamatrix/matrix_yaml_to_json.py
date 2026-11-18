@@ -5,20 +5,20 @@ import json
 import os
 import pathlib
 import sys
-import typing as t
-import yaml
-
 from collections.abc import MutableMapping, Sequence
+
+import yaml
 
 skipped_entries = []
 
 def _filter_omit_entries(value):
     if isinstance(value, MutableMapping):
-        if (omit_value := value.pop('omit', ...)) is not ...:
-            if omit_value is True or str(omit_value).lower().strip() == 'true':
-                print(f'omitting {value} from matrix')
-                skipped_entries.append(value)
-                return ...
+        omit_value = value.pop('omit', ...)
+        if omit_value is not ... and (
+            omit_value is True or str(omit_value).lower().strip() == 'true'):
+            print(f'omitting {value} from matrix')
+            skipped_entries.append(value)
+            return ...
 
         return {k: v for k, v in ((k, _filter_omit_entries(v)) for k, v in value.items()) if v is not ...}
 

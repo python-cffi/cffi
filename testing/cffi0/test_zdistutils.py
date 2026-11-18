@@ -1,10 +1,15 @@
-import sys, os, math, shutil
+import math
+import os
+import shutil
+import sys
+
 import pytest
-from cffi import FFI, FFIError
-from cffi.verifier import Verifier, _locate_engine_class, _get_so_suffixes
+
+from cffi import FFI
 from cffi.ffiplatform import maybe_relative_path
-from testing.udir import udir
+from cffi.verifier import Verifier, _get_so_suffixes, _locate_engine_class
 from testing.support import load_dynamic
+from testing.udir import udir
 
 pytestmark = [
     pytest.mark.thread_unsafe(reason="worker threads would share a compilation directory"),

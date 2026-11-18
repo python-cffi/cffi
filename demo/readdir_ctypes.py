@@ -1,8 +1,8 @@
 # A Linux-only demo
 #
 # For comparison purposes, this is a ctypes version of readdir.py.
-import sys
 import ctypes
+import sys
 
 if not sys.platform.startswith('linux'):
     raise Exception("Linux-only demo")

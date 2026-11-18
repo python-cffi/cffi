@@ -2,9 +2,10 @@
 # DEPRECATED: implementation for ffi.verify()
 #
 import sys
+
+from . import _imp_emulation as imp
 from . import model
 from .error import VerificationError
-from . import _imp_emulation as imp
 
 
 class VCPythonEngine:
@@ -156,8 +157,8 @@ class VCPythonEngine:
         #
         # the C code will need the <ctype> objects.  Collect them in
         # order in a list.
-        revmapping = dict([(value, key)
-                           for (key, value) in self._typesdict.items()])
+        revmapping = {value: key
+                      for (key, value) in self._typesdict.items()}
         lst = [revmapping[i] for i in range(len(revmapping))]
         lst = list(map(self.ffi._get_cached_btype, lst))
         #
@@ -481,7 +482,7 @@ class VCPythonEngine:
                         ftype.get_c_name('*tmp', f'field {fname!r}', quals=fqual),
                         fname))
                 except VerificationError as e:
-                    prnt(f'  /* {str(e)} */')   # cannot verify it, ignore
+                    prnt(f'  /* {e} */')   # cannot verify it, ignore
         prnt('}')
         prnt('static PyObject *')
         prnt(f'{layoutfuncname}(PyObject *self, PyObject *noarg)')

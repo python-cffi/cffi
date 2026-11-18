@@ -1,5 +1,10 @@
-import ctypes, ctypes.util, operator, sys
+import ctypes
+import ctypes.util
+import operator
+import sys
+
 from . import model
+
 
 class CTypesType(type):
     pass
@@ -615,12 +620,11 @@ class CTypesBackend:
             def _initialize(blob, init):
                 if isinstance(init, bytes):
                     init = [init[i:i+1] for i in range(len(init))]
-                else:
-                    if isinstance(init, CTypesGenericArray):
-                        if (len(init) != len(blob) or
-                            not isinstance(init, CTypesArray)):
-                            raise TypeError(f"length/type mismatch: {init}")
-                    init = tuple(init)
+                elif isinstance(init, CTypesGenericArray):
+                    if (len(init) != len(blob) or
+                        not isinstance(init, CTypesArray)):
+                        raise TypeError(f"length/type mismatch: {init}")
+                init = tuple(init)
                 if len(init) > len(blob):
                     raise IndexError("too many initializers")
                 addr = ctypes.cast(blob, ctypes.c_void_p).value
@@ -749,11 +753,10 @@ class CTypesBackend:
         CTypesStructOrUnion._create_ctype_obj = _create_ctype_obj
         #
         def initialize(blob, init):
-            if is_union:
-                if len(init) > 1:
-                    raise ValueError("union initializer: %d items given, but "
-                                    "only one supported (use a dict if needed)"
-                                     % (len(init),))
+            if is_union and len(init) > 1:
+                raise ValueError("union initializer: %d items given, but "
+                                 "only one supported (use a dict if needed)"
+                                 % (len(init),))
             if not isinstance(init, dict):
                 if isinstance(init, (bytes, str)):
                     raise TypeError("union initializer: got a str")
@@ -830,7 +833,7 @@ class CTypesBackend:
         nameargs = ', '.join(nameargs)
         #
         class CTypesFunctionPtr(CTypesGenericPtr):
-            __slots__ = ['_own_callback', '_name']
+            __slots__ = ['_name', '_own_callback']
             _ctype = ctypes.CFUNCTYPE(getattr(BResult, '_ctype', None),
                                       *[BArg._ctype for BArg in BArgs],
                                       use_errno=True)
@@ -852,7 +855,7 @@ class CTypesBackend:
                     try:
                         res2 = init(*args2)
                         res2 = BResult._to_ctypes(res2)
-                    except:
+                    except Exception:
                         traceback.print_exc()
                         res2 = error
                     if issubclass(BResult, CTypesGenericPtr):

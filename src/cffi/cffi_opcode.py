@@ -1,5 +1,6 @@
 from .error import VerificationError
 
+
 class CffiOp:
     def __init__(self, op, arg):
         self.op = op
@@ -172,9 +173,9 @@ F_PACKED        = 0x04
 F_EXTERNAL      = 0x08
 F_OPAQUE        = 0x10
 
-G_FLAGS = dict([('_CFFI_' + _key, globals()[_key])
-                for _key in ['F_UNION', 'F_CHECK_FIELDS', 'F_PACKED',
-                             'F_EXTERNAL', 'F_OPAQUE']])
+G_FLAGS = {'_CFFI_' + _key: globals()[_key]
+           for _key in ['F_UNION', 'F_CHECK_FIELDS', 'F_PACKED',
+                        'F_EXTERNAL', 'F_OPAQUE']}
 
 CLASS_NAME = {}
 for _name, _value in list(globals().items()):

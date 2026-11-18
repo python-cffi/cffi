@@ -1,9 +1,11 @@
-import sys, os
+import os
+import sys
+
 import pytest
-from cffi import FFI
-from cffi import recompiler, ffiplatform, VerificationMissing
-from testing.udir import udir
+
+from cffi import FFI, VerificationMissing, ffiplatform
 from testing.support import is_musl
+from testing.udir import udir
 
 
 def setup_module(mod):
@@ -48,7 +50,7 @@ def setup_module(mod):
         except UnicodeEncodeError:
             name = None
     if name is not None:
-        print(f'{repr(outputfilename)} ==> {repr(name)}')
+        print(f'{outputfilename!r} ==> {name!r}')
         os.rename(outputfilename, name)
         outputfilename = name
 
@@ -114,7 +116,6 @@ def test_function_with_varargs():
     assert type(lib.add43) is _cffi_backend.FFI.CData
 
 def test_dlopen_none():
-    import _cffi_backend
     from re_python_pysrc import ffi
     name = None
     if sys.platform == 'win32':
@@ -128,13 +129,11 @@ def test_dlopen_none():
 @pytest.mark.thread_unsafe(
     reason="Worker threads might call dlclose concurrently")
 def test_dlclose():
-    import _cffi_backend
     from re_python_pysrc import ffi
     lib = ffi.dlopen(extmod)
     ffi.dlclose(lib)
     e = pytest.raises(ffi.error, getattr, lib, 'add42')
-    assert str(e.value) == (
-        f"library '{extmod}' has been closed")
+    assert str(e.value) == f"library '{extmod}' has been closed"
     ffi.dlclose(lib)   # does not raise
 
 @pytest.mark.thread_unsafe(

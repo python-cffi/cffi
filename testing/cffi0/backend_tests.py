@@ -1,6 +1,10 @@
-import pytest
+import ctypes
+import ctypes.util
 import platform
-import sys, ctypes, ctypes.util
+import sys
+
+import pytest
+
 from cffi import FFI, CDefError, FFIError, VerificationMissing
 
 SIZE_OF_INT   = ctypes.sizeof(ctypes.c_int)
@@ -1230,7 +1234,9 @@ class BackendTests:
 
     def test_ffi_buffer_with_file(self):
         ffi = FFI(backend=self.Backend())
-        import tempfile, os, array
+        import array
+        import os
+        import tempfile
         fd, filename = tempfile.mkstemp()
         f = os.fdopen(fd, 'r+b')
         a = ffi.new("int[]", list(range(1005)))
@@ -1250,7 +1256,8 @@ class BackendTests:
 
     def test_ffi_buffer_with_io(self):
         ffi = FFI(backend=self.Backend())
-        import io, array
+        import array
+        import io
         f = io.BytesIO()
         a = ffi.new("int[]", list(range(1005)))
         try:
@@ -1956,8 +1963,8 @@ class BackendTests:
             assert seen == [1, 1]
 
     def test_init_once_multithread(self):
-        import sys, time
         import _thread as thread
+        import time
         #
         def do_init():
             seen.append('init!')

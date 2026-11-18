@@ -1,7 +1,9 @@
-import sys, types
-from .lock import allocate_lock
-from .error import CDefError
+import sys
+import types
+
 from . import model
+from .error import CDefError
+from .lock import allocate_lock
 
 _unspecified = object()
 
@@ -32,6 +34,7 @@ class FFI:
         if backend is None:
             # You need PyPy or a CPython with _cffi_backend.so compiled.
             import _cffi_backend as backend
+
             from . import __version__
             if backend.__version__ != __version__:
                 # bad version!  Try to be as explicit as possible.
@@ -511,13 +514,12 @@ class FFI:
                             f" type cffi.FFI, not {type(ffi_to_include).__name__!r}")
         if ffi_to_include is self:
             raise ValueError("self.include(self)")
-        with ffi_to_include._lock:
-            with self._lock:
-                self._parser.include(ffi_to_include._parser)
-                self._cdefsources.append('[')
-                self._cdefsources.extend(ffi_to_include._cdefsources)
-                self._cdefsources.append(']')
-                self._included_ffis.append(ffi_to_include)
+        with ffi_to_include._lock, self._lock:
+            self._parser.include(ffi_to_include._parser)
+            self._cdefsources.append('[')
+            self._cdefsources.extend(ffi_to_include._cdefsources)
+            self._cdefsources.append(']')
+            self._included_ffis.append(ffi_to_include)
 
     def new_handle(self, x):
         return self._backend.newp_handle(self.BVoidP, x)
@@ -620,8 +622,7 @@ class FFI:
         if os.sep in module_name or (os.altsep and os.altsep in module_name):
             raise ValueError("'module_name' must not contain '/': use a dotted "
                              "name to make a 'package.module' location")
-        self._assigned_source = (str(module_name), source,
-                                 source_extension, kwds)
+        self._assigned_source = (module_name, source, source_extension, kwds)
 
     def set_source_pkgconfig(self, module_name, pkgconfig_libs, source,
                              source_extension='.c', **kwds):
@@ -635,6 +636,7 @@ class FFI:
 
     def distutils_extension(self, tmpdir='build', verbose=True):
         from cffi._shimmed_dist_utils import mkpath
+
         from .recompiler import recompile
         #
         if not hasattr(self, '_assigned_source'):

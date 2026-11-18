@@ -1,8 +1,12 @@
-import sys, re, os
+import os
+import re
+import sys
+from pathlib import Path
+
 import pytest
+
 import cffi
 from cffi import cffi_opcode
-from pathlib import Path
 
 if '__pypy__' in sys.builtin_module_names:
     try:

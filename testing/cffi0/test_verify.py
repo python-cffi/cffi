@@ -1,7 +1,12 @@
+import math
+import os
 import re
+import sys
+import weakref
+
 import pytest
-import sys, os, math, weakref
-from cffi import FFI, VerificationError, VerificationMissing, model, FFIError
+
+from cffi import FFI, FFIError, VerificationError, VerificationMissing, model
 from testing.support import extra_compile_args, is_musl
 
 # eliminate warning noise from common test modules that are repeatedly re-imported
@@ -1419,7 +1424,9 @@ def test_ffi_struct_packed():
     """)
 
 def test_tmpdir():
-    import tempfile, os
+    import os
+    import tempfile
+
     from testing.udir import udir
     tmpdir = tempfile.mkdtemp(dir=str(udir))
     ffi = FFI()
@@ -1429,7 +1436,9 @@ def test_tmpdir():
     assert lib.foo(100) == 142
 
 def test_relative_to():
-    import tempfile, os
+    import os
+    import tempfile
+
     from testing.udir import udir
     tmpdir = tempfile.mkdtemp(dir=str(udir))
     ffi = FFI()
@@ -1593,7 +1602,9 @@ def test_addressof():
 def test_callback_in_thread():
     if sys.platform == 'win32':
         pytest.skip("pthread only")
-    import os, subprocess
+    import os
+    import subprocess
+
     from cffi import _imp_emulation as imp
     arg = os.path.join(os.path.dirname(__file__), 'callback_in_thread.py')
     g = subprocess.Popen([sys.executable, arg,
@@ -1960,7 +1971,7 @@ def test_bug_const_char_ptr_array_1():
     assert repr(ffi.typeof(lib.a)) == "<ctype 'char *[5]'>"
 
 def test_bug_const_char_ptr_array_2():
-    from cffi import FFI     # ignore warnings
+    from cffi import FFI  # ignore warnings
     ffi = FFI()
     ffi.cdef("""extern const int a[];""")
     lib = ffi.verify("""const int a[5];""")
@@ -2099,7 +2110,7 @@ def _run_in_multiple_threads(test1):
     def wrapper(lock):
         try:
             test1()
-        except:
+        except Exception:
             errors.append(sys.exc_info())
         lock.release()
     locks = []
@@ -2581,8 +2592,9 @@ def test_passing_large_list():
     # assert did not segfault
 
 def test_no_regen():
-    from cffi.verifier import Verifier, _caller_dir_pycache, _FORCE_GENERIC_ENGINE
     import os
+
+    from cffi.verifier import _FORCE_GENERIC_ENGINE
     ffi = FFI()
     # make sure the module name is unique
     modulename = "_cffi_test_no_regen" + str(_FORCE_GENERIC_ENGINE)

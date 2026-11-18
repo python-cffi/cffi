@@ -1,5 +1,6 @@
 
 from distutils.core import setup
+
 import snip_basic_verify
 
 setup(

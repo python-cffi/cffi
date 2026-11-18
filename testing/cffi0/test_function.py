@@ -1,16 +1,21 @@
-import pytest
-from cffi import FFI, CDefError
-import math, os, sys
 import ctypes.util
+import math
+import os
+import sys
+
+import pytest
+
+from cffi import FFI
 from cffi.backend_ctypes import CTypesBackend
-from testing.udir import udir
 from testing.support import FdWriteCapture, StdErrCapture, is_musl
+from testing.udir import udir
+
 from .backend_tests import needs_dlopen_none
 
 try:
     from StringIO import StringIO
 except ImportError:
-    from io import StringIO
+    pass
 
 try:
     from packaging.tags import platform_tags

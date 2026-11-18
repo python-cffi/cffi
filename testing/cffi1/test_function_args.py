@@ -1,4 +1,6 @@
-import pytest, sys
+import sys
+
+import pytest
 
 pytestmark = [
     pytest.mark.thread_unsafe(reason="Workers would share a build directory"),
@@ -11,7 +13,7 @@ try:
         raise ImportError("this test is skipped because it keeps finding "
                           "failures in libffi, instead of cffi")
 
-    from hypothesis import given, settings, example
+    from hypothesis import example, given, settings
     from hypothesis import strategies as st
 except ImportError as e:
     e1 = e
@@ -19,8 +21,11 @@ except ImportError as e:
         pytest.skip(str(e1))
 else:
 
+    import random
+    import sys
+
     from cffi import FFI
-    import sys, random
+
     from .test_recompiler import verify
 
     ALL_PRIMITIVES = [
@@ -114,8 +119,9 @@ else:
 
         # when getting segfaults, enable this:
         if False:
-            from testing.udir import udir
             import subprocess
+
+            from testing.udir import udir
             with (udir / 'run1.py').open('w') as f:
                 f.write(f'import sys; sys.path = {sys.path!r}\n')
                 f.write('from _CFFI_test_function_args_%d import ffi, lib\n' %
@@ -180,8 +186,9 @@ else:
 
         # when getting segfaults, enable this:
         if False:
-            from testing.udir import udir
             import subprocess
+
+            from testing.udir import udir
             with (udir / 'run1.py').open('w') as f:
                 f.write(f'import sys; sys.path = {sys.path!r}\n')
                 f.write('from _CFFI_test_function_args_%d import ffi, lib\n' %

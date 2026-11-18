@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import contextlib
 import os
+import sys
 import traceback
-import unittest.mock
 
 import pytest
-import sys
-import typing as t
 
 is_musl = False
 if sys.platform == 'linux':
@@ -22,11 +20,13 @@ is_ios = sys.platform == 'ios'
 
 
 def _setup_path():
-    import os, sys
+    import os
+    import sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 _setup_path()
 from _cffi_backend import *
-from _cffi_backend import _get_types, _get_common_types
+from _cffi_backend import _get_common_types, _get_types
+
 try:
     from _cffi_backend import _testfunc
 except ImportError:
@@ -67,6 +67,7 @@ def _assert_unraisable(error_type: type[Exception] | None, message: str = '', tr
 # ____________________________________________________________
 
 import sys
+
 assert __version__ == "2.2.0.dev0", ("This test_c.py file is for testing a version"
                                      " of cffi that differs from the one that we"
                                      " get from 'import _cffi_backend'")
@@ -3244,8 +3245,8 @@ def test_new_handle():
     del o
     import gc; gc.collect()
     assert wr() is not None
-    assert from_handle(x) == list((2, 3, 4))
-    assert from_handle(cast(BCharP, x)) == list((2, 3, 4))
+    assert from_handle(x) == [2, 3, 4]
+    assert from_handle(cast(BCharP, x)) == [2, 3, 4]
     del x
     for i in range(3):
         if wr() is not None:
@@ -3254,8 +3255,8 @@ def test_new_handle():
     pytest.raises(RuntimeError, from_handle, cast(BCharP, 0))
 
 def test_new_handle_cycle():
-    import gc
     import _weakref
+    import gc
     BVoidP = new_pointer_type(new_void_type())
     class A:
         pass
@@ -4167,7 +4168,6 @@ def test_cdata_dir():
     check_dir(pp[0][0], ['a1', 'a2'])
 
 def test_char_pointer_conversion():
-    import warnings
     BCharP = new_pointer_type(new_primitive_type("char"))
     BIntP = new_pointer_type(new_primitive_type("int"))
     BVoidP = new_pointer_type(new_void_type())
@@ -4176,10 +4176,10 @@ def test_char_pointer_conversion():
     z2 = cast(BIntP, 0)
     z3 = cast(BVoidP, 0)
     z4 = cast(BUCharP, 0)
-    with pytest.raises(TypeError) as e1:
+    with pytest.raises(TypeError):
         newp(new_pointer_type(BIntP), z1)
     newp(new_pointer_type(BVoidP), z1)   # fine
-    with pytest.raises(TypeError) as e2:
+    with pytest.raises(TypeError):
         newp(new_pointer_type(BCharP), z2)
     newp(new_pointer_type(BVoidP), z2)   # fine
     newp(new_pointer_type(BCharP), z3)   # fine
@@ -4311,12 +4311,10 @@ def test_explicit_release_badtype():
 def test_explicit_release_badtype_contextmgr():
     BIntP = new_pointer_type(new_primitive_type("int"))
     p = cast(BIntP, 12345)
-    with pytest.raises(ValueError):
-        with p:
-            pass
-    with pytest.raises(ValueError):
-        with p:
-            pass
+    with pytest.raises(ValueError), p:
+        pass
+    with pytest.raises(ValueError), p:
+        pass
 
 def test_explicit_release_gc():
     BIntP = new_pointer_type(new_primitive_type("int"))

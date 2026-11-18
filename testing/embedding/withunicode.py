@@ -1,5 +1,4 @@
-import sys, cffi
-
+import cffi
 
 ffi = cffi.FFI()
 

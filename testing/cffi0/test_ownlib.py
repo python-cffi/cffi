@@ -1,11 +1,13 @@
-import io
-import sys, os
-import subprocess, weakref
+import os
+import subprocess
+import sys
+import weakref
+
 import pytest
+
 from cffi import FFI
 from cffi.backend_ctypes import CTypesBackend
 from testing.support import is_musl
-
 
 SOURCE = """\
 #include <errno.h>

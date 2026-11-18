@@ -1,10 +1,12 @@
 
-import sys, os
+import os
+import sys
+
 import pytest
-from cffi import FFI, VerificationError, FFIError, CDefError
-from cffi import recompiler
-from testing.udir import udir
+
+from cffi import FFI, CDefError, FFIError, VerificationError, recompiler
 from testing.support import FdWriteCapture, StdErrCapture, _verify
+from testing.udir import udir
 
 pytestmark = [
     pytest.mark.thread_unsafe(reason="worker threads would share a compilation directory"),

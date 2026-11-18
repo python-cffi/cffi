@@ -2,6 +2,7 @@ import os
 import sys
 import sysconfig
 
+
 def error(msg):
     from cffi._shimmed_dist_utils import DistutilsSetupError
     raise DistutilsSetupError(msg)
@@ -107,8 +108,9 @@ def _set_py_limited_api(Extension, kwds):
 def _add_c_module(dist, ffi, module_name, source, source_extension, kwds):
     # We are a setuptools extension. Need this build_ext for py_limited_api.
     from setuptools.command.build_ext import build_ext
-    from cffi._shimmed_dist_utils import Extension, log, mkpath
+
     from cffi import recompiler
+    from cffi._shimmed_dist_utils import Extension, log, mkpath
 
     allsources = ['$PLACEHOLDER']
     allsources.extend(kwds.pop('sources', []))
@@ -149,10 +151,11 @@ def _add_c_module(dist, ffi, module_name, source, source_extension, kwds):
 
 
 def _add_py_module(dist, ffi, module_name):
-    from setuptools.command.build_py import build_py
     from setuptools.command.build_ext import build_ext
-    from cffi._shimmed_dist_utils import log, mkpath
+    from setuptools.command.build_py import build_py
+
     from cffi import recompiler
+    from cffi._shimmed_dist_utils import log, mkpath
 
     def generate_mod(py_file):
         log.info(f"generating cffi module {py_file!r}")
