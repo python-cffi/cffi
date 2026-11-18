@@ -156,8 +156,8 @@ class VCPythonEngine:
         #
         # the C code will need the <ctype> objects.  Collect them in
         # order in a list.
-        revmapping = dict([(value, key)
-                           for (key, value) in self._typesdict.items()])
+        revmapping = {value: key
+                      for (key, value) in self._typesdict.items()}
         lst = [revmapping[i] for i in range(len(revmapping))]
         lst = list(map(self.ffi._get_cached_btype, lst))
         #

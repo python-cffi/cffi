@@ -330,7 +330,7 @@ class Recompiler:
         #
         # the declaration of '_cffi_types'
         prnt('static void *_cffi_types[] = {')
-        typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
+        typeindex2type = {i: tp for (tp, i) in self._typesdict.items()}
         for i, op in enumerate(self.cffi_types):
             comment = ''
             if i in typeindex2type:
@@ -482,7 +482,7 @@ class Recompiler:
         self.cffi_types = tuple(self.cffi_types)    # don't change any more
         types_lst = [op.as_python_bytes() for op in self.cffi_types]
         prnt('    _types = {},'.format(self._to_py(''.join(types_lst))))
-        typeindex2type = dict([(i, tp) for (tp, i) in self._typesdict.items()])
+        typeindex2type = {i: tp for (tp, i) in self._typesdict.items()}
         #
         # the keyword arguments from ALL_STEPS
         for step_name in self.ALL_STEPS:
