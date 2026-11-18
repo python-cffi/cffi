@@ -319,10 +319,9 @@ class Parser:
                 ctn.discard(name)
         typenames += sorted(ctn)
         #
-        csourcelines = []
-        csourcelines.append('# 1 "<cdef automatic initialization code>"')
-        for typename in typenames:
-            csourcelines.append(f'typedef int {typename};')
+        csourcelines = ['# 1 "<cdef automatic initialization code>"']
+        csourcelines.extend(f'typedef int {typename};'
+                            for typename in typenames)
         csourcelines.append('typedef int __dotdotdotint__, __dotdotdotfloat__,'
                             ' __dotdotdot__;')
         # this forces pycparser to consider the following in the file
@@ -656,10 +655,11 @@ class Parser:
                         else:
                             break
                     # ignore the 'signed' prefix below, and reorder the others
-                    newnames = []
-                    for prefix in ('unsigned', 'short', 'long'):
-                        for i in range(prefixes.get(prefix, 0)):
-                            newnames.append(prefix)
+                    newnames = [
+                        prefix
+                        for prefix in ('unsigned', 'short', 'long')
+                        for i in range(prefixes.get(prefix, 0))
+                    ]
                     if not names:
                         names = ['int']    # implicitly
                     if names == ['int']:   # but kill it if 'short' or 'long'
