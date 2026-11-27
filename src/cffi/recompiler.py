@@ -423,7 +423,7 @@ class Recompiler:
         # on Windows, distutils insists on putting init_cffi_xyz in
         # 'export_symbols', so instead of fighting it, just give up and
         # give it one
-        prnt('#  ifdef _MSC_VER')
+        prnt('#  ifdef _WIN32')
         prnt('     PyMODINIT_FUNC')
         prnt(f'     PyInit_{base_module_name}(void) {{ return NULL; }}')
         prnt('#  endif')
