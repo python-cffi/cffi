@@ -345,6 +345,7 @@ class StructOrUnion(StructOrUnionOrEnum):
     completed = 0
     partial = False
     packed = 0
+    enclosing = None
 
     def __init__(self, name, fldnames, fldtypes, fldbitsize, fldquals=None):
         self.name = name

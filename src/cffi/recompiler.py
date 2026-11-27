@@ -816,12 +816,33 @@ class Recompiler:
     # ----------
     # named structs or unions
 
+    def _struct_access_path(self, tp):
+        parts = []
+        cur = tp
+        while not cur.has_c_name():
+            enclosing = cur.enclosing
+            if enclosing is None:
+                return None, None
+            parent_tp, field_expr = enclosing
+            if field_expr:
+                parts.append(field_expr)
+            cur = parent_tp
+        parts.reverse()
+        return cur.get_c_name(''), '.'.join(parts)
+
     def _field_type(self, tp_struct, field_name, tp_field):
         if isinstance(tp_field, model.ArrayType):
             actual_length = tp_field.length
             if actual_length == '...':
-                ptr_struct_name = tp_struct.get_c_name('*')
-                actual_length = f'_cffi_array_len((({ptr_struct_name})0)->{field_name})'
+                if tp_struct.has_c_name():
+                    ptr_struct_name = tp_struct.get_c_name('*')
+                    actual_length = f'_cffi_array_len((({ptr_struct_name})0)->{field_name})'
+                else:
+                    root_cname, access_path = self._struct_access_path(tp_struct)
+                    if root_cname is None:
+                        raise VerificationError(
+                            f"cannot generate '{tp_struct._get_c_name()}' in field {field_name!r}: unknown type name")
+                    actual_length = f'_cffi_array_len((({root_cname} *)0)->{access_path}.{field_name})'
             tp_item = self._field_type(tp_struct, f'{field_name}[0]',
                                        tp_field.item)
             tp_field = model.ArrayType(tp_item, actual_length)
@@ -897,6 +918,13 @@ class Recompiler:
             flags.append("_CFFI_F_EXTERNAL")
             reason_for_not_expanding = "external"
         flags = '|'.join(flags) or '0'
+        root_cname = access_path = None
+        if cname is None and tp.partial:
+            root_cname, access_path = self._struct_access_path(tp)
+            if root_cname is None:
+                raise NotImplementedError(f"internal inconsistency: {tp!r} is "
+                                          "partial but was not seen at "
+                                          "this point")
         c_fields = []
         if reason_for_not_expanding is None:
             enumfields = list(self._enum_fields(tp))
@@ -909,17 +937,22 @@ class Recompiler:
                 if fbitsize >= 0:
                     op = OP_BITFIELD
                     size = '%d /* bits */' % fbitsize
-                elif cname is None or (
+                elif (cname is None and root_cname is None) or (
                         isinstance(fldtype, model.ArrayType) and
                         fldtype.length is None):
                     size = '(size_t)-1'
+                elif root_cname is not None:
+                    size = f'sizeof((({root_cname} *)0)->{access_path}.{fldname})'
                 else:
                     size = 'sizeof((({})0)->{})'.format(
                         tp.get_c_name('*') if named_ptr is None
                                            else named_ptr.name,
                         fldname)
-                if cname is None or fbitsize >= 0:
+                if (cname is None and root_cname is None) or fbitsize >= 0:
                     offset = '(size_t)-1'
+                elif root_cname is not None:
+                    offset = (f'offsetof({root_cname}, {access_path}.{fldname})'
+                              f' - offsetof({root_cname}, {access_path})')
                 elif named_ptr is not None:
                     offset = f'(size_t)(((char *)&(({named_ptr.name})4096)->{fldname}) - (char *)4096)'
                 else:
@@ -930,12 +963,15 @@ class Recompiler:
             first_field_index = len(self._lsts["field"])
             self._lsts["field"].extend(c_fields)
             #
-            if cname is None:  # unknown name, for _add_missing_struct_unions
+            if cname is None and root_cname is None:  # unknown name, for _add_missing_struct_unions
                 size = '(size_t)-2'
                 align = -2
                 comment = "unnamed"
             else:
-                if named_ptr is not None:
+                if root_cname is not None:
+                    size = f'sizeof((({root_cname} *)0)->{access_path})'
+                    align = '-1 /* unknown alignment */'
+                elif named_ptr is not None:
                     size = f'sizeof(*({named_ptr.name})0)'
                     align = '-1 /* unknown alignment */'
                 else:
@@ -968,7 +1004,7 @@ class Recompiler:
         lst.sort(key=lambda tp_order: tp_order[1])
         for tp, order in lst:
             if tp not in self._seen_struct_unions:
-                if tp.partial:
+                if tp.partial and self._struct_access_path(tp)[0] is None:
                     raise NotImplementedError(f"internal inconsistency: {tp!r} is "
                                               "partial but was not seen at "
                                               "this point")

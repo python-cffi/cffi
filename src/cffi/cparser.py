@@ -598,7 +598,7 @@ class Parser:
         return model.PointerType(type, quals)
 
     def _get_type_and_quals(self, typenode, name=None, partial_length_ok=False,
-                            typedef_example=None):
+                            typedef_example=None, nested_in=None):
         # first, dereference typedefs, if we have it already parsed, we're good
         if (isinstance(typenode, pycparser.c_ast.TypeDecl) and
             isinstance(typenode.type, pycparser.c_ast.IdentifierType) and
@@ -624,9 +624,12 @@ class Parser:
                     length = f'_cffi_array_len({typedef_example})'
                 typedef_example = "*" + typedef_example
             #
+            if nested_in is not None:
+                nested_in = (nested_in[0], f'{nested_in[1]}[0]')
             tp, quals = self._get_type_and_quals(typenode.type,
                                 partial_length_ok=partial_length_ok,
-                                typedef_example=typedef_example)
+                                typedef_example=typedef_example,
+                                nested_in=nested_in)
             return model.ArrayType(tp, length), quals
         #
         if isinstance(typenode, pycparser.c_ast.PtrDecl):
@@ -674,12 +677,18 @@ class Parser:
             #
             if isinstance(type, pycparser.c_ast.Struct):
                 # 'struct foobar'
-                tp = self._get_struct_union_enum_type('struct', type, name)
+                tp = self._get_struct_union_enum_type(
+                    'struct', type, name,
+                    nested=(nested_in is not None),
+                    nested_in=nested_in)
                 return tp, quals
             #
             if isinstance(type, pycparser.c_ast.Union):
                 # 'union foobar'
-                tp = self._get_struct_union_enum_type('union', type, name)
+                tp = self._get_struct_union_enum_type(
+                    'union', type, name,
+                    nested=(nested_in is not None),
+                    nested_in=nested_in)
                 return tp, quals
             #
             if isinstance(type, pycparser.c_ast.Enum):
@@ -694,10 +703,12 @@ class Parser:
         # nested anonymous structs or unions end up here
         if isinstance(typenode, pycparser.c_ast.Struct):
             return self._get_struct_union_enum_type('struct', typenode, name,
-                                                    nested=True), 0
+                                                    nested=True,
+                                                    nested_in=nested_in), 0
         if isinstance(typenode, pycparser.c_ast.Union):
             return self._get_struct_union_enum_type('union', typenode, name,
-                                                    nested=True), 0
+                                                    nested=True,
+                                                    nested_in=nested_in), 0
         #
         raise FFIError(":%d: bad or unsupported type declaration" %
                 typenode.coord.line)
@@ -745,7 +756,8 @@ class Parser:
         else:
             return type
 
-    def _get_struct_union_enum_type(self, kind, type, name=None, nested=False):
+    def _get_struct_union_enum_type(self, kind, type, name=None, nested=False,
+                                    nested_in=None):
         # First, a level of caching on the exact 'type' node of the AST.
         # This is obscure, but needed because pycparser "unrolls" declarations
         # such as "typedef struct { } foo_t, *foo_p" and we end up with
@@ -838,6 +850,8 @@ class Parser:
         #
         if tp.fldnames is not None:
             raise CDefError(f"duplicate declaration of struct {name}")
+        if nested_in is not None and not tp.has_c_name() and tp.enclosing is None:
+            tp.enclosing = nested_in
         fldnames = []
         fldtypes = []
         fldbitsize = []
@@ -856,10 +870,14 @@ class Parser:
                 bitsize = self._parse_constant(decl.bitsize)
             self._partial_length = False
             type, fqual = self._get_type_and_quals(decl.type,
-                                                   partial_length_ok=True)
+                                                   partial_length_ok=True,
+                                                   nested_in=(tp, decl.name or ''))
             if self._partial_length:
                 self._make_partial(tp, nested)
-            if isinstance(type, model.StructType) and type.partial:
+            item = type
+            while isinstance(item, model.ArrayType):
+                item = item.item
+            if isinstance(item, model.StructOrUnion) and item.partial:
                 self._make_partial(tp, nested)
             fldnames.append(decl.name or '')
             fldtypes.append(type)
